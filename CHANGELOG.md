@@ -8,6 +8,65 @@ in `RELEASE_POLICY.md`.
 
 No unreleased changes.
 
+## 0.1.0-alpha.13 — 2026-10-15
+
+### Features and fixes
+
+- Add local reusable packages with strict `panack.json` manifests, explicit public
+  exports, dependency aliases and application entry points. `check`, `compile`
+  and `run --project` resolve confined package graphs, reject conflicting roots
+  and versions, and preserve identity when the complete package tree is moved.
+- Add a native HTTP client package with bounded HTTP/1.1 GET and verified HTTPS,
+  typed responses and errors, cancellation, deadlines, and certificate/hostname
+  verification through an internal libcurl transport. Builds support both older
+  and current libcurl protocol-option APIs.
+- Add a native HTTP server package with typed request handlers, GET/HEAD/POST,
+  checked framing, bounded concurrent requests and independent-client tests.
+  Continuous services support explicit configuration, post-bind readiness and
+  signal-driven draining. Server TLS is outside the initial contract.
+- Add `packages/static_http` and the installed `panack-http-server` tool for
+  serving arbitrary folders. Confined asynchronous reads, directory indexes,
+  query-preserving redirects, MIME types, GET/HEAD and optional no-store/noindex
+  headers support website previews. Installation compiles the tool once.
+- Expand `panack explain` with recorded checker decisions for inferred and
+  annotated values, calls, returns, assignments, builtin arguments, collections,
+  operators, conditions, matches, record fields, interpolation and effect
+  boundaries. Results retain source locations and explicit unsupported cases;
+  this is the accepted bounded alpha.13 outcome, not complete checker coverage.
+
+### Checking changes and migration
+
+- Standard-library APIs use short names in domain modules, including
+  `path.from_text`, `numeric.divide` and `time.divide`. The curated `prelude`
+  exposes `byte_buffer`; `bytes()` remains the constructor. Legacy flattened
+  path/string and trapping filesystem wrapper APIs are removed; migrate imports
+  and call sites together.
+- Package manifests must pin `toolchain` to exactly `0.1.0-alpha.13`. Update
+  application and library manifests together when moving to this release.
+  Remote dependency restoration and package management are not included.
+- Bytecode remains v9, but compiler, VM and standard library must come from the
+  same toolchain. Recompile existing programs; cross-release bytecode compatibility
+  is not promised.
+- Linux native installations require the libcurl runtime (`libcurl4` on Ubuntu
+  22.04). Source builds also require libcurl development headers and `curl-config`.
+  macOS uses system libcurl. HTTP and filesystem service capabilities are native.
+
+### Limits and development
+
+- Coverage plan, registry and raw-record containers support up to 32 MiB, with
+  individual identities still bounded at 16 MiB. Synchronous filesystem reads
+  and writes also allow 32 MiB; rooted/async and process-output limits are unchanged.
+- The directory server defaults to loopback, four clients, 16 KiB requests,
+  1 MiB complete responses, ten-second client deadlines and one-second drain.
+  It supplies no directory listings, range serving, TLS, watching or rebuilds.
+  Cancelled file operations may retain a bounded worker slot until host I/O ends.
+- Preview requests measured about 7–13 ms locally versus sub-millisecond Node;
+  the tool is accepted for development previews, not advertised as a production
+  throughput replacement. Full responsive-site acceptance uses the actual tool.
+- Reuse compiled probe artifacts by dependency identity while executing assertions
+  on every invocation. Focused `next` checks retain separate full integration and
+  release validation. Historical timing-warning values are not release gates.
+
 ## 0.1.0-alpha.12
 
 ### Features and fixes

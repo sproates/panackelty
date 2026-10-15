@@ -16,6 +16,693 @@ and its NFRs; no replacement numeric target is set here. Measurements and
 recommendations support the owner's decision, but they do not define completion.
 GI#106 remains open until the user explicitly says they are happy with the result.
 
+<a id="gi106-findings-and-options"></a>
+
+## GI#106 findings and options: 2026-10-12
+
+GI#106 is an open investigation into how build and test work affects day-to-day
+development. This report summarises the evidence gathered so far and the choices
+it supports. The former 120-second clean-check, 15-second focused-check,
+75-second functional and 60-second bootstrap comparisons are historical, not
+current acceptance limits. No replacement NFRs or test-cadence changes are
+proposed as decisions here. The issue is complete only when the user says they
+are happy.
+
+### Owner choices and bounded pilots — 2026-10-12
+
+After reviewing the initial options, the owner selected two pieces of work:
+pilot dependency-aware compiled-probe reuse while executing every assertion on
+every invocation, and prepare a separate-compilation design without beginning a
+compiler rewrite. The full validation gates and all assertions remain in place.
+These choices do not reinstate the historical timing figures as acceptance
+targets or define GI#106 as complete.
+
+The dependency-aware pilot replaces the probe cache's repository-wide Panackelty
+source fingerprint with the entry source's static import closure, including the
+implicit `core.panack` module. It includes compiler seed, VM, probe runner and
+scanner inputs in the key. `stdlib/`, `project/`, quoted relative imports and
+transitive imports are recognized. An unresolved or unfamiliar import falls
+back to the previous broad source fingerprint. The cache stores compiled
+bytecode only; normal probe invocations still execute the probe and its
+assertions.
+
+<a id="owner-approved-p4-replay-evidence"></a>
+
+### Owner-approved P4 replay measurement and results — 2026-10-12
+
+The first P4 stdlib module-API migration was not measured as the real developer
+change proposed for GI#106. The owner has directed us to restore the pre-PR #401
+product/API state and repeat the migration with evidence captured from the
+start. Preserve these API decisions: short names in mostly flat domain modules
+(including `path.from_text`, `numeric.divide` and `time.divide`); a curated
+`prelude` facade that exposes selected domains while keeping `numeric` separate;
+removal of the old public
+`path_string_*` and Str-based trapping filesystem wrappers after caller
+migration; retain the `bytes()` constructor and expose `stdlib/bytes` through
+`prelude.byte_buffer`.
+
+The replay uses this protocol, without treating any historical time as a
+pass/fail target. Its baseline was measured on the restored pre-migration tree:
+
+| Baseline fact | Observation |
+| --- | --- |
+| Revision | `0cd2aba051c01473bbbd933ae7f4ff454dd99196` (restored pre-PR #401 API) |
+| Host | macOS 26.5 (25F71), MacBook Pro with Apple M5 Pro, 48 GB; Darwin arm64 |
+| Toolchain | Apple clang 21.0.0; GNU Make 3.81 |
+| Start and cache | 2026-10-12 19:56 CEST; `make clean` completed before the run, no competing build, 2 validation workers |
+| Command and result | `VALIDATION_JOBS=2 make check`; exit 0, all suites passed |
+| Unit | 417s (15s budget; warning only) |
+| Functional | 13s (75s budget) |
+| Bootstrap | 140s (60s budget; warning only) |
+| Release smoke / quick-start | 4s / under 1s |
+| Full check | 602s (120s budget; warning only) |
+| Timing limits | Source-policy timing was not emitted as its own phase; phase values are rounded to whole seconds and are not expected to sum to the full-check wall time. |
+
+The captured local log is `/private/tmp/gi106-stdlib-replay/baseline-check.log`.
+This is one clean local sample on one host, not a general benchmark or hosted
+CI measurement. All phases passed; budget warnings do not change the exit status.
+
+Before applying the migration, the final focused sources were run on the
+restored API tree at `22a6322af4baf7bab1028e50d8edfdbb762ff2cd`, using the
+stage-2 compiler built by that baseline check and separate empty probe caches:
+
+| Probe | Baseline result | Source / toolchain identity |
+| --- | --- | --- |
+| `tests/functional/cases/stdlib_module_api/main.panack` | Expected compile failure in 0.14s; nine missing-binding diagnostics for the selected module API; exit 1; no bytecode published. It has five output assertions for the green run. | Source SHA-256 `1cfb808e66bdb7b3dcaced35be7f3772569d2a13ad06dec7487cc264ad9893cc`; stage-2 compiler SHA-256 `0a74c2bfac23df27d994c448388b4494fa3995ab95094ff25c5e5d4e4973f7c2`. |
+| `tests/functional/failures/stdlib_legacy_api_removed/main.panack` | Existing `path_string_join`, `filesystem_read_text`, and `filesystem_exists` imports compiled and ran in 0.17s; exit 0; one bytecode artifact published. The final suite will require these imports to be rejected. | Source SHA-256 `c4041d88c66db866d6e4434ca94efbcf8d482349ecf933859c554540aec7d39c`; same baseline stage-2 compiler. |
+
+The probe logs and isolated cache directories are retained under
+`/private/tmp/gi106-stdlib-replay/` on the measurement host. These focused
+samples are separate from the earlier full-check baseline; the new functional
+fixtures were added after that clean-check run.
+
+The migration was then applied without editing either probe source. SHA-256
+values for both source files still match the baseline table. The candidate
+stage-2 compiler was rebuilt in 25.15s; its SHA-256 matches the candidate seed
+(`a7448cf05aee8c4945abcab2838aa1238671a6a62bc3c1637563a351b5ff9e1f`).
+
+| Candidate probe | Result | Cache and runner evidence |
+| --- | --- | --- |
+| Same five-output module API probe | First compile-and-run passed in 0.16s. All five output lines matched; red-to-green source remained byte-identical. | Isolated cache changed from zero to one bytecode artifact. Warm repeat passed in 0.03s, emitted the same five lines, and kept one artifact. |
+| Same legacy API probe | Rejected in 0.09s with missing-binding diagnostics for all three removed names; exit 1. | The cache kept its single old baseline artifact and published no candidate bytecode. |
+| Functional runner | Selected positive case: 4/4 runner assertions passed. Selected legacy failure fixture: 5/5 runner assertions passed, including no artifact publication. | Confirms the probe outputs and removed names are part of the normal full functional suite. |
+
+1. The replay used the recorded restored-baseline revision, host, toolchain,
+   cache state and clean-check result above. Two workers match that baseline.
+2. The focused acceptance probe for the chosen public surface
+   (`prelude.path.from_text`, `prelude.byte_buffer.join`, coexistence with
+   `bytes()`, and `numeric.divide` beside `prelude.time.divide`) was run before
+   implementation and again after it. Its source stayed byte-identical; the
+   results, diagnostics, cache artifacts and warm repeat are recorded above.
+   The companion legacy-API probe was accepted by the baseline and rejected by
+   the candidate without publishing bytecode.
+3. The completed candidate was checked from a clean build directory with
+   `VALIDATION_JOBS=2 make check` on the same host. The paired phase timings and
+   limits of this single observation follow below. All existing coverage stayed
+   enabled; the module API and legacy-removal fixtures add assertions.
+4. Hosted PR and post-merge results are recorded separately below for the exact
+   PR head and merged commit. Keep focused red/green latency, local clean
+   validation and hosted elapsed time distinct. Historical timing figures remain
+   informational; GI#106 remains open until the owner is happy.
+
+### Candidate clean-check result — 2026-10-12
+
+After `make clean`, `VALIDATION_JOBS=2 make check` passed with exit 0. The command
+used the same MacBook Pro M5 Pro, macOS 26.5, Apple clang 21.0.0 and GNU Make 3.81
+as the restored-baseline sample. It started at 20:54 CEST with no competing
+build. The raw log is `/private/tmp/gi106-stdlib-replay/candidate-check-final.log`.
+
+| Phase | Restored baseline | Candidate | Difference |
+| --- | ---: | ---: | ---: |
+| Unit | 417s | 431s | +14s |
+| Functional | 13s | 13s | 0s |
+| Bootstrap | 140s | 144s | +4s |
+| Release smoke | 4s | 3s | -1s |
+| Quick start | <1s | 1s | Rounded to whole seconds |
+| Full check | 602s | 619s | +17s (about 2.8%) |
+
+The candidate run passed every suite. The new legacy-API fixture raised the
+failure-only runner summary from 207 to 210 assertions; the full runner summary
+changed from 365 to 370. Both exact expectations were updated, and the focused
+runner and smoke checks passed before the clean run. Three unrelated untracked
+duplicate files under `examples/` and `src/stdlib/` were held outside package
+inputs for validation and restored afterward; they are not part of the candidate
+change. This is one matched local pair, not a statistical benchmark. It shows no
+clean-check speedup, but the 17-second difference cannot be attributed to the
+migration from one sample. The historical timing budgets are not acceptance
+criteria.
+
+### Hosted replay checks and migration scope — 2026-10-12
+
+[PR#404](https://github.com/sproates/panackelty/pull/404) changed 128 files
+(4,323 additions and 3,936 deletions) in one commit. Its exact candidate head,
+`3869d68cd2ad36909cd66856beaf747953c190c8`, passed the hosted Check run from
+19:08:17Z to 19:18:22Z (10m05s). Of 23 jobs, 22 passed and the optional
+`Source coverage baseline (next)` job was skipped. The merged `next` commit,
+`ed2335b8373dc939f6ef5cb7d7dd6e01acdd69d6`, passed the post-merge Check run
+from 19:27:08Z to 19:34:25Z (7m17s), also with 22 passed and that optional job
+skipped. See [PR Check run #38295628771](https://github.com/sproates/panackelty/actions/runs/38295628771)
+and [post-merge Check run #38297735222](https://github.com/sproates/panackelty/actions/runs/38297735222).
+
+PR#404 was created at 19:08:14Z and merged at 19:27:05Z, an elapsed 18m51s.
+That interval combines hosted execution, queueing and other activity; available
+timestamps do not separate contributor effort from waiting. These hosted runs
+are separate triggers and do not establish a speedup. Together with the single
+local clean-check pair, the replay provides a measured migration example and
+regression-boundary evidence for GI#106, but does not determine general test
+cadence, replacement NFRs or whether the user is happy.
+
+The temporary fault/recovery timings above remain a cache-mechanism check; they
+are not the replay baseline or its acceptance result.
+
+| Evidence | Result | Limit |
+| --- | --- | --- |
+| Focused cache harness | All 11 harness cases passed. Coverage includes execution on cache hits, direct and transitive dependency edits, unrelated-source reuse, stdlib/project/relative imports, public project imports, conservative fallback, corruption, missing seed and edits during compilation. | Synthetic VM harness; it validates cache decisions and runner behavior, not compiler semantics. |
+| Real compiler-lexer probe | All 13 assertions passed on two consecutive normal invocations using the same cache. | One small probe; this does not measure suite-level savings. |
+| Matched compiler-contract compile-only edit sample | After each unrelated `src/compiler/*.panack` edit, the broad-key baseline recompiled in 18.39s, 18.48s and 18.32s. The dependency-aware version reused its warm artifact in 0.05s, 0.04s and 0.05s. The probe's closure contained 21 source files out of 576 in the repository. | Compile-only invocations: the benchmark itself did not run assertions. The separate lexer run and harness establish execution behavior. This artificial unrelated-edit case is not a representative code fix, clean check or suite-wide estimate. |
+| Stdlib dependency red/green cycle | In a temporary copy of the stdlib, deliberately breaking `path.display` made the existing 42-assertion `tests/runner/stdlib_unit.panack` probe fail in 0.598s. Restoring that dependency made the unchanged probe pass in 0.276s; an unchanged repeat passed in 0.037s. Cache artifacts increased from one to two on the dependency edit and stayed at two on the repeat. | One local sample with a deliberately induced fault, not a product bug fix or a measurement captured during the merged P4 migration. Times include compile and execution. It demonstrates stdlib dependency invalidation and that every invocation reruns assertions, but says nothing about broader-check or clean-build savings. |
+
+This identifies a bounded win when a selected probe's dependencies have not
+changed: about 18.3 seconds for this measured compiler-contract compile. A
+change inside its closure correctly invalidates it, so a typical compiler bug
+fix that changes an imported implementation still pays the required rebuild.
+Clean full validation still builds from its required state; this pilot does not
+shorten that path by itself. The host-enabled `make check` passed in 421s on a
+reused build tree: unit 241s, functional 13s, bootstrap 137s, release smoke 4s
+and quick start under 1s. It printed warnings against the former 120s full-check,
+15s unit, 75s functional and 60s bootstrap figures; these remain historical
+comparisons. This was not a controlled clean before/after timing experiment and
+does not establish a full-check speedup.
+
+The design-only candidate is in the
+[separate-compilation sketch](../docs/GI106_SEPARATE_COMPILATION_DESIGN.md).
+
+### Findings
+
+| Workload | Evidence | What it tells us |
+| --- | --- | --- |
+| One selected compiler probe | A lexer probe ran 13 assertions in 0.30s from a fresh probe cache. | A narrow red/green loop can be very quick when the failing behavior is easy to select. |
+| Focused compiler collection | Warm `check-compiler` median: 114.44s at two workers and 105s at the local default of four. | More workers helped this collection by about 8%; the collection remains much larger than one test. |
+| Clean local `make check` | Three clean runs at two validation workers passed, with a 608.81s median. Unit took 420–427s and bootstrap 138–140s across the recorded runs. | Unit/native work and bootstrap dominate this measured clean path. The nested profile rows overlap and must not be summed. |
+| Hosted full Check | Ten full runs ranged from 7m46s to 8m53s, with an 8m33s median. Three failed. A matched PR/push pair later passed in 8m34s and 8m30s. | Hosted validation takes about eight and a half minutes in this sample. Skipping four repeated experiments saved 105 runner-seconds but did not reduce elapsed Check time in the matched pair. |
+| PR lifecycle versus CI | [PR #388](https://github.com/sproates/panackelty/pull/388), [#394](https://github.com/sproates/panackelty/pull/394) and [#396](https://github.com/sproates/panackelty/pull/396) took 38m19s, 8m55s and 56s from creation to merge. Their PR Check runs took 29s, 8m34s and 29s respectively. | Lifecycle time can greatly exceed Check time, but the timestamps do not identify author effort, review, queueing or idle gaps. They cannot tell us how long a contributor waited. |
+| Hosted worker pilot | [PR #397](https://github.com/sproates/panackelty/pull/397) changed the compiler worker setting from three to four in hosted package/full-validation jobs. Both Ubuntu compiler lanes timed out in the same `cli_commands/source` harness invocation. One macOS compiler package lane passed in 7m08s, versus 7m55s in an unmatched earlier run. | The pilot did not establish a hosted speed gain and introduced failures consistent with resource contention. Four workers should not become the hosted default on this evidence. |
+| Manual release workflow | The latest observed release workflow took 25m33s and ran the full check before Linux/macOS package builds and the browser bundle. | This is a separate, infrequent acceptance path; it is not the routine PR Check duration. |
+
+The timings, run links and qualifications are recorded in the [workflow
+inventory](#gi106-workflow-inventory). The lifecycle sample is deliberately
+small. It tells us where hosted checks sit in the PR timeline, not how much of
+that timeline was useful work or waiting.
+
+### What the test boundaries tell us
+
+The [change-impact map](#gi106-change-impact-map) connects compiler, standard
+library, bytecode, VM/runtime, CLI, package/bootstrap and validation-routing
+changes to focused evidence and wider acceptance. It is a component map, not a
+complete mapping from every assertion to every possible regression. There is
+not enough evidence to remove tests or reduce full validation cadence safely.
+
+The routine Check runs for each pull-request update and each push to `main` or
+`next`; only documentation-only changes take the short route. Several checks
+cover different boundaries even when they use related programs:
+source and saved-bytecode execution, native verification, sanitizers, bootstrap
+fixed points, package installation and platform-specific builds. Three earlier
+same-tree post-merge checks failed after their PR checks passed; the diagnostics
+did not establish a cause. Keep the PR and post-merge product gates until that
+reliability evidence is understood.
+
+A standard-library change needs direct library behavior checks, compiler checks
+that use the active library, and bootstrap evidence. There is no stdlib-only
+validation lane. Native C objects already build incrementally, but the Panackelty
+loader gathers reachable modules into a compilation unit before checking and
+emission. Source-file boundaries therefore do not yet make independently
+compiled module artifacts possible.
+
+Some grouping and scheduling improvements already exist. The shell harness
+builds its runner once per group; compiler integration and contract probes run
+early to avoid a long final worker tail; and unit suites use bounded parallel
+workers. The top-level `make check` phases remain serial. Further ordering may
+bring a useful failure forward, but it will not reduce the total work unless it
+also removes or overlaps work safely.
+
+### Options
+
+| Option | What it could improve | Cost or risk | Current view |
+| --- | --- | --- | --- |
+| Measure a representative developer change and agree the workloads that matter | Separates time to reproduce, get a failing test, reach a passing focused result, run a clean check and wait for required hosted checks. It can distinguish active work from waiting. | A PR timestamp or one CI run is not a substitute for measuring active work and waiting separately. | The P4 migration replay now provides one actual change with baseline/candidate red-green probes, a matched clean-check pair and separate hosted runs. It does not measure active editing time or split queueing from other waiting; use its component boundaries, but do not generalise it into an NFR. |
+| Improve focused local selection | Helps a developer run the smallest relevant test, then the owning component collection. Existing `check-compiler`, `check-bytecode`, `check-vm` and direct-probe paths provide a base. | Component targets are still sizeable, and a focused pass cannot replace integration or acceptance checks. The test-to-regression map needs more detail for safe automatic selection. | Low-risk developer-workflow option. Keep full PR and post-merge gates. |
+| Reuse compiled probes by actual dependencies | The pilot reused a 21-file compiler-contract probe after unrelated edits and still executes assertions on every normal invocation. The stdlib fault/recovery sample above confirms that changing an imported stdlib module invalidates the selected probe. | Changes in the imported closure still rebuild; clean full checks still compile. A single synthetic fault cycle does not establish suite-wide or representative product-change savings. | Implemented in PR #400; canonical local validation and hosted checks passed. The measured P4 replay is now recorded above. It found no clean-check speedup in its single 602s/619s pair, which cannot attribute cause or establish a typical outcome. The user decides whether the pilot and the broader workflow are satisfactory. |
+| Select local tests or hosted lanes by change impact | Could run the relevant compiler, library, bytecode, VM or package checks earlier and reduce repeated work. | Missing a dependency edge could hide a regression. The current selector reports components but does not route code changes to component-specific suites. Unknown and shared changes need the conservative full route. | Investigate after assertion-level coverage and ownership are mapped. Do not remove a full gate yet. |
+| Remove exact repeated hosted work | Could reduce runner-minutes where the same target, such as `quick-start`, runs in separate clean jobs. | Runner-minutes are not the same as PR wall time. Job consolidation can change artifact provenance, platform context and failure isolation; those effects need checking before merging jobs. | Candidate for a bounded CI-work pilot if runner cost is the chosen problem. Preserve distinct platform and instrumentation evidence. |
+| Change ordering or increase parallelism | Could shorten time to first failure or reduce a critical-path tail if independent work can run together. | More concurrency can contend for CPU and make timeouts more likely. The hosted four-worker compiler pilot failed on both Ubuntu lanes; ordering alone will not reduce total work. | Keep the current hosted worker limit. Profile a specific bottleneck before changing scheduling. |
+| Add separate compilation for Panackelty modules | Could make module builds independently reusable and reduce repeated frontend work across larger projects. | This is a compiler architecture change. It needs a design for interfaces, generics, linking, identity, invalidation and compatibility, plus substantial correctness validation. It will not make clean full validation disappear. | Selected as design work only; see the separate-compilation sketch. No compiler rewrite is underway. |
+| Reduce PR or post-merge validation frequency | Could cut hosted execution and queue demand. | Current same-tree post-merge failures show that the second checkpoint has detected failures missed by green PR checks. Assertion-level equivalence is incomplete. | Not recommended with current evidence. |
+
+### Possible shape of replacement NFRs
+
+There is no evidence for a replacement number yet. Once the workloads are
+measured, there are a few ways to express the requirement:
+
+| Shape | Benefit | Limit |
+| --- | --- | --- |
+| One end-to-end time for all validation | Easy to explain and track. | It combines a developer's focused feedback loop with clean validation and hosted queueing, so it can hide which experience is slow. |
+| Separate outcomes for local red/green, focused component checks, clean full checks and hosted PR feedback | Connects each expectation to a user-visible workflow and its owner. | Needs clearly defined commands, cache state, host and start/end points so results are comparable. |
+| A completion target plus an observed distribution across repeated runs | Allows normal timing variation to be distinguished from a persistent delay. | Needs repeated measurements on comparable environments and an agreed response when the target is missed. |
+| A measured baseline with no pass/fail timing target yet | Avoids treating arbitrary warning numbers as acceptance criteria while evidence is gathered. | Requires a review point where the owner decides whether to set targets and which trade-offs to accept. |
+
+The evidence supports keeping runner time separate from contributor wall time,
+and measuring time to first useful result separately from complete validation.
+My recommendation is to use the baseline-only shape until we have the direct
+workflow sample, then ask the user to choose scenario-specific expectations.
+Any timing warnings should remain informational until that decision is made.
+
+### Recommendation
+
+Keep the current test assertions, PR checks and post-merge checks. Keep hosted
+compiler validation at three workers. Do not start several optimisations in
+parallel.
+
+The initial recommendation to measure a representative bug-fix workflow before
+choosing a pilot was superseded by the owner's direction to pursue candidates 2
+and 3 and to use standard-library changes as an additional boundary example.
+The deliberate P4 replay is now complete: it records the test-first probe,
+cache states, matched clean checks and hosted observations. It offers concrete
+compiler/stdlib regression-boundary evidence for the separate-compilation design.
+Its 18m51s PR lifetime does not separate active work, queueing or other waiting;
+that developer-experience question remains unanswered. Keep runner time separate
+from contributor wall time. Bring replacement NFRs to the user after the
+workloads and cache states are measurable; this report does not set a numeric
+completion target for GI#106.
+
+<a id="gi106-workflow-inventory"></a>
+
+## GI#106 workflow inventory — 2026-10-12
+
+Owner direction: reassess the whole build and validation workflow and its NFRs.
+The former 120-second clean-check, 15-second focused-check, 75-second functional
+and 60-second bootstrap figures are historical comparisons, not active gates.
+No replacement numeric target or test-frequency policy is set here. GI#106 is
+complete only when the user explicitly says they are happy with the result.
+
+### Local paths
+
+| Path | When it runs and what it covers | Reuse and limits |
+| --- | --- | --- |
+| Focused reproduction / red-green | Run the smallest relevant harness or Panackelty probe while developing a change. `make check-compiler`, `make check-bytecode` and `make check-vm` are broader component-focused collections, each with related unit and public-CLI cases. | `tests/run_probe.sh` may reuse compiled bytecode when its input fingerprint is unchanged; it still executes the probe and assertions every time. The three `check-*` targets are not single-test commands. |
+| `make unit` | Runs harness, compiler and runtime/native/probe suites. `tests/run_suites.sh` and `tests/run_probes.sh` bound concurrency; the local default is four workers. | Compilation/build artifacts can be reused. Suite and probe results are always recomputed. |
+| `make functional` | Exercises local TCP fixtures, compiler-driver behavior, source execution and saved-bytecode execution. | This is an end-to-end layer and is distinct from unit assertions; local TCP availability is an environment prerequisite. |
+| `make bootstrap-check` | Regenerates compiler stages from the tracked seed and checks fixed points and seed freshness. | Protects the self-hosted compiler/stdlib/toolchain boundary; it is a separate, substantial phase of `make check`. |
+| `make quick-start` | Builds and verifies the package archive/checksum and fresh install, first program, upgrade and uninstall path. | Covers contributor/consumer packaging paths that compiler unit tests do not. |
+| `make docs` | Runs informational-document validation without the full code suite. | The CI classifier also has a docs-only route; code changes do not receive that route. |
+| Workflow/CI-only route | Static validation for changes confined to GitHub Actions YAML and the explicit CI selection, gate and contract allowlist in `scripts/ci_scope.sh`. | Parses workflow YAML and runs workflow/layout, route and required-result contracts; it does not compile the product. Product, mixed and unlisted changes remain full. |
+| `make check` | Serial top-level order: policy, unit, functional, bootstrap-check, quick-start. Unit internals use bounded workers. | Canonical broad local validation. A focused cached probe is not a substitute for the phases it omits. |
+
+### Hosted workflows and triggers
+
+| Workflow | Trigger and scope | Observed repetition |
+| --- | --- | --- |
+| Check | Every pull request update, and every push to `main` or `next`. `changes` chooses docs-only, workflow/CI-only or full validation. Full route has ten package/suite jobs (two OS × compiler, runtime, bootstrap, source conformance, bytecode conformance), seven Ubuntu full/sanitizer/coverage jobs, and source-policy tests. Source-coverage baseline is conditional. | A PR run is cancelled when a newer run for that PR supersedes it. A merge then creates a separate push run on `main`/`next`; push runs use distinct groups and are not cancelled. |
+| Validation profile | Manual dispatch or PRs that change the profiling workflow and selected measurement scripts. Runs compiler, bytecode and VM focused checks in initial and cached states on Linux and macOS. | Not added to routine code PRs. Four latest observed runs were three profiling-related PR runs and one manual run. |
+| Release | Manual dispatch with confirmed version/commit or `v*` tag. Runs complete `make check`, then builds release packages on Linux and macOS and the browser-runtime bundle. | Infrequent release gate; latest observed manual run took 25m33s end to end. |
+| Website recovery | Manual workflow. Website and browser integration checks are owned by their separate repositories; core Check does not wait for those workflows. | Not part of every core PR or push. |
+
+**Workflow-only route change (2026-10-13):** PR #413 changed only
+`.github/workflows/nightly-packages.yml`, but it selected the full Check route.
+Its source-coverage baseline job took 17m38 even though no source-coverage input
+changed. PR #414 added an explicit route for workflow YAML and a bounded allowlist
+of CI selector, gate and contract files. It still runs classifier and document
+checks, parses every workflow's YAML syntax and top-level job structure, runs the
+repository workflow/layout contracts, and requires both stable result gates to
+observe successful workflow validation. Product, mixed, unknown and unlisted
+shared inputs retain full validation. The local runner executes the same focused
+contracts; product correctness suites remain covered on product changes.
+
+The PR #414 Check run completed in 40s
+([run](https://github.com/sproates/panackelty/actions/runs/38344966573)); the
+post-merge `next` push completed in 36s
+([run](https://github.com/sproates/panackelty/actions/runs/38345085148)). Both
+skipped the product suites, package matrix, macOS compiler lane and
+source-coverage collection; the workflow configuration, routing, result-gate and
+workflow/layout contracts passed. The 17m38 observation from PR #413 is a single
+job duration, not a matched total-workflow baseline, so these runs establish the
+new route's end-to-end duration and that the unrelated source-coverage job is
+removed, but not a controlled whole-run speedup.
+
+The full Check route is not a single test suite run once. The per-OS package
+matrix and the additional Ubuntu compiler/runtime/bootstrap lanes serve different
+platform, isolated-command, sanitizer and coverage purposes, but their source
+and target names show structural overlap. No assertion-by-assertion overlap map
+exists yet, so this inventory does not treat the matrix as seven or ten complete
+repetitions of every test. Outside the configuration-only route above, the
+classifier still distinguishes only docs from full product validation; it does
+not route product changes by compiler, stdlib, bytecode, VM/runtime or package
+impact.
+
+### Recent timing and failure sample
+
+The twelve-run Check sample for branch `next`, through head `ca04222` before PR
+#388 merged, was created on 2026-10-11 between 15:51 and 22:41 UTC. Ten selected the full route and two
+selected docs-only validation. Full-route end-to-end durations ranged from
+7m46s to 8m53s, with a median of 8m33s; the two docs-only runs took 23s and 31s.
+Three of the ten full runs failed. The observed failure details were a
+20-second native-module contract timeout in the macOS runtime lane
+([run 38181425075](https://github.com/sproates/panackelty/actions/runs/38181425075)),
+runner/CLI fixture failures in a second macOS runtime lane
+([run 38169886896](https://github.com/sproates/panackelty/actions/runs/38169886896)),
+and a CLI bytecode harness failure in a Linux compiler lane
+([run 38165872429](https://github.com/sproates/panackelty/actions/runs/38165872429)).
+These results are not classified as flakes or attributed to runner contention;
+the failed commands need the change-impact/reliability review before proposing
+any validation reduction.
+
+### Matched runner environment and failure detail — 2026-10-12
+
+The six matched compiler/runtime jobs used the same GitHub Actions runner and
+base-image versions within each PR/push pair. For PR #379's Linux compiler
+pair, both used runner `2.337.0`, Hosted Compute Agent `20261002.596`, Ubuntu
+`22.04.5`, and image `ubuntu-22.04` version `20261004.315.1`
+([image release](https://github.com/actions/runner-images/releases/tag/ubuntu22%2F20261004.315)).
+The worker instances and Azure regions differed (PR: `northcentralus`; push:
+`westus3`). For PRs #380 and #386's macOS runtime pairs, all four jobs used
+runner `2.337.0`, Hosted Compute Agent `20260828.587`, macOS `14.8.9` build
+`23J631`, and image `macos-14-arm64` version `20260831.0302.1`
+([image release](https://github.com/actions/runner-images/releases/tag/macos-14-arm64%2F20260831.0302));
+all ran in Azure `westus` on distinct worker instances. No runner or base-image
+version drift is visible in these pairs. The different PR/push event contexts
+and distinct workers remain uncontrolled; these observations do not establish
+the cause or justify calling the failures flakes.
+
+The job logs narrow the symptoms but do not give root causes. In run
+[38165872429](https://github.com/sproates/panackelty/actions/runs/38165872429/job/114548252555),
+source and compile passed for `case/cli_commands`, then bytecode returned 1
+instead of 0; the enclosing runner reports only an unexpected child status.
+In run
+[38169886896](https://github.com/sproates/panackelty/actions/runs/38169886896/job/114560150898),
+the fixture runner stopped with exit 1 after its captured output reached
+`PASS case/async_await/source`, and `case/cli_commands/source` also returned 1
+while its compile and bytecode modes passed. In run
+[38181425075](https://github.com/sproates/panackelty/actions/runs/38181425075/job/114594683930),
+the `native module contracts` process timed out; its test binary prints a
+summary only after all contracts finish, so the log does not identify the
+contract that stalled. Timing profiles and package artifacts are retained, but
+they do not add the missing child diagnostics. Keep the PR and post-merge
+checks unchanged.
+
+The bounded diagnostics slice is implemented locally: failed `cli_commands`
+checks report child status, stream sizes and a 160-character UTF-8 preview;
+native module contracts can persist the last completed top-level group when
+given an opt-in progress-file path. The normal native module streams are
+unchanged. The harness verifies an injected CLI exit and the progress file, and
+a controlled 20-second timeout reported its synthetic last-completed group.
+These checks validate the diagnostics, not the cause of the historical failures.
+Hosted verification completed: the corrected PR #392 head and both subsequent
+`next` push runs passed. Retain both triggers for product validation. The four
+sequential compiler-lane experiments' cadence is reviewed below; do not keep
+repeating uninstrumented full runs.
+
+The three failures were all from push-triggered Checks on `next`, after a
+successful full Check for the corresponding PR. The merge commit tree exactly
+matched the PR head tree in each pair: PR #379 / push run
+[38165872429](https://github.com/sproates/panackelty/actions/runs/38165872429)
+used `e59a5e3`; PR #380 / push run
+[38169886896](https://github.com/sproates/panackelty/actions/runs/38169886896)
+used `7b682e9`; PR #386 / push run
+[38181425075](https://github.com/sproates/panackelty/actions/runs/38181425075)
+used `05d9567`. The paired PR Checks were
+[38165222655](https://github.com/sproates/panackelty/actions/runs/38165222655),
+[38169249184](https://github.com/sproates/panackelty/actions/runs/38169249184),
+and [38180632594](https://github.com/sproates/panackelty/actions/runs/38180632594),
+all successful. These are same-tree, same-base-image pairs with different
+trigger contexts; the environment comparison rules out image-version drift as
+an evident explanation, but does not explain the failures. Keep post-merge
+validation until the causes are understood.
+
+In successful full run [38179461414](https://github.com/sproates/panackelty/actions/runs/38179461414),
+the workflow completed in 8m47s. The `changes` job started two seconds after
+creation and took 18s. The first full matrix jobs started about 21s after
+creation on Linux and 26–28s after creation on macOS. The macOS compiler
+package lane completed at 8m35s; the final package gate completed at 8m47s.
+GitHub's run/job timestamps do not provide a separate queue-duration field, so
+this elapsed sample includes dependency gating, scheduling, setup, validation
+and aggregation; it is not a pure execution-time or queue-time measurement.
+
+| Evidence | Environment and result | Comparability |
+| --- | --- | --- |
+| Matched PR and post-merge Check (2026-10-12) | PR run [38194693792](https://github.com/sproates/panackelty/actions/runs/38194693792) passed in 8m11s; push run [38195261690](https://github.com/sproates/panackelty/actions/runs/38195261690) passed in 10m14s. | Same product tree `3ef1daa`; both selected full validation. Run elapsed time includes scheduling and aggregation. This one successful pair coexists with the three earlier same-tree post-merge failures above. |
+| Bounded failure diagnostics (2026-10-12) | Controlled CLI exit 7 reported status and bounded stdout/stderr previews; a synthetic timeout reported `synthetic-coverage-group`. The first PR #392 run [#38222655548](https://github.com/sproates/panackelty/actions/runs/38222655548) failed because the new progress-marker assertion ran in `unit-harness`, before CI builds `build/vm/test_modules`; all three compiler routes reported `No such file or directory` at that check, while other lanes passed. The assertion moved to `vm_unit.panack`, after the native module prerequisite. The corrected local VM suite passed 178 assertions, including the progress checkpoint and unchanged success streams; `make unit-harness` also passed. Corrected head `0609d09` passed all checks in [PR run #38224322156](https://github.com/sproates/panackelty/actions/runs/38224322156) (8m45s); post-merge run [#38225333320](https://github.com/sproates/panackelty/actions/runs/38225333320) passed on `6597c16` (9m24s). | The first failure was a test dependency/order defect, not a reproduced historical CI failure. This validates failure observability only; none of the three historical CI failures was reproduced. |
+| Canonical `make check`, failure-diagnostics slice (2026-10-12) | macOS arm64, reused build tree: passed in 413s; functional 13s, bootstrap 134s, release smoke 4s, quick start 1s. | Not a clean build or a controlled before/after comparison; no runtime/compiler behavior changed and no performance effect is attributed. The command printed warnings against historical 120s full-check and 60s bootstrap figures; they are not current acceptance gates. |
+| Controlled clean/full rerun (2026-10-12) | macOS arm64, `VALIDATION_JOBS=2`: `make check` took 602.64s, 608.81s and 613.35s (median 608.81s); all three passed. Unit phase median 426s; bootstrap median 138s. | Current product source at `e033be2`; project build outputs were removed between runs. OS page cache was uncontrolled. This is a clean build baseline, not a fresh machine or cold OS cache. |
+| Warm focused and worker comparison (2026-10-12) | `check-compiler` passed three times at two workers (128.09s, 114.44s, 113.60s; median 114.44s) and three times at four workers (110s, 105s, 105s; median 105s). | Same local host and existing artifacts. Four workers improved this focused median by about 8%; it remains a broad component target, not a single-test loop. |
+| Single probe and edit matrix (2026-10-12) | A fresh-cache lexer probe ran 13 assertions in 0.30s. The baseline edit matrix passed all 12 samples: unchanged 0.05s median (0 compiles, 1 run); unrelated 0.13s (1 compile, 1 run); direct dependency 0.12s (1 compile, 1 run); transitive dependency 0.12s (1 compile, 1 run). | The fixture is intentionally tiny; its timings do not predict suite-wide savings. The unchanged compiled artifact is reusable, but any source edit in the broad fingerprint invalidates it. |
+| Canonical `make check`, P3 relocated-package acceptance (2026-10-12) | macOS arm64, reused build tree: 424s total; unit 238s, bootstrap 142s, functional 13s, release smoke 4s, quick start under 1s. | Current `next` source, but not a cold checkout. Unit and bootstrap dominate this observation. |
+| Controlled clean/full and warm/focused profile (2026-10-04) | macOS arm64: clean median 134.42s; warm `check-compiler` median 26.46s. | Controlled and repeated, but predates the current P3 code and workflow; historical comparison only. |
+| Hosted focused profile (2026-10-10) | Cached `check-compiler`: Linux 127s, macOS 110s; cached `check-vm`: Linux 145s, macOS 114s. | Separate alpha.12 profile, not a current `next` baseline or full-check time. |
+| Release workflow (2026-10-11) | Manual run completed in 25m33s. | One release run; its full check, two package builds and browser bundle run in a different, less frequent path. |
+
+Before the cadence change below, each PR and push Check invoked four bounded
+experiments sequentially in both compiler package lanes: source mapping, runtime
+provenance, source-coverage feasibility and semantic impact. In the matched PR
+run these steps took 43s on Linux and 54s on macOS; in the push run they took 75s
+and 80s. The preceding compiler-package validation step took 4m26s/6m35s on PR
+Linux/macOS and 7m33s/8m05s on push Linux/macOS. Thus they ran twice per
+successful PR-to-merge cycle; these historical timings informed the cadence
+decision below.
+
+### Cadence decision — 2026-10-12
+
+Keep all four experiments on every pull request, on both supported OSes, and
+skip their repeat on the post-merge `push` event. The source-map experiment
+checks the production `compile --source-map`/`locate` path against real VM traps;
+the normal compiler unit/CLI suite also covers the shipped source-map contract.
+Runtime provenance has retention unit coverage in `make check`; source-coverage
+feasibility and semantic impact remain bounded research experiments without
+production interfaces. The pull-request run gives each change the complete
+experiment coverage before merge. The `next` push still runs the complete
+compiler, runtime, bootstrap, sanitizer, coverage, package and source/bytecode
+conformance gates; only the four same-tree experiments are skipped.
+
+The first post-merge verification is complete. PR #394's full Check
+[run #38227299336](https://github.com/sproates/panackelty/actions/runs/38227299336)
+passed in 8m34; the same-tree post-merge Check
+[run #38228244756](https://github.com/sproates/panackelty/actions/runs/38228244756)
+passed in 8m30. The experiment steps took about 44s on Linux and 61s on macOS
+(105 runner-seconds combined) in the PR run, then were skipped in both compiler
+lanes on push. All ordinary product gates still ran and passed.
+
+The four experiments therefore avoid repeated post-merge runner work, but this
+single PR/push pair does not show a total wall-time improvement: the full runs
+differed by only four seconds. Queueing, scheduling and other parallel jobs
+contribute to elapsed time, so no causal wall-time gain is attributed to the
+cadence change. The earlier 75s/80s push measurements remain historical evidence
+for a different run and are not the measured duration of the skipped steps in
+this verification.
+
+The 2026-10-12 clean profile measured 420–427s in the unit phase and 138–140s
+in bootstrap; the functional phase took 13–14s. Within unit, native contracts
+accounted for 98–99s, including 93–94s in the native oracle; runner smoke took
+71–73s, the harness 57s, compiler integration 55–56s and compiler module
+bindings 31s. These profile entries are inclusive/nested and must not be added
+together. Bootstrap's seed-refresh staging took 78–81s and stage 3 took
+27–28s. The main clean-check cost is therefore concentrated in unit/native
+contracts and bootstrap, not the functional TCP fixture.
+
+The first combined `all` baseline invocation did not produce its `COMPLETE`
+marker: after its three clean and three warm observations passed, its generated
+probe fixture used an obsolete path/import layout. The harness fixture was
+updated to the current compiler-contract namespace layout and its regression
+check passed. A separate corrected `probes` invocation then passed all 12 edit
+observations against the same product commit/tree, but with a corrected harness
+snapshot. Treat the full and probe measurements as comparable observations, not
+as one complete artifact from an identical source archive. A later canonical
+`VALIDATION_JOBS=2 make check` on the existing workspace build tree passed in
+332s; it is not comparable to the clean median above.
+
+At the `next` head `e033be2` immediately before PR #389, PR #388's docs-only
+Check passed in 29s and its post-merge push Check passed in 31s. That confirms
+the docs route's cost only. PR #389 and its resulting push are the matched
+full-route observation above.
+
+The practical red/green path is now explicit: one directly selected probe can
+run in a fraction of a second on a warm cache, while the current default
+four-worker `check-compiler` collection takes about 105s and the clean full
+check about 609s at two workers. Keep all PR and post-merge validation for now:
+three same-tree post-merge failures followed green PR Checks, so the second run
+has demonstrated detection value despite its cost. First determine why those
+post-merge-only failures occurred. Four workers help modestly; they do not
+remove the serial compiler, harness or bootstrap costs. The tiny edit matrix
+alone does not justify dependency-aware reuse or separate compilation.
+
+The inventory and local measurements confirm repeated full validation at PR
+and post-merge checkpoints, expose structural overlap in the CI matrix, and
+locate the largest local costs. The selected PR sample below adds CI and
+open-to-merge elapsed times, but does not measure contributor active versus
+idle wait, a fresh machine or cold OS cache, repeated discovery/tool context,
+or review/reporting overhead. The Slice 2 map below connects likely regressions
+at each major change surface to focused assertions, integration checks and
+hosted lanes. It is a component-to-test map, not an exhaustive assertion trace
+or evidence that any suite can safely be omitted.
+
+### Contributor/CI wait sample and worker pilot — 2026-10-12
+
+| Pull request | Open to merge | Hosted Check elapsed | Result and limit |
+| --- | ---: | ---: | --- |
+| [#388](https://github.com/sproates/panackelty/pull/388), docs-only | 38m19s | PR 29s; post-merge 31s | Both short Checks passed. The lifecycle window is much longer than either Check, but does not show how much was active work, review, queueing or other delay. |
+| [#394](https://github.com/sproates/panackelty/pull/394), full route | 8m55s | PR 8m34s; post-merge 8m30s | Both full Checks passed. The matched pair did not show a wall-time reduction from skipping the four repeated experiments. |
+| [#396](https://github.com/sproates/panackelty/pull/396), docs-only | 56s | 29s | Check passed; the document classifier took 16s and result gates took 6–7s. One fast docs PR is not a contributor-time baseline. |
+
+These three examples contrast the hosted docs and full routes, not a
+representative sample of developers' work. PR creation-to-merge duration is a
+coarse elapsed window, not a measure of waiting or coding time; it combines
+review, author work, automation and any unobserved gaps. The CI durations also
+include scheduling and parallel jobs. No active-time/idle-time split can be
+inferred from these records.
+
+The bounded hosted worker pilot [PR #397](https://github.com/sproates/panackelty/pull/397)
+changed only the two hosted compiler validation jobs from three to four
+workers; the other suite budgets and assertions were unchanged. Its local
+warm-tree `make check` passed in 420s, which is not a clean-check comparison.
+On the hosted PR run, both Ubuntu compiler lanes failed when the same
+`cli_commands/source` harness invocation timed out; downstream artifact errors
+followed. The macOS compiler package lane passed in 7m08s, compared with 7m55s
+in one earlier, unmatched run. That single macOS observation does not establish
+a gain, and the Ubuntu failures are consistent with resource contention but do
+not prove its cause. PR #397 was closed without merging, so hosted compiler
+validation remains at three workers. No test assertions or gates were removed.
+
+This sample is enough to reject the four-worker setting as a default change,
+not to choose a replacement performance NFR or reduce validation. A future
+optimization needs a named workload and paired evidence for it; if the question
+is contributor idle time, it needs direct timing of that experience rather
+than PR lifecycle timestamps.
+
+<a id="gi106-change-impact-map"></a>
+
+### GI#106 change-impact map — Slice 2 component boundaries
+
+This map was checked against the current Make targets, Check workflow,
+[`tests/README.md`](README.md), [`tests/COVERAGE.md`](COVERAGE.md), and the
+compiler/VM boundaries in [`ARCHITECTURE.md`](../ARCHITECTURE.md). It relates a
+plausible regression to focused local evidence and the wider acceptance that
+crosses its callers or artifact boundaries. A shared fixture does not make two
+test paths equivalent: source execution, saved-bytecode execution, native
+verification, instrumentation, bootstrap and installation exercise different
+boundaries.
+
+| Change surface and plausible regression | Focused local evidence | Wider acceptance and hosted evidence | Boundary / evidence limit |
+| --- | --- | --- | --- |
+| Compiler frontend and source loading: syntax, resolution, types/effects, imports or emitted instructions regress. | `make check-compiler` runs harness and probes for lexer/parser, resolver, checker, module binding, loader confinement, source limits, compiler contracts and diagnostics. Selected CLI cases cover explanations, commands and expected failures. | `make functional` adds whole-program behavior; source conformance and bootstrap compare compiler stages. A full `next` PR runs the bounded Linux smoke: stage-2 compiler source execution, compilation, bytecode verification and execution, plus the P5 late-DNS client regression. Full suites run nightly. Main-target Check remains unchanged. | The smoke is one end-to-end example and one focused HTTP case, not a substitute for compiler, runtime, bootstrap, sanitizer, coverage or conformance suites. |
+| Standard-library source: values, errors, effects or public signatures change, or compiler behavior changes while compiling the library. | There is no stdlib-only target. `make unit-runtime-probes` executes `stdlib_unit.panack`; the stdlib functional case checks public output. Compiler probes use the selected standard-library root and catch some compiler/library interface regressions. | The bounded next PR smoke compiles and executes one standard-library-backed example. The broader runtime, functional, bootstrap, sanitizer, coverage, source/bytecode conformance and package acceptance suites run nightly on Linux and macOS. Main-target Check retains the full matrix. | A single example does not cover the stdlib surface. |
+| Bytecode emitter, codec or verifier: output becomes noncanonical, malformed data is accepted, or valid data is rejected. | `make check-bytecode` runs bytecode probes, native module contracts and public CLI check/disassembly cases. Fixed artifacts assert values, status/streams, bounds and rejection behavior; `make check-compiler` also exercises emitted compiler output. | Linux runtime checks remain per PR; native source/bytecode conformance on both platforms runs nightly for `next` and on every main-target Check. | Serialization/verification and VM execution are related but separate contracts; a passing codec probe alone does not prove execution. |
+| VM, native runtime or host services: instruction execution, value lifetime, builtins, files, processes or environment behavior regresses. | `make check-vm` covers native VM/oracle contracts, the host-runtime probe and CLI environment/file cases. `make unit-runtime-probes` also runs direct stdlib, host and bytecode probes. | The next PR smoke runs one source and one saved-bytecode program plus the P5 late-DNS source/bytecode regression on Linux. The runtime/functional suites and VM/oracle/runner sanitizers run nightly for `next`, while remaining on main-target Check. | One example and a focused HTTP case do not cover general VM, host-service or lifecycle behavior; failures may wait for nightly detection. |
+| Public CLI and functional boundary: command results, status/streams, file protection or source-versus-bytecode behavior changes. | `make check-compiler` checks command/explanation/failure cases; `make check-bytecode` checks check/disassembly; `make check-vm` checks environment/file commands. | The bounded next PR smoke covers source run, compilation, bytecode verification and bytecode run for one program. Full public-CLI and functional coverage runs nightly on Linux and macOS. | There is no separate CLI-only hosted lane; broad cases sit inside nightly compiler/runtime partitions. |
+| Package manifest, project loading, archive or installation: roots escape, relocation/dependencies change, or installed instructions fail. | `make check-compiler` checks `package_manifest_unit.panack`; `make unit-runtime-probes` checks package filesystem contracts; selected CLI fixtures cover package commands. `make quick-start` checks checksum, install, first program/output, upgrade and removal. | The next PR smoke does not test packaging or installation. Nightly runs bootstrap and conformance, builds one archive per platform, and tests archive, README and installer flows. Main-target Check retains its package checks. | Package-specific defects in deferred suites may reach `next` before the next nightly; release publication remains gated by full release validation. |
+| Seed compiler and bootstrap: generated stages diverge or compile different libraries/artifacts. | `make bootstrap-check` compares compiler/library fixed points across stages. It is a broad cross-stage check, not a cheap component-only probe. | Bootstrap fixed-point/seed-refresh checks move to nightly for `next`; full main-target Check still runs them on each route. | Bootstrap identity is distinct from the ordinary compiler probe suite. |
+| Test definitions and routing: a suite stops running, has wrong multiplicity, or an unsafe diff is classified as docs-only. | `make ci-check` exercises docs/full selection, local/CI agreement, mixed/unknown changes, suite dispatch, multiplicity and failure propagation; harness-layout checks pin workflow wiring. | The hosted `changes` job classifies every PR delta. A full next PR runs the bounded Linux smoke and P5 late-DNS regression; merge pushes skip product smoke, and nightly runs the full test/package matrices. Main-target Check remains complete. | `scripts/validation_components.sh` reports owners but does not choose component-specific suites; unknown or shared changes remain full. |
+
+Changing stdlib code warrants direct stdlib behavior, compiler use of the active
+library, and bootstrap evidence: there is no isolated stdlib lane, and the
+current component labels do not establish an independent build/test boundary.
+The full integration envelope remains the nightly and release acceptance path.
+
+#### Overlap established by the current recipes
+
+- Before the cadence changes, every `next` PR ran seven Ubuntu 24.04 validation
+  lanes and ten suite jobs across Ubuntu 22.04 and macOS 14. The interim focused
+  gate kept Linux compiler/runtime plus macOS compiler validation. The current
+  gate keeps one bounded Linux source/bytecode smoke; the full Linux and
+  platform matrices run nightly.
+- Before the earlier cadence change, `quick-start` built and smoke-tested a package from both
+  `ci-bootstrap` and `ci-conformance-bytecode` on Ubuntu 22.04, macOS 14 and
+  Ubuntu 24.04. Next PRs and pushes defer those package paths with their full
+  suites. Nightly skips the repeated bootstrap package smoke and builds one
+  package per supported platform in bytecode conformance. Main-target Check
+  keeps its prior package steps.
+- The runtime functional suite and source/bytecode conformance draw from the
+  functional cases and examples. They share program inputs but retain separate
+  public-CLI, compile, saved-artifact and failure assertions. Existing
+  `tests/ci_conformance.sh` verifies that source and bytecode partitions
+  together preserve the standalone conformance observations.
+- Sanitizer partitions and native coverage execute overlapping VM/oracle/runner
+  contracts under separate instrumentation. The `tests/ci_sanitize.sh` checks
+  compare sanitizer operation multiplicity and inject failures; LLVM coverage
+  separately reports native VM branch counts. Both add evidence beyond the
+  ordinary behavioral assertions.
+
+These are recipe- and fixture-level overlaps, not a full assertion identity
+matrix. For `next`, a full PR now runs one Linux source/bytecode smoke and the
+merge push skips product smoke; the full Linux validation, complete
+cross-platform suites and branch package creation run nightly. Broader suite
+failures can therefore appear after a change reaches `next`, and may remain
+until the next scheduled run. Main and release checks retain full validation.
+
+## P3 package manifest parser — 2026-10-11
+
+The canonical `make check` passed on the macOS arm64 development host with the
+working tree based on `e663b49` (PR #372 merged to `next`) plus the uncommitted
+manifest parser, test and documentation changes. The workspace already had
+bootstrap outputs; this was not a clean-checkout timing sample. `CFLAGS=-O2`.
+The full run took **372s**: unit 200s, functional 12s, bootstrap 130s, release
+smoke 4s and quick start under 1s. All tests and fixed-point checks passed. The
+120s full-check and 60s bootstrap warning budgets were exceeded; the aggregate
+unit phase is not the focused 15s workload.
+
+This is close to the 375s clean alpha.12 observation recorded above but is not a
+paired same-revision comparison and cannot establish causation. The parser is
+not imported by the normal compiler driver or loader; it adds only its focused
+unit probe to validation. No production compile/runtime timing effect is
+established. The dated disposition for this isolated slice preceded manifest
+loading on the normal driver path and the owner's 2026-10-12 direction. The later
+P3 acceptance evidence and current GI#106 workflow inventory are recorded
+separately.
+
+## P3 explicit manifest-root CLI and loading — 2026-10-11
+
+On `feature/p3-manifest-root-cli` based on `next` at `f131fc7`, canonical
+`make check` passed on the macOS arm64 development host in **379s**. The checkout
+already had build outputs, so this was not a clean-checkout sample. Reported
+phases were unit 204s, functional 12s, bootstrap 133s, release smoke 4s and
+quick start 1s. The 120s full-check, 15s unit and 60s bootstrap warning budgets
+were exceeded; functional stayed under its 75s budget. All compiler, native,
+functional, seed fixed-point, package and release gates passed. A first attempt
+stopped at the runner-smoke gate because the new `--project` help line had not
+yet been added to the compiler-skeleton expected output. An intermediate rerun
+also exposed that native-oracle VM launches do not inherit the launcher version
+variable; the fixture now reads the version through `panack --version`. The final
+run passed.
+
+The total is close to the 375s alpha.12 clean run and the earlier P3 parser
+sample of 372s, but those observations are not matched and do not establish a
+cost reduction or regression. Unlike the isolated parser slice, this delivery adds
+manifest-root loading to the normal driver/loader path; no paired self-compile,
+warm-cache or runtime comparison was made. That dated decision retained the
+then-current budgets and all coverage. The owner accepted this validation-time
+disposition before PR#374 merged as `1bae83f`; the checks passed, but that does
+not demonstrate performance neutrality. The later owner direction in the GI#106
+inventory above supersedes those budgets as active NFRs.
+
+## P3 exported library checking — 2026-10-11
+
+On the macOS arm64 development host, canonical `make check` passed on
+`feature/p3-library-manifest-check`, based on `next` at `1bae83f`, with existing
+build outputs. The latest run took **297s** (functional 12s, bootstrap 133s,
+release smoke 4s, quick start 0s); the 120s full-check and 60s bootstrap budgets
+were exceeded. A preceding run took 387s (unit 208s, functional 12s, bootstrap
+137s, release smoke 4s, quick start 1s). The 297s run overlapped the standalone
+harness verification and reused warmed build outputs; the two timings are not a
+matched comparison and do not establish a cost change. The 208s aggregate unit
+phase is not a comparable sample for the 15s focused-check target. The final
+canonical run passed all 364 functional cases and the bootstrap/package gates.
+
+The corrected isolated routes also passed locally: `make unit-harness`,
+`make ci-conformance-source`, `make ci-conformance-bytecode`, and
+`make native-sanitize CC=clang SANITIZE_SUITE=oracle`. The checks use the
+source-built stage-two compiler for the new library CLI cases. This is not a
+clean-checkout performance sample. No representative application runtime or
+compile benchmark was run. At the time, GI#106's next action was a matched clean
+base/candidate profile before P3 package acceptance. P3 package acceptance was
+subsequently completed; see its profile below and the current GI#106 inventory
+above for the active scope and remaining evidence needs.
+
 ## Alpha.12 performance close-out — 2026-10-10
 
 The final clean canonical `make check` ran on the macOS arm64 development host
@@ -4749,3 +5436,801 @@ The standard-library prelude/consumer migration, flat-path removal, compiler
 seed fixed point, and repeat native/browser/installed acceptance remain open.
 No runtime or compiler performance claim is made; website impact remains none
 while public namespace execution is gated.
+
+## P3 direct local-library dependency slice — 2026-10-11
+
+`make check` passed on the macOS arm64 development checkout in 363s. It included
+all 364 functional cases, bootstrap fixed-point/seed-refresh checks and release
+smoke. The functional phase took 13s against its 75s budget; bootstrap took 137s
+against 60s and emitted the expected budget warning; release smoke took 3s and
+quick start 1s. The full 120s check budget was exceeded. This reused existing
+build outputs and is not a clean-checkout or matched base/candidate comparison;
+the 297s observation recorded above is also unmatched. These timings establish
+no performance change. `make docs`, `git diff --check`, the stage-two compiler
+build and focused source/compile/bytecode CLI runner passed. Direct local
+dependencies now exercise two apps sharing one library, export-only imports,
+same-root aliases and conflicting-root rejection. Nested dependencies and the
+remaining physical-root/symlink race acceptance are still open. Website impact:
+none; no public package capability is being claimed before release acceptance.
+
+## P3 physical package-root confinement — 2026-10-11
+
+Package source reads now compare the device/inode returned by the confined host
+read with the identity captured when the declaring manifest was opened. A
+focused loader probe supplies a deliberately mismatched identity and verifies
+that loading fails closed. The CLI fixture creates an exported source symlink to
+an outside file and verifies that `check --project` rejects it. The native VM
+contract suite races repeated replacement of an in-root symlink with an escaping
+symlink against `fs_read_beneath`; successful reads contained only the in-root
+bytes, and errors remained ordinary host results. The focused loader probe passed
+8 assertions, the CLI case passed all 30 fixture assertions plus all 4 runner
+assertions, native module contracts passed, and `make docs` passed.
+
+Canonical `make check` passed all 364 functional cases. It completed in 365s
+against the 120s full-check target; functional took 12s against 75s, bootstrap
+took 138s against 60s, release smoke 4s, and quick start 1s. Unit suites,
+bootstrap fixed points, seed refresh and release checks passed. This reused
+existing build outputs and is not a clean-checkout or matched base/candidate
+comparison; no timing change is attributed to the identity comparison or race
+coverage. GI#106 retains the matched clean base/candidate phase profile as its
+next action and validation owner. The implementation adds one root-identity
+comparison per package source read; no runtime execution path changes. Website
+impact: none; P3 remains unreleased and no package capability is claimed.
+Nested dependency graphs, broader physical source-root overlap, and deterministic
+package-loader race acceptance remain open.
+
+## P3 package-loader root replacement acceptance — 2026-10-11
+
+This slice adds a functional race acceptance only; compiler and VM source are
+unchanged. The test atomically switches an application-root symlink between two
+valid package trees while making 40 fresh stage-2 `run --project` invocations.
+Every success must return the tree-specific result; every failure must be a
+package-root identity or confined-read/manifest-read error, and the run must
+observe at least one identity-change rejection. Ten consecutive local macOS runs
+passed, each with 2–9 coherent successes and 31–38 identity-change rejections;
+none returned a mixed result. This is stress evidence for one host, not a Linux
+measurement or a proof of every scheduler interleaving.
+
+The final profiled canonical `make check` passed all 364 functional cases in
+312s against the 120s full-check target. Unit took 135s against 15s, functional
+12s against 75s, bootstrap 135s against 60s, release smoke 4s, and quick start
+1s. A recent pre-change local run also had a 12s functional phase; these
+single-run observations do not isolate the race fixture's cost. No runtime
+performance change is expected; keep the established budgets unchanged. This
+run reused the local build tree and is not a clean-checkout comparison. Website
+impact: none; the user-facing package scope remains unreleased. Nested dependency
+graphs and broader physical source-root overlap remain open P3 acceptance.
+
+## P3 physical source-root overlap rejection — 2026-10-11
+
+The source loader now checks physical directory ancestry for the application
+source root and every direct dependency, and between distinct direct dependency
+roots. The check opens directory descriptors and follows parent descriptors, so
+it detects nested paths and symlink aliases without relying on path-string
+prefixes. Overlap inspection errors fail closed. Native contracts cover both
+ancestry directions, physical aliases, disjoint siblings, missing directories,
+and invalid operand types. Functional package manifests prove rejection when a
+dependency source root sits below the application root and when two distinct
+dependencies share a nested physical source subtree. The compiler purity unit
+also asserts that this filesystem query remains impure.
+
+On the macOS arm64 development host, `make check-vm` passed in 124s, including
+the native module/oracle contracts and focused CLI cases. `make unit-compiler`
+passed. The final canonical `make check` passed all 364 functional cases and the
+full bootstrap, seed-refresh, release-smoke, and quick-start gates in 397s on the
+reused build tree. Unit took 218s, functional 12s, bootstrap 137s, release smoke
+4s, and quick start 1s. An earlier pass on the same tree took 318s, including
+139s for unit; this wide variation is not a matched comparison and does not
+establish a cost change. The existing 120s full-check, 15s unit, and 60s
+bootstrap budgets remain unchanged and were exceeded; the functional phase
+remained below its 75s budget. The refreshed seed reached compiler stage-2/3/4
+identity and the seed-refresh gate reported already at the verified fixed point.
+Website impact: none; package support remains unreleased. Nested dependency
+graphs and full package-loader acceptance remain open P3 work.
+
+## P3 nested graph safety tests — 2026-10-11
+
+The test-only slice adds end-to-end package-check cases for version conflicts
+and duplicate physical roots reached through nested dependencies. It also accepts
+exactly 64 package manifests, 256 dependency edges and 32 package levels, while
+rejecting graphs one beyond each limit. The cases run through the source-built
+compiler and public VM launcher from the `cli_commands` functional program. All
+364 functional cases and the exact-output CLI fixture passed.
+
+On the macOS arm64 development host, canonical `make check` passed on
+`feature/p3-nested-graph-safety-tests`, based on `next` at `21daa0c`, with the
+existing build tree. The validated tree is commit `3bbc2a9` (PR #382, in review).
+It took **402s**: unit 225s, functional 13s, bootstrap
+135s, release smoke 4s and quick start under 1s. The full-check and bootstrap
+budgets (120s and 60s) were exceeded; the functional phase remained within its
+75s budget. The aggregate unit phase is not a comparable sample for the focused
+15s target. Seed stage-2/3/4 fixed points and native, compiler, package and
+release gates passed.
+
+The preceding P3 physical-overlap validation took 397s (unit 218s, functional
+12s, bootstrap 137s, release smoke 4s and quick start 1s). Both runs reused the
+build tree and are unmatched; the 5s difference does not establish causation.
+The added graph cases plausibly add functional test latency, but one 13s suite
+sample versus the prior 12s sample cannot quantify that effect. No compiler or
+VM implementation changed, and no application runtime benchmark was run. Keep
+GI#106's 120s/15s/60s targets and existing accepted validation-time disposition;
+its next action remains a matched clean base/candidate profile before P3 package
+acceptance. Website impact: none; the package feature remains unreleased.
+
+## P3 package source-closure limits (PR #383) — 2026-10-11
+
+The loader unit now exercises each source-closure boundary at the exact limit
+and one beyond: 256 loaded files, 1 MiB per source, and 8 MiB total. A public
+CLI functional case separately confirms that a 1 MiB + 1 source is rejected
+before parsing. The loaded-file and byte totals include the automatically loaded
+toolchain core. The focused loader probe passed all seven assertions, and the
+focused `cli_commands` runner passed all four checks. After correcting the
+Makefile registration, `make unit-compiler` also exited 0 with the new loader
+unit included.
+
+The first end-to-end approach sent exact 8 MiB fixtures through the CLI. Its
+source and bytecode probes exceeded their 20-second functional timeout because
+the compiler had to parse those files. The test was split so the loader checks
+the large exact boundaries directly, while the CLI retains the public rejection
+check for a minimally oversized source. The resulting full functional suite
+passed all 364 cases in 14s, within its 75s budget.
+
+Canonical `bash scripts/validate_change.sh --run origin/next` completed on the
+macOS arm64 development checkout with existing build outputs. The retained
+phase timings were unit 226s, bootstrap 134s, functional 13s, release smoke 4s,
+quick start 1s and total 403s. The command exited 0. That full run preceded the
+Makefile correction that registered the new loader unit in `unit-compiler`; the
+corrected compiler-unit target was run separately afterward and passed. The
+120s full-check, 15s unit and 60s bootstrap budgets were exceeded; the 75s
+functional and 15s release/quick-start budgets were met. This is not a clean
+checkout or matched base/candidate sample. The prior nested-graph run took 402s,
+but the unmatched observations cannot establish that this slice changed total
+validation time. No compiler runtime behavior or website content changed. Keep
+GI#106's existing budgets and matched-profile follow-up; full P3 acceptance
+remains open.
+
+## P3 package-root race acceptance reliability — 2026-10-11
+
+The package-root replacement race assertion missed an identity change on the
+first Linux runtime-package attempt for both PR #382 and PR #383; each
+failed-jobs-only retry passed. The old fixture loaded only the entry and one
+value module per candidate tree, leaving a narrow interval in which a root
+replacement could be missed.
+
+The fixture now gives each candidate root 64 sibling source modules and imports
+them from `value.panack`. Each of its 40 CLI runs therefore loads a wider source
+closure while the app-root symlink is repeatedly replaced. It still requires a
+tree-specific successful result or a fail-closed root/read error; unexpected
+errors and mixed-tree output fail. The added modules keep the fixture well below
+the package's 256-file and 8 MiB limits and use small sources rather than large
+parse-boundary inputs.
+
+On the macOS arm64 development host, the direct race script passed 10 consecutive
+trials. Each observed 39–40 root-identity changes; one trial also had one
+fail-closed source-read error. No trial returned mixed-tree output. A direct run
+took 2.32s. The focused `cli_commands` runner passed all four checks in 14s.
+This is local macOS evidence only; the first exact-head Linux CI result for the
+new fixture is required before treating the change as validated across hosts.
+No compiler/runtime implementation or website content changed. Full P3 package
+acceptance remains open.
+
+The first exact-head Linux run passed the runtime package and source-conformance
+jobs, but bytecode conformance reported only that `cli_commands` exited with
+status 1; the outer runner omitted the nested race process's output. The race
+probe's process budget is now 120 seconds, matching the adjacent package graph
+and source-limit probes, and failures report the subprocess exit, signal,
+stdout, and stderr. This does not establish the cause of the first failure; a
+passing exact-head Linux bytecode result is still required.
+
+The follow-up run passed Linux bytecode conformance, then Linux source
+conformance reported that the race had completed with 40 identity changes but
+cleanup failed while the background replacer was still finishing an atomic
+rename (`rm: ... Directory not empty`). Cleanup now clears the run marker and
+waits for the replacer to finish before deleting its temporary tree. Ten
+consecutive local macOS arm64 trials passed after this change; the next exact
+Linux run must verify cleanup and the acceptance assertion together.
+
+The final exact-head run for PR #384 (GitHub Actions run `38178717680`, head
+`70647bf`) passed the required Linux and macOS source/bytecode conformance,
+package, full-validation and sanitizer jobs. The failed-job-only source and
+bytecode results are no longer pending. This validates the race fixture and its
+cleanup on both CI platforms; full P3 acceptance remains open until the integrated
+relocated-workspace case below is accepted.
+
+## P3 relocated shared-package acceptance — 2026-10-12
+
+PR #386 adds a functional fixture with two applications that consume one multi-file
+library. It checks, runs and compiles both applications from a directory outside
+the package workspace, moves the entire sibling tree, then repeats checks and
+source runs and executes bytecode compiled before relocation. Both applications
+still use the one shared library after the move. This exercises relative manifest
+paths, package identity and saved-bytecode execution independently of the current
+working directory.
+
+The direct fixture passed all 12 check/run/compile/bytecode operations on the
+macOS arm64 development host in 0.6s. The focused `cli_commands` functional
+runner passed all four checks. The canonical `make check` passed on macOS arm64
+in 424s: unit 238s, bootstrap 142s, functional 13s, release smoke 4s and quick
+start under 1s. The 120s full, 15s focused-unit and 60s bootstrap budgets remain
+exceeded; the 75s functional and 15s release/quick-start budgets were met. This
+reused-build observation is 21s slower than the preceding 403s P3 run, but the
+single unmatched samples cannot attribute that difference. No compiler/runtime
+implementation changed; the direct fixture itself took 0.6s. Exact-head
+Linux/macOS CI for this final acceptance delivery is pending. Website impact:
+none; this is an internal acceptance test and makes no shipped behavior or
+website claim.
+
+## Local full-check phase-overlap pilot — 2026-10-13
+
+The local `check-phases` recipe now prepares native prerequisites, overlaps the
+unit suite with the bootstrap proof, then runs functional validation and
+quick-start/package checks. At `VALIDATION_JOBS=4`, the pilot assigns three
+workers to unit and one to bootstrap. A helper regression checks concurrency,
+worker allocation, isolated bootstrap artifacts and runner reports, serial
+one-worker behavior, and failure propagation from either phase. No test phase
+or assertion is removed.
+
+One clean paired run on the macOS arm64 development host compared the original
+serial recipe at tracked base `6f8c67c` with the pilot. Each run started with
+fresh project build outputs; both commands passed:
+
+| Run | Unit | Bootstrap | Functional | Release smoke | Quick start | Total wall time | Process CPU time |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Serial baseline | 239s | 138s | 13s | 5s | 1s | 422.80s | 672.65s user + 37.89s system |
+| Pilot, unit 3 + bootstrap 1 in parallel | 291s | 209s | 13s | 4s | 1s | 335.77s | 718.61s user + 38.19s system |
+
+The pilot reduced this pair's wall time by 87.03s (20.6%). The overlapping
+phases used about 6.8% more user CPU time, so this trades higher concurrent
+resource use for shorter elapsed time. This is one pair, with uncontrolled OS
+cache state and no repeat set; treat it as evidence that the scheduling change
+can help on this host, not a stable speed guarantee across machines. The
+historical 120s/15s/75s/60s figures remain non-gating under the owner's GI#106
+direction. This pilot does not complete GI#106, which remains open until the
+user says they are happy. Website impact: none.
+
+## Cold compiler integration probe overlap — 2026-10-13
+
+The compiler integration probe compiled two expensive fixtures serially inside
+one runner: the driver probe and the loader snapshot probe. The runner now
+supports four independent groups (frontend, namespaces, driver and snapshot).
+`make unit-compiler` and `make check-compiler` prepare the integration runner
+once, then execute all four groups with the existing bounded probe worker pool.
+Every group uses an isolated temporary workspace. No assertions were removed;
+all-mode still runs the whole probe in one process.
+
+On the macOS 26.5 arm64 development host, with native and stage-2 compiler
+prerequisites already built, `VALIDATION_JOBS=4`, and a fresh isolated
+probe cache for each observation, the cold integration results were:
+
+| Layout | Three elapsed samples | Median | Assertions |
+| --- | --- | ---: | ---: |
+| Original serial runner | 52s, 55s, 53s | 53s | 133 passed each run |
+| Four grouped probes | 31s, 32s, 31s | 31s | 27 + 72 + 33 + 1 passed each run |
+
+The median fell by 22s (about 42%). Profiling shows the driver and snapshot
+fixture compilations overlap after the change; previously their approximately
+25–30s compile costs were sequential. This is a repeatable improvement to the
+cold compiler integration slice, not a clean `make check` result. The original
+samples used the ungrouped source from base `ab95e38`; two repetitions ran that
+same source content under a temporary filename so the candidate working tree
+could remain intact. Each observation used a fresh probe cache, so this comparison
+does not depend on bytecode-cache hits.
+
+Three warm `make unit-compiler` samples were 16s before and 14s after, measured
+at one-second granularity. That small difference is not strong evidence of a
+whole-unit-suite speedup. The experiment is from one host, and CPU use under
+overlap was not measured. With an entirely empty probe cache, three additional
+end-to-end invocations took 57.89s, 58.01s and 57.39s; all 133 assertions
+passed. Their profiles show about 27s rebuilding `compiler.panack` as the
+stage-2 seed before the integration checks. This seed build is a prerequisite
+of both layouts. Those totals are not compared with the original 52–55s samples,
+which began with stage 2 already built. The required canonical `make check` and
+exact-head hosted checks determine correctness of the delivery; GI#106 remains open until
+the user says they are happy. Website impact: none; this changes local test
+scheduling only.
+
+The canonical `make check` on this branch then passed in 244s on the reused
+build tree: unit 161s, bootstrap 200s overlapped with unit, functional 14s,
+release smoke 4s and quick start under 1s. All 370 functional cases passed.
+This validates the local tree, but it is not a clean or matched timing
+comparison and does not establish a whole-check speedup.
+
+### Focused profile fixture repairs — 2026-10-13
+
+The first hosted Validation profile for PR #411 failed in two compiler probes
+on both Linux and macOS. Replaying those probes against the unchanged `next`
+base reproduced the failures sequentially, so they were fixture defects already
+present in the base rather than a race introduced by grouping. The loader
+confinement fixture imported `project/src/compiler/path_support` and
+`filesystem_support` without creating those files under its temporary project
+root; it now copies the checked-in helper sources there and removes them during
+cleanup. The coverage-session process fixture called `std_process.run` without
+importing `stdlib/process`; adding that import makes setup succeed and allows
+the subprocess, external-process and timeout assertions to run.
+
+Both repaired probes pass locally. `VALIDATION_JOBS=2 make check-compiler`
+passed in 118s, including all four integration groups and the focused compiler
+probes. The historical 15s focused-check budget still emits a warning; it is
+not a failure gate. Hosted validation for the updated PR head is pending. No
+compiler/runtime implementation changed. Website impact: none.
+## GI#134 explain query turnaround baseline — 2026-10-13
+
+Five fresh-process `panack-vm run <stage-2 compiler> explain <entry> --function
+inspect` queries loaded and checked a two-module project with an imported
+generic function and a guarded conversion. On macOS 26.5 arm64, end-to-end
+`real` times were 0.05s, 0.04s, 0.04s, 0.05s and 0.04s (median 0.04s; range
+0.04–0.05s). Each measurement includes VM startup, source loading, checking and
+rendering; the filesystem cache was warm after the first sample. Set an initial
+useful target of at most 0.25s per query for this fixture and host, five times
+the observed maximum. This is a local comparison target, not a CI timing gate.
+
+The required full `make check` passed on the same host in 315s: unit 270s,
+bootstrap 211s, and functional 12s. Its output printed warnings against the
+historical 15s, 60s and 120s figures; ROADMAP.md records those values as
+non-gating under the owner's 2026-10-12 direction. This validation result is
+reported for context only and does not reopen or extend GI#106.
+
+## GI#134 expression type query turnaround — 2026-10-13
+
+Ten fresh-process queries of `panack explain ... --function probe --type-at 3 23`
+on macOS 26.5 arm64 used a five-line source with a generic identity function and
+an inferred local initialized from `identity("typed")`. Each sample included
+VM startup, project loading, checking, full explanation rendering and selecting
+the expression type; the filesystem cache was warm. `real` times had a median of
+0.0485s and a range of 0.0409–0.0539s. This small fixture and sample establish a
+local reference, not a general latency guarantee or a paired before/after
+comparison. Expression selection traverses retained bodies only for the
+explicit explanation query; ordinary checking, runtime and bytecode are
+unchanged.
+
+The final `make check` passed on the same host in 250s: unit 165s, bootstrap
+207s, and functional 12s; unit and bootstrap ran concurrently. Release-smoke and
+quick-start passed. Warnings against historical timing figures remain
+non-gating under the owner's 2026-10-12 direction; this result does not reopen
+or extend GI#106.
+
+## GI#134 assignment-value explanation turnaround — 2026-10-13
+
+Ten fresh-process queries of `panack explain ... --function probe` on macOS
+26.5 arm64 used one mutable `Nat` local assigned a compatible literal. Each
+sample included VM startup, project loading, checking and explanation rendering;
+the filesystem cache was warm. `real` times had a median of 0.0491s and a range
+of 0.0429–0.0571s. This is a local reference, not a paired before/after
+comparison or general latency guarantee. Assignment evidence is retained only
+for explanation checks; ordinary checking retains none, and runtime and
+bytecode are unchanged.
+
+The final `make check` passed on the same host in 333s: unit 286s, bootstrap
+221s, and functional 15s; unit and bootstrap ran concurrently. Release-smoke
+and quick-start passed. Warnings against historical timing figures remain
+non-gating under the owner's 2026-10-12 direction; this result does not reopen
+or extend GI#106.
+
+## GI#134 annotated local initializer explanation turnaround — 2026-10-13
+
+Ten fresh-process queries of `panack explain ... --function probe` on macOS
+26.5 arm64 used one explicitly annotated `Nat` local initialized from a
+literal. Each sample included VM startup, project loading, checking and
+explanation rendering; the filesystem cache was warm. `real` times had a
+median of 0.0492s and a range of 0.0416–0.0520s. This is a local reference, not
+a paired before/after comparison or general latency guarantee. Annotation
+evidence is retained only for explanation checks; ordinary checking retains
+none, and runtime and bytecode are unchanged.
+
+The final `make check` passed on the same host in 324s: unit 278s, bootstrap
+217s, and functional 14s; unit and bootstrap ran concurrently. Release-smoke
+and quick-start passed. Warnings against historical timing figures remain
+non-gating under the owner's 2026-10-12 direction; this result does not reopen
+or extend GI#106.
+
+## GI#134 direct function-call argument explanation turnaround — 2026-10-13
+
+Ten fresh-process queries of `panack explain ... --function caller` on macOS
+26.5 arm64 used a generic identity function called with a string literal. Each
+sample included VM startup, project loading, checking and explanation rendering;
+the filesystem cache was warm. `real` times had a median of 0.0506s and a range
+of 0.0456–0.0555s. This is a local reference, not a paired before/after
+comparison or a general latency guarantee. Argument evidence is retained only
+for explanation checks; ordinary checking retains none, and runtime and
+bytecode are unchanged.
+
+The final `make check` passed on the same host in 347s: unit 304s, bootstrap
+218s, and functional 13s; unit and bootstrap ran concurrently. Release-smoke
+and quick-start passed. Warnings against historical timing figures remain
+non-gating under the owner's 2026-10-12 direction; this result does not reopen
+or extend GI#106.
+
+## GI#134 function return explanation turnaround — 2026-10-13
+
+Ten fresh-process queries of `panack explain ... --function returns` on macOS
+26.5 arm64 used a two-function source with a valid `Nat` return. Each sample
+included VM startup, project loading, checking and explanation rendering; the
+filesystem cache was warm. `real` times had a median of 0.0465s and a range of
+0.0393–0.0485s. This small fixture establishes a local reference, not a paired
+before/after comparison or a general latency guarantee. Return evidence is
+retained only for the explicit explanation query; ordinary checking keeps it
+empty, and runtime and bytecode are unchanged.
+
+The final `make check` passed on the same host in 303s: unit 256s, bootstrap
+212s, and functional 14s; unit and bootstrap ran concurrently. Release-smoke
+and quick-start passed. Warnings against historical timing figures remain
+non-gating under the owner's 2026-10-12 direction; this result does not reopen
+or extend GI#106.
+
+## GI#134 text and byte builtin argument explanation turnaround — 2026-10-13
+
+Ten fresh-process queries of `panack explain ... --function probe` on macOS
+26.5 arm64 used `byte_append(bytes(), 65)` and reported both checked arguments.
+Each sample included VM startup, project loading, checking and explanation
+rendering; the filesystem cache was warm. `real` times had a median of 0.0543s
+and a range of 0.0462–0.0575s. This is a local reference, not a paired
+before/after comparison or general latency guarantee. Builtin argument evidence
+is retained only for explanation checks; ordinary checking retains none, and
+runtime and bytecode are unchanged.
+
+The final `make check` passed on the same host in 258s: unit 172s, bootstrap
+215s, and functional 13s; unit and bootstrap ran concurrently. The module-body
+unit probe passed 670 assertions, the functional suite passed 370 cases, and
+the CLI explanation case passed source, compile and bytecode execution with 88
+inner assertions. Release-smoke and quick-start passed. Warnings against
+historical timing figures remain non-gating under the owner's 2026-10-12
+direction; this result does not reopen or extend GI#106.
+
+## GI#134 numeric builtin argument explanation turnaround — 2026-10-13
+
+Ten fresh-process queries of `panack explain ... --function probe` on macOS
+26.5 arm64 used `quotient(7, 2)` and reported both checked arguments. Each
+sample included VM startup, project loading, checking and explanation rendering;
+the filesystem cache was warm. `real` times had a median of 0.0520s and a range
+of 0.0425–0.0562s. This is a local reference, not a paired before/after
+comparison or general latency guarantee. Numeric builtin argument evidence is
+retained only for explanation checks; ordinary checking retains none, and
+runtime and bytecode are unchanged.
+
+The final `make check` passed on the same host in 325s: unit 283s, bootstrap
+220s, and functional 13s; unit and bootstrap ran concurrently. The module-body
+unit probe passed 677 assertions, the functional suite passed 370 cases, and
+the CLI explanation case passed source, compile and bytecode execution with 93
+inner assertions. Release-smoke and quick-start passed. Warnings against
+historical timing figures remain non-gating under the owner's 2026-10-12
+direction; this result does not reopen or extend GI#106.
+
+## GI#134 collection argument explanation turnaround — 2026-10-13
+
+Ten fresh-process queries of `panack explain ... --function probe` on macOS
+26.5 arm64 used `append([1], 2)` and reported its checked item argument. Each
+sample included VM startup, project loading, checking and explanation rendering;
+the filesystem cache was warm. `real` times had a median of 0.0511s and a range
+of 0.0438–0.0536s. This is a local reference, not a paired before/after
+comparison or general latency guarantee. Collection argument evidence is
+retained only for explanation checks; ordinary checking retains none, and
+runtime and bytecode are unchanged.
+
+The final `make check` passed on the same host in 331s. The module-body unit
+probe passed 683 assertions, the functional suite passed 370 cases, and the
+CLI explanation case passed source, compile and bytecode execution with 102
+inner assertions. Release-smoke and quick-start passed. Warnings against
+historical timing figures remain non-gating under the owner's 2026-10-12
+direction; this result does not reopen or extend GI#106.
+
+## GI#134 path builtin argument explanation turnaround — 2026-10-13
+
+Ten fresh-process queries of `panack explain ... --function probe` on macOS
+26.5 arm64 used `path_append(path_current(), path_current())` and reported both
+checked `Path` arguments. Each sample launched the stage-2 compiler VM and
+included project loading, checking and rendering; the filesystem cache was
+warm. `real` times had a median of 0.0524s and a range of 0.0448–0.0570s. This
+is a local reference, not a paired before/after comparison or a general latency
+guarantee. Argument records are retained only for explanation queries; ordinary
+checking retains none, and runtime and bytecode are unchanged.
+
+The final `make check` passed in 259s: unit 177s, bootstrap 215s, and functional
+13s; unit and bootstrap ran concurrently. The module-binding unit suite passed
+689 assertions, the functional suite passed 370 cases, and the explanation CLI
+fixture passed 108 assertions, including imported generic attribution and
+diagnostic parity. Release smoke and quick start passed. The command still prints
+timing warnings against the historical validation budgets; under the owner's
+2026-10-12 direction these are not active acceptance gates and this result does
+not reopen or extend GI#106.
+
+## GI#134 environment builtin argument explanation turnaround — 2026-10-13
+
+Ten fresh-process queries of `panack explain ... --function probe` on macOS
+26.5 arm64 used `environment_has("ONE")` and `environment_get("TWO")` and
+reported both checked `Str` arguments. Each sample launched the stage-2
+compiler VM and included project loading, checking and rendering; the filesystem
+cache was warm. `real` times had a median of 0.04s and a range of 0.04–0.05s.
+This is a local reference, not a paired before/after comparison or a general
+latency guarantee. Argument records are retained only for explanation queries;
+ordinary checking retains none, and runtime and bytecode are unchanged.
+
+The final `make check` passed in 259s: unit 176s, bootstrap 215s, and functional
+15s; unit and bootstrap ran concurrently. The module-binding unit suite passed
+695 assertions, the functional suite passed 370 cases, and the explanation CLI
+fixture passed 111 assertions, including accepted, rejected and unavailable
+environment arguments plus diagnostic parity. Release smoke and quick start
+passed. The command prints timing warnings against the historical validation
+budgets; under the owner's 2026-10-12 direction these are not active acceptance
+gates and this result does not reopen or extend GI#106.
+
+## GI#134 filesystem I/O argument explanation turnaround — 2026-10-13
+
+Ten fresh-process queries of `panack explain ... --function probe` on macOS
+26.5 arm64 used `fs_read(path, limit)` and `fs_write(path, content)` and
+reported their checked `Path`, `Nat` and `Bytes` arguments. Each sample launched
+the stage-2 compiler VM and included project loading, checking and rendering;
+the filesystem cache was warm. `real` times had a median of 0.05s and a range of
+0.04–0.05s. This is a local reference, not a paired before/after comparison or
+a general latency guarantee. Argument evidence is retained only for explanation
+queries; ordinary checking retains none, and runtime and bytecode are unchanged.
+
+The final `make check` passed in 260s: unit 179s, bootstrap 216s, and functional
+14s; unit and bootstrap ran concurrently. The module-binding unit suite passed
+707 assertions, the functional suite passed 370 cases, and the explanation CLI
+fixture passed 117 assertions, covering accepted, rejected and unavailable
+filesystem arguments, independent sibling outcomes, and diagnostic parity.
+Release smoke and quick start passed. The command prints timing warnings
+against historical validation budgets; under the owner's 2026-10-12 direction
+they are not active acceptance gates and this result does not reopen or extend
+GI#106.
+
+## GI#134 time builtin argument explanation turnaround — 2026-10-13
+
+Ten fresh-process queries of `panack explain ... --function probe` on macOS
+26.5 arm64 used `duration_nanoseconds`, `duration_ticks`,
+`duration_from_seconds`, `instant_add`, `instant_difference` and
+`instant_before`, with `Int`, `Duration`, `Rat` and `Instant` arguments. Each
+sample launched the stage-2 compiler VM and included project loading, checking
+and rendering; the filesystem cache was warm. `real` times had a median of
+0.05s and a range of 0.04–0.05s. This is a local reference, not a paired
+before/after comparison or a general latency guarantee. Argument evidence is
+retained only for explanation queries; ordinary checking retains none, and
+runtime and bytecode are unchanged.
+
+The final `make check` passed in 260s: unit 179s, bootstrap 216s, and functional
+13s; unit and bootstrap ran concurrently. The module-binding unit suite passed
+701 assertions, the functional suite passed 370 cases, and the explanation CLI
+fixture passed 114 assertions, covering all six argument-bearing time builtins
+plus rejected, unavailable and diagnostic-parity cases. Release smoke and quick
+start passed. The command prints timing warnings against historical validation
+budgets; under the owner's 2026-10-12 direction they are not active acceptance
+gates and this result does not reopen or extend GI#106.
+
+## GI#134 filesystem metadata and listing argument explanation turnaround — 2026-10-13
+
+Ten fresh-process queries of `panack explain ... --function probe` on macOS
+26.5 arm64 used `fs_metadata(path)` and `fs_list(path)` and reported their
+checked `Path` arguments. Each sample launched the stage-2 compiler VM and
+included project loading, checking and rendering; the filesystem cache was
+warm. `real` times had a median of 0.05s and a range of 0.04–0.05s. This is a
+local reference, not a paired before/after comparison or a general latency
+guarantee. Argument evidence is retained only for explanation queries; ordinary
+checking retains none, and runtime and bytecode are unchanged.
+
+The final `make check` passed in 264s: unit 181s, bootstrap 219s, and functional
+13s; unit and bootstrap ran concurrently. The module-binding unit suite passed
+713 assertions, the functional suite passed 370 cases, and the explanation CLI
+fixture passed 120 assertions, covering accepted, rejected and unavailable
+Path arguments plus diagnostic parity. Release smoke and quick start passed.
+The command prints timing warnings against historical validation budgets; under
+the owner's 2026-10-12 direction they are not active acceptance gates and this
+result does not reopen or extend GI#106.
+
+## GI#134 filesystem path-operation argument explanation turnaround — 2026-10-13
+
+Ten fresh-process queries of `panack explain ... --function probe` on macOS
+26.5 arm64 used `fs_directories_overlap`, `fs_create_directory`,
+`fs_remove_file`, `fs_remove_directory`, `fs_temp_file` and
+`fs_temp_directory`, reporting checked `Path` arguments. Each sample launched
+the stage-2 compiler VM and included project loading, checking and rendering;
+the filesystem cache was warm. `real` times had a median of 0.05s and a range
+of 0.05–0.06s. This is a local reference, not a paired before/after comparison
+or a general latency guarantee. Argument evidence is retained only for
+explanation queries; ordinary checking retains none, and runtime and bytecode
+are unchanged.
+
+## SP1 clean-installed local-package release-gate preparation — 2026-10-13
+
+On the macOS arm64 development host, `make release-smoke` passed in 4s using a
+locally built archive. The smoke relocated the toolchain, then checked, ran and
+compiled two independent apps consuming one shared local library; after moving
+the entire sibling app/library tree, both apps passed checks and source runs and
+their pre-move bytecode ran from an unrelated working directory. `make check`
+also completed with no failing phase in 340s on a reused build tree; release
+smoke took 4s and quick start 1s. `make docs` and shell syntax checks passed.
+
+This validates the new artifact-level regression on `next`; it is not a public
+release-candidate verification. The local archive used the existing `VERSION`
+value, and Linux/macOS release artifacts, browser validation and release
+promotion remain separate acceptance work. The full-check timing is recorded
+for context and does not reopen GI#106.
+
+The final `make check` passed in 262s: unit 180s, bootstrap 216s, and
+functional 14s; unit and bootstrap ran concurrently. The module-binding unit
+suite passed 725 assertions, the functional suite passed 370 cases, and the
+focused explanation CLI suite passed 126 assertions, including the accepted,
+rejected and unavailable `fs_read_beneath` argument cases and diagnostic
+parity. Release smoke and quick start passed. The command prints timing
+warnings against historical budgets; these do not change this result.
+
+The final `make check` passed in 260s: unit 180s, bootstrap 215s, and
+functional 14s; unit and bootstrap ran concurrently. The module-binding unit
+suite passed 719 assertions, the functional suite passed 370 cases, and the
+focused explanation CLI suite passed 123 assertions, covering accepted,
+rejected and unavailable filesystem path arguments, sibling outcomes and
+diagnostic parity. Release smoke and quick start passed. The command prints
+timing warnings against historical budgets; these do not change this result.
+
+## GI#134 rooted filesystem read argument explanation turnaround — 2026-10-13
+
+Ten fresh-process queries of `panack explain ... --function probe` on macOS
+26.5 arm64 used `fs_read_beneath(root, relative, limit)` and reported its two
+checked `Path` arguments and `Nat` limit. Each sample launched the stage-2
+compiler VM and included project loading, checking and rendering; the
+filesystem cache was warm. `real` times had a median of 0.05s and a range of
+0.04–0.06s. This is a local reference, not a paired before/after comparison or
+a general latency guarantee. Argument evidence is retained only for
+explanation queries; ordinary checking retains none, and runtime and bytecode
+are unchanged.
+
+## GI#134 checked type-join explanation turnaround — 2026-10-14
+
+Five fresh-process queries of the stage-2 compiler VM on macOS 26.5 arm64 used
+a valid one-file source with an `if` result nested in a match arm. Each query
+included source loading, checking and explanation rendering with a warm
+filesystem cache. `real` times were 0.05s, 0.04s, 0.05s, 0.04s and 0.05s
+(median 0.05s, range 0.04–0.05s). This is not a paired before/after comparison
+or a general latency guarantee. The new join evidence is retained only by
+explanation-mode body checking; ordinary checking keeps the collection empty.
+The compiler data layout changes, but emitted bytecode and runtime behavior do
+not.
+
+## GI#134 array callback contract explanation turnaround — 2026-10-14
+
+Five fresh-process queries of the stage-2 compiler VM on macOS 26.5 arm64 used
+`[1].map(@format)` and selected `probe`. Each included source loading, checking
+and explanation rendering with a warm filesystem cache. `real` times were
+0.04s, 0.04s, 0.05s, 0.05s and 0.05s (median 0.05s, range 0.04–0.05s).
+This is a local reference, not a paired before/after comparison or a general
+latency guarantee. Callback evidence is retained only for explanation queries;
+ordinary checking retains none, and runtime and bytecode behavior are unchanged.
+
+`make check` completed successfully in 340s on the reused local build tree. The
+full unit, bootstrap, functional, release-smoke and quick-start checks reported
+no failures. The bootstrap phase took 227s against its emitted 60s warning
+budget; the overall check took 340s against the emitted 120s warning budget.
+The focused module-binding suite passed 733 assertions, the explanation unit
+suite passed 266 assertions, and the focused callback CLI fixture passed all
+four source, compile and bytecode checks. This is validation evidence for the
+slice, not a performance investigation or a change to GI#106 scope.
+
+## GI#134 array concatenation type-join explanation turnaround — 2026-10-14
+
+Five fresh-process queries of the stage-2 compiler VM on macOS 26.5 arm64 used
+`concat([1], [2])` and selected `probe`. Each included source loading, checking
+and explanation rendering with a warm filesystem cache. `real` times were
+0.04s, 0.04s, 0.05s, 0.04s and 0.04s (median 0.04s, range 0.04–0.05s).
+This is a local reference, not a paired before/after comparison or a general
+latency guarantee. Join evidence is retained only for explanation queries;
+ordinary checking retains none, and runtime and bytecode behavior are unchanged.
+
+`make build/bootstrap/stage2/compiler.bc`, the 737-assertion module-binding
+suite, the four-check explanation CLI fixture, `make docs` and `git diff
+--check` passed. `make check` completed with no test failures in 395s on the
+reused local build tree, including release smoke and quick start. Bootstrap took
+230s against its emitted 60s warning budget; the full check took 395s against
+its emitted 120s warning budget. These local timings are recorded as validation
+evidence without a paired performance comparison; they do not start GI#106
+work.
+
+## GI#134 generic type-parameter join explanation turnaround — 2026-10-14
+
+Five fresh-process queries of the stage-2 compiler VM on macOS 26.5 arm64 used
+`combine(1, -2)` to constrain one generic function type parameter from two
+arguments. Each query included source loading, checking and explanation rendering
+with a warm filesystem cache. `real` times were 0.05s, 0.04s, 0.05s, 0.05s and
+0.05s (median 0.05s, range 0.04–0.05s). This is a local reference, not a paired
+before/after comparison or a general latency guarantee. Generic join evidence is
+retained only for explanation queries; ordinary checking retains none, and
+inference results, diagnostics, runtime and bytecode behavior are unchanged.
+
+The module-binding suite passed 740 assertions and the explanation CLI fixture
+passed 141 cases. The final `make check` completed with no failures in 338s on
+the reused local build tree: unit took 196s, bootstrap 229s, functional 73s,
+release smoke 9s, and quick start under 1s. The command emitted historical
+budget warnings for unit, bootstrap and overall check; they do not affect its
+successful exit and do not change GI#106 scope.
+
+## GI#134 unary and binary operator explanation turnaround — 2026-10-14
+
+Five fresh-process queries of the stage-2 compiler VM on macOS arm64 used
+`1 + -2` and selected `probe`. Each query included source loading, checking and
+explanation rendering with a warm filesystem cache. `real` times were 0.05s,
+0.04s, 0.04s, 0.05s and 0.04s (median 0.04s, range 0.04–0.05s). This is a local
+reference, not a paired before/after comparison or a general latency guarantee.
+Operator evidence is retained only for explanation queries; ordinary checking,
+diagnostics, acceptance and runtime behavior are unchanged. Operator type
+acceptance is reported separately from obligations such as Nat subtraction
+underflow.
+
+The module-binding suite passed 747 assertions and the explanation CLI fixture
+passed 145 cases. `make docs` and `git diff --check` passed. Full `make check`
+passed on the reused local build tree in 424s, including HTTP client/server
+fixtures, release smoke (8s) and quick start (1s). Unit took 315s and bootstrap
+235s; the command emitted historical budget warnings for those phases and the
+overall check. There were no test failures. These local timings are validation
+evidence, not a paired performance comparison, and do not expand GI#106 scope.
+
+## GI#134 indexing and iteration explanation turnaround — 2026-10-14
+
+Five fresh-process stage-2 compiler VM queries on macOS arm64 used a function
+with both an array `for` loop and an indexed read. Each included source loading,
+checking and explanation rendering with a warm filesystem cache. `real` times
+were 0.05s, 0.04s, 0.05s, 0.04s and 0.04s (median 0.04s, range 0.04–0.05s).
+This is a local reference, not a paired before/after comparison or general
+latency guarantee. Index/iteration evidence is retained only for explanation
+queries; ordinary checking, diagnostics, and runtime behavior are unchanged.
+
+The module-binding suite passed 754 assertions and the explanation CLI fixture
+passed 151 cases. `make docs` and `git diff --check` passed. Full `make check`
+passed on the reused local build tree in 425s, including HTTP/TCP fixtures,
+release smoke (8s) and quick start (1s). Unit took 315s and bootstrap 236s; the
+command emitted historical budget warnings for these phases and overall check.
+There were no test failures. These local timings are validation evidence, not a
+paired performance comparison, and do not expand GI#106 scope.
+
+After the full run, an explicit rejected-index-receiver regression was added;
+the focused module-binding suite and CLI fixture then passed at 755 assertions
+and 152 cases. No implementation code changed after the full run.
+
+## GI#134 conditional and loop condition type explanations — 2026-10-14
+
+Five warm stage-2 compiler VM queries for an `if` condition with explanation
+rendering took 0.05s, 0.04s, 0.05s, 0.05s and 0.05s (median 0.05s, range
+0.04–0.05s). This is a local reference, not a paired before/after benchmark or
+general latency guarantee. The explanation-only checker retained explicit type
+requirements only when explanation mode was enabled; ordinary diagnostics and
+runtime behavior remain unchanged.
+
+The compiler module-binding suite passed 760 assertions, and the explanation
+CLI fixture passed 156 cases. Documentation/link and whitespace checks passed.
+The full canonical validation route passed in 342s, including HTTP/TCP fixtures,
+bootstrap fixed points, release smoke (8s) and quick start (0s). Bootstrap took
+231s and emitted its existing 60s budget warning; the overall check emitted its
+existing 120s budget warning. No tests failed. These measurements are validation
+evidence, not a paired performance comparison.
+
+## GI#134 matched-enum variant explanations — 2026-10-14
+
+Five warm stage-2 compiler VM queries for an exhaustive two-variant match with
+explanation rendering took 0.05s, 0.04s, 0.05s, 0.04s and 0.05s (median 0.05s,
+range 0.04–0.05s). This is a local reference, not a paired before/after
+benchmark or general latency guarantee. The query reports only whether each
+resolved pattern variant belongs to the subject enum; exhaustiveness, duplicate
+arms and binding counts remain separate checker decisions.
+
+The compiler module-binding suite passed 764 assertions, and the explanation
+CLI fixture passed 159 cases, including source and saved-bytecode execution.
+Documentation/link and whitespace checks passed. The full canonical validation
+route passed in 341s, including HTTP/TCP fixtures, compiler bootstrap fixed
+points, release smoke (8s) and quick start (1s). Bootstrap took 232s and the
+overall check took 341s, so both emitted their existing timing-budget warnings.
+No tests failed. These measurements are validation evidence, not a paired
+performance comparison.
+
+## GI#134 record field access explanations — 2026-10-14
+
+Five warm stage-2 compiler VM queries for a generic record field access with
+explanation rendering took 0.05s, 0.04s, 0.05s, 0.05s and 0.04s (median 0.05s,
+range 0.04–0.05s). This is a local reference, not a paired before/after
+benchmark or general latency guarantee. The query reports record/field
+compatibility and the substituted field type; evidence remains explanation-only.
+
+The compiler module-binding suite passed 769 assertions, and the explanation
+CLI fixture passed 162 cases, including source and saved-bytecode execution.
+Documentation/link and whitespace checks passed. The full canonical validation
+route passed in 341s, including HTTP/TCP fixtures, compiler bootstrap fixed
+points, release smoke (8s) and quick start (1s). Bootstrap took 232s and the
+overall check took 341s, so both emitted their existing timing-budget warnings.
+No tests failed. These measurements are validation evidence, not a paired
+performance comparison.

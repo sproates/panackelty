@@ -1,8 +1,10 @@
 # Bounded semantic-impact experiment
 
 Reproduce with `make semantic-impact-experiment` (native toolchain and Node 24+).
-Linux/macOS compiler CI runs this target separately from the interpreter-free
-`make check`. It exports actual internal checker records, predicts before making
+Pull-request Linux/macOS compiler CI runs this target separately from the
+interpreter-free `make check`; post-merge checks retain the product suite and
+skip this same-tree experiment. It exports actual internal checker records,
+predicts before making
 changed snapshots, then checks those snapshots through both the checker and
 public `panack check`. Temporary source files are removed on success or failure.
 This is one feasibility experiment for [GI#175: Semantic change prediction](https://github.com/sproates/panackelty/issues/175)

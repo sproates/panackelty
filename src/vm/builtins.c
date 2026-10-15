@@ -24,9 +24,21 @@ bool builtin_is_async(const Builtin *entry)
 }
 
 static const Builtin BUILTINS[] = {
+    {"tcp_service", 6, false, async_service_only},
+    {"host_arguments_async", 0, false, async_service_only},
+    {"host_stdout_async", 1, false, async_service_only},
+    {"host_stderr_async", 1, false, async_service_only},
+    {"host_exit_async", 1, false, async_service_only},
     {"async_fake_read", 1, false, async_service_only},
     {"$tcp_exchange", 5, false, async_service_only},
+    {"$http_transport_exchange", 6, false, async_service_only},
     {"$tcp_serve", 4, false, async_service_only},
+    {"$tcp_serve_stream", 5, false, async_service_only},
+    {"$tcp_server_read_chunk", 1, false, async_service_only},
+    {"fs_root_identity_async", 1, false, async_service_only},
+    {"fs_read_beneath_async", 3, false, async_service_only},
+    {"fs_read_beneath", 3, false, host_capability_call},
+    {"fs_directories_overlap", 2, false, host_capability_call},
     {"fs_read", 2, false, host_capability_call},
     {"fs_write", 2, false, host_capability_call},
     {"fs_metadata", 1, false, host_capability_call},

@@ -1,0 +1,6 @@
+// Package-private adapter boundary. The native operation returns raw bytes;
+// the Panackelty parser owns response framing and public errors.
+pub async exchange(host: Str, port: Nat, tls: Bool, request: Bytes,
+    response_limit: Nat, timeout_ms: Nat): Result[Bytes,Str] {
+  await http_transport_exchange(host, port, tls, request, response_limit, timeout_ms)
+}

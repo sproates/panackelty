@@ -1,33 +1,42 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {collect,gate}=require('../../scripts/source_coverage_route.cjs');
-test('all promotion PR revisions collect, regardless of feature branch',()=>{
-  for(const ref of ['refs/pull/1/merge','refs/heads/next','refs/heads/feature'])
-    assert.equal(collect({event:'pull_request',base:'main',ref}),true);
+const fs=require('node:fs');
+const {gate}=require('../../scripts/source_coverage_route.cjs');
+test('full validation still requires successful fast coverage policy checks',()=>{
+  assert.doesNotThrow(()=>gate({route:'full',policy:'success'}));
+  for(const policy of ['failure','cancelled','skipped',''])
+    assert.throws(()=>gate({route:'full',policy}));
 });
-test('ordinary slices require fast tests, promotion requires collection too',()=>{
-  assert.doesNotThrow(()=>gate({route:'full',requested:'false',policy:'success',collection:'skipped'}));
-  assert.doesNotThrow(()=>gate({route:'full',requested:'true',policy:'success',collection:'success'}));
-  for(const result of ['failure','cancelled','skipped','']) {
-    assert.throws(()=>gate({route:'full',requested:'true',policy:'success',collection:result}));
-    assert.throws(()=>gate({route:'full',requested:'false',policy:result,collection:'skipped'}));
+test('docs and workflow routes skip policy; uncertain routes fail closed',()=>{
+  for(const route of ['docs','workflow']) {
+    assert.doesNotThrow(()=>gate({route,policy:'skipped'}));
+    for(const policy of ['failure','cancelled','success','']) assert.throws(()=>gate({route,policy}));
   }
+  assert.throws(()=>gate({route:'unknown',policy:'success'}));
 });
-test('docs skip both source jobs and uncertain routing fails closed',()=>{
-  for(const requested of ['true','false'])
-    assert.doesNotThrow(()=>gate({route:'docs',requested,policy:'skipped',collection:'skipped'}));
-  assert.throws(()=>gate({route:'unknown',requested:'false',policy:'success',collection:'skipped'}));
-  assert.throws(()=>gate({route:'full',requested:'',policy:'success',collection:'skipped'}));
+test('Check has no collection job or result dependency',()=>{
+  const workflow=fs.readFileSync('.github/workflows/check.yml','utf8');
+  assert.doesNotMatch(workflow,/^  source_coverage:|source_coverage_baseline|CI_SOURCE_COLLECTION|source_coverage_refresh/m);
+  assert.match(workflow,/needs: \[changes, test_run, next_smoke, source_policy_tests, workflow_validation\]/);
+  assert.match(workflow,/CI_SOURCE_POLICY_RESULT: \$\{\{ needs.source_policy_tests.result \}\}/);
 });
-test('ordinary next slices and pushes do not collect',()=>{
-  assert.equal(collect({event:'pull_request',base:'next',message:'[source-coverage]'}),false);
-  assert.equal(collect({event:'push',ref:'refs/heads/next',message:'Implement a slice'}),false);
-});
-test('only an explicit next push refresh can opt in',()=>{
-  assert.equal(collect({event:'push',ref:'refs/heads/next',message:'Refresh report [source-coverage]'}),true);
-  for(const ref of ['refs/heads/main','refs/heads/feature'])
-    assert.equal(collect({event:'push',ref,message:'[source-coverage]'}),false);
-  for(const event of ['schedule','workflow_dispatch','unknown'])
-    assert.equal(collect({event,base:'main',ref:'refs/heads/next',message:'[source-coverage]'}),false);
+test('weekly scheduler dispatches exact next workflow; collection is manual and pinned',async()=>{
+  const workflow=fs.readFileSync('.github/workflows/source-coverage.yml','utf8');
+  assert.match(workflow,/cron: '23 3 \* \* 1'/);
+  assert.match(workflow,/^  workflow_dispatch:/m);
+  assert.doesNotMatch(workflow,/^  (push|pull_request):/m);
+  assert.match(workflow,/if: github.event_name == 'schedule'/);
+  assert.match(workflow,/if: github.event_name == 'workflow_dispatch' && github.ref == 'refs\/heads\/next'/);
+  assert.match(workflow,/ref: \$\{\{ github.sha \}\}/);
+  assert.match(workflow,/cancel-in-progress: false/);
+  const script=workflow.split('          script: |\n')[1].split('\n  collect:')[0];
+  let dispatched;
+  await new Function('github','context',`return (async()=>{${script}})()`)(
+    {rest:{actions:{createWorkflowDispatch:async args=>{dispatched=args;}}}},
+    {repo:{owner:'sproates',repo:'panackelty'}});
+  assert.deepEqual(dispatched,{owner:'sproates',repo:'panackelty',workflow_id:'source-coverage.yml',ref:'next'});
+  assert.match(workflow,/node tests\/source_coverage\/parity.cjs/);
+  assert.match(workflow,/name: source-coverage-\$\{\{ github.run_id \}\}/);
+  assert.match(workflow,/timeout-minutes: 35/);
 });

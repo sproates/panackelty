@@ -1,0 +1,45 @@
+name: HTTP TLS fixtures
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/http-tls.yml'
+      - 'tests/http_client_package.sh'
+      - 'tests/http_fixture.c'
+      - 'src/vm/http_transport.c'
+      - 'packages/http/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: http-tls-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  tls:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-14]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Install native HTTP client dependency
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libcurl4-openssl-dev
+      - name: Build native fixture runner
+        run: make native build/vm/http_fixture
+      - name: Exercise TLS source and bytecode contracts
+        run: |
+          openssl version
+          curl-config --version
+          for fixture in tls-ok tls-wrong-host tls-untrusted tls-late; do
+            echo "TLS fixture: $fixture"
+            sh tests/http_client_package.sh "$fixture"
+          done

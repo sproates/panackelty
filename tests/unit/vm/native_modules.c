@@ -1,6 +1,7 @@
 /* Direct contracts across the separately compiled VM modules.
  * Assertions stay enabled even when a release build supplies -DNDEBUG.
  */
+#include "platform.h"
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
@@ -10,13 +11,22 @@
 #include "render.h"
 #include "utf8.h"
 #include "verify.h"
+#include "value.h"
 #include "vm.h"
 
 #include <assert.h>
+#include <fcntl.h>
+#include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
+void http_transport_contracts(void);
+void root_read_contracts(void);
+void console_write_contracts(void);
 void resumable_contracts(void);
 void coverage_contracts(void);
 void coverage_session_contracts(void);
@@ -26,6 +36,17 @@ void tcp_server_contracts(void);
 void task_contracts(void);
 void task_artifact(const char *path);
 void resumable_artifact(const char *path, size_t budget);
+
+/* Persist an opt-in checkpoint so timeout reporting survives child termination. */
+static void record_module_progress(const char *stage)
+{
+    const char *path = getenv("PANACK_NATIVE_MODULE_PROGRESS_FILE");
+    if (!path || !*path) return;
+    FILE *file = fopen(path, "w");
+    if (!file) return;
+    fprintf(file, "%s\n", stage);
+    fclose(file);
+}
 
 static void values_own_copies_and_retain_children(void)
 {
@@ -317,7 +338,9 @@ static void host_builtins_reject_wrong_operand_types(void)
     struct HostCall {
         const char *name;
         size_t arity;
-    } calls[] = {{"fs_read", 2},
+    } calls[] = {{"fs_read_beneath", 3},
+                 {"fs_directories_overlap", 2},
+                 {"fs_read", 2},
                  {"fs_write", 2},
                  {"fs_metadata", 1},
                  {"fs_list", 1},
@@ -333,13 +356,248 @@ static void host_builtins_reject_wrong_operand_types(void)
     Value *args[] = {wrong, wrong, wrong, wrong, wrong, wrong, wrong};
     for (size_t i = 0; i < sizeof(calls) / sizeof(*calls); i++) {
         const Builtin *entry = builtin(calls[i].name);
-        assert(entry && entry->arity == calls[i].arity);
+        assert(entry && entry->arity == calls[i].arity && !entry->pure);
         VM vm = {0};
         Value *result = builtin_call(&vm, calls[i].name, args);
         assert(!result && vm.error && strstr(vm.error, "VM trap:"));
         assert(wrong->refs == 1);
     }
     release(wrong);
+}
+
+static Value *rooted_read(const char *root, const char *relative)
+{
+    Value *arguments[] = {
+        value_data(V_PATH, (const uint8_t *)root, strlen(root)),
+        value_data(V_PATH, (const uint8_t *)relative, strlen(relative)),
+        value_size(1024),
+    };
+    assert(arguments[0] && arguments[1] && arguments[2]);
+    VM vm = {0};
+    Value *result = builtin_call(&vm, "fs_read_beneath", arguments);
+    assert(!vm.error);
+    for (size_t i = 0; i < 3; i++) {
+        release(arguments[i]);
+    }
+    return result;
+}
+
+static void write_test_file(const char *path, const char *contents)
+{
+    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    assert(fd >= 0);
+    size_t length = strlen(contents), written = 0;
+    while (written < length) {
+        ssize_t count = write(fd, contents + written, length - written);
+        assert(count > 0);
+        written += (size_t)count;
+    }
+    assert(close(fd) == 0);
+}
+
+static void filesystem_data_limits_are_independent_of_process_limits(void)
+{
+    char path[] = "/tmp/panack-file-bound-XXXXXX";
+    int fd = mkstemp(path);
+    assert(fd >= 0 && !close(fd));
+    VM vm = {0};
+    Value *arguments[] = {value_data(V_PATH, (const uint8_t *)path, strlen(path)),
+                          value_size(32u * 1024u * 1024u)};
+    Value *result = builtin_call(&vm, "fs_read", arguments);
+    assert(result && !strcmp(result->as.named.name, "Ok"));
+    release(result);
+    release(arguments[1]);
+    arguments[1] = value_size(32u * 1024u * 1024u + 1);
+    result = builtin_call(&vm, "fs_read", arguments);
+    assert(result && !strcmp(result->as.named.name, "Error"));
+    release(result);
+    release(arguments[1]);
+    arguments[1] = value_data(V_BYTES, NULL, 0);
+    /* Rejection must precede access to the deliberately absent oversized data. */
+    arguments[1]->as.bytes.length = 32u * 1024u * 1024u + 1;
+    result = builtin_call(&vm, "fs_write", arguments);
+    assert(result && !strcmp(result->as.named.name, "Error"));
+    arguments[1]->as.bytes.length = 0;
+    release(result);
+    release(arguments[0]);
+    release(arguments[1]);
+    assert(!unlink(path));
+}
+
+static void filesystem_root_reads_stay_beneath_the_open_root(void)
+{
+    char base[] = "/tmp/panack-root-read-XXXXXX";
+    assert(mkdtemp(base));
+    char root[512], subdirectory[512], source[512], in_root_link[512];
+    char escape_link[512], nested_link[512], nested_escape[512], outside[512], root_alias[512];
+    char race_link[512];
+    assert(snprintf(root, sizeof(root), "%s/root", base) > 0);
+    assert(snprintf(subdirectory, sizeof(subdirectory), "%s/root/sub", base) > 0);
+    assert(snprintf(source, sizeof(source), "%s/root/sub/data", base) > 0);
+    assert(snprintf(in_root_link, sizeof(in_root_link), "%s/root/inside", base) > 0);
+    assert(snprintf(escape_link, sizeof(escape_link), "%s/root/escape", base) > 0);
+    assert(snprintf(nested_link, sizeof(nested_link), "%s/root/sub/relative", base) > 0);
+    assert(snprintf(nested_escape, sizeof(nested_escape), "%s/root/sub/escape", base) > 0);
+    assert(snprintf(outside, sizeof(outside), "%s/outside", base) > 0);
+    assert(snprintf(root_alias, sizeof(root_alias), "%s/alias", base) > 0);
+    assert(snprintf(race_link, sizeof(race_link), "%s/root/race", base) > 0);
+    assert(mkdir(root, 0700) == 0 && mkdir(subdirectory, 0700) == 0);
+    write_test_file(source, "inside");
+    write_test_file(outside, "secret");
+    assert(symlink("sub/data", in_root_link) == 0);
+    assert(symlink(outside, escape_link) == 0);
+    assert(symlink("../sub/data", nested_link) == 0);
+    assert(symlink("../../outside", nested_escape) == 0);
+    assert(symlink(root, root_alias) == 0);
+
+    Value *inside = rooted_read(root, "inside");
+    assert(inside && inside->kind == V_VARIANT && !strcmp(inside->as.named.name, "Ok"));
+    Value *initial_read = inside->as.named.values[0];
+    assert(initial_read && initial_read->kind == V_RECORD &&
+           !strcmp(initial_read->as.named.name, "FilesystemRootRead"));
+    Value *identity = initial_read->as.named.values[0];
+    Value *contents = initial_read->as.named.values[1];
+    assert(identity && identity->kind == V_RECORD &&
+           !strcmp(identity->as.named.name, "FilesystemRootIdentity"));
+    assert(contents && contents->kind == V_BYTES && contents->as.bytes.length == 6 &&
+           !memcmp(contents->as.bytes.data, "inside", 6));
+    retain(identity);
+    release(inside);
+
+    Value *alias_read = rooted_read(root_alias, "sub/data");
+    assert(alias_read && alias_read->kind == V_VARIANT &&
+           !strcmp(alias_read->as.named.name, "Ok"));
+    Value *alias_identity = alias_read->as.named.values[0]->as.named.values[0];
+    assert(value_equal(identity, alias_identity));
+    release(alias_read);
+
+    Value *escape = rooted_read(root, "escape");
+    assert(escape && escape->kind == V_VARIANT && !strcmp(escape->as.named.name, "Error"));
+    assert(!strcmp((char *)escape->as.named.values[0]->as.named.values[1]->as.bytes.data,
+                   "invalid_argument"));
+    release(escape);
+
+    Value *nested = rooted_read(root, "sub/relative");
+    assert(nested && nested->kind == V_VARIANT && !strcmp(nested->as.named.name, "Ok"));
+    assert(!memcmp(nested->as.named.values[0]->as.named.values[1]->as.bytes.data, "inside", 6));
+    release(nested);
+
+    Value *nested_escape_result = rooted_read(root, "sub/escape");
+    assert(nested_escape_result && nested_escape_result->kind == V_VARIANT &&
+           !strcmp(nested_escape_result->as.named.name, "Error"));
+    assert(!strcmp((char *)nested_escape_result->as.named.values[0]->as.named.values[1]->as.bytes.data,
+                   "invalid_argument"));
+    release(nested_escape_result);
+
+    Value *parent = rooted_read(root, "../outside");
+    assert(parent && parent->kind == V_VARIANT && !strcmp(parent->as.named.name, "Error"));
+    assert(!strcmp((char *)parent->as.named.values[0]->as.named.values[1]->as.bytes.data,
+                   "invalid_argument"));
+    release(parent);
+
+    release(identity);
+    assert(symlink("sub/data", race_link) == 0);
+    int race_started[2];
+    assert(pipe(race_started) == 0);
+    pid_t racer = fork();
+    assert(racer >= 0);
+    if (racer == 0) {
+        close(race_started[0]);
+        assert(write(race_started[1], "x", 1) == 1);
+        close(race_started[1]);
+        for (size_t i = 0; i < 20000; i++) {
+            if (unlink(race_link) || symlink("../outside", race_link)) {
+                _exit(2);
+            }
+            if (unlink(race_link) || symlink("sub/data", race_link)) {
+                _exit(2);
+            }
+            (void)sched_yield();
+        }
+        _exit(0);
+    }
+    close(race_started[1]);
+    char started;
+    assert(read(race_started[0], &started, 1) == 1 && started == 'x');
+    close(race_started[0]);
+    for (size_t i = 0; i < 500; i++) {
+        Value *raced = rooted_read(root, "race");
+        assert(raced && raced->kind == V_VARIANT);
+        if (!strcmp(raced->as.named.name, "Ok")) {
+            Value *raced_read = raced->as.named.values[0];
+            Value *raced_contents = raced_read->as.named.values[1];
+            assert(raced_contents && raced_contents->kind == V_BYTES &&
+                   raced_contents->as.bytes.length == 6 &&
+                   !memcmp(raced_contents->as.bytes.data, "inside", 6));
+        } else {
+            assert(!strcmp(raced->as.named.name, "Error"));
+        }
+        release(raced);
+    }
+    int racer_status = 0;
+    assert(waitpid(racer, &racer_status, 0) == racer);
+    assert(WIFEXITED(racer_status) && WEXITSTATUS(racer_status) == 0);
+    assert(unlink(race_link) == 0);
+    assert(unlink(root_alias) == 0 && unlink(nested_escape) == 0 && unlink(nested_link) == 0);
+    assert(unlink(escape_link) == 0 && unlink(in_root_link) == 0);
+    assert(unlink(source) == 0 && unlink(outside) == 0);
+    assert(rmdir(subdirectory) == 0 && rmdir(root) == 0 && rmdir(base) == 0);
+}
+
+static Value *directories_overlap(const char *left, const char *right)
+{
+    Value *arguments[] = {
+        value_data(V_PATH, (const uint8_t *)left, strlen(left)),
+        value_data(V_PATH, (const uint8_t *)right, strlen(right)),
+    };
+    assert(arguments[0] && arguments[1]);
+    VM vm = {0};
+    Value *result = builtin_call(&vm, "fs_directories_overlap", arguments);
+    assert(!vm.error);
+    release(arguments[0]);
+    release(arguments[1]);
+    return result;
+}
+
+static void filesystem_directory_overlap_uses_physical_ancestry(void)
+{
+    char base[] = "/tmp/panack-dir-overlap-XXXXXX";
+    assert(mkdtemp(base));
+    char root[512], child[512], sibling[512], alias[512], missing[512];
+    assert(snprintf(root, sizeof(root), "%s/root", base) > 0);
+    assert(snprintf(child, sizeof(child), "%s/root/source", base) > 0);
+    assert(snprintf(sibling, sizeof(sibling), "%s/sibling", base) > 0);
+    assert(snprintf(alias, sizeof(alias), "%s/root-alias", base) > 0);
+    assert(snprintf(missing, sizeof(missing), "%s/missing", base) > 0);
+    assert(mkdir(root, 0700) == 0 && mkdir(child, 0700) == 0 && mkdir(sibling, 0700) == 0);
+    assert(symlink(root, alias) == 0);
+
+    Value *overlap = directories_overlap(root, child);
+    assert(overlap && overlap->kind == V_VARIANT && !strcmp(overlap->as.named.name, "Ok"));
+    assert(overlap->as.named.values[0]->kind == V_BOOL && overlap->as.named.values[0]->as.boolean);
+    release(overlap);
+
+    overlap = directories_overlap(child, root);
+    assert(overlap && overlap->kind == V_VARIANT && !strcmp(overlap->as.named.name, "Ok"));
+    assert(overlap->as.named.values[0]->kind == V_BOOL && overlap->as.named.values[0]->as.boolean);
+    release(overlap);
+
+    overlap = directories_overlap(root, alias);
+    assert(overlap && overlap->kind == V_VARIANT && !strcmp(overlap->as.named.name, "Ok"));
+    assert(overlap->as.named.values[0]->kind == V_BOOL && overlap->as.named.values[0]->as.boolean);
+    release(overlap);
+
+    overlap = directories_overlap(child, sibling);
+    assert(overlap && overlap->kind == V_VARIANT && !strcmp(overlap->as.named.name, "Ok"));
+    assert(overlap->as.named.values[0]->kind == V_BOOL && !overlap->as.named.values[0]->as.boolean);
+    release(overlap);
+
+    overlap = directories_overlap(root, missing);
+    assert(overlap && overlap->kind == V_VARIANT && !strcmp(overlap->as.named.name, "Error"));
+    release(overlap);
+
+    assert(unlink(alias) == 0);
+    assert(rmdir(sibling) == 0 && rmdir(child) == 0 && rmdir(root) == 0 && rmdir(base) == 0);
 }
 
 static void void_return_preserves_value_kind(void)
@@ -751,29 +1009,62 @@ int main(int argc, char **argv)
         return 0;
     }
     resumable_contracts();
+    record_module_progress("resumable");
     coverage_contracts();
+    record_module_progress("coverage");
     coverage_session_contracts();
+    record_module_progress("coverage_session");
     async_contracts();
+    record_module_progress("async");
     tcp_contracts();
+    record_module_progress("tcp");
+    http_transport_contracts();
+    root_read_contracts();
+    console_write_contracts();
+    record_module_progress("http_transport");
     tcp_server_contracts();
+    record_module_progress("tcp_server");
     task_contracts();
+    record_module_progress("tasks");
     bigint_boundaries();
+    record_module_progress("bigint_boundaries");
     values_own_copies_and_retain_children();
+    record_module_progress("value_ownership");
     persistent_versions_keep_shared_children_alive();
+    record_module_progress("persistent_versions");
     append_storage_preserves_branches_and_drops_hidden_children();
+    record_module_progress("append_storage");
     append_container_children_do_not_form_storage_cycles();
+    record_module_progress("append_child_cycles");
     append_branches_match_independent_copies();
+    record_module_progress("append_branches");
     exact_arithmetic_borrows_operands();
+    record_module_progress("exact_arithmetic");
     utf8_offsets_preserve_code_points();
+    record_module_progress("utf8_offsets");
     opaque_host_values_keep_distinct_kinds();
+    record_module_progress("opaque_host_values");
     host_builtins_reject_wrong_operand_types();
+    record_module_progress("host_builtin_types");
+    filesystem_data_limits_are_independent_of_process_limits();
+    filesystem_root_reads_stay_beneath_the_open_root();
+    record_module_progress("filesystem_root");
+    filesystem_directory_overlap_uses_physical_ancestry();
+    record_module_progress("filesystem_ancestry");
     void_return_preserves_value_kind();
+    record_module_progress("void_return");
     frames_release_arguments_on_return_and_trap();
+    record_module_progress("frame_ownership");
     nested_calls_preserve_caller_ownership();
+    record_module_progress("nested_calls");
     verifier_rejects_forged_structures();
+    record_module_progress("verifier");
     decode_mutations_release_partial_programs();
+    record_module_progress("decode_mutations");
     nested_bytecode_releases_rejected_programs();
+    record_module_progress("nested_bytecode");
     builtin_domains_preserve_errors_and_results();
+    record_module_progress("builtin_domains");
     puts("native module contracts: ok");
     return 0;
 }

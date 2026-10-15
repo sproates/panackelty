@@ -1,7 +1,10 @@
-import stdlib/bytes::{bytes_empty, bytes_push, bytes_join, bytes_length, bytes_at, text_encode_utf8}
-import stdlib/path::{path_value_from_text, path_value_to_text, path_string_parent, path_string_resolve}
-import stdlib/environment::{environment_value}
-import stdlib/filesystem::{filesystem_list_directory}
+import project/src/compiler/path_support as path_support
+import stdlib/text as std_text
+import stdlib/path as std_path
+import stdlib/option as std_option
+import stdlib/bytes as byte_buffer
+import stdlib/environment as std_environment
+import stdlib/filesystem as std_filesystem
 pub import project/src/compiler/coverage::{CoverageData}
 import project/src/compiler/coverage::{CoverageCell, CoverageFunction, coverage_number, coverage_prefix, decode_coverage_at, render_coverage, coverage_mapped_project}
 import project/src/compiler/loader::{LoadedProject, load_project_for_inventory}
@@ -104,28 +107,28 @@ pure coverage_parent(id: Str): Str {
 
 coverage_session_read(directory: Str, roots: [CoverageRoot]): CoverageSessionResult {
   mut valid: Bool = true
-  mut nonce: Bytes = bytes_empty()
+  mut nonce: Bytes = byte_buffer.empty()
   mut totals: [CoverageData] = []
 
   for root in roots {
     totals = append(totals, coverage_zero(root.mapped.bytecode))
   }
   mut executions: Nat = 0
-  match source_map_read(directory + "/registry", 16777216) {
+  match source_map_read(directory + "/registry", 33554432) {
     Error(error) => {
       valid = false
     },
     Ok(registry) => {
-      valid = bytes_length(registry) >= 35 && coverage_prefix(
+      valid = byte_buffer.length(registry) >= 35 && coverage_prefix(
         registry,
-        text_encode_utf8("PANACKSESSION1\n"),
+        std_text.encode_utf8("PANACKSESSION1\n"),
         0
       )
       if valid {
         for i in 15..31 {
-          nonce = bytes_push(nonce, bytes_at(registry, i))
+          nonce = byte_buffer.push(nonce, byte_buffer.at(registry, i))
         }
-        mut chunks: [Bytes] = [text_encode_utf8("PANACKSESSION1\n"), nonce, encode_u32(len(roots))]
+        mut chunks: [Bytes] = [std_text.encode_utf8("PANACKSESSION1\n"), nonce, encode_u32(len(roots))]
         for root in roots {
           chunks = append(chunks, source_map_blob(root.artifact))
           chunks = append(chunks, source_map_blob(root.inventory))
@@ -136,18 +139,18 @@ coverage_session_read(directory: Str, roots: [CoverageRoot]): CoverageSessionRes
   }
   mut names: Map[Str, Bool] = map()
   mut ids: [Str] = []
-  match path_value_from_text(directory) {
+  match std_path.from_text(directory) {
     Error(error) => {
       valid = false
     },
-    Ok(path) => match filesystem_list_directory(path) {
+    Ok(path) => match std_filesystem.list_directory(path) {
       Error(error) => {
         valid = false
       },
       Ok(children) => {
         valid = valid && len(children) <= 12291
         for child in children {
-          match path_value_to_text(child) {
+          match std_path.to_text(child) {
             Error(error) => {
               valid = false
             },
@@ -165,7 +168,7 @@ coverage_session_read(directory: Str, roots: [CoverageRoot]): CoverageSessionRes
   valid = valid && len(ids) > 0 && len(ids) <= 4096 && names.has("expect-0") &&
     names.has("registry") && names.has("closed") && source_map_matches(
     directory + "/closed",
-    text_encode_utf8("closed\n")
+    std_text.encode_utf8("closed\n")
   )
   // Exact membership prevents surplus/duplicate/renamed records being ignored.
   mut expected_names: Nat = 3
@@ -178,7 +181,7 @@ coverage_session_read(directory: Str, roots: [CoverageRoot]): CoverageSessionRes
       names.has("expect-" + coverage_parent(id))) &&
       names.has("claim-" + id) && names.has("raw-" + id)
     expected_names = expected_names + 3
-    mut kind: Bytes = bytes_empty()
+    mut kind: Bytes = byte_buffer.empty()
     match source_map_read(directory + "/expect-" + id, 16) {
       Error(error) => {
         valid = false
@@ -188,28 +191,28 @@ coverage_session_read(directory: Str, roots: [CoverageRoot]): CoverageSessionRes
       }
     }
     valid = valid && (if id == "0" {
-        kind == text_encode_utf8("root\n")
+        kind == std_text.encode_utf8("root\n")
       } else {
-        kind == text_encode_utf8("nested\n") ||
-          kind == text_encode_utf8("task\n") ||
-          kind == text_encode_utf8("server\n") ||
-          kind == text_encode_utf8("process\n")
-      }) && source_map_matches(directory + "/claim-" + id, text_encode_utf8("claimed\n"))
+        kind == std_text.encode_utf8("nested\n") ||
+          kind == std_text.encode_utf8("task\n") ||
+          kind == std_text.encode_utf8("server\n") ||
+          kind == std_text.encode_utf8("process\n")
+      }) && source_map_matches(directory + "/claim-" + id, std_text.encode_utf8("claimed\n"))
     if valid {
-      match source_map_read(directory + "/raw-" + id, 16777216) {
+      match source_map_read(directory + "/raw-" + id, 33554432) {
         Error(error) => {
           valid = false
         },
         Ok(raw) => {
-          total_bytes = total_bytes + bytes_length(raw)
+          total_bytes = total_bytes + byte_buffer.length(raw)
           valid = valid && total_bytes <= 268435456
           envelope: Bytes = source_map_join(
-            [text_encode_utf8("PANACKEXEC1\n"), nonce, source_map_blob(text_encode_utf8(id))],
+            [std_text.encode_utf8("PANACKEXEC1\n"), nonce, source_map_blob(std_text.encode_utf8(id))],
             0,
             3
           )
-          offset: Nat = bytes_length(envelope)
-          valid = valid && bytes_length(raw) >= offset + 8 && coverage_prefix(raw, envelope, 0)
+          offset: Nat = byte_buffer.length(envelope)
+          valid = valid && byte_buffer.length(raw) >= offset + 8 && coverage_prefix(raw, envelope, 0)
           if valid {
             identity: Nat = coverage_number(raw, offset, 4)
             children: Nat = coverage_number(raw, offset + 4, 4)
@@ -249,11 +252,11 @@ coverage_session_read(directory: Str, roots: [CoverageRoot]): CoverageSessionRes
     }
   }
   // fs_list already guarantees unique names; inspect its length again below.
-  match path_value_from_text(directory) {
+  match std_path.from_text(directory) {
     Error(error) => {
       valid = false
     },
-    Ok(path) => match filesystem_list_directory(path) {
+    Ok(path) => match std_filesystem.list_directory(path) {
       Error(error) => {
         valid = false
       },
@@ -265,7 +268,7 @@ coverage_session_read(directory: Str, roots: [CoverageRoot]): CoverageSessionRes
   CoverageSessionResult(valid && declared_children + 1 == len(ids) &&
     source_map_matches(
     directory + "/budget",
-    bytes_join(encode_u32(len(ids)), encode_u32(total_bytes))
+    byte_buffer.join(encode_u32(len(ids)), encode_u32(total_bytes))
   ), nonce, executions, totals)
 }
 
@@ -298,7 +301,7 @@ pub run_coverage_aggregate(values: [Str]): Nat {
     len(sessions) <= 256
   mut roots: [CoverageRoot] = []
   mut totals: [CoverageData] = []
-  compiler_path: Str = environment_value("PANACKELTY_COMPILER_PATH")
+  compiler_path: Str = std_option.value_or(std_environment.get("PANACKELTY_COMPILER_PATH"), "")
   match source_map_read(compiler_path, 16777216) {
     Error(error) => {
       valid = false
@@ -306,9 +309,9 @@ pub run_coverage_aggregate(values: [Str]): Nat {
     Ok(compiler) => {
       if valid {
         for index in 0..len(sources) {
-          entry: Str = path_string_resolve(sources[index])
-          root: Str = path_string_parent(entry)
-          stdlib: Str = path_string_resolve(environment_value("PANACKELTY_STDLIB_PATH"))
+          entry: Str = path_support.resolve(sources[index])
+          root: Str = path_support.parent(entry)
+          stdlib: Str = path_support.resolve(std_option.value_or(std_environment.get("PANACKELTY_STDLIB_PATH"), ""))
           project: LoadedProject = load_project_for_inventory(entry)
           match coverage_mapped_project(project, entry, root, stdlib) {
             Error(errors) => { valid = false },
@@ -323,11 +326,11 @@ pub run_coverage_aggregate(values: [Str]): Nat {
                 stdlib
               )
               inventory: Bytes = source_map_join(
-                [text_encode_utf8("PANACKINVENTORY1\n"), encode_u32(1), source_map_blob(inner)],
+                [std_text.encode_utf8("PANACKINVENTORY1\n"), encode_u32(1), source_map_blob(inner)],
                 0,
                 3
               )
-              valid = valid && bytes_length(inner) > 0 &&
+              valid = valid && byte_buffer.length(inner) > 0 &&
                 source_map_matches(inventories[index], inventory) && source_snapshots_unchanged(project)
               for prior in roots {
                 valid = valid && prior.artifact != artifact

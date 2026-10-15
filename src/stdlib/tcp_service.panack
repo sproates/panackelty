@@ -1,0 +1,24 @@
+// Continuous service limits are separate from finite TcpServerLimits.
+pub record TcpServiceLimits {
+  concurrency: Nat,
+  request_limit: Nat,
+  response_limit: Nat,
+  client_timeout_ms: Nat,
+  drain_ms: Nat
+}
+
+pub record TcpServiceReady { address: Str, port: Nat }
+pub record TcpServiceSummary { accepted: Nat, succeeded: Nat, failed: Nat }
+
+// The concrete worker receives context explicitly; readiness runs after bind
+// and before admission. Native CLI SIGINT/SIGTERM requests a bounded drain.
+pub async serve[T](
+  address: Str,
+  port: Nat,
+  worker: AsyncFn[T,Result[Bytes,Str]],
+  context: T,
+  limits: TcpServiceLimits,
+  ready: AsyncFn[TcpServiceReady,Result[Unit,Str]]
+): Result[TcpServiceSummary,Str] {
+  await tcp_service(address, port, worker, context, limits, ready)
+}

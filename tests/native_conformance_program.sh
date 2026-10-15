@@ -11,7 +11,18 @@ project=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 panack="$project/panack"
 temporary=$(mktemp -d "${TMPDIR:-/tmp}/panack-native-program.XXXXXX")
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
-fail() { echo "native conformance: $*" >&2; exit 1; }
+fail() {
+  echo "native conformance: $*" >&2
+  if [ -s "${actual:-}" ]; then
+    echo "native conformance: captured stdout ($label):" >&2
+    cat "$actual" >&2
+  fi
+  if [ -s "${errors:-}" ]; then
+    echo "native conformance: captured stderr ($label):" >&2
+    cat "$errors" >&2
+  fi
+  exit 1
+}
 
 artifact="$temporary/$label.bc"
 actual="$temporary/$label.stdout"
@@ -39,7 +50,9 @@ fi
 if [ "$mode" != source ]; then
   profiled "conformance/$label/compile" "$panack" compile "$source" -o "$artifact" >"$temporary/compile.stdout" 2>"$errors" || fail "$label compilation failed"
   test ! -s "$errors" || fail "$label compilation wrote unexpected stderr"
-  profiled "conformance/$label/bytecode" "$panack" run "$artifact" >"$actual" 2>"$errors" || fail "$label artifact execution failed"
+  if ! profiled "conformance/$label/bytecode" "$panack" run "$artifact" >"$actual" 2>"$errors"; then
+    fail "$label artifact execution failed"
+  fi
   test ! -s "$errors" || fail "$label artifact wrote unexpected stderr"
-  cmp "$expected" "$actual" || fail "$label artifact output differs"
+  cmp -s "$expected" "$actual" || fail "$label artifact output differs"
 fi

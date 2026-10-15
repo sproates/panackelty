@@ -155,7 +155,7 @@ bool vm_coverage_raw_size(const VMCoverage *coverage, size_t artifact_size,
                           size_t inventory_size, size_t *size)
 {
     /* marker(11), blobs(8), function count(4), footer marker(4), status/flags(2). */
-    if (!coverage || artifact_size > VM_COVERAGE_MAX_RAW || inventory_size > VM_COVERAGE_MAX_RAW) {
+    if (!coverage || artifact_size > VM_COVERAGE_MAX_IDENTITY || inventory_size > VM_COVERAGE_MAX_IDENTITY) {
         return false;
     }
     size_t total = 29 + artifact_size + inventory_size + coverage->program->count * 12 + coverage->count * 32;

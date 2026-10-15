@@ -3,7 +3,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const MAX = 16 * 1024 * 1024;
+const MAX = 16 * 1024 * 1024; // Individual compiler/artifact/inventory identities.
+const MAX_CONTAINER = 32 * 1024 * 1024;
 const U64 = (1n << 64n) - 1n;
 const sha = b => crypto.createHash('sha256').update(b).digest('hex');
 const fail = message => { throw new Error(message); };
@@ -27,6 +28,13 @@ function regular(file, limit = MAX) {
   if (!s.isFile() || s.size > limit) fail('Unsafe or oversized coverage file');
   return fs.readFileSync(file);
 }
+// Hash only after readSession has validated the complete session. Container
+// bounds must match decoding; individual identities retain their smaller limit.
+function sessionRecords(directory) {
+  return fs.readdirSync(directory).sort().map(name => [name, sha(regular(
+    path.join(directory,name), name === 'registry' || name.startsWith('raw-') ? MAX_CONTAINER : MAX
+  ))]);
+}
 function sourcePath(name, entry, checkout) {
   // Canonicalize the checkout first. macOS commonly exposes temporary paths
   // through both /var and /private/var; comparing a child realpath against
@@ -40,7 +48,7 @@ function sourcePath(name, entry, checkout) {
   return {file, relative};
 }
 function readPlan(prefix, entry, checkout, compiler) {
-  let r = new Reader(regular(prefix + '.plan'));
+  let r = new Reader(regular(prefix + '.plan', MAX_CONTAINER));
   r.magic('PANACKPLAN1\n');
   const compilerBytes = r.blob(), artifact = r.blob(), inventory = r.blob();
   if (!compilerBytes.equals(compiler) || !artifact.equals(regular(prefix + '.bc')) || !inventory.equals(regular(prefix + '.inv'))) fail('Plan identity mismatch');
@@ -100,6 +108,7 @@ function readPlan(prefix, entry, checkout, compiler) {
   return {entry, prefix, artifact, inventory, functions, sources};
 }
 function readRaw(data, plan) {
+  if (data.length > MAX_CONTAINER) fail('Oversized coverage record');
   const r = new Reader(data); r.magic('PANACKCOV1\n');
   if (!r.blob().equals(plan.artifact) || !r.blob().equals(plan.inventory) || r.u32() !== plan.functions.length) fail('Raw identity mismatch');
   const result = [];
@@ -135,7 +144,7 @@ function readSession(directory, plans, seen) {
   if (fs.lstatSync(directory).isSymbolicLink()) fail('Linked session');
   const names = fs.readdirSync(directory), expected = new Set(['registry','budget','closed']);
   if (names.length > 12291) fail('Session member limit');
-  const reg = new Reader(regular(path.join(directory,'registry'))); reg.magic('PANACKSESSION1\n');
+  const reg = new Reader(regular(path.join(directory,'registry'), MAX_CONTAINER)); reg.magic('PANACKSESSION1\n');
   const nonce = reg.bytes(16).toString('hex');
   if (seen.has(nonce)) fail('Duplicate session'); seen.add(nonce);
   if (reg.count(16) !== plans.length) fail('Registry count mismatch');
@@ -152,7 +161,7 @@ function readSession(directory, plans, seen) {
     const kind = regular(path.join(directory,'expect-'+id),16).toString();
     if (id === '0' ? kind !== 'root\n' : !['nested\n','task\n','server\n','process\n'].includes(kind)) fail('Invalid admission kind');
     if (!regular(path.join(directory,'claim-'+id),16).equals(Buffer.from('claimed\n'))) fail('Missing claim');
-    const data = regular(path.join(directory,'raw-'+id)); bytes += data.length;
+    const data = regular(path.join(directory,'raw-'+id), MAX_CONTAINER); bytes += data.length;
     const r = new Reader(data); r.magic('PANACKEXEC1\n');
     if (r.bytes(16).toString('hex') !== nonce || r.text() !== id) fail('Cached or renamed execution');
     const index = r.u32(), count = r.count(4096); children += count;
@@ -239,13 +248,14 @@ function writeReport(output, report) {
   const head = title => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(title)}</title><style>body{font:16px/1.5 system-ui;margin:2rem;color:#17222e}table{border-collapse:collapse}td,th{padding:.4rem;border:1px solid #ccd}pre{white-space:pre-wrap}.covered{background:#dcf5df}.zero{background:#ffdddd}.unavailable{background:#fff0bf}code{overflow-wrap:anywhere}</style></head><body>`;
   const rows = report.files.map((f,i)=>`<tr><td><a href="file-${i}.html">${escape(f.path)}</a></td>${['lines','functions','branches'].map(k=>`<td>${metricText(f.metrics[k])}</td>`).join('')}</tr>`).join('');
   const components = Object.entries(report.components || {}).map(([name,m]) => `<tr><td>${escape(name)}</td>${['lines','functions','branches'].map(k=>`<td>${metricText(m[k])}</td>`).join('')}</tr>`).join('');
-  fs.writeFileSync(path.join(output,'html/index.html'),head('Panackelty source coverage — next')+`<h1>.panack source coverage — next</h1><p>This is the explicitly scoped native source-test baseline, not the entire test suite, native C or browser/WASI coverage. Unavailable measurements never become zero hits or a complete percentage.</p><p>Commit <a href="https://github.com/sproates/panackelty/commit/${report.commit}">${report.commit}</a>; generated ${escape(report.generatedAt)}.</p><p><a href="../summary.json">Metrics, identities, exact test manifest and omitted paths</a></p><table><tr><th>Component</th><th>Executable start lines</th><th>Functions</th><th>Source branch outcomes</th></tr>${components}</table><h2>Every eligible source file</h2><table><tr><th>Source</th><th>Executable start lines</th><th>Functions</th><th>Source branch outcomes</th></tr>${rows}</table></body></html>`);
+  const unmeasured = (report.manifest?.unmeasured || []).map(f=>`<li><code>${escape(f.path)}</code>: ${escape(f.reason)}</li>`).join('');
+  fs.writeFileSync(path.join(output,'html/index.html'),head('Panackelty source coverage — next')+`<h1>.panack source coverage — next</h1><p>This is the explicitly scoped native source-test baseline, not the entire test suite, native C or browser/WASI coverage. It reports measurements and does not enforce a minimum coverage amount. Unavailable measurements never become zero hits or a complete percentage.</p><p>Commit <a href="https://github.com/sproates/panackelty/commit/${report.commit}">${report.commit}</a>; generated ${escape(report.generatedAt)}.</p><p><a href="../summary.json">Metrics, identities, exact test manifest and omitted paths</a></p><table><tr><th>Component</th><th>Executable start lines</th><th>Functions</th><th>Source branch outcomes</th></tr>${components}</table><h2>Every measured source file</h2><table><tr><th>Source</th><th>Executable start lines</th><th>Functions</th><th>Source branch outcomes</th></tr>${rows}</table><h2>Unmeasured production sources</h2><p>These tracked sources are intentionally excluded from all coverage denominators; the report makes no coverage claim about them.</p><ul>${unmeasured}</ul></body></html>`);
   report.files.forEach((f,i)=>{
     const lines = f.text.split('\n').map((s,n)=>`<span id="L${n+1}" class="${f.lines[n+1] || ''}">${String(n+1).padStart(5)} ${escape(s)}</span>`).join('\n');
     fs.writeFileSync(path.join(output,`html/file-${i}.html`),head(f.path)+`<p><a href="index.html">All files</a></p><h1>${escape(f.path)}</h1><p>Green: covered; red: known zero; amber: unavailable. Blank lines are outside the executable-start-line denominator.</p><pre>${lines}</pre><h2>Functions</h2><pre>${escape(JSON.stringify(f.functions,null,2))}</pre><h2>Source branch outcomes</h2><pre>${escape(JSON.stringify(f.branches,null,2))}</pre><h2>Reviewed declaration exclusions</h2><pre>${escape(JSON.stringify(f.exclusions,null,2))}</pre></body></html>`);
   });
   const summary = {...report, files:report.files.map(({text,...rest})=>rest)};
   fs.writeFileSync(path.join(output,'summary.json'),JSON.stringify(summary,null,2)+'\n');
-  fs.writeFileSync(path.join(output,'summary.txt'),`Panackelty .panack source coverage (next)\nCommit: ${report.commit}\nGenerated: ${report.generatedAt}\n`+report.files.map(f=>`${f.path}\t${['lines','functions','branches'].map(k=>metricText(f.metrics[k])).join('\t')}`).join('\n')+'\n');
+  fs.writeFileSync(path.join(output,'summary.txt'),`Panackelty .panack source coverage (next)\nCommit: ${report.commit}\nGenerated: ${report.generatedAt}\nCoverage amounts are informational; no minimum threshold is enforced.\n\nMeasured files:\n`+report.files.map(f=>`${f.path}\t${['lines','functions','branches'].map(k=>metricText(f.metrics[k])).join('\t')}`).join('\n')+'\n\nUnmeasured production files (excluded from denominators):\n'+(report.manifest?.unmeasured || []).map(f=>`${f.path}\t${f.reason}`).join('\n')+'\n');
 }
-module.exports = {Reader,regular,sha,readPlan,readRaw,readSession,zero,add,observations,union,totals,writeReport};
+module.exports = {Reader,regular,sha,sessionRecords,readPlan,readRaw,readSession,zero,add,observations,union,totals,writeReport};

@@ -1,12 +1,16 @@
 pub import stdlib/testing::{TestResult}
-import stdlib/testing::{TestOutcome.TestPassed, TestOutcome.TestFailed, test_expect}
+import stdlib/testing::{TestOutcome.TestPassed, TestOutcome.TestFailed}
 pub import stdlib/process::{ProcessOutput}
 pub import stdlib/host::{HostError}
-import stdlib/result::{result_value_or}
-import stdlib/path::{path_value_from_text, path_value_current}
-import stdlib/time::{duration_seconds}
-import stdlib/host::{host_command_arguments, host_exit, host_stderr_text}
-import stdlib/filesystem::{filesystem_write_file_bytes, filesystem_write_bytes}
+import stdlib/result as std_result
+import stdlib/path as std_path
+import stdlib/time as std_time
+import stdlib/host as std_host
+import stdlib/filesystem as std_filesystem
+import stdlib/bytes as byte_buffer
+import stdlib/text as std_text
+import stdlib/testing as std_testing
+import stdlib/process as std_process
 
 // Callers select the exact executable and resource bounds; there is no shell
 // or PATH search unless the caller explicitly invokes a shell.
@@ -20,125 +24,138 @@ pub record TestCommand {
   output_limit: Nat
 }
 
-pub pure test_command_output(name: Str, actual: ProcessOutput,
+pub pure command_output(name: Str, actual: ProcessOutput,
                          expected: ProcessOutput): TestResult {
   if actual.exit_code != expected.exit_code {
     wanted = expected.exit_code
     got = actual.exit_code
-    test_expect(name, false, "expected exit ${wanted}, got ${got}")
+    std_testing.expect(name, false, "expected exit ${wanted}, got ${got}")
   } else {
     if actual.signal != expected.signal {
       wanted = expected.signal
       got = actual.signal
-      test_expect(name, false, "expected signal ${wanted}, got ${got}")
+      std_testing.expect(name, false, "expected signal ${wanted}, got ${got}")
     } else {
       if actual.stdout != expected.stdout {
-        test_expect(name, false, "stdout differed")
+        std_testing.expect(name, false, "stdout differed")
       } else {
         if actual.stderr != expected.stderr {
-          test_expect(name, false, "stderr differed")
+          std_testing.expect(name, false, "stderr differed")
         } else {
-          test_expect(name, true, "")
+          std_testing.expect(name, true, "")
         }
       }
     }
   }
 }
 
-pub pure test_command_result(name: Str, actual: Result[ProcessOutput,HostError],
+pub pure command_result(name: Str, actual: Result[ProcessOutput,HostError],
                          expected: ProcessOutput): TestResult {
   match actual {
-    Ok(output) => test_command_output(name, output, expected),
+    Ok(output) => command_output(name, output, expected),
     Error(error) => {
       code = error.code
-      test_expect(name, false, "command failed: ${code}")
+      std_testing.expect(name, false, "command failed: ${code}")
     }
   }
 }
 
-// Keep the host result's nominal types behind the standard-library boundary so
-// seed-compiler callers do not need to infer core host identities themselves.
-pub testing_process_run(executable: Path, arguments: [Str], stdin: Bytes,
-                        working_directory: Path, environment: [Str],
-                        timeout: Duration, output_limit: Nat): Result[ProcessOutput,HostError] {
-  process_run(executable, arguments, stdin, working_directory, environment,
-    timeout, output_limit)
+pure harness_path(text: Str): Path {
+  std_result.value_or(std_path.from_text(text), std_path.current())
 }
 
-pure testing_harness_path(text: Str): Path {
-  result_value_or(path_value_from_text(text), path_value_current())
+harness_write(destination: Str, contents: Bytes): Bool {
+  match std_path.from_text(destination) {
+    Error(error) => false,
+    Ok(file) => match std_filesystem.write(file, contents) {
+      Ok(done) => true,
+      Error(error) => false
+    }
+  }
 }
 
 // Keep the command supervisor behind the standard-library boundary so its
 // command, path, and host result identities are checked together.
-pub testing_harness_command(): Void {
-  args = host_command_arguments()
+pub harness_command(): Void {
+  args = std_host.arguments()
   if len(args) < 6 {
-    host_stderr_text("harness command requires six arguments")
-    host_exit(1)
+    std_host.stderr("harness command requires six arguments")
+    std_host.exit(1)
   }
   mut command: [Str] = []
   for index in 6..len(args) { command = command.append(args[index]) }
-  match testing_process_run(testing_harness_path(args[5]), command, bytes(),
-      testing_harness_path(args[4]), [], duration_seconds(nat_from_str(args[1])), 16777216) {
+  match std_process.run(harness_path(args[5]), command, bytes(),
+      harness_path(args[4]), [], std_time.seconds(nat_from_str(args[1])), 16777216) {
     Error(problem) => {
-      filesystem_write_file_bytes(args[2], bytes())
       code = problem.code
-      filesystem_write_file_bytes(args[3], utf8_encode("harness host error: ${code}\n"))
-      host_exit(1)
+      if !harness_write(args[2], bytes()) ||
+          !harness_write(args[3], std_text.encode_utf8("harness host error: ${code}\n")) {
+        std_host.stderr("harness output write failed")
+      } else {}
+      std_host.exit(1)
     },
     Ok(output) => {
-      filesystem_write_file_bytes(args[2], output.stdout)
-      filesystem_write_file_bytes(args[3], output.stderr)
-      accepted = if args[0] == "failure" { output.exit_code != 0 } else {
-        output.exit_code == nat_from_str(args[0])
-      }
-      if !accepted || output.signal != 0 {
-        host_stderr_text("harness command returned unexpected exit status or signal")
-        host_exit(1)
+      if !harness_write(args[2], output.stdout) || !harness_write(args[3], output.stderr) {
+        std_host.stderr("harness output write failed")
+        std_host.exit(1)
+      } else {
+        accepted = if args[0] == "failure" { output.exit_code != 0 } else {
+          output.exit_code == nat_from_str(args[0])
+        }
+        if !accepted || output.signal != 0 {
+          std_host.stderr("harness command returned unexpected exit status or signal")
+          std_host.exit(1)
+        } else {}
       }
     }
   }
 }
 
 // Publish only a complete, byte-exact successful subprocess observation.
-pub capture_test_report(name: Str, command: TestCommand, expected: ProcessOutput,
+pub capture_report(name: Str, command: TestCommand, expected: ProcessOutput,
                         destination: Option[Path]): TestResult {
-  actual = testing_process_run(command.executable, command.arguments, command.stdin,
+  actual = std_process.run(command.executable, command.arguments, command.stdin,
     command.working_directory, command.environment, command.timeout,
     command.output_limit)
-  result = test_command_result(name, actual, expected)
+  result = command_result(name, actual, expected)
   match result.outcome {
-    TestFailed(reason) => result,
+    TestFailed(reason) => match actual {
+      Error(error) => result,
+      Ok(output) => if output.exit_code != expected.exit_code ||
+          output.signal != expected.signal || output.stdout != expected.stdout {
+        actual_stdout: Str = std_text.decode_utf8(output.stdout)
+        std_testing.expect(name, false, "${reason}; actual stdout: ${actual_stdout}")
+      } else { result }
+    },
     TestPassed() => match destination {
       None() => result,
       Some(file) => match actual {
-        Error(error) => test_expect(name, false, "report command failed"),
-        Ok(output) => match filesystem_write_bytes(file, output.stdout) {
+        Error(error) => std_testing.expect(name, false, "report command failed"),
+        Ok(output) => match std_filesystem.write(file, output.stdout) {
           Ok(done) => result,
-          Error(error) => test_expect(name, false, "runner report capture failed")
+          Error(error) => std_testing.expect(name, false, "runner report capture failed")
         }
       }
     }
   }
 }
 
-pub test_run_command(name: Str, command: TestCommand,
+pub run_command(name: Str, command: TestCommand,
                  expected: ProcessOutput): TestResult {
-  test_command_result(name, process_run(command.executable, command.arguments,
+  command_result(name, std_process.run(command.executable, command.arguments,
     command.stdin, command.working_directory, command.environment,
     command.timeout, command.output_limit), expected)
 }
 
-pub test_expect_command_error(name: Str, command: TestCommand,
+pub expect_command_error(name: Str, command: TestCommand,
                           expected_code: Str): TestResult {
-  match process_run(command.executable, command.arguments, command.stdin,
+  match std_process.run(command.executable, command.arguments, command.stdin,
                     command.working_directory, command.environment,
                     command.timeout, command.output_limit) {
-    Ok(output) => test_expect(name, false, "expected host error ${expected_code}, command completed"),
+    Ok(output) => std_testing.expect(name, false, "expected host error ${expected_code}, command completed"),
     Error(error) => {
       code = error.code
-      test_expect(name, code == expected_code, "expected host error ${expected_code}, got ${code}")
+      std_testing.expect(name, code == expected_code, "expected host error ${expected_code}, got ${code}")
     }
   }
 }

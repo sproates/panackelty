@@ -1,0 +1,127 @@
+import stdlib/bytes as buffer
+import stdlib/path as path
+import stdlib/text as text
+
+pub record Target {
+  relative: Str,
+  slash: Bool,
+  redirect: Str
+}
+
+pure hex(value: Nat): Option[Nat] {
+  if value >= 48 && value <= 57 { Some(value - 48) }
+  else if value >= 65 && value <= 70 { Some(value - 55) }
+  else if value >= 97 && value <= 102 { Some(value - 87) }
+  else { None() }
+}
+
+pure copy(input: Bytes, start: Nat, end: Nat): Bytes {
+  mut output = buffer.empty()
+  for index in start..end {
+    output = buffer.push(output, buffer.at(input, index))
+  }
+  output
+}
+
+// Decode exactly once; encoded separators cannot change the path structure.
+pure decode(input: Bytes, end: Nat): Result[Str, Str] {
+  mut output = buffer.empty()
+  mut cursor: Nat = 1
+  mut valid = true
+  while cursor < end && valid {
+    value = buffer.at(input, cursor)
+    if value == 37 {
+      if cursor + 2 >= end {
+        valid = false
+      } else {
+        match hex(buffer.at(input, cursor + 1)) {
+          None() => { valid = false },
+          Some(high) => match hex(buffer.at(input, cursor + 2)) {
+            None() => { valid = false },
+            Some(low) => {
+              decoded = high * 16 + low
+              if decoded < 32 || decoded == 47 || decoded == 92 || decoded == 127 {
+                valid = false
+              } else {
+                output = buffer.push(output, decoded)
+              }
+            }
+          }
+        }
+        cursor = cursor + 3
+      }
+    } else {
+      if value < 33 || value == 92 || value == 127 {
+        valid = false
+      } else {
+        output = buffer.push(output, value)
+      }
+      cursor = cursor + 1
+    }
+  }
+  if !valid { Error("malformed URL path") }
+  else if buffer.length(output) == 0 { Ok("") }
+  else {
+    match path.from_native(output) {
+      Error(problem) => Error("invalid path bytes"),
+      Ok(native) => match path.to_text(native) {
+        Error(problem) => Error("path is not UTF-8"),
+        Ok(value) => Ok(value)
+      }
+    }
+  }
+}
+
+pure segments_valid(relative: Str): Bool {
+  input = text.encode_utf8(relative)
+  mut segment = buffer.empty()
+  mut valid = true
+  for cursor in 0..buffer.length(input) {
+    value = buffer.at(input, cursor)
+    if value == 47 {
+      name = text.decode_utf8(segment)
+      if name == "" || name == "." || name == ".." { valid = false }
+      segment = buffer.empty()
+    } else {
+      segment = buffer.push(segment, value)
+    }
+  }
+  last = text.decode_utf8(segment)
+  valid && last != "." && last != ".."
+}
+
+pub pure parse(target: Str): Result[Target, Str] {
+  input = text.encode_utf8(target)
+  length = buffer.length(input)
+  if length == 0 || length > 4096 { Error("invalid URL length") }
+  else if buffer.at(input, 0) != 47 { Error("expected an origin-form URL") }
+  else {
+    mut end = length
+    mut cursor: Nat = 0
+    mut valid = true
+    while cursor < length {
+      value = buffer.at(input, cursor)
+      if value < 33 || value > 126 || value == 35 { valid = false }
+      if value == 63 && end == length { end = cursor }
+      cursor = cursor + 1
+    }
+    if !valid { Error("malformed request target") }
+    else {
+      match decode(input, end) {
+        Error(problem) => Error(problem),
+        Ok(relative) => if !segments_valid(relative) {
+          Error("invalid path segments")
+        } else {
+          signed_end: Int = end
+          last = ((signed_end - 1) / 1).nat()
+          slash = buffer.at(input, last) == 47
+          location = if slash { target } else {
+            text.decode_utf8(copy(input, 0, end)) + "/" +
+              text.decode_utf8(copy(input, end, length))
+          }
+          Ok(Target(relative, slash, location))
+        }
+      }
+    }
+  }
+}

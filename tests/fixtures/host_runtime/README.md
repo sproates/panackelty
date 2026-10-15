@@ -20,7 +20,7 @@ workflows also run in `tests/functional/cases/cli_environment_files`,
 `testing_*` fixtures. The invalid UTF-8 file case now requires the exact
 failure detail, in addition to the other I/O failure categories.
 
-Native C tests in `tests/unit/vm/native_modules.c` check all eleven host
+Native C tests in `tests/unit/vm/native_modules.c` check all twelve host
 service signatures and their wrong-operand traps, plus distinct opaque host
 value kinds; `native_faults.c` injects clock, sleep, process and filesystem
 failures and verifies cleanup. The Python-only forced clock error is thereby

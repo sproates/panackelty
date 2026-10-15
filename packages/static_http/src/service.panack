@@ -1,0 +1,186 @@
+import http/server as http
+import http/service as service
+import project/paths as paths
+import project/mime as mime
+import stdlib/async_filesystem as filesystem
+import stdlib/async_host as host
+import stdlib/bytes as buffer
+import stdlib/path as path
+import stdlib/text as text
+
+pub import http/server::{Header}
+pub import http/service::{ServiceLimits, TcpServiceReady, TcpServiceSummary}
+
+pub record Config {
+  root: Path,
+  address: Str,
+  port: Nat,
+  limits: ServiceLimits,
+  headers: [Header]
+}
+
+record Context {
+  configuration: Config,
+  identity: filesystem.FilesystemRootIdentity
+}
+
+pure lower(input_text: Str): Str {
+  mut output = buffer.empty()
+  input = text.encode_utf8(input_text)
+  for index in 0..buffer.length(input) {
+    value = buffer.at(input, index)
+    output = buffer.push(output, if value >= 65 && value <= 90 { value + 32 } else { value })
+  }
+  text.decode_utf8(output)
+}
+
+pure headers_valid(configuration: Config): Bool {
+  mut valid = true
+  for header in configuration.headers {
+    name = lower(header.name)
+    if name == "content-length" || name == "transfer-encoding" || name == "connection" ||
+      name == "content-type" || name == "location" || name == "allow" {
+      valid = false
+    }
+  }
+  if !valid { false }
+  else {
+    match http.serialize_response(http.Response(200, configuration.headers, buffer.empty())) {
+      Error(problem) => false,
+      Ok(wire) => buffer.length(wire) + 512 <= configuration.limits.response_limit
+    }
+  }
+}
+
+pure error_response(configuration: Config, status: Nat, message: Str): http.Response {
+  headers = configuration.headers.append(Header("Content-Type", "text/plain; charset=utf-8"))
+  http.Response(status, headers, text.encode_utf8(message + "\n"))
+}
+
+async diagnostic(configuration: Config, status: Nat, message: Str): http.Response {
+  ignored = await host.stderr("http-server: " + message)
+  error_response(configuration, status, message)
+}
+
+async read_failure(configuration: Config, problem: filesystem.HostError): http.Response {
+  code = problem.code
+  if code == "not_found" || code == "permission_denied" || code == "not_directory" ||
+    code == "not_regular_file" || code == "is_directory" || code == "symlink_loop" ||
+    code == "invalid_argument" || code == "out_of_range" {
+    error_response(configuration, 404, "Not found")
+  } else if code == "output_limit" || code == "resource_limit" {
+    limit = configuration.limits.response_limit
+    await diagnostic(configuration, 503, "resource limit exceeded (response limit ${limit} bytes)")
+  } else {
+    await diagnostic(configuration, 500, "file read failed: " + code)
+  }
+}
+
+async file_response(context: Context, filename: Str, file: filesystem.FilesystemRootRead): http.Response {
+  configuration = context.configuration
+  if file.identity != context.identity {
+    await diagnostic(configuration, 503, "configured root was replaced")
+  } else {
+    response = http.Response(200,
+      configuration.headers.append(Header("Content-Type", mime.content_type(lower(filename)))),
+      file.contents)
+    match http.serialize_response(response) {
+      Error(problem) => await diagnostic(configuration, 503, "file exceeds serialized response limit"),
+      Ok(wire) => if buffer.length(wire) > configuration.limits.response_limit {
+        await diagnostic(configuration, 503, "file exceeds serialized response limit")
+      } else { response }
+    }
+  }
+}
+
+async index_response(context: Context, target: paths.Target): http.Response {
+  configuration = context.configuration
+  filename = target.relative + (if target.slash { "" } else { "/" }) + "index.html"
+  match path.from_text(filename) {
+    Error(problem) => error_response(configuration, 400, "Invalid path"),
+    Ok(relative) => match await filesystem.read_beneath(configuration.root, relative,
+      configuration.limits.response_limit) {
+      Error(problem) => await read_failure(configuration, problem),
+      Ok(file) => if file.identity != context.identity {
+        await diagnostic(configuration, 503, "configured root was replaced")
+      } else if !target.slash {
+        http.Response(308, configuration.headers.append(Header("Location", target.redirect)),
+          buffer.empty())
+      } else { await file_response(context, filename, file) }
+    }
+  }
+}
+
+async respond(context: Context, request: http.Request): Result[http.Response, http.HttpError] {
+  configuration = context.configuration
+  response = if request.method != "GET" && request.method != "HEAD" {
+    http.Response(405, configuration.headers.append(Header("Allow", "GET, HEAD")),
+      text.encode_utf8("Method not allowed\n"))
+  } else {
+    match paths.parse(request.target) {
+      Error(problem) => error_response(configuration, 400, "Invalid URL path"),
+      Ok(target) => if target.slash {
+        await index_response(context, target)
+      } else {
+        match path.from_text(target.relative) {
+          Error(problem) => error_response(configuration, 400, "Invalid path"),
+          Ok(relative) => match await filesystem.read_beneath(configuration.root, relative,
+            configuration.limits.response_limit) {
+            Ok(file) => await file_response(context, target.relative, file),
+            Error(problem) => if problem.code == "not_regular_file" || problem.code == "is_directory" {
+              await index_response(context, target)
+            } else { await read_failure(configuration, problem) }
+          }
+        }
+      }
+    }
+  }
+  Ok(response)
+}
+
+async worker(context: http.ConnectionContext[Context]): Result[Bytes, Str] {
+  policy = http.ConnectionPolicy(["GET", "HEAD"], context.configuration.configuration.headers)
+  await http.serve_connection_with_policy[Context](context, policy)
+}
+
+pure service_error(problem: http.HttpError): Str {
+  match problem {
+    http.HttpError.InvalidUrl(message) => message,
+    http.HttpError.InvalidLimits() => "InvalidLimits",
+    http.HttpError.DnsFailure() => "DnsFailure",
+    http.HttpError.ConnectFailure() => "ConnectFailure",
+    http.HttpError.TlsFailure() => "TlsFailure",
+    http.HttpError.Timeout() => "Timeout",
+    http.HttpError.ProtocolError(message) => message,
+    http.HttpError.LimitExceeded(message) => message,
+    http.HttpError.Cancelled() => "Cancelled",
+    http.HttpError.UnsupportedHost() => "UnsupportedHost",
+    http.HttpError.UnsupportedMethod(message) => message,
+    http.HttpError.UnsupportedVersion(message) => message,
+    http.HttpError.UnsupportedTransferEncoding() => "UnsupportedTransferEncoding",
+    http.HttpError.InvalidRequest() => "InvalidRequest",
+    http.HttpError.InvalidResponse() => "InvalidResponse",
+    http.HttpError.TransportFailure(message) => message
+  }
+}
+
+// Root validation precedes bind/readiness, including roots with no index file.
+pub async serve(configuration: Config,
+  ready: AsyncFn[TcpServiceReady,Result[Unit, Str]]): Result[TcpServiceSummary, Str] {
+  if !headers_valid(configuration) { Error("invalid headers or response budget") }
+  else {
+    match await filesystem.root_identity(configuration.root) {
+      Error(problem) => Error("invalid document root: " + problem.code),
+      Ok(identity) => {
+        context = Context(configuration, identity)
+        connection: http.ConnectionContext[Context] = http.ConnectionContext(context, @respond,
+          configuration.limits.request_limit, configuration.limits.response_limit)
+        match await service.serve[Context](configuration.address, configuration.port, @worker,
+          connection, configuration.limits, ready) {
+          Ok(summary) => Ok(summary),
+          Error(problem) => Error("HTTP service failed: " + service_error(problem))
+        }
+      }
+    }
+  }
+}

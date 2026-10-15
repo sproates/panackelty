@@ -40,9 +40,13 @@ is also the name of this project's command-line tool.
   can prove the rule. Try the [guarded-types example](examples/guards.panack)
   or read the [specification](SPEC.md#guarded-types).
 - **Inspect selected compiler decisions.** `panack explain` exposes evidence
-  for supported `Nat` subtraction proofs and local call/await effect checks. Its
-  explanations are bounded; they do not certify whole-program validity or
-  explain runtime behavior. See the [explanation guide](docs/COMPILER_EXPLANATIONS.md).
+  for supported `Nat` subtraction proofs, checked type joins (including
+  repeated generic parameter constraints), selected array
+  `map`/`reduce` callback contracts, unary/binary operator type checks, and
+  index, iteration, field access, `if`/`while` condition, and `match` variant
+  type checks, plus local call/await effect checks. Its explanations are bounded; they do not certify
+  whole-program validity or explain runtime behavior. See the
+  [explanation guide](docs/COMPILER_EXPLANATIONS.md).
 - **A compiler built with the language.** Panackelty's compiler is written in
   Panackelty, and reproducible bootstrap checks require successive builds to
   converge byte-for-byte. Follow the [self-hosting guide](SELF_HOSTING.md) for
@@ -81,13 +85,13 @@ Panackelty includes opaque `Path`, exact signed nanosecond
 `Duration`, and monotonic `Instant` values. Import `stdlib/path` and
 `stdlib/time`. Path construction checks text or native bytes; lexical operations
 preserve spelling and do not access the filesystem. Durations support exact
-arithmetic and checked fractional conversions. `instant_now()` is effectful
+arithmetic and checked fractional conversions. `time.now()` is effectful
 and returns a `Result`; arithmetic on existing clock readings is pure.
 
 Typed filesystem and process APIs are available through `stdlib/filesystem`
 and `stdlib/process`. They accept `Path` values and return structured errors.
 Process execution supports byte streams, working directories, environment
-overrides, output limits, and exact-duration timeouts; `host_sleep` provides
+overrides, output limits, and exact-duration timeouts; `host.sleep` provides
 checked sleep. See the [host API contract](SPEC.md#typed-filesystem-process-and-sleep-apis)
 and [runnable example](tests/functional/cases/host_capabilities/main.panack).
 
@@ -127,8 +131,54 @@ import `stdlib/tcp`, supply explicit `TcpServerLimits`, and await `tcp_serve`
 with a named async byte-request handler. The runtime owns accepted connections,
 schedules handlers and drains or cancels clients on shutdown. See the
 [server contract](SPEC.md#native-tcp-server-development-toolchain).
-DNS, TLS, HTTP and general source spawning remain future work. These native
-networking operations were absent from alpha.10; the browser cannot open raw TCP sockets.
+The development toolchain also provides bounded incremental reads through
+`tcp_serve_stream` for protocol parsers that must respond before peer EOF; the
+Panackelty HTTP package is in active development. Its native client provides
+bounded HTTP/1.1 GET and verified HTTPS through `http/client`; the
+[P5 design and limits](docs/NATIVE_HTTP_CLIENT_DESIGN.md) describe its
+current proof-of-concept contract. The HTTP server package supports GET, HEAD and POST in finite sessions. HEAD
+keeps representation headers and omits the response body. Run its
+[one-request example](examples/network/http_server/panack.json) from the
+repository root with `./panack run --project examples/network/http_server/panack.json`,
+then request `http://127.0.0.1:8080/`. The native VM dynamically links the
+host's libcurl, so a Linux installation needs its distribution's libcurl runtime
+package; on Ubuntu 22.04 that package is `libcurl4`. Native builds also need
+libcurl development headers and `curl-config`; on Ubuntu 22.04 install
+`libcurl4-openssl-dev`. macOS uses its system libcurl. The browser does not
+provide the native HTTP client. General source spawning remains future work.
+These native networking operations were absent from alpha.10; the browser
+cannot open raw TCP sockets.
+
+The development toolchain's `stdlib/async_filesystem` module provides confined
+file reads and root-identity lookup for asynchronous handlers. It shares the
+existing rooted resolver and keeps synchronous filesystem APIs unchanged. See
+[the cancellation and resource contract](SPEC.md#asynchronous-confined-filesystem-reads).
+
+For services that remain available until stopped, the development toolchain adds
+`http/service` with typed handler configuration, post-bind readiness and
+SIGINT/SIGTERM draining. `stdlib/async_host` supplies arguments, bounded console
+output and exit for async command-line tools. See the
+[continuous service contract](SPEC.md#continuous-native-services-development-toolchain).
+The development toolchain includes a generic directory-serving tool:
+
+```sh
+./panack run --project tools/http-server/panack.json --root ./site --port 8000
+```
+
+`make install` also installs `panack-http-server`, compiled once during installation.
+It serves confined files with GET/HEAD, directory indexes and bounded asynchronous
+reads. See the [tool guide](tools/http-server/README.md) for preview headers,
+readiness, shutdown and limits. Published alpha.11 downloads do not include it.
+
+## Alpha.13 release candidate
+
+The source tree now identifies as `0.1.0-alpha.13`; publication and public-archive
+acceptance are still pending. Local packages, the migrated standard-library APIs,
+native HTTP client/server, expanded checker explanations and the directory-serving
+tool are described in the [candidate release notes](CHANGELOG.md).
+Package manifests must use the exact toolchain version `0.1.0-alpha.13`.
+Existing download and installer examples continue to name published artifacts
+until the new archives are publicly verified.
 
 ## Start writing Panackelty
 
@@ -500,8 +550,9 @@ main(): Void {
 }
 ```
 
-The compiler only accepts a conversion when it can prove the guard. It does not
-hide a runtime check inside otherwise pure code.
+The compiler only accepts a conversion when it can prove the target guard from
+the value or its guarded source type. It does not hide a runtime check inside
+otherwise pure code.
 
 ### Explicit effects, practical algorithms
 
@@ -606,15 +657,19 @@ panack disasm hello.bc
 
 Arguments after the input path are passed to the program.
 
-### Explain subtraction and effect checks
+### Explain checked types, guarded conversions, subtraction and effects
 
 ```sh
 panack explain example.panack --function remaining
 ```
 
-The explanation query shows why a `Nat` subtraction is proved or unproved,
-using the checker's actual constants or guard bounds and their source locations.
-It also explains local call and await effect boundaries, including why pure or
+The explanation query shows inferred local types and their checked initializer
+evidence, proof-bearing conversions into guarded types, checked array
+`map`/`reduce` callback contracts, and why a `Nat` subtraction is proved or
+unproved, using the checker's actual constants or guard bounds and their source
+locations. It also explains how array elements, conditional results and match
+arms combine into a checked result type, and local
+call and await effect boundaries, including why pure or
 async code rejects a call, and reports whole-program acceptance separately. Unproved does not
 mean a runtime failure was demonstrated; unsupported explanations remain explicit.
 A body type error in another function need not hide valid local effect evidence;
@@ -757,6 +812,7 @@ For reproducible local build/validation measurements, see the
 [bounded baseline harness](tests/README.md#reproducible-build-and-validation-baseline).
 It runs in a disposable checkout and retains exact candidate inputs and repeated
 clean, warm and dependency-edit observations outside the source tree.
+<!-- validation:coverage-publication-copy-begin -->
 
 Browse the [public native VM coverage report](https://sproates.github.io/panackelty-coverage/)
 for LLVM line/branch results and source navigation without downloading an
@@ -764,10 +820,13 @@ artifact. The landing page identifies the coverage commit, archive date and
 successful validation run. This measures the native C VM corpus, not the
 self-hosted compiler or whole-language coverage. The separate
 [`panackelty-coverage`](https://github.com/sproates/panackelty-coverage) publisher
-checks for eligible reports about every 15 minutes; website publication does not
-wait for it. Documentation-only updates leave the previous report in place; failed validation or publication leaves the last
-published report visible. See [publication details](tests/README.md#public-coverage-publication).
+publishes only when manually dispatched during release preparation. It does not
+poll on a schedule or publish on pushes. Documentation-only updates leave the
+previous report in place; failed validation or publication leaves the last
+published report visible. See [publication details](tests/README.md#public-coverage-publication)
+and the [release gate](RELEASE_POLICY.md#release-gate).
 
+<!-- validation:coverage-publication-copy-end -->
 Direct bytecode/verification coverage runs in
 `tests/runner/bytecode_unit.panack`, `tests/runner/bytecode_native_unit.panack`
 and the native C verifier contracts in `tests/unit/vm/native_modules.c`.
@@ -866,7 +925,7 @@ Project-wide contribution and validation expectations are documented in
 
 The remaining direct compiler contracts now run in
 `tests/runner/compiler_contracts_unit.panack` (201 assertions) and
-`tests/runner/compiler_integration_unit.panack` (51 assertions), under both
+`tests/runner/compiler_integration_unit.panack` (133 assertions), under both
 `make unit` and `make check-compiler`. They cover emitter instructions, diagnostic
 rendering and source snapshots, loader/imports and driver commands, generics,
 inference, types and host boundaries. The probes use fixed expectations;

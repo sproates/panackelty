@@ -1,3 +1,4 @@
+import stdlib/result as std_result
 pub import project/src/compiler/parser::{Expr, Program, Block, SourceSpan, Diagnostic, expression_span, parse_program_complete, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, BlockValue.NoBlockValue, BlockValue.TailBlockValue}
 pub import project/src/compiler/checker::{TypeInfo, CheckedExpression, CheckedProgram, EnumLookup, FunctionLookup, TypeShape, check_expression, check_program_evidence, checker_diagnostic, checker_diagnostics_at, enum_type, function_type, local_binding_info, plain_type, substitute_type, type_shape}
 pub import project/src/compiler/resolver::{SourceUnit, LoadedSource, ModuleGraphState, append_program_declarations, duplicate_module_diagnostics, render_resolver_diagnostics, visit_module}
@@ -8,9 +9,12 @@ import project/src/compiler/lexer::{lex, lex_file}
 
 pub pure is_impure_builtin(name: Str): Bool {
   (name == "async_fake_read" ||
-    name == "tcp_exchange" ||
-    name == "tcp_serve") ||
-    name == "fs_read" ||
+    name == "tcp_exchange" || name == "http_transport_exchange" ||
+    name == "tcp_serve" ||
+    name == "tcp_service" || name == "tcp_serve_stream" ||
+    name == "tcp_server_read_chunk") ||
+    (name == "fs_read_beneath" || name == "host_arguments_async" || name == "host_stdout_async" ||
+    name == "host_stderr_async" || name == "host_exit_async" || name == "fs_read_beneath_async" || name == "fs_root_identity_async") || name == "fs_directories_overlap" || name == "fs_read" ||
     name == "fs_write" ||
     name == "fs_metadata" ||
     name == "fs_list" ||
@@ -166,9 +170,12 @@ pub pure check_effect_expression(
     CallExpr(name, arguments, type_arguments) => {
       await_call = true
       function: FunctionLookup = function_type(program, name)
-      mut async_call: Bool = (name == "async_fake_read" ||
-        name == "tcp_exchange" ||
-        name == "tcp_serve") ||
+      mut async_call: Bool = (name == "host_arguments_async" || name == "host_stdout_async" ||
+    name == "host_stderr_async" || name == "host_exit_async" || name == "fs_read_beneath_async" || name == "fs_root_identity_async" || name == "async_fake_read" ||
+        name == "tcp_exchange" || name == "http_transport_exchange" ||
+        name == "tcp_serve" ||
+        name == "tcp_service" || name == "tcp_serve_stream" ||
+        name == "tcp_server_read_chunk") ||
         (function.found &&
         function.is_async)
       mut impure: Bool = is_impure_builtin(name) || (function.found && !function.is_pure)

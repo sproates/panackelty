@@ -67,6 +67,24 @@ documented in `../../docs/SOURCE_MAPS.md`.
   signature resolution. This avoids rescanning each module's full AST for every
   nominal type lookup. The loader separates physical source paths from relative
   semantic identity and passes declaration origins into resolver diagnostics.
+- `package_manifest.panack` is a pure parser for P3's strict schema-1
+  `panack.json` schema. It bounds JSON input and nesting, rejects duplicate and
+  unknown keys, validates package/version/toolchain fields and portable logical
+  paths, and returns a typed package record. `package_project.panack` selects an
+  explicitly named application manifest, enforces the running toolchain version,
+  and resolves its source and entry roots. The driver supports `check`, `compile`,
+  and `run` with `--project panack.json`; the loader reads package sources beneath
+  the selected physical root and assigns relocation-stable package identities.
+  Dependency-free libraries can also be checked across their exported modules;
+  compilation and execution require an application entry. Applications can
+  declare direct local library dependencies and import only their exported
+  logical modules; package-internal `project/` imports stay rooted in that
+  package. Each source read is checked against the physical package-root identity
+  captured from its manifest; exported sources cannot escape through symlinks.
+  Two apps can share the same library root. Direct application/dependency and
+  distinct-dependency source roots are compared by physical directory ancestry,
+  including symlink aliases. Nested dependency graphs and full package-loader
+  acceptance remain open P3 work.
 - `module_resolution.panack` resolves an explicit binding graph with namespace and
   selective imports, original-identity re-exports, enum selectors and qualified
   functions/types. It validates missing/private/conflicting imports and cycles,
@@ -97,7 +115,9 @@ documented in `../../docs/SOURCE_MAPS.md`.
   prepares contracts across the graph before binding staged function bodies;
   ordinary legacy projects skip both passes. Graph scans are not yet indexed.
 - `module_bodies.panack` retains structural bodies with original declaration/core
-  targets, lexical binder paths, source spans and tagged local/callable types.
+  targets, lexical binder paths, source spans and tagged local/callable types. The
+  explicit explanation load can also retain proof-bearing guarded conversions;
+  ordinary body checking leaves that evidence empty.
   It checks literal/local/annotation/direct-call/explicit-generic/return types,
   scalar operators, control flow, arrays, record/variant construction, fields,
   exhaustive variant patterns, inferred generic functions and known iterable/index types.
@@ -180,8 +200,11 @@ documented in `../../docs/SOURCE_MAPS.md`.
   bounded file comparison and location rendering.
   It never decodes foreign map paths or lengths. See the
   [source-map contract](../../docs/SOURCE_MAPS.md).
-- `explanations.panack` presents opt-in subtraction decisions and guard origins
-  retained by the checker, using loaded source snapshots. See the
+- `explanations.panack` presents opt-in inferred-local types, array/conditional/
+  match type joins, subtraction decisions, guarded-conversion proofs and effect boundaries retained by the
+  checker, using loaded source snapshots. Inferred locals show the checked
+  initializer type and source expression; incomplete types remain unavailable.
+  See the
   [explanation contract](../../docs/COMPILER_EXPLANATIONS.md).
 - `driver.panack` implements `check`, `compile`, `run`, `disasm`, `locate` and
   `explain` for source and version-9 bytecode. Staged checked programs use
@@ -227,7 +250,7 @@ existing named-call ABI; their record and enum definitions live in the stdlib.
 
 The remaining direct compiler contracts now run in
 `tests/runner/compiler_contracts_unit.panack` (250 assertions) and
-`tests/runner/compiler_integration_unit.panack` (51 assertions), under both
+`tests/runner/compiler_integration_unit.panack` (133 assertions), under both
 `make unit` and `make check-compiler`. They cover emitter instructions, diagnostic
 rendering and source snapshots, loader/imports and driver commands, generics,
 inference, types and host boundaries. The probes use fixed expectations;

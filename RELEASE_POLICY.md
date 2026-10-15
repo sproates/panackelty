@@ -1,6 +1,7 @@
 # Panackelty release policy
 
-Panackelty `0.1.0-alpha.11` is a published developer preview. It is intended for learning,
+Panackelty `0.1.0-alpha.12` is the latest published developer preview.
+`0.1.0-alpha.13` is a release candidate until publication completes. It is intended for learning,
 experimentation, feedback, and non-critical terminal programs. It is not yet
 recommended for production systems or irreplaceable data.
 
@@ -16,8 +17,10 @@ target system. Other POSIX-like systems may work from source but are best effort
 Windows and other processor architectures are not supported by the initial
 preview.
 
-Downloaded toolchains require only the operating system, a terminal, `tar`, and
-the platform's standard SHA-256 utility for download verification. The archive
+Downloaded toolchains require the operating system, a terminal, `tar`, and
+the platform's standard SHA-256 utility for download verification. Alpha.13 native
+Linux builds also require libcurl at runtime (`libcurl4` on Ubuntu 22.04); macOS
+uses system libcurl. Source builds require development headers and `curl-config`. The archive
 includes the compiler, VM, and standard library needed to build and run programs.
 
 ## Release gate
@@ -26,6 +29,16 @@ Merging to `main` runs checks and creates CI artifacts; it does not publish a
 release. Prepare version and changelog updates in a release PR. Keep verified download
 links and installer defaults on the published version until the new archives
 pass public-artifact verification, then promote them in a follow-up.
+
+Source coverage reporting is independent of release readiness. **Source coverage**
+runs weekly (Monday 03:23 UTC), dispatching collection on `next`; it can also be
+started manually on `next`. The coverage repository publishes successful reports
+weekly afterward or by manual dispatch. Report timestamps, exact commits and
+artifact provenance remain visible; failed collection preserves the last
+successful report. Report freshness and coverage amounts do not block promotion
+or publication. Fast coverage reader/policy checks remain in ordinary CI, and
+full product, sanitizer and native package validation remain required.
+
 After its required checks pass and it is merged, use either release entry point:
 
 - Push an annotated version tag on the merged commit. Its message supplies the

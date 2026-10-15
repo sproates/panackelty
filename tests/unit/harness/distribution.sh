@@ -17,7 +17,7 @@ cp "$root/panack-vm" "$work/shared-vm-bytes"
 case_name=checksum-from-spaced-checkout
 checkout=$work/'checkout with spaces (test)'
 mkdir "$checkout"
-for name in Makefile VERSION panack bootstrap src tests examples README.md LICENSE CHANGELOG.md RELEASE_POLICY.md SECURITY.md SPEC.md; do
+for name in Makefile VERSION panack bootstrap src tests examples packages tools README.md LICENSE CHANGELOG.md RELEASE_POLICY.md SECURITY.md SPEC.md; do
     ln -s "$root/$name" "$checkout/$name"
 done
 # Builds must own the executable they relink; a symlink shares the live root VM.
@@ -74,13 +74,13 @@ mv "$work/extracted/panackelty" "$work/relocated/toolchain"
 version=$(cat "$root/VERSION")
 printf 'panack %s (bytecode 9)\n' "$version" > "$work/version"
 cat > "$work/logical-import.panack" <<'PROGRAM'
-import stdlib/option::{option_value_or}
-import stdlib/time::{duration_seconds, duration_value_ticks}
-import stdlib/path::{path_value_display, path_value_current}
+import stdlib/option as option
+import stdlib/time as time
+import stdlib/path as path
 main(): Void {
-  print(option_value_or[Nat](Some(42), 0))
-  print(duration_value_ticks(duration_seconds(1)))
-  print(path_value_display(path_value_current()))
+  print(option.value_or[Nat](Some(42), 0))
+  print(time.ticks(time.seconds(1)))
+  print(path.display(path.current()))
 }
 PROGRAM
 printf '42\n1000000000\n.\n' > "$work/import.stdout"

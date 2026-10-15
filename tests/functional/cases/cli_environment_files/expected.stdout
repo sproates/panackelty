@@ -1,3 +1,4 @@
+PASS support fixture
 PASS environment override
 PASS round trip source
 PASS compile round trip
@@ -15,4 +16,4 @@ PASS denied-read_bytes
 PASS denied-write_file
 PASS denied-write_bytes
 PASS permission restore
-tests: 17, failures: 0
+tests: 18, failures: 0

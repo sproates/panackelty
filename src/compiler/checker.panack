@@ -1,3 +1,5 @@
+import stdlib/text as std_text
+import stdlib/result as std_result
 pub import project/src/compiler/parser::{unlocated_expression, parse_program_complete, Expr, Block, Program, Statement, FunctionParameter, RecordField, EnumVariant, IndexedVariant, MatchArm, MatchPattern, TopLevel, SourcePos, SourceSpan, Diagnostic, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, BlockValue.NoBlockValue, BlockValue.TailBlockValue}
 pub import project/src/compiler/resolver::{LoadedSource}
 import project/src/compiler/resolver::{SourceUnit, ModuleGraphState, append_program_declarations, duplicate_module_diagnostics, is_builtin, render_resolver_diagnostics, resolve_program, visit_module}
@@ -790,10 +792,19 @@ pure assignable_checked(
         evaluate_nat_guard(guarded.guard, value.nat_value)
       } else {
         mut proven: Bool = false
+        guarded_source: GuardedTypeLookup = guarded_type(program, value.name)
+        compatible_source_base: Bool = guarded_source.base == guarded.base ||
+          (guarded_source.base == "Nat" && guarded.base == "Int")
+        if guarded_source.found && compatible_source_base {
+          source_facts: Map[Str, Bounds] = condition_facts(guarded_source.guard, map(), true)
+          if map_has(source_facts, "value") {
+            proven = prove_guard_bounds(guarded.guard, map_get(source_facts, "value"))
+          } else {}
+        } else {}
         match unlocated_expression(source) {
           LocatedExpr(position, inner, located_type_argument_spans) => {},
           NameExpr(name) => {
-            if map_has(facts, name) {
+            if !proven && map_has(facts, name) {
               proven = prove_guard_bounds(guarded.guard, map_get(facts, name))
             } else {}
           },
@@ -967,14 +978,44 @@ pure environment_type(environment: Map[Str, TypeInfo], name: Str): TypeInfo {
 }
 
 pure builtin_return(name: Str): Str {
-  if name == "tcp_serve" {
+  if name == "tcp_service" { "Result[TcpServiceSummary,Str]" }
+  else { builtin_host_return(name) }
+}
+
+pure builtin_host_return(name: Str): Str {
+  if name == "host_arguments_async" { "[Str]" }
+  else if name == "host_exit_async" { "Unit" }
+  else if name == "host_stdout_async" || name == "host_stderr_async" {
+    "Result[Unit,HostError]"
+  } else { builtin_filesystem_return(name) }
+}
+
+pure builtin_filesystem_return(name: Str): Str {
+  if name == "fs_root_identity_async" {
+    "Result[FilesystemRootIdentity,HostError]"
+  } else {
+    builtin_legacy_return(name)
+  }
+}
+
+pure builtin_legacy_return(name: Str): Str {
+  if name == "tcp_serve" || name == "tcp_serve_stream" {
     "Result[[Result[Unit,Str]],Str]"
   } else {
-    if name == "async_fake_read" || name == "tcp_exchange" {
+    if name == "async_fake_read" || name == "tcp_exchange" || name == "http_transport_exchange" ||
+      name == "tcp_server_read_chunk" {
       "Result[Bytes,Str]"
     } else {
-      if name == "fs_read" {
-        "Result[Bytes,HostError]"
+      if name == "fs_directories_overlap" || (name == "fs_read_beneath" || name == "fs_read_beneath_async") || name == "fs_read" {
+        if name == "fs_directories_overlap" {
+          "Result[Bool,HostError]"
+        } else {
+          if (name == "fs_read_beneath" || name == "fs_read_beneath_async") {
+            "Result[FilesystemRootRead,HostError]"
+          } else {
+            "Result[Bytes,HostError]"
+          }
+        }
       } else {
         if name == "fs_write" {
           "Result[Unit,HostError]"
@@ -1148,6 +1189,35 @@ pure builtin_return(name: Str): Str {
 }
 
 pub pure builtin_arity(name: Str): Nat {
+  if name == "tcp_service" { 6 } else { builtin_host_arity(name) }
+}
+
+pure builtin_host_arity(name: Str): Nat {
+  if name == "host_arguments_async" { 0 }
+  else if name == "host_exit_async" || name == "host_stdout_async" ||
+    name == "host_stderr_async" { 1 }
+  else { builtin_service_arity(name) }
+}
+
+pure builtin_service_arity(name: Str): Nat {
+  if name == "http_transport_exchange" || name == "$http_transport_exchange" {
+    6
+  } else {
+  if name == "tcp_serve_stream" || name == "$tcp_serve_stream" {
+    5
+  } else {
+    if name == "fs_root_identity_async" || name == "tcp_server_read_chunk" || name == "$tcp_server_read_chunk" {
+      1
+    } else {
+      builtin_legacy_arity(name)
+    }
+  }}
+}
+
+pure builtin_legacy_arity(name: Str): Nat {
+  if name == "http_transport_exchange" || name == "$http_transport_exchange" {
+    6
+  } else {
   if name == "tcp_serve" || name == "$tcp_serve" {
     4
   } else {
@@ -1158,8 +1228,8 @@ pub pure builtin_arity(name: Str): Nat {
         1
       }
     } else {
-      if name == "fs_read" {
-        2
+      if (name == "fs_read_beneath" || name == "fs_read_beneath_async") || name == "fs_read" || name == "fs_directories_overlap" {
+        if (name == "fs_read_beneath" || name == "fs_read_beneath_async") { 3 } else { 2 }
       } else {
         if name == "fs_write" {
           2
@@ -1301,10 +1371,61 @@ pub pure builtin_arity(name: Str): Nat {
       }
     }
 
-  }
+  }}
 }
 
 pure builtin_parameter(name: Str, index: Nat): Str {
+  if name == "tcp_service" {
+    if index == 0 { "Str" }
+    else if index == 1 { "Nat" }
+    else if index == 4 { "TcpServiceLimits" }
+    else if index == 5 { "AsyncFn[TcpServiceReady,Result[Unit,Str]]" }
+    else { "Any" }
+  } else { builtin_host_parameter(name, index) }
+}
+
+pure builtin_host_parameter(name: Str, index: Nat): Str {
+  if name == "host_exit_async" { "Nat" }
+  else if name == "host_stdout_async" || name == "host_stderr_async" { "Str" }
+  else { builtin_filesystem_parameter(name, index) }
+}
+
+pure builtin_filesystem_parameter(name: Str, index: Nat): Str {
+  if name == "fs_root_identity_async" {
+    "Path"
+  } else {
+    builtin_network_parameter(name, index)
+  }
+}
+
+pure builtin_network_parameter(name: Str, index: Nat): Str {
+  if name == "http_transport_exchange" || name == "$http_transport_exchange" {
+    if index == 0 { "Str" } else {
+      if index == 2 { "Bool" } else { if index == 3 { "Bytes" } else { "Nat" } }
+    }
+  } else {
+  if name == "tcp_server_read_chunk" {
+    "Nat"
+  } else {
+    if name == "tcp_serve_stream" {
+      if index == 0 {
+        "Str"
+      } else {
+        if index == 1 {
+          "Nat"
+        } else {
+          if index == 2 { "Any" } else {
+            if index == 3 { "Any" } else { "TcpServerLimits" }
+          }
+        }
+      }
+    } else {
+      builtin_legacy_parameter(name, index)
+    }
+  }}
+}
+
+pure builtin_legacy_parameter(name: Str, index: Nat): Str {
   if name == "tcp_serve" {
     if index == 0 {
       "Str"
@@ -1320,6 +1441,11 @@ pure builtin_parameter(name: Str, index: Nat): Str {
       }
     }
   } else {
+    if name == "http_transport_exchange" || name == "$http_transport_exchange" {
+      if index == 0 { "Str" } else {
+        if index == 2 { "Bool" } else { if index == 3 { "Bytes" } else { "Nat" } }
+      }
+    } else {
     if name == "async_fake_read" || name == "tcp_exchange" {
       if name == "async_fake_read" {
         "Bool"
@@ -1335,14 +1461,18 @@ pure builtin_parameter(name: Str, index: Nat): Str {
         }
       }
     } else {
-      if name == "fs_read" {
-        if index == 0 {
-          "Path"
+      if (name == "fs_read_beneath" || name == "fs_read_beneath_async") || name == "fs_read" || name == "fs_directories_overlap" {
+        if (name == "fs_read_beneath" || name == "fs_read_beneath_async") {
+          if index == 2 { "Nat" } else { "Path" }
         } else {
-          if index == 1 {
-            "Nat"
+          if name == "fs_directories_overlap" {
+            "Path"
           } else {
-            "Any"
+            if index == 0 {
+              "Path"
+            } else {
+              if index == 1 { "Nat" } else { "Any" }
+            }
           }
         }
       } else {
@@ -1604,7 +1734,7 @@ pure builtin_parameter(name: Str, index: Nat): Str {
           }
         }
       }
-    }
+    }}
 
   }
 }
@@ -2636,7 +2766,16 @@ pub pure check_expression_evidence(
                           } else {
                             mut fixed_index: Nat = 0
                             for actual in argument_infos {
-                              expected_type: Str = builtin_parameter(name, fixed_index)
+                              expected_type: Str = if (name == "tcp_serve_stream" || name == "tcp_service") && fixed_index == 2 {
+                                context_type: Str = argument_infos[3].name
+                                if context_type == "Unknown" {
+                                  "Any"
+                                } else {
+                                  "AsyncFn[${context_type},Result[Bytes,Str]]"
+                                }
+                              } else {
+                                builtin_parameter(name, fixed_index)
+                              }
                               if expected_type != "Any" && !assignable(
                                 program,
                                 actual.name,
@@ -3584,6 +3723,15 @@ pub pure check_program_evidence_mode(
           }
           mut return_ok: Bool = assignable(program, checked.info.name, return_type)
           guarded_return: GuardedTypeLookup = guarded_type(program, return_type)
+          guarded_source: GuardedTypeLookup = guarded_type(program, checked.info.name)
+          compatible_guarded_base: Bool = guarded_source.base == guarded_return.base ||
+            (guarded_source.base == "Nat" && guarded_return.base == "Int")
+          if !return_ok && guarded_return.found && guarded_source.found && compatible_guarded_base {
+            source_facts: Map[Str, Bounds] = condition_facts(guarded_source.guard, map(), true)
+            if map_has(source_facts, "value") {
+              return_ok = prove_guard_bounds(guarded_return.guard, map_get(source_facts, "value"))
+            } else {}
+          } else {}
           if !return_ok && guarded_return.found && checked.info.has_nat && base_type(
             program,
             checked.info.name

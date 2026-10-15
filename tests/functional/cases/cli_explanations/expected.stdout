@@ -12,6 +12,11 @@ PASS unresolved direct call argument is explicitly unavailable
 PASS accepted direct call arity explains exact argument count
 PASS missing direct call argument explains arity rejection
 PASS extra direct call argument explains arity rejection
+PASS accepted core call arity reports exact argument count
+PASS rejected core call arity reports exact argument count
+PASS accepted indirect call arity reports exact argument count
+PASS rejected indirect call arity reports exact argument count
+PASS unresolved indirect call arity is explicitly unavailable
 PASS accepted record constructor argument cites checked types
 PASS rejected record constructor argument explains mismatch
 PASS unavailable record constructor argument is explicit
@@ -176,4 +181,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 178, failures: 0
+tests: 183, failures: 0

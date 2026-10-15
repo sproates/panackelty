@@ -2079,6 +2079,30 @@ pure namespace_body_tests(): [TestResult] {
     "pure take(value: Nat): Nat { value }; pure caller(): Nat { take(1) }",
     false
   )
+  accepted_core_call_arity: CheckedModuleBodies = body_test_module_mode(
+    "pure caller(): Nat { len(\"x\") }",
+    true
+  )
+  rejected_core_call_arity: CheckedModuleBodies = body_test_module_mode(
+    "pure caller(): Nat { len() }",
+    true
+  )
+  accepted_indirect_call_arity: CheckedModuleBodies = body_test_module_mode(
+    "pure identity(value: Nat): Nat { value }; pure caller(): Nat { f: PureFn[Nat,Nat] = @identity; f.call(1) }",
+    true
+  )
+  unavailable_indirect_call_arity: CheckedModuleBodies = body_test_module_mode(
+    "pure caller(): Nat { f = missing; f.call(1) }",
+    true
+  )
+  ordinary_core_call_arity: CheckedModuleBodies = body_test_module_mode(
+    "pure caller(): Nat { len(\"x\") }",
+    false
+  )
+  ordinary_indirect_call_arity: CheckedModuleBodies = body_test_module_mode(
+    "pure identity(value: Nat): Nat { value }; pure caller(): Nat { f: PureFn[Nat,Nat] = @identity; f.call(1) }",
+    false
+  )
   accepted_constructor_argument: CheckedModuleBodies = body_test_module_mode(
     "pub record Box { value: Nat }; pub pure build(): Box { Box(1) }",
     true
@@ -2474,6 +2498,43 @@ pure namespace_body_tests(): [TestResult] {
     len(ordinary_call_arity.functions) == 2 &&
       len(body_type_check_evidence(ordinary_call_arity.functions[1].body)) == 0,
     "ordinary checking retained explanation-only direct call arity"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains accepted core call arity",
+    len(accepted_core_call_arity.functions) == 1 &&
+      body_type_check_evidence(accepted_core_call_arity.functions[0].body)[0].context == "core call arity" &&
+      body_type_check_evidence(accepted_core_call_arity.functions[0].body)[0].accepted == Some(true),
+    "accepted core call arity was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains rejected core call arity",
+    len(rejected_core_call_arity.functions) == 1 &&
+      body_type_check_evidence(rejected_core_call_arity.functions[0].body)[0].expected == "expected 1; found 0" &&
+      body_type_check_evidence(rejected_core_call_arity.functions[0].body)[0].accepted == Some(false),
+    "rejected core call arity was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains accepted indirect call arity",
+    len(accepted_indirect_call_arity.functions) == 2 &&
+      body_type_check_evidence(accepted_indirect_call_arity.functions[1].body)[0].context == "indirect call arity" &&
+      body_type_check_evidence(accepted_indirect_call_arity.functions[1].body)[0].accepted == Some(true),
+    "accepted indirect call arity was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains unavailable indirect call arity",
+    len(unavailable_indirect_call_arity.functions) == 1 &&
+      body_type_check_evidence(unavailable_indirect_call_arity.functions[0].body)[0].accepted == None() &&
+      body_type_check_evidence(unavailable_indirect_call_arity.functions[0].body)[0].expected ==
+        "expected count unavailable because the callable type is unresolved; found 1",
+    "unavailable indirect call arity reason was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "ordinary checking retains no core or indirect call arity",
+    len(ordinary_core_call_arity.functions) == 1 &&
+      len(body_type_check_evidence(ordinary_core_call_arity.functions[0].body)) == 0 &&
+      len(ordinary_indirect_call_arity.functions) == 2 &&
+      len(body_type_check_evidence(ordinary_indirect_call_arity.functions[1].body)) == 0,
+    "ordinary checking retained explanation-only call arity evidence"
   ))
   results = append(results, std_testing.expect(
     "explanation checking retains accepted constructor argument evidence",

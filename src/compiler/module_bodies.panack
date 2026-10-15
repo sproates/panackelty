@@ -1540,6 +1540,33 @@ pure body_nat_text(value: Nat): Str {
   "${value}"
 }
 
+pure body_call_arity_evidence(
+  context: BodyContext,
+  kind: Str,
+  span: SourceSpan,
+  expected_count: Option[Nat],
+  actual_count: Nat
+): [BodyTypeCheckEvidence] {
+  if !context.retain_guard_conversions {
+    []
+  } else {
+    [BodyTypeCheckEvidence(
+      kind + " call arity",
+      span,
+      None(),
+      match expected_count {
+        Some(expected) => "expected ${expected}; found ${actual_count}",
+        None() => "expected count unavailable because the callable type is unresolved; found ${actual_count}"
+      },
+      None(),
+      match expected_count {
+        Some(expected) => Some(expected == actual_count),
+        None() => None()
+      }
+    )]
+  }
+}
+
 pure body_tcp_limits_type(): SignatureType {
   SignatureType(
     SignatureNominal(DeclarationIdentity(
@@ -1697,7 +1724,10 @@ pure body_check_tcp_core_call(
       }
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), [], []), span, children, output, [], [], [], [], [], []), diagnostics, deferred)
+  BodyResult(BoundBody(
+    BodyCall(BodyCore(name), [], []), span, children, output, [], [], [], [], [],
+    body_call_arity_evidence(context, "core", span, Some(expected_count), len(children))
+  ), diagnostics, deferred)
 }
 
 pure body_check_existing_special_core_call(
@@ -1716,6 +1746,7 @@ pure body_check_existing_special_core_call(
   mut call_arguments: [CallArgumentEvidence] = []
   mut callback_contracts: [CollectionCallbackEvidence] = []
   mut type_joins: [TypeJoinEvidence] = []
+  mut type_checks: [BodyTypeCheckEvidence] = []
   name: Str = match target {
     BodyCore(value) => value,
     BodyDeclaration(binding) => ""
@@ -1739,6 +1770,7 @@ pure body_check_existing_special_core_call(
     deferred = concat(deferred, checked.deferred)
     output = checked.body.type;
     call_arguments = body_direct_call_argument_metadata(checked.body)
+    type_checks = checked.body.type_checks
   } else {
   if name == "$unit" {
     if len(children) != 0 {
@@ -1849,6 +1881,7 @@ pure body_check_existing_special_core_call(
           deferred = checked.deferred
           output = checked.body.type;
           call_arguments = body_direct_call_argument_metadata(checked.body)
+          type_checks = checked.body.type_checks
         } else {
           if name == "bytes" || name == "byte_append" || name == "bytes_concat" ||
             name == "byte_len" || name == "byte_get" || name == "utf8_encode" || name == "utf8_decode" {
@@ -1857,6 +1890,7 @@ pure body_check_existing_special_core_call(
             deferred = checked.deferred
             output = checked.body.type;
             call_arguments = body_direct_call_argument_metadata(checked.body)
+            type_checks = checked.body.type_checks
           } else {
           if name == "nat_from_str" {
             if len(children) != 1 {
@@ -1942,6 +1976,7 @@ pure body_check_existing_special_core_call(
               call_arguments = body_direct_call_argument_metadata(checked.body)
               callback_contracts = checked.body.callback_contracts
               type_joins = checked.body.type_joins
+              type_checks = checked.body.type_checks
             }
           }
         }
@@ -1951,6 +1986,52 @@ pure body_check_existing_special_core_call(
   }
   }
   }
+  }
+  if name == "$method_call" {
+    if len(children) > 0 {
+      match children[0].type {
+        None() => {
+          type_checks = body_call_arity_evidence(
+            context, "indirect", span, None(), prior_index(len(children))
+          )
+        },
+        Some(callable) => match callable.identity {
+          SignatureCallable(effect) => {
+            type_checks = body_call_arity_evidence(
+              context,
+              "indirect",
+              span,
+              Some(prior_index(len(callable.arguments))),
+              prior_index(len(children))
+            )
+          },
+          SignatureHole(owner, path, index) => {
+            type_checks = body_call_arity_evidence(
+              context, "indirect", span, None(), prior_index(len(children))
+            )
+          },
+          SignatureParameter(owner, index) => {
+            type_checks = body_call_arity_evidence(
+              context, "indirect", span, None(), prior_index(len(children))
+            )
+          },
+          SignatureCore(core_name) => {},
+          SignatureNominal(identity) => {}
+        }
+      }
+    }
+  } else {
+    if name == "$unit" {
+      type_checks = body_call_arity_evidence(context, "core", span, Some(0), len(children))
+    } else {
+      if name == "print" || name == "eprint" || name == "len" || name == "nat_from_str" {
+        type_checks = body_call_arity_evidence(context, "core", span, Some(1), len(children))
+      } else {
+        if name == "quotient" {
+          type_checks = body_call_arity_evidence(context, "core", span, Some(2), len(children))
+        }
+      }
+    }
   }
   BodyResult(
     BoundBody(
@@ -1962,7 +2043,7 @@ pure body_check_existing_special_core_call(
       [],
       type_joins,
       callback_contracts,
-      [], []
+      [], type_checks
     ),
     diagnostics,
     deferred
@@ -2014,7 +2095,10 @@ pure body_check_rational_conversion(
       output = body_core_type(if name == "nat" { "Nat" } else { "Dec" })
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], [], [], [], [], []), diagnostics, deferred)
+  BodyResult(BoundBody(
+    BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], [], [], [], [],
+    body_call_arity_evidence(context, "core", span, Some(1), len(children))
+  ), diagnostics, deferred)
 }
 
 pure body_check_environment_core_call(
@@ -2061,7 +2145,10 @@ pure body_check_environment_core_call(
       output = body_core_type(if name == "environment_has" { "Bool" } else { "Str" })
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], [], [], [], [], []), diagnostics, deferred)
+  BodyResult(BoundBody(
+    BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], [], [], [], [],
+    body_call_arity_evidence(context, "core", span, Some(1), len(children))
+  ), diagnostics, deferred)
 }
 
 pure body_check_time_core_call(
@@ -2155,7 +2242,10 @@ pure body_check_time_core_call(
   if len(diagnostics) > 0 || len(deferred) > 0 {
     output = None()
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], [], [], [], [], []), diagnostics, deferred)
+  BodyResult(BoundBody(
+    BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], [], [], [], [],
+    body_call_arity_evidence(context, "core", span, Some(len(inputs)), len(children))
+  ), diagnostics, deferred)
 }
 
 pure body_intrinsic_type(context: BodyContext, name: Str): SignatureType {
@@ -2263,7 +2353,10 @@ pure body_check_typed_intrinsic(
   if len(diagnostics) == 0 && len(deferred) == 0 {
     output = Some(result)
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], [], [], [], [], []), diagnostics, deferred)
+  BodyResult(BoundBody(
+    BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], [], [], [], [],
+    body_call_arity_evidence(context, "core", span, Some(len(inputs)), len(children))
+  ), diagnostics, deferred)
 }
 
 pure body_check_host_filesystem_core_call(
@@ -2525,7 +2618,10 @@ pure body_check_text_core_call(
       output = if name == "slice" || name == "reverse" { body_core_type("Str") } else { body_core_type("Bool") }
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], [], [], [], [], []), diagnostics, deferred)
+  BodyResult(BoundBody(
+    BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], [], [], [], [],
+    body_call_arity_evidence(context, "core", span, Some(expected_count), len(children))
+  ), diagnostics, deferred)
 }
 
 pure body_check_bytes_core_call(
@@ -2596,7 +2692,10 @@ pure body_check_bytes_core_call(
       }
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], [], [], [], [], []), diagnostics, deferred)
+  BodyResult(BoundBody(
+    BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], [], [], [], [],
+    body_call_arity_evidence(context, "core", span, Some(expected_count), len(children))
+  ), diagnostics, deferred)
 }
 
 pure body_path_error_type(): SignatureType {
@@ -2715,7 +2814,10 @@ pure body_check_path_core_call(
       }
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], [], [], [], [], []), diagnostics, deferred)
+  BodyResult(BoundBody(
+    BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], [], [], [], [],
+    body_call_arity_evidence(context, "core", span, Some(expected_count), len(children))
+  ), diagnostics, deferred)
 }
 
 pure body_optional_type(type: Option[SignatureType]): SignatureType {
@@ -2762,6 +2864,7 @@ pure body_check_collection_core_call(
   mut call_arguments: [CallArgumentEvidence] = []
   mut callback_contracts: [CollectionCallbackEvidence] = []
   mut type_joins: [TypeJoinEvidence] = []
+  mut type_checks: [BodyTypeCheckEvidence] = []
 
   if len(children) != expected_count {
     diagnostics = append(diagnostics, Diagnostic(operation + " expects ${expected_count} arguments, got ${len(children)}", span.start))
@@ -2996,12 +3099,13 @@ pure body_check_collection_core_call(
       }
     }
   }
+  type_checks = body_call_arity_evidence(context, "core", span, Some(expected_count), len(children))
   node: BodyNode = if context.retain_guard_conversions {
     BodyCall(BodyCore(operation), [], call_arguments)
   } else {
     BodyEmpty()
   }
-  BodyResult(BoundBody(node, span, [], output, [], [], type_joins, callback_contracts, [], []), diagnostics, deferred)
+  BodyResult(BoundBody(node, span, [], output, [], [], type_joins, callback_contracts, [], type_checks), diagnostics, deferred)
 }
 
 pure body_check_map_set_call(

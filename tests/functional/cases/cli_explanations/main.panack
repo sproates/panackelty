@@ -88,13 +88,28 @@ main(): Void {
         ["call argument 1 to take: unavailable", "expression: missing", "actual type: unavailable", "expected type: Nat", "did not determine a complete argument type"], [], "unknown name missing"))
       explain_write(source, "pure take(value: Nat): Nat { value }; pure caller(): Nat { take(1) }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted direct call arity explains exact argument count", ["explain", source, "--function", "caller"], 0,
-        ["direct call arity checks:", "checked call arity: accepted", "context: direct call arity", "argument counts: expected 1; found 1", "accepted the supplied argument count"], [], ""))
+        ["call arity checks:", "checked call arity: accepted", "context: direct call arity", "argument counts: expected 1; found 1", "accepted the supplied argument count"], [], ""))
       explain_write(source, "pure take(value: Nat): Nat { value }; pure caller(): Nat { take() }\nmain(): Void {}\n")
       results = append(results, explain_run("missing direct call argument explains arity rejection", ["explain", source, "--function", "caller"], 1,
         ["checked call arity: rejected", "argument counts: expected 1; found 0", "rejected the supplied argument count"], [], "take expects 1 arguments, got 0"))
       explain_write(source, "pure take(value: Nat): Nat { value }; pure caller(): Nat { take(1, 2) }\nmain(): Void {}\n")
       results = append(results, explain_run("extra direct call argument explains arity rejection", ["explain", source, "--function", "caller"], 1,
         ["checked call arity: rejected", "argument counts: expected 1; found 2", "rejected the supplied argument count"], [], "take expects 1 arguments, got 2"))
+      explain_write(source, "pure probe(): Nat { len(\"hello\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted core call arity reports exact argument count", ["explain", source, "--function", "probe"], 0,
+        ["call arity checks:", "checked call arity: accepted", "context: core call arity", "argument counts: expected 1; found 1", "accepted the supplied argument count"], [], ""))
+      explain_write(source, "pure probe(): Nat { len() }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected core call arity reports exact argument count", ["explain", source, "--function", "probe"], 1,
+        ["checked call arity: rejected", "context: core call arity", "argument counts: expected 1; found 0", "rejected the supplied argument count"], [], "len expects 1 arguments, got 0"))
+      explain_write(source, "pure identity(value: Nat): Nat { value }; pure probe(): Nat { f: PureFn[Nat,Nat] = @identity; f.call(1) }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted indirect call arity reports exact argument count", ["explain", source, "--function", "probe"], 0,
+        ["checked call arity: accepted", "context: indirect call arity", "argument counts: expected 1; found 1", "accepted the supplied argument count"], [], ""))
+      explain_write(source, "pure identity(value: Nat): Nat { value }; pure probe(): Nat { f: PureFn[Nat,Nat] = @identity; f.call() }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected indirect call arity reports exact argument count", ["explain", source, "--function", "probe"], 1,
+        ["checked call arity: rejected", "context: indirect call arity", "argument counts: expected 1; found 0", "rejected the supplied argument count"], [], "call expects 1 arguments, got 0"))
+      explain_write(source, "pure probe(): Nat { f = missing; f.call(1) }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved indirect call arity is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["checked call arity: unavailable", "context: indirect call arity", "callable type is unresolved", "found 1", "could not determine the expected argument count"], [], "unknown name missing"))
       explain_write(source, "record Box { value: Nat }; probe(): Box { Box(1) }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted record constructor argument cites checked types", ["explain", source, "--function", "probe"], 0,
         ["call argument 1 to Box: accepted", "expression: 1", "actual type: Nat", "expected type: Nat", "compatible with the expected type", "checked call arity: accepted", "argument counts: expected 1; found 1"], [], ""))

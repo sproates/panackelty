@@ -825,7 +825,8 @@ pure render_type_check_evidence(
   match_decision: Bool = evidence.context == "match subject" ||
     evidence.context == "match arm uniqueness" ||
     evidence.context == "match payload bindings" || evidence.context == "match exhaustiveness"
-  call_arity: Bool = evidence.context == "direct call arity"
+  call_arity: Bool = evidence.context == "direct call arity" ||
+    evidence.context == "core call arity" || evidence.context == "indirect call arity"
   status_label: Str = if call_arity { "checked call arity" } else {
     if match_decision { "checked match decision" } else { "checked type requirement" }
   }
@@ -867,7 +868,11 @@ pure render_type_check_evidence(
           }
         }
       },
-      None() => "\nreason: the checker did not determine a complete type decision"
+      None() => if evidence.context == "indirect call arity" {
+        "\nreason: the callable type is unresolved, so the checker could not determine the expected argument count"
+      } else {
+        "\nreason: the checker did not determine a complete type decision"
+      }
     }
 }
 
@@ -881,7 +886,8 @@ pure render_type_check_explanations(
   for function in project.module_bodies {
     if function.signature.binding.identity == selector.identity {
       for evidence in body_type_check_evidence(function.body) {
-        if evidence.context != "direct call arity" {
+        if evidence.context != "direct call arity" &&
+          evidence.context != "core call arity" && evidence.context != "indirect call arity" {
           entries = append(entries, evidence)
         }
       }
@@ -910,15 +916,16 @@ pure render_call_arity_explanations(
   for function in project.module_bodies {
     if function.signature.binding.identity == selector.identity {
       for evidence in body_type_check_evidence(function.body) {
-        if evidence.context == "direct call arity" {
+        if evidence.context == "direct call arity" ||
+          evidence.context == "core call arity" || evidence.context == "indirect call arity" {
           entries = append(entries, evidence)
         }
       }
     }
   }
-  mut output: Str = "direct call arity checks:"
+  mut output: Str = "call arity checks:"
   if len(entries) == 0 {
-    output = output + " none (no retained direct call arity checks)"
+    output = output + " none (no retained call arity checks)"
   } else {
     for entry in entries {
       output = output + "\n\n" + render_type_check_evidence(

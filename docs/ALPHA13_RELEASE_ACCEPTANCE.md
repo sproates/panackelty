@@ -20,9 +20,9 @@ in the roadmap; it is not an alpha.13 completion percentage.
 
 ## Release sequence and evidence
 
-1. **Candidate preparation — in progress.** Reconcile main's accepted scope with
-   next's implementation and validation workflow. Set VERSION and all shipped
-   package manifests to alpha.13; prepare notes and compatibility/prerequisites.
+1. **Candidate preparation — complete on next.** PR #499 reconciled main's accepted scope with
+   next's implementation and validation workflow. VERSION and all shipped
+   package manifests identify alpha.13; notes and compatibility/prerequisites are prepared.
    Explicitly install libcurl development headers in Linux collection, full-check,
    nightly and release build jobs, matching the existing next smoke setup. The
    website CI exposed that the runner does not supply these headers by default.
@@ -33,7 +33,9 @@ in the roadmap; it is not an alpha.13 completion percentage.
    bytes (largest 706,607), and 24 execution/resource plus nine editorial/navigation
    tests passed across three engines including phone widths. The owner inspected
    the running preview positively and approved PR #42. It merged as `18b4cd5`;
-   post-merge website Check run 38760731372 passed.
+   post-merge website Check run 38760731372 passed. The owner also approved the
+   documentation completion correction in PR #43, merged as `b950a46`; its
+   post-merge Check and publication run 38772659325 passed.
 3. **P8 candidate acceptance — local checks passed; hosted/artifact acceptance pending.**
    The libcurl candidate passed `make check` in 555s; the coverage-capacity
    correction and refreshed seed passed the final full check in 576s on macOS arm64. This
@@ -43,35 +45,32 @@ in the roadmap; it is not an alpha.13 completion percentage.
    The focused HTTP client suite and YAML/layout/routing contracts also passed.
    Hosted Linux/macOS and public-artifact evidence remain required; retain exact
    commit and archive identities with those results.
-4. **Source coverage refresh — capacity correction in progress.** The requested
-   refresh of candidate `2ca92cb` failed in run 38760436718: the module-bindings
-   unit plan was 19,201,113 bytes, its registry 17,569,591 and wrapped raw record
-   20,810,250, exceeding the former 16 MiB container bound. Align container and
-   synchronous file-I/O limits at 32 MiB while preserving 16 MiB identity blobs
-   and all instruction/session budgets; rerun exact-candidate collection after
-   validation. Final full validation passed in 576s; 37 coverage policy/reader tests
-   and renderer parity (257 items for each branch outcome) passed. No source roots
-   or assertions are removed. PR #500 merged as `a914d81`; run 38766967634
-   exported and decoded the formerly failing root, then exposed a remaining
-   16 MiB read in session-record hashing. Align that provenance-hashing path
-   with the reader's 32 MiB container bound and cover validation plus hashing
-   together, including oversized and linked-file rejection. All 31 local sessions
-   then completed, exposing stale policy hashes at final report validation.
-   Review the existing six-file unmeasured list and all 410 compile-time
-   exclusions; retain all 45 measured files and execution roots. Check the
-   manifest policy before collection and in fast CI tests. Revalidation of the
-   saved fresh sessions passes the corrected policy; a fresh hosted run remains
-   required for publication. PR #501 merged as `3443733`; Check 38772101122
-   hit the plan export's three-minute timeout on a slower runner (the compiler
-   plan took 179s versus 107s in the preceding run). Allow five minutes for plan
-   export only, retaining execution limits and the overall 35-minute job bound.
-   The live report still
-   measures `e5e353e261761e3eab14b7f040d9ce1fd2d0a8fa` from 11 October and predates
-   the new HTTP/service code. Request a next push with `[source-coverage]`, wait
-   for a successful exact-commit source artifact, dispatch Coverage Pages on its
-   main branch, and verify live source provenance and summary. Do not add percentage
-   thresholds. Retain measured/unmeasured scope and input freshness. Native coverage
-   is a separate main-channel report and refreshes with full main validation.
+4. **Source coverage refresh — published and verified.**
+   Candidate `061212655bf90cc9aca56003b46aac68255a288c` passed
+   [Check 38775373415](https://github.com/sproates/panackelty/actions/runs/38775373415).
+   Collection took 29m48s and produced artifact `11995430565`: 31 fresh sessions
+   and executions, all 45 measured files, and six explicitly unmeasured files.
+   [Coverage Pages 38779817246](https://github.com/sproates/panackelty-coverage/actions/runs/38779817246)
+   passed preparation, deployment and byte verification of every live report file.
+   [Live source provenance](https://coverage.panackelty.com/source/provenance.json)
+   and [summary](https://coverage.panackelty.com/source/summary.json) identify the
+   exact candidate, successful Check and artifact. The release source-coverage
+   gate passed against those downloaded live files on 15 October 2026.
+
+   Repairs #500–#502 aligned containers at 32 MiB while retaining 16 MiB
+   individual identities, corrected provenance hashing, reviewed stale policy
+   hashes, moved manifest-policy validation before collection and allowed five
+   minutes per plan export for observed runner variation. Execution sessions
+   remain bounded at three minutes and the overall job at 35 minutes. Final
+   product validation passed in 576s; 41 focused reporting/policy tests and
+   renderer parity passed. All 410 compile-time exclusions were reviewed against
+   source declarations; no measured files or execution roots were removed.
+
+   Coverage amounts remain informational. The report explicitly retains 269
+   unavailable line measurements, 70 function measurements and 84 branch
+   measurements; it does not claim complete percentages or whole-language
+   coverage. Native coverage remains a separate main-channel report. Promotion
+   checks and release input-freshness checks remain required.
 5. **Promotion — pending.** Prepare next-to-main PR with reconciled scope and P8
    evidence, pass all required exact-head checks, obtain explicit owner approval.
 6. **Release — pending.** Obtain owner publication approval for the exact main SHA

@@ -2063,6 +2063,22 @@ pure namespace_body_tests(): [TestResult] {
     "pure take[T](value: T): T { value }; pure caller(): Str { take(\"typed\") }",
     false
   )
+  accepted_constructor_argument: CheckedModuleBodies = body_test_module_mode(
+    "pub record Box { value: Nat }; pub pure build(): Box { Box(1) }",
+    true
+  )
+  rejected_constructor_argument: CheckedModuleBodies = body_test_module_mode(
+    "pub record Box { value: Nat }; pub pure build(): Box { Box(\"wrong\") }",
+    true
+  )
+  unavailable_constructor_argument: CheckedModuleBodies = body_test_module_mode(
+    "pub record Box { value: Nat }; pub pure build(): Box { Box(missing) }",
+    true
+  )
+  ordinary_constructor_argument: CheckedModuleBodies = body_test_module_mode(
+    "pub record Box { value: Nat }; pub pure build(): Box { Box(1) }",
+    false
+  )
   accepted_annotated_local: CheckedModuleBodies = body_test_module_mode(
     "pure f(): Void { value: Nat = 5; }",
     true
@@ -2413,6 +2429,33 @@ pure namespace_body_tests(): [TestResult] {
     len(ordinary_call_argument.functions) == 2 &&
       len(body_call_argument_evidence(ordinary_call_argument.functions[1].body)) == 0,
     "ordinary checking retained explanation-only call argument evidence"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains accepted constructor argument evidence",
+    len(accepted_constructor_argument.functions) == 1 &&
+      len(body_call_argument_evidence(accepted_constructor_argument.functions[0].body)) == 1 &&
+      body_call_argument_evidence(accepted_constructor_argument.functions[0].body)[0].accepted == Some(true),
+    "accepted constructor argument was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains rejected constructor argument evidence",
+    len(rejected_constructor_argument.functions) == 1 &&
+      len(body_call_argument_evidence(rejected_constructor_argument.functions[0].body)) == 1 &&
+      body_call_argument_evidence(rejected_constructor_argument.functions[0].body)[0].accepted == Some(false),
+    "rejected constructor argument was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains unavailable constructor argument evidence",
+    len(unavailable_constructor_argument.functions) == 1 &&
+      len(body_call_argument_evidence(unavailable_constructor_argument.functions[0].body)) == 1 &&
+      body_call_argument_evidence(unavailable_constructor_argument.functions[0].body)[0].accepted == None(),
+    "unavailable constructor argument was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "ordinary checking retains no constructor argument evidence",
+    len(ordinary_constructor_argument.functions) == 1 &&
+      len(body_call_argument_evidence(ordinary_constructor_argument.functions[0].body)) == 0,
+    "ordinary checking retained explanation-only constructor argument evidence"
   ))
   results = append(results, std_testing.expect(
     "explanation checking retains accepted annotated local evidence",

@@ -125,8 +125,9 @@ in an unresolved type. The normal diagnostic and exit status remain unchanged.
 
 ## Direct function-call arguments
 
-For each checked direct function call in the selected function, the explanation
-reports each argument's checked type against the corresponding parameter type.
+For each checked direct function or record/enum constructor call in the selected
+function, the explanation reports each argument's checked type against the
+corresponding parameter or payload type.
 Accepted, rejected and unavailable outcomes come from the existing checker
 decision and include the argument expression's source range. The same applies
 to checked arguments for the text helpers `is_digit`, `is_letter`,

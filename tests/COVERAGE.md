@@ -772,9 +772,10 @@ cover accepted and rejected fixed arity; indirect callable cases cover accepted,
 rejected and unavailable arity and accepted, rejected and unavailable argument
 compatibility. Ordinary checking retains no indirect call argument evidence.
 Explicit type-argument cases cover exact generic-function counts, missing and
-extra counts, and the zero-count rejection for a non-generic core call;
-ordinary checking retains no new type-argument evidence. Constructor-specific
-explicit-type restrictions and type-resolution failures remain to map.
+extra counts, and zero-count rejections for non-generic core calls, generic
+record constructors, and generic enum variant constructors; ordinary checking
+retains no new type-argument evidence. Type-resolution failures and other
+type-argument-bearing call families remain to map.
 text, byte, rational-conversion, numeric-parser, quotient and collection
 mutation/lookup argument contracts, including accepted, rejected and
 unavailable values. Path argument cases cover `Path`, `Str` and `Bytes` types,

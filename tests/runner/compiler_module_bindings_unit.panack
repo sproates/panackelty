@@ -2150,8 +2150,20 @@ pure namespace_body_tests(): [TestResult] {
     "pure caller(): Nat { len[Nat](\"x\") }",
     true
   )
+  rejected_record_constructor_type_argument_arity: CheckedModuleBodies = body_test_module_mode(
+    "pub record Box[T] { value: T }; pub pure caller(): Box[Nat] { Box[Nat](1) }",
+    true
+  )
+  rejected_variant_constructor_type_argument_arity: CheckedModuleBodies = body_test_module_mode(
+    "pub enum Choice[T] { Pick(T) }; pub pure caller(): Choice[Nat] { Pick[Nat](1) }",
+    true
+  )
   ordinary_type_argument_arity: CheckedModuleBodies = body_test_module_mode(
     "pure identity[T](value: T): T { value }; pure caller(): Nat { identity[Nat](1) }",
+    false
+  )
+  ordinary_constructor_type_argument_arity: CheckedModuleBodies = body_test_module_mode(
+    "pub record Box[T] { value: T }; pub pure caller(): Box[Nat] { Box[Nat](1) }",
     false
   )
   accepted_constructor_argument: CheckedModuleBodies = body_test_module_mode(
@@ -2666,10 +2678,38 @@ pure namespace_body_tests(): [TestResult] {
     "rejected core type argument count was not retained"
   ))
   results = append(results, std_testing.expect(
+    "explanation checking retains rejected generic record constructor type arguments",
+    len(rejected_record_constructor_type_argument_arity.functions) == 1 &&
+      match body_type_check_for_context(
+        rejected_record_constructor_type_argument_arity.functions[0].body, "type argument arity"
+      ) {
+        None() => false,
+        Some(evidence) => evidence.expected == "expected 0; found 1" && evidence.accepted == Some(false)
+      },
+    "generic record constructor type-argument rejection was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains rejected generic variant constructor type arguments",
+    len(rejected_variant_constructor_type_argument_arity.functions) == 1 &&
+      match body_type_check_for_context(
+        rejected_variant_constructor_type_argument_arity.functions[0].body, "type argument arity"
+      ) {
+        None() => false,
+        Some(evidence) => evidence.expected == "expected 0; found 1" && evidence.accepted == Some(false)
+      },
+    "generic variant constructor type-argument rejection was not retained"
+  ))
+  results = append(results, std_testing.expect(
     "ordinary checking retains no explicit type argument arity",
     len(ordinary_type_argument_arity.functions) == 2 &&
       len(body_type_check_evidence(ordinary_type_argument_arity.functions[1].body)) == 0,
     "ordinary checking retained explanation-only type argument arity"
+  ))
+  results = append(results, std_testing.expect(
+    "ordinary checking retains no constructor type-argument arity evidence",
+    len(ordinary_constructor_type_argument_arity.functions) == 1 &&
+      len(body_type_check_evidence(ordinary_constructor_type_argument_arity.functions[0].body)) == 0,
+    "ordinary checking retained explanation-only constructor type-argument arity"
   ))
   results = append(results, std_testing.expect(
     "explanation checking retains accepted constructor argument evidence",

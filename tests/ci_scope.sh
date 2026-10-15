@@ -47,6 +47,19 @@ fixture
 printf '\nNext step\n' >> ROADMAP.md
 commit; route docs
 bash "$root/scripts/check_docs.sh" >/dev/null
+# The package design is an informational document: edits use the documentation
+# route while its local links and formatting remain checked.
+fixture
+mkdir -p docs
+printf '# Module and package design\n' > docs/MODULE_PACKAGE_DESIGN.md
+git add docs/MODULE_PACKAGE_DESIGN.md
+git commit -qm 'design document fixture'
+base=$(git rev-parse HEAD)
+printf '\nClarify package boundaries.\n' >> docs/MODULE_PACKAGE_DESIGN.md
+commit; route docs
+plan=$(bash "$root/scripts/ci_scope.sh" --plan "$base" "$head")
+[[ "$plan" == $'route=docs\ncomponents=documentation\nchecks=documents,links,whitespace' ]] || fail 'module package design plan'
+bash "$root/scripts/check_docs.sh" >/dev/null
 # The bounded public-coverage publication guidance is also informational.
 fixture
 awk '{ if ($0 ~ /Publisher behavior is described here/) sub(/Publisher behavior is described here/, "Publication is on demand."); print }' README.md > "$work/readme"

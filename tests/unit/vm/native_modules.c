@@ -496,6 +496,7 @@ static void filesystem_root_reads_stay_beneath_the_open_root(void)
     release(parent);
 
     release(identity);
+    record_module_progress("filesystem_root_static");
     assert(symlink("sub/data", race_link) == 0);
     int race_started[2];
     assert(pipe(race_started) == 0);
@@ -534,9 +535,11 @@ static void filesystem_root_reads_stay_beneath_the_open_root(void)
         }
         release(raced);
     }
+    record_module_progress("filesystem_root_race_reads");
     int racer_status = 0;
     assert(waitpid(racer, &racer_status, 0) == racer);
     assert(WIFEXITED(racer_status) && WEXITSTATUS(racer_status) == 0);
+    record_module_progress("filesystem_root_racer_joined");
     assert(unlink(race_link) == 0);
     assert(unlink(root_alias) == 0 && unlink(nested_escape) == 0 && unlink(nested_link) == 0);
     assert(unlink(escape_link) == 0 && unlink(in_root_link) == 0);

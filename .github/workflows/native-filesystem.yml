@@ -28,12 +28,7 @@ jobs:
       - run: make native-module-build
       - name: Measure isolated filesystem and complete native contracts
         run: |
-          python3 - <<'PY'
-          import subprocess, time
-          for args in (['filesystem-root'], []):
-              start = time.monotonic()
-              subprocess.run(['build/vm/test_modules', *args], check=True, timeout=120)
-              print(f'{args or ["all"]}: {time.monotonic() - start:.3f}s', flush=True)
-          PY
+          time build/vm/test_modules filesystem-root
+          time build/vm/test_modules
       - name: Exercise the normal timed native-module harness
         run: make native-vm-contracts

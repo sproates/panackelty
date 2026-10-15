@@ -2150,6 +2150,18 @@ pure namespace_body_tests(): [TestResult] {
     "pure caller(): Nat { f = missing; f.call(1) }",
     true
   )
+  rejected_indirect_call_target: CheckedModuleBodies = body_test_module_mode(
+    "pure caller(): Nat { value: Nat = 1; value.call(1) }",
+    true
+  )
+  unresolved_indirect_call_target: CheckedModuleBodies = body_test_module_mode(
+    "pure caller(): Nat { f = missing; f.call(1) }",
+    true
+  )
+  parameter_indirect_call_target: CheckedModuleBodies = body_test_module_mode(
+    "pure caller[T](value: T): Nat { value.call(1) }",
+    true
+  )
   accepted_indirect_call_argument: CheckedModuleBodies = body_test_module_mode(
     "pure identity(value: Nat): Nat { value }; pure caller(): Nat { f: PureFn[Nat,Nat] = @identity; f.call(1) }",
     true
@@ -2736,17 +2748,62 @@ pure namespace_body_tests(): [TestResult] {
   results = append(results, std_testing.expect(
     "explanation checking retains accepted indirect call arity",
     len(accepted_indirect_call_arity.functions) == 2 &&
-      body_type_check_evidence(accepted_indirect_call_arity.functions[1].body)[0].context == "indirect call arity" &&
-      body_type_check_evidence(accepted_indirect_call_arity.functions[1].body)[0].accepted == Some(true),
+      match body_type_check_for_context(accepted_indirect_call_arity.functions[1].body, "indirect call arity") {
+        None() => false,
+        Some(evidence) => evidence.accepted == Some(true)
+      },
     "accepted indirect call arity was not retained"
   ))
   results = append(results, std_testing.expect(
     "explanation checking retains unavailable indirect call arity",
     len(unavailable_indirect_call_arity.functions) == 1 &&
-      body_type_check_evidence(unavailable_indirect_call_arity.functions[0].body)[0].accepted == None() &&
-      body_type_check_evidence(unavailable_indirect_call_arity.functions[0].body)[0].expected ==
-        "expected count unavailable because the callable type is unresolved; found 1",
+      match body_type_check_for_context(unavailable_indirect_call_arity.functions[0].body, "indirect call arity") {
+        None() => false,
+        Some(evidence) => evidence.accepted == None() && evidence.expected ==
+          "expected count unavailable because the callable type is unresolved; found 1"
+      },
     "unavailable indirect call arity reason was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking accepts a callable indirect call target",
+    len(accepted_indirect_call_arity.functions) == 2 &&
+      match body_type_check_for_context(accepted_indirect_call_arity.functions[1].body, "indirect call target") {
+        None() => false,
+        Some(evidence) => evidence.expected == "callable type" && evidence.accepted == Some(true)
+      },
+    "callable indirect-call target evidence was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking rejects a non-callable indirect call target",
+    len(rejected_indirect_call_target.functions) == 1 &&
+      match body_type_check_for_context(rejected_indirect_call_target.functions[0].body, "indirect call target") {
+        None() => false,
+        Some(evidence) => evidence.actual == Some(SignatureType(SignatureCore("Nat"), [])) &&
+          evidence.expected == "callable type" && evidence.accepted == Some(false)
+      },
+    "non-callable indirect-call target rejection was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking marks an unresolved indirect call target unavailable",
+    len(unresolved_indirect_call_target.functions) == 1 &&
+      match body_type_check_for_context(unresolved_indirect_call_target.functions[0].body, "indirect call target") {
+        None() => false,
+        Some(evidence) => evidence.actual == None() &&
+          evidence.expected == "callable type" && evidence.accepted == None()
+      },
+    "unresolved indirect-call target was not retained as unavailable"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking marks a generic indirect call target unresolved",
+    len(parameter_indirect_call_target.functions) == 1 &&
+      match body_type_check_for_context(parameter_indirect_call_target.functions[0].body, "indirect call target") {
+        None() => false,
+        Some(evidence) => match evidence.actual {
+          None() => false,
+          Some(actual) => evidence.expected == "callable type" && evidence.accepted == None()
+        }
+      },
+    "generic indirect-call target decision was not retained as unavailable"
   ))
   results = append(results, std_testing.expect(
     "explanation checking retains accepted indirect call argument",
@@ -2787,8 +2844,9 @@ pure namespace_body_tests(): [TestResult] {
   results = append(results, std_testing.expect(
     "ordinary checking retains no indirect call argument evidence",
     len(ordinary_indirect_call_argument.functions) == 2 &&
-      len(body_call_argument_evidence(ordinary_indirect_call_argument.functions[1].body)) == 0,
-    "ordinary checking retained explanation-only indirect call argument evidence"
+      len(body_call_argument_evidence(ordinary_indirect_call_argument.functions[1].body)) == 0 &&
+      len(body_type_check_evidence(ordinary_indirect_call_argument.functions[1].body)) == 0,
+    "ordinary checking retained explanation-only indirect call evidence"
   ))
   results = append(results, std_testing.expect(
     "explanation checking retains accepted explicit type argument arity",

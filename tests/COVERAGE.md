@@ -770,7 +770,9 @@ calls, including missing and extra arguments. Module-body tests verify accepted,
 missing, extra and ordinary-no-evidence function-call cases. Core-call cases
 cover accepted and rejected fixed arity; indirect callable cases cover accepted,
 rejected and unavailable arity and accepted, rejected and unavailable argument
-compatibility. Ordinary checking retains no indirect call argument evidence.
+compatibility. Callable targets cover accepted callable types, rejected
+non-callable types and unavailable unresolved/generic-parameter types. Ordinary
+checking retains no indirect call argument or target evidence.
 `len` argument cases cover accepted `Str`, `Bytes` and array inputs, rejected
 unsupported inputs, and unavailable input types; ordinary checking retains no
 new `len` requirement evidence.

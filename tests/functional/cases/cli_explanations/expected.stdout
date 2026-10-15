@@ -26,6 +26,8 @@ PASS rejected core call arity reports exact argument count
 PASS accepted indirect call arity reports exact argument count
 PASS rejected indirect call arity reports exact argument count
 PASS unresolved indirect call arity is explicitly unavailable
+PASS rejected indirect call target explains non-callable type
+PASS indirect call target type parameter is explicitly unavailable
 PASS accepted indirect call argument cites checked type
 PASS rejected indirect call argument explains mismatch
 PASS unresolved indirect call argument is explicitly unavailable
@@ -199,4 +201,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 201, failures: 0
+tests: 203, failures: 0

@@ -4265,9 +4265,12 @@ requirements for `print`/`eprint`, including rejection of `Void`. The current
 slice explains whether an indirect call target has a known callable type,
 including rejected non-callables and unresolved target types; PR #485 adds this
 evidence. The current slice retains the native TCP/HTTP transport argument
-requirements, including accepted, rejected and unavailable results. Other
-specialized core-call decisions and complete generic inference traces remain
-gaps to inventory. These are partial families within the owner-defined complete
+requirements, including accepted, rejected and unavailable results; PR #486 adds
+this evidence. The current slice explains the substituted type assigned to a
+generic enum match payload binding, including unavailable output for an
+unresolved subject type. Other specialized core-call decisions and complete
+generic inference traces remain gaps to inventory. These are partial families
+within the owner-defined complete
 checker-decision target above. Each slice keeps ordinary diagnostics and runtime
 behavior unchanged and retains evidence only for explanation queries.
 Ordinary checking keeps this evidence empty. These

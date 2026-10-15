@@ -6037,8 +6037,10 @@ pure bind_body_match(
   for arm in arms {
     pattern_position: SourcePos = arm.pattern.span.start
     mut payload: [SignatureType] = []
+    mut payload_substitution_failed: Bool = false
     mut arm_locals: Map[Str, BodyLocal] = locals
     mut arm_bindings: [BodyLocalIdentity] = []
+    mut payload_variant_name: Str = ""
     match body_target(context, arm.pattern.variant, false) {
       Error(message) => {
         diagnostics = append(diagnostics, Diagnostic(message, pattern_position))
@@ -6063,6 +6065,7 @@ pure bind_body_match(
           )
         }
         identity: DeclarationIdentity = body_variant_identity(target)
+        payload_variant_name = identity.name
         mut found: Bool = false
         for variant in variants {
           if body_variant_identity(variant) == identity {
@@ -6162,6 +6165,7 @@ pure bind_body_match(
                         match substitute_signature_type(input, contract.owner, type.arguments) {
                           Error(message) => {
                             diagnostics = append(diagnostics, Diagnostic(message, pattern_position))
+                            payload_substitution_failed = true
                           },
                           Ok(value) => {
                             payload = append(payload, value)
@@ -6194,6 +6198,24 @@ pure bind_body_match(
         Some(payload[binding_index])
       } else {
         None()
+      }
+      if context.retain_guard_conversions && (
+        type != None() || subject_result.body.type == None() || payload_substitution_failed
+      ) {
+        number: Nat = binding_index + 1
+        accepted: Option[Bool] = if type != None() {
+          Some(true)
+        } else {
+          if payload_substitution_failed { Some(false) } else { None() }
+        }
+        type_checks = append(type_checks, BodyTypeCheckEvidence(
+          "match payload type",
+          arm.pattern.span,
+          subject_result.body.type,
+          "binding ${name} receives payload ${number} of " + payload_variant_name,
+          type,
+          accepted
+        ))
       }
       arm_bindings = append(arm_bindings, local)
       arm_locals = arm_locals.put(name, BodyLocal(local, type, false))

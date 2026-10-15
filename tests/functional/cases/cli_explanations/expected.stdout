@@ -135,6 +135,8 @@ PASS non-exhaustive match explains missing variants
 PASS duplicate match arm explains uniqueness rejection
 PASS match payload binding count explains rejection
 PASS accepted match payload binding count explains arity
+PASS generic match payload explains substituted binding type
+PASS unresolved generic match payload type is explicitly unavailable
 PASS accepted generic record field explains receiver and result types
 PASS rejected non-record field receiver preserves diagnostic
 PASS unresolved field receiver is explicitly unavailable
@@ -204,4 +206,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 206, failures: 0
+tests: 208, failures: 0

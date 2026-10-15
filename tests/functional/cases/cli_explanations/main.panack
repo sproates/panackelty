@@ -464,6 +464,11 @@ main(): Void {
       explain_write(source, "enum Choice[T] { Pick(T), Empty }; probe(value: Choice[Nat]): Nat { match value { Pick(item) => item, Empty() => 0 } }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted match payload binding count explains arity", ["explain", source, "--function", "probe"], 0,
         ["context: match payload bindings", "checked match decision: accepted", "decision rule: expected 1 binding(s) for variant Pick; found 1"], [], ""))
+      results = append(results, explain_run("generic match payload explains substituted binding type", ["explain", source, "--function", "probe"], 0,
+        ["checked match payload type: accepted", "context: match payload type", "matched enum type: main.panack:Choice[Nat]", "payload source: binding item receives payload 1 of Pick", "resulting type: Nat", "the checker substituted this variant payload type for the pattern binding"], [], ""))
+      explain_write(source, "enum Choice[T] { Pick(T), Empty }; probe(): Nat { match missing { Pick(item) => 1, Empty() => 0 } }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved generic match payload type is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["checked match payload type: unavailable", "context: match payload type", "matched enum type: unavailable", "payload source: binding item receives payload 1 of Pick", "resulting type: unavailable", "could not determine the matched enum type needed for payload substitution"], [], "unknown name missing"))
       explain_write(source, "record Box[T] { value: T }; probe(box: Box[Nat]): Nat { box.value }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted generic record field explains receiver and result types", ["explain", source, "--function", "probe"], 0,
         ["context: field access", "checked type requirement: accepted", "actual type: main.panack:Box[Nat]", "expected type: record with field value", "resulting type: Nat"], [], ""))

@@ -395,6 +395,35 @@ static void write_test_file(const char *path, const char *contents)
     assert(close(fd) == 0);
 }
 
+static void filesystem_data_limits_are_independent_of_process_limits(void)
+{
+    char path[] = "/tmp/panack-file-bound-XXXXXX";
+    int fd = mkstemp(path);
+    assert(fd >= 0 && !close(fd));
+    VM vm = {0};
+    Value *arguments[] = {value_data(V_PATH, (const uint8_t *)path, strlen(path)),
+                          value_size(32u * 1024u * 1024u)};
+    Value *result = builtin_call(&vm, "fs_read", arguments);
+    assert(result && !strcmp(result->as.named.name, "Ok"));
+    release(result);
+    release(arguments[1]);
+    arguments[1] = value_size(32u * 1024u * 1024u + 1);
+    result = builtin_call(&vm, "fs_read", arguments);
+    assert(result && !strcmp(result->as.named.name, "Error"));
+    release(result);
+    release(arguments[1]);
+    arguments[1] = value_data(V_BYTES, NULL, 0);
+    /* Rejection must precede access to the deliberately absent oversized data. */
+    arguments[1]->as.bytes.length = 32u * 1024u * 1024u + 1;
+    result = builtin_call(&vm, "fs_write", arguments);
+    assert(result && !strcmp(result->as.named.name, "Error"));
+    arguments[1]->as.bytes.length = 0;
+    release(result);
+    release(arguments[0]);
+    release(arguments[1]);
+    assert(!unlink(path));
+}
+
 static void filesystem_root_reads_stay_beneath_the_open_root(void)
 {
     char base[] = "/tmp/panack-root-read-XXXXXX";
@@ -1017,6 +1046,7 @@ int main(int argc, char **argv)
     record_module_progress("opaque_host_values");
     host_builtins_reject_wrong_operand_types();
     record_module_progress("host_builtin_types");
+    filesystem_data_limits_are_independent_of_process_limits();
     filesystem_root_reads_stay_beneath_the_open_root();
     record_module_progress("filesystem_root");
     filesystem_directory_overlap_uses_physical_ancestry();

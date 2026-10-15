@@ -1156,3 +1156,16 @@ The [GI#162 plan](../docs/GI162_STATIC_HTTP_PLAN.md) records manual byte-for-byt
 checks of all 52 existing assembled website files and local latency observations.
 These do not replace acceptance of the website assembly under review. No new
 source-coverage baseline collection is part of this package delivery.
+
+## Alpha.13 coverage-container capacity
+
+Native raw-size contracts accept exactly 32 MiB, reject one byte beyond it and
+retain 16 MiB identity bounds. Reader regressions accept a combined identity
+container above 16 MiB and reject oversized registries/raw records. Self-hosted
+raw decoding covers the same boundary. The complete `host_file_bounds` program
+writes and reads exactly 32 MiB, rejects a lower read budget and above-bound
+read/write requests, and verifies rejected writes preserve existing contents.
+Native host contracts cover accepted/rejected read limits and reject an oversized
+write before touching its data. Rooted/async file and process limits are unchanged.
+The previously failing module-bindings coverage reproduction executes all 846
+assertions and validates its 20,810,250-byte wrapped record with unchanged identities.

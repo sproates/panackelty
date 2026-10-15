@@ -21,6 +21,7 @@
 extern char **environ;
 #define HC_MAX_NS UINT64_C(31536000000000000)
 #define HC_MAX_BYTES (16u * 1024u * 1024u)
+#define HC_MAX_FILE_BYTES (32u * 1024u * 1024u)
 #define HC_ROOTED_PATH_MAX 4096u
 #define HC_ROOTED_DEPTH_MAX 256u
 #define HC_ROOTED_SYMLINK_MAX 40u
@@ -878,7 +879,7 @@ Value *host_capability_call(VM *vm, const char *name, Value **a)
     if (!strcmp(name, "fs_read")) {
         REQUIRE(a[1]->kind == V_NAT, "VM trap: read limit requires Nat");
         size_t limit;
-        if (!pn_big_fits_size(&a[1]->as.integer, &limit) || limit > HC_MAX_BYTES) {
+        if (!pn_big_fits_size(&a[1]->as.integer, &limit) || limit > HC_MAX_FILE_BYTES) {
             return hc_error(name, "out_of_range", 0);
         }
         int fd = open(path, O_RDONLY | O_NONBLOCK);
@@ -932,7 +933,7 @@ Value *host_capability_call(VM *vm, const char *name, Value **a)
     }
     if (!strcmp(name, "fs_write")) {
         REQUIRE(a[1]->kind == V_BYTES, "VM trap: write requires Bytes");
-        if (a[1]->as.bytes.length > HC_MAX_BYTES) {
+        if (a[1]->as.bytes.length > HC_MAX_FILE_BYTES) {
             return hc_error(name, "out_of_range", 0);
         }
         int fd = open(path, O_WRONLY | O_CREAT | O_NONBLOCK, 0666);

@@ -53,6 +53,9 @@ No unreleased changes.
 
 ### Limits and development
 
+- Coverage plan, registry and raw-record containers support up to 32 MiB, with
+  individual identities still bounded at 16 MiB. Synchronous filesystem reads
+  and writes also allow 32 MiB; rooted/async and process-output limits are unchanged.
 - The directory server defaults to loopback, four clients, 16 KiB requests,
   1 MiB complete responses, ten-second client deadlines and one-second drain.
   It supplies no directory listings, range serving, TLS, watching or rebuilds.

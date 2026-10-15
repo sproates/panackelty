@@ -95,7 +95,7 @@ or completion of the first non-alpha milestone.
 | --- | --- | --- |
 | Native HTTP client | P5 / RM#110 / [GI#236](https://github.com/sproates/panackelty/issues/236), implementation complete on `next` through PR #456; GI#236 closed; final P8 release acceptance remains | Accepted namespace/local-package prerequisites; certificate and hostname verification, limits, timeouts/cancellation, deterministic protocol/TLS tests and installed source/bytecode usage |
 | Native HTTP server | P6 / RM#111 / [GI#237](https://github.com/sproates/panackelty/issues/237), implementation complete on `next` through PR #467; GI#237 closed; final P8 release acceptance remains | Typed handlers/responses, framing/limits, disconnect/shutdown/concurrency tests and independent interoperability; server TLS remains outside the initial contract |
-| Panackelty-written local website preview server | [GI#162](https://github.com/sproates/panackelty/issues/162), generic package and tool merged into `next` in PR #498 after prerequisites #495–#497; website adoption is [website PR #42](https://github.com/sproates/panackelty-website/pull/42). All 81 assembled files match and 33 desktop/phone browser checks pass; owner inspected the local preview positively. Website merge and final bookkeeping remain | Serve the built site over loopback with correct HTML/JavaScript/Wasm MIME types; support GET/HEAD, directory indexes, missing files, clear startup and port-conflict errors, clean shutdown, and reject traversal/symlink escapes. Exercise assembled-site browser tests against it and document launch/rebuild/stop |
+| Panackelty-written local website preview server | [GI#162](https://github.com/sproates/panackelty/issues/162), generic package and tool merged into `next` in PR #498 after prerequisites #495–#497; website adoption is [website PR #42](https://github.com/sproates/panackelty-website/pull/42). All 81 assembled files match and 33 desktop/phone browser checks pass; owner inspected the local preview positively. Website PR #42 merged as `18b4cd5` after owner approval; its post-merge checks passed | Serve the built site over loopback with correct HTML/JavaScript/Wasm MIME types; support GET/HEAD, directory indexes, missing files, clear startup and port-conflict errors, clean shutdown, and reject traversal/symlink escapes. Exercise assembled-site browser tests against it and document launch/rebuild/stop |
 | Expanded checker explanations | U3 / RM#48 / [GI#134](https://github.com/sproates/panackelty/issues/134): Alpha.13 outcome accepted complete by owner on 2026-10-15; implementation slices through PR #492 are on `next`; GI#134 remains open with its broader complete-decision target moved to Alpha.14 | Alpha.13's selected explanation outcome is complete. Remaining issue scope continues in Alpha.14; no further GI#134 implementation is required for Alpha.13 |
 | Developer build and validation workflow — Alpha.13 gate accepted | RM#28 / [GI#106](https://github.com/sproates/panackelty/issues/106). On 2026-10-15, the user accepted the current workflow for Alpha.13 and said no further work is needed unless raised again. | **Accepted by the user.** GI#106 remains open as a broader tracker; do not resume it unless the user explicitly raises it. Former timing values are historical, not current gates. |
 
@@ -761,8 +761,8 @@ Owner decision, 2026-10-15: GI#200 package management has moved to Alpha.14.
 Its discussion and any later design or implementation do not block Alpha.13 or
 P8 acceptance. The selected Alpha.13 outcome for GI#134 is complete; its broader
 checker-decision scope moves to Alpha.14 and does not block this release. GI#162
-has its generic package/tool merged in PR #498 and website adoption pending in
-website PR #42; the remaining work is adoption and release acceptance.
+is delivered through core PRs #495–#498 and merged website PR #42; the remaining
+Alpha.13 work is release acceptance and coverage refresh.
 
 1. **Language/local-package evidence for P1–P4.** A clean installed toolchain
    builds and runs two independent applications consuming the same local library;
@@ -1847,8 +1847,8 @@ No acceptance remains for the agreed #160 scope.
 
 **RM#101: Panackelty preview server** · [GI#162: Panackelty preview server](https://github.com/sproates/panackelty/issues/162).
 
-**In progress, 2026-10-15**: [#162](https://github.com/sproates/panackelty/issues/162)
-will provide a generic directory-serving HTTP package and a tool under `tools/`,
+**Done, 2026-10-15**: [#162](https://github.com/sproates/panackelty/issues/162)
+provides a generic directory-serving HTTP package and a tool under `tools/`,
 with website preview supplying its configuration. Reuse the existing HTTP package
 and isolate necessary standard-library additions. Keep the existing website build.
 The [implementation proposal](docs/GI162_STATIC_HTTP_PLAN.md) records the design,
@@ -1858,11 +1858,12 @@ merged in PR #497, with final `make check` passing in 523 seconds. The generic
 `packages/static_http` package and `tools/http-server` executable are implemented;
 focused source, bytecode and relocated-installation checks pass. Final `make check`
 passes in 413 seconds; PR #498 merged as `90661d4`. The installed command runs bytecode
-compiled during installation. Website adoption is implemented in [website PR #42](https://github.com/sproates/panackelty-website/pull/42): 30 automation tests, 81 byte-matched files and 33 browser checks pass. The owner inspected the local preview positively; hosted checks and website merge remain open;
-this intermediate slice does not close #162 or change production website behaviour.
+compiled during installation. Website adoption is implemented in [website PR #42](https://github.com/sproates/panackelty-website/pull/42): 30 automation tests, 81 byte-matched files and 33 browser checks pass. The owner inspected the local preview positively and explicitly approved website
+PR #42, merged as `18b4cd5`. Exact-head and post-merge website checks, including
+three-engine browser integration, passed. This completes GI#162.
 The [plan's performance evidence](docs/GI162_STATIC_HTTP_PLAN.md#performance-evidence-and-proposed-disposition)
-records a material latency regression against Node and its proposed bounded-preview
-disposition, owned by the delivery maintainer for review during website adoption.
+records a material latency regression against Node, accepted for bounded previews
+after successful real-site use. The delivery maintainer will revisit it if it obstructs use.
 
 The finite TCP client/server stage is implemented on `main`: client PR #127,
 server contract PR #129 and server implementation PR #130. Both operations are included in the published alpha.11 native release and were
@@ -2159,13 +2160,12 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
-- **GI#162 preview-tool adoption** — In progress, owned by the GI#162 delivery
-  maintainer. The generic package/tool is merged in PR #498; website PR #42 replaces
-  its local serving component with the installed command while preserving
-  assembly and provenance. Pin the merged implementation revision until a release
-  includes it; alpha.11 downloads do not. Verify actual assembled assets, readiness,
-  errors, shutdown, owned-directory cleanup and responsiveness before closing #162.
-  Production content and release-download claims are unchanged by this core slice.
+- **GI#162 preview-tool adoption** — Done, 2026-10-15. Core PR #498 supplies
+  the generic tool; website PR #42 adopted it with a pinned source installation.
+  All 81 assembled assets matched; readiness, error handling, signals, parent loss,
+  cleanup and desktop/phone browser checks passed. Owner preview and merge approval
+  are recorded; post-merge website Check run 38760731372 passed.
+  Published alpha.13 download adoption remains a separate release follow-up.
 
 - <a id="rm-127"></a>**RM#127: Website release history** — Done
   (2026-10-04, PR #269). Added changelog-generated release history with dated

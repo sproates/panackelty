@@ -6,7 +6,8 @@
 #include <stdio.h>
 
 #define VM_COVERAGE_MAX_CELLS 262144u
-#define VM_COVERAGE_MAX_RAW 16777216u
+#define VM_COVERAGE_MAX_IDENTITY 16777216u
+#define VM_COVERAGE_MAX_RAW 33554432u
 
 typedef struct VMCoverage VMCoverage;
 typedef struct {

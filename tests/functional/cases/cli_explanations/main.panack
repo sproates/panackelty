@@ -135,6 +135,12 @@ main(): Void {
       explain_write(source, "pure noop(): Void {}; caller(): Void { eprint(noop()) }\nmain(): Void {}\n")
       results = append(results, explain_run("eprint explains rejected Void arguments", ["explain", source, "--function", "caller"], 1,
         ["checked type requirement: rejected", "context: eprint argument", "expression: noop()", "actual type: Void", "expected type: any non-Void value", "rejected this type for the requirement"], [], "Void is not a value and cannot be passed as an argument"))
+      explain_write(source, "pure noop(): Void {}; caller(): Nat { answer = noop(); 1 }\nmain(): Void {}\n")
+      results = append(results, explain_run("explain rejected Void binding storage", ["explain", source, "--function", "caller"], 1,
+        ["checked value requirement: rejected", "context: binding storage", "actual type: Void", "required value: non-Void stored value", "Void produces no value and cannot be stored in a binding"], [], "cannot infer local answer from Void; Void is not a value"))
+      explain_write(source, "pure noop(): Void {}; caller(): Nat { values = [noop()]; 1 }\nmain(): Void {}\n")
+      results = append(results, explain_run("explain rejected Void array element", ["explain", source, "--function", "caller"], 1,
+        ["checked value requirement: rejected", "context: array element", "actual type: Void", "required value: non-Void array element", "Void produces no element value and cannot be placed in an array"], [], "Void expressions cannot be stored in an array"))
       explain_write(source, "caller(): Void { print(missing) }\nmain(): Void {}\n")
       results = append(results, explain_run("print reports unavailable argument types", ["explain", source, "--function", "caller"], 1,
         ["checked type requirement: unavailable", "context: print argument", "expression: missing", "actual type: unavailable", "expected type: any non-Void value", "did not determine a complete type decision"], [], "unknown name missing"))

@@ -54,6 +54,7 @@ family is complete.
 | Generic inference and constraints | `body_infer`, `body_unify`, `body_apply_solutions`, `body_finish_constraints`, `body_solve`, and `body_call`. | Selected repeated-parameter joins use `TypeJoinEvidence`; inferred locals and substituted call arguments have output. Regressions live in the module-binding unit suite and CLI explanation fixture. | First-source inference, failed or deferred inference reasons, constraint application, and every hole/unification decision are not retained as a complete trace. This is a confirmed implementation gap. |
 | Type joins and result types | `body_join`, `check_body_array`, `body_check_collection_core_call`, `check_body_conditional`, `bind_body_match`, and `body_infer`. | `TypeJoinEvidence` reports array, concatenation, conditional, match, and selected repeated-generic joins. Module and CLI regressions exercise accepted, rejected, and unavailable cases. | Other constraints that refine an expression result or alter an inferred type have not yet been mapped to evidence; join-site reachability is not exhaustive. |
 | Operators and expression requirements | `check_body_operation`, `check_body_index`, `check_body_field`, `body_iteration_item`, `check_body_conditional`, `bind_body_match`, and `bind_body_string`. | `OperatorTypeEvidence` and `BodyTypeCheckEvidence`; regressions cover operands/results, index receiver and position, fields, loop iterables, branch conditions, match rules, and interpolation scalar requirements. | Special core operations are listed separately below. Deferred decisions need source-specific reasons wherever the checker has facts that explain the deferral. |
+| Non-value use requirements | `bind_body_block` and `check_body_array`. | `BodyTypeCheckEvidence` records the existing rejection of `Void` in local storage and array elements; module and CLI regressions cover both. | Other value-use sites are inventoried under calls and specialized core operations. |
 | Specialized core calls and callbacks | `body_check_special_core_call` dispatches to the text, bytes, path, filesystem, time, environment, TCP/HTTP, collection, rational-conversion, and typed-intrinsic checkers. `body_check_collection_core_call` checks callback effect, arity, parameter, and result contracts. | Argument and callback evidence is rendered by `explanations.panack`; `tests/runner/compiler_module_bindings_unit.panack`, `tests/runner/compiler_explanations_unit.panack`, and the CLI fixture cover selected families. | `body_check_typed_intrinsic` retains argument evidence for `fs_read`, `fs_read_beneath`, `fs_write`, `fs_metadata`, `fs_list`, `fs_directories_overlap`, `fs_create_directory`, `fs_remove_file`, `fs_remove_directory`, `fs_temp_file`, and `fs_temp_directory`. Decisions for `run_bytecode_args`, `process_exit`, `process_run`, `host_sleep`, `host_decode_utf8`, `read_file`, `file_exists`, `read_bytes`, and `write_bytes` lack it. Collection receiver-shape rejection and every callback constraint path also need case-by-case coverage. |
 | Match rules and payload bindings | `bind_body_match` checks subject, variant membership, duplicate arms, payload binding count/type, exhaustiveness, and arm-result joins. | `BodyTypeCheckEvidence` and `TypeJoinEvidence`; compiler-module and CLI regressions include generic payload substitution and unresolved subject types. | Name-resolution failures are outside scope. Deferred/malformed body patterns and every variant/payload decision branch still need exhaustive outcome mapping. |
 | Proof obligations | `body_guard_conversion`, `body_proves_nat_subtraction`, and the condition-fact helpers in `module_bodies.panack`. | `GuardConversionEvidence` and subtraction proof records rendered by `explanations.panack`; proof unit tests and CLI cases cover guarded conversions and Nat subtraction facts. | The proof-producing source paths need a complete audit to ensure no type/proof obligation is embedded in a specialized operation or generic constraint without its own explanation evidence. |
@@ -62,9 +63,6 @@ family is complete.
 The source-site inventory exposed checker decisions that currently have no
 dedicated explanation evidence:
 
-- `bind_body_block` rejects storing `Void` in an unannotated binding, and
-  `check_body_array` rejects a `Void` element. Array-join evidence does not
-  explain the separate `Void` rejection.
 - `body_check_collection_core_call` and `body_check_map_set_call` reject
   incompatible collection receivers. Callback evidence does not explain an
   invalid array/map/set receiver.
@@ -84,6 +82,8 @@ joins rather than the complete hole/constraint history.
 The interpolation decision is covered by the current implementation slice,
 including unresolved and guarded local types, with ordinary diagnostics and
 checking behavior unchanged.
+The separate rejection of `Void` in inferred local storage and array elements
+is also covered, with the existing diagnostic behavior unchanged.
 
 This inventory maps the active function-body type/effect decision families to
 their checker sites, explanation record families, regression suites, and known

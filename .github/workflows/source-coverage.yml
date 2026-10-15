@@ -1,0 +1,66 @@
+name: Source coverage
+
+on:
+  schedule:
+    - cron: '23 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: source-coverage-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  schedule_next:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      # Schedules execute from main; dispatch next so run and artifact identity
+      # both describe the exact measured next commit.
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner, repo: context.repo.repo,
+              workflow_id: 'source-coverage.yml', ref: 'next'
+            });
+
+  collect:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/next'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Install native HTTP client dependency
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libcurl4-openssl-dev
+
+      - name: Build native source collector
+        run: make native
+      - name: Validate bounded reader and SC4 source parity
+        run: |
+          node --test tests/source_coverage/reader.test.cjs tests/source_coverage/manifest.test.cjs tests/source_coverage/policy.test.cjs tests/source_coverage/release_gate.test.cjs
+          node tests/source_coverage/parity.cjs
+      - name: Collect exact source baseline
+        run: node scripts/source_coverage_baseline.cjs
+      - name: Archive separately identified source report
+        uses: actions/upload-artifact@v6
+        with:
+          name: source-coverage-${{ github.run_id }}
+          path: build/source-coverage
+          if-no-files-found: error
+          retention-days: 90
+

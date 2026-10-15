@@ -55,7 +55,8 @@ in the roadmap; it is not an alpha.13 completion percentage.
    gives these aggregate/compiler workloads separate bounded allowances, and
    passed final local `make check` in 402s, including archive and relocation
    smoke. All 41 focused coverage policy/reader tests passed. Fresh hosted
-   validation and coverage evidence remain required before promotion.
+   validation remained required before promotion; the later weekly-reporting
+   decision below removes the coverage refresh prerequisite.
    Check 38784969830 then exposed the same portable header omission in the
    static-server test peer, missing `openssl` in the isolated native-tool PATH,
    and explanation-corpus source/bytecode aggregate deadlines. The follow-up
@@ -65,7 +66,7 @@ in the roadmap; it is not an alpha.13 completion percentage.
    development/package workflow passed (its full check took 577s), and the final
    `make check` after all edits passed in 426s. All 42 focused coverage/routing
    tests, YAML/layout contracts and CI routing checks passed. Fresh hosted
-   validation and a trusted source report remain required.
+   product/package validation remains required.
    Check 38791263247 passed the full compiler/runtime/sanitizer/native-coverage
    matrix and nine package partitions, but the macOS runtime partition rejected
    the successful-TLS fixture. Apple's certificate verifier reproduces the
@@ -75,16 +76,14 @@ in the roadmap; it is not an alpha.13 completion percentage.
    All four focused TLS cases passed in source and bytecode form; final
    `make check` passed in 427s, including release smoke, and layout contracts
    passed. Hosted confirmation of this correction remains pending.
-   At the owner’s direction, expensive promotion coverage now waits for the
-   full compiler/runtime matrix, package checks and policy checks to succeed.
-   A trusted next-push refresh is requested only after the repaired matrix passes;
-   required coverage remains a promotion and publication gate.
-4. **Source coverage refresh — prior report verified; repaired candidate refresh pending.**
-   PR #506 changed test inputs, so its candidate requires a fresh trusted
-   next-push report before publication. Request collection with the existing
-   `[source-coverage]` commit marker; promotion-run artifacts do not substitute
-   for the publisher’s trusted next-push provenance. The evidence below records
-   the previous successful report, not freshness for the repaired candidate.
+   The owner subsequently selected weekly coverage reporting instead of a
+   release gate. Full product and package validation remain required; source
+   collection and published-report freshness no longer block this release.
+4. **Source coverage — prior report verified; weekly reporting selected.**
+   The evidence below describes the previous measured commit, not the repaired
+   candidate. The owner explicitly moved collection to a weekly/manual job and
+   removed it from release prerequisites on 15 October 2026. Coverage-speed
+   improvements remain selected for alpha.14.
    Candidate `061212655bf90cc9aca56003b46aac68255a288c` passed
    [Check 38775373415](https://github.com/sproates/panackelty/actions/runs/38775373415).
    Collection took 29m48s and produced artifact `11995430565`: 31 fresh sessions
@@ -94,7 +93,8 @@ in the roadmap; it is not an alpha.13 completion percentage.
    [Live source provenance](https://coverage.panackelty.com/source/provenance.json)
    and [summary](https://coverage.panackelty.com/source/summary.json) identify the
    exact candidate, successful Check and artifact. The release source-coverage
-   gate passed against those downloaded live files on 15 October 2026.
+   gate passed against those downloaded live files on 15 October 2026, before
+   that gate was retired by the weekly-reporting decision.
 
    Repairs #500–#502 aligned containers at 32 MiB while retaining 16 MiB
    individual identities, corrected provenance hashing, reviewed stale policy

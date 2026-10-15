@@ -37,57 +37,11 @@ jobs:
       - name: Run CI routing contracts
         run: node --test tests/source_coverage/route.test.cjs
 
-  source_coverage:
-    name: Source coverage baseline (next)
-    # Expensive collection starts only after the applicable validation passes.
-    # Explicit next refreshes may have skipped matrix jobs on the docs route.
-    needs: [changes, test_run, package, source_policy_tests, next_smoke, workflow_validation]
-    if: >-
-      !cancelled() && !contains(needs.*.result, 'failure') &&
-      !contains(needs.*.result, 'cancelled') &&
-      needs.changes.result == 'success' &&
-      needs.package.result == 'success' &&
-      needs.changes.outputs.source_coverage == 'true' &&
-      ((needs.changes.outputs.route == 'full' &&
-        needs.test_run.result == 'success' &&
-        needs.source_policy_tests.result == 'success') ||
-       needs.changes.outputs.source_coverage_refresh == 'true')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 35
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-      - name: Install native HTTP client dependency
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes libcurl4-openssl-dev
-
-      - name: Build native source collector
-        run: make native
-      - name: Validate bounded reader and SC4 source parity
-        run: |
-          node --test tests/source_coverage/reader.test.cjs tests/source_coverage/manifest.test.cjs tests/source_coverage/policy.test.cjs tests/source_coverage/release_gate.test.cjs
-          node tests/source_coverage/parity.cjs
-      - name: Collect exact source baseline
-        run: node scripts/source_coverage_baseline.cjs
-      - name: Archive separately identified source report
-        uses: actions/upload-artifact@v6
-        with:
-          name: source-coverage-${{ github.run_id }}
-          path: build/source-coverage
-          if-no-files-found: error
-          retention-days: 90
-
   changes:
     name: Classify and check documentation
     runs-on: ubuntu-22.04
     outputs:
       route: ${{ steps.scope.outputs.route }}
-      source_coverage: ${{ steps.scope.outputs.source_coverage }}
-      source_coverage_refresh: ${{ steps.scope.outputs.source_coverage_refresh }}
       next_integration: ${{ steps.scope.outputs.next_integration }}
     steps:
       - name: Check out repository
@@ -106,13 +60,11 @@ jobs:
           CI_SOURCE_EVENT: ${{ github.event_name }}
           CI_SOURCE_BASE: ${{ github.event.pull_request.base.ref }}
           CI_SOURCE_REF: ${{ github.ref }}
-          CI_SOURCE_MESSAGE: ${{ github.event.head_commit.message }}
         shell: bash
         run: |
           plan=$(bash scripts/ci_scope.sh --plan "$CI_BASE_SHA" "$CI_HEAD_SHA")
           printf '%s\n' "$plan" >> "$GITHUB_OUTPUT"
           printf '%s\n' "$plan" >> "$GITHUB_STEP_SUMMARY"
-          node scripts/source_coverage_route.cjs >> "$GITHUB_OUTPUT"
           next_integration=$(sh scripts/ci_next_integration.sh "$CI_SOURCE_EVENT" "$CI_SOURCE_BASE" "$CI_SOURCE_REF")
           echo "next_integration=$next_integration" >> "$GITHUB_OUTPUT"
 
@@ -357,7 +309,7 @@ jobs:
         run: sh scripts/ci_package_gate.sh
 
   test:
-    needs: [changes, test_run, next_smoke, source_policy_tests, source_coverage, workflow_validation]
+    needs: [changes, test_run, next_smoke, source_policy_tests, workflow_validation]
     if: always()
     runs-on: ubuntu-22.04
     timeout-minutes: 2
@@ -373,11 +325,8 @@ jobs:
           CI_EVENT_NAME: ${{ github.event_name }}
           CI_WORKFLOW_RESULT: ${{ needs.workflow_validation.result }}
         run: sh scripts/ci_gate.sh
-      - name: Require applicable source coverage checks
+      - name: Require applicable source coverage policy checks
         env:
           CI_SCOPE_ROUTE: ${{ needs.changes.outputs.route }}
-          CI_SOURCE_REQUESTED: ${{ needs.changes.outputs.source_coverage }}
-          CI_SOURCE_REFRESH: ${{ needs.changes.outputs.source_coverage_refresh }}
           CI_SOURCE_POLICY_RESULT: ${{ needs.source_policy_tests.result }}
-          CI_SOURCE_COLLECTION_RESULT: ${{ needs.source_coverage.result }}
         run: node scripts/source_coverage_route.cjs --gate

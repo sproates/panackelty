@@ -124,10 +124,11 @@ TLS test server and certificate generation; a missing executable is reported
 explicitly by the TLS fixture. The local certificate declares server-authentication
 extended key usage, and macOS additionally verifies it against Apple's SSL policy
 using the allowlisted `security` utility before starting the fixture server.
-Expensive promotion source coverage waits for
-the full compiler/runtime matrix, package and policy checks to pass; failures
-and cancellations prevent collection. Explicit next-push refreshes retain the
-existing marker route and require all applicable preceding checks to pass.
+Source coverage collection runs separately each Monday at 03:23 UTC, or through
+manual **Source coverage** dispatch on `next`. Promotion and Release do not wait
+for collection or fetch the published report. Fast coverage policy checks remain
+required in ordinary full-validation CI. The weekly report retains exact source
+identity and its collection date; an older report is not current-release evidence.
 The harness exercises explanation fixtures in
 both source and saved-bytecode forms under the same aggregate deadline.
 `make check` creates a fresh temporary report session. The oracle corpus runs

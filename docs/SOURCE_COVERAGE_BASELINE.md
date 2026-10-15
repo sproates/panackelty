@@ -139,47 +139,32 @@ programme is 100% accepted with unchanged weights; core main remains untouched.
 
 ## Publication boundary
 
-Core Check runs on `next` pushes and PRs. Full source collection runs automatically
-only for full-validation PRs targeting `main`; ordinary `next` PRs and pushes run
-the fast reader/policy/routing tests without collecting the corpus. An explicit
-`next` refresh push opts in by including `[source-coverage]` in its head commit
-message (for example `git commit --allow-empty -m 'Refresh report [source-coverage]'`
-followed by `git push origin next`). This runs the source collection on top of
-the route's usual checks, including when the change itself is documentation-only;
-it does not select product validation or package builds. This is an intentional
-expensive report refresh, not a requirement for a task slice. Promotion still
-requires separate owner approval. Unmarked documentation-only changes retain
-the short route.
+Source coverage collection is independent of promotion and release. The **Source
+coverage** workflow schedules a dispatch to `next` each Monday at 03:23 UTC.
+Schedules originate from the default branch; the dispatched run is pinned to
+its own `next` SHA so workflow and report provenance agree. Manual collection
+uses **Source coverage → Run workflow → next**. Ordinary pushes and PRs never
+collect the corpus; fast reader, manifest and policy checks remain in Check.
 
-The separate source job creates
-`source-coverage-RUN_ID` only after collection succeeds. The independent
-publisher selects a successful trusted **push to `next`**, not a PR/fork run,
-checks ancestry, artifact identity, expiry, summary completeness and monotonic
-per-channel provenance, and exposes `source/html/index.html` and
-`source/summary.json` at the coverage host. Failed/newer incomplete runs leave
-the last accepted report in place; timestamps and commit links show freshness.
+The independent coverage repository publishes successful reports weekly on
+Monday at 05:23 UTC, or through a fresh manual **Coverage Pages** run on `main`.
+It selects only trusted successful source-workflow runs on `next`, checks source
+ancestry and exact artifact identity, and validates summary scope before
+publication. Existing successful Check artifacts remain a migration fallback.
+Failed collection or publication preserves the prior live report. The timestamp,
+commit and run links show what was actually measured; a weekly report need not
+represent the latest release. Native C/main reports retain their separate scope.
 
-Native C/main report URLs and provenance remain unchanged. Both independently
-pinned channels are verified before replacing the site, and every deployed file
-is compared with its expected bytes. Publisher changes require their own PR and
-approval. Core `main` is not changed by this programme item.
+Both pinned channels are validated before replacement, and every deployed file
+is compared with its expected bytes. Source report freshness and coverage amounts
+are not release gates. Release still requires exact identity, product tests and
+native package validation. Coverage-speed improvements remain alpha.14 scope.
 
-## Operator rule: refresh with a fresh publication run
+## Operator rule: use a fresh publication run
 
-For release preparation, create a fresh successful source-coverage artifact
-on the `next` release candidate by including `[source-coverage]` in its commit
-message. Then start a **new** Coverage Pages run on the publisher main branch
-using workflow_dispatch. In GitHub Actions select Coverage Pages, Run workflow,
-branch main, then Run workflow. If the connector cannot dispatch workflows, use
-the authorised GitHub browser fallback; do not substitute a rerun of an old
-successful production run.
-
-Rerunning preparation can leave multiple artifacts named github-pages in one
-workflow run; deploy-pages rejects the ambiguous selection. On 2026-10-06 a rerun
-of 37378463006 hit that exact failure. A fresh run has its own artifact namespace.
-Verify prepare, deploy and every-live-file verification, then confirm source
-provenance matches the intended core candidate before promoting it. The core
-Release workflow independently checks this provenance, ancestry, and unchanged
-coverage inputs and source-scope identity before it allows package validation to
-start. It does not require any coverage percentage or amount. No publisher code
-change is required to refresh the report.
+For an ad hoc update, manually dispatch **Source coverage** on core `next`, wait
+for its successful artifact, then dispatch a new **Coverage Pages** run on the
+publisher's `main`. Do not rerun an old production preparation: duplicate
+`github-pages` artifacts can make deploy-pages reject ambiguous selection.
+Verify preparation, deployment, every-live-file comparison and exact source
+provenance. Neither collection nor publication is required to release a candidate.

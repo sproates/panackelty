@@ -762,7 +762,9 @@ returned expression's source span; module-body tests check that ordinary
 checking retains no return explanation metadata and that unresolved results keep
 an unavailable decision. Direct function-call argument cases exercise
 accepted/rejected/unavailable parameter compatibility and source spans; ordinary
-checking retains no argument explanation metadata. The CLI slice also covers
+checking retains no argument explanation metadata. Record and enum constructor
+argument cases exercise accepted/rejected/unavailable payload compatibility;
+ordinary checking retains no constructor argument metadata. The CLI slice also covers
 text, byte, rational-conversion, numeric-parser, quotient and collection
 mutation/lookup argument contracts, including accepted, rejected and
 unavailable values. Path argument cases cover `Path`, `Str` and `Bytes` types,

@@ -86,6 +86,21 @@ main(): Void {
       explain_write(source, "pure take(value: Nat): Nat { value }\npure caller(): Nat { take(missing) }\nmain(): Void {}\n")
       results = append(results, explain_run("unresolved direct call argument is explicitly unavailable", ["explain", source, "--function", "caller"], 1,
         ["call argument 1 to take: unavailable", "expression: missing", "actual type: unavailable", "expected type: Nat", "did not determine a complete argument type"], [], "unknown name missing"))
+      explain_write(source, "record Box { value: Nat }; probe(): Box { Box(1) }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted record constructor argument cites checked types", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to Box: accepted", "expression: 1", "actual type: Nat", "expected type: Nat", "compatible with the expected type"], [], ""))
+      explain_write(source, "record Box { value: Nat }; probe(): Box { Box(\"wrong\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected record constructor argument explains mismatch", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to Box: rejected", "expression: \"wrong\"", "actual type: Str", "expected type: Nat", "incompatible with the expected type"], [], "expected Nat"))
+      explain_write(source, "record Box { value: Nat }; probe(): Box { Box(missing) }\nmain(): Void {}\n")
+      results = append(results, explain_run("unavailable record constructor argument is explicit", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to Box: unavailable", "expression: missing", "actual type: unavailable", "expected type: Nat", "did not determine a complete argument type"], [], "unknown name missing"))
+      explain_write(source, "enum Choice { Pick(Nat), Empty }; probe(): Choice { Pick(1) }\nmain(): Void {}\n")
+      results = append(results, explain_run("enum variant constructor argument is explained", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to Pick: accepted", "expression: 1", "actual type: Nat", "expected type: Nat"], [], ""))
+      explain_write(source, "record Box[T] { value: T }; probe(): Box[Nat] { Box(1) }\nmain(): Void {}\n")
+      results = append(results, explain_run("generic record constructor argument uses the checked type", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to Box: accepted", "expression: 1", "actual type: Nat", "expected type: Nat"], [], ""))
       explain_write(source, "pure probe(): Str { reverse(\"text\") }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted text builtin argument cites checked types", ["explain", source, "--function", "probe"], 0,
         ["call argument 1 to reverse: accepted", "expression: \"text\"", "actual type: Str", "expected type: Str", "compatible with the expected type"], [], ""))

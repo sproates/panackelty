@@ -4247,10 +4247,14 @@ explains index receiver and position checks plus `for` iterable/item types. The
 PR #464 explains `Bool` requirements for `if` and `while` conditions, and PR
 #465 explains whether each resolved `match` variant belongs to the matched enum,
 independently of exhaustiveness, duplicates and binding counts; PR #466 explains
-record-field access compatibility and the resulting field type. These are partial
-families within the owner-defined complete checker-decision target above. Each
-slice keeps ordinary diagnostics and runtime behavior unchanged and
-retains evidence only for explanation queries.
+record-field access compatibility and the resulting field type. PR #477 adds
+the match subject enum type, arm uniqueness, payload binding arity and
+exhaustiveness decisions. Constructor argument compatibility is the current
+follow-up slice; call arity, explicit type-argument arity and complete generic
+inference traces remain gaps to inventory. These are partial families within
+the owner-defined complete checker-decision target above. Each slice keeps
+ordinary diagnostics and runtime behavior unchanged and retains evidence only
+for explanation queries.
 Ordinary checking keeps this evidence empty. These
 remain bounded, unreleased CLI slices; the complete checker-decision inventory
 and any uncovered type/effect/proof families remain open. The current website

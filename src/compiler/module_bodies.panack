@@ -1399,7 +1399,7 @@ pure body_call(
                   BodyResult(child, [], []),
                   expected
                 )
-                if context.retain_guard_conversions && !contract.constructor {
+                if context.retain_guard_conversions {
                   argument_diagnostics: [Diagnostic] = concat(
                     required.diagnostics,
                     refined_child.diagnostics

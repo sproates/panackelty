@@ -802,8 +802,11 @@ static void coverage_session_allocations(void)
     coverage_remove_files(directory);
 }
 
+void root_read_faults(void);
+
 int main(int argc, char **argv)
 {
+    root_read_faults();
     if (argc == 3) {
         check_artifact(argv[1], argv[2]);
         return 0;

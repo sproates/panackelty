@@ -1148,12 +1148,35 @@ permission, so recursive server invocation traps. WASI returns unavailable.
 
 The CLI drives the same resumable dispatcher and owner pump. This does not
 extend the fake-host `VMTasks` experiment into a public source scheduler or add
-resource handles, general spawning, threads or indefinite servers. HTTP framing
+resource handles, general source spawning or indefinite servers. HTTP framing
 and server behavior remain in the Panackelty package.
 The [roadmap](ROADMAP.md#bounded-async-tcp-server) owns delivery state and the
 subsequent broader grooming decision. Tests cover native ownership, source and
 saved-bytecode peers, allocation/descriptor faults, capabilities and browser
 rejection; [coverage evidence](tests/COVERAGE.md#bounded-tcp-server) records limits.
+
+## Asynchronous confined filesystem adapter
+
+`src/vm/root_read.c` provides native worker ownership for the isolated
+`stdlib/async_filesystem` module. It reuses the rooted resolver in
+`host_capabilities.c`; synchronous package-loading calls retain their existing
+contract. Root identity lookup supports startup validation of an empty directory.
+
+Workers own copied inputs and their result values. A mutex protects completion
+publication; only the execution owner resumes bytecode. Each execution has a
+separate pending filesystem operation and an explicit embedded filesystem grant.
+The native server passes that grant to children and polls pending operations
+through its existing bounded service loop. Network permission alone grants no
+filesystem access. The CLI's single-operation adapter can wait for completion
+without spinning.
+
+The process-wide bound is 32 retained operations. Cancelling an execution marks
+its operation abandoned and returns without waiting for host I/O. An abandoned
+worker frees its state and admission slot when its host call returns. No worker
+retains the VM, its program or coverage state. Cancellation therefore preserves
+VM lifetime safety even when a filesystem is slow; physical I/O completion and
+resource release can occur later. The fault harness protects concurrent allocation
+bookkeeping and can pause a read to prove this cancellation path deterministically.
 
 ## Native HTTP client (P5 proof of concept)
 

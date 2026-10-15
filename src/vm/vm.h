@@ -75,6 +75,10 @@ bool vm_execution_complete_read(VMExecution *execution, Value *result);
  * Destroying an execution cancels and closes its pending connection. External
  * read/print completions cannot complete a TCP wait. */
 bool vm_execution_enable_tcp(VMExecution *execution);
+/* Filesystem permission is independent of network/listener permissions.
+ * Poll is nonblocking. Destroy discards completion without joining a host read. */
+bool vm_execution_enable_filesystem(VMExecution *execution);
+bool vm_execution_poll_filesystem(VMExecution *execution);
 bool vm_execution_poll_tcp(VMExecution *execution, unsigned max_wait_ms);
 bool vm_execution_poll_http(VMExecution *execution, unsigned max_wait_ms);
 bool vm_execution_poll_network(VMExecution *execution, unsigned max_wait_ms);

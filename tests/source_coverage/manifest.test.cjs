@@ -15,6 +15,7 @@ test('the reviewed manifest accounts for every tracked production source', () =>
   assert.deepEqual(validateManifest(manifest, tracked).unmeasured.map(entry => entry.path), [
     'src/compiler/package_manifest.panack',
     'src/compiler/package_project.panack',
+    'src/stdlib/async_filesystem.panack',
     'src/stdlib/package_filesystem.panack'
   ]);
 });

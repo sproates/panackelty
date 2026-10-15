@@ -5,21 +5,46 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <pthread.h>
 #include <stdarg.h>
+#include <stdatomic.h>
 #include <stdio.h>
 
 /* Fixed bookkeeping avoids recursively allocating from inside the allocator. */
 static void *allocations[32768];
-static size_t live, attempts, fail_at;
-static bool triggered;
-static const char *syscall_name;
-static size_t syscall_at, syscall_seen;
-static int syscall_error;
-static bool descriptors[4096];
-static size_t descriptor_count, child_count;
+static size_t live;
+static atomic_size_t attempts, fail_at;
+static pthread_mutex_t allocation_lock = PTHREAD_MUTEX_INITIALIZER;
+static atomic_bool triggered;
+static _Atomic(const char *) syscall_name;
+static atomic_size_t syscall_at, syscall_seen;
+static atomic_int syscall_error;
+static atomic_bool descriptors[4096];
+static atomic_size_t descriptor_count, child_count;
+static atomic_bool pause_reads, read_paused;
 
+static pthread_once_t fork_lock_once = PTHREAD_ONCE_INIT;
+
+static void lock_for_fork(void)
+{
+    pthread_mutex_lock(&allocation_lock);
+}
+
+static void unlock_after_fork(void)
+{
+    pthread_mutex_unlock(&allocation_lock);
+}
+
+static void register_fork_lock(void)
+{
+    assert(pthread_atfork(lock_for_fork, unlock_after_fork, unlock_after_fork) == 0);
+}
+
+/* Change injection schedules only after workers have quiesced. Bookkeeping
+ * remains safe while an owner and filesystem workers allocate concurrently. */
 void fault_reset(size_t allocation)
 {
+    pthread_once(&fork_lock_once, register_fork_lock);
     attempts = 0;
     fail_at = allocation;
     triggered = false;
@@ -34,7 +59,10 @@ size_t fault_attempts(void)
 
 size_t fault_live(void)
 {
-    return live;
+    pthread_mutex_lock(&allocation_lock);
+    size_t count = live;
+    pthread_mutex_unlock(&allocation_lock);
+    return count;
 }
 
 bool fault_triggered(void)
@@ -84,21 +112,31 @@ static void *record(void *pointer)
 
 void *fault_malloc(size_t size)
 {
-    return size && allocation_fails() ? NULL : record(malloc(size));
+    pthread_mutex_lock(&allocation_lock);
+    void *result = size && allocation_fails() ? NULL : record(malloc(size));
+    pthread_mutex_unlock(&allocation_lock);
+    return result;
 }
 
 void *fault_calloc(size_t count, size_t size)
 {
-    return count && size && allocation_fails() ? NULL : record(calloc(count, size));
+    pthread_mutex_lock(&allocation_lock);
+    void *result = count && size && allocation_fails() ? NULL : record(calloc(count, size));
+    pthread_mutex_unlock(&allocation_lock);
+    return result;
 }
 
 void *fault_realloc(void *pointer, size_t size)
 {
+    pthread_mutex_lock(&allocation_lock);
     if (allocation_fails()) {
+        pthread_mutex_unlock(&allocation_lock);
         return NULL;
     }
     if (!pointer) {
-        return record(realloc(NULL, size));
+        void *result = record(realloc(NULL, size));
+        pthread_mutex_unlock(&allocation_lock);
+        return result;
     }
     assert(size != 0);
     size_t index = slot(pointer);
@@ -106,16 +144,19 @@ void *fault_realloc(void *pointer, size_t size)
     if (next) {
         allocations[index] = next;
     }
+    pthread_mutex_unlock(&allocation_lock);
     return next;
 }
 
 void fault_free(void *pointer)
 {
+    pthread_mutex_lock(&allocation_lock);
     if (pointer) {
         allocations[slot(pointer)] = NULL;
         live--;
     }
     free(pointer);
+    pthread_mutex_unlock(&allocation_lock);
 }
 
 char *fault_strdup(const char *text)
@@ -159,7 +200,7 @@ int fault_pipe(int fds[2])
     int result = pipe(fds);
     if (!result) {
         for (size_t i = 0; i < 2; i++) {
-            assert(fds[i] >= 0 && (size_t)fds[i] < sizeof(descriptors));
+            assert(fds[i] >= 0 && (size_t)fds[i] < sizeof(descriptors) / sizeof(descriptors[0]));
             assert(!descriptors[fds[i]]);
             descriptors[fds[i]] = true;
             descriptor_count++;
@@ -185,8 +226,26 @@ int fault_poll(struct pollfd *fds, nfds_t count, int timeout)
     return syscall_fails("poll") ? -1 : poll(fds, count, timeout);
 }
 
+void fault_pause_reads(bool pause)
+{
+    atomic_store(&pause_reads, pause);
+}
+
+bool fault_read_paused(void)
+{
+    return atomic_load(&read_paused);
+}
+
 ssize_t fault_read(int fd, void *buffer, size_t count)
 {
+    if (atomic_load(&pause_reads)) {
+        atomic_store(&read_paused, true);
+        struct timespec delay = {.tv_nsec = 1000000};
+        while (atomic_load(&pause_reads)) {
+            nanosleep(&delay, NULL);
+        }
+        atomic_store(&read_paused, false);
+    }
     return syscall_fails("read") ? -1 : read(fd, buffer, count);
 }
 
@@ -208,10 +267,15 @@ int fault_nanosleep(const struct timespec *requested, struct timespec *remaining
 
 int fault_close(int fd)
 {
+    bool tracked = fd >= 0 && (size_t)fd < sizeof(descriptors) / sizeof(descriptors[0]) &&
+                   atomic_exchange(&descriptors[fd], false);
     int result = close(fd);
-    if (!result && fd >= 0 && (size_t)fd < sizeof(descriptors) && descriptors[fd]) {
-        descriptors[fd] = false;
-        descriptor_count--;
+    if (tracked) {
+        if (!result) {
+            descriptor_count--;
+        } else {
+            descriptors[fd] = true;
+        }
     }
     return result;
 }
@@ -242,7 +306,7 @@ int fault_open(const char *path, int flags, ...)
         fd = open(path, flags);
     }
     if (fd >= 0) {
-        assert((size_t)fd < sizeof(descriptors) && !descriptors[fd]);
+        assert((size_t)fd < sizeof(descriptors) / sizeof(descriptors[0]) && !descriptors[fd]);
         descriptors[fd] = true;
         descriptor_count++;
     }
@@ -264,7 +328,7 @@ int fault_socket(int domain, int type, int protocol)
     if (syscall_fails("socket")) return -1;
     int fd = socket(domain, type, protocol);
     if (fd >= 0) {
-        assert((size_t)fd < sizeof(descriptors) && !descriptors[fd]);
+        assert((size_t)fd < sizeof(descriptors) / sizeof(descriptors[0]) && !descriptors[fd]);
         descriptors[fd] = true;
         descriptor_count++;
     }
@@ -278,7 +342,7 @@ int fault_accept(int fd, struct sockaddr *address, socklen_t *length)
     }
     int peer = accept(fd, address, length);
     if (peer >= 0) {
-        assert((size_t)peer < sizeof(descriptors) && !descriptors[peer]);
+        assert((size_t)peer < sizeof(descriptors) / sizeof(descriptors[0]) && !descriptors[peer]);
         descriptors[peer] = true;
         descriptor_count++;
     }
@@ -303,4 +367,11 @@ ssize_t fault_recv(int fd, void *data, size_t size, int flags)
 ssize_t fault_send(int fd, const void *data, size_t size, int flags)
 {
     return syscall_fails("send") ? -1 : send(fd, data, size, flags);
+}
+
+int fault_pthread_create(pthread_t *thread, const pthread_attr_t *attributes,
+                         void *(*start)(void *), void *argument)
+{
+    return syscall_fails("pthread_create") ? errno
+                                           : pthread_create(thread, attributes, start, argument);
 }

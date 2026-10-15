@@ -978,6 +978,14 @@ pure environment_type(environment: Map[Str, TypeInfo], name: Str): TypeInfo {
 }
 
 pure builtin_return(name: Str): Str {
+  if name == "fs_root_identity_async" {
+    "Result[FilesystemRootIdentity,HostError]"
+  } else {
+    builtin_legacy_return(name)
+  }
+}
+
+pure builtin_legacy_return(name: Str): Str {
   if name == "tcp_serve" || name == "tcp_serve_stream" {
     "Result[[Result[Unit,Str]],Str]"
   } else {
@@ -985,11 +993,11 @@ pure builtin_return(name: Str): Str {
       name == "tcp_server_read_chunk" {
       "Result[Bytes,Str]"
     } else {
-      if name == "fs_directories_overlap" || name == "fs_read_beneath" || name == "fs_read" {
+      if name == "fs_directories_overlap" || (name == "fs_read_beneath" || name == "fs_read_beneath_async") || name == "fs_read" {
         if name == "fs_directories_overlap" {
           "Result[Bool,HostError]"
         } else {
-          if name == "fs_read_beneath" {
+          if (name == "fs_read_beneath" || name == "fs_read_beneath_async") {
             "Result[FilesystemRootRead,HostError]"
           } else {
             "Result[Bytes,HostError]"
@@ -1174,7 +1182,7 @@ pub pure builtin_arity(name: Str): Nat {
   if name == "tcp_serve_stream" || name == "$tcp_serve_stream" {
     5
   } else {
-    if name == "tcp_server_read_chunk" || name == "$tcp_server_read_chunk" {
+    if name == "fs_root_identity_async" || name == "tcp_server_read_chunk" || name == "$tcp_server_read_chunk" {
       1
     } else {
       builtin_legacy_arity(name)
@@ -1196,8 +1204,8 @@ pure builtin_legacy_arity(name: Str): Nat {
         1
       }
     } else {
-      if name == "fs_read_beneath" || name == "fs_read" || name == "fs_directories_overlap" {
-        if name == "fs_read_beneath" { 3 } else { 2 }
+      if (name == "fs_read_beneath" || name == "fs_read_beneath_async") || name == "fs_read" || name == "fs_directories_overlap" {
+        if (name == "fs_read_beneath" || name == "fs_read_beneath_async") { 3 } else { 2 }
       } else {
         if name == "fs_write" {
           2
@@ -1343,6 +1351,14 @@ pure builtin_legacy_arity(name: Str): Nat {
 }
 
 pure builtin_parameter(name: Str, index: Nat): Str {
+  if name == "fs_root_identity_async" {
+    "Path"
+  } else {
+    builtin_network_parameter(name, index)
+  }
+}
+
+pure builtin_network_parameter(name: Str, index: Nat): Str {
   if name == "http_transport_exchange" || name == "$http_transport_exchange" {
     if index == 0 { "Str" } else {
       if index == 2 { "Bool" } else { if index == 3 { "Bytes" } else { "Nat" } }
@@ -1405,8 +1421,8 @@ pure builtin_legacy_parameter(name: Str, index: Nat): Str {
         }
       }
     } else {
-      if name == "fs_read_beneath" || name == "fs_read" || name == "fs_directories_overlap" {
-        if name == "fs_read_beneath" {
+      if (name == "fs_read_beneath" || name == "fs_read_beneath_async") || name == "fs_read" || name == "fs_directories_overlap" {
+        if (name == "fs_read_beneath" || name == "fs_read_beneath_async") {
           if index == 2 { "Nat" } else { "Path" }
         } else {
           if name == "fs_directories_overlap" {

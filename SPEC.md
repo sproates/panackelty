@@ -973,6 +973,49 @@ changes between reads. Each operation confines one individual read; it does not
 snapshot files that may be edited concurrently. Recursive writes and general
 descriptor-relative operations remain separate follow-ups.
 
+### Asynchronous confined filesystem reads
+
+`stdlib/async_filesystem` is an isolated native asynchronous API. It re-exports
+`FilesystemRootIdentity`, `FilesystemRootRead` and `HostError` with the same
+identities as the existing synchronous modules:
+
+```panack
+await async_filesystem.root_identity(root)
+await async_filesystem.read_beneath(root, relative, limit)
+```
+
+`root_identity(Path)` returns `Result[FilesystemRootIdentity,HostError]`, validating
+an existing directory without requiring an index or any other file. A caller can
+compare that identity with each successful confined read and reject a replaced
+root. It does not keep a descriptor open between calls.
+
+`read_beneath(Path, Path, Nat)` returns `Result[FilesystemRootRead,HostError]` and
+uses the same confined resolver and symlink policy as `package_filesystem`.
+Both supplied paths are limited to 4096 bytes; each read is limited to 16 MiB.
+The resolver opens only regular files for data reads. Root identity and read
+failures identify `fs_root_identity` and `fs_read_beneath` respectively in
+`HostError.operation`. Unsupported hosts return `unsupported_host`.
+
+Native operations run on independently owned workers. At most 32 operations can
+be retained process-wide, including completed results awaiting consumption and
+abandoned operations whose host reads have not returned. Exhaustion or inability
+to create a worker returns `resource_limit`. Arguments are copied before dispatch;
+workers retain no VM, execution, program or shared reference-counted values.
+The owning thread alone receives completion and resumes bytecode.
+
+Cancellation discards delivery immediately without joining a potentially blocked
+filesystem syscall. The worker releases its files and buffers when that syscall
+returns, and retains its admission slot until cleanup is finished. Thus a stuck
+filesystem can exhaust the bounded worker capacity but cannot hold a cancelled
+VM alive or create unlimited background operations. Process exit releases any
+remaining host resources. This is logical cancellation, not a promise that the
+operating system interrupts an in-progress disk read.
+
+Embedded executions must explicitly enable filesystem service independently of
+network or listener permission. Native CLI execution permits these operations;
+server children inherit the parent's filesystem grant, but never its listener
+grant. Existing synchronous filesystem calls remain unavailable in async bodies.
+
 ### Process execution
 
 ```panack

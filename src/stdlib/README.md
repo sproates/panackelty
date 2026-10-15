@@ -50,6 +50,7 @@ testing, and TCP modules remain separate imports.
 | `environment` | `get` |
 | `time` | `Duration`, `Instant`, checked construction, arithmetic, ratios, monotonic clock reads |
 | `filesystem` | `FileKind`, `FileMetadata`, `metadata`, `read`, `write`, `list_directory`, `remove_file`, `remove_directory`, `create_directory`, `temp_directory`, `temp_file` |
+| `async_filesystem` | async `root_identity` and `read_beneath`; shared root identity/read and host error types |
 | `process` | `ProcessOutput`, bounded `run` |
 | `host` | `HostError`, nested bytecode `run`, `arguments`, `exit`, `stderr`, `stdout`, `sleep`, checked `decode_utf8` |
 | `numeric` | `divide` for truncating natural division |

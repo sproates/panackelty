@@ -149,6 +149,11 @@ provide the native HTTP client. General source spawning remains future work.
 These native networking operations were absent from alpha.10; the browser
 cannot open raw TCP sockets.
 
+The development toolchain's `stdlib/async_filesystem` module provides confined
+file reads and root-identity lookup for asynchronous handlers. It shares the
+existing rooted resolver and keeps synchronous filesystem APIs unchanged. See
+[the cancellation and resource contract](SPEC.md#asynchronous-confined-filesystem-reads).
+
 ## Start writing Panackelty
 
 The developer preview is designed to be downloaded and run directly. The

@@ -8,6 +8,7 @@
 #include "verify.h"
 
 #include <assert.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -95,5 +96,32 @@ void console_write_contracts(void)
     assert(!strcmp((char *)code->as.bytes.data, "out_of_range"));
     console_write_destroy(operation);
     release(message);
+    /* A closed consumer produces a typed error without delivering SIGPIPE to
+     * the process. The worker owns a duplicate of the pipe's writing end. */
+    int pipe_fds[2];
+    assert(pipe(pipe_fds) == 0);
+    saved = dup(STDOUT_FILENO);
+    assert(saved >= 0 && dup2(pipe_fds[1], STDOUT_FILENO) >= 0);
+    close(pipe_fds[0]);
+    close(pipe_fds[1]);
+    message = value_data(V_STR, (const uint8_t *)"closed", 6);
+    operation = console_write_start(&vm, message, false);
+    assert(operation);
+    struct timespec delay = {.tv_nsec = 1000000};
+    size_t attempts = 0;
+    while (!console_write_poll(operation) && attempts++ < 5000) {
+        nanosleep(&delay, NULL);
+    }
+    assert(console_write_poll(operation));
+    result = console_write_result(operation);
+    assert(result && !strcmp(result->as.named.name, "Error"));
+    Value *problem = result->as.named.values[0];
+    assert(!strcmp((char *)problem->as.named.values[1]->as.bytes.data, "io_error"));
+    size_t native_code;
+    assert(value_index(problem->as.named.values[2], &native_code) && native_code == EPIPE);
+    console_write_destroy(operation);
+    release(message);
+    assert(dup2(saved, STDOUT_FILENO) >= 0);
+    close(saved);
     assert(console_write_active_count() == 0);
 }

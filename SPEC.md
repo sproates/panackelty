@@ -814,7 +814,7 @@ program.bc` loads, verifies, and executes that artifact directly.
 
 The CLI drives ordinary main synchronously and async main through the same VM's
 suspend/complete loop. Async services include a deterministic fake read and a
-bounded native TCP exchange and finite concurrent TCP servers. There is no
+bounded native TCP exchange, finite concurrent TCP servers and continuous native services. There is no
 source task-spawning syntax.
 
 The compiler emits stack instructions with a named function table and purity
@@ -1245,6 +1245,64 @@ for otherwise valid arguments. Embedded listening is denied by default and needs
 its own native opt-in, separate from outbound TCP. Handler children inherit the
 outbound permission, never listening permission. These internal host APIs are
 experimental, not a stable embedding ABI.
+
+### Continuous native services (development toolchain)
+
+`stdlib/tcp_service` adds a continuous mode to the existing transport. Its generic
+`serve[T]` accepts an IPv4 address, port, concrete named async worker, typed context,
+`TcpServiceLimits` and a named async readiness callback. Limits contain
+`concurrency`, `request_limit`, `response_limit`, `client_timeout_ms` and `drain_ms`.
+Concurrency is 1–32, request/response limits are 0–1,048,576 bytes, client timeout
+is 1–60,000 ms, drain is 0–60,000 ms, and port is 1–65,535. Finite server APIs
+retain their existing client-count and admission-deadline contracts.
+
+The listener binds before calling readiness with `TcpServiceReady(address, port)`.
+Admission starts only when readiness returns `Ok(())`; `Error(Str)` closes the
+listener and fails the service. Readiness is cancellable. There is no admission
+deadline or fixed total client limit. Normal stop returns
+`TcpServiceSummary(accepted, succeeded, failed)`, counting completed response writes
+as successes and client errors/cancellations as failures. Per-client reports are
+not retained. Counters are bounded by the host `size_t`; the service fails before
+its acceptance sequence can wrap. Listener failures discard the summary.
+
+While the native CLI owns an active continuous service, SIGINT and SIGTERM request
+stop: close admission, allow existing clients to finish within `drain_ms`, then
+cancel remaining clients. Previous signal dispositions are restored on service
+completion or execution destruction. Only one CLI service owns these handlers at
+a time. Embedded services use explicit host stop and do not install signal handlers.
+Drain is enforced by the existing polling/instruction-budget scheduler, not a hard
+wall-clock guarantee around individual instructions or destructors.
+
+`http/service` composes this transport with the HTTP parser and serializer. Its
+`ServiceLimits` has the same five fields. A `server.ConnectionContext[T]` carries
+configuration, a named `AsyncFn[T,Request,Result[Response,HttpError]]`, and parser/
+serializer limits. Supply a concrete named worker calling
+`server.serve_connection_with_context[T]`; captured closures and generic function
+references are not required. Context and transport limits are independent: either
+can impose a stricter bound. Existing finite `http/server.serve` remains supported.
+
+### Asynchronous command-line host operations
+
+`stdlib/async_host` provides `await arguments(): [Str]`, `await stdout(Str)` and
+`await stderr(Str)` returning `Result[Unit,HostError]`, and `await exit(Nat): Unit`.
+Arguments use the invocation snapshot. Output appends one newline to the supplied
+bytes, including embedded NUL bytes. Each message is limited to 16,384 bytes;
+there are at most four retained output operations process-wide. Oversize output
+returns `out_of_range`, exhausted capacity returns `resource_limit`, and native
+write/descriptor failures return `io_error` with a native code. Closed pipes return
+an error without terminating the process with SIGPIPE. Ordering across concurrent
+writes and atomic whole-line output are not guaranteed.
+
+Output workers own copied bytes and duplicate descriptors. Cancellation suppresses
+result delivery immediately but cannot retract output; a blocked worker retains
+its slot and descriptor until the host write finishes. No VM or program state is
+borrowed by the worker. Output is unavailable on unsupported hosts.
+
+Exit requires a status in 0–255 and does not return normally: the CLI exits, while
+an embedded execution reports `VM_EXITED`. Embedded arguments/output require an
+explicit console grant, independent of filesystem and network permissions. Server
+request children inherit the parent's console grant; the readiness callback receives
+only its explicit console grant. These host grants remain experimental embedding APIs.
 
 ### Native HTTP client (P5 proof of concept)
 

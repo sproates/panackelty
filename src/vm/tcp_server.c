@@ -40,7 +40,7 @@ typedef struct {
 } ServerClient;
 
 struct VMTcpServer {
-    bool filesystem_enabled, continuous;
+    bool filesystem_enabled, console_enabled, continuous;
     bool ready_pending, ready_console;
     Function *ready_handler;
     Value *ready_context;
@@ -660,6 +660,9 @@ static void start_handler(VMTcpServer *server, ServerClient *client)
         if (server->filesystem_enabled) {
             vm_execution_enable_filesystem(client->execution);
         }
+        if (server->console_enabled) {
+            vm_execution_enable_console(client->execution);
+        }
         if (server->outbound) {
             vm_execution_enable_tcp(client->execution);
         }
@@ -822,6 +825,11 @@ void tcp_server_advance(VMTcpServer *server, size_t budget)
 void tcp_server_enable_filesystem(VMTcpServer *server)
 {
     server->filesystem_enabled = true;
+}
+
+void tcp_server_enable_console(VMTcpServer *server)
+{
+    server->console_enabled = true;
 }
 
 void tcp_server_stop(VMTcpServer *server)

@@ -337,6 +337,9 @@ static Value *service_call(VMExecution *execution, Value **arguments)
     if (!execution->embedded || execution->filesystem_enabled) {
         tcp_server_enable_filesystem(execution->server);
     }
+    if (!execution->embedded || execution->console_enabled) {
+        tcp_server_enable_console(execution->server);
+    }
     if (!tcp_server_done(execution->server)) {
         char *names[] = {"address", "port"};
         Value *fields[] = {arguments[0], arguments[1]};
@@ -412,6 +415,9 @@ static Value *server_call_mode(VMExecution *execution, Value **arguments, bool s
     if (execution->server && (!execution->embedded || execution->filesystem_enabled)) {
         tcp_server_enable_filesystem(execution->server);
     }
+    if (execution->server && (!execution->embedded || execution->console_enabled)) {
+        tcp_server_enable_console(execution->server);
+    }
     if (!execution->server) {
         vm->error = "native VM out of memory";
     } else {
@@ -429,7 +435,7 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
 {
     VM *vm = execution->vm;
     if (vm->coverage && !vm->coverage_run && (!strcmp(entry->name, "$http_transport_exchange") ||
-        !strcmp(entry->name, "$tcp_serve") ||
+        !strcmp(entry->name, "$tcp_serve") || !strcmp(entry->name, "tcp_service") ||
         !strcmp(entry->name, "$tcp_serve_stream") || !strcmp(entry->name, "process_run") ||
         !strcmp(entry->name, "run_bytecode") || !strcmp(entry->name, "run_bytecode_args"))) {
         vm_coverage_gap(vm->coverage);

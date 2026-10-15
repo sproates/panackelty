@@ -141,8 +141,36 @@ static void typed_read_completion(void)
     vm_coverage_destroy(coverage);
 }
 
+static void continuous_service_marks_single_collector_gap(void)
+{
+    /* A single collector cannot observe service child executions. Match the
+     * finite-server gap contract even if capability admission rejects the call. */
+    Instruction code[] = {
+        {.op = OP_CONST, .constant = {.tag = 5}},
+        {.op = OP_CONST, .constant = {.tag = 5}},
+        {.op = OP_CONST, .constant = {.tag = 5}},
+        {.op = OP_CONST, .constant = {.tag = 5}},
+        {.op = OP_CONST, .constant = {.tag = 5}},
+        {.op = OP_CONST, .constant = {.tag = 5}},
+        {.op = OP_AWAIT_CALL, .name = "tcp_service", .arity = 6},
+        {.op = OP_RETURN}
+    };
+    Function function = {.name = "main", .is_async = true, .ins = code, .ins_count = 8};
+    Program program = {.count = 1, .functions = &function};
+    VMCoverage *coverage = vm_coverage_create(&program, 8, UINT64_MAX);
+    VM vm = {.program = &program, .coverage = coverage};
+    const char *error = NULL;
+    VMExecution *execution = vm_execution_create_async(&vm, &function, NULL, NULL, NULL, &error);
+    assert(execution && !error);
+    assert(vm_execution_advance(execution, 20) == VM_TRAPPED);
+    assert(vm_coverage_flags(coverage));
+    assert(vm_execution_destroy(execution));
+    vm_coverage_destroy(coverage);
+}
+
 void coverage_contracts(void)
 {
+    continuous_service_marks_single_collector_gap();
     calls_and_traps();
     branches_and_overflow();
     suspended_completion();

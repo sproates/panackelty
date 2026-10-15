@@ -308,3 +308,17 @@ the existing request limit and keeps deadline, cancellation, scheduling and
 response-write ownership. `vm_execution_enable_server_reads` is the internal
 capability gate; fake task sessions and ordinary embedded executions cannot
 request socket reads.
+
+## Continuous service ownership
+
+Continuous transport shares the finite server pump but keeps bounded summary
+counters instead of report history. Readiness runs before admission. The CLI
+installs stop-only signal handlers for the service lifetime; embedded callers use
+explicit stop. Filesystem and console grants propagate independently to request
+children; outbound permission does not grant either.
+
+`console_write.c` owns copied messages and duplicate descriptors in at most four
+retained workers. Cancellation abandons delivery without waiting for host output.
+Workers retain no VM/program pointers and suppress SIGPIPE without changing the
+process-wide signal disposition. See the
+[async host contract](../../SPEC.md#asynchronous-command-line-host-operations).

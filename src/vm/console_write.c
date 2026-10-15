@@ -84,6 +84,15 @@ static void *write_worker(void *context)
             error = errno;
         }
     }
+    /* Consume the worker's pending broken-pipe signal before the detached
+     * thread exits; blocking it alone can leave it pending at thread teardown. */
+    if (error == EPIPE) {
+        sigset_t pending;
+        if (!sigpending(&pending) && sigismember(&pending, SIGPIPE)) {
+            int caught;
+            sigwait(&signals, &caught);
+        }
+    }
     if (close(operation->fd) && !error) {
         error = errno;
     }
@@ -159,6 +168,16 @@ VMConsoleWrite *console_write_start(VM *vm, const Value *message, bool standard_
         operation->done = true;
         return operation;
     }
+#ifdef F_SETNOSIGPIPE
+    /* Darwin pipe writes can deliver SIGPIPE process-wide despite a worker's
+     * signal mask. Suppress it on this owned descriptor without changing the
+     * process-wide signal disposition. */
+    if (fcntl(operation->fd, F_SETNOSIGPIPE, 1) < 0) {
+        operation->result = write_error(standard_error, "io_error", errno);
+        operation->done = true;
+        return operation;
+    }
+#endif
     pthread_attr_t attributes;
     if (pthread_attr_init(&attributes)) {
         free_write(operation);

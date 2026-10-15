@@ -1148,12 +1148,42 @@ permission, so recursive server invocation traps. WASI returns unavailable.
 
 The CLI drives the same resumable dispatcher and owner pump. This does not
 extend the fake-host `VMTasks` experiment into a public source scheduler or add
-resource handles, general source spawning or indefinite servers. HTTP framing
+resource handles or general source spawning. Continuous admission is a separate
+mode described below. HTTP framing
 and server behavior remain in the Panackelty package.
 The [roadmap](ROADMAP.md#bounded-async-tcp-server) owns delivery state and the
 subsequent broader grooming decision. Tests cover native ownership, source and
 saved-bytecode peers, allocation/descriptor faults, capabilities and browser
 rejection; [coverage evidence](tests/COVERAGE.md#bounded-tcp-server) records limits.
+
+## Continuous HTTP service and console adapters
+
+`tcp_server.c` reuses the finite transport's listener, reusable client slots,
+request deadlines and drain pump for continuous admission. Continuous mode retains
+three summary counters instead of per-client result history. It refuses sequence
+wrap, so stale poll identities cannot become valid again. A child execution runs
+the post-bind readiness callback before admission; readiness failure closes the
+listener, and stop cancels readiness without waiting for a blocked host operation.
+
+`execute.c` installs CLI signal handlers while a continuous service is active.
+Handlers only set a `sig_atomic_t` flag; the owner pump performs stop and restores
+previous dispositions when the service ends. Embedded executions retain explicit
+stop and separate listening, outbound, filesystem and console grants. Request
+children inherit the granted filesystem and console services, never listening.
+
+`packages/http/src/service.panack` supplies the protocol composition over the
+isolated `stdlib/tcp_service` module. A generic `ConnectionContext` passes typed
+configuration and a named request callback through a concrete connection worker.
+HTTP parsing and serialization stay in the package; existing finite entry points
+use the same configured connection path.
+
+`console_write.c` owns bounded asynchronous stdout/stderr workers for
+`stdlib/async_host`. Four retained operations, each at most 16 KiB plus newline,
+use copied input and duplicate descriptors. Workers suppress SIGPIPE using the host signal/descriptor mechanism, publish their
+owned result under a mutex, and never resume bytecode. Abandonment suppresses
+completion delivery; host I/O may continue until the descriptor operation returns.
+Arguments use the execution snapshot and exit uses the existing CLI/embedded exit
+boundary. Filesystem and console capacities are separate.
 
 ## Asynchronous confined filesystem adapter
 

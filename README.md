@@ -154,6 +154,13 @@ file reads and root-identity lookup for asynchronous handlers. It shares the
 existing rooted resolver and keeps synchronous filesystem APIs unchanged. See
 [the cancellation and resource contract](SPEC.md#asynchronous-confined-filesystem-reads).
 
+For services that remain available until stopped, the development toolchain adds
+`http/service` with typed handler configuration, post-bind readiness and
+SIGINT/SIGTERM draining. `stdlib/async_host` supplies arguments, bounded console
+output and exit for async command-line tools. See the
+[continuous service contract](SPEC.md#continuous-native-services-development-toolchain).
+The generic directory-serving tool is still in development under GI#162.
+
 ## Start writing Panackelty
 
 The developer preview is designed to be downloaded and run directly. The

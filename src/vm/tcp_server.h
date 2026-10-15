@@ -35,6 +35,8 @@ void tcp_server_advance(VMTcpServer *server, size_t budget);
 void tcp_server_stop(VMTcpServer *server);
 /* Grant before pumping; children inherit only this explicit filesystem grant. */
 void tcp_server_enable_filesystem(VMTcpServer *server);
+/* Console access is separate from filesystem and outbound network grants. */
+void tcp_server_enable_console(VMTcpServer *server);
 bool tcp_server_done(const VMTcpServer *server);
 Value *tcp_server_result(const VMTcpServer *server);     /* borrowed */
 const char *tcp_server_error(const VMTcpServer *server); /* static trap, or NULL */

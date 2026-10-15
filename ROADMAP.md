@@ -1752,8 +1752,10 @@ and isolate necessary standard-library additions. Keep the existing website buil
 The [implementation proposal](docs/GI162_STATIC_HTTP_PLAN.md) records the design,
 verified prerequisites and delivery sequence. HEAD support is delivered by PR #495
 and asynchronous confined reads by PR #496. Continuous service lifecycle work is
-checkpointed on `feature/gi162-continuous-http-service`; final validation and
-delivery remain pending. The plan records the resume checklist. The generic tool
+implemented on `feature/gi162-continuous-http-service`; focused lifecycle,
+console capability and closed-pipe checks pass, and final `make check` passes
+in 523 seconds. Lifecycle delivery is pending merge. The plan records the
+remaining delivery sequence. The generic tool
 and website adoption remain outstanding. The current Node-based preview workflow
 remains available; this checkpoint changes no production website behaviour or
 release claim.

@@ -16,6 +16,25 @@ execute the program, emit bytecode, write files, or consume a source-map sidecar
 command is implemented in unreleased core; existing published/browser versions
 do not acquire it automatically.
 
+## Completion target for GI #134
+
+The owner-defined target is comprehensive function-checking coverage: `panack
+explain` must report every relevant type, effect and proof decision the checker
+makes while checking a function. For each decision it should expose the actual
+accepted/rejected outcome, supporting checker facts and source location. If
+checking cannot reach a decision, it should report `unavailable` with the reason.
+If the checker did make a decision but the explanation does not cover it yet,
+that is an implementation gap, not an acceptable unavailable result. No relevant
+decision should be silently omitted.
+
+The query families documented below are delivered partial coverage, not a claim
+that the target is complete. Before selecting further implementation slices,
+inventory the relevant checker decisions and map each one to its explanation
+output and regression coverage. This target concerns decisions made while
+checking functions; it does not by itself expand ordinary diagnostic wording,
+change language semantics, or add parse/resolution or compilation-provenance
+explanations.
+
 For staged multi-module projects, qualify a query with the portable module
 identity, for example `--function project/library.panack:lookup`. A bare name
 continues to work when it selects one loaded function. When multiple modules

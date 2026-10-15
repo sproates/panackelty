@@ -111,8 +111,9 @@ The compiler fixture allows 90 seconds for source execution and compilation,
 which can build the complete compiler. Ordinary fixture commands retain 20
 seconds; phase timing warnings remain independent of command timeouts.
 The CLI commands and explanation fixtures run many nested checks and permit
-120 seconds for each source/bytecode execution. Their enclosing harness permits
-300 seconds for both executions and compilation. Cold compiler-module probes
+120 seconds for each source/bytecode execution and 60 seconds for compilation.
+Their enclosing harness permits 360 seconds for compilation, both executions
+and runner overhead. Cold compiler-module probes
 permit 300 seconds to compile and execute; ordinary integration commands retain
 90 seconds. The complete 370-assertion fixture runner has a separate 600-second
 aggregate deadline. These bounds preserve every assertion and fresh execution;
@@ -121,8 +122,9 @@ they are not performance targets. Promotion validation exposed the former
 enclosing limit on hosted runners.
 The isolated native-tool environment includes `openssl` for the independent
 TLS test server and certificate generation; a missing executable is reported
-explicitly by the TLS fixture. The local certificate declares server-authentication
-extended key usage, and macOS additionally verifies it against Apple's SSL policy
+explicitly by the TLS fixture. A private CA signs a separate server certificate
+with server-authentication extended key usage; OpenSSL checks its server purpose,
+and macOS additionally verifies the chain against Apple's SSL policy
 using the allowlisted `security` utility before starting the fixture server.
 Source coverage collection runs separately each Monday at 03:23 UTC, or through
 manual **Source coverage** dispatch on `next`. Promotion and Release do not wait

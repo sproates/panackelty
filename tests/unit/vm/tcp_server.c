@@ -538,7 +538,10 @@ void tcp_server_contracts(void)
         port = unused_port();
         server = start(port, options);
         int client = connect_client(port);
-        pump(server);
+        /* Admission must precede stop/destruction. A zero-wait poll can run
+         * before the loopback listener reports the completed connection. */
+        tcp_server_poll(server, 1000);
+        tcp_server_advance(server, 64);
         if (mode == 1) {
             assert(!shutdown(client, SHUT_WR));
             tcp_server_poll(server, 0);

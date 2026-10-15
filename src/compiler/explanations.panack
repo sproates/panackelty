@@ -825,9 +825,14 @@ pure render_type_check_evidence(
   match_decision: Bool = evidence.context == "match subject" ||
     evidence.context == "match arm uniqueness" ||
     evidence.context == "match payload bindings" || evidence.context == "match exhaustiveness"
-  status_label: Str = if match_decision { "checked match decision" } else { "checked type requirement" }
+  call_arity: Bool = evidence.context == "direct call arity"
+  status_label: Str = if call_arity { "checked call arity" } else {
+    if match_decision { "checked match decision" } else { "checked type requirement" }
+  }
   actual_label: Str = if match_decision { "subject type" } else { "actual type" }
-  expected_label: Str = if match_decision { "decision rule" } else { "expected type" }
+  expected_label: Str = if call_arity { "argument counts" } else {
+    if match_decision { "decision rule" } else { "expected type" }
+  }
   result: Str = if evidence.context == "index position" ||
     evidence.context == "if condition" || evidence.context == "while condition" ||
     evidence.context == "match variant" || match_decision {
@@ -837,21 +842,29 @@ pure render_type_check_evidence(
   }
   "${status_label}: ${status}\ncontext: ${context}\n" +
     explanation_location(Some(evidence.span), sources, root, stdlib_root) +
-    "\n${actual_label}: ${actual}" +
+    (if call_arity { "" } else { "\n${actual_label}: ${actual}" }) +
     "\n${expected_label}: ${expected}" +
-    "\nresulting type: ${result}" +
+    (if call_arity { "" } else { "\nresulting type: ${result}" }) +
     match evidence.accepted {
       Some(accepted) => if accepted {
-        if match_decision {
-          "\nreason: the existing checker accepted this match rule"
+        if call_arity {
+          "\nreason: the existing checker accepted the supplied argument count"
         } else {
-          "\nreason: the existing checker accepted this type for the requirement"
+          if match_decision {
+            "\nreason: the existing checker accepted this match rule"
+          } else {
+            "\nreason: the existing checker accepted this type for the requirement"
+          }
         }
       } else {
-        if match_decision {
-          "\nreason: the existing checker rejected this match rule"
+        if call_arity {
+          "\nreason: the existing checker rejected the supplied argument count"
         } else {
-          "\nreason: the existing checker rejected this type for the requirement"
+          if match_decision {
+            "\nreason: the existing checker rejected this match rule"
+          } else {
+            "\nreason: the existing checker rejected this type for the requirement"
+          }
         }
       },
       None() => "\nreason: the checker did not determine a complete type decision"
@@ -867,12 +880,45 @@ pure render_type_check_explanations(
   mut entries: [BodyTypeCheckEvidence] = []
   for function in project.module_bodies {
     if function.signature.binding.identity == selector.identity {
-      entries = concat(entries, body_type_check_evidence(function.body))
+      for evidence in body_type_check_evidence(function.body) {
+        if evidence.context != "direct call arity" {
+          entries = append(entries, evidence)
+        }
+      }
     }
   }
   mut output: Str = "checked type requirements:"
   if len(entries) == 0 {
     output = output + " none (no retained checked type requirements)"
+  } else {
+    for entry in entries {
+      output = output + "\n\n" + render_type_check_evidence(
+        entry, project.sources, root, stdlib_root
+      )
+    }
+  }
+  output
+}
+
+pure render_call_arity_explanations(
+  project: LoadedProject,
+  selector: SourceMapFunctionSelector,
+  root: Str,
+  stdlib_root: Str
+): Str {
+  mut entries: [BodyTypeCheckEvidence] = []
+  for function in project.module_bodies {
+    if function.signature.binding.identity == selector.identity {
+      for evidence in body_type_check_evidence(function.body) {
+        if evidence.context == "direct call arity" {
+          entries = append(entries, evidence)
+        }
+      }
+    }
+  }
+  mut output: Str = "direct call arity checks:"
+  if len(entries) == 0 {
+    output = output + " none (no retained direct call arity checks)"
   } else {
     for entry in entries {
       output = output + "\n\n" + render_type_check_evidence(
@@ -1196,6 +1242,9 @@ pub pure render_function_explanations(
     project, selector, root, stdlib_root
   )
   output = output + "\n\n" + render_type_check_explanations(
+    project, selector, root, stdlib_root
+  )
+  output = output + "\n\n" + render_call_arity_explanations(
     project, selector, root, stdlib_root
   )
   output = output + "\n\n" + render_collection_callback_explanations(

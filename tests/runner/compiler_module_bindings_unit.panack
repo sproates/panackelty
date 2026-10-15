@@ -2063,6 +2063,22 @@ pure namespace_body_tests(): [TestResult] {
     "pure take[T](value: T): T { value }; pure caller(): Str { take(\"typed\") }",
     false
   )
+  accepted_call_arity: CheckedModuleBodies = body_test_module_mode(
+    "pure take(value: Nat): Nat { value }; pure caller(): Nat { take(1) }",
+    true
+  )
+  missing_call_arity: CheckedModuleBodies = body_test_module_mode(
+    "pure take(value: Nat): Nat { value }; pure caller(): Nat { take() }",
+    true
+  )
+  extra_call_arity: CheckedModuleBodies = body_test_module_mode(
+    "pure take(value: Nat): Nat { value }; pure caller(): Nat { take(1, 2) }",
+    true
+  )
+  ordinary_call_arity: CheckedModuleBodies = body_test_module_mode(
+    "pure take(value: Nat): Nat { value }; pure caller(): Nat { take(1) }",
+    false
+  )
   accepted_constructor_argument: CheckedModuleBodies = body_test_module_mode(
     "pub record Box { value: Nat }; pub pure build(): Box { Box(1) }",
     true
@@ -2429,6 +2445,35 @@ pure namespace_body_tests(): [TestResult] {
     len(ordinary_call_argument.functions) == 2 &&
       len(body_call_argument_evidence(ordinary_call_argument.functions[1].body)) == 0,
     "ordinary checking retained explanation-only call argument evidence"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains accepted direct call arity",
+    len(accepted_call_arity.functions) == 2 &&
+      len(body_type_check_evidence(accepted_call_arity.functions[1].body)) == 1 &&
+      body_type_check_evidence(accepted_call_arity.functions[1].body)[0].context == "direct call arity" &&
+      body_type_check_evidence(accepted_call_arity.functions[1].body)[0].expected == "expected 1; found 1" &&
+      body_type_check_evidence(accepted_call_arity.functions[1].body)[0].accepted == Some(true),
+    "accepted direct call arity was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains missing direct call arity",
+    len(missing_call_arity.functions) == 2 &&
+      body_type_check_evidence(missing_call_arity.functions[1].body)[0].expected == "expected 1; found 0" &&
+      body_type_check_evidence(missing_call_arity.functions[1].body)[0].accepted == Some(false),
+    "missing direct call arity was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains extra direct call arity",
+    len(extra_call_arity.functions) == 2 &&
+      body_type_check_evidence(extra_call_arity.functions[1].body)[0].expected == "expected 1; found 2" &&
+      body_type_check_evidence(extra_call_arity.functions[1].body)[0].accepted == Some(false),
+    "extra direct call arity was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "ordinary checking retains no direct call arity",
+    len(ordinary_call_arity.functions) == 2 &&
+      len(body_type_check_evidence(ordinary_call_arity.functions[1].body)) == 0,
+    "ordinary checking retained explanation-only direct call arity"
   ))
   results = append(results, std_testing.expect(
     "explanation checking retains accepted constructor argument evidence",

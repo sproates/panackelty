@@ -3,7 +3,7 @@
 `panack explain SOURCE.panack --function NAME` checks the complete project and
 reports inferred local types with their checked initializer types, the checked
 type of an expression at a source location, function return checks, direct
-function-call argument checks, selected text/byte/numeric/collection/path,
+function-call argument and arity checks, selected text/byte/numeric/collection/path,
 environment, time and filesystem builtin argument checks, and annotated local
 initializer and assignment value checks, plus retained array `map` and `reduce`
 callback contracts, unary/binary operator type decisions, indexing and
@@ -47,7 +47,8 @@ family is complete.
 | Checker decision family | Explain output and regression coverage | Remaining coverage gap |
 | --- | --- | --- |
 | Function result compatibility | `return type`; accepted, rejected, and unavailable results are exercised. | Check when the body or result type is deferred and which checker facts prevented completion need broader inventory. |
-| Argument and parameter compatibility | Direct call arguments, selected builtin arguments, callback contracts, annotated initializers, and assignment values. Tests cover accepted/rejected/unavailable cases across representative families. | Constructor arguments are not retained as call-argument evidence; call arity, explicit type-argument arity, and some specialized core-call checks are not exposed as decisions. |
+| Argument and parameter compatibility | Direct function and constructor arguments, selected builtin arguments, callback contracts, annotated initializers, and assignment values. Tests cover accepted/rejected/unavailable cases across representative families. | Some specialized core-call compatibility checks are not exposed as decisions. |
+| Call arity | Direct resolved function and record/enum constructor calls report accepted or rejected exact argument counts, with source locations. CLI regressions cover accepted function and constructor calls, plus missing and extra arguments. | Core builtins, indirect calls and explicit type-argument arity remain uncovered. |
 | Generic inference and constraints | Inferred locals, selected repeated type-parameter joins, call argument checks after substitution, and generic collection joins. | Failed inference reasons, unresolved constraint application, and every hole/unification decision are not yet retained as a complete trace. |
 | Type combination | Array literals and concatenation, conditional and match results, plus selected generic joins. Accepted, rejected, and unavailable joins have regressions. | Other constraints that refine a result or alter an inferred type need to be checked against the inventory; joins are not yet proven exhaustive. |
 | Operators and expression requirements | Unary/binary operand and result types; index receiver/position; `for` iterable; field receiver; `if`/`while` condition; match variant membership. | Special core operations may perform additional type checks outside these evidence families. |
@@ -123,7 +124,7 @@ compatibility check. If the checker rejects an incomplete result, the boundary
 can be `rejected` while `actual type` is `unavailable`; the query does not fill
 in an unresolved type. The normal diagnostic and exit status remain unchanged.
 
-## Direct function-call arguments
+## Direct function-call arguments and arity
 
 For each checked direct function or record/enum constructor call in the selected
 function, the explanation reports each argument's checked type against the
@@ -147,7 +148,11 @@ these slices. The environment checks cover the
 string key arguments to `environment_get` and `environment_has`. Diagnostics and
 exit status remain unchanged. Time checks cover arguments to `duration_nanoseconds`,
 `duration_ticks`, `duration_from_seconds`, `instant_add`, `instant_difference` and
-`instant_before`.
+`instant_before`. Direct calls to resolved function declarations and record/enum
+constructors also report whether the supplied argument count matches the
+declared inputs, with the call source range, expected and supplied counts, and
+the existing accepted or rejected outcome. Core builtins, indirect calls and
+explicit type-argument counts remain uncovered call-arity decisions.
 
 ## Array callback contracts
 

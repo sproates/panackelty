@@ -812,6 +812,16 @@ joins with their input types and source locations. No coercion or checker
 acceptance rule changes. Source and bytecode execution both run the
 `cli_explanations` fixture.
 
+## U3 match checker-decision explanations
+
+The public `cli_explanations` fixture checks enum subject type and variant
+membership alongside arm uniqueness, payload binding counts, and exhaustive
+coverage. It verifies accepted, rejected and unavailable outcomes, includes
+missing variant names and expected-versus-found payload counts, and preserves
+the ordinary diagnostics. A module-body unit test confirms ordinary match
+checking retains none of this evidence.
+The `make check-compiler` compiler and CLI paths are the owning validation.
+
 ## Indexed compiler declaration lookup
 
 The existing compiler-contract unit suite adds 19 fixed assertions for declaration

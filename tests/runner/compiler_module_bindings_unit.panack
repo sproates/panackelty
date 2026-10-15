@@ -1393,10 +1393,13 @@ pure namespace_body_tests(): [TestResult] {
   match_checks: [BodyTypeCheckEvidence] = body_type_check_evidence(checked_match.functions[0].body)
   results = append(results, std_testing.expect(
     "explanation checker retains match variant membership decisions",
-    len(match_checks) == 2 && match_checks[0].context == "match variant" &&
-      match_checks[0].actual == Some(SignatureType(SignatureNominal(DeclarationIdentity(namespace_identity("body.panack"), "Choice")), [])) &&
-      match_checks[0].expected == "variant of body.panack:Choice" && match_checks[0].result == None() &&
-      match_checks[0].accepted == Some(true) && match_checks[1].accepted == Some(true),
+    len(match_checks) == 8 && match_checks[0].context == "match subject" &&
+      match_checks[0].accepted == Some(true) && match_checks[1].context == "match variant" &&
+      match_checks[1].actual == Some(SignatureType(SignatureNominal(DeclarationIdentity(namespace_identity("body.panack"), "Choice")), [])) &&
+      match_checks[1].expected == "variant of body.panack:Choice" && match_checks[1].result == None() &&
+      match_checks[1].accepted == Some(true) && match_checks[4].context == "match variant" &&
+      match_checks[4].accepted == Some(true) && match_checks[7].context == "match exhaustiveness" &&
+      match_checks[7].accepted == Some(true),
     "accepted match variant membership evidence was not retained"
   ))
   rejected_match: CheckedModuleBodies = body_test_module(
@@ -1405,9 +1408,11 @@ pure namespace_body_tests(): [TestResult] {
   rejected_match_checks: [BodyTypeCheckEvidence] = body_type_check_evidence(rejected_match.functions[0].body)
   results = append(results, std_testing.expect(
     "explanation checker retains rejected match variant membership",
-    len(rejected_match_checks) == 1 && rejected_match_checks[0].context == "match variant" &&
-      rejected_match_checks[0].actual == Some(SignatureType(SignatureNominal(DeclarationIdentity(namespace_identity("body.panack"), "Choice")), [])) &&
-      rejected_match_checks[0].accepted == Some(false),
+    len(rejected_match_checks) == 5 && rejected_match_checks[1].context == "match variant" &&
+      rejected_match_checks[1].actual == Some(SignatureType(SignatureNominal(DeclarationIdentity(namespace_identity("body.panack"), "Choice")), [])) &&
+      rejected_match_checks[1].accepted == Some(false) &&
+      rejected_match_checks[4].context == "match exhaustiveness" &&
+      rejected_match_checks[4].accepted == Some(false),
     "rejected match variant membership evidence was not retained"
   ))
   unavailable_match: CheckedModuleBodies = body_test_module(
@@ -1416,9 +1421,21 @@ pure namespace_body_tests(): [TestResult] {
   unavailable_match_checks: [BodyTypeCheckEvidence] = body_type_check_evidence(unavailable_match.functions[0].body)
   results = append(results, std_testing.expect(
     "explanation checker marks match variant membership unavailable without subject type",
-    len(unavailable_match_checks) == 1 && unavailable_match_checks[0].context == "match variant" &&
-      unavailable_match_checks[0].actual == None() && unavailable_match_checks[0].accepted == None(),
+    len(unavailable_match_checks) == 5 && unavailable_match_checks[0].context == "match subject" &&
+      unavailable_match_checks[0].actual == None() && unavailable_match_checks[0].accepted == None() &&
+      unavailable_match_checks[1].context == "match variant" && unavailable_match_checks[1].accepted == None() &&
+      unavailable_match_checks[4].context == "match exhaustiveness" &&
+      unavailable_match_checks[4].accepted == None(),
     "unavailable match variant membership was not explicit"
+  ))
+  ordinary_match_retention: CheckedModuleBodies = body_test_module_mode(
+    "pub enum Choice { First }; pub pure pick(value: Choice): Nat { match value { First() => 1 } }",
+    false
+  )
+  results = append(results, std_testing.expect(
+    "ordinary match checking retains no explanation decisions",
+    len(body_type_check_evidence(ordinary_match_retention.functions[0].body)) == 0,
+    "ordinary matching retained explanation evidence"
   ))
   ordinary_access: CheckedModuleBodies = body_test_module_mode(
     "pub pure at(values: [Nat], position: Nat): Nat { values[position] }", false

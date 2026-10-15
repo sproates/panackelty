@@ -91,6 +91,13 @@ PASS accepted while condition explains its Bool requirement
 PASS valid match variant remains accepted when match is non-exhaustive
 PASS wrong match variant explains enum membership rejection
 PASS unresolved match subject leaves variant membership unavailable
+PASS unresolved match subject leaves exhaustiveness unavailable
+PASS exhaustive match explains complete variant coverage
+PASS non-enum match subject explains rejection
+PASS non-exhaustive match explains missing variants
+PASS duplicate match arm explains uniqueness rejection
+PASS match payload binding count explains rejection
+PASS accepted match payload binding count explains arity
 PASS accepted generic record field explains receiver and result types
 PASS rejected non-record field receiver preserves diagnostic
 PASS unresolved field receiver is explicitly unavailable
@@ -160,4 +167,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 162, failures: 0
+tests: 169, failures: 0

@@ -332,7 +332,27 @@ main(): Void {
         ["context: match variant", "checked type requirement: rejected", "expression: Second()", "actual type: main.panack:Choice", "expected type: variant of main.panack:Choice"], [], "Second is not a variant of Choice"))
       explain_write(source, "enum Choice { First }; probe(): Nat { match missing { First() => 1 } }\nmain(): Void {}\n")
       results = append(results, explain_run("unresolved match subject leaves variant membership unavailable", ["explain", source, "--function", "probe"], 1,
-        ["context: match variant", "checked type requirement: unavailable", "actual type: unavailable", "expected type: variant of the matched enum", "did not determine a complete type decision"], [], "unknown name missing"))
+        ["context: match subject", "checked match decision: unavailable", "decision rule: enum type", "context: match variant", "checked type requirement: unavailable", "actual type: unavailable", "expected type: variant of the matched enum", "did not determine a complete type decision"], [], "unknown name missing"))
+      results = append(results, explain_run("unresolved match subject leaves exhaustiveness unavailable", ["explain", source, "--function", "probe"], 1,
+        ["context: match exhaustiveness", "checked match decision: unavailable", "subject type: unavailable", "decision rule: all variants of the matched enum are covered", "did not determine a complete type decision"], [], "unknown name missing"))
+      explain_write(source, "enum Choice { First, Second }; probe(value: Choice): Nat { match value { First() => 1, Second() => 2 } }\nmain(): Void {}\n")
+      results = append(results, explain_run("exhaustive match explains complete variant coverage", ["explain", source, "--function", "probe"], 0,
+        ["context: match subject", "checked match decision: accepted", "decision rule: enum type", "context: match exhaustiveness", "checked match decision: accepted", "subject type: main.panack:Choice", "decision rule: all variants of main.panack:Choice are covered", "context: match arm uniqueness", "checked match decision: accepted", "reason: the existing checker accepted this match rule"], [], ""))
+      explain_write(source, "probe(value: Nat): Nat { match value { None() => 0 } }\nmain(): Void {}\n")
+      results = append(results, explain_run("non-enum match subject explains rejection", ["explain", source, "--function", "probe"], 1,
+        ["context: match subject", "checked match decision: rejected", "subject type: Nat", "decision rule: enum type", "context: match exhaustiveness", "checked match decision: unavailable", "decision rule: all variants of an enum subject are covered"], [], "match requires an enum, got Nat"))
+      explain_write(source, "enum Choice { First, Second }; probe(value: Choice): Nat { match value { First() => 1 } }\nmain(): Void {}\n")
+      results = append(results, explain_run("non-exhaustive match explains missing variants", ["explain", source, "--function", "probe"], 1,
+        ["context: match exhaustiveness", "checked match decision: rejected", "decision rule: all variants of main.panack:Choice are covered; missing Second", "reason: the existing checker rejected this match rule"], [], "non-exhaustive match; missing Second"))
+      explain_write(source, "enum Choice { First }; probe(value: Choice): Nat { match value { First() => 1, First() => 2 } }\nmain(): Void {}\n")
+      results = append(results, explain_run("duplicate match arm explains uniqueness rejection", ["explain", source, "--function", "probe"], 1,
+        ["context: match arm uniqueness", "checked match decision: rejected", "decision rule: variant First appears at most once in this match", "reason: the existing checker rejected this match rule"], [], "duplicate match arm First"))
+      explain_write(source, "enum Choice[T] { Pick(T), Empty }; probe(value: Choice[Nat]): Nat { match value { Pick() => 1, Empty() => 0 } }\nmain(): Void {}\n")
+      results = append(results, explain_run("match payload binding count explains rejection", ["explain", source, "--function", "probe"], 1,
+        ["context: match payload bindings", "checked match decision: rejected", "decision rule: expected 1 binding(s) for variant Pick; found 0", "reason: the existing checker rejected this match rule"], [], "pattern Pick expects 1 bindings"))
+      explain_write(source, "enum Choice[T] { Pick(T), Empty }; probe(value: Choice[Nat]): Nat { match value { Pick(item) => item, Empty() => 0 } }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted match payload binding count explains arity", ["explain", source, "--function", "probe"], 0,
+        ["context: match payload bindings", "checked match decision: accepted", "decision rule: expected 1 binding(s) for variant Pick; found 1"], [], ""))
       explain_write(source, "record Box[T] { value: T }; probe(box: Box[Nat]): Nat { box.value }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted generic record field explains receiver and result types", ["explain", source, "--function", "probe"], 0,
         ["context: field access", "checked type requirement: accepted", "actual type: main.panack:Box[Nat]", "expected type: record with field value", "resulting type: Nat"], [], ""))

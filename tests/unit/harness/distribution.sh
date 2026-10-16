@@ -17,7 +17,7 @@ cp "$root/panack-vm" "$work/shared-vm-bytes"
 case_name=checksum-from-spaced-checkout
 checkout=$work/'checkout with spaces (test)'
 mkdir "$checkout"
-for name in Makefile VERSION panack bootstrap src tests examples packages tools README.md LICENSE CHANGELOG.md RELEASE_POLICY.md SECURITY.md SPEC.md; do
+for name in Makefile VERSION bin bootstrap src tests examples packages tools docs README.md ROADMAP.md CONTRIBUTING.md LICENSE CHANGELOG.md SECURITY.md; do
     ln -s "$root/$name" "$checkout/$name"
 done
 # Builds must own the executable they relink; a symlink shares the live root VM.
@@ -49,15 +49,15 @@ tar -xzf "$archive" -C "$work/extracted"
 (cd "$work/extracted/panackelty" && find . -type f | sed 's|^./||' | sort) > "$work/files"
 {
     cat "$root/tests/unit/harness/installed-files.txt"
-    printf 'LICENSE\nREADME.md\n'
+    printf 'LICENSE\nREADME.md\ndocs/guides/INSTALLATION.md\n'
     find "$root/examples" -type f -print | sed "s|^$root/||"
 } | sort > "$work/expected"
 equal_files "$work/files" "$work/expected"
 # A candidate archive may differ from the documented published download version,
 # but a malformed documented version must not be silently normalised away.
 case_name=quick-start-rejects-malformed-documented-version
-cp "$work/extracted/panackelty/README.md" "$work/readme-original"
-sed 's/^panack [0-9][^ ]* (bytecode 9)$/panack invalid (bytecode 9)/' "$work/readme-original" > "$work/extracted/panackelty/README.md"
+cp "$work/extracted/panackelty/docs/guides/INSTALLATION.md" "$work/readme-original"
+sed 's/^panack [0-9][^ ]* (bytecode 9)$/panack invalid (bytecode 9)/' "$work/readme-original" > "$work/extracted/panackelty/docs/guides/INSTALLATION.md"
 bad_archive=$work/malformed-transcript.tar.gz
 tar -czf "$bad_archive" -C "$work/extracted" panackelty
 if command -v sha256sum >/dev/null 2>&1; then
@@ -66,7 +66,7 @@ else
     (cd "$work" && shasum -a 256 malformed-transcript.tar.gz) > "$bad_archive.sha256"
 fi
 capture failure 15 sh "$root/tests/quick_start.sh" "$bad_archive" "$(cat "$root/VERSION")"
-cp "$work/readme-original" "$work/extracted/panackelty/README.md"
+cp "$work/readme-original" "$work/extracted/panackelty/docs/guides/INSTALLATION.md"
 pass
 case_name=archive-members-and-relocation
 mkdir "$work/relocated"
@@ -127,7 +127,7 @@ for stage in stage1 stage2; do
     cp "$root/bootstrap/compiler-v9.bc" "$checkout/build/bootstrap/$stage/compiler.bc"
 done
 cd "$checkout"
-capture 0 30 env PANACK_TEST_COMPILER="$checkout/build/bootstrap/stage2/compiler.bc" PANACK_TEST_NAMESPACE_EMISSION=1 ./panack run tests/runner/compiler_driver.panack
+capture 0 30 env PANACK_TEST_COMPILER="$checkout/build/bootstrap/stage2/compiler.bc" PANACK_TEST_NAMESPACE_EMISSION=1 ./bin/panack run tests/runner/compiler_driver.panack
 contains "$work/stdout" 'PASS byte-identical compiler output'
 test "$(tail -n 1 "$work/stdout")" = 'tests: 37, failures: 0' || fail 'compiler driver summary'
 pass

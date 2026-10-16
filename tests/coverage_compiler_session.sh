@@ -5,15 +5,15 @@ work=$(mktemp -d "${TMPDIR:-/tmp}/panack-compiler-coverage.XXXXXX")
 trap 'rm -rf "$work"' 0
 trap 'exit 1' HUP INT TERM
 source=tests/fixtures/compiler_contracts/coverage_session/main.panack
-./panack compile "$source" -o "$work/main.bc"
-./panack inventory "$source" -o "$work/main.inv"
-./panack inventory src/compiler/main.panack -o "$work/compiler.inv"
-./panack coverage-session "$work/session" "$work/main.bc" "$work/main.inv" \
+./bin/panack compile "$source" -o "$work/main.bc"
+./bin/panack inventory "$source" -o "$work/main.inv"
+./bin/panack inventory src/compiler/main.panack -o "$work/compiler.inv"
+./bin/panack coverage-session "$work/session" "$work/main.bc" "$work/main.inv" \
   bootstrap/compiler-v9.bc "$work/compiler.inv" -- bootstrap/compiler-v9.bc \
   tests/functional/cases/hello_world/main.panack > "$work/stdout"
 printf 'ok\n' > "$work/expected"
 cmp "$work/stdout" "$work/expected"
-./panack coverage-aggregate --source "$source" "$work/main.inv" \
+./bin/panack coverage-aggregate --source "$source" "$work/main.inv" \
   --source src/compiler/main.panack "$work/compiler.inv" \
   --session "$work/session" > "$work/report"
 head -1 "$work/report" > "$work/header"

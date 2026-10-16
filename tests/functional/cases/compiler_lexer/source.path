@@ -1,1 +1,1 @@
-compiler-lexer.panack
+tests/fixtures/compiler_lexer_smoke/main.panack

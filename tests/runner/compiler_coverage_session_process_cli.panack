@@ -29,7 +29,7 @@ main(): Void {
         results = append(results, std_testing.expect("process setup", result.exit_code == 0, std_text.decode_utf8(result.stderr)))
       }
       process_session: Str = dir + "/process-session"
-      process_run_result: ProcessOutput = session_command(["coverage-session", process_session, process_bc, process_inv, child_bc, child_inv, "--", "./panack", child_bc])
+      process_run_result: ProcessOutput = session_command(["coverage-session", process_session, process_bc, process_inv, child_bc, child_inv, "--", "./bin/panack", child_bc])
       process_report: ProcessOutput = session_command(["coverage-aggregate", "--source", process_source, process_inv, "--source", child, child_inv, "--session", process_session])
       results = append(results, std_testing.expect("subprocess aggregate", process_run_result.stdout == std_text.encode_utf8("0\n") && process_report.exit_code == 0 && session_contains(std_text.decode_utf8(process_report.stdout), "executions=2"), std_text.decode_utf8(process_run_result.stderr) + std_text.decode_utf8(process_report.stderr)))
       external_session: Str = dir + "/external-session"
@@ -46,7 +46,7 @@ main(): Void {
         results = append(results, std_testing.expect("killed child setup", result.exit_code == 0, std_text.decode_utf8(result.stderr)))
       }
       killed_session: Str = dir + "/killed-session"
-      killed: ProcessOutput = session_command(["coverage-session", killed_session, process_bc, process_inv, killed_bc, killed_inv, "--", "./panack", killed_bc])
+      killed: ProcessOutput = session_command(["coverage-session", killed_session, process_bc, process_inv, killed_bc, killed_inv, "--", "./bin/panack", killed_bc])
       killed_report: ProcessOutput = session_command(["coverage-aggregate", "--source", process_source, process_inv, "--source", killed_source, killed_inv, "--session", killed_session])
       results = append(results, std_testing.expect("claimed collector killed by timeout stays partial", killed.stdout == std_text.encode_utf8("99\n") &&
         session_read(killed_session + "/claim-0.1") == std_text.encode_utf8("claimed\n") && killed_report.exit_code == 1 && killed_report.stdout == byte_buffer.empty(), "killed collector accepted"))

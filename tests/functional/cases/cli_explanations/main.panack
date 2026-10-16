@@ -25,7 +25,7 @@ explain_write(path: Str, text: Str): Void {
   }
 }
 explain_run(name: Str, arguments: [Str], status: Nat, required: [Str], forbidden: [Str], diagnostic: Str): TestResult {
-  mut command: Str = "./panack"
+  mut command: Str = "./bin/panack"
   mut command_arguments: [Str] = arguments
   if (std_environment.get("PANACK_TEST_COMPILER") != None()) {
     command = "/usr/bin/env"
@@ -629,10 +629,10 @@ main(): Void {
         ["program: rejected", "effect boundary: rejected", "source: project/library.panack:2:38-2:49", "expression: print(item)", "pure function cannot call impure function print"], ["effect boundary: allowed"], "binding n is Nat, expected Bool"))
       // The explanation's stderr must equal ordinary diagnostics byte for byte,
       // including order; recovered purity violations appear only in evidence.
-      match std_process.run(explain_path("./panack"), ["check", source], byte_buffer.empty(), std_path.current(), [], std_time.seconds(15), 1048576) {
+      match std_process.run(explain_path("./bin/panack"), ["check", source], byte_buffer.empty(), std_path.current(), [], std_time.seconds(15), 1048576) {
         Error(error) => { results = append(results, std_testing.expect("recovery diagnostic parity", false, "check failed")); },
         Ok(ordinary) => {
-          match std_process.run(explain_path("./panack"), ["explain", source, "--function", "inspect"], byte_buffer.empty(), std_path.current(), [], std_time.seconds(15), 1048576) {
+          match std_process.run(explain_path("./bin/panack"), ["explain", source, "--function", "inspect"], byte_buffer.empty(), std_path.current(), [], std_time.seconds(15), 1048576) {
             Error(error) => { results = append(results, std_testing.expect("recovery diagnostic parity", false, "explain failed")); },
             Ok(explained) => { results = append(results, std_testing.expect("recovery diagnostic parity", ordinary.exit_code == 1 && explained.exit_code == 1 && ordinary.stderr == explained.stderr, std_text.decode_utf8(explained.stderr))); }
           }

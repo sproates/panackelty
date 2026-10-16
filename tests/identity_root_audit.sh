@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -eu
 
-compiler=${PANACK_IDENTITY_AUDIT_COMPILER:-./panack}
+compiler=${PANACK_IDENTITY_AUDIT_COMPILER:-./bin/panack}
 checked=0
 failed=0
 

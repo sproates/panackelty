@@ -78,12 +78,12 @@ async main(): Unit {
 SOURCE
 port=$("$http_client" port)
 sed "s/PORT/$port/g" "$work/template.panack" > "$work/app/src/main.panack"
-./panack compile --project "$work/app/panack.json" -o "$work/service.bc" > /dev/null
+./bin/panack compile --project "$work/app/panack.json" -o "$work/service.bc" > /dev/null
 for mode in source bytecode interrupt; do
     if [ "$mode" = source ]; then
-        ./panack run --project "$work/app/panack.json" serve > "$work/stdout" 2> "$work/stderr" &
+        ./bin/panack run --project "$work/app/panack.json" serve > "$work/stdout" 2> "$work/stderr" &
     else
-        ./panack run "$work/service.bc" serve > "$work/stdout" 2> "$work/stderr" &
+        ./bin/panack run "$work/service.bc" serve > "$work/stdout" 2> "$work/stderr" &
     fi
     server_pid=$!
     "$http_client" "$port" concurrent || { cat "$work/stderr"; exit 1; }
@@ -101,7 +101,7 @@ for mode in source bytecode interrupt; do
 done
 for mode in invalid fail-ready; do
     status=0
-    ./panack run "$work/service.bc" "$mode" > "$work/stdout" 2> "$work/stderr" &
+    ./bin/panack run "$work/service.bc" "$mode" > "$work/stdout" 2> "$work/stderr" &
     server_pid=$!
     wait_for_exit || status=$?
     server_pid=

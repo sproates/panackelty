@@ -1,4 +1,4 @@
-// Finite TCP server limits. See SPEC.md for bounds, framing and shutdown.
+// Finite TCP server limits. See docs/reference/SPEC.md for bounds, framing and shutdown.
 pub record TcpServerLimits {
   clients: Nat,
   concurrency: Nat,

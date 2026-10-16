@@ -63,7 +63,7 @@ testing, and TCP modules remain separate imports.
 | `tcp` | `TcpServerLimits`, EOF-delimited and bounded streaming native TCP servers |
 
 The function signatures and checked error behavior are documented in the
-[language specification](../../SPEC.md). `HostError` is defined by
+[language specification](../../docs/reference/SPEC.md). `HostError` is defined by
 `stdlib/host`; `filesystem` and `process` re-export the same type identity.
 `FileKind` and `FileMetadata` belong to `filesystem`, while
 `ProcessOutput` belongs to `process`.
@@ -118,7 +118,7 @@ identity, permissions, or containment.
 `time.difference(end, start)` measures elapsed time. Only `time.now()` reads
 the monotonic clock. See the executable
 [host types case](../../tests/functional/cases/host_types/main.panack) and the
-[path and timing contract](../../SPEC.md#paths-and-monotonic-time).
+[path and timing contract](../../docs/reference/SPEC.md#paths-and-monotonic-time).
 
 ## Filesystem, process, and host operations
 
@@ -134,7 +134,7 @@ bytecode execution, checked UTF-8 decoding, and sleep. The pure portable
 returns a checked result.
 
 See the [host capability case](../../tests/functional/cases/host_capabilities/main.panack)
-and the [complete API contract](../../SPEC.md#typed-filesystem-process-and-sleep-apis).
+and the [complete API contract](../../docs/reference/SPEC.md#typed-filesystem-process-and-sleep-apis).
 
 ## Testing modules
 
@@ -155,5 +155,5 @@ See the [assertion case](../../tests/functional/cases/testing_library/main.panac
 [command case](../../tests/functional/cases/testing_commands/main.panack).
 
 `stdlib/tcp` remains a separate native module. See the
-[TCP server contract](../../SPEC.md#native-tcp-server-development-toolchain);
+[TCP server contract](../../docs/reference/SPEC.md#native-tcp-server-development-toolchain);
 raw TCP is unavailable in the browser.

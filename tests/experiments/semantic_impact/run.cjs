@@ -66,8 +66,8 @@ try {
   const baseline = write('baseline', source);
   const initial = evidence(baseline);
   check(initial.rows[0].join('|') === 'project|0|true', 'baseline accepted with effect pass');
-  run('./panack', ['check', baseline]);
-  check(run('./panack', [baseline]).text === '3\n6\n', 'complete baseline program executes');
+  run('./bin/panack', ['check', baseline]);
+  check(run('./bin/panack', [baseline]).text === '3\n6\n', 'complete baseline program executes');
   const leaf = one(initial.sub, 'safe_subtract'), local = one(initial.sub, 'checkout');
   const direct = one(initial.effects, 'remaining'), transitive = one(initial.effects, 'checkout');
   const ordinary = one(initial.effects, 'audit');
@@ -94,14 +94,14 @@ try {
   check(fs.readdirSync(work).join(',') === 'baseline.panack', 'no changed snapshot exists at prediction time');
   const weakened = write('weakened', replaceOnce(source, 'n >= 2', 'n >= 1'));
   const weak = evidence(weakened);
-  run('./panack', ['check', weakened], 1);
+  run('./bin/panack', ['check', weakened], 1);
   check(one(weak.sub, 'safe_subtract')[3] === 'false', 'guard prediction matches real checking');
   check(one(weak.sub, 'safe_subtract')[5] === '1', 'weakened lower bound retained');
   check(weak.rows[0][2] === 'true' && !weak.effects.some(row => row[1] === 'safe_subtract') && one(weak.effects, 'remaining').join('|') === one(initial.effects, 'remaining').join('|'), 'invalid leaf has no effects; type-valid caller boundary is positively re-established from declared effect');
   check(one(weak.sub, 'checkout').join('|') === local.join('|'), 'caller-local obligation positively re-established with same guard, bound and operands');
   const widenedSource = replaceOnce(source, 'pure safe_subtract', 'safe_subtract');
   const widened = write('widened', widenedSource), wide = evidence(widened);
-  run('./panack', ['check', widened], 1);
+  run('./bin/panack', ['check', widened], 1);
   check(one(wide.effects, 'remaining')[8] === '1' && one(wide.effects, 'remaining')[6] === 'ordinary', 'direct boundary rejects predicted effect');
   check(one(wide.effects, 'audit')[8] === '0' && one(wide.effects, 'audit')[3] === 'ordinary' &&
     one(wide.effects, 'audit')[6] === 'ordinary', 'ordinary caller positively permits changed callee');
@@ -109,7 +109,7 @@ try {
   check(one(wide.sub, 'checkout').join('|') === local.join('|'), 'effect edit preserves caller-local Nat proof');
   const cascade = write('conditional-cascade', replaceOnce(widenedSource, 'pure remaining', 'remaining'));
   const chained = evidence(cascade);
-  run('./panack', ['check', cascade], 1);
+  run('./bin/panack', ['check', cascade], 1);
   check(one(chained.effects, 'remaining')[8] === '0' && one(chained.effects, 'checkout')[8] === '1', 'conditional second edit moves rejected boundary one call outward');
   // Counterexamples: the single retained origin is not a complete dependency set.
   const redundantSource = replaceOnce(source, 'if n >= 2 { n - 2 }', 'if n >= 3 { if n >= 2 { n - 2 } else { 0 } }');
@@ -118,21 +118,21 @@ try {
   check(redundantLeaf[5] === '2' && redundantLeaf[8] === 'n >= 2', 'inner guard replaces stronger outer bound');
   check(weakenedGuard(redundantLeaf, 'n >= 3', 1) === 'unknown', 'unmatched edited guard cannot claim lost proof');
   const redundantChanged = write('redundant-changed', replaceOnce(redundantSource, 'n >= 3', 'n >= 1'));
-  run('./panack', ['check', redundantChanged]);
+  run('./bin/panack', ['check', redundantChanged]);
   check(one(evidence(redundantChanged).sub, 'safe_subtract')[3] === 'true', 'unchanged inner guard positively re-establishes proof');
   const replacedGuard = write('replaced-guard', replaceOnce(redundantSource, 'n >= 2', 'n >= 1'));
-  run('./panack', ['check', replacedGuard], 1);
+  run('./bin/panack', ['check', replacedGuard], 1);
   check(one(evidence(replacedGuard).sub, 'safe_subtract')[3] === 'false', 'mathematically sufficient outer guard is not recovered after inner replacement');
   const mutationSource = replaceOnce(source, 'pure safe_subtract(n: Nat): Nat {\n  if n >= 2 { n - 2 }',
     'pure safe_subtract(input: Nat): Nat {\n  mut n: Nat = input\n  if n >= 2 { n = 0; n - 2 }');
   const mutationFile = write('mutation', mutationSource), mutation = evidence(mutationFile);
-  run('./panack', ['check', mutationFile], 1);
+  run('./bin/panack', ['check', mutationFile], 1);
   check(one(mutation.sub, 'safe_subtract')[3] === 'false' && one(mutation.sub, 'safe_subtract')[4] === 'false', 'mutation discards stale bound');
   check(weakenedGuard(one(mutation.sub, 'safe_subtract'), 'n >= 2', 1) === 'unknown', 'missing valid baseline evidence fails closed');
   check(fs.readFileSync(baseline, 'utf8') === source, 'captured baseline unchanged throughout experiment');
   const checkSamples = [], evidenceSamples = [];
   for (let i = 0; i < 5; i++) {
-    checkSamples.push(run('./panack', ['check', baseline]).ms);
+    checkSamples.push(run('./bin/panack', ['check', baseline]).ms);
     evidenceSamples.push(evidence(baseline).ms);
   }
   console.log('MEASUREMENTS ' + JSON.stringify({sourceSha256: createHash('sha256').update(source).digest('hex'), sourceBytes: Buffer.byteLength(source),

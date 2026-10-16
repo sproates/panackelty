@@ -37,7 +37,7 @@ bytecode_native_case(name: Str, file: Str, expected: Str, target: Path): TestRes
   match std_filesystem.write(target, data) {
     Error(problem) => std_testing.expect(name, false, "fixture write failed: ${problem.code}"),
     Ok(done) => {
-      outcome = std_process.run(bytecode_native_path("./panack"), ["check", bytecode_native_text(target)],
+      outcome = std_process.run(bytecode_native_path("./bin/panack"), ["check", bytecode_native_text(target)],
         byte_buffer.empty(), std_path.current(), [], std_time.seconds(30), 1048576)
       mut valid = false
       match outcome {
@@ -59,7 +59,7 @@ bytecode_native_disasm(name: Str, file: Str, expected: Str, target: Path): TestR
   match std_filesystem.write(target, data) {
     Error(problem) => std_testing.expect(name, false, "fixture write failed"),
     Ok(done) => {
-      outcome = std_process.run(bytecode_native_path("./panack"), ["disasm", bytecode_native_text(target)],
+      outcome = std_process.run(bytecode_native_path("./bin/panack"), ["disasm", bytecode_native_text(target)],
         byte_buffer.empty(), std_path.current(), [], std_time.seconds(30), 1048576)
       mut valid = false
       match outcome {
@@ -83,7 +83,7 @@ bytecode_native_legacy_tcp(target: Path, fixture: Str): TestResult {
     Ok(done) => {
       mut valid = true
       for operation in ["check", "run", "disasm"] {
-        match std_process.run(bytecode_native_path("./panack"), [operation, bytecode_native_text(target)],
+        match std_process.run(bytecode_native_path("./bin/panack"), [operation, bytecode_native_text(target)],
           byte_buffer.empty(), std_path.current(), [], std_time.seconds(30), 1048576) {
           Error(problem) => { valid = false },
           Ok(command) => {
@@ -190,7 +190,7 @@ main(): Void {
       match std_filesystem.write(target, minimal) {
         Error(problem) => { results = results.append(std_testing.expect("native minimal fixture", false, "write failed")) },
         Ok(done) => {
-          match std_process.run(bytecode_native_path("./panack"), ["check", bytecode_native_text(target)],
+          match std_process.run(bytecode_native_path("./bin/panack"), ["check", bytecode_native_text(target)],
               byte_buffer.empty(), std_path.current(), [], std_time.seconds(30), 1048576) {
             Error(problem) => { results = results.append(std_testing.expect("native minimal fixture", false, "command failed")) },
             Ok(command) => { results = results.append(std_testing.expect("native minimal fixture",

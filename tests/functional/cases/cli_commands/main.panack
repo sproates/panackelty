@@ -50,7 +50,7 @@ pure manifest_version_from_output(value: Str): Str {
 }
 
 manifest_toolchain_version(): Str {
-  match std_process.run(path("./panack"), ["--version"], byte_buffer.empty(),
+  match std_process.run(path("./bin/panack"), ["--version"], byte_buffer.empty(),
       std_path.current(), [], std_time.seconds(10), 1024) {
     Error(error) => "",
     Ok(output) => if output.exit_code == 0 && output.signal == 0 && output.stderr == byte_buffer.empty() {
@@ -60,7 +60,7 @@ manifest_toolchain_version(): Str {
 }
 
 pure command(arguments: [Str]): TestCommand {
-  TestCommand(path("./panack"), arguments, byte_buffer.empty(), std_path.current(), [],
+  TestCommand(path("./bin/panack"), arguments, byte_buffer.empty(), std_path.current(), [],
     std_time.seconds(10), 1048576)
 }
 
@@ -717,7 +717,7 @@ main(): Void {
         }
       }
 
-      match std_process.run(path("./panack"), ["--help"], byte_buffer.empty(), std_path.current(), [],
+      match std_process.run(path("./bin/panack"), ["--help"], byte_buffer.empty(), std_path.current(), [],
           std_time.seconds(10), 1048576) {
         Error(error) => {
           results = results.append(std_testing.expect("help command name", false,

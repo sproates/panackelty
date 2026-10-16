@@ -15,7 +15,7 @@ function run(command, args, status = 0) {
 function compile(name, source) {
   const file = path.join(work, name + '.panack'), artifact = file + '.bc';
   fs.writeFileSync(file, source);
-  run('./panack', ['compile', file, '-o', artifact]);
+  run('./bin/panack', ['compile', file, '-o', artifact]);
   return {file, artifact};
 }
 function observe(built, mode='ring', capacity=128, values=true, dump=true, status=0) {
@@ -41,9 +41,9 @@ try {
   check(call.op === 17 && call.inputs.map(e=>byId.get(e.id).value).join(',') === '6,7', 'call arguments linked');
   check(complete.events.every(e=>e.inputs.every(edge=>edge.state==='retained' && edge.id<e.id)), 'acyclic retained derivation');
   const mapped = derivation.artifact+'.mapped.bc', map = mapped+'.pmap';
-  run('./panack',['compile',derivation.file,'-o',mapped,'--source-map',map]);
+  run('./bin/panack',['compile',derivation.file,'-o',mapped,'--source-map',map]);
   check(fs.readFileSync(mapped).equals(fs.readFileSync(derivation.artifact)), 'mapping preserves bytecode');
-  const location = run('./panack',['locate',mapped,'--source',derivation.file,'--source-map',map,'--function','multiply','--instruction',String(mul.pc)]);
+  const location = run('./bin/panack',['locate',mapped,'--source',derivation.file,'--source-map',map,'--function','multiply','--instruction',String(mul.pc)]);
   check(location.includes('expression: a * b\n'), 'actual arithmetic PC locates source expression');
   for (const mode of ['bulk','step','prefix','ring']) check(observe(derivation,mode).value===42, mode+' result parity');
   check(observe(derivation,'ring',1).events.length===1 && observe(derivation,'prefix',1).rootState==='discarded', 'one-slot boundary');
@@ -91,7 +91,7 @@ try {
   const trapped = observe(compile('trap','main(): Nat { xs: Array[Nat] = [1]\n xs[2] }'),'ring',128,true,true,1);
   check(trapped.rootState==='missing', 'trap has no invented successful root');
   const printed = compile('public','pure multiply(a: Nat, b: Nat): Nat { a * b }\nmain(): Void { print(multiply(6, 7)) }');
-  check(run('./panack',[printed.file])==='42\n' && run('./panack',['run',printed.artifact])==='42\n','public CLI source and bytecode output');
+  check(run('./bin/panack',[printed.file])==='42\n' && run('./bin/panack',['run',printed.artifact])==='42\n','public CLI source and bytecode output');
   // Verifier accepts a RETURN somewhere; execution must trap a different path
   // falling off the function, including after observation was disabled.
   for (const [name,tail] of [['scalar','00000000'],['unsupported','070000']]) {

@@ -18,7 +18,7 @@ case "$stdlib" in
     *) stdlib="$repo_root/$stdlib" ;;
 esac
 panack_vm=${4:-"$repo_root/panack-vm"}
-panack=${5:-"$repo_root/panack"}
+panack=${5:-"$repo_root/bin/panack"}
 case "$panack_vm" in
     /*) ;;
     *) panack_vm="$repo_root/$panack_vm" ;;

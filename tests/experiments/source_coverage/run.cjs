@@ -28,7 +28,7 @@ function run(command, args, status = 0) {
 function compile(file, mapped = true) {
   const artifact = path.join(work, `build-${serial++}.bc`), sidecar = artifact + '.pmap';
   const start = performance.now();
-  run('./panack', ['compile', file, '-o', artifact, ...(mapped ? ['--source-map', sidecar] : [])]);
+  run('./bin/panack', ['compile', file, '-o', artifact, ...(mapped ? ['--source-map', sidecar] : [])]);
   return {file, artifact, sidecar, ms:performance.now()-start};
 }
 function fixture(name, source) {
@@ -200,11 +200,11 @@ try {
   check(limited.gap === 'step-limit', 'bounded partial run is incomplete');
   const trap = fixture('trap','main(): Nat { xs: Array[Nat] = [1]\n xs[2] }\n');
   const trapCount = observe(trap,'count',1), trapBulk = observe(trap,'bulk',1);
-  check(trapCount.stderr === trapBulk.stderr && trapCount.stderr === run('./panack',['run',trap.artifact],1).stderr, 'trap semantics unchanged');
+  check(trapCount.stderr === trapBulk.stderr && trapCount.stderr === run('./bin/panack',['run',trap.artifact],1).stderr, 'trap semantics unchanged');
   const trapMap = decodeLocal(validate(trap));
   check([...sourceReach(trapMap,trapCount).lines].some(([key,hit]) => key === 'project/trap.panack:2' && hit), 'attempted trap expression is hit');
   const printed = fixture('printed','main(): Void { print(42) }\n');
-  check(observe(printed).stdout === '42\n' && observe(printed,'bulk').stdout === '42\n' && run('./panack',['run',printed.artifact]).stdout === '42\n' && run('./panack',[printed.file]).stdout === '42\n', 'stdout equivalence with public CLI');
+  check(observe(printed).stdout === '42\n' && observe(printed,'bulk').stdout === '42\n' && run('./bin/panack',['run',printed.artifact]).stdout === '42\n' && run('./bin/panack',[printed.file]).stdout === '42\n', 'stdout equivalence with public CLI');
   const asynchronous = fixture('async', 'async child(): Result[Bytes,Str] { await async_fake_read(false) }\nasync main(): Unit { result = await child()\n () }\n');
   const asyncCount = observe(asynchronous), asyncBulk = observe(asynchronous,'bulk');
   check(asyncCount.waits === 1 && asyncBulk.waits === 1 && asyncCount.gap === 'none', 'fake async suspension resumes with complete counts');
@@ -212,11 +212,11 @@ try {
   const childIdentity = functionIdentity(asyncCount.names.keys(), 'child');
   check(sourceReach(asyncMap,asyncCount).functions.get(functionIdentity(asyncMap.functions.map(fn=>fn.name), 'child')) === 1, 'async child entry counted once across suspension');
   assert.deepEqual([...asyncCount.pcs].filter(([key])=>key.startsWith(asyncCount.names.get(childIdentity)+':')).map(([,c])=>c.hits),[1,1,1]); checks++;
-  run('./panack',['run',asynchronous.artifact]); checks++;
+  run('./bin/panack',['run',asynchronous.artifact]); checks++;
   const childPath = JSON.stringify(printed.artifact);
   const nested = fixture('nested',`import stdlib/filesystem as filesystem\nimport stdlib/path as path\nimport stdlib/result as result\nimport stdlib/host as host\nmain(): Void { match filesystem.read(result.value_or(path.from_text(${childPath}), path.current()), 16777216) { Ok(raw) => host.run(raw, []), Error(error) => host.exit(1) } }\n`);
   const nestedCount = observe(nested), nestedBulk = observe(nested,'bulk');
-  check(nestedCount.stdout === '42\n' && nestedBulk.stdout === '42\n' && run('./panack',['run',nested.artifact]).stdout === '42\n', 'nested execution semantics preserved');
+  check(nestedCount.stdout === '42\n' && nestedBulk.stdout === '42\n' && run('./bin/panack',['run',nested.artifact]).stdout === '42\n', 'nested execution semantics preserved');
   check(nestedCount.gap === 'nested-execution', 'missing child execution explicitly incomplete');
   const indirect = fixture('indirect',`import stdlib/filesystem as filesystem\nimport stdlib/path as path\nimport stdlib/result as result\nimport stdlib/host as host\nchild(raw: Bytes): Void { host.run(raw, []) }\nmain(): Void { match filesystem.read(result.value_or(path.from_text(${childPath}), path.current()), 16777216) { Ok(raw) => { f: Fn[Bytes,Void] = @child\n f.call(raw) }, Error(error) => host.exit(1) } }\n`);
   check(observe(indirect).gap === 'nested-execution', 'indirect child also invalidates completeness');
@@ -280,7 +280,7 @@ main(): Nat {
   // format version and a loader/tool/bootstrap migration, not an opaque suffix.
   const extension = path.join(work,'extended.bc');
   fs.writeFileSync(extension,Buffer.concat([fs.readFileSync(basic.artifact),original]));
-  run('./panack',['check',extension],1); checks++;
+  run('./bin/panack',['check',extension],1); checks++;
   console.log(JSON.stringify({checks, ownLines, functions:ownFunctions.map(name=>[name,reach.functions.get(functionIdentity(reach.functions.keys(),name))]),
     artifactBytes:fs.statSync(basic.artifact).size, sidecarBytes:original.length,
     counterBytes:counted.bytes, samples},null,2));

@@ -2,7 +2,7 @@
 
 This document describes the representation used by the portable C11 seed VM. It
 is an implementation contract beneath the language-level value semantics in
-`src/bytecode/FORMAT.md`; it does not change bytecode version 8.
+`src/bytecode/FORMAT.md`; it does not change bytecode version 9.
 
 ## Values
 
@@ -111,7 +111,7 @@ in empty, shared, growing and nested append operations.
 
 ## Limits and safety
 
-The native loader applies every version-8 limit before allocating or iterating
+The native loader applies every version-9 limit before allocating or iterating
 the corresponding input. It validates UTF-8, minimal integers, decimal BCD,
 canonical function ordering, flags, opcodes, jump targets, calls, arities, and
 purity before execution. Runtime operations retain independent type, bounds,

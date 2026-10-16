@@ -45,7 +45,7 @@ PACKAGE_CHECKSUM := $(PACKAGE_ARCHIVE).sha256
 BOOTSTRAP_DIR := $(BUILD_DIR)/bootstrap
 SEED_COMPILER ?= bootstrap/compiler-v9.bc
 SEED_DIGEST ?= $(SEED_COMPILER).sha256
-COMPILER_SOURCE := compiler.panack
+COMPILER_SOURCE := src/compiler/main.panack
 STDLIB_CONFORMANCE := tests/functional/cases/stdlib/main.panack
 STAGE1_COMPILER := $(BOOTSTRAP_DIR)/stage1/compiler.bc
 STAGE2_COMPILER := $(BOOTSTRAP_DIR)/stage2/compiler.bc
@@ -217,7 +217,7 @@ functional-impl: $(BUILD_DIR)/vm/static_http_client $(STAGE2_COMPILER) $(BUILD_D
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/async-filesystem sh tests/async_filesystem.sh
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/continuous-service sh tests/continuous_service.sh
 	@PANACK_STATIC_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/static_http_client)" PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/static-http sh tests/static_http.sh
-	@PANACK_BIN="$(abspath panack)" PANACK_HTTP_FIXTURE="$(abspath $(BUILD_DIR)/vm/http_fixture)" $(PROFILE) functional/http-client sh tests/http_client_package.sh
+	@PANACK_BIN="$(abspath bin/panack)" PANACK_HTTP_FIXTURE="$(abspath $(BUILD_DIR)/vm/http_fixture)" $(PROFILE) functional/http-client sh tests/http_client_package.sh
 	@PANACK_TCP_SERVER="$(abspath $(BUILD_DIR)/vm/tcp_server)" $(PROFILE) functional/tcp sh tests/tcp.sh
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACK_TEST_NAMESPACE_EMISSION=1 $(PROFILE) functional/compiler-driver $(PROBE) tests/runner/compiler_driver.panack
 	@mkdir -p "$(BUILD_DIR)"
@@ -233,11 +233,11 @@ functional-impl: $(BUILD_DIR)/vm/static_http_client $(STAGE2_COMPILER) $(BUILD_D
 		env -u PANACKELTY_BOOTSTRAP_ROOT \
 			PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" \
 			PANACK_TEST_RUNNER_REPORT="$$report" \
-			./panack run tests/functional/cases/runner_smoke/main.panack && \
-		env -u PANACKELTY_BOOTSTRAP_ROOT ./panack compile tests/functional/cases/runner_smoke/main.panack -o "$$artifact" && \
+			./bin/panack run tests/functional/cases/runner_smoke/main.panack && \
+		env -u PANACKELTY_BOOTSTRAP_ROOT ./bin/panack compile tests/functional/cases/runner_smoke/main.panack -o "$$artifact" && \
 		env -u PANACKELTY_BOOTSTRAP_ROOT \
 			PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" \
-			PANACK_TEST_RUNNER_REPORT="$$report" ./panack run "$$artifact"
+			PANACK_TEST_RUNNER_REPORT="$$report" ./bin/panack run "$$artifact"
 
 native: panack-vm
 
@@ -416,7 +416,7 @@ native-check: bootstrap-check
 
 $(BUILD_DIR)/tools/http-server.bc: panack-vm $(SEED_COMPILER) tools/http-server/panack.json tools/http-server/src/main.panack $(wildcard packages/static_http/src/*.panack) packages/static_http/panack.json $(wildcard packages/http/src/*.panack) packages/http/panack.json $(wildcard src/stdlib/*.panack)
 	@mkdir -p "$(@D)"
-	./panack compile --project tools/http-server/panack.json -o "$@"
+	./bin/panack compile --project tools/http-server/panack.json -o "$@"
 
 install: native $(BUILD_DIR)/tools/http-server.bc
 	install -d "$(DESTDIR)$(PREFIX)/bin"
@@ -427,7 +427,7 @@ install: native $(BUILD_DIR)/tools/http-server.bc
 	install -d "$(DESTDIR)$(PREFIX)/packages/static_http"
 	install -d "$(DESTDIR)$(PREFIX)/tools/http-server/src"
 	install -d "$(DESTDIR)$(PREFIX)/share/doc/panackelty"
-	install -m 755 panack "$(DESTDIR)$(PREFIX)/bin/panack"
+	install -m 755 bin/panack "$(DESTDIR)$(PREFIX)/bin/panack"
 	install -m 755 tools/http-server/launch.sh "$(DESTDIR)$(PREFIX)/bin/panack-http-server"
 	install -m 755 panack-vm "$(DESTDIR)$(PREFIX)/libexec/panackelty/panack-vm"
 	install -m 644 VERSION "$(DESTDIR)$(PREFIX)/share/panackelty/VERSION"
@@ -438,7 +438,7 @@ install: native $(BUILD_DIR)/tools/http-server.bc
 	cp -R packages/static_http/. "$(DESTDIR)$(PREFIX)/packages/static_http/"
 	install -m 644 tools/http-server/panack.json tools/http-server/README.md "$(DESTDIR)$(PREFIX)/tools/http-server/"
 	install -m 644 tools/http-server/src/*.panack "$(DESTDIR)$(PREFIX)/tools/http-server/src/"
-	install -m 644 LICENSE CHANGELOG.md RELEASE_POLICY.md SECURITY.md SPEC.md "$(DESTDIR)$(PREFIX)/share/doc/panackelty/"
+	install -m 644 LICENSE CHANGELOG.md docs/releases/RELEASE_POLICY.md SECURITY.md docs/reference/SPEC.md "$(DESTDIR)$(PREFIX)/share/doc/panackelty/"
 
 package: native-check
 	$(MAKE) quick-start
@@ -449,6 +449,8 @@ package-archive: native $(BUILD_DIR)/vm/http_client
 	install -d "$(PACKAGE_ROOT)/examples"
 	cp -R examples/. "$(PACKAGE_ROOT)/examples/"
 	install -m 644 README.md LICENSE "$(PACKAGE_ROOT)/"
+	install -d "$(PACKAGE_ROOT)/docs/guides"
+	install -m 644 docs/guides/INSTALLATION.md "$(PACKAGE_ROOT)/docs/guides/"
 	COPYFILE_DISABLE=1 tar $(TAR_OWNER_FLAGS) -C "$(PACKAGE_STAGE)" -czf "$(PACKAGE_ARCHIVE)" "$(PACKAGE_ROOT_NAME)"
 
 release-smoke: package-archive

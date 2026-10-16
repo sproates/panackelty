@@ -8,7 +8,7 @@ test('plan export allows five minutes and preserves exact response validation',t
   const {exportPlan}=require('../../scripts/source_coverage_baseline.cjs');
   exportPlan('/tmp/export.bc','tests/runner/compiler_module_bindings_unit.panack','/tmp/plan');
   const [binary,args,options]=spawn.mock.calls[0].arguments;
-  assert.equal(binary,'./panack');
+  assert.equal(binary,'./bin/panack');
   assert.deepEqual(args,['run','/tmp/export.bc','tests/runner/compiler_module_bindings_unit.panack','/tmp/plan']);
   assert.equal(options.timeout,300000);
   assert.equal(options.maxBuffer,16*1024*1024);

@@ -11,12 +11,12 @@ extract() {
       $0 == "<!-- " marker "-end -->" { capture=0; ends++; next }
       capture && !/^```/ { print }
       END { if (starts != 1 || ends != 1 || capture) exit 1 }
-    ' "$root/README.md" > "$2"
+    ' "$root/docs/guides/INSTALLATION.md" > "$2"
 }
 HOME="$work/home with spaces"
 export HOME
 unset SUDO_USER
-sh "$root/scripts/install.sh"
+sh "$root/scripts/install.sh" --version 0.1.0-alpha.13
 extract quick-start-program "$work/hello.panack"
 extract quick-start-output "$work/expected"
 extract release-install-commands "$work/commands"

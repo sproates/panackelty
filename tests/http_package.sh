@@ -34,24 +34,24 @@ async main(): Unit {
 }
 SOURCE
 
-./panack run packages/http/src/parser_test.panack
-./panack compile packages/http/src/parser_test.panack -o "$work/parser.bc" > /dev/null
-./panack run "$work/parser.bc"
-./panack check --project "$work/app/panack.json" > /dev/null
-./panack compile --project "$work/app/panack.json" -o "$work/http-app.bc" > /dev/null
+./bin/panack run packages/http/src/parser_test.panack
+./bin/panack compile packages/http/src/parser_test.panack -o "$work/parser.bc" > /dev/null
+./bin/panack run "$work/parser.bc"
+./bin/panack check --project "$work/app/panack.json" > /dev/null
+./bin/panack compile --project "$work/app/panack.json" -o "$work/http-app.bc" > /dev/null
 test -s "$work/http-app.bc"
-./panack check --project examples/network/http_server/panack.json > /dev/null
-./panack compile --project examples/network/http_server/panack.json \
+./bin/panack check --project examples/network/http_server/panack.json > /dev/null
+./bin/panack compile --project examples/network/http_server/panack.json \
     -o "$work/documented-example.bc" > /dev/null
 port=$("$http_client" port)
 sed "s/8080/$port/g" examples/network/http_server/src/main.panack > "$work/app/src/main.panack"
-./panack check --project "$work/app/panack.json" > /dev/null
-./panack compile --project "$work/app/panack.json" -o "$work/example.bc" > /dev/null
+./bin/panack check --project "$work/app/panack.json" > /dev/null
+./bin/panack compile --project "$work/app/panack.json" -o "$work/example.bc" > /dev/null
 for mode in source bytecode; do
     if [ "$mode" = source ]; then
-        ./panack run --project "$work/app/panack.json" > "$work/stdout" 2> "$work/stderr" &
+        ./bin/panack run --project "$work/app/panack.json" > "$work/stdout" 2> "$work/stderr" &
     else
-        ./panack run "$work/example.bc" > "$work/stdout" 2> "$work/stderr" &
+        ./bin/panack run "$work/example.bc" > "$work/stdout" 2> "$work/stderr" &
     fi
     server_pid=$!
     "$http_client" "$port" example || { cat "$work/stderr"; exit 1; }
@@ -93,13 +93,13 @@ async main(): Unit {
 SOURCE
 port=$("$http_client" port)
 sed "s/PORT/$port/g" "$work/server.panack" > "$work/app/src/main.panack"
-./panack check --project "$work/app/panack.json" > /dev/null
-./panack compile --project "$work/app/panack.json" -o "$work/run.bc" > /dev/null
+./bin/panack check --project "$work/app/panack.json" > /dev/null
+./bin/panack compile --project "$work/app/panack.json" -o "$work/run.bc" > /dev/null
 for extension in panack bc; do
     if [ "$extension" = panack ]; then
-        ./panack run --project "$work/app/panack.json" > "$work/stdout" 2> "$work/stderr" &
+        ./bin/panack run --project "$work/app/panack.json" > "$work/stdout" 2> "$work/stderr" &
     else
-        ./panack run "$work/run.bc" > "$work/stdout" 2> "$work/stderr" &
+        ./bin/panack run "$work/run.bc" > "$work/stdout" 2> "$work/stderr" &
     fi
     server_pid=$!
     for mode in get post handler-error method malformed partial body-limit header-limit head head-body head-chunked head-error head-invalid-response head-malformed; do
@@ -171,22 +171,22 @@ for server_mode in source bytecode; do
     port=$("$http_client" port)
     sed "s/PORT/$port/g" "$work/interop-server.panack" > "$work/app/src/main.panack"
     sed "s/PORT/$port/g" "$work/client/main.template" > "$work/client/src/main.panack"
-    ./panack check --project "$work/app/panack.json" > /dev/null
-    ./panack compile --project "$work/app/panack.json" -o "$work/interop-server.bc" > /dev/null
-    ./panack check --project "$work/client/panack.json" > /dev/null
-    ./panack compile --project "$work/client/panack.json" -o "$work/interop-client.bc" > /dev/null
+    ./bin/panack check --project "$work/app/panack.json" > /dev/null
+    ./bin/panack compile --project "$work/app/panack.json" -o "$work/interop-server.bc" > /dev/null
+    ./bin/panack check --project "$work/client/panack.json" > /dev/null
+    ./bin/panack compile --project "$work/client/panack.json" -o "$work/interop-client.bc" > /dev/null
     if [ "$server_mode" = source ]; then
-        ./panack run --project "$work/app/panack.json" > "$work/server.stdout" 2> "$work/server.stderr" &
+        ./bin/panack run --project "$work/app/panack.json" > "$work/server.stdout" 2> "$work/server.stderr" &
     else
-        ./panack run "$work/interop-server.bc" > "$work/server.stdout" 2> "$work/server.stderr" &
+        ./bin/panack run "$work/interop-server.bc" > "$work/server.stdout" 2> "$work/server.stderr" &
     fi
     server_pid=$!
     "$http_client" "$port" example || { cat "$work/server.stderr"; exit 1; }
-    ./panack run --project "$work/client/panack.json" > "$work/client.stdout" 2> "$work/client.stderr" || {
+    ./bin/panack run --project "$work/client/panack.json" > "$work/client.stdout" 2> "$work/client.stderr" || {
         cat "$work/client.stderr" "$work/server.stderr"
         exit 1
     }
-    ./panack run "$work/interop-client.bc" > "$work/client.stdout" 2> "$work/client.stderr" || {
+    ./bin/panack run "$work/interop-client.bc" > "$work/client.stdout" 2> "$work/client.stderr" || {
         cat "$work/client.stderr" "$work/server.stderr"
         exit 1
     }
@@ -225,8 +225,8 @@ done
 test -s "$work/held-port"
 port=$(cat "$work/held-port")
 sed "s/PORT/$port/g" "$work/conflict.panack" > "$work/app/src/main.panack"
-./panack check --project "$work/app/panack.json" > /dev/null
-./panack run --project "$work/app/panack.json" > "$work/stdout" 2> "$work/stderr"
+./bin/panack check --project "$work/app/panack.json" > /dev/null
+./bin/panack run --project "$work/app/panack.json" > "$work/stdout" 2> "$work/stderr"
 kill "$holder_pid"
 wait "$holder_pid" 2>/dev/null || :
 holder_pid=

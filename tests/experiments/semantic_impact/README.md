@@ -8,7 +8,7 @@ predicts before making
 changed snapshots, then checks those snapshots through both the checker and
 public `panack check`. Temporary source files are removed on success or failure.
 This is one feasibility experiment for [GI#175: Semantic change prediction](https://github.com/sproates/panackelty/issues/175)
-and [RM#97: Shared programme investigation](../../../ROADMAP.md#rm-97), not a
+and [RM#97: Shared programme investigation](../../../docs/roadmap/records/current-status-and-grooming-2026-10-01.md#rm-97), not a
 production predictor, public CLI, proof graph or completion of GI#175.
 
 ## Method and results
@@ -67,7 +67,7 @@ satisfy GI#175's original one-change transitive acceptance criterion.
 - Assignment `n = 0` between guard and subtraction discards the bound. The
   unchanged guard text is insufficient; absent valid evidence returns unknown.
 - The original measured baseline skipped the entire effect pass after guard/proof
-  rejection. With [RM#107: Per-function effect recovery](../../../ROADMAP.md#rm-107),
+  rejection. With [RM#107: Per-function effect recovery](../../../docs/roadmap/records/u3-per-function-effect-recovery--2026-10-03.md#rm-107),
   the runner instead verifies that the type-invalid leaf has no effect records and
   the type-valid caller's declared boundary is positively re-established.
   `effects_checked=true` means the filtered pass ran, not that every function was

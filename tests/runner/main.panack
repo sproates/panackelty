@@ -90,7 +90,7 @@ pure runner_command(arguments: [Str], clear_stdlib_value: Bool): TestCommand {
 }
 
 pure runner_bootstrap_command(arguments: [Str], timeout: Nat): TestCommand {
-  TestCommand(runner_path("./panack"), arguments, byte_buffer.empty(), std_path.current(),
+  TestCommand(runner_path("./bin/panack"), arguments, byte_buffer.empty(), std_path.current(),
     ["PANACKELTY_BOOTSTRAP_ROOT=."], std_time.seconds(timeout), 1048576)
 }
 
@@ -101,11 +101,11 @@ pure runner_timed_command(arguments: [Str], clear_stdlib_value: Bool,
   if clear_stdlib_value {
     TestCommand(runner_path("/bin/sh"),
       ["-c", "unset PANACKELTY_STDLIB_VALUE PANACKELTY_BOOTSTRAP_ROOT; exec \"$@\"", "runner-stdlib",
-        "./panack"].concat(arguments), byte_buffer.empty(), std_path.current(), [],
+        "./bin/panack"].concat(arguments), byte_buffer.empty(), std_path.current(), [],
       std_time.seconds(timeout), 1048576)
   } else {
     TestCommand(runner_path("/usr/bin/env"),
-      ["-u", "PANACKELTY_BOOTSTRAP_ROOT", "./panack"].concat(arguments), byte_buffer.empty(), std_path.current(), [],
+      ["-u", "PANACKELTY_BOOTSTRAP_ROOT", "./bin/panack"].concat(arguments), byte_buffer.empty(), std_path.current(), [],
       std_time.seconds(timeout), 1048576)
   }
 }
@@ -197,7 +197,7 @@ runner_program(label: Str, source: Path, expected_file: Path,
       compile_command = if label == "case/compiler_skeleton" {
         // The bootstrap recipe has already built and verified this artifact.
         TestCommand(runner_path("/bin/sh"),
-          ["-c", "if [ -n \"${PANACK_TEST_COMPILER:-}\" ]; then cp \"$PANACK_TEST_COMPILER\" \"$1\" && printf 'wrote %s\\n' \"$1\"; else exec ./panack compile \"$2\" -o \"$1\"; fi",
+          ["-c", "if [ -n \"${PANACK_TEST_COMPILER:-}\" ]; then cp \"$PANACK_TEST_COMPILER\" \"$1\" && printf 'wrote %s\\n' \"$1\"; else exec ./bin/panack compile \"$2\" -o \"$1\"; fi",
             "runner-compiler", expected_path, source_path], byte_buffer.empty(), std_path.current(),
           ["PANACKELTY_BOOTSTRAP_ROOT=."],
           std_time.seconds(90), 1048576)

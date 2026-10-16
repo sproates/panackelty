@@ -17,7 +17,7 @@ function command(args, timeout = 180000, extraEnv = {}) {
 function exportPlan(tool,entry,prefix) {
   // Large plans completed in 141s on one hosted runner; another needed 179s
   // for the smaller compiler plan alone. Allow bounded runner variation.
-  if (command(['./panack','run',tool,entry,prefix],300000,{PANACKELTY_BOOTSTRAP_ROOT:checkout}) !== 'plan: wrote\n') throw Error(`Unexpected export response: ${entry}`);
+  if (command(['./bin/panack','run',tool,entry,prefix],300000,{PANACKELTY_BOOTSTRAP_ROOT:checkout}) !== 'plan: wrote\n') throw Error(`Unexpected export response: ${entry}`);
 }
 function baseline(output, allowDirty = false) {
   const manifestBytes = regular(path.join(checkout,'tests/source_coverage/manifest.json'));
@@ -36,7 +36,7 @@ function baseline(output, allowDirty = false) {
   const vm = regular(path.join(checkout,'panack-vm'));
   const plans = new Map(), groups = [], sessions = [], seen = new Set();
   const tool = path.join(work,'export.bc');
-  command(['./panack','compile','tests/source_coverage/export.panack','-o',tool],180000,
+  command(['./bin/panack','compile','tests/source_coverage/export.panack','-o',tool],180000,
     {PANACKELTY_BOOTSTRAP_ROOT:checkout});
   function plan(entry) {
     if (!plans.has(entry)) {
@@ -50,7 +50,7 @@ function baseline(output, allowDirty = false) {
   function run(id,p,args,check,extraEnv={}) {
     console.log(`Collect: ${id}`);
     const directory = path.join(work,`session-${sessions.length}`);
-    const stdout = command(['./panack','coverage-session',directory,p.prefix+'.bc',p.prefix+'.inv','--',...args],180000,extraEnv);
+    const stdout = command(['./bin/panack','coverage-session',directory,p.prefix+'.bc',p.prefix+'.inv','--',...args],180000,extraEnv);
     fs.writeFileSync(path.join(work,`stdout-${sessions.length}.txt`),stdout);
     check(stdout);
     const session = readSession(directory,[p],seen);

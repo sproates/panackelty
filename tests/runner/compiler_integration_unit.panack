@@ -24,7 +24,7 @@ pure integration_contains(actual: Str, expected: Str): Bool {
   found
 }
 pure integration_command(args: [Str]): TestCommand {
-  TestCommand(contract_path("./panack"), args, byte_buffer.empty(), std_path.current(), [], std_time.seconds(90), 1048576)
+  TestCommand(contract_path("./bin/panack"), args, byte_buffer.empty(), std_path.current(), [], std_time.seconds(90), 1048576)
 }
 integration_output(name: Str, args: [Str], expected: Str): TestResult {
   command = integration_command(args)
@@ -46,7 +46,7 @@ integration_probe(name: Str, args: [Str], expected: Str): TestResult {
   std_testing_commands.run_command(name, command, ProcessOutput(0, 0, std_text.encode_utf8(expected), byte_buffer.empty()))
 }
 integration_error(name: Str, args: [Str], status: Nat, output: Str, expected: Str): TestResult {
-  match std_process.run(contract_path("./panack"), args, byte_buffer.empty(), std_path.current(), [], std_time.seconds(90), 1048576) {
+  match std_process.run(contract_path("./bin/panack"), args, byte_buffer.empty(), std_path.current(), [], std_time.seconds(90), 1048576) {
     Error(error) => std_testing.expect(name, false, "command failed"),
     Ok(actual) => std_testing.expect(name, actual.exit_code == status && actual.signal == 0 &&
       actual.stdout == std_text.encode_utf8(output) && integration_contains(std_text.decode_utf8(actual.stderr), expected),
@@ -203,7 +203,7 @@ main(): Void {
           results = results.append(integration_bytes("driver artifact ${source}", artifact_path, reference_path))
           results = results.append(integration_output("driver check artifact ${source}", ["run", driver, "check", artifact], "ok\n"))
           results = results.append(integration_output("driver run artifact ${source}", ["run", driver, artifact], "42\n"))
-          match std_process.run(contract_path("./panack"), ["run", driver, "disasm", source], byte_buffer.empty(),
+          match std_process.run(contract_path("./bin/panack"), ["run", driver, "disasm", source], byte_buffer.empty(),
               std_path.current(), [], std_time.seconds(90), 1048576) {
             Error(error) => { results = results.append(std_testing.expect("driver disassembly", false, "command failed")) },
             Ok(output) => {

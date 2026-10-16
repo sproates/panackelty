@@ -18,7 +18,7 @@ pure map_contains(actual: Str, expected: Str): Bool {
   found
 }
 map_command(name: Str, args: [Str], status: Nat, stdout: Str, diagnostic: Str): TestResult {
-  mut command: Str = "./panack"
+  mut command: Str = "./bin/panack"
   mut command_args: [Str] = args
   if (std_environment.get("PANACK_TEST_COMPILER") != None()) {
     command = "./panack-vm"

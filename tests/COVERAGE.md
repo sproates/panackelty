@@ -32,7 +32,7 @@ The guides' expected output is checked through WASI and the native public CLI.
 Suggested invoice edits must recalculate correctly and an invalid guarded value
 must fail. Browser checks ensure each loaded program's guide matches its selection.
 
-This matrix maps the behavior promised by `SPEC.md` to the automated evidence
+This matrix maps the behavior promised by `docs/reference/SPEC.md` to the automated evidence
 in the unit and functional suites. It tracks behavioral protection, not merely
 line coverage. Update it whenever a language promise or its tests change.
 The [testing guide](README.md) describes suite ownership and validation commands.
@@ -43,12 +43,12 @@ from `main` and the [production `.panack` source](https://sproates.github.io/pan
 from `next`. The first verified source baseline covers all 38 tracked production
 compiler, bytecode and standard-library files across 30 fresh executions: lines
 86.22%, functions 89.85%, source outcomes 79.57%, no unavailable measurements.
-The [baseline contract](../docs/SOURCE_COVERAGE_BASELINE.md) defines the exact
+The [baseline contract](../docs/history/SOURCE_COVERAGE_BASELINE.md) defines the exact
 initial corpus, exclusions, identities and completeness rules. Lines are unique
 eligible expression/statement start lines; branches are original-source outcomes,
 not native or VM instruction branches. The corpus does not include every canonical
 test or browser/WASI execution. SC5 is accepted; bounded gap closure and regression
-policy remain SC6 under [RM#46 / GI#131](../ROADMAP.md#rm-46).
+policy remain SC6 under [RM#46 / GI#131](../docs/roadmap/records/panackelty-source-coverage-programme.md#rm-46).
 Execution coverage does not establish assertion quality. Do not interpret this
 behavior matrix, test counts or C percentages as a `.panack` coverage percentage.
 
@@ -151,7 +151,7 @@ Status meanings:
 | Panackelty-hosted fixture orchestration | `runner/main.panack`; `functional/cases/runner_smoke`; `functional/cases/stdlib_module_api`; `functional/failures/stdlib_legacy_api_removed`; `functional/cases/cli_check_disasm`; `functional/cases/cli_commands`; `functional/cases/cli_environment_files`; `functional/cases/cli_diagnostic_display`; `functional/cases/cli_rational_failures`; `runner/compiler_driver.panack`; `unit/harness/runner.sh` | **Covered** — thirty selected success fixtures and twenty-three example programs run source, compile, and bytecode with byte-exact streams/status; sixty failure fixtures check exact normalized diagnostics for check/compile and absent artifacts; fourteen also check run/disasm. The new module API fixture covers `prelude.path.from_text`, the `prelude.byte_buffer` alias alongside the `bytes()` constructor, and distinct `numeric.divide` and `prelude.time.divide` calls; its failure companion requires legacy `path_string_*` and Str-based trapping filesystem imports to be rejected. Source and bytecode checks, matching disassembly, malformed bytecode and legacy extension rejection, bare-path execution, default compile output, arguments, stderr/exit status, help and version, environment override, text and binary file round trips, missing paths, invalid UTF-8, and permission denial on unprivileged POSIX hosts, paired example discovery, explicit artifact and workspace cleanup, deterministic reports, injected output/diagnostic mismatches, missing fixture expectations, nonempty-workspace recovery, isolated inherited environment for `stdlib`, and checkout-bound compiler `source.path` are covered. The canonical check captures one complete runner report during the native oracle smoke execution and checks its exact bytes in both functional smoke modes; standalone targets still run the full runner. |
 | Native C11 seed VM | `runner/vm_unit.panack`; `native_oracle_contracts.sh`; portable vectors | **Covered** for strict C11 compilation, bounded decoding and verification, exhaustive truncations, shared and forged malformed artifacts, differential program output, large integers, exact decimals, collections, UTF-8, host arguments/environment/status, nested execution, forged dynamic traps, byte-identical self-hosted compilation, and running the complete compiler. |
 | Verified self-hosted seed refresh | `seed_refresh.sh`; `make bootstrap-check` | **Covered** for recorded input digest verification before execution, fresh verified compiler stages 2–4, compiler/library byte identity, exact conformance output, failure preservation, locks/signals/concurrent edits, publication and idempotence. A real refresh uses a restricted `PATH`; failure injection uses a shell fake VM. |
-| Reproducible native distribution | `unit/harness/bootstrap.sh`; `make bootstrap-check`; `unit/harness/distribution.sh`; `unit/harness/layout.sh`; `native_conformance.sh`; `release_archive_smoke.sh`; `quick_start.sh`; `make package` | **Covered** for seed verification, corrupt-seed rejection in an isolated checkout with shared VM inode/byte preservation, stage-2/stage-3 compiler and standard-library identity, installed layout with bundled logical standard-library imports, canonical release and bytecode version reporting, native conformance, and a friendly single-root archive containing the launcher, native VM, compiler seed, standard-library sources, license, user-facing release documents, and the complete tested example set. Distribution regressions also exercise functional compiler handoff, packaging, checksums, and the documented quick start from a checkout path containing spaces and parentheses, plus an installation destination with those characters. The archive structure test rejects unsafe or unexpected paths, files, ownership metadata, and platform sidecars; checksum coverage recomputes and compares the published SHA-256 digest, and a relocated packaged tour example executes with its exact expected output. The exact-artifact release gate relocates the final archive, removes development tools from `PATH`, creates its inputs outside the checkout, and verifies help, version, source checking and execution, compilation, bytecode execution, argument forwarding, standard-library discovery, and malformed-bytecode rejection. The alpha.12 candidate extends that relocated archive gate to exercise inventory, inventory-check, coverage-run, coverage-session, coverage-aggregate and coverage-report using the namespace trip-planner example. The current SP1 first-gate acceptance adds the two-application shared-library and package-tree relocation fixture against the packaged, relocated compiler, VM and standard library, including source and saved-bytecode execution from an unrelated working directory. The final package gate extracts its source and expected transcript from the packaged README, then verifies checksum, install, version, check, source execution, compilation, bytecode execution, upgrade, and removal from a clean home and runtime-only `PATH`. Workflow contract coverage verifies PR and main-only push triggers, cancellation of superseded PR runs, and shared canonical suites across the validation matrix plus isolated full coverage on each packaging platform. Native build-flag coverage checks the optimisation default, user overrides, and retained strict C11 warnings. Workflow contract coverage fixes the independent packaging matrix at Ubuntu 22.04 x86-64 and macOS 14 arm64, retains checksums and build provenance beside both archives, and rejects premature publication. The tag workflow additionally requires an exact canonical version tag, complete validation, both successful package jobs, downloaded checksum and provenance verification, and write permission isolated to final prerelease publication. |
+| Reproducible native distribution | `unit/harness/bootstrap.sh`; `make bootstrap-check`; `unit/harness/distribution.sh`; `unit/harness/layout.sh`; `native_conformance.sh`; `release_archive_smoke.sh`; `quick_start.sh`; `make package` | **Covered** for seed verification, corrupt-seed rejection in an isolated checkout with shared VM inode/byte preservation, stage-2/stage-3 compiler and standard-library identity, installed layout with bundled logical standard-library imports, canonical release and bytecode version reporting, native conformance, and a friendly single-root archive containing the launcher, native VM, compiler seed, standard-library sources, license, user-facing release documents, and the complete tested example set. Distribution regressions also exercise functional compiler handoff, packaging, checksums, and the documented quick start from a checkout path containing spaces and parentheses, plus an installation destination with those characters. The archive structure test rejects unsafe or unexpected paths, files, ownership metadata, and platform sidecars; checksum coverage recomputes and compares the published SHA-256 digest, and a relocated packaged tour example executes with its exact expected output. The exact-artifact release gate relocates the final archive, removes development tools from `PATH`, creates its inputs outside the checkout, and verifies help, version, source checking and execution, compilation, bytecode execution, argument forwarding, standard-library discovery, and malformed-bytecode rejection. Alpha.12 extended that relocated archive gate to exercise inventory, inventory-check, coverage-run, coverage-session, coverage-aggregate and coverage-report using the namespace trip-planner example. The current SP1 first-gate acceptance adds the two-application shared-library and package-tree relocation fixture against the packaged, relocated compiler, VM and standard library, including source and saved-bytecode execution from an unrelated working directory. The final package gate extracts its source and expected transcript from the packaged installation guide, then verifies checksum, install, version, check, source execution, compilation, bytecode execution, upgrade, and removal from a clean home and runtime-only `PATH`. Workflow contract coverage verifies PR and main-only push triggers, cancellation of superseded PR runs, and shared canonical suites across the validation matrix plus isolated full coverage on each packaging platform. Native build-flag coverage checks the optimisation default, user overrides, and retained strict C11 warnings. Workflow contract coverage fixes the independent packaging matrix at Ubuntu 22.04 x86-64 and macOS 14 arm64, retains checksums and build provenance beside both archives, and rejects premature publication. The tag workflow additionally requires an exact canonical version tag, complete validation, both successful package jobs, downloaded checksum and provenance verification, and write permission isolated to final prerelease publication. |
 | CI-only validation routing | `scripts/ci_scope.sh`; `scripts/validate_change.sh`; `tests/ci_scope.sh`; `tests/workflow_yaml.sh`; `tests/unit/harness/layout.sh`; `tests/source_coverage/route.test.cjs` | **Covered** for the explicit configuration-only allowlist, workflow-only versus mixed-product routing, matching local/hosted focused checks, YAML syntax and top-level job structure, source-coverage skip gates, stable required-check results, and existing workflow/layout contracts. Product paths and unlisted CI inputs retain full validation. |
 | Public bug reporting | `.github/ISSUE_TEMPLATE/bug_report.yml`; `unit/harness/layout.sh`; `CONTRIBUTING.md` | **Covered** by a required GitHub issue form for version, platform, minimal source, command, expected behavior, actual output, and saved-bytecode behavior; blank issues are disabled and security reports are redirected to the private channel. |
 | Public project website | [website repository](https://github.com/sproates/panackelty-website) | Independently validated and published; no core website test dependency. |
@@ -222,7 +222,7 @@ becomes accepted language behaviour.
 
 Known correctness or safety defects preempt measurement work. High percentages
 are not an acceptance substitute for assertions, negative tests or invariants.
-The [systematic invariant-testing candidate](../ROADMAP.md#systematic-invariant-testing)
+The [systematic invariant-testing candidate](../docs/roadmap/records/groomed-development-and-engineering-work.md#systematic-invariant-testing)
 extends existing deterministic, source/bytecode and bootstrap checks with one
 bounded generated-input or semantics-preserving transformation family. It does
 not depend on source-coverage publication. Planning adds no new test evidence;
@@ -676,7 +676,7 @@ This additional Node-based suite runs in pull-request Linux/macOS compiler CI.
 Post-merge checks retain the regular product suite and skip the same-tree
 experiment. It observes the real dispatcher and does not add an interpreter
 dependency to `make check`.
-The [contract](../docs/SOURCE_MAPS.md) and [experiment](experiments/source_mapping/README.md)
+The [contract](../docs/guides/SOURCE_MAPS.md) and [experiment](experiments/source_mapping/README.md)
 state limits; automatic source-aware runtime errors and programme-wide realistic
 usefulness are not claimed.
 
@@ -753,7 +753,7 @@ Both suites run under `make unit` and `make check-compiler`, preserving all earl
 span/emitter/control-flow tests. Native-PC and coherent binary-forgery checks use
 the separate observer suite above. Hostile concurrent output-directory mutation,
 source-free verification and authenticated original producers are outside the
-[explicit contract](../docs/SOURCE_MAPS.md).
+[explicit contract](../docs/guides/SOURCE_MAPS.md).
 
 ## U3 first subtraction explanation query
 
@@ -930,7 +930,7 @@ Retention-on/off diagnostics and empty ordinary evidence are compared. Public CL
 coverage adds imported generic rejection, allowed ordinary/async calls, callable
 classification, discarded await and explicit unavailability after frontend errors.
 No tests are removed; existing subtraction cases remain. The contract is
-[documented here](../docs/COMPILER_EXPLANATIONS.md).
+[documented here](../docs/guides/COMPILER_EXPLANATIONS.md).
 
 Validation: 196 explanation unit assertions, 36 explanation CLI assertions and
 343 functional cases pass through canonical `make check` (150s). Existing
@@ -1001,7 +1001,7 @@ explicit unloaded roots, source and compiler identity, corruption/truncation,
 output protection and bytecode equivalence. Both are part of `make check` and
 `make check-compiler`. This establishes the denominator contract, not runtime hits
 or a measured `.panack` coverage percentage. See
-[the inventory contract](../docs/SOURCE_INVENTORY.md).
+[the inventory contract](../docs/reference/SOURCE_INVENTORY.md).
 
 ## SC3 runtime collection acceptance
 
@@ -1014,7 +1014,7 @@ equivalence and exclusive output. Both run in compiler and full validation.
 Native `coverage.c` contracts exercise suspension, typed reads, sticky terminal
 states, zero budgets, overflow, bounds and equal-destination branch outcomes.
 Allocation fault sweeps include collector creation and covered execution.
-See [the runtime contract](../docs/SOURCE_COVERAGE.md). Complete child collection
+See [the runtime contract](../docs/reference/SOURCE_COVERAGE.md). Complete child collection
 and suite percentages remain SC4–SC5.
 
 ### SC4 registered execution aggregation
@@ -1040,7 +1040,7 @@ and inherited process tickets. `make source-coverage-session-smoke` is the large
 opt-in real-compiler acceptance fixture: it registers and runs the compiler in a
 nested VM and asserts exactly one compiler entry plus an unused command at zero.
 
-See [the session contract](../docs/SOURCE_COVERAGE.md). Complete execution data is
+See [the session contract](../docs/reference/SOURCE_COVERAGE.md). Complete execution data is
 not a claim that every source association is available, or that a test suite has
 been measured. SC5 still owns baseline scope and publication.
 
@@ -1152,7 +1152,7 @@ preserving the default policy. Existing HTTP interoperability exercises legacy
 callers. Static library configuration assertions reject reserved/injected headers,
 insufficient response budgets and invalid root types before binding.
 
-The [GI#162 plan](../docs/GI162_STATIC_HTTP_PLAN.md) records manual byte-for-byte
+The [GI#162 plan](../docs/design/GI162_STATIC_HTTP_PLAN.md) records manual byte-for-byte
 checks of all 52 existing assembled website files and local latency observations.
 These do not replace acceptance of the website assembly under review. No new
 source-coverage baseline collection is part of this package delivery.

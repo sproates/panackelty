@@ -69,12 +69,12 @@ awk '
   /<!-- quick-start-program-begin -->/ { capture = 1; next }
   /<!-- quick-start-program-end -->/ { capture = 0 }
   capture && !/^```/ { print }
-' panackelty/README.md >"$workspace/hello.panack"
+' panackelty/docs/guides/INSTALLATION.md >"$workspace/hello.panack"
 awk '
   /<!-- quick-start-output-begin -->/ { capture = 1; next }
   /<!-- quick-start-output-end -->/ { capture = 0 }
   capture && !/^```/ { print }
-' panackelty/README.md >"$workspace/documented.stdout"
+' panackelty/docs/guides/INSTALLATION.md >"$workspace/documented.stdout"
 # Download instructions stay pinned until publication. Test the explicit candidate
 # archive version while keeping the rest of the documented transcript byte-exact.
 awk -v version="$release_version" '

@@ -41,7 +41,7 @@ benefit. No such migration is part of U2.
 The U1 checksum envelope exposed a coherent-forgery counterexample: checksums do
 not authenticate source attribution. U2 replaces that envelope with exact local
 reproduction of bytecode, source snapshots and emitter entries. Production never
-parses foreign map fields. The full [source-map contract](../../../docs/SOURCE_MAPS.md)
+parses foreign map fields. The full [source-map contract](../../../docs/guides/SOURCE_MAPS.md)
 records the trust boundary, disclosure of complete source text, closure limits,
 lookup cost and filesystem assumptions. The test-only JSON implementation and
 compiler adapter have been removed; the JavaScript decoder in `run.cjs` exists

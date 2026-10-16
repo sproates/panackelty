@@ -27,7 +27,7 @@ pure contains(value: Str, fragment: Str): Bool {
 }
 
 trap(name: Str, file: Str, message: Str): TestResult {
-  match std_process.run(path("./panack"), ["run", file], byte_buffer.empty(), std_path.current(), [],
+  match std_process.run(path("./bin/panack"), ["run", file], byte_buffer.empty(), std_path.current(), [],
       std_time.seconds(10), 1048576) {
     Error(error) => std_testing.expect(name, false, "process failed"),
     Ok(output) => std_testing.expect(name,
@@ -56,7 +56,7 @@ main(): Void {
           Error(error) => { results = results.append(std_testing.expect("rational-${index}/fixture",
             false, "source write failed")) },
           Ok(written) => {
-            match std_process.run(path("./panack"), ["compile", source_text, "-o", artifact_text],
+            match std_process.run(path("./bin/panack"), ["compile", source_text, "-o", artifact_text],
                 byte_buffer.empty(), std_path.current(), [], std_time.seconds(10), 1048576) {
               Error(error) => { results = results.append(std_testing.expect("rational-${index}/compile",
                 false, "process failed")) },

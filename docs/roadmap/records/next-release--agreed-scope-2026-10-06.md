@@ -6,7 +6,8 @@
 
 **Current status (16 October 2026): alpha.12 and alpha.13 are released.**
 Alpha.14 is the next planned release; its scope is recorded below under RM#152,
-RM#154 and RM#155. The alpha.12/13 planning text below is retained to explain
+RM#154, RM#155 and RM#156. The alpha.12/13 planning text below is retained
+to explain
 original decisions, not to assert that their release gates are still pending.
 See [alpha.13 acceptance](../../releases/ALPHA13_RELEASE_ACCEPTANCE.md).
 
@@ -160,7 +161,9 @@ implementation. Alpha.13's plan and gates remain separate. On 2026-10-15, the
 owner also required faster code coverage in Alpha.14;
 [RM#154: Incremental coverage collection](#rm-154) records that outcome. The
 owner also selected [RM#155: Authoring-friction improvements](#rm-155) for
-Alpha.14: address prioritised items from recorded development experience.
+Alpha.14: address prioritised items from recorded development experience. On
+2026-10-16, the owner also selected [RM#156: Routed HTTP server API](#rm-156) /
+[GI#518](https://github.com/sproates/panackelty/issues/518) for Alpha.14.
 
 <a id="rm-152"></a>
 
@@ -238,6 +241,33 @@ combined effort during Alpha.14 planning; scope and effort remain provisional
 until that review. Preserve existing correctness and compatibility contracts,
 and document any deliberately selected changes. This roadmap addition starts no
 implementation and adds no gate to the ongoing Alpha.13 release.
+
+<a id="rm-156"></a>
+
+**RM#156: Routed HTTP server API — Alpha.14.**
+
+**Selected by owner direction, 2026-10-16.** Implement the agreed routed HTTP
+server API in `packages/http`, as specified in [GI#518](https://github.com/sproates/panackelty/issues/518).
+Preserve the HTTP client while making the low-level server/service machinery an
+internal implementation detail. The public server API includes the simple
+`create_server(port)` form and the typed `create_contextual_server(port, context)`
+form, with named handlers, route registration, request/response handling, fixed
+first-version defaults, error isolation and lifecycle behavior as specified in
+GI#518.
+
+Migrate the static preview tool to compose the generic server with its own typed
+static-serving context and fallback handler. Keep all static-file knowledge and
+behavior in the static package/tool; `packages/http` must remain generic. Deliver a
+complete user-facing `packages/http/README.md` with practical examples. Update
+affected API/reference documentation and examples, and test the route API, context
+dispatch, HTTP behavior, lifecycle, preview integration and existing client
+regressions. GI#518 contains the detailed contract and acceptance cases.
+
+This records Alpha.14 release scope and does not itself authorize implementation
+or settle work sequencing, effort, or release timing. If implementation exposes
+an unanticipated gap or inconsistency, stop and ask the issue owner rather than
+guessing; update GI#518 before proceeding.
+
 
 ### Else-if chains
 

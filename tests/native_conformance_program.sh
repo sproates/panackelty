@@ -8,7 +8,7 @@ source=$3
 expected=$4
 case "$mode" in all|source|bytecode) ;; *) echo 'unknown conformance mode' >&2; exit 2 ;; esac
 project=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-panack="$project/panack"
+panack="$project/bin/panack"
 temporary=$(mktemp -d "${TMPDIR:-/tmp}/panack-native-program.XXXXXX")
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 fail() {

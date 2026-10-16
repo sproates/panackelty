@@ -15,7 +15,8 @@ printf 'hello\n' > "$tree/tests/functional/expected/examples/one.stdout"
 printf 'bad\n' > "$tree/tests/functional/failures/bad/main.panack"
 printf 'bad\n' > "$tree/tests/functional/failures/bad/expected.stderr"
 printf '0.0.0-test.1\n' > "$tree/VERSION"
-cat > "$tree/panack" <<'CLI'
+mkdir -p "$tree/bin"
+cat > "$tree/bin/panack" <<'CLI'
 #!/bin/sh
 set -eu
 operation=$1
@@ -43,7 +44,7 @@ printf 'malformed\n' >> "$CI_CONFORMANCE_CALLS"
 printf 'not a Panackelty bytecode file\n' >&2
 exit 1
 VM
-chmod +x "$tree/panack" "$tree/panack-vm"
+chmod +x "$tree/bin/panack" "$tree/panack-vm"
 export CI_CONFORMANCE_CALLS="$work/calls"
 unset VALIDATION_PROFILE_FILE CI_CONFORMANCE_FAIL
 fail() { echo "conformance partition: $*" >&2; exit 1; }

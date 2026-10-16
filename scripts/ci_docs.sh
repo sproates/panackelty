@@ -3,7 +3,8 @@
 # README edits retain package validation.
 ci_informational_doc() {
     case "$1" in
-        README.md|ROADMAP.md|ARCHITECTURE.md|SELF_HOSTING.md|RELEASE_POLICY.md|docs/*.md|tests/README.md|tests/COVERAGE.md|tests/VALIDATION_PROFILE.md|CONTRIBUTING.md|docs/ROADMAP_PROCESS.md|.github/pull_request_template.md) return 0 ;;
+        docs/reference/SPEC.md|docs/guides/*.md) return 1 ;;
+        README.md|ROADMAP.md|docs/internals/ARCHITECTURE.md|docs/internals/SELF_HOSTING.md|docs/releases/RELEASE_POLICY.md|docs/history/SOURCE_COVERAGE_BASELINE.md|docs/*.md|tests/README.md|tests/COVERAGE.md|tests/VALIDATION_PROFILE.md|CONTRIBUTING.md|docs/roadmap/ROADMAP_PROCESS.md|.github/pull_request_template.md) return 0 ;;
         *) return 1 ;;
     esac
 }

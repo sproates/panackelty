@@ -103,7 +103,8 @@ commit
 printf '\nMore notes\n' >> ROADMAP.md
 commit; route full
 fixture
-printf '# Bootstrap\n' > SELF_HOSTING.md
+mkdir -p docs/internals
+printf '# Bootstrap\n' > docs/internals/SELF_HOSTING.md
 commit; route docs
 fixture
 mkdir docs
@@ -118,7 +119,8 @@ git rm -q ROADMAP.md
 commit; route docs
 reject_docs 'missing local link: README.md -> ROADMAP.md'
 fixture
-git mv ROADMAP.md SELF_HOSTING.md
+mkdir -p docs/internals
+git mv ROADMAP.md docs/internals/SELF_HOSTING.md
 commit; route docs
 reject_docs 'missing local link: README.md -> ROADMAP.md'
 fixture
@@ -136,7 +138,7 @@ ln -s ARCHITECTURE.md ROADMAP.md
 commit; route full
 reject_docs 'symlink document'
 # Unknown, packaged, executable, specification and policy changes stay full.
-for path in README.md SPEC.md VERSION CHANGELOG.md \
+for path in README.md docs/reference/SPEC.md VERSION CHANGELOG.md \
     tests/functional/input.md \
     'notes with spaces.md' $'notes\nnewline.md'; do
     fixture
@@ -150,8 +152,9 @@ mkdir -p docs/nested
 printf '# Nested documentation\n' > docs/nested/new.md
 commit; route docs
 # Reviewed process prose is not consumed by builds, packages or fixtures.
-for path in CONTRIBUTING.md docs/ROADMAP_PROCESS.md RELEASE_POLICY.md \
-    docs/SOURCE_COVERAGE_BASELINE.md .github/pull_request_template.md; do
+for path in CONTRIBUTING.md docs/roadmap/ROADMAP_PROCESS.md \
+    docs/releases/RELEASE_POLICY.md docs/history/SOURCE_COVERAGE_BASELINE.md \
+    .github/pull_request_template.md; do
     fixture
     mkdir -p "$(dirname "$path")"
     printf '# Process\n' > "$path"
@@ -188,7 +191,8 @@ printf '#!/usr/bin/env bash\n' > tests/ci_scope.sh
 commit; route workflow
 fixture
 mkdir -p .github docs tests
-for path in .github/pull_request_template.md ROADMAP.md docs/ROADMAP_PROCESS.md tests/COVERAGE.md; do
+for path in .github/pull_request_template.md ROADMAP.md docs/roadmap/ROADMAP_PROCESS.md tests/COVERAGE.md; do
+    mkdir -p "$(dirname "$path")"
     printf '\nProcess handover update\n' >> "$path"
 done
 commit; route docs
@@ -221,7 +225,7 @@ scripts/unlisted_helper.sh shared
 site/extra.js unknown
 VERSION package
 examples/hello.panack examples
-SPEC.md shared
+docs/reference/SPEC.md shared
 bootstrap/compiler-v9.bc shared
 Makefile shared
 unrecognised/input.data unknown
@@ -253,11 +257,11 @@ rm ROADMAP.md
 ln -s ARCHITECTURE.md ROADMAP.md
 [[ $(bash "$root/scripts/ci_scope.sh" --worktree "$base") == full ]] || fail 'ignored local symlink'
 fixture
-mkdir docs
-printf '# Process\n\n[bad](missing.md)\n' > docs/ROADMAP_PROCESS.md
+mkdir -p docs/roadmap
+printf '# Process\n\n[bad](missing.md)\n' > docs/roadmap/ROADMAP_PROCESS.md
 [[ $(bash "$root/scripts/ci_scope.sh" --worktree "$base") == docs ]] || fail 'untracked process doc'
 reject_docs 'missing local link'
-rm docs/ROADMAP_PROCESS.md
+rm docs/roadmap/ROADMAP_PROCESS.md
 bash "$root/scripts/check_docs.sh" >/dev/null || fail 'local unreferenced deletion'
 fixture
 head=$base; route full

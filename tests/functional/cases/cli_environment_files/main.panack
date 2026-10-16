@@ -37,7 +37,7 @@ pure ends_with(value: Str, suffix: Str): Bool {
 }
 
 pure command(arguments: [Str], environment: [Str]): TestCommand {
-  TestCommand(path("/usr/bin/env"), ["-u", "PANACKELTY_BOOTSTRAP_ROOT", "./panack"].concat(arguments), byte_buffer.empty(), std_path.current(), environment,
+  TestCommand(path("/usr/bin/env"), ["-u", "PANACKELTY_BOOTSTRAP_ROOT", "./bin/panack"].concat(arguments), byte_buffer.empty(), std_path.current(), environment,
     std_time.seconds(10), 1048576)
 }
 
@@ -46,7 +46,7 @@ io_failure(name: Str, source: Str, file: Path): TestResult {
     Error(error) => std_testing.expect(name, false, "source write failed"),
     Ok(value0) => {
       file_text = std_result.value_or(std_path.to_text(file), "invalid-file")
-      match std_process.run(path("/usr/bin/env"), ["-u", "PANACKELTY_BOOTSTRAP_ROOT", "./panack", "run", file_text], byte_buffer.empty(), std_path.current(), [],
+      match std_process.run(path("/usr/bin/env"), ["-u", "PANACKELTY_BOOTSTRAP_ROOT", "./bin/panack", "run", file_text], byte_buffer.empty(), std_path.current(), [],
           std_time.seconds(10), 1048576) {
         Error(error) => std_testing.expect(name, false, "process failed"),
         Ok(output) => std_testing.expect(name,
@@ -96,7 +96,7 @@ main(): Void {
         Ok(value0) => { results = results.append(std_testing.expect("support fixture", true, "")) }
       }
 
-      match std_process.run(path("./panack"), ["run", "tests/functional/cases/stdlib/main.panack"],
+      match std_process.run(path("./bin/panack"), ["run", "tests/functional/cases/stdlib/main.panack"],
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_STDLIB_VALUE=configured"],
           std_time.seconds(10), 1048576) {
         Error(error) => { results = results.append(std_testing.expect("environment override", false,

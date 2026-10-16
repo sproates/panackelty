@@ -79,7 +79,7 @@ main(): Void {
     expected_text = "${expected_text}PASS failure/${name}/no artifact\n"
   }
   expected = std_text.encode_utf8("${expected_text}PASS selected failure count\ntests: 370, failures: 0\n")
-  command = TestCommand(runner_path("./panack"),
+  command = TestCommand(runner_path("./bin/panack"),
     ["run", "tests/runner/main.panack"], byte_buffer.empty(), std_path.current(),
     runner_test_environment(),
     // This deadline encloses the entire 370-assertion corpus, including nested

@@ -76,7 +76,7 @@ for status in 0 7; do
 done
 pass
 case_name=profile-public-cli-output
-capture 0 10 sh tests/profile_command.sh cli ./panack run tests/fixtures/compiler_contracts/driver/basic.panack
+capture 0 10 sh tests/profile_command.sh cli ./bin/panack run tests/fixtures/compiler_contracts/driver/basic.panack
 printf '42\n' > "$work/expected.out"
 equal_files "$work/stdout" "$work/expected.out"
 test ! -s "$work/stderr" || fail 'profile polluted CLI stderr'

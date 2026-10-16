@@ -24,7 +24,7 @@ check_diagnostic(name: Str, source: Path, content: Str, expected: Str): TestResu
     Error(error) => std_testing.expect(name, false, "fixture write failed"),
     Ok(written) => {
       source_text = std_result.value_or(std_path.to_text(source), "invalid-source")
-      match std_process.run(path("./panack"), ["check", source_text], byte_buffer.empty(), std_path.current(), [],
+      match std_process.run(path("./bin/panack"), ["check", source_text], byte_buffer.empty(), std_path.current(), [],
           std_time.seconds(10), 1048576) {
         Error(error) => std_testing.expect(name, false, "process failed"),
         Ok(output) => std_testing_commands.command_output(name, output,
@@ -51,7 +51,7 @@ check_namespace_execution(source: Path, artifact: Path, content: Str, operation:
   match std_filesystem.write(source, std_text.encode_utf8(content)) {
     Error(error) => std_testing.expect(name, false, "fixture write failed"),
     Ok(written) => {
-      match std_process.run(path("./panack"), arguments, byte_buffer.empty(), std_path.current(), [], std_time.seconds(10), 1048576) {
+      match std_process.run(path("./bin/panack"), arguments, byte_buffer.empty(), std_path.current(), [], std_time.seconds(10), 1048576) {
         Error(error) => std_testing.expect(name, false, "process failed"),
         Ok(output) => std_testing_commands.command_output(name, output, ProcessOutput(0, 0, expected, byte_buffer.empty()))
       }
@@ -85,7 +85,7 @@ main(): Void {
         results = append(results, check_namespace_execution(source, artifact, content, operation))
       }
       artifact_text: Str = std_result.value_or(std_path.to_text(artifact), "invalid-artifact")
-      match std_process.run(path("./panack"), ["run", artifact_text], byte_buffer.empty(), std_path.current(), [], std_time.seconds(10), 1048576) {
+      match std_process.run(path("./bin/panack"), ["run", artifact_text], byte_buffer.empty(), std_path.current(), [], std_time.seconds(10), 1048576) {
         Error(error) => { results = append(results, std_testing.expect("namespace saved bytecode", false, "process failed")) },
         Ok(output) => { results = append(results, std_testing_commands.command_output("namespace saved bytecode", output, ProcessOutput(0, 0, std_text.encode_utf8("41\n"), byte_buffer.empty()))) }
       }

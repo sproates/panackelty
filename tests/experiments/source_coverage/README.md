@@ -19,7 +19,7 @@ expression-start-line reach and source-function entry counts. Existing maps
 omit statement stores, loop machinery and implicit returns; enclosing spans can
 cover untaken arms. A location map is not an executable-source inventory.
 
-SC2 now provides the [versioned source inventory](../../../docs/SOURCE_INVENTORY.md).
+SC2 now provides the [versioned source inventory](../../../docs/reference/SOURCE_INVENTORY.md).
 The original prerequisite was a compiler-produced inventory of eligible
 source expressions/statements and source function declarations, including unused
 ones. Associate explicit probe points with those identities. Keep generated
@@ -125,7 +125,7 @@ Expected collection manifests must expose absent processes/files. Checksums are
 identity aids, not authentication of source claims.
 
 Maps retain complete source snapshots: existing source disclosure and stable-tree
-assumptions in [SOURCE_MAPS.md](../../../docs/SOURCE_MAPS.md) continue to apply.
+assumptions in [SOURCE_MAPS.md](../../../docs/guides/SOURCE_MAPS.md) continue to apply.
 
 ## Bounded follow-up estimate
 

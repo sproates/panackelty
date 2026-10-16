@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Read ROADMAP.md and docs/ROADMAP_PROCESS.md first and search existing issues.
+        Read ROADMAP.md and docs/roadmap/ROADMAP_PROCESS.md first and search existing issues.
         Proposals are ideas, not implementation commitments. Keep agreed priorities
         and decisions in the repository. Use Bug report for defects and SECURITY.md
         for sensitive reports; do not include secrets or private data.

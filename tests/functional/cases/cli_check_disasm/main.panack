@@ -28,7 +28,7 @@ pure contains(value: Str, fragment: Str): Bool {
 }
 
 pure command(arguments: [Str]): TestCommand {
-  TestCommand(path("./panack"), arguments, byte_buffer.empty(), std_path.current(), [],
+  TestCommand(path("./bin/panack"), arguments, byte_buffer.empty(), std_path.current(), [],
     std_time.seconds(10), 1048576)
 }
 
@@ -53,7 +53,7 @@ main(): Void {
         command(["check", bytecode_text]),
         ProcessOutput(0, 0, std_text.encode_utf8("ok\n"), byte_buffer.empty())))
 
-      match std_process.run(path("./panack"), ["disasm", source], byte_buffer.empty(), std_path.current(), [],
+      match std_process.run(path("./bin/panack"), ["disasm", source], byte_buffer.empty(), std_path.current(), [],
           std_time.seconds(10), 1048576) {
         Error(error) => {
           results = results.append(std_testing.expect("source disassembly", false,

@@ -83,13 +83,13 @@ async main(): Unit {
 SOURCE
 port=$("$http_client" port)
 sed -e "s|ROOT_PATH|$PWD/$work/root|g" -e "s/PORT/$port/g" "$work/template.panack" > "$work/app/src/main.panack"
-./panack check --project "$work/app/panack.json" > /dev/null
-./panack compile --project "$work/app/panack.json" -o "$work/app.bc" > /dev/null
+./bin/panack check --project "$work/app/panack.json" > /dev/null
+./bin/panack compile --project "$work/app/panack.json" -o "$work/app.bc" > /dev/null
 for mode in source bytecode; do
     if [ "$mode" = source ]; then
-        ./panack run --project "$work/app/panack.json" > "$work/stdout" 2> "$work/stderr" &
+        ./bin/panack run --project "$work/app/panack.json" > "$work/stdout" 2> "$work/stderr" &
     else
-        ./panack run "$work/app.bc" > "$work/stdout" 2> "$work/stderr" &
+        ./bin/panack run "$work/app.bc" > "$work/stdout" 2> "$work/stderr" &
     fi
     server_pid=$!
     "$http_client" "$port" concurrent || { cat "$work/stderr"; exit 1; }
@@ -99,7 +99,7 @@ for mode in source bytecode; do
 done
 cp "$work/app/src/main.panack" "$work/valid.panack"
 sed 's/identity = await files.root_identity(root)/identity = files.root_identity(root)/'     "$work/valid.panack" > "$work/app/src/main.panack"
-if ./panack check --project "$work/app/panack.json" > "$work/invalid.stdout" 2> "$work/invalid.stderr"; then
+if ./bin/panack check --project "$work/app/panack.json" > "$work/invalid.stdout" 2> "$work/invalid.stderr"; then
     echo 'missing await unexpectedly accepted' >&2
     exit 1
 fi

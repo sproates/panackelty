@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
-panack_bin=${PANACK_BIN:-./panack}
+panack_bin=${PANACK_BIN:-./bin/panack}
 fixture=${PANACK_HTTP_FIXTURE:-build/vm/http_fixture}
 repo=$(pwd)
 if [ "$#" -eq 0 ]; then

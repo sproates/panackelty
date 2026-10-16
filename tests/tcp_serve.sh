@@ -45,10 +45,10 @@ async main(): Unit {
   ()
 }
 SOURCE
-    ./panack check "$work/main.panack" > /dev/null
-    ./panack compile "$work/main.panack" -o "$work/main.bc" > /dev/null
+    ./bin/panack check "$work/main.panack" > /dev/null
+    ./bin/panack compile "$work/main.panack" -o "$work/main.bc" > /dev/null
     for extension in panack bc; do
-        ./panack run "$work/main.$extension" > "$work/stdout" 2> "$work/stderr" &
+        ./bin/panack run "$work/main.$extension" > "$work/stdout" 2> "$work/stderr" &
         server_pid=$!
         "$client" "$port" "$mode"
         if [ "$mode" = nested ]; then
@@ -64,7 +64,7 @@ done
 # Run the documented finite server itself against an independent peer.
 port=$("$client" port)
 sed "s/9000/$port/g" examples/network/tcp_serve.panack > "$work/example.panack"
-./panack run "$work/example.panack" > "$work/stdout" 2> "$work/stderr" &
+./bin/panack run "$work/example.panack" > "$work/stdout" 2> "$work/stderr" &
 server_pid=$!
 "$client" "$port" example
 wait "$server_pid" || { cat "$work/stderr"; exit 1; }
@@ -95,9 +95,9 @@ async main(): Unit {
 }
 pure expect(value: Bool): Unit { checked = [0][if value { 0 } else { 1 }]; () }
 SOURCE
-    ./panack check "$work/stream.panack" > /dev/null
-    ./panack compile "$work/stream.panack" -o "$work/stream.bc" > /dev/null
-    ./panack run "$work/stream.$extension" > "$work/stdout" 2> "$work/stderr" &
+    ./bin/panack check "$work/stream.panack" > /dev/null
+    ./bin/panack compile "$work/stream.panack" -o "$work/stream.bc" > /dev/null
+    ./bin/panack run "$work/stream.$extension" > "$work/stdout" 2> "$work/stderr" &
     server_pid=$!
     "$client" "$port" stream
     wait "$server_pid" || { cat "$work/stderr"; exit 1; }
@@ -111,7 +111,7 @@ async main(): Unit {
   ()
 }
 SOURCE
-if ./panack run "$work/outside.panack" > "$work/stdout" 2> "$work/stderr"; then
+if ./bin/panack run "$work/outside.panack" > "$work/stdout" 2> "$work/stderr"; then
     echo 'server read unexpectedly succeeded outside a server child' >&2; exit 1
 fi
 grep -F 'TCP server read is unavailable in this execution' "$work/stderr" > /dev/null
@@ -127,7 +127,7 @@ async main(): Unit {
   ()
 }
 SOURCE
-if ./panack check "$work/stream-mismatch.panack" > "$work/stdout" 2> "$work/stderr"; then
+if ./bin/panack check "$work/stream-mismatch.panack" > "$work/stdout" 2> "$work/stderr"; then
     echo 'mismatched streaming context unexpectedly passed' >&2; exit 1
 fi
 grep -F 'expected AsyncFn[Nat,Result[Bytes,Str]]' "$work/stderr" > /dev/null
@@ -143,7 +143,7 @@ for mode in bare ordinary handler limits; do
         limits) call='await tcp_serve("127.0.0.1", 9000, @reply, 42)'; diagnostic='TcpServerLimits' ;;
     esac
     printf 'import stdlib/tcp::{TcpServerLimits}\n%s\n%s { result = %s; () }\n' "$handler" "$main" "$call" > "$work/invalid.panack"
-    if ./panack check "$work/invalid.panack" > "$work/stdout" 2> "$work/stderr"; then
+    if ./bin/panack check "$work/invalid.panack" > "$work/stdout" 2> "$work/stderr"; then
         echo "TCP server negative unexpectedly passed: $mode" >&2; exit 1
     fi
     grep -F "$diagnostic" "$work/stderr" > /dev/null || { cat "$work/stderr"; exit 1; }

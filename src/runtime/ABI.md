@@ -1,7 +1,7 @@
 # Panackelty VM-to-host ABI
 
 This document freezes the host-service contract implemented by every
-Panackelty VM. Bytecode version 8 identifies a host service by the UTF-8 name in
+Panackelty VM. Bytecode version 9 identifies a host service by the UTF-8 name in
 a `CALL` instruction. The verifier rejects unknown names, wrong arities, and
 calls from pure functions to effectful services.
 
@@ -30,8 +30,8 @@ or `VM trap`, never a host-language exception.
 | `file_exists` | `(Str) -> Bool` | Report whether the resolved path names a regular file. |
 | `fs_read_beneath` | `(Path, Path, Nat) -> Result[FilesystemRootRead,HostError]` | Read a regular file relative to an opened directory root and return that root's device/inode identity with its bytes. |
 | `fs_directories_overlap` | `(Path, Path) -> Result[Bool,HostError]` | Compare two opened directory roots by physical ancestry, following directory aliases; reports whether either root contains the other. |
-| `run_bytecode` | `(Bytes) -> Void` | Decode, bound, and verify version-8 bytecode, then run it with the same argument and environment snapshots. |
-| `run_bytecode_args` | `(Bytes, [Str]) -> Void` | Decode, bound, and verify version-8 bytecode, then run it with the supplied argument snapshot and the current environment snapshot. |
+| `run_bytecode` | `(Bytes) -> Void` | Decode, bound, and verify version-9 bytecode, then run it with the same argument and environment snapshots. |
+| `run_bytecode_args` | `(Bytes, [Str]) -> Void` | Decode, bound, and verify version-9 bytecode, then run it with the supplied argument snapshot and the current environment snapshot. |
 
 All services in this table are effectful. The environment and argument arrays
 are snapshots so nested VMs and repeated reads see stable input. File writes
@@ -47,7 +47,7 @@ directories, invalid UTF-8 text files, and host read/write failures produce an
 
 Exact numerics, persistent arrays/maps/sets, byte buffers, UTF-8 conversion,
 text inspection, and lexical path transforms execute inside the VM. Their
-source-level names and semantics are specified in [`../../SPEC.md`](../../SPEC.md),
+source-level names and semantics are specified in [`../../docs/reference/SPEC.md`](../../docs/reference/SPEC.md),
 but they do not call the operating system. This distinction lets the portable
 standard library use deterministic primitives while keeping all external
 authority in the small service table above.
@@ -65,7 +65,7 @@ may be introduced without changing the bytecode container version, but all
 compiler stages and VM implementations must adopt them together. Incompatible
 changes require a new bytecode version or an explicit ABI-version mechanism.
 
-## Rational and Unit operations (bytecode 8)
+## Rational and Unit operations (bytecode 9)
 
 | Name | Contract | Failure |
 | --- | --- | --- |
@@ -88,7 +88,7 @@ serialized or constructed from source integers. Arithmetic is pure.
 
 All new typed path operations and duration operations are VM primitives, not
 host services. Their full signatures and checked errors are specified in
-[SPEC.md](../../SPEC.md#paths-and-monotonic-time). Native path bytes are POSIX
+[SPEC.md](../../docs/reference/SPEC.md#paths-and-monotonic-time). Native path bytes are POSIX
 bytes on the current target matrix. Existing string-based host path APIs retain
 their contracts; typed filesystem access is not introduced by these types.
 
@@ -96,8 +96,8 @@ their contracts; typed filesystem access is not introduced by these types.
 
 The signatures, error record, POSIX semantics, ownership, and resource bounds for
 `fs_*`, `process_run`, `host_sleep`, and `host_decode_utf8` are specified in
-[the language contract](../../SPEC.md#typed-filesystem-process-and-sleep-apis).
-All are effectful except checked UTF-8 decoding. They use ordinary version-8
+[the language contract](../../docs/reference/SPEC.md#typed-filesystem-process-and-sleep-apis).
+All are effectful except checked UTF-8 decoding. They use ordinary version-9
 named CALL instructions and record/variant values; old runtimes reject unknown
 services. No new value tags or opcode layouts are introduced. Legacy string
 file calls retain their trapping behavior for bootstrap compatibility.

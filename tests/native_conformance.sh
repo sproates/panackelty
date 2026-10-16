@@ -11,7 +11,7 @@ while [ "${jobs#0}" != "$jobs" ] && [ "$jobs" != 0 ]; do jobs=${jobs#0}; done
 [ "$jobs" -ge 1 ] && [ "$jobs" -le 32 ] || exit 2
 
 project=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-panack="$project/panack"
+panack="$project/bin/panack"
 temporary=$(mktemp -d "${TMPDIR:-/tmp}/panack-native.XXXXXX")
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 unset PANACKELTY_STDLIB_VALUE || true

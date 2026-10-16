@@ -7,7 +7,7 @@ trap 'rm -rf "$workspace"' 0
 trap 'exit 1' HUP INT TERM
 HARNESS_COMMAND=$workspace/command.bc
 export HARNESS_COMMAND
-sh tests/profile_command.sh harness/supervisor-build ./panack compile tests/runner/harness_command.panack -o "$HARNESS_COMMAND"
+sh tests/profile_command.sh harness/supervisor-build ./bin/panack compile tests/runner/harness_command.panack -o "$HARNESS_COMMAND"
 case "${1:-all}" in
     all) groups='layout installer release validation probes bootstrap runner distribution' ;;
     compiler) groups='installer probes bootstrap runner' ;;

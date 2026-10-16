@@ -8,7 +8,7 @@ validation_component() {
     fi
     if ci_informational_doc "$1"; then
         case "$1" in
-            CONTRIBUTING.md|RELEASE_POLICY.md|docs/ROADMAP_PROCESS.md|docs/SOURCE_COVERAGE_BASELINE.md|.github/pull_request_template.md) printf 'process\n' ;;
+            CONTRIBUTING.md|docs/releases/RELEASE_POLICY.md|docs/roadmap/ROADMAP_PROCESS.md|docs/history/SOURCE_COVERAGE_BASELINE.md|.github/pull_request_template.md) printf 'process\n' ;;
             *) printf 'documentation\n' ;;
         esac
         return
@@ -19,9 +19,9 @@ validation_component() {
         src/vm/*tcp*|tests/tcp*|tests/functional/cases/*tcp*/*) printf 'tcp\n' ;;
         src/vm/*|src/runtime/*|tests/runner/host_runtime*|tests/fixtures/host_runtime/*) printf 'runtime\n' ;;
         src/stdlib/*) printf 'stdlib\n' ;;
-        README.md|LICENSE|CHANGELOG.md|RELEASE_POLICY.md|SECURITY.md|VERSION|tests/release*|tests/quick_start.sh) printf 'package\n' ;;
+        docs/guides/*|README.md|LICENSE|CHANGELOG.md|docs/releases/RELEASE_POLICY.md|SECURITY.md|VERSION|tests/release*|tests/quick_start.sh) printf 'package\n' ;;
         examples/*|tests/functional/*) printf 'examples\n' ;;
-        SPEC.md|bootstrap/*|Makefile|panack|scripts/*|tests/*|.github/workflows/*) printf 'shared\n' ;;
+        docs/reference/SPEC.md|bootstrap/*|Makefile|bin/*|panack|scripts/*|tests/*|.github/workflows/*) printf 'shared\n' ;;
         *) printf 'unknown\n' ;;
     esac
 }

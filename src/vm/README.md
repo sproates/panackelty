@@ -5,7 +5,7 @@ variables, and an operand stack. Its instruction set covers constants, local
 access, arithmetic, collection and algebraic-data construction, iteration,
 control flow, calls, and returns.
 
-Start with the [VM execution guide](../../docs/VM_GUIDE.md) for instruction
+Start with the [VM execution guide](../../docs/guides/VM_GUIDE.md) for instruction
 listings and worked programs showing the operand stack, locals, call frames,
 and output at each step.
 
@@ -63,7 +63,7 @@ The synchronous `execute` adapter runs the same dispatcher to completion with
 legacy host behavior, including CLI process exit and synchronous nested bytecode.
 It rejects re-entry on an occupied VM without modifying that invocation's error.
 The source async slice uses bytecode version 9 and a refreshed compiler seed.
-See the [design proposal](../../docs/EXECUTION_CONCURRENCY_DESIGN.md) for later
+See the [design proposal](../../docs/design/EXECUTION_CONCURRENCY_DESIGN.md) for later
 stages and [measured overhead](../../tests/VALIDATION_PROFILE.md) for this step.
 
 `main.c` is the entry point for the portable C11 seed executable. Its `check` command performs
@@ -100,7 +100,7 @@ Opaque paths and time values are implemented in `host_types.c`. Lexical paths
 preserve native bytes; durations and instants use exact integer storage. Typed filesystem, process, and sleep operations are implemented separately
 in `host_capabilities.c`, including descriptor ownership, concurrent stream
 collection, resource limits, and structured host failures. See `VALUE_MODEL.md` and
-`../../SPEC.md` for ownership, signatures, error behavior, and clock scope.
+`../../docs/reference/SPEC.md` for ownership, signatures, error behavior, and clock scope.
 
 ## Internal task lifecycle experiment
 
@@ -256,7 +256,7 @@ These APIs remain internal and single-threaded; no external producer exists.
 ## Bounded native TCP
 
 `tcp.h`/`tcp.c` own the connection state for `tcp_exchange`; limits and source
-semantics are in [SPEC.md](../../SPEC.md#native-tcp-exchange-development-toolchain).
+semantics are in [SPEC.md](../../docs/reference/SPEC.md#native-tcp-exchange-development-toolchain).
 The implementation uses POSIX [nonblocking connect](https://pubs.opengroup.org/onlinepubs/009695399/functions/connect.html)
 and [poll readiness](https://pubs.opengroup.org/onlinepubs/9799919799/functions/poll.html),
 with per-socket/per-send SIGPIPE suppression on macOS/Linux. No external runtime
@@ -296,8 +296,8 @@ outbound `vm_execution_enable_tcp`. `vm_execution_pump_server` combines polling
 and bounded child execution; `vm_execution_stop_server` requests graceful stop.
 External fake read/print completions cannot complete a server wait. Handler
 children inherit outbound opt-in but cannot listen recursively. The CLI uses
-this same pump. See the [architecture](../../ARCHITECTURE.md#bounded-tcp-server-contract--proposed-implementation)
-and [source contract](../../SPEC.md#native-tcp-server-development-toolchain).
+this same pump. See the [architecture](../../docs/internals/ARCHITECTURE.md#bounded-tcp-server-contract--proposed-implementation)
+and [source contract](../../docs/reference/SPEC.md#native-tcp-server-development-toolchain).
 
 `tcp_serve_stream` starts its worker with the retained caller-supplied context
 after acceptance rather than waiting for peer EOF. `tcp_server_read_chunk` is
@@ -321,4 +321,4 @@ children; outbound permission does not grant either.
 retained workers. Cancellation abandons delivery without waiting for host output.
 Workers retain no VM/program pointers and suppress SIGPIPE without changing the
 process-wide signal disposition. See the
-[async host contract](../../SPEC.md#asynchronous-command-line-host-operations).
+[async host contract](../../docs/reference/SPEC.md#asynchronous-command-line-host-operations).

@@ -1,5 +1,14 @@
 # Specification coverage
 
+Type-owned method proof-of-concept coverage: `owned_methods` asserts the exact
+10/11/20/21 example; `owned_method_dispatch` checks two nominal owners, same-name
+global/dot coexistence, explicit arguments, nested self calls, indexed receivers
+and single receiver evaluation. Failure fixtures cover absent owned methods even
+when a global exists, wrong argument types, duplicate methods and purity.
+Parser unit tests distinguish arrow and dot representation, ownership and invalid
+syntax. Source and saved-bytecode workflows run through the native conformance
+harness. Cross-module and generic methods are outside this experiment.
+
 Guard-fact mutation regression coverage (#182) adds 25 checker fixtures: 20
 rejections previously accepted by the old compiler, two review regressions for
 writes during while-condition and for-iterable evaluation, plus three positive workflows

@@ -256,6 +256,47 @@ function names: a program may still declare an unrelated function named
 `add`, but `value.add(item)` always selects the collection method. Their
 internal bytecode call names are not source identifiers.
 
+### Type-owned methods (bounded proof of concept)
+
+This source revision adds a separate `receiver->method(arguments)` form. Existing
+`receiver.method(arguments)` lookup and record-field access are unchanged.
+
+```panack
+record Fruit { value: Nat }
+
+impl Fruit {
+  pure apple(): Nat { self.value }
+  pure banana(): Nat { self.value + 1 }
+}
+
+main(): Void {
+  first: Fruit = Fruit(10)
+  second: Fruit = Fruit(20)
+  print(first->apple())
+  print(first->banana())
+  print(second->apple())
+  print(second->banana())
+}
+```
+
+This prints `10`, `11`, `20`, `21` on separate lines. Each method belongs to its
+record type; the receiver is supplied as immutable `self`. Arrow lookup uses the
+receiver's checked nominal type and never falls back to an ordinary global
+function. Different record types can own methods with the same name. The receiver
+and explicit arguments are evaluated once, in that order. Ordinary argument,
+return-type and purity checking still applies. Methods may call other methods
+through `self->name()`.
+
+This experiment accepts only non-generic records declared earlier in the same
+module, with non-generic synchronous methods. Calls must be in the record's
+module. It does not add cross-module method visibility, imported or extension
+implementations, traits, inheritance, dynamic dispatch, generic methods or async
+methods. Method declarations have compiler-only identities; they do not introduce
+ordinary callable names. The project-aware CLI is required, including its regular
+source-file commands or explicit `--project` commands. The standalone legacy
+parser does not execute this form. Diagnostics may expose internal method names.
+This is unreleased compiler behavior, separate from the alpha.13 contract.
+
 Local type annotations may be omitted. `name = value` declares a new immutable
 local when no local or parameter with that name is visible; otherwise it assigns
 to the existing binding. `mut name = value` declares a mutable inferred local.

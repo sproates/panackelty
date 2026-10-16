@@ -3,6 +3,11 @@
 The [website repository](https://github.com/sproates/panackelty-website) owns website source, previews, release promotion
 and publication independently of native validation.
 
+The bounded type-owned method experiment uses checked nominal receiver identity
+to select compiler-private method functions. Existing identity emission and VM
+calls supply `self`; no bytecode or runtime extension is required. Dot-call
+resolution is unchanged. See the [compiler notes](../../src/compiler/README.md#type-owned-method-proof-of-concept).
+
 ## Overview
 
 Panackelty is a compiled language whose execution contract is its bytecode virtual

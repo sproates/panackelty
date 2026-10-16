@@ -92,6 +92,7 @@ pure source_token(
 
 pure is_two_character_symbol(source: Str, cursor: Nat): Bool {
   starts_with_at(source, "=>", cursor) ||
+    starts_with_at(source, "->", cursor) ||
     starts_with_at(source, "..", cursor) ||
     starts_with_at(source, "==", cursor) ||
     starts_with_at(source, "!=", cursor) ||

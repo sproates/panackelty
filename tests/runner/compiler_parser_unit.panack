@@ -2,7 +2,7 @@ import stdlib/option as std_option
 import stdlib/result as std_result
 import stdlib/testing as std_testing
 import stdlib/time as std_time
-import project/src/compiler/parser::{parse_source,parse_program_source,parse_block_source,parse_type_source}
+import project/src/compiler/parser::{parse_source,parse_program_source,parse_block_source,parse_type_source,lex,parse_module_complete}
 import stdlib/host as std_host
 import stdlib/testing::{TestResult}
 // Direct parser contracts, grouped by the former Python test method.
@@ -804,8 +804,29 @@ pure parser_unit_else_if_chains(): [TestResult] {
 }
 
 
+pure parser_unit_owned_methods(): [TestResult] {
+  source: Str = "record Fruit { value: Nat } impl Fruit { pure apple(): Nat { self.value } pure banana(): Nat { self.value + 1 } }"
+  parsed_ok: Bool = match lex(source) {
+    Error(error) => false,
+    Ok(tokens) => match parse_module_complete(tokens) {
+      Error(error) => false,
+      Ok(module) => module.program.function_indices.has("$owned$Fruit$apple") &&
+        module.program.function_indices.has("$owned$Fruit$banana") &&
+        !module.program.function_indices.has("apple") && len(module.syntax) == 3
+    }
+  }
+  [
+    std_testing.expect("parser/owned/declarations", parsed_ok, "methods must have distinct owner identities"),
+    std_testing.equal_str("parser/owned/arrow", parse_source("fruit->apple()"), "$owned_call$apple(fruit)"),
+    std_testing.equal_str("parser/owned/dot-unchanged", parse_source("fruit.apple()"), "apple(fruit)"),
+    std_testing.equal_str("parser/owned/missing-call", parse_source("fruit->apple"), "expected opening method parenthesis"),
+    std_testing.equal_str("parser/owned/invalid-owner", parse_program_source("impl Fruit {}"), "impl requires an earlier local non-generic record: Fruit")
+  ]
+}
+
+
 main(): Void {
-  mut results: [TestResult] = []
+  mut results: [TestResult] = parser_unit_owned_methods()
   results = results.append(std_testing.equal_str("parser/core-method-private-identity",
     parse_source("items.sort_by(@less).first()"), "$core_first($core_sort_by(items, @less))"))
 

@@ -19,6 +19,21 @@ P7 retains its deferred 10-point allocation. Alpha.13 release acceptance is comp
 No item has been renumbered or given additional scope by this documentation split.
 **Next available roadmap identifier: RM#156.**
 
+## Bounded method experiment — 2026-10-17
+
+Owner-selected proof of concept: two `Fruit` instances call owned `apple` and
+`banana` methods using `->`, yielding 10/11/20/21 while existing dot notation is
+preserved. The local record-only compiler slice and acceptance fixtures are
+implemented and locally verified: the exact source and saved-bytecode output,
+same-name owner/global separation, rejection cases, seed fixed point and
+`make check` pass (432 seconds). The experiment is complete locally; draft PR
+integration remains pending. No HTTP API work or broader
+method system is included, and no issue was created solely for this experiment.
+The [specification](docs/reference/SPEC.md#type-owned-methods-bounded-proof-of-concept)
+records its limits. Runtime performance uses existing direct calls; extra work is
+confined to parsing and checking arrow calls. Website: no current-release claim
+changes are needed for this unreleased experiment; reassess at release selection.
+
 ## Existing links
 
 Existing RM links remain valid below and lead to their detailed record.

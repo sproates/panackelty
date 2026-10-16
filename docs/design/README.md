@@ -9,5 +9,6 @@ and release notes to determine what is available today.
 - [Execution, concurrency and host integration — proposal](EXECUTION_CONCURRENCY_DESIGN.md)
 - [GI#106: separate-compilation design sketch](GI106_SEPARATE_COMPILATION_DESIGN.md)
 - [GI#162: generic static HTTP service and website previews](GI162_STATIC_HTTP_PLAN.md)
+- [GI#518: routed HTTP server implementation plan](GI518_ROUTED_HTTP_SERVER_PLAN.md)
 - [Module, package and HTTP design](MODULE_PACKAGE_DESIGN.md)
 - [Native HTTP client design (P5)](NATIVE_HTTP_CLIENT_DESIGN.md)

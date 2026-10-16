@@ -217,13 +217,13 @@ addition, and it does not add a new gate to the ongoing Alpha.13 release.
 
 <a id="rm-155"></a>
 
-**RM#155: Authoring-friction improvements — Alpha.14.**
+**RM#155: Review the friction log and implement selected improvements — Alpha.14.**
 
-**Planned by owner direction, 2026-10-15.** Address selected items from the
-recorded authoring-friction log during Alpha.14. Review the evidence, identify
-recurring or costly obstacles, and prioritise a bounded set of improvements to
-language/compiler behaviour, diagnostics, API discoverability, documentation,
-examples or development tooling as appropriate. Distinguish confirmed defects
+**Planned by owner direction, 2026-10-15; clarified 2026-10-16.** Review the
+recorded authoring-friction log, identify concrete improvements, and select a
+bounded, prioritised set to implement during Alpha.14. Candidate improvements may
+address language/compiler behaviour, diagnostics, API discoverability,
+documentation, examples or development tooling. Distinguish confirmed defects
 from confusing intended behaviour and unverified suggestions; reproduce each
 selected case before choosing its remedy.
 
@@ -235,10 +235,11 @@ Coordinate overlapping work with [RM#64: Inference and diagnostics](language-dir
 [RM#48: Compiler explanations](groomed-development-and-engineering-work.md#rm-48) and [RM#154: Incremental coverage
 collection](#rm-154) rather than counting the same delivery twice.
 
-The release commitment is to address prioritised friction, not automatically
-implement every logged suggestion. Select the concrete items and estimate their
-combined effort during Alpha.14 planning; scope and effort remain provisional
-until that review. Preserve existing correctness and compatibility contracts,
+The release commitment is to review the log, identify concrete improvements,
+and implement the selected prioritised items; it is not to implement every logged
+suggestion. Confirm the selected items and estimate their combined effort during
+Alpha.14 planning; scope and effort remain provisional until that review. Preserve
+existing correctness and compatibility contracts,
 and document any deliberately selected changes. This roadmap addition starts no
 implementation and adds no gate to the ongoing Alpha.13 release.
 

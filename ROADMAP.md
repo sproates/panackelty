@@ -8,8 +8,10 @@ and [acceptance evidence](docs/releases/ALPHA13_RELEASE_ACCEPTANCE.md).
 Selected work includes compiler understanding, package management and compilation
 provenance, faster coverage collection with validated exact-input plan caching and
 fresh execution, prioritised authoring-friction improvements, and the routed HTTP
-server API in GI#518. The detailed records retain the agreed scope, dependencies
-and acceptance criteria.
+server API in GI#518. It also includes a holistic performance review and selected
+quick wins, with particular attention to HTTP server performance and source
+coverage instrumentation time. The detailed records retain the agreed scope,
+dependencies and acceptance criteria.
 
 - [Release plans](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md)
 - [All roadmap records](docs/roadmap/README.md)
@@ -17,8 +19,9 @@ and acceptance criteria.
 
 The original modules/packages/HTTP programme baseline remains **90/100 earned**;
 P7 retains its deferred 10-point allocation. Alpha.13 release acceptance is complete.
-No existing identifier or item scope changed; RM#156 records the new GI#518 selection.
-**Next available roadmap identifier: RM#157.**
+No existing identifier or item scope changed; RM#156 records the GI#518 selection
+and RM#157 records the performance outcome.
+**Next available roadmap identifier: RM#158.**
 
 ## Existing links
 
@@ -40,6 +43,7 @@ Existing RM links remain valid below and lead to their detailed record.
 <a id="rm-154"></a> [rm-154](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154)
 <a id="rm-155"></a> [rm-155](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-155)
 <a id="rm-156"></a> [rm-156](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-156)
+<a id="rm-157"></a> [rm-157](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-157)
 <a id="else-if-chains"></a> [else-if-chains](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#else-if-chains)
 <a id="rm-142"></a> [rm-142](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-142)
 <a id="first-non-alpha-release--milestone-definition"></a> [first-non-alpha-release--milestone-definition](docs/roadmap/records/first-non-alpha-release--milestone-definition.md#first-non-alpha-release--milestone-definition)

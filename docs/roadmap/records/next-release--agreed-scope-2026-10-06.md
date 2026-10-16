@@ -6,7 +6,7 @@
 
 **Current status (16 October 2026): alpha.12 and alpha.13 are released.**
 Alpha.14 is the next planned release; its scope is recorded below under RM#152,
-RM#154, RM#155 and RM#156. The alpha.12/13 planning text below is retained
+RM#154–RM#157. The alpha.12/13 planning text below is retained
 to explain
 original decisions, not to assert that their release gates are still pending.
 See [alpha.13 acceptance](../../releases/ALPHA13_RELEASE_ACCEPTANCE.md).
@@ -164,6 +164,8 @@ owner also selected [RM#155: Authoring-friction improvements](#rm-155) for
 Alpha.14: address prioritised items from recorded development experience. On
 2026-10-16, the owner also selected [RM#156: Routed HTTP server API](#rm-156) /
 [GI#518](https://github.com/sproates/panackelty/issues/518) for Alpha.14.
+The owner also selected [RM#157: Performance](#rm-157), with particular
+attention to HTTP server performance and source coverage instrumentation time.
 
 <a id="rm-152"></a>
 
@@ -268,6 +270,37 @@ This records Alpha.14 release scope and does not itself authorize implementation
 or settle work sequencing, effort, or release timing. If implementation exposes
 an unanticipated gap or inconsistency, stop and ask the issue owner rather than
 guessing; update GI#518 before proceeding.
+
+
+<a id="rm-157"></a>
+
+**RM#157: Performance — Alpha.14.**
+
+**Selected by owner direction, 2026-10-16.** Review Panackelty holistically to
+identify material performance problems, areas that need closer investigation, and
+well-supported quick improvements. The review should look across compilation,
+runtime execution, libraries and packages, and development and test workflows,
+then distinguish measured bottlenecks from hypotheses and areas where evidence is
+still missing.
+
+Give particular attention to the reported HTTP server performance relative to
+Node.js and the time required to instrument Panackelty source for code coverage.
+Use comparable, correctness-checked workloads and record the environment and
+limitations; establish measurements before setting improvement targets. For
+coverage, separate instrumentation and plan-generation time from test execution,
+aggregation and publication, and coordinate with [RM#154: Incremental coverage
+collection](#rm-154) so its validated plan-caching work is not duplicated or
+counted twice.
+
+Prioritise concrete findings. Implement a bounded set of safe, evidence-backed
+quick wins during Alpha.14 where they fit the release; record larger or
+uncertain opportunities with evidence and a recommendation for later selection.
+Preserve correctness, fresh required test execution and existing validation
+coverage. This review does not set a universal performance target or commit to
+implementing every identified optimisation. Agree specific workloads, targets
+and any larger implementation scope during planning, after the initial evidence
+is available. Coordinate baseline work with [RM#56: Performance baselines](current-status-and-grooming-2026-10-01.md#rm-56)
+and ongoing policy under [RM#123: Standing performance engineering](standing-performance-engineering--ongoing.md#rm-123).
 
 
 ### Else-if chains

@@ -449,18 +449,21 @@ maintainer when selected. No profiling, optimisation, new gate or reprioritisati
 starts here; namespaces remain principal and compiler understanding remains paused.
 Website/performance impact of this record: none; it changes no code or public claim.
 
-### Independent contract implementation
+### Contract testing for services and libraries
 
 <a id="rm-57"></a>
 
-**RM#57: Independent contract assessment** · [GI#142: Independent contract assessment](https://github.com/sproates/panackelty/issues/142).
+**RM#57: Contract testing for services and libraries** · [GI#142: Contract testing for services and libraries](https://github.com/sproates/panackelty/issues/142).
 
 Work record: [#142](https://github.com/sproates/panackelty/issues/142).
 
-The bytecode format, fixed fixtures and VM/compiler audit already establish
-substantial contract evidence. Test one small stable subset by implementing a
-disposable probe from the written contract before consulting implementation
-details. Record ambiguities, independently derived malformed/valid vectors and
-any prior knowledge limiting independence. Use the supported toolchain. This
-assesses specification precision without adding a second execution engine or
-claiming full-language conformance.
+The intent is to make contract testing between services or libraries a
+first-class Panackelty capability. This concerns the contracts between
+interacting components; it is not about bytecode conformance or independently
+implementing the VM.
+
+The concrete use cases, what “first-class” support means, and the contract
+authoring and execution model have not yet been decided. Keep this item as an
+unscheduled idea until those questions are discussed and a bounded first outcome
+is agreed. Do not infer a language API, testing framework, provider/consumer
+workflow, or acceptance criteria from this high-level direction.

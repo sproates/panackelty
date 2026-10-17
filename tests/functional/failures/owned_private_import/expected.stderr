@@ -1,0 +1,9 @@
+error: <case>/main.panack:8:9: owned method Fruit->banana is private
+  8 |   print(produce.Fruit(10)->banana())
+    |         ^
+<case>/main.panack:9:9: owned method Fruit->banana is private
+  9 |   print(RenamedFruit(20)->banana())
+    |         ^
+<case>/main.panack:10:9: owned method Fruit->banana is private
+  10 |   print(ReexportedFruit(30)->banana())
+     |         ^

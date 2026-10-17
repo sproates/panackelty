@@ -23,11 +23,15 @@ No item has been renumbered or given additional scope by this documentation spli
 
 Owner-selected proof of concept: two `Fruit` instances call owned `apple` and
 `banana` methods using `->`, yielding 10/11/20/21 while existing dot notation is
-preserved. The local record-only compiler slice and acceptance fixtures are
-implemented and locally verified: the exact source and saved-bytecode output,
-same-name owner/global separation, rejection cases, seed fixed point and
-`make check` pass (432 seconds). The experiment is complete locally; draft PR
-integration remains pending. No HTTP API work or broader
+preserved. The initial local-record slice passed `make check` (432 seconds).
+The owner-selected extension adds explicitly public methods callable through
+imported records, preserving original type identity through aliases and
+re-exports. Private methods remain module-local. Focused import and visibility
+checks pass, and the extension passes `make check` (578 seconds), including
+400 functional assertions, unit suites, bootstrap and release smoke. The
+extended PoC is complete locally. Draft
+[PR#524: Type-owned method proof of concept](https://github.com/sproates/panackelty/pull/524)
+remains unmerged. No HTTP API work or broader
 method system is included, and no issue was created solely for this experiment.
 The [specification](docs/reference/SPEC.md#type-owned-methods-bounded-proof-of-concept)
 records its limits. Runtime performance uses existing direct calls; extra work is

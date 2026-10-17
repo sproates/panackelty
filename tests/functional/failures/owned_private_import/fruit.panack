@@ -1,0 +1,5 @@
+pub record Fruit { value: Nat }
+
+impl Fruit {
+  pure banana(): Nat { self.value + 1 }
+}

@@ -44,7 +44,7 @@ Alpha.13 includes namespaces, local packages, native HTTP clients and services,
 expanded compiler explanations, and a static HTTP server for serving directories.
 Read the [release notes](CHANGELOG.md) and [compatibility policy](docs/releases/RELEASE_POLICY.md).
 
-The current source also contains a bounded [type-owned method proof of concept](docs/reference/SPEC.md#type-owned-methods-bounded-proof-of-concept), using `->` independently of existing dot calls. It is not part of the published alpha.13 release.
+The current source also contains a bounded [type-owned method proof of concept](docs/reference/SPEC.md#type-owned-methods-bounded-proof-of-concept), using `->` independently of existing dot calls, including public methods on imported records. It is not part of the published alpha.13 release.
 
 ## Explore
 

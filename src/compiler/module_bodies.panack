@@ -1209,7 +1209,7 @@ pure body_owned_target(
   context: BodyContext, method: Str, arguments: [Expr], span: SourceSpan,
   locals: Map[Str, BodyLocal], path: [Nat]
 ): Result[BodyTarget, Str] {
-  mut result: Result[BodyTarget, Str] = Error("owned method requires a local record receiver: " + method)
+  mut result: Result[BodyTarget, Str] = Error("owned method requires a non-generic record receiver: " + method)
   if len(arguments) > 0 {
     receiver: BodyResult = bind_body_expression(context, arguments[0], span, locals, append(path, 0))
     if len(receiver.diagnostics) > 0 {
@@ -1219,10 +1219,16 @@ pure body_owned_target(
         None() => {},
         Some(type) => match type.identity {
           SignatureNominal(owner) => {
-            if owner.module == context.owner.module && len(type.arguments) == 0 {
+            if len(type.arguments) == 0 {
               match resolve_module_function(context.graph, owner.module, owned_method_name(owner.name, method)) {
                 Error(message) => { result = Error("unknown owned method " + owner.name + "->" + method) },
-                Ok(binding) => { result = Ok(BodyDeclaration(binding)) }
+                Ok(binding) => {
+                  if owner.module != context.owner.module && !binding.is_public {
+                    result = Error("owned method " + owner.name + "->" + method + " is private")
+                  } else {
+                    result = Ok(BodyDeclaration(binding))
+                  }
+                }
               }
             }
           },

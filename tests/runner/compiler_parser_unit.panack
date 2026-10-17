@@ -815,8 +815,18 @@ pure parser_unit_owned_methods(): [TestResult] {
         !module.program.function_indices.has("apple") && len(module.syntax) == 3
     }
   }
+  public_source: Str = "pub record Fruit { value: Nat } impl Fruit { pub pure apple(): Nat { self.value } pure banana(): Nat { self.value + 1 } }"
+  visibility_ok: Bool = match lex(public_source) {
+    Error(error) => false,
+    Ok(tokens) => match parse_module_complete(tokens) {
+      Error(error) => false,
+      Ok(module) => len(module.syntax) == 3 && module.syntax[0].is_public &&
+        module.syntax[1].is_public && !module.syntax[2].is_public
+    }
+  }
   [
     std_testing.expect("parser/owned/declarations", parsed_ok, "methods must have distinct owner identities"),
+    std_testing.expect("parser/owned/visibility", visibility_ok, "pub applies to its method only"),
     std_testing.equal_str("parser/owned/arrow", parse_source("fruit->apple()"), "$owned_call$apple(fruit)"),
     std_testing.equal_str("parser/owned/dot-unchanged", parse_source("fruit.apple()"), "apple(fruit)"),
     std_testing.equal_str("parser/owned/missing-call", parse_source("fruit->apple"), "expected opening method parenthesis"),

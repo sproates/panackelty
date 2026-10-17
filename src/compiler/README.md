@@ -319,8 +319,11 @@ as source identifiers.
 
 `module_resolution` traverses arrow arguments without looking for a global
 method name. `module_bodies` checks the receiver's nominal declaration identity,
-selects that owner's method in the same module, then applies existing argument,
-return and effect checks. Checked identity emission uses ordinary function calls
+selects the method in that type's defining module, then applies existing argument,
+return and effect checks. Method metadata retains an explicit `pub` marker;
+other modules may call only public methods. Type aliases and re-exports preserve
+the original owner identity. Public-signature checking also requires accessible
+owner, parameter and result types. Checked identity emission uses ordinary function calls
 and existing bytecode; there is no new VM opcode or runtime dispatch table. The
 receiver is inspected twice during checking but emitted and evaluated once.
 The parser's project-route gate prevents the legacy global checker from treating

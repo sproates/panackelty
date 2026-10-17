@@ -222,7 +222,7 @@ pure body_type_check_for_context(
 }
 
 main(): Void {
-  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(namespace_effect_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests()).concat(module_emission_identity_tests()).concat(module_emission_program_tests()).concat(module_emission_effect_tests()).concat(module_emission_status_tests()).concat(stdlib_public_api_tests())
+  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(owned_method_import_tests()).concat(namespace_effect_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests()).concat(module_emission_identity_tests()).concat(module_emission_program_tests()).concat(module_emission_effect_tests()).concat(module_emission_status_tests()).concat(stdlib_public_api_tests())
   loaded: LoadedProject = load_project("tests/fixtures/compiler_contracts/indexed_lookup/main.panack")
   results = append(results, std_testing.expect(
     "existing project resolves with identity-checked bodies",
@@ -4421,6 +4421,43 @@ pure namespace_else_if_tests(): [TestResult] {
     results = append(results, std_testing.expect("namespace else-if rejects/" + source,
       len(checked.diagnostics) > 0 && checked.functions[0].status == BodyInvalid(),
       "invalid chain appeared checked"))
+  }
+  results
+}
+
+// Imported aliases retain the original owner, and visibility is checked there.
+pure owned_method_import_tests(): [TestResult] {
+  library: LoadedModule = signature_test_module(namespace_identity("fruit"),
+    "pub record Fruit { value: Nat }; impl Fruit { pub pure apple(): Nat { self->banana() } pure banana(): Nat { self.value + 1 } }")
+  app: LoadedModule = signature_test_module(namespace_identity("app"),
+    "import project/fruit::{Fruit as Renamed}; pure read(value: Renamed): Nat { value->apple() }; pure denied(value: Renamed): Nat { value->banana() }")
+  graph: ModuleBindingGraph = ModuleBindingGraph([library.bindings, app.bindings],
+    [ModuleImportEdge(app.bindings.identity, 0, library.bindings.identity)])
+  modules: [LoadedModule] = [library, app]
+  local: CheckedModuleBodies = body_test_graph(modules, graph, library)
+  checked: CheckedModuleBodies = body_test_graph(modules, graph, app)
+  mut results: [TestResult] = [
+    std_testing.equal_nat("owned import/local private call", len(local.diagnostics), 0),
+    std_testing.equal_nat("owned import/only private call rejected", len(checked.diagnostics), 1),
+    std_testing.equal_nat("owned import/both callers checked", len(checked.functions), 2)
+  ]
+  if len(checked.diagnostics) == 1 {
+    results = results.append(std_testing.equal_str("owned import/private diagnostic",
+      checked.diagnostics[0].message, "owned method Fruit->banana is private"))
+  }
+  if len(checked.functions) == 2 {
+    results = results.append(std_testing.expect("owned import/public checked, private invalid",
+      checked.functions[0].status == BodyIdentityChecked() &&
+      checked.functions[1].status == BodyInvalid(), "visibility status was not retained"))
+    original: Result[ModuleDeclarationBinding, Str] = resolve_module_function(
+      graph, library.bindings.identity, "$owned$Fruit$apple")
+    selected_original: Bool = match original {
+      Error(message) => false,
+      Ok(binding) => checked.functions[0].body.children[0].node ==
+        BodyCall(BodyDeclaration(binding), [], [])
+    }
+    results = results.append(std_testing.expect("owned import/original method identity",
+      selected_original, "alias changed the selected owner or method"))
   }
   results
 }

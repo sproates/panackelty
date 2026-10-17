@@ -12,3 +12,5 @@ and release notes to determine what is available today.
 - [GI#518: routed HTTP server implementation plan](GI518_ROUTED_HTTP_SERVER_PLAN.md)
 - [Module, package and HTTP design](MODULE_PACKAGE_DESIGN.md)
 - [Native HTTP client design (P5)](NATIVE_HTTP_CLIENT_DESIGN.md)
+
+- [PR#524: type-owned dispatch migration plan and implementation handoff](type-owned-dispatch/dispatch-migration-plan.md)

@@ -1,0 +1,23 @@
+record Fruit {
+  value: Nat
+}
+
+impl Fruit {
+  pure apple(): Nat {
+    self.value
+  }
+
+  pure banana(): Nat {
+    self.value + 1
+  }
+}
+
+main(): Void {
+  first: Fruit = Fruit(10)
+  second: Fruit = Fruit(20)
+
+  print(first->apple())
+  print(first->banana())
+  print(second->apple())
+  print(second->banana())
+}

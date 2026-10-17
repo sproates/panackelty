@@ -7,7 +7,7 @@ import stdlib/time as std_time
 import project/src/compiler/module_signatures::{signature_effect, signature_declaration, signature_type, substitute_signature_type, check_module_signatures}
 import project/src/compiler/module_bindings::{ModulePackageIdentity, ModulePackageIdentity.ToolchainModulePackage, module_import_names, module_reserved_binding}
 import project/src/compiler/module_resolution::{ResolvedModuleUses, ResolvedModuleTarget, ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget, ResolvedDotCall, ResolvedDotCall.NamespaceCall, ResolvedDotCall.ValueMethodCall, binding_graph_module, binding_graph_target, module_identity_in, resolve_module_expression_uses, resolve_module_path_inner, resolve_module_type, module_head_is_namespace, resolve_module_function, resolve_module_path, resolve_module_dot_call_scoped, module_import_shadow_diagnostics}
-import project/src/compiler/parser::{Statement, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue, BlockValue.NoBlockValue, BlockValue.TailBlockValue, Block, Program, MatchArm, MatchPattern, ParsedModule, ParsedTypeRef, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, DeclarationSyntax, RecordField, FunctionParameter, EnumVariant, expression_span, expression_reference_path, reference_head, unlocated_expression, lowered_method_name, render_expr}
+import project/src/compiler/parser::{Statement, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue, BlockValue.NoBlockValue, BlockValue.TailBlockValue, Block, Program, MatchArm, MatchPattern, ParsedModule, ParsedTypeRef, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, DeclarationSyntax, RecordField, FunctionParameter, EnumVariant, owned_method_name, expression_span, expression_reference_path, reference_head, unlocated_expression, lowered_method_name, render_expr}
 import project/src/compiler/lexer::{prior_index}
 import project/src/compiler/types::{SourcePos}
 import project/src/compiler/checker::{GuardedTypeLookup, condition_facts, render_type, prove_guard_bounds}
@@ -1201,6 +1201,46 @@ pure body_type_argument_count_span(
       fallback
     }
   }
+}
+
+// Select from the receiver's nominal identity, never the caller's global name.
+// Binding the receiver here only inspects its type; emitted children evaluate it once.
+pure body_owned_target(
+  context: BodyContext, method: Str, arguments: [Expr], span: SourceSpan,
+  locals: Map[Str, BodyLocal], path: [Nat]
+): Result[BodyTarget, Str] {
+  mut result: Result[BodyTarget, Str] = Error("owned method requires a non-generic record receiver: " + method)
+  if len(arguments) > 0 {
+    receiver: BodyResult = bind_body_expression(context, arguments[0], span, locals, append(path, 0))
+    if len(receiver.diagnostics) > 0 {
+      result = Error(receiver.diagnostics[0].message)
+    } else {
+      match receiver.body.type {
+        None() => {},
+        Some(type) => match type.identity {
+          SignatureNominal(owner) => {
+            if len(type.arguments) == 0 {
+              match resolve_module_function(context.graph, owner.module, owned_method_name(owner.name, method)) {
+                Error(message) => { result = Error("unknown owned method " + owner.name + "->" + method) },
+                Ok(binding) => {
+                  if owner.module != context.owner.module && !binding.is_public {
+                    result = Error("owned method " + owner.name + "->" + method + " is private")
+                  } else {
+                    result = Ok(BodyDeclaration(binding))
+                  }
+                }
+              }
+            }
+          },
+          SignatureCore(name) => {},
+          SignatureParameter(owner, index) => {},
+          SignatureCallable(effect) => {},
+          SignatureHole(owner, location, index) => {}
+        }
+      }
+    }
+  }
+  result
 }
 
 pure body_call(
@@ -3645,7 +3685,12 @@ pure bind_body_expression_with_type_argument_spans(
       }
     },
     CallExpr(name, arguments, types) => {
-      match body_target(context, name, false) {
+      selected: Result[BodyTarget, Str] = if name.starts_with("$owned_call$") {
+        body_owned_target(context, name.slice(12, name.len()), arguments, origin, locals, path)
+      } else {
+        body_target(context, name, false)
+      }
+      match selected {
         Error(message) => {
           result = body_failure(message, origin)
         },

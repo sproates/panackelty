@@ -11,6 +11,11 @@ The dated records below preserve milestone evidence and their original timings.
 Their former pending-release statements and performance budgets are historical,
 not outstanding alpha.13 gates.
 
+The unreleased type-owned method proof of concept remains implemented in
+Panackelty. Its compiler changes use syntax accepted by the prior seed; seed
+refresh and the existing fixed-point checks validate bootstrap compatibility.
+It adds no VM opcode or bytecode version.
+
 ## Historical P2 completion checkpoint — 2026-10-10
 
 PR#358 merged on 2026-10-10 as `bfb34a44107d345eb9f4784e5b8ca02e64c7124d`.

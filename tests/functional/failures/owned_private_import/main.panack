@@ -1,0 +1,11 @@
+import "fruit.panack" as produce
+import "fruit.panack"::{Fruit as RenamedFruit}
+import "facade.panack"::{OrchardFruit as ReexportedFruit}
+
+pure banana(value: produce.Fruit): Nat { value.value + 9000 }
+
+main(): Void {
+  print(produce.Fruit(10)->banana())
+  print(RenamedFruit(20)->banana())
+  print(ReexportedFruit(30)->banana())
+}

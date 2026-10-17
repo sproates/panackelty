@@ -1,0 +1,39 @@
+import "fruit.panack" as produce
+import "fruit.panack"::{Fruit as BasketFruit}
+import "facade.panack"::{OrchardFruit as ReexportedFruit}
+import "other.panack" as other
+
+record Fruit { value: Nat }
+
+impl Fruit {
+  pure apple(): Nat { self.value + 1000 }
+  pure banana(): Nat { self.value + 2000 }
+}
+
+pure apple(value: produce.Fruit): Nat { value.value + 9000 }
+pure banana(value: produce.Fruit): Nat { value.value + 9001 }
+
+main(): Void {
+  first: produce.Fruit = produce.Fruit(10)
+  second: produce.Fruit = produce.Fruit(20)
+  print(first->apple())
+  print(first->banana())
+  print(second->apple())
+  print(second->banana())
+
+  renamed: BasketFruit = BasketFruit(30)
+  reexported: ReexportedFruit = ReexportedFruit(40)
+  print(renamed->apple())
+  print(renamed->banana())
+  print(reexported->apple())
+  print(reexported->banana())
+
+  different = other.Fruit(50)
+  local = Fruit(60)
+  print(different->apple())
+  print(different->banana())
+  print(local->apple())
+  print(local->banana())
+  print(first.apple())
+  print(first.banana())
+}

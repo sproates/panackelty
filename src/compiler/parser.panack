@@ -1164,7 +1164,7 @@ pure parse_postfix_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedE
       Error(error) => Error(error)
     }
   } else {
-    if index < len(tokens) && tokens[index].text == "." {
+    if index < len(tokens) && (tokens[index].text == "." || tokens[index].text == "->") {
       if index + 1 < len(tokens) && tokens[index + 1].kind == Identifier() {
         name: Str = tokens[index + 1].text
         match parse_call_type_arguments(tokens, index + 2) {
@@ -1179,7 +1179,11 @@ pure parse_postfix_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedE
                     tokens,
                     left,
                     arguments.next,
-                    DotCallExpr(left, name, arguments.values, types.values),
+                    if tokens[index].text == "->" {
+                      CallExpr("$owned_call$" + name, concat([left], arguments.values), types.values)
+                    } else {
+                      DotCallExpr(left, name, arguments.values, types.values)
+                    },
                     types.spans
                   ),
                     arguments.next
@@ -1187,6 +1191,8 @@ pure parse_postfix_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedE
                 },
                 Error(error) => Error(error)
               }
+            } else if tokens[index].text == "->" {
+              Error(parse_error("expected opening method parenthesis", token_position(tokens, types.next)))
             } else {
               parse_postfix_tail(
                 tokens,
@@ -2163,6 +2169,83 @@ pure parse_nonimport_declaration(tokens: [Token], index: Nat): Result[ParsedTopL
   }
 }
 
+// Owned methods have compiler-only names, never ordinary source callables.
+// The first slice deliberately accepts earlier, local, non-generic records only.
+pub pure owned_method_name(owner: Str, method: Str): Str {
+  "$owned$" + owner + "$" + method
+}
+
+pure parse_impl_items(
+  tokens: [Token],
+  declarations: [TopLevel],
+  syntax: [DeclarationSyntax],
+  owner: Str,
+  owner_span: SourceSpan,
+  index: Nat
+): Result[ParsedModule, Diagnostic] {
+  if index >= len(tokens) {
+    Error(parse_error("expected closing impl brace", token_position(tokens, index)))
+  } else if tokens[index].text == ";" {
+    parse_impl_items(tokens, declarations, syntax, owner, owner_span, index + 1)
+  } else if tokens[index].text == "}" {
+    parse_module_items(tokens, declarations, syntax, index + 1)
+  } else {
+    is_public: Bool = tokens[index].text == "pub"
+    start: Nat = if is_public { index + 1 } else { index }
+    match parse_function_declaration(tokens, start) {
+      Error(error) => Error(error),
+      Ok(parsed) => match parsed.value {
+        FunctionDeclaration(name, parameters, result, pure_flag, async_flag, body, types) => {
+          if len(types) > 0 || async_flag {
+            Error(parse_error("owned method proof of concept does not support generic or async methods", token_position(tokens, index)))
+          } else {
+            method: TopLevel = FunctionDeclaration(
+              owned_method_name(owner, name),
+              concat([FunctionParameter("self", owner)], parameters),
+              result, pure_flag, false, body, []
+            )
+            metadata: DeclarationSyntax = DeclarationSyntax(
+              SourceSpan(token_position(tokens, index), token_end_position(tokens, parsed.next)),
+              concat([owner_span], parsed.type_spans), is_public, NoImportBinding()
+            )
+            parse_impl_items(tokens, append(declarations, method), append(syntax, metadata), owner, owner_span, parsed.next)
+          }
+        },
+        ImportDeclaration(path) => Error(parse_error("expected method", token_position(tokens, index))),
+        TypeDeclaration(name, base, guard) => Error(parse_error("expected method", token_position(tokens, index))),
+        RecordDeclaration(name, types, fields) => Error(parse_error("expected method", token_position(tokens, index))),
+        EnumDeclaration(name, types, variants) => Error(parse_error("expected method", token_position(tokens, index)))
+      }
+    }
+  }
+}
+
+pure parse_impl_declaration(
+  tokens: [Token], declarations: [TopLevel], syntax: [DeclarationSyntax], index: Nat
+): Result[ParsedModule, Diagnostic] {
+  if index + 2 >= len(tokens) || tokens[index + 1].kind != Identifier() || tokens[index + 2].text != "{" {
+    Error(parse_error("expected impl RecordName {", token_position(tokens, index)))
+  } else {
+    owner: Str = tokens[index + 1].text
+    mut valid: Bool = false
+    for declaration in declarations {
+      match declaration {
+        RecordDeclaration(name, types, fields) => { valid = valid || (name == owner && len(types) == 0) },
+        ImportDeclaration(path) => {},
+        TypeDeclaration(name, base, guard) => {},
+        EnumDeclaration(name, types, variants) => {},
+        FunctionDeclaration(name, parameters, result, pure_flag, async_flag, body, types) => {}
+      }
+    }
+    if !valid {
+      Error(parse_error("impl requires an earlier local non-generic record: " + owner, token_position(tokens, index + 1)))
+    } else {
+      parse_impl_items(tokens, declarations, syntax, owner,
+        SourceSpan(token_position(tokens, index + 1), token_end_position(tokens, index + 2)), index + 3)
+    }
+  }
+}
+
 pure parse_module_items(
   tokens: [Token],
   declarations: [TopLevel],
@@ -2174,6 +2257,9 @@ pure parse_module_items(
   } else {
     if tokens[index].text == ";" {
       parse_module_items(tokens, declarations, syntax, index + 1)
+    } else if tokens[index].text == "impl" && index + 1 < len(tokens) &&
+        tokens[index + 1].kind == Identifier() {
+      parse_impl_declaration(tokens, declarations, syntax, index)
     } else {
       is_public: Bool = tokens[index].text == "pub"
       start: Nat = if is_public {
@@ -2940,7 +3026,7 @@ pure expression_requires_namespaces(expression: Expr, aliases: Set[Str], locals:
     ),
     FunctionExpr(name) => type_has_qualification(name),
     CallExpr(name, arguments, types) => {
-      mut required: Bool = type_has_qualification(name)
+      mut required: Bool = name.starts_with("$owned_call$") || type_has_qualification(name)
       for argument in arguments {
         required = required || expression_requires_namespaces(argument, aliases, locals)
       }
@@ -3094,7 +3180,7 @@ pure declaration_requires_namespaces(
           parameters_in_scope = parameters_in_scope.add(parameter.name)
         }
       }
-      mut required: Bool = type_has_qualification(return_type) || block_requires_namespaces(
+      mut required: Bool = name.starts_with("$owned$") || type_has_qualification(return_type) || block_requires_namespaces(
         body,
         aliases,
         parameters_in_scope

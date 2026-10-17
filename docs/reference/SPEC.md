@@ -256,6 +256,71 @@ function names: a program may still declare an unrelated function named
 `add`, but `value.add(item)` always selects the collection method. Their
 internal bytecode call names are not source identifiers.
 
+### Type-owned methods (bounded proof of concept)
+
+This source revision adds a separate `receiver->method(arguments)` form. Existing
+`receiver.method(arguments)` lookup and record-field access are unchanged.
+
+```panack
+record Fruit { value: Nat }
+
+impl Fruit {
+  pure apple(): Nat { self.value }
+  pure banana(): Nat { self.value + 1 }
+}
+
+main(): Void {
+  first: Fruit = Fruit(10)
+  second: Fruit = Fruit(20)
+  print(first->apple())
+  print(first->banana())
+  print(second->apple())
+  print(second->banana())
+}
+```
+
+This prints `10`, `11`, `20`, `21` on separate lines. Each method belongs to its
+record type; the receiver is supplied as immutable `self`. Arrow lookup uses the
+receiver's checked nominal type and never falls back to an ordinary global
+function. Different record types can own methods with the same name. The receiver
+and explicit arguments are evaluated once, in that order. Ordinary argument,
+return-type and purity checking still applies. Methods may call other methods
+through `self->name()`.
+
+Methods are private to their defining module unless declared `pub`. Exporting a
+record and importing it is sufficient to call its public methods; no separate
+method import is required. For example, `fruit.panack` can contain:
+
+```panack
+pub record Fruit { value: Nat }
+
+impl Fruit {
+  pub pure apple(): Nat { self.value }
+  pub pure banana(): Nat { self->next_value() }
+  pure next_value(): Nat { self.value + 1 }
+}
+```
+
+A caller can import and instantiate it with `import "fruit.panack" as fruit` and
+`first = fruit.Fruit(10)`, then call `first->apple()` or `first->banana()`.
+`first->next_value()` is rejected outside the defining module. Public methods
+may use private methods within their implementation. Public methods require a
+public owner type; existing public-signature accessibility checks apply.
+
+Namespace aliases, renamed selective imports and re-exports retain the original
+nominal owner identity. Neither a same-name local type nor a same-name global
+function changes arrow lookup. Visibility is checked against the original
+method declaration, including when the receiver type is re-exported.
+
+This experiment accepts only non-generic records declared earlier in the same
+module as their `impl`, with non-generic synchronous methods. It does not add
+implementations for imported types, extension methods, traits, inheritance,
+dynamic dispatch, generic methods or async methods. Method declarations have
+compiler-only identities; they do not introduce ordinary callable names. The project-aware CLI is required, including its regular
+source-file commands or explicit `--project` commands. The standalone legacy
+parser does not execute this form. Diagnostics may expose internal method names.
+This is unreleased compiler behavior, separate from the alpha.13 contract.
+
 Local type annotations may be omitted. `name = value` declares a new immutable
 local when no local or parameter with that name is visible; otherwise it assigns
 to the existing binding. `mut name = value` declares a mutable inferred local.

@@ -1,0 +1,3 @@
+error: <case>/main.panack:4:9: unknown owned method Fruit->apple
+  4 |   print(Fruit(10)->apple())
+    |         ^

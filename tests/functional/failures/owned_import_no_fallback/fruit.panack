@@ -1,0 +1,1 @@
+pub record Fruit { value: Nat }

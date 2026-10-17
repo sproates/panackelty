@@ -30,7 +30,7 @@ main(): Void {
   }
   names = ["async_await", "callables", "cli_check_disasm", "cli_commands", "cli_diagnostic_display", "cli_environment_files", "cli_explanations", "cli_rational_failures", "collections", "compiler_lexer", "compiler_skeleton", "core_methods", "guard_fact_refresh", "hello_world",
     "host_capabilities", "host_process", "host_types", "local_inference",
-    "modules", "optional_else", "rational_unit", "records_and_enums",
+    "modules", "optional_else", "owned_imports", "owned_method_dispatch", "owned_methods", "rational_unit", "records_and_enums",
     "semicolonless", "stdlib", "stdlib_module_api", "string_boundaries", "testing_commands",
     "testing_fixtures", "testing_library",
     "vm_numeric_boundaries"]
@@ -64,6 +64,8 @@ main(): Void {
     "invalid_logical_import", "invalid_logical_segment", "legacy_function_keyword",
     "main_parameters", "method_collection_receiver", "missing_import",
     "missing_main", "negative_natural", "non_exhaustive_match", "opaque_path",
+    "owned_duplicate", "owned_import_no_fallback", "owned_no_global_fallback",
+    "owned_private_import", "owned_public_private_type", "owned_purity", "owned_wrong_argument",
     "pure_clock", "pure_io", "same_line_without_separator",
     "stdlib_legacy_api_removed",
     "trailing_semicolon_value", "unexpected_character", "unknown_name",
@@ -78,11 +80,11 @@ main(): Void {
     }
     expected_text = "${expected_text}PASS failure/${name}/no artifact\n"
   }
-  expected = std_text.encode_utf8("${expected_text}PASS selected failure count\ntests: 370, failures: 0\n")
+  expected = std_text.encode_utf8("${expected_text}PASS selected failure count\ntests: 400, failures: 0\n")
   command = TestCommand(runner_path("./bin/panack"),
     ["run", "tests/runner/main.panack"], byte_buffer.empty(), std_path.current(),
     runner_test_environment(),
-    // This deadline encloses the entire 370-assertion corpus, including nested
+    // This deadline encloses the entire 400-assertion corpus, including nested
     // compiler and package checks; individual commands keep their own bounds.
     std_time.seconds(600), 1048576)
   result = match std_environment.get("PANACK_TEST_RUNNER_REPORT") {

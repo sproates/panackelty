@@ -1,0 +1,7 @@
+record Fruit { value: Nat }
+impl Fruit {
+  pure apple(amount: Nat): Nat { self.value + amount }
+}
+main(): Void {
+  print(Fruit(10)->apple("wrong"))
+}

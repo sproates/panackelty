@@ -307,3 +307,25 @@ status, declared callable effects and unsupported transitive/runtime questions.
 source eligibility independently of emitted instructions. `inventory` and
 `inventory-check` use explicit roots, exact compiler/artifact/source identities
 and local replay. See [the contract](../../docs/reference/SOURCE_INVENTORY.md).
+
+## Type-owned method proof of concept
+
+The lexer recognizes `->` separately from dot syntax. Module parsing expands a
+local `impl Record` into compiler-only `$owned$Record$method` declarations with
+an explicit first `self` parameter. Arrow syntax retains a distinct
+`$owned_call$method` call marker until body checking; ordinary dot calls retain
+their existing representation and lookup. These private names cannot be written
+as source identifiers.
+
+`module_resolution` traverses arrow arguments without looking for a global
+method name. `module_bodies` checks the receiver's nominal declaration identity,
+selects the method in that type's defining module, then applies existing argument,
+return and effect checks. Method metadata retains an explicit `pub` marker;
+other modules may call only public methods. Type aliases and re-exports preserve
+the original owner identity. Public-signature checking also requires accessible
+owner, parameter and result types. Checked identity emission uses ordinary function calls
+and existing bytecode; there is no new VM opcode or runtime dispatch table. The
+receiver is inspected twice during checking but emitted and evaluated once.
+The parser's project-route gate prevents the legacy global checker from treating
+an arrow marker as a global callable. Scope and limitations are in the
+[specification](../../docs/reference/SPEC.md#type-owned-methods-bounded-proof-of-concept).

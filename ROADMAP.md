@@ -19,6 +19,25 @@ P7 retains its deferred 10-point allocation. Alpha.13 release acceptance is comp
 No item has been renumbered or given additional scope by this documentation split.
 **Next available roadmap identifier: RM#156.**
 
+## Bounded method experiment — 2026-10-17
+
+Owner-selected proof of concept: two `Fruit` instances call owned `apple` and
+`banana` methods using `->`, yielding 10/11/20/21 while existing dot notation is
+preserved. The initial local-record slice passed `make check` (432 seconds).
+The owner-selected extension adds explicitly public methods callable through
+imported records, preserving original type identity through aliases and
+re-exports. Private methods remain module-local. Focused import and visibility
+checks pass, and the extension passes `make check` (578 seconds), including
+400 functional assertions, unit suites, bootstrap and release smoke. The
+extended PoC is complete locally. Draft
+[PR#524: Type-owned method proof of concept](https://github.com/sproates/panackelty/pull/524)
+provides the bounded starting point for [GI#525: Type-owned dispatch migration](https://github.com/sproates/panackelty/issues/525), with the [implementation plan](docs/design/type-owned-dispatch/dispatch-migration-plan.md) included in the PR. The owner approved integrating the PoC into `next`; the migration remains follow-on work. No HTTP API work or broader
+method system is included, and no issue was created solely for this experiment.
+The [specification](docs/reference/SPEC.md#type-owned-methods-bounded-proof-of-concept)
+records its limits. Runtime performance uses existing direct calls; extra work is
+confined to parsing and checking arrow calls. Website: no current-release claim
+changes are needed for this unreleased experiment; reassess at release selection.
+
 ## Existing links
 
 Existing RM links remain valid below and lead to their detailed record.

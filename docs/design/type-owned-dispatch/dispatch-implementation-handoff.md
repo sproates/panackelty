@@ -1,6 +1,6 @@
 # Type-owned dispatch: implementation handoff
 
-Status: proposed design and execution contract, 17 October 2026. Read alongside [the migration plan](dispatch-migration-plan.md). This document makes implementation choices explicit; it does not claim they exist in the compiler or authorise merging PR#524.
+Status: proposed design and execution contract, 17 October 2026. Read alongside [the migration plan](dispatch-migration-plan.md). This document makes implementation choices explicit; it does not claim they exist in the compiler. The owner approved PR#524 as the starting point; [GI#525: Type-owned dispatch migration](https://github.com/sproates/panackelty/issues/525) tracks the remaining work.
 
 Companions: [acceptance fixtures](dispatch-acceptance-fixtures.md) and [stdlib declaration inventory](dispatch-stdlib-inventory.md).
 
@@ -8,7 +8,7 @@ Companions: [acceptance fixtures](dispatch-acceptance-fixtures.md) and [stdlib d
 
 Work on one packet at a time. Complete its focused tests and required project checks, record evidence, and commit a buildable result before starting dependent work. Do not implement all packets in one uninterrupted change.
 
-The inspected baseline is core commit `7aa31bcf99cdd9e4946718d13063f787e78662ce` on `feature/type-method-dispatch-poc`, associated with [PR#524](https://github.com/sproates/panackelty/pull/524). Verify the current checkout rather than assuming it still matches. Read CONTRIBUTING.md first. Preserve unrelated changes. Do not merge that PR. Follow the applicable branch and publication instructions for subsequent work.
+The inspected baseline is core commit `7aa31bcf99cdd9e4946718d13063f787e78662ce` on `feature/type-method-dispatch-poc`, associated with [PR#524](https://github.com/sproates/panackelty/pull/524). Verify the current checkout rather than assuming it still matches. Read CONTRIBUTING.md first. Preserve unrelated changes. Start migration work from current `next` after PR#524 is merged; verify that the PoC and these documents are present. Follow the applicable branch and publication instructions for subsequent work.
 
 The source paths below are relative to the core `panackelty/` checkout. This handoff and its companion documents are versioned in `docs/design/type-owned-dispatch/` on the PoC branch.
 
@@ -226,6 +226,6 @@ The API inventory and the representative packet are intentional gates. Use P01 t
 
 ## Copyable first-task prompt
 
-> Read the dispatch migration plan and its three companion Markdown files supplied with this task. Follow CONTRIBUTING.md and the repository validation requirements. Implement only P01 initially: inspect the current baseline, produce the complete semantic API/call-site inventory and resolve it against the proposed ownership rules. Do not implement the migration, merge PR#524, alter CI policy or implement HTTP networking. Verify the given stdlib declaration inventory against the checkout. Report exact conflicts, missing capabilities and any decision needed; do not silently change the design. Record the next eligible packet and provide the completed register as a reviewable artefact. After P01 is accepted, P02 and P03 are the representative implementation trial before broader assignment.
+> Read the dispatch migration plan and its three companion Markdown files supplied with this task. Follow CONTRIBUTING.md and the repository validation requirements. Implement only P01 initially: inspect the current baseline, produce the complete semantic API/call-site inventory and resolve it against the proposed ownership rules. Do not implement the migration, alter CI policy or implement HTTP networking in P01. Verify the given stdlib declaration inventory against the checkout. Report exact conflicts, missing capabilities and any decision needed; do not silently change the design. Record the next eligible packet and provide the completed register as a reviewable artefact. After P01 is accepted, P02 and P03 are the representative implementation trial before broader assignment.
 
 For later packets, supply the same documents plus the latest inventory and evidence, name the one authorised packet, and require its dependency and exit gates. A new implementation task must not assume that completion of a prompt authorises the entire programme or a merge.

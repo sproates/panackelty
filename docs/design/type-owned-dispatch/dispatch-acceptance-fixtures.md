@@ -127,7 +127,7 @@ Add focused signature/binding tests for these cases in P04 through P08:
 
 F01 deliberately avoids pretending to specify the HTTP route-handler API. P07 must inspect the HTTP work's actual declared callback type and add a second server-shaped fixture that stores or invokes that exact kind of callback, preserving its argument, result and effect contracts.
 
-If the HTTP work has no settled handler signature, report that fact and test the callable families already supported by the compiler independently. Mark actual handler integration unverified; do not choose a production signature or claim it is covered by F01. An async handler must have an actual await/execution test, with rejection of an invalid pure call boundary. No sockets are needed for this language test.
+GI#518 specifies `AsyncFn[Request,ResponseWriter,Result[Unit,Str]]` for ordinary Server handlers and `AsyncFn[T,Request,ResponseWriter,Result[Unit,Str]]` for ContextualServer[T] handlers. Registration methods return Unit. Use these contracts for the P07 acceptance fixture, checking the current issue for any later explicitly agreed changes. Mark actual handler integration unverified; do not choose a production signature or claim it is covered by F01. An async handler must have an actual await/execution test, with rejection of an invalid pure call boundary. No sockets are needed for this language test.
 
 ## Removal evidence
 

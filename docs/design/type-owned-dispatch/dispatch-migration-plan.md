@@ -13,7 +13,7 @@ Read this overview first, then use these companion files for execution:
 The implementation handoff supplies proposed decisions where this overview previously left choices open. The fixture sources are specifications, not tests claimed to have run. P01 is an explicit bounded discovery gate for the complete semantic call-site inventory; it must finish before broad migration. Use P01 through P03 as the representative implementation trial before proceeding with the remaining programme.
 
 
-Starting evidence: [PR#524: Type-owned method dispatch PoC](https://github.com/sproates/panackelty/pull/524). The PoC remains unmerged under the owner's instruction. This document does not authorise a merge or claim that the migration is implemented.
+Starting evidence: [PR#524: Type-owned method dispatch PoC](https://github.com/sproates/panackelty/pull/524). The owner approved merging the PoC into `next` on 17 October 2026 as the migration starting point. [GI#525: Type-owned dispatch migration](https://github.com/sproates/panackelty/issues/525) tracks the follow-on work. Merging the PoC does not implement or complete this migration.
 
 ## Required outcome
 

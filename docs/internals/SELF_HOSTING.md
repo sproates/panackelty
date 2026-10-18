@@ -14,6 +14,11 @@ not outstanding alpha.13 gates.
 The unreleased type-owned method proof of concept remains implemented in
 Panackelty. Its compiler changes use syntax accepted by the prior seed; seed
 refresh and the existing fixed-point checks validate bootstrap compatibility.
+P02 replaces marker-based lookup with explicit syntax and ownership metadata,
+using syntax accepted by the existing seed. The refreshed P02 seed is
+`6a9eba9e4610bc11b02a1229df20f89b6ba745be2b867ca0c95138311e7ded21`;
+stages 2/3/4 reproduce it and retain the previous stdlib artifact. The public CLI
+therefore uses the same owned-call metadata and diagnostics as the sources.
 It adds no VM opcode or bytecode version.
 
 ## Historical P2 completion checkpoint — 2026-10-10

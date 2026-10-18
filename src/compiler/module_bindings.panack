@@ -30,11 +30,17 @@ pub enum ModuleDeclarationKind {
   ModuleVariant(Str)
 }
 
+pub record OwnedMethodIdentity {
+  owner: DeclarationIdentity,
+  name: Str
+}
+
 pub record ModuleDeclarationBinding {
   identity: DeclarationIdentity,
   kind: ModuleDeclarationKind,
   is_public: Bool,
-  span: SourceSpan
+  span: SourceSpan,
+  method: Option[OwnedMethodIdentity]
 }
 
 pub record ModuleImportBinding {
@@ -47,7 +53,8 @@ pub record ModuleImportBinding {
 pub record ModuleBindings {
   identity: ModuleIdentity,
   declarations: [ModuleDeclarationBinding],
-  imports: [ModuleImportBinding]
+  imports: [ModuleImportBinding],
+  methods: Map[Str, Map[Str, ModuleDeclarationBinding]]
 }
 
 pub record LoadedModule {
@@ -86,7 +93,11 @@ pure module_declaration_binding(
   kind: ModuleDeclarationKind,
   syntax: DeclarationSyntax
 ): ModuleDeclarationBinding {
-  ModuleDeclarationBinding(DeclarationIdentity(identity, name), kind, syntax.is_public, syntax.span)
+  method: Option[OwnedMethodIdentity] = match syntax.method {
+    None() => None(),
+    Some(value) => Some(OwnedMethodIdentity(DeclarationIdentity(identity, value.owner), value.name))
+  }
+  ModuleDeclarationBinding(DeclarationIdentity(identity, name), kind, syntax.is_public, syntax.span, method)
 }
 
 pub pure collect_module_bindings(identity: ModuleIdentity, parsed: ParsedModule): ModuleBindings {
@@ -136,7 +147,20 @@ pub pure collect_module_bindings(identity: ModuleIdentity, parsed: ParsedModule)
     }
     index = index + 1
   }
-  ModuleBindings(identity, declarations, imports)
+  mut methods: Map[Str, Map[Str, ModuleDeclarationBinding]] = map()
+  for declaration in declarations {
+    match declaration.method {
+      None() => {},
+      Some(method) => {
+        mut owner_methods: Map[Str, ModuleDeclarationBinding] = if methods.has(method.owner.name) {
+          methods.get(method.owner.name)
+        } else { map() }
+        owner_methods = owner_methods.put(method.name, declaration)
+        methods = methods.put(method.owner.name, owner_methods)
+      }
+    }
+  }
+  ModuleBindings(identity, declarations, imports, methods)
 }
 
 pub pure module_reserved_binding(name: Str): Bool {
@@ -166,7 +190,10 @@ pub pure module_binding_diagnostics(bindings: ModuleBindings): [Diagnostic] {
   mut diagnostics: [Diagnostic] = []
 
   for declaration in bindings.declarations {
-    name: Str = declaration.identity.name
+    name: Str = match declaration.method {
+      None() => declaration.identity.name,
+      Some(method) => method.owner.name + "->" + method.name
+    }
     if names.has(name) {
       diagnostics = append(
         diagnostics,
@@ -313,4 +340,11 @@ pub pure module_declaration_positions(modules: [LoadedModule]): [SourcePos] {
     }
   }
   positions
+}
+
+pub pure module_declaration_display(binding: ModuleDeclarationBinding): Str {
+  match binding.method {
+    None() => binding.identity.name,
+    Some(method) => method.owner.name + "->" + method.name
+  }
 }

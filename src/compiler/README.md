@@ -310,22 +310,28 @@ and local replay. See [the contract](../../docs/reference/SOURCE_INVENTORY.md).
 
 ## Type-owned method proof of concept
 
-The lexer recognizes `->` separately from dot syntax. Module parsing expands a
-local `impl Record` into compiler-only `$owned$Record$method` declarations with
-an explicit first `self` parameter. Arrow syntax retains a distinct
-`$owned_call$method` call marker until body checking; ordinary dot calls retain
-their existing representation and lookup. These private names cannot be written
-as source identifiers.
+The lexer recognises `->` separately from dot syntax. The parser retains an
+`OwnedCallExpr` with its receiver, method name, arguments and explicit type
+arguments, wrapped in the existing source spans. Each method has
+`OwnedMethodSyntax` metadata alongside its source declaration. The bounded
+nongeneric implementation still uses `$owned$Record$method` function identities
+as an internal signature/emission bridge, never to select a method.
 
-`module_resolution` traverses arrow arguments without looking for a global
-method name. `module_bodies` checks the receiver's nominal declaration identity,
-selects the method in that type's defining module, then applies existing argument,
-return and effect checks. Method metadata retains an explicit `pub` marker;
-other modules may call only public methods. Type aliases and re-exports preserve
-the original owner identity. Public-signature checking also requires accessible
-owner, parameter and result types. Checked identity emission uses ordinary function calls
-and existing bytecode; there is no new VM opcode or runtime dispatch table. The
-receiver is inspected twice during checking but emitted and evaluated once.
-The parser's project-route gate prevents the legacy global checker from treating
-an arrow marker as a global callable. Scope and limitations are in the
+Declaration collection attaches `OwnedMethodIdentity` (canonical owner identity
+and source method name) to the binding. Each module has a separate owner/method
+index. Lookup first selects the original package/module identity, then the owner
+and method; aliases and re-exports cannot change that identity. Ordinary function
+and import lookup excludes methods. Checked signatures and call targets retain
+that same binding, including visibility and effects.
+
+`module_resolution` visits the receiver and arguments without global lookup for
+the method name. `module_bodies` binds the receiver once, selects its method,
+checks visibility, and passes the bound receiver into the shared argument checker.
+Emission uses the selected declaration and ordinary VM calls. It performs no
+second method lookup and adds no opcode or runtime dispatch table. Diagnostics
+use source names such as `Fruit->apple` rather than internal bridge names.
+
+The parser's project-route gate uses explicit method metadata and owned-call
+nodes. Legacy visitors reject an unresolved owned call; ordinary dot lookup and
+field access are unchanged. Scope and limitations are in the
 [specification](../../docs/reference/SPEC.md#type-owned-methods-bounded-proof-of-concept).

@@ -1,5 +1,5 @@
 import stdlib/result as std_result
-pub import project/src/compiler/parser::{Expr, Program, Block, SourceSpan, Diagnostic, expression_span, parse_program_complete, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, BlockValue.NoBlockValue, BlockValue.TailBlockValue}
+pub import project/src/compiler/parser::{Expr, Program, Block, SourceSpan, Diagnostic, expression_span, parse_program_complete, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, BlockValue.NoBlockValue, BlockValue.TailBlockValue}
 pub import project/src/compiler/checker::{TypeInfo, CheckedExpression, CheckedProgram, EnumLookup, FunctionLookup, TypeShape, check_expression, check_program_evidence, checker_diagnostic, checker_diagnostics_at, enum_type, function_type, local_binding_info, plain_type, substitute_type, type_shape}
 pub import project/src/compiler/resolver::{SourceUnit, LoadedSource, ModuleGraphState, append_program_declarations, duplicate_module_diagnostics, render_resolver_diagnostics, visit_module}
 import project/src/compiler/lexer::{lex, lex_file}
@@ -159,6 +159,12 @@ pub pure check_effect_expression(
       result = combine_effects(
         result,
         check_effect_expression(right, program, environment, false, retain, None())
+      )
+    },
+    OwnedCallExpr(target, name, arguments, types) => {
+      result = CheckedEffects(
+        [checker_diagnostic("owned call requires module binding resolution")],
+        []
       )
     },
     DotCallExpr(target, name, arguments, types) => {
@@ -624,6 +630,7 @@ pure expression_is_await(expression: Expr): Bool {
     },
     BinaryExpr(operator, left, right) => {},
     CallExpr(name, arguments, type_arguments) => {},
+    OwnedCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
     DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
     FieldExpr(target, field) => {},
     IndexExpr(target, index) => {},

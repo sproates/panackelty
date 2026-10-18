@@ -1,3 +1,3 @@
-error: <case>/main.panack:6:26: argument 2 to $owned$Fruit$apple is Str, expected Nat
+error: <case>/main.panack:6:26: argument 2 to Fruit->apple is Str, expected Nat
   6 |   print(Fruit(10)->apple("wrong"))
     |                          ^

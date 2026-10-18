@@ -1,3 +1,5 @@
+import project/src/compiler/module_bindings::{OwnedMethodIdentity}
+import project/src/compiler/module_resolution::{resolve_owned_method}
 import project/src/compiler/path_support as path_support
 import stdlib/option as std_option
 import stdlib/result as std_result
@@ -15,7 +17,7 @@ import project/src/compiler/purity::{check_source_frontend}
 import project/src/compiler/checker::{check_source_types}
 import project/src/compiler/lexer::{lex_file}
 import project/src/compiler/parser::{parse_complete}
-import project/src/compiler/module_emission::{ModuleEmissionResult, ModuleSignature, BoundBody, Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, module_emission_expression, module_emission_program, module_emission_symbol}
+import project/src/compiler/module_emission::{ModuleEmissionResult, ModuleSignature, BoundBody, Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, module_emission_expression, module_emission_program, module_emission_symbol}
 import project/src/compiler/emitter::{compile_source_disassembly, compile_program}
 import project/src/bytecode/codec::{compile_source_bytecode, serialize_bytecode}
 import project/src/compiler/driver::{diagnostic_messages}
@@ -249,9 +251,9 @@ pure module_emission_identity_tests(): [TestResult] {
   left: ModuleIdentity = namespace_identity("left")
   right: ModuleIdentity = namespace_identity("right")
   graph: ModuleBindingGraph = ModuleBindingGraph([
-    ModuleBindings(left, [], []),
-    ModuleBindings(right, [], []),
-    ModuleBindings(entry, [], [])
+    ModuleBindings(left, [], [], map()),
+    ModuleBindings(right, [], [], map()),
+    ModuleBindings(entry, [], [], map())
   ], [])
   left_name: Str = module_emission_symbol(graph, entry, DeclarationIdentity(left, "same"))
   right_name: Str = module_emission_symbol(graph, entry, DeclarationIdentity(right, "same"))
@@ -297,6 +299,7 @@ module_emission_guard_call_name(expression: Expr): Str {
     ArrayExpr(items) => "",
     UnaryExpr(operator, value) => "",
     BinaryExpr(operator, left, right) => "",
+    OwnedCallExpr(target, name, arguments, types) => "",
     DotCallExpr(target, name, arguments, types) => "",
     FieldExpr(target, name) => "",
     IndexExpr(target, index) => "",
@@ -366,7 +369,7 @@ module_emission_program_tests(): [TestResult] {
   }
   left_binding: ModuleDeclarationBinding = match left_target {
     DeclarationTarget(binding) => binding,
-    NamespaceTarget(module) => ModuleDeclarationBinding(DeclarationIdentity(module, "make"), ModuleFunction(), false, SourceSpan(SourcePos("", 0, 1, 1), SourcePos("", 0, 1, 1)))
+    NamespaceTarget(module) => ModuleDeclarationBinding(DeclarationIdentity(module, "make"), ModuleFunction(), false, SourceSpan(SourcePos("", 0, 1, 1), SourcePos("", 0, 1, 1)), None())
   }
   call: BoundBody = BoundBody(
     BodyCall(BodyDeclaration(left_binding), [], []),
@@ -384,6 +387,7 @@ module_emission_program_tests(): [TestResult] {
   results = append(results, std_testing.expect("identity expression targets the left declaration", match unlocated_expression(emitted_call) {
     CallExpr(name, arguments, types) => name == left_make,
     LocatedExpr(span, expression, located_type_argument_spans) => false,
+    OwnedCallExpr(target, name, arguments, types) => false,
     DotCallExpr(target, name, arguments, types) => false,
     StringExpr(text) => false,
     NatExpr(value) => false,
@@ -422,6 +426,7 @@ pure module_emission_await_call_name(expression: Expr): Str {
         ArrayExpr(items) => "",
         UnaryExpr(nested, value) => "",
         BinaryExpr(nested, left, right) => "",
+        OwnedCallExpr(target, name, arguments, types) => "",
         DotCallExpr(target, name, arguments, types) => "",
         FieldExpr(target, field) => "",
         IndexExpr(target, index) => "",
@@ -442,6 +447,7 @@ pure module_emission_await_call_name(expression: Expr): Str {
     ArrayExpr(items) => "",
     BinaryExpr(operator, left, right) => "",
     CallExpr(name, arguments, types) => "",
+    OwnedCallExpr(target, name, arguments, types) => "",
     DotCallExpr(target, name, arguments, types) => "",
     FieldExpr(target, field) => "",
     IndexExpr(target, index) => "",
@@ -583,7 +589,7 @@ pure namespace_identity(path: Str): ModuleIdentity {
 
 pure namespace_test_bindings(path: Str, source: Str): ModuleBindings {
   match namespace_parse(source) {
-    Error(error) => ModuleBindings(namespace_identity("PARSE FAILURE: " + error.message), [], []),
+    Error(error) => ModuleBindings(namespace_identity("PARSE FAILURE: " + error.message), [], [], map()),
     Ok(parsed) => collect_module_bindings(namespace_identity(path), parsed)
   }
 }
@@ -715,6 +721,7 @@ pure namespace_qualified_syntax_tests(): [TestResult] {
 
 pure raw_namespace_dot_call(expression: Expr): Bool {
   match unlocated_expression(expression) {
+    OwnedCallExpr(target, name, arguments, types) => false,
     DotCallExpr(target, name, arguments, types) => unlocated_expression(target) == NameExpr("api") && name == "get" && len(arguments) == 1 && unlocated_expression(arguments[0]) == NatExpr(1),
     LocatedExpr(span, value, located_type_argument_spans) => false, NatExpr(value) => false, DecimalExpr(text) => false,
     StringExpr(text) => false, BoolExpr(value) => false, NameExpr(name) => false,
@@ -4439,7 +4446,31 @@ pure owned_method_import_tests(): [TestResult] {
   mut results: [TestResult] = [
     std_testing.equal_nat("owned import/local private call", len(local.diagnostics), 0),
     std_testing.equal_nat("owned import/only private call rejected", len(checked.diagnostics), 1),
-    std_testing.equal_nat("owned import/both callers checked", len(checked.functions), 2)
+    std_testing.equal_nat("owned import/both callers checked", len(checked.functions), 2),
+    std_testing.expect("owned metadata/separate index",
+      library.bindings.methods.has("Fruit") && library.bindings.methods.get("Fruit").has("apple"),
+      "method index lost its owner"),
+    std_testing.expect("owned metadata/ordinary lookup hides emission bridge",
+      match resolve_module_function(graph, library.bindings.identity, "$owned$Fruit$apple") {
+        Error(message) => true,
+        Ok(binding) => false
+      }, "method escaped into global lookup"),
+    std_testing.expect("owned metadata/source name is not a global",
+      match resolve_module_function(graph, library.bindings.identity, "apple") {
+        Error(message) => true,
+        Ok(binding) => false
+      }, "method escaped into source lookup"),
+    std_testing.expect("owned metadata/canonical identity",
+      match resolve_owned_method(graph, DeclarationIdentity(library.bindings.identity, "Fruit"), "apple") {
+        Error(message) => false,
+        Ok(binding) => binding.method == Some(OwnedMethodIdentity(
+          DeclarationIdentity(library.bindings.identity, "Fruit"), "apple"))
+      }, "canonical owner identity missing"),
+    std_testing.expect("owned metadata/no fallback to another owner",
+      match resolve_owned_method(graph, DeclarationIdentity(app.bindings.identity, "Fruit"), "apple") {
+        Error(message) => true,
+        Ok(binding) => false
+      }, "lookup ignored the owner module")
   ]
   if len(checked.diagnostics) == 1 {
     results = results.append(std_testing.equal_str("owned import/private diagnostic",
@@ -4449,8 +4480,8 @@ pure owned_method_import_tests(): [TestResult] {
     results = results.append(std_testing.expect("owned import/public checked, private invalid",
       checked.functions[0].status == BodyIdentityChecked() &&
       checked.functions[1].status == BodyInvalid(), "visibility status was not retained"))
-    original: Result[ModuleDeclarationBinding, Str] = resolve_module_function(
-      graph, library.bindings.identity, "$owned$Fruit$apple")
+    original: Result[ModuleDeclarationBinding, Str] = resolve_owned_method(
+      graph, DeclarationIdentity(library.bindings.identity, "Fruit"), "apple")
     selected_original: Bool = match original {
       Error(message) => false,
       Ok(binding) => checked.functions[0].body.children[0].node ==

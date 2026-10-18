@@ -470,7 +470,10 @@ pub pure check_module_signatures(
           Error(message) => {
             diagnostics = append(
               diagnostics,
-              Diagnostic("signature " + name + "." + field.name + ": " + message, field_span.start)
+              Diagnostic("signature " + (match syntax.method {
+                None() => name,
+                Some(method) => method.owner + "->" + method.name
+              }) + "." + field.name + ": " + message, field_span.start)
             )
             valid = false
           },

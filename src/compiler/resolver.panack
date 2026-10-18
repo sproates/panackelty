@@ -1,4 +1,4 @@
-pub import project/src/compiler/parser::{indexed_program, parse_program_complete, lex, Expr, TopLevel, FunctionParameter, Program, Block, SourcePos, Diagnostic, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue.NoBlockValue, BlockValue.TailBlockValue}
+pub import project/src/compiler/parser::{indexed_program, parse_program_complete, lex, Expr, TopLevel, FunctionParameter, Program, Block, SourcePos, Diagnostic, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue.NoBlockValue, BlockValue.TailBlockValue}
 import project/src/compiler/lexer::{lex_file}
 import project/src/compiler/types::{diagnostic_text}
 
@@ -366,6 +366,12 @@ pure resolve_expression(expression: Expr, scope: Set[Str], symbols: ResolverSymb
     BinaryExpr(operator, left, right) => {
       diagnostics = resolve_expression(left, scope, symbols)
       diagnostics = concat(diagnostics, resolve_expression(right, scope, symbols))
+    },
+    OwnedCallExpr(target, name, arguments, types) => {
+      diagnostics = append(
+        diagnostics,
+        resolver_diagnostic("owned call requires module binding resolution")
+      )
     },
     DotCallExpr(target, name, arguments, types) => {
       diagnostics = append(

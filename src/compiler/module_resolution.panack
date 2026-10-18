@@ -1,6 +1,6 @@
 import stdlib/path as std_path
 pub import project/src/compiler/module_bindings::{module_reserved_binding, module_import_names, module_binding_diagnostics, ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleImportBinding, ModuleBindings, ModuleDeclarationKind, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant}
-pub import project/src/compiler/parser::{parse_reference_path, lowered_method_name, reference_head, reference_tail, expression_reference_path, type_has_qualification, lex, Expr, TopLevel, Statement, BlockValue, Program, Block, ParsedModule, ParsedTypeRef, ImportSelector, ImportBindingSyntax, DeclarationSyntax, SourcePos, SourceSpan, Diagnostic, Token, TokenKind, TokenKind.Identifier, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue.NoBlockValue, BlockValue.TailBlockValue, ImportBindingSyntax.NoImportBinding, ImportBindingSyntax.NamespaceImportBinding, ImportBindingSyntax.SelectiveImportBinding}
+pub import project/src/compiler/parser::{parse_reference_path, lowered_method_name, reference_head, reference_tail, expression_reference_path, type_has_qualification, lex, Expr, TopLevel, Statement, BlockValue, Program, Block, ParsedModule, ParsedTypeRef, ImportSelector, ImportBindingSyntax, DeclarationSyntax, SourcePos, SourceSpan, Diagnostic, Token, TokenKind, TokenKind.Identifier, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue.NoBlockValue, BlockValue.TailBlockValue, ImportBindingSyntax.NoImportBinding, ImportBindingSyntax.NamespaceImportBinding, ImportBindingSyntax.SelectiveImportBinding}
 
 // Resolve ordered import edges, aliases and re-exports to their original identities.
 // Cycle detection tracks the active path separately from completed modules.
@@ -224,7 +224,7 @@ pub pure resolve_module_path_inner(
           mut found: Bool = false
           mut result: Result[ResolvedModuleTarget, Str] = Error("module " + identity.path + " has no binding " + spelling)
           for declaration in module.declarations {
-            if declaration.identity.name == head {
+            if declaration.identity.name == head && declaration.method == None() {
               // A variant has a bare name only inside its declaring module.
               selectable: Bool = match declaration.kind {
                 ModuleVariant(parent) => !exported,
@@ -527,6 +527,13 @@ pub pure resolve_module_expression_uses(
     LocatedExpr(span, value, located_type_argument_spans) => {
       result = resolve_module_expression_uses(graph, identity, value, span, locals)
     },
+    OwnedCallExpr(target, name, arguments, types) => {
+      result = resolve_module_expression_uses(graph, identity, target, origin, locals)
+      for argument in arguments {
+        checked: ResolvedModuleUses = resolve_module_expression_uses(graph, identity, argument, origin, locals)
+        result = ResolvedModuleUses(concat(result.references, checked.references), concat(result.diagnostics, checked.diagnostics))
+      }
+    },
     DotCallExpr(target, name, arguments, types) => {
       match resolve_module_dot_call_scoped(
         graph,
@@ -617,7 +624,7 @@ pub pure resolve_module_expression_uses(
       }
     },
     CallExpr(name, arguments, types) => {
-      if !module_reserved_binding(name) && !name.starts_with("$owned_call$") {
+      if !module_reserved_binding(name) {
         resolved: Result[ResolvedModuleTarget, Str] = match resolve_module_path(
           graph,
           identity,
@@ -831,6 +838,12 @@ pure expression_import_shadows(
     LocatedExpr(span, value, located_type_argument_spans) => {
       diagnostics = expression_import_shadows(value, names, span)
     },
+    OwnedCallExpr(target, name, arguments, types) => {
+      diagnostics = expression_import_shadows(target, names, origin)
+      for argument in arguments {
+        diagnostics = concat(diagnostics, expression_import_shadows(argument, names, origin))
+      }
+    },
     DotCallExpr(target, name, arguments, types) => {
       diagnostics = expression_import_shadows(target, names, origin)
       for argument in arguments {
@@ -978,4 +991,24 @@ pub pure resolve_module_dot_call(
   types: [Str]
 ): Result[ResolvedDotCall, Str] {
   resolve_module_dot_call_scoped(graph, identity, target, name, arguments, types, set())
+}
+
+// The enclosing module identity includes package identity; owner and method
+// indexes are separate from the ordinary function/import namespace.
+pub pure resolve_owned_method(
+  graph: ModuleBindingGraph, owner: DeclarationIdentity, name: Str
+): Result[ModuleDeclarationBinding, Str] {
+  match binding_graph_module(graph, owner.module) {
+    Error(message) => Error(message),
+    Ok(module) => {
+      mut result: Result[ModuleDeclarationBinding, Str] = Error("unknown owned method " + owner.name + "->" + name)
+      if module.methods.has(owner.name) {
+        methods: Map[Str, ModuleDeclarationBinding] = module.methods.get(owner.name)
+        if methods.has(name) {
+          result = Ok(methods.get(name))
+        }
+      }
+      result
+    }
+  }
 }

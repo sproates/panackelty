@@ -1,6 +1,6 @@
 import stdlib/text as std_text
 import stdlib/result as std_result
-pub import project/src/compiler/parser::{unlocated_expression, parse_program_complete, Expr, Block, Program, Statement, FunctionParameter, RecordField, EnumVariant, IndexedVariant, MatchArm, MatchPattern, TopLevel, SourcePos, SourceSpan, Diagnostic, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, BlockValue.NoBlockValue, BlockValue.TailBlockValue}
+pub import project/src/compiler/parser::{unlocated_expression, parse_program_complete, Expr, Block, Program, Statement, FunctionParameter, RecordField, EnumVariant, IndexedVariant, MatchArm, MatchPattern, TopLevel, SourcePos, SourceSpan, Diagnostic, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, BlockValue.NoBlockValue, BlockValue.TailBlockValue}
 pub import project/src/compiler/resolver::{LoadedSource}
 import project/src/compiler/resolver::{SourceUnit, ModuleGraphState, append_program_declarations, duplicate_module_diagnostics, is_builtin, render_resolver_diagnostics, resolve_program, visit_module}
 import project/src/compiler/lexer::{lex, lex_file, prior_index}
@@ -153,6 +153,7 @@ pure subtraction_decision(
     UnaryExpr(op, value) => {},
     BinaryExpr(op, a, b) => {},
     CallExpr(name, args, types) => {},
+    OwnedCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
     DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
     FieldExpr(value, field) => {},
     IndexExpr(value, index) => {},
@@ -195,6 +196,7 @@ pure checker_diagnostic_for(expression: Expr, message: Str): Diagnostic {
     UnaryExpr(operator, operand) => checker_diagnostic(message),
     BinaryExpr(operator, left, right) => checker_diagnostic(message),
     CallExpr(name, arguments, type_arguments) => checker_diagnostic(message),
+    OwnedCallExpr(target, name, arguments, types) => checker_diagnostic(message),
     DotCallExpr(target, name, arguments, types) => checker_diagnostic(message),
     FieldExpr(target, field) => checker_diagnostic(message),
     IndexExpr(target, index) => checker_diagnostic(message),
@@ -626,6 +628,7 @@ pure evaluate_nat_guard(expression: Expr, value: Nat): Bool {
                   UnaryExpr(other_op, other_operand) => {},
                   BinaryExpr(other_binary_op, other_left, other_right) => {},
                   CallExpr(other_call, other_arguments, type_arguments) => {},
+                  OwnedCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
                   DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
                   FieldExpr(other_target, other_field) => {},
                   IndexExpr(other_collection, other_index) => {},
@@ -645,6 +648,7 @@ pure evaluate_nat_guard(expression: Expr, value: Nat): Bool {
             UnaryExpr(op, operand) => {},
             BinaryExpr(op, a, b) => {},
             CallExpr(name, arguments, type_arguments) => {},
+            OwnedCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
             DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
             FieldExpr(target, field) => {},
             IndexExpr(target, index) => {},
@@ -662,6 +666,7 @@ pure evaluate_nat_guard(expression: Expr, value: Nat): Bool {
     FunctionExpr(function_name) => {},
     ArrayExpr(items) => {},
     CallExpr(name, arguments, type_arguments) => {},
+    OwnedCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
     DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
     FieldExpr(target, field) => {},
     IndexExpr(target, index) => {},
@@ -721,6 +726,7 @@ pub pure prove_guard_bounds(expression: Expr, bounds: Bounds): Bool {
                   UnaryExpr(other_op, other_operand) => {},
                   BinaryExpr(other_binary_op, other_left, other_right) => {},
                   CallExpr(other_call, other_arguments, type_arguments) => {},
+                  OwnedCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
                   DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
                   FieldExpr(other_target, other_field) => {},
                   IndexExpr(other_collection, other_index) => {},
@@ -740,6 +746,7 @@ pub pure prove_guard_bounds(expression: Expr, bounds: Bounds): Bool {
             UnaryExpr(op, operand) => {},
             BinaryExpr(op, a, b) => {},
             CallExpr(name, arguments, type_arguments) => {},
+            OwnedCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
             DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
             FieldExpr(target, field) => {},
             IndexExpr(target, index) => {},
@@ -759,6 +766,7 @@ pub pure prove_guard_bounds(expression: Expr, bounds: Bounds): Bool {
     ArrayExpr(items) => {},
     UnaryExpr(op, operand) => {},
     CallExpr(name, arguments, type_arguments) => {},
+    OwnedCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
     DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
     FieldExpr(target, field) => {},
     IndexExpr(target, index) => {},
@@ -817,6 +825,7 @@ pure assignable_checked(
           UnaryExpr(op, operand) => {},
           BinaryExpr(op, a, b) => {},
           CallExpr(name, arguments, type_arguments) => {},
+          OwnedCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
           DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
           FieldExpr(field_target, field) => {},
           IndexExpr(collection, index) => {},
@@ -1967,6 +1976,12 @@ pure facts_after_expression(expression: Expr, facts: Map[Str, Bounds]): Map[Str,
       BinaryExpr(operator, left, right) => {
         result = facts_after_expression(right, facts_after_expression(left, result))
       },
+      OwnedCallExpr(target, name, arguments, types) => {
+        result = facts_after_expression(target, result)
+        for argument in arguments {
+          result = facts_after_expression(argument, result)
+        }
+      },
       DotCallExpr(target, name, arguments, types) => {
         result = facts_after_expression(target, result)
         for argument in arguments {
@@ -2356,6 +2371,12 @@ pub pure check_expression_evidence(
           }
         }
       }
+    },
+    OwnedCallExpr(target, name, arguments, types) => {
+      diagnostics = append(
+        diagnostics,
+        checker_diagnostic("owned call requires module binding resolution")
+      )
     },
     DotCallExpr(target, name, arguments, types) => {
       diagnostics = append(
@@ -3185,6 +3206,7 @@ pure condition_facts_evidence(
             UnaryExpr(other_op, other_operand) => {},
             BinaryExpr(other_binary_op, other_left, other_right) => {},
             CallExpr(other_call, other_arguments, type_arguments) => {},
+            OwnedCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
             DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
             FieldExpr(other_target, other_field) => {},
             IndexExpr(other_collection, other_index) => {},
@@ -3203,6 +3225,7 @@ pure condition_facts_evidence(
         UnaryExpr(op, operand) => {},
         BinaryExpr(op, a, b) => {},
         CallExpr(name, arguments, type_arguments) => {},
+        OwnedCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
         DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
         FieldExpr(target, field) => {},
         IndexExpr(target, index) => {},
@@ -3220,6 +3243,7 @@ pure condition_facts_evidence(
     ArrayExpr(items) => {},
     UnaryExpr(operator, operand) => {},
     CallExpr(name, arguments, type_arguments) => {},
+    OwnedCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
     DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
     FieldExpr(target, field) => {},
     IndexExpr(target, index) => {},

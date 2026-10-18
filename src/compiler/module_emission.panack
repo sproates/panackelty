@@ -16,7 +16,7 @@ pub import project/src/compiler/module_bodies::{
   BoundBody, BoundFunctionBody,
   DeclarationIdentity, Diagnostic, Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr,
   Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr,
-  Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.FieldExpr,
+  Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr,
   Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr,
   LoadedModule, ModuleBindingGraph, ModuleIdentity, ModuleSignature
 }
@@ -315,6 +315,12 @@ pure module_emission_guard_expression(
     ),
     CallExpr(name, arguments, types) => CallExpr(
       module_emission_guard_target(graph, entry, owner, name),
+      module_emission_guard_expressions(graph, entry, owner, arguments),
+      types
+    ),
+    OwnedCallExpr(target, name, arguments, types) => OwnedCallExpr(
+      module_emission_guard_expression(graph, entry, owner, target),
+      name,
       module_emission_guard_expressions(graph, entry, owner, arguments),
       types
     ),

@@ -3,7 +3,7 @@ pub import project/src/compiler/parser::{Expr, Program}
 pub import project/src/compiler/types::{SourceSpan}
 import project/src/compiler/parser::{
   Expr.ArrayExpr, Expr.BinaryExpr, Expr.BlockExpr, Expr.BoolExpr,
-  Expr.CallExpr, Expr.DecimalExpr, Expr.DotCallExpr, Expr.FieldExpr, Expr.FunctionExpr,
+  Expr.CallExpr, Expr.DecimalExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.FunctionExpr,
   Expr.IfExpr, Expr.IndexExpr, Expr.LocatedExpr, Expr.MatchExpr, Expr.NameExpr,
   Expr.NatExpr, Expr.StringExpr, Expr.UnaryExpr,
   Statement, Statement.AssignmentStatement, Statement.BindingStatement,
@@ -1163,6 +1163,12 @@ pure emit_expression_at(
       }
     },
     // Defensive trap for internal callers bypassing the checked frontend.
+    OwnedCallExpr(target, name, arguments, types) => EmittedCode(
+      [MatchFailInstruction()],
+      next_temporary,
+      [],
+      []
+    ),
     DotCallExpr(target, name, arguments, types) => EmittedCode(
       [MatchFailInstruction()],
       next_temporary,

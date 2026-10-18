@@ -3160,7 +3160,7 @@ pure body_check_collection_core_call(
   mut type_checks: [BodyTypeCheckEvidence] = []
 
   if len(children) != expected_count {
-    diagnostics = append(diagnostics, Diagnostic(operation + " expects ${expected_count} arguments, got ${len(children)}", span.start))
+    diagnostics = append(diagnostics, Diagnostic(operation + " expects ${expected_count} arguments, got " + body_nat_text(len(children)), span.start))
   } else {
     if context.retain_guard_conversions {
       type_checks = append(type_checks, BodyTypeCheckEvidence(

@@ -1,0 +1,4 @@
+record Server { id: Nat }
+impl Server { pure get(): Nat { self.id } }
+impl Server { pure get(route: Str): Nat { self.id + 1 } }
+main(): Void {}

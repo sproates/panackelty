@@ -1,5 +1,15 @@
 # Specification coverage
 
+P03 Server/Map coverage: `owned_server_map` and its namespace, alias and facade
+variants share one Server implementation and identical expected stdout. They
+cover persistent updates, two instances, global get/put separation, nested Map
+operations and one-time receiver evaluation. `owned_server_map_identity` checks
+another module's same-named Server with different method contracts. Eight
+`owned_server_map_*` failure fixtures cover Server/Map arity, argument types,
+missing methods, private re-exports, duplicate impl methods, foreign impls and
+purity. Binding tests assert distinct owned and core targets and return types.
+Map methods still use existing dot syntax; no HTTP networking is covered here.
+
 P02 unit coverage checks explicit method syntax metadata, a separate canonical
 owner/method index, exclusion from ordinary lookup, and retained imported method
 identity. Method diagnostics display source owner/name spellings.

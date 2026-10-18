@@ -1,0 +1,3 @@
+error: <case>/main.panack:2:6: impl requires an earlier local non-generic record: Server
+  2 | impl Server { pure extra(): Nat { self.id } }
+    |      ^

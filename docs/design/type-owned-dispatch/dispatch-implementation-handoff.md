@@ -1,5 +1,7 @@
 # Type-owned dispatch: implementation handoff
 
+[P03 Server/Map coexistence](p03-server-map.md) records the representative implementation trial.
+
 [P02 ownership metadata delivery](p02-owned-metadata.md) records the next implementation step and its remaining bridge.
 
 [P01 inventory and compatibility audit](p01-inventory.md) records the checked source baseline, complete call-site register and corrections to the proposed API mapping.

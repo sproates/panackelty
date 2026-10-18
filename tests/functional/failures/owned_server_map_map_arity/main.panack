@@ -1,0 +1,8 @@
+import "server.panack"::{Server}
+
+pure get(server: Server, route: Str, fallback: Nat): Nat { 901 }
+
+main(): Void {
+  routes: Map[Str, Nat] = map()
+  print(routes.get("/fruit", 99))
+}

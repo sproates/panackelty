@@ -1,7 +1,8 @@
 # Type-owned dispatch migration plan
 
 Current packet evidence: [P01 inventory](p01-inventory.md) and
-[P02 explicit ownership metadata](p02-owned-metadata.md). The tables below
+[P02 explicit ownership metadata](p02-owned-metadata.md), and
+[P03 Server/Map coexistence](p03-server-map.md). The tables below
 preserve the original proposed baseline; the delivery reports record earned progress.
 
 [P01 inventory and compatibility audit](p01-inventory.md) records the checked source baseline, complete call-site register and corrections to the proposed API mapping.

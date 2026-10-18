@@ -21,6 +21,12 @@ stages 2/3/4 reproduce it and retain the previous stdlib artifact. The public CL
 therefore uses the same owned-call metadata and diagnostics as the sources.
 It adds no VM opcode or bytecode version.
 
+P03 refreshes the seed to
+`41456b74fb7535d0521e90d64ac1d562668aa8ad9632d5000497b2008bc186ed`
+for the collection-arity diagnostic correction discovered by the Server/Map
+fixture. Stages 2/3/4 reproduce that hash; stdlib bytecode and output are unchanged.
+No new syntax capability or later migration seed checkpoint is claimed.
+
 ## Historical P2 completion checkpoint — 2026-10-10
 
 PR#358 merged on 2026-10-10 as `bfb34a44107d345eb9f4784e5b8ca02e64c7124d`.

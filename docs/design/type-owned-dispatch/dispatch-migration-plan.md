@@ -1,5 +1,7 @@
 # Type-owned dispatch migration plan
 
+[P01 inventory and compatibility audit](p01-inventory.md) records the checked source baseline, complete call-site register and corrections to the proposed API mapping.
+
 Status: proposed implementation sequence, updated 17 October 2026.
 
 ## Implementation handoff pack

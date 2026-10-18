@@ -1,5 +1,7 @@
 # Type-owned dispatch: implementation handoff
 
+[P01 inventory and compatibility audit](p01-inventory.md) records the checked source baseline, complete call-site register and corrections to the proposed API mapping.
+
 Status: proposed design and execution contract, 17 October 2026. Read alongside [the migration plan](dispatch-migration-plan.md). This document makes implementation choices explicit; it does not claim they exist in the compiler. The owner approved PR#524 as the starting point; [GI#525: Type-owned dispatch migration](https://github.com/sproates/panackelty/issues/525) tracks the remaining work.
 
 Companions: [acceptance fixtures](dispatch-acceptance-fixtures.md) and [stdlib declaration inventory](dispatch-stdlib-inventory.md).
@@ -110,11 +112,11 @@ Preserve existing signatures, effects and return behaviour after removing the re
 
 | Current surface | Final owner and method | Notes |
 | --- | --- | --- |
-| `len(x)` and `x.len()` | each currently supported owner: `len()` | Separate checked signatures; no universal name switch |
-| array append/concat/slice/first/sort_by/map/reduce | array owner, same method names | Preserve callback effects and generic results |
-| text concat/slice/starts_with/starts_with_at/reverse/ends_with and character predicates | Str, same receiver method names | Preserve code-point semantics |
+| `len(x)` and `x.len()` | Str.len, Array[T].len, Bytes.length | Bytes calls converge on length; no universal name switch |
+| array append/concat/first/sort_by/map/reduce | array owner, same method names | Preserve concat element-type joins, callback effects and generic results; array slice is not a current API |
+| text slice/starts_with/starts_with_at/reverse/ends_with and character predicates | Str, same receiver method names | Preserve code-point semantics; concat is an array API |
 | `nat_from_str(s)`, `s.parse_nat()` | Str.parse_nat | Preserve existing result/error contract |
-| numeric receiver conversions such as `.nat()` / `.dec()` | each currently accepted numeric owner | Derive exact domain and guard rules from current checker tests |
+| numeric receiver conversions `.nat()` / `.dec()` | Rat.nat / Rat.dec | Preserve existing guarded-value conversions; no new numeric-family methods |
 | `map_put`, `map_get`, `map_has` | Map.put/get/has | Preserve current missing-key behaviour; do not invent Option returns |
 | `set_add`, `set_has` | Set.add/has | Persistent updates |
 | `byte_append`, `bytes_concat`, `byte_len`, `byte_get` | Bytes.push/join/length/at | Use stdlib wrapper names; migrate old receiver spellings too |

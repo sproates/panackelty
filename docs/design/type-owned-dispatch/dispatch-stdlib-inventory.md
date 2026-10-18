@@ -1,5 +1,7 @@
 # Standard-library declaration inventory
 
+[P01 inventory and compatibility audit](p01-inventory.md) records the checked source baseline, complete call-site register and corrections to the proposed API mapping.
+
 Inspected baseline: `7aa31bcf99cdd9e4946718d13063f787e78662ce`. This is a source-extracted inventory of top-level function declarations, with proposed migration classifications. It is not a semantic call-site inventory and excludes compiler-provided built-ins, type declarations and re-exports. Packet P01 must add those and reconcile any baseline changes.
 
 Owned entries lose their old exported receiver-function surface after callers migrate. Retained functions cannot be invoked using receiver sugar. All function bodies must still migrate their own receiver calls. Testing services remain module APIs; the operation on the locally defined TestWorkspace has a genuine owner.

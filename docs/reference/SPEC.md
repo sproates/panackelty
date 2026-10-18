@@ -318,7 +318,8 @@ implementations for imported types, extension methods, traits, inheritance,
 dynamic dispatch, generic methods or async methods. Method declarations have
 compiler-only identities; they do not introduce ordinary callable names. The project-aware CLI is required, including its regular
 source-file commands or explicit `--project` commands. The standalone legacy
-parser does not execute this form. Diagnostics may expose internal method names.
+parser does not execute this form. Method diagnostics use the source owner and
+method spelling, such as `Fruit->apple`.
 This is unreleased compiler behavior, separate from the alpha.13 contract.
 
 Local type annotations may be omitted. `name = value` declares a new immutable

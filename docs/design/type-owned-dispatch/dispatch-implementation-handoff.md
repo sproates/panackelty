@@ -1,5 +1,7 @@
 # Type-owned dispatch: implementation handoff
 
+[P02 ownership metadata delivery](p02-owned-metadata.md) records the next implementation step and its remaining bridge.
+
 [P01 inventory and compatibility audit](p01-inventory.md) records the checked source baseline, complete call-site register and corrections to the proposed API mapping.
 
 Status: proposed design and execution contract, 17 October 2026. Read alongside [the migration plan](dispatch-migration-plan.md). This document makes implementation choices explicit; it does not claim they exist in the compiler. The owner approved PR#524 as the starting point; [GI#525: Type-owned dispatch migration](https://github.com/sproates/panackelty/issues/525) tracks the remaining work.

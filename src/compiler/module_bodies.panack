@@ -1,3 +1,5 @@
+import project/src/compiler/module_bindings::{module_declaration_display}
+import project/src/compiler/module_resolution::{resolve_owned_method}
 import stdlib/path as std_path
 import stdlib/filesystem as std_filesystem
 import stdlib/result as std_result
@@ -7,7 +9,7 @@ import stdlib/time as std_time
 import project/src/compiler/module_signatures::{signature_effect, signature_declaration, signature_type, substitute_signature_type, check_module_signatures}
 import project/src/compiler/module_bindings::{ModulePackageIdentity, ModulePackageIdentity.ToolchainModulePackage, module_import_names, module_reserved_binding}
 import project/src/compiler/module_resolution::{ResolvedModuleUses, ResolvedModuleTarget, ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget, ResolvedDotCall, ResolvedDotCall.NamespaceCall, ResolvedDotCall.ValueMethodCall, binding_graph_module, binding_graph_target, module_identity_in, resolve_module_expression_uses, resolve_module_path_inner, resolve_module_type, module_head_is_namespace, resolve_module_function, resolve_module_path, resolve_module_dot_call_scoped, module_import_shadow_diagnostics}
-import project/src/compiler/parser::{Statement, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue, BlockValue.NoBlockValue, BlockValue.TailBlockValue, Block, Program, MatchArm, MatchPattern, ParsedModule, ParsedTypeRef, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, DeclarationSyntax, RecordField, FunctionParameter, EnumVariant, owned_method_name, expression_span, expression_reference_path, reference_head, unlocated_expression, lowered_method_name, render_expr}
+import project/src/compiler/parser::{Statement, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue, BlockValue.NoBlockValue, BlockValue.TailBlockValue, Block, Program, MatchArm, MatchPattern, ParsedModule, ParsedTypeRef, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, DeclarationSyntax, RecordField, FunctionParameter, EnumVariant, expression_span, expression_reference_path, reference_head, unlocated_expression, lowered_method_name, render_expr}
 import project/src/compiler/lexer::{prior_index}
 import project/src/compiler/types::{SourcePos}
 import project/src/compiler/checker::{GuardedTypeLookup, condition_facts, render_type, prove_guard_bounds}
@@ -15,7 +17,7 @@ import project/src/compiler/expression_contracts::{decode_string_literal, split_
 pub import project/src/compiler/module_signatures::{SignatureEffect, SignatureEffect.SignaturePure, SignatureEffect.SignatureOrdinary, SignatureEffect.SignatureAsync, SignatureTypeIdentity, SignatureTypeIdentity.SignatureCore, SignatureTypeIdentity.SignatureNominal, SignatureTypeIdentity.SignatureParameter, SignatureTypeIdentity.SignatureCallable, SignatureTypeIdentity.SignatureHole, SignatureType, SignatureSlot, ModuleSignature}
 pub import project/src/compiler/module_bindings::{LoadedModule, ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleDeclarationKind, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant}
 pub import project/src/compiler/module_resolution::{ModuleBindingGraph}
-pub import project/src/compiler/parser::{Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr}
+pub import project/src/compiler/parser::{Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr}
 pub import project/src/compiler/types::{SourceSpan, Diagnostic}
 pub import project/src/compiler/checker::{Bounds}
 pub import project/src/compiler/expression_contracts::{InterpolatedString}
@@ -472,6 +474,7 @@ pure body_guard_bounds(context: BodyContext, value: BoundBody): Option[Bounds] {
       UnaryExpr(operator, operand) => {},
       BinaryExpr(operator, left, right) => {},
       CallExpr(name, arguments, types) => {},
+      OwnedCallExpr(target, name, arguments, types) => {},
       DotCallExpr(target, name, arguments, types) => {},
       FieldExpr(target, field) => {},
       IndexExpr(target, index) => {},
@@ -827,6 +830,7 @@ pure body_condition_literal(value: BoundBody): Option[Nat] {
       UnaryExpr(operator, operand) => {},
       BinaryExpr(operator, left, right) => {},
       CallExpr(name, arguments, types) => {},
+      OwnedCallExpr(target, name, arguments, types) => {},
       DotCallExpr(target, name, arguments, types) => {},
       FieldExpr(target, field) => {},
       IndexExpr(target, index) => {},
@@ -1203,40 +1207,35 @@ pure body_type_argument_count_span(
   }
 }
 
-// Select from the receiver's nominal identity, never the caller's global name.
-// Binding the receiver here only inspects its type; emitted children evaluate it once.
+// Select by canonical owner and source method name, independently of globals.
 pure body_owned_target(
-  context: BodyContext, method: Str, arguments: [Expr], span: SourceSpan,
-  locals: Map[Str, BodyLocal], path: [Nat]
+  context: BodyContext, method: Str, receiver: BodyResult
 ): Result[BodyTarget, Str] {
   mut result: Result[BodyTarget, Str] = Error("owned method requires a non-generic record receiver: " + method)
-  if len(arguments) > 0 {
-    receiver: BodyResult = bind_body_expression(context, arguments[0], span, locals, append(path, 0))
-    if len(receiver.diagnostics) > 0 {
-      result = Error(receiver.diagnostics[0].message)
-    } else {
-      match receiver.body.type {
-        None() => {},
-        Some(type) => match type.identity {
-          SignatureNominal(owner) => {
-            if len(type.arguments) == 0 {
-              match resolve_module_function(context.graph, owner.module, owned_method_name(owner.name, method)) {
-                Error(message) => { result = Error("unknown owned method " + owner.name + "->" + method) },
-                Ok(binding) => {
-                  if owner.module != context.owner.module && !binding.is_public {
-                    result = Error("owned method " + owner.name + "->" + method + " is private")
-                  } else {
-                    result = Ok(BodyDeclaration(binding))
-                  }
+  if len(receiver.diagnostics) > 0 {
+    result = Error(receiver.diagnostics[0].message)
+  } else {
+    match receiver.body.type {
+      None() => {},
+      Some(type) => match type.identity {
+        SignatureNominal(owner) => {
+          if len(type.arguments) == 0 {
+            match resolve_owned_method(context.graph, owner, method) {
+              Error(message) => { result = Error(message) },
+              Ok(binding) => {
+                if owner.module != context.owner.module && !binding.is_public {
+                  result = Error("owned method " + owner.name + "->" + method + " is private")
+                } else {
+                  result = Ok(BodyDeclaration(binding))
                 }
               }
             }
-          },
-          SignatureCore(name) => {},
-          SignatureParameter(owner, index) => {},
-          SignatureCallable(effect) => {},
-          SignatureHole(owner, location, index) => {}
-        }
+          }
+        },
+        SignatureCore(name) => {},
+        SignatureParameter(owner, index) => {},
+        SignatureCallable(effect) => {},
+        SignatureHole(owner, location, index) => {}
       }
     }
   }
@@ -1253,13 +1252,35 @@ pure body_call(
   locals: Map[Str, BodyLocal],
   path: [Nat]
 ): BodyResult {
+  body_call_with_receiver(context, target, arguments, types, type_argument_spans,
+    span, locals, path, None())
+}
+
+pure body_call_with_receiver(
+  context: BodyContext,
+  target: BodyTarget,
+  arguments: [Expr],
+  types: [Str],
+  type_argument_spans: [SourceSpan],
+  span: SourceSpan,
+  locals: Map[Str, BodyLocal],
+  path: [Nat],
+  receiver: Option[BodyResult]
+): BodyResult {
   mut children: [BoundBody] = []
   mut diagnostics: [Diagnostic] = []
   mut deferred: [SourceSpan] = []
   mut index: Nat = 0
 
   for argument in arguments {
-    checked: BodyResult = bind_body_expression(context, argument, span, locals, append(path, index))
+    checked: BodyResult = if index == 0 {
+      match receiver {
+        Some(value) => value,
+        None() => bind_body_expression(context, argument, span, locals, append(path, index))
+      }
+    } else {
+      bind_body_expression(context, argument, span, locals, append(path, index))
+    }
     children = append(children, checked.body)
     diagnostics = concat(diagnostics, checked.diagnostics)
     deferred = concat(deferred, checked.deferred)
@@ -3685,11 +3706,7 @@ pure bind_body_expression_with_type_argument_spans(
       }
     },
     CallExpr(name, arguments, types) => {
-      selected: Result[BodyTarget, Str] = if name.starts_with("$owned_call$") {
-        body_owned_target(context, name.slice(12, name.len()), arguments, origin, locals, path)
-      } else {
-        body_target(context, name, false)
-      }
+      selected: Result[BodyTarget, Str] = body_target(context, name, false)
       match selected {
         Error(message) => {
           result = body_failure(message, origin)
@@ -3705,6 +3722,16 @@ pure bind_body_expression_with_type_argument_spans(
             locals,
             path
           )
+        }
+      }
+    },
+    OwnedCallExpr(receiver, name, arguments, types) => {
+      checked: BodyResult = bind_body_expression(context, receiver, origin, locals, append(path, 0))
+      match body_owned_target(context, name, checked) {
+        Error(message) => { result = body_failure(message, origin) },
+        Ok(target) => {
+          result = body_call_with_receiver(context, target, concat([receiver], arguments), types,
+            type_argument_spans, origin, locals, path, Some(checked))
         }
       }
     },
@@ -5719,7 +5746,7 @@ pure body_contract(context: BodyContext, target: BodyTarget): Result[Option[Body
           Ok(None())
         } else {
           match body_signature(context.signatures, owner) {
-            None() => Error("call signature unavailable for " + owner.module.path + ":" + owner.name),
+            None() => Error("call signature unavailable for " + owner.module.path + ":" + module_declaration_display(binding)),
             Some(signature) => {
               mut arguments: [SignatureType] = []
               mut index: Nat = 0
@@ -5746,7 +5773,7 @@ pure body_contract(context: BodyContext, target: BodyTarget): Result[Option[Body
               }
               Ok(Some(BodyContract(
                 owner,
-                binding.identity.name,
+                module_declaration_display(binding),
                 signature.parameters,
                 inputs,
                 output,

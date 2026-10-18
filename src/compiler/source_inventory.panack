@@ -12,7 +12,7 @@ pub import project/src/compiler/module_bindings::{LoadedModule}
 import project/src/compiler/parser::{
   Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr,
   Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr,
-  Expr.CallExpr, Expr.DotCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr,
+  Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr,
   Expr.BlockExpr, Expr.MatchExpr,
   Statement, Statement.BindingStatement, Statement.AssignmentStatement,
   Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement,
@@ -99,6 +99,10 @@ pure inventory_expression(expression: Expr, id: Str): [InventoryItem] {
       items = concat(items, inventory_expression(right, id + "/right"))
     },
     CallExpr(name, arguments, types) => {
+      items = concat(items, inventory_expressions(arguments, id + "/args"))
+    },
+    OwnedCallExpr(target, name, arguments, types) => {
+      items = concat(items, inventory_expression(target, id + "/receiver"))
       items = concat(items, inventory_expressions(arguments, id + "/args"))
     },
     DotCallExpr(target, name, arguments, types) => {

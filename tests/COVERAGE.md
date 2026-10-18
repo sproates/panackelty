@@ -1,5 +1,9 @@
 # Specification coverage
 
+P02 unit coverage checks explicit method syntax metadata, a separate canonical
+owner/method index, exclusion from ordinary lookup, and retained imported method
+identity. Method diagnostics display source owner/name spellings.
+
 Type-owned method proof-of-concept coverage: `owned_methods` asserts the exact
 10/11/20/21 example; `owned_method_dispatch` checks two nominal owners, same-name
 global/dot coexistence, explicit arguments, nested self calls, indexed receivers

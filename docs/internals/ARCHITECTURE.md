@@ -4,10 +4,12 @@ The [website repository](https://github.com/sproates/panackelty-website) owns we
 and publication independently of native validation.
 
 The bounded type-owned method experiment uses checked nominal receiver identity
-to select compiler-private method functions. Existing identity emission and VM
+and an explicit owner/method index to select compiler-private method functions. Existing identity emission and VM
 calls supply `self`; no bytecode or runtime extension is required. Public methods
 remain owned by the original type across imports and re-exports; cross-module
-calls check declaration visibility during binding. Dot-call
+calls check declaration visibility during binding. Owned-call syntax and method
+metadata remain distinct from globals; the receiver is bound once and its checked
+method identity is retained through emission. Dot-call
 resolution is unchanged. See the [compiler notes](../../src/compiler/README.md#type-owned-method-proof-of-concept).
 
 ## Overview

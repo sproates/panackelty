@@ -102,7 +102,7 @@ pure readable_compiler_contracts(): [TestResult] {
   guarded_identity: DeclarationIdentity = DeclarationIdentity(module_identity, "Positive")
   program: Program = indexed_program([TypeDeclaration("Positive", "Nat", BoolExpr(true))])
   parsed: ParsedModule = ParsedModule(program, [])
-  bindings: ModuleBindings = ModuleBindings(module_identity, [], [])
+  bindings: ModuleBindings = ModuleBindings(module_identity, [], [], map())
   module: LoadedModule = LoadedModule("readability.panack", parsed, program, bindings, loaded_module_declaration_index(parsed))
   context: BodyContext = BodyContext(ModuleBindingGraph([bindings], []), [module], [], owner, [], map(), false)
   natural: SignatureType = SignatureType(SignatureCore("Nat"), [])

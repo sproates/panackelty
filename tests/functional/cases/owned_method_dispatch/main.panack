@@ -26,6 +26,11 @@ make_fruit(): Fruit {
   Fruit(30)
 }
 
+make_amount(): Nat {
+  print("argument evaluated after receiver")
+  5
+}
+
 main(): Void {
   fruit = Fruit(10)
   vegetable = Vegetable(20)
@@ -40,4 +45,5 @@ main(): Void {
   print(make_fruit()->banana())
   print([Fruit(40)][0]->apple())
   print("abc".len())
+  print(make_fruit()->plus(make_amount()))
 }

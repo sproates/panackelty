@@ -21,6 +21,7 @@ pub enum Expr {
   CallExpr(Str, [Expr], [Str]),
   // Raw dot calls retain the receiver and spelling until namespace resolution.
   DotCallExpr(Expr, Str, [Expr], [Str]),
+  OwnedCallExpr(Expr, Str, [Expr], [Str]),
   FieldExpr(Expr, Str),
   IndexExpr(Expr, Expr),
   IfExpr(Expr, Block, Block, Bool),
@@ -45,6 +46,7 @@ pub pure unlocated_expression(expression: Expr): Expr {
     UnaryExpr(operator, operand) => {},
     BinaryExpr(operator, left, right) => {},
     CallExpr(name, arguments, type_arguments) => {},
+    OwnedCallExpr(target, name, arguments, types) => {},
     DotCallExpr(target, name, arguments, types) => {},
     FieldExpr(target, field) => {},
     IndexExpr(target, index) => {},
@@ -262,6 +264,7 @@ pure expression_type_argument_spans(expression: Expr): [SourceSpan] {
     UnaryExpr(operator, operand) => [],
     BinaryExpr(operator, left, right) => [],
     CallExpr(name, arguments, types) => [],
+    OwnedCallExpr(target, name, arguments, types) => [],
     DotCallExpr(target, name, arguments, types) => [],
     FieldExpr(target, field) => [],
     IndexExpr(target, index) => [],
@@ -284,6 +287,7 @@ pub pure expression_span(expression: Expr): Option[SourceSpan] {
     UnaryExpr(operator, operand) => None(),
     BinaryExpr(operator, left, right) => None(),
     CallExpr(name, arguments, type_arguments) => None(),
+    OwnedCallExpr(target, name, arguments, types) => None(),
     DotCallExpr(target, name, arguments, types) => None(),
     FieldExpr(target, field) => None(),
     IndexExpr(target, index) => None(),
@@ -1180,7 +1184,7 @@ pure parse_postfix_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedE
                     left,
                     arguments.next,
                     if tokens[index].text == "->" {
-                      CallExpr("$owned_call$" + name, concat([left], arguments.values), types.values)
+                      OwnedCallExpr(left, name, arguments.values, types.values)
                     } else {
                       DotCallExpr(left, name, arguments.values, types.values)
                     },
@@ -2027,11 +2031,17 @@ pub enum ImportBindingSyntax {
   SelectiveImportBinding([ImportSelector])
 }
 
+pub record OwnedMethodSyntax {
+  owner: Str,
+  name: Str
+}
+
 pub record DeclarationSyntax {
   span: SourceSpan,
   type_spans: [SourceSpan],
   is_public: Bool,
-  binding: ImportBindingSyntax
+  binding: ImportBindingSyntax,
+  method: Option[OwnedMethodSyntax]
 }
 
 pub record ParsedModule {
@@ -2206,7 +2216,8 @@ pure parse_impl_items(
             )
             metadata: DeclarationSyntax = DeclarationSyntax(
               SourceSpan(token_position(tokens, index), token_end_position(tokens, parsed.next)),
-              concat([owner_span], parsed.type_spans), is_public, NoImportBinding()
+              concat([owner_span], parsed.type_spans), is_public, NoImportBinding(),
+              Some(OwnedMethodSyntax(owner, name))
             )
             parse_impl_items(tokens, append(declarations, method), append(syntax, metadata), owner, owner_span, parsed.next)
           }
@@ -2277,7 +2288,7 @@ pure parse_module_items(
                 SourceSpan(token_position(tokens, index), token_end_position(tokens, parsed.next)),
                 [],
                 is_public,
-                parsed.binding
+                parsed.binding, None()
               )
               if parsed.next == len(tokens) || tokens[parsed.next].text == ";" {
                 next: Nat = if parsed.next == len(tokens) {
@@ -2308,7 +2319,7 @@ pure parse_module_items(
               SourceSpan(token_position(tokens, index), token_end_position(tokens, parsed.next)),
               parsed.type_spans,
               is_public,
-              NoImportBinding()
+              NoImportBinding(), None()
             )
             parse_module_items(
               tokens,
@@ -2355,7 +2366,7 @@ pub pure module_execution_diagnostics(module: ParsedModule): [Diagnostic] {
   mut diagnostics: [Diagnostic] = []
   mut index: Nat = 0
   for syntax in module.syntax {
-    mut requires_namespaces: Bool = syntax.is_public || declaration_requires_namespaces(
+    mut requires_namespaces: Bool = syntax.is_public || syntax.method != None() || declaration_requires_namespaces(
       module.program.declarations[index],
       aliases,
       set()
@@ -2488,6 +2499,7 @@ pub pure render_expr(expression: Expr): Str {
       types_text: Str = render_type_parameters(type_arguments)
       "${name}${types_text}(${arguments_text})"
     },
+    OwnedCallExpr(target, name, arguments, types) => render_expr(target) + "->" + name + render_type_parameters(types) + "(" + render_expr_list(arguments) + ")",
     DotCallExpr(target, name, arguments, types) => render_expr(lower_legacy_expression(DotCallExpr(
       target,
       name,
@@ -2832,6 +2844,11 @@ pure lower_legacy_expression(value: Expr): Expr {
       lower_legacy_expression(inner),
       located_type_argument_spans
     ),
+    OwnedCallExpr(target, name, arguments, types) => OwnedCallExpr(
+      lower_legacy_expression(target), name,
+      lower_legacy_expressions(arguments),
+      types
+    ),
     DotCallExpr(target, name, arguments, types) => CallExpr(
       lowered_method_name(name),
       concat([lower_legacy_expression(target)], lower_legacy_expressions(arguments)),
@@ -2974,6 +2991,7 @@ pub pure expression_reference_path(expression: Expr): Str {
     UnaryExpr(operator, operand) => "",
     BinaryExpr(operator, left, right) => "",
     CallExpr(name, arguments, types) => "",
+    OwnedCallExpr(target, name, arguments, types) => "",
     DotCallExpr(target, name, arguments, types) => "",
     IndexExpr(target, index) => "",
     IfExpr(condition, yes, no, has_else) => "",
@@ -3001,6 +3019,7 @@ pub pure type_has_qualification(name: Str): Bool {
 pure expression_requires_namespaces(expression: Expr, aliases: Set[Str], locals: Set[Str]): Bool {
   match expression {
     LocatedExpr(span, value, located_type_argument_spans) => expression_requires_namespaces(value, aliases, locals),
+    OwnedCallExpr(target, name, arguments, types) => true,
     DotCallExpr(target, name, arguments, types) => {
       mut required: Bool = (aliases.has(reference_head(expression_reference_path(target))) &&
         !locals.has(reference_head(expression_reference_path(target)))) ||
@@ -3026,7 +3045,7 @@ pure expression_requires_namespaces(expression: Expr, aliases: Set[Str], locals:
     ),
     FunctionExpr(name) => type_has_qualification(name),
     CallExpr(name, arguments, types) => {
-      mut required: Bool = name.starts_with("$owned_call$") || type_has_qualification(name)
+      mut required: Bool = type_has_qualification(name)
       for argument in arguments {
         required = required || expression_requires_namespaces(argument, aliases, locals)
       }
@@ -3180,7 +3199,7 @@ pure declaration_requires_namespaces(
           parameters_in_scope = parameters_in_scope.add(parameter.name)
         }
       }
-      mut required: Bool = name.starts_with("$owned$") || type_has_qualification(return_type) || block_requires_namespaces(
+      mut required: Bool = type_has_qualification(return_type) || block_requires_namespaces(
         body,
         aliases,
         parameters_in_scope

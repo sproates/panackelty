@@ -335,3 +335,10 @@ The parser's project-route gate uses explicit method metadata and owned-call
 nodes. Legacy visitors reject an unresolved owned call; ordinary dot lookup and
 field access are unchanged. Scope and limitations are in the
 [specification](../../docs/reference/SPEC.md#type-owned-methods-bounded-proof-of-concept).
+
+The P03 `owned_server_map` functional project verifies that Server-owned `get`
+and `put` coexist with the existing Map dot-call path, including inside Server
+methods. Import aliases, facade re-exports and an unrelated same-named Server
+retain separate owner identities. This is a numeric dispatch regression, not an
+HTTP server implementation. Collection arity diagnostics render the actual
+argument count, including the receiver, rather than an interpolation placeholder.

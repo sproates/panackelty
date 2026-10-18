@@ -1,6 +1,11 @@
 # Dispatch acceptance fixtures
 
-Proposed executable tests for [the implementation handoff](dispatch-implementation-handoff.md). The source blocks below have been reviewed against the PoC syntax but have not been compiled during planning. P03 must make them executable and record actual results. They test language dispatch, not an HTTP implementation.
+Acceptance tests for [the implementation handoff](dispatch-implementation-handoff.md).
+[P03 delivery evidence](p03-server-map.md) records executable F01, its import and
+owner-identity variants, and F02-F08/F10. The source blocks below retain the
+planned P06 Map-arrow spelling; P03 uses existing Map dots as specified below.
+F09, F11, F12 and F13 remain later-packet tests. These tests establish language
+dispatch, not an HTTP implementation.
 
 ## F01: Server and Map coexistence
 

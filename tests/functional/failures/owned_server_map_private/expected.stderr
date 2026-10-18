@@ -1,0 +1,3 @@
+error: <case>/main.panack:4:9: owned method Server->put is private
+  4 |   print(Server(10, map())->put("/fruit", 1))
+    |         ^

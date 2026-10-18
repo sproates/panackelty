@@ -224,7 +224,7 @@ pure body_type_check_for_context(
 }
 
 main(): Void {
-  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(owned_method_import_tests()).concat(namespace_effect_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests()).concat(module_emission_identity_tests()).concat(module_emission_program_tests()).concat(module_emission_effect_tests()).concat(module_emission_status_tests()).concat(stdlib_public_api_tests())
+  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(owned_method_import_tests()).concat(owned_server_map_tests()).concat(namespace_effect_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests()).concat(module_emission_identity_tests()).concat(module_emission_program_tests()).concat(module_emission_effect_tests()).concat(module_emission_status_tests()).concat(stdlib_public_api_tests())
   loaded: LoadedProject = load_project("tests/fixtures/compiler_contracts/indexed_lookup/main.panack")
   results = append(results, std_testing.expect(
     "existing project resolves with identity-checked bodies",
@@ -4491,4 +4491,85 @@ pure owned_method_import_tests(): [TestResult] {
       selected_original, "alias changed the selected owner or method"))
   }
   results
+}
+
+// Server methods and Map intrinsics must retain distinct checked targets and contracts.
+pure owned_server_map_tests(): [TestResult] {
+  source: Str = "record Server { id: Nat, routes: Map[Str,Nat] }; " +
+    "impl Server { pure get(route: Str, fallback: Nat): Nat { self.id + fallback } " +
+    "pure put(route: Str, amount: Nat): Server { Server(self.id, self.routes.put(route, amount)) } }; " +
+    "pure get(server: Server): Nat { 901 }; pure put(server: Server): Nat { 902 }; " +
+    "pure read_server(server: Server): Nat { server->get(\"/fruit\", 99) }; " +
+    "pure write_server(server: Server): Server { server->put(\"/fruit\", 1) }; " +
+    "pure read_map(routes: Map[Str,Nat]): Nat { routes.get(\"/fruit\") }; " +
+    "pure write_map(routes: Map[Str,Nat]): Map[Str,Nat] { routes.put(\"/fruit\", 7) }"
+  checked: CheckedModuleBodies = body_test_module(source)
+  mut results: [TestResult] = [
+    std_testing.equal_nat("server/Map binding diagnostics", len(checked.diagnostics), 0),
+    std_testing.equal_nat("server/Map checked function count", len(checked.functions), 8)
+  ]
+  mut inspected: Nat = 0
+  owner: DeclarationIdentity = DeclarationIdentity(namespace_identity("body.panack"), "Server")
+  for function in checked.functions {
+    name: Str = function.signature.binding.identity.name
+    if name == "read_server" || name == "write_server" || name == "read_map" || name == "write_map" {
+      inspected = inspected + 1
+      results = results.append(std_testing.expect("server/Map checked status/" + name,
+        function.status == BodyIdentityChecked(), "call was not identity checked"))
+      mut correct: Bool = false
+      if len(function.body.children) == 1 {
+        call: BoundBody = function.body.children[0]
+        match call.node {
+          BodyCall(target, types, substitutions) => match target {
+            BodyDeclaration(binding) => {
+              method: Str = if name == "read_server" { "get" } else { "put" }
+              correct = (name == "read_server" || name == "write_server") &&
+                binding.method == Some(OwnedMethodIdentity(owner, method)) &&
+                len(call.children) == 3
+              if name == "write_server" {
+                correct = correct && call.type == Some(SignatureType(SignatureNominal(owner), []))
+              }
+            },
+            BodyCore(operation) => {
+              correct = (name == "read_map" && operation == "$method_get" && len(call.children) == 2) ||
+                (name == "write_map" && operation == "$method_put" && len(call.children) == 3)
+              if name == "write_map" {
+                correct = correct && call.type == Some(SignatureType(SignatureCore("Map"), [
+                  SignatureType(SignatureCore("Str"), []), SignatureType(SignatureCore("Nat"), [])
+                ]))
+              }
+            }
+          },
+          BodyEmpty() => {},
+          BodyLiteral(value) => {},
+          BodyLocalUse(identity) => {},
+          BodyFunction(binding) => {},
+          BodyArray() => {},
+          BodyUnary(operator) => {},
+          BodyBinary(operator) => {},
+          BodyField(field) => {},
+          BodyIndex() => {},
+          BodyIf(has_else) => {},
+          BodyBlock(has_value) => {},
+          BodyMatch(targets, bindings, spans) => {},
+          BodyBinding(identity, annotation, mutable, inferred, evidence) => {},
+          BodyAssignment(identity, evidence) => {},
+          BodyWhile() => {},
+          BodyFor(identity) => {},
+          BodyInterpolation(parts) => {}
+        }
+      }
+      results = results.append(std_testing.expect("server/Map selected contract/" + name,
+        correct, "receiver selected the wrong owner, intrinsic, arity or return type"))
+    }
+  }
+  bad_map: CheckedModuleBodies = body_test_module(source +
+    " pure wrong_map(routes: Map[Str,Nat]): Nat { routes.get(\"/fruit\", 99) }")
+  results = results.append(std_testing.equal_nat("server/Map bad Map arity rejected",
+    len(bad_map.diagnostics), 1))
+  if len(bad_map.diagnostics) == 1 {
+    results = results.append(std_testing.equal_str("server/Map actual arity diagnostic",
+      bad_map.diagnostics[0].message, "map_get expects 2 arguments, got 3"))
+  }
+  results.append(std_testing.equal_nat("server/Map inspected callers", inspected, 4))
 }

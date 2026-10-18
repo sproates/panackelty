@@ -1,0 +1,3 @@
+error: <case>/main.panack:6:42: argument 3 to Server->put is Str, expected Nat
+  6 |   print(Server(10, map())->put("/fruit", "wrong"))
+    |                                          ^

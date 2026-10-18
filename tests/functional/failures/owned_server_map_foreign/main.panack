@@ -1,0 +1,3 @@
+import "server.panack"::{Server}
+impl Server { pure extra(): Nat { self.id } }
+main(): Void {}

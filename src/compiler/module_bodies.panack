@@ -1211,7 +1211,7 @@ pure body_type_argument_count_span(
 pure body_owned_target(
   context: BodyContext, method: Str, receiver: BodyResult
 ): Result[BodyTarget, Str] {
-  mut result: Result[BodyTarget, Str] = Error("owned method requires a non-generic record receiver: " + method)
+  mut result: Result[BodyTarget, Str] = Error("owned method requires a known nominal receiver: " + method)
   if len(receiver.diagnostics) > 0 {
     result = Error(receiver.diagnostics[0].message)
   } else {
@@ -1219,20 +1219,29 @@ pure body_owned_target(
       None() => {},
       Some(type) => match type.identity {
         SignatureNominal(owner) => {
-          if len(type.arguments) == 0 {
-            match resolve_owned_method(context.graph, owner, method) {
-              Error(message) => { result = Error(message) },
-              Ok(binding) => {
-                if owner.module != context.owner.module && !binding.is_public {
-                  result = Error("owned method " + owner.name + "->" + method + " is private")
-                } else {
-                  result = Ok(BodyDeclaration(binding))
-                }
+          match resolve_owned_method(context.graph, owner, method) {
+            Error(message) => { result = Error(message) },
+            Ok(binding) => {
+              if owner.module != context.owner.module && !binding.is_public {
+                result = Error("owned method " + owner.name + "->" + method + " is private")
+              } else {
+                result = Ok(BodyDeclaration(binding))
               }
             }
           }
         },
-        SignatureCore(name) => {},
+        SignatureCore(name) => {
+          if name == "Option" || name == "Result" {
+            match resolve_owned_method(context.graph, body_core_owner(name), method) {
+              Error(message) => { result = Error(message) },
+              Ok(binding) => {
+                if binding.identity.module != context.owner.module && !binding.is_public {
+                  result = Error("owned method " + name + "->" + method + " is private")
+                } else { result = Ok(BodyDeclaration(binding)) }
+              }
+            }
+          }
+        },
         SignatureParameter(owner, index) => {},
         SignatureCallable(effect) => {},
         SignatureHole(owner, location, index) => {}
@@ -1240,6 +1249,37 @@ pure body_owned_target(
     }
   }
   result
+}
+
+pure body_impl_parameter_count(context: BodyContext, target: BodyTarget): Nat {
+  mut count: Nat = 0
+  match target {
+    BodyCore(name) => {},
+    BodyDeclaration(binding) => {
+      if binding.method != None() {
+        for module in context.modules {
+          if module.bindings.identity == binding.identity.module {
+            for syntax in module.parsed.syntax {
+              match syntax.method {
+                None() => {},
+                Some(method) => {
+                  match binding.method {
+                    None() => {},
+                    Some(identity) => {
+                      if identity.owner.name == method.owner && identity.name == method.name {
+                        count = len(method.parameters)
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  count
 }
 
 pure body_call(
@@ -1254,6 +1294,46 @@ pure body_call(
 ): BodyResult {
   body_call_with_receiver(context, target, arguments, types, type_argument_spans,
     span, locals, path, None())
+}
+
+// Known receiver arguments and explicit method arguments are fixed. Receiver
+// holes remain inferable so argument evidence can constrain an empty constructor.
+pure body_instantiate_fixed(
+  type: SignatureType, owner: DeclarationIdentity, count: Nat, arguments: [SignatureType]
+): SignatureType {
+  mut result: Option[SignatureType] = None()
+  match type.identity {
+    SignatureParameter(binder, index) => {
+      if binder == owner && index < count && index < len(arguments) &&
+          body_type_complete(arguments[index]) {
+        result = Some(arguments[index])
+      }
+    },
+    SignatureCore(name) => {},
+    SignatureNominal(identity) => {},
+    SignatureCallable(effect) => {},
+    SignatureHole(binder, path, index) => {}
+  }
+  match result {
+    Some(value) => value,
+    None() => {
+      mut children: [SignatureType] = []
+      for child in type.arguments {
+        children = append(children, body_instantiate_fixed(child, owner, count, arguments))
+      }
+      SignatureType(type.identity, children)
+    }
+  }
+}
+
+pure body_replace_type_argument(arguments: [SignatureType], index: Nat, value: SignatureType): [SignatureType] {
+  mut result: [SignatureType] = []
+  mut cursor: Nat = 0
+  for argument in arguments {
+    result = append(result, if cursor == index { value } else { argument })
+    cursor = cursor + 1
+  }
+  result
 }
 
 pure body_call_with_receiver(
@@ -1331,6 +1411,13 @@ pure body_call_with_receiver(
         deferred = append(deferred, span)
       },
       Some(contract) => {
+        impl_count: Nat = body_impl_parameter_count(context, target)
+        mut method_count: Nat = 0
+        mut parameter_index: Nat = 0
+        for parameter in contract.parameters {
+          if parameter_index >= impl_count { method_count = method_count + 1 }
+          parameter_index = parameter_index + 1
+        }
         if len(children) != len(contract.inputs) {
           expected_count: Nat = len(contract.inputs)
           actual_count: Nat = len(children)
@@ -1365,7 +1452,7 @@ pure body_call_with_receiver(
             ))
           }
         }
-        if len(types) > 0 && (contract.constructor || len(contract.parameters) == 0) {
+        if len(types) > 0 && (contract.constructor || method_count == 0) {
           type_span: SourceSpan = body_type_argument_span(type_argument_spans, 0, span)
           type_checks = concat(
             type_checks,
@@ -1386,72 +1473,78 @@ pure body_call_with_receiver(
         if len(types) > 0 {
           type_span: SourceSpan = body_type_argument_count_span(
             type_argument_spans,
-            len(contract.parameters),
+            method_count,
             span
           )
-          if !contract.constructor && len(contract.parameters) > 0 {
+          if !contract.constructor && method_count > 0 {
             type_checks = concat(
               type_checks,
               body_explicit_type_argument_arity_evidence(
                 context,
                 type_span,
-                len(contract.parameters),
+                method_count,
                 len(types)
               )
             )
           }
-          if len(types) != len(contract.parameters) {
+          if len(types) != method_count {
             diagnostics = append(
               diagnostics,
               Diagnostic("call " + contract.name + " has incorrect type argument count", type_span.start)
             )
           } else {
             if len(resolved_types) == len(types) {
-              inferred = resolved_types
+              mut explicit_index: Nat = 0
+              while explicit_index < len(resolved_types) {
+                inferred = body_replace_type_argument(inferred, impl_count + explicit_index, resolved_types[explicit_index])
+                explicit_index = explicit_index + 1
+              }
             }
           }
-        } else {
-          index = 0
-          for child in children {
-            if index < len(contract.inputs) {
-              match child.type {
-                None() => {
-                  inference_deferred = true
-                },
-                Some(actual) => {
-                  inference: BodyInference = body_infer(
-                    context,
-                    contract.inputs[index],
-                    actual,
-                    contract.owner,
-                    inferred,
-                    contract.name,
-                    contract.parameters,
-                    child.span
-                  )
-                  type_joins = concat(type_joins, inference.type_joins)
-                  match inference.failure {
-                    Some(message) => {
-                      diagnostics = append(
-                        diagnostics,
-                        Diagnostic(
-                          "inference for " + contract.name + ": " + message,
-                          child.span.start
-                        )
+        }
+        index = 0
+        for child in children {
+          if index < len(contract.inputs) && (len(types) == 0 || impl_count > 0) {
+            match child.type {
+              None() => {
+                inference_deferred = true
+              },
+              Some(actual) => {
+                inference: BodyInference = body_infer(
+                  context,
+                  if index == 0 || impl_count == 0 { contract.inputs[index] } else {
+                    body_instantiate_fixed(contract.inputs[index], contract.owner,
+                      if len(types) > 0 { len(contract.parameters) } else { impl_count }, inferred)
+                  },
+                  actual,
+                  contract.owner,
+                  inferred,
+                  contract.name,
+                  contract.parameters,
+                  child.span
+                )
+                type_joins = concat(type_joins, inference.type_joins)
+                match inference.failure {
+                  Some(message) => {
+                    diagnostics = append(
+                      diagnostics,
+                      Diagnostic(
+                        "inference for " + contract.name + ": " + message,
+                        child.span.start
                       )
-                    },
-                    None() => {
-                      inferred = inference.arguments
-                      inference_deferred = inference_deferred || inference.deferred
-                    }
+                    )
+                  },
+                  None() => {
+                    inferred = inference.arguments
+                    inference_deferred = inference_deferred || inference.deferred
                   }
                 }
               }
             }
-            index = index + 1
           }
+          index = index + 1
         }
-        if !contract.constructor && len(types) == 0 {
+        if !contract.constructor && len(types) == 0 && receiver == None() {
           index = 0
           for argument in inferred {
             if !body_type_complete(argument) {
@@ -5587,6 +5680,35 @@ pure body_unresolved_spans(body: BoundBody): [SourceSpan] {
         spans = [body.span]
       }
     }
+  }
+  match body.node {
+    BodyCall(target, types, evidence) => match target {
+      BodyCore(name) => {},
+      BodyDeclaration(binding) => {
+        if binding.method != None() {
+          for type in types {
+            if !body_type_complete(type) { spans = append(spans, body.span) }
+          }
+        }
+      }
+    },
+    BodyLiteral(value) => {},
+    BodyInterpolation(parts) => {},
+    BodyLocalUse(local) => {},
+    BodyFunction(binding) => {},
+    BodyArray() => {},
+    BodyUnary(operator) => {},
+    BodyBinary(operator) => {},
+    BodyField(name) => {},
+    BodyIndex() => {},
+    BodyIf(has_else) => {},
+    BodyBlock(has_tail) => {},
+    BodyMatch(targets, bindings, locations) => {},
+    BodyBinding(local, type, mutable, inferred, evidence) => {},
+    BodyAssignment(local, evidence) => {},
+    BodyWhile() => {},
+    BodyFor(local) => {},
+    BodyEmpty() => {}
   }
   for child in body.children {
     spans = concat(spans, body_unresolved_spans(child))

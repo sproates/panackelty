@@ -1,0 +1,14 @@
+impl[T] Box[T] {
+  pub pure value(): T { self.item }
+
+  pub pure replace[U](item: U): Box[U] { Box(item) }
+
+  pub pure empty[U](): [U] { [] }
+
+  pub pure choose[U](fallback: T, result: U): U { result }
+
+  pub pure keep(other: T): T { other }
+}
+
+pub record Box[T] { item: T }
+

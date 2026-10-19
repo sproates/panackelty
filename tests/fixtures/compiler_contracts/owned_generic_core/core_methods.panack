@@ -1,0 +1,14 @@
+import stdlib/core::{Option as Maybe, Result as Outcome}
+
+main(): Void {
+  present: Maybe[Nat] = Some(7)
+  absent: Maybe[Nat] = None()
+  success: Outcome[Str, Nat] = Ok("yes")
+  failure: Outcome[Str, Nat] = Error(1)
+  print(present->value_or(9))
+  print(absent->value_or(9))
+  print(success->value_or("no"))
+  print(failure->value_or("no"))
+  print(None()->value_or(9))
+  print(Error("failed")->value_or(7))
+}

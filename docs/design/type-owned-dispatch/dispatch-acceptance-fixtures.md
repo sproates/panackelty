@@ -4,7 +4,7 @@ Acceptance tests for [the implementation handoff](dispatch-implementation-handof
 [P03 delivery evidence](p03-server-map.md) records executable F01, its import and
 owner-identity variants, and F02-F08/F10. The source blocks below retain the
 planned P06 Map-arrow spelling; P03 uses existing Map dots as specified below.
-F09, F11, F12 and F13 remain later-packet tests. These tests establish language
+P04 adds F11 insufficient-context rejection and the nominal/core-enum generic matrix; see [P04 evidence](p04-generic-owners.md). F09, F12 and F13 remain later-packet tests. These tests establish language
 dispatch, not an HTTP implementation.
 
 ## F01: Server and Map coexistence

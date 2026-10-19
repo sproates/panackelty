@@ -1,0 +1,3 @@
+error: <case>/main.panack:3:1: function is not completely checked for identity emission: main (4 deferred type check(s); first at <case>/main.panack:3:22)
+  3 | main(): Void { print(Box([])->value()) }
+    | ^

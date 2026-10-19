@@ -545,6 +545,31 @@ main(): Void {
             ProcessOutput(0, 0, source_disasm.stdout, byte_buffer.empty())))
         }
       }
+      generic_core_source: Str = "tests/fixtures/compiler_contracts/owned_generic_core/core_methods.panack"
+      generic_core_environment: [Str] = [
+        "PANACKELTY_STDLIB_PATH=tests/fixtures/compiler_contracts/owned_generic_core/stdlib"
+      ]
+      generic_core_artifact: Path = child(workspace.root, "generic-core.bc")
+      generic_core_artifact_text: Str = std_result.value_or(std_path.to_text(generic_core_artifact), "invalid-core-artifact")
+      generic_core_output: ProcessOutput = ProcessOutput(0, 0,
+        std_text.encode_utf8("7\n9\nyes\nno\n9\n7\n"), byte_buffer.empty())
+      // Invoke the compiler driver directly: the installed launcher deliberately
+      // pins its bundled core and must not accept an environment override.
+      results = results.append(std_testing_commands.run_command("generic core owned methods/source",
+        TestCommand(path("./panack-vm"), ["run", compiler, "run", generic_core_source],
+          byte_buffer.empty(), std_path.current(), generic_core_environment, std_time.seconds(30), 1048576),
+        generic_core_output))
+      results = results.append(std_testing_commands.run_command("generic core owned methods/compile",
+        TestCommand(path("./panack-vm"), ["run", compiler, "compile", generic_core_source, "-o", generic_core_artifact_text],
+          byte_buffer.empty(), std_path.current(), generic_core_environment, std_time.seconds(30), 1048576),
+        ProcessOutput(0, 0, std_text.encode_utf8("wrote ${generic_core_artifact_text}\n"), byte_buffer.empty())))
+      results = results.append(std_testing_commands.run_command("generic core owned methods/bytecode",
+        command(["run", generic_core_artifact_text], 30), generic_core_output))
+      match std_filesystem.remove_file(generic_core_artifact) {
+        Ok(removed) => {},
+        Error(error) => { results = results.append(std_testing.expect("generic core artifact cleanup", false,
+          "file removal failed")) }
+      }
       for file in [self_hosted, bootstrap] {
         match std_filesystem.remove_file(file) {
           Ok(removed) => {},

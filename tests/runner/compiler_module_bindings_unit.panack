@@ -224,7 +224,7 @@ pure body_type_check_for_context(
 }
 
 main(): Void {
-  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(owned_method_import_tests()).concat(owned_server_map_tests()).concat(namespace_effect_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests()).concat(module_emission_identity_tests()).concat(module_emission_program_tests()).concat(module_emission_effect_tests()).concat(module_emission_status_tests()).concat(stdlib_public_api_tests())
+  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(owned_method_import_tests()).concat(owned_server_map_tests()).concat(owned_generic_method_tests()).concat(namespace_effect_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests()).concat(module_emission_identity_tests()).concat(module_emission_program_tests()).concat(module_emission_effect_tests()).concat(module_emission_status_tests()).concat(stdlib_public_api_tests())
   loaded: LoadedProject = load_project("tests/fixtures/compiler_contracts/indexed_lookup/main.panack")
   results = append(results, std_testing.expect(
     "existing project resolves with identity-checked bodies",
@@ -829,7 +829,7 @@ pure namespace_lexical_receiver_tests(): [TestResult] {
 pure signature_test_module(identity: ModuleIdentity, source: Str): LoadedModule {
   parsed: ParsedModule = match namespace_parse(source) {
     Ok(value) => value,
-    Error(error) => ParsedModule(indexed_program([]), [])
+    Error(error) => ParsedModule(indexed_program([]), [], [])
   }
   LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed))
 }
@@ -4572,4 +4572,81 @@ pure owned_server_map_tests(): [TestResult] {
       bad_map.diagnostics[0].message, "map_get expects 2 arguments, got 3"))
   }
   results.append(std_testing.equal_nat("server/Map inspected callers", inspected, 4))
+}
+
+pure owned_generic_method_tests(): [TestResult] {
+  declaration: Str = "pub record Box[T] { item: T }; impl[T] Box[T] { " +
+    "pub pure value(): T { self.item } pub pure replace[U](item: U): Box[U] { Box(item) } " +
+    "pure hidden(): T { self.item } pure keep(item: T): T { item } } "
+  mut results: [TestResult] = [
+    std_testing.equal_str("generic owned/receiver and method inference",
+      body_test_error(declaration + "pure f(box: Box[Nat]): Str { box->replace(\"ok\")->value() }"), "ok"),
+    std_testing.equal_str("generic owned/explicit method binder only",
+      body_test_error(declaration + "pure f(box: Box[Nat]): Str { box->replace[Str](\"ok\")->value() }"), "ok"),
+    std_testing.equal_str("generic owned/later owner",
+      body_test_error("impl[T] Box[T] { pure value(): T { self.item } }; record Box[T] { item: T }; pure f(box: Box[Nat]): Nat { box->value() }"), "ok"),
+    std_testing.equal_str("generic owned/renamed and reordered binders",
+      body_test_error("enum Pair[A,B] { First(A), Second(B) }; impl[Y,X] Pair[X,Y] { pure value_or(fallback: X): X { match self { First(value) => value, Second(error) => fallback } } }; pure f(pair: Pair[Nat,Str]): Nat { pair->value_or(9) }"), "ok"),
+    std_testing.expect("generic owned/owner argument cannot change",
+      body_test_error(declaration + "pure f(box: Box[Nat]): Str { box->keep(\"wrong\") }") != "ok", "receiver binder changed"),
+    std_testing.expect("generic owned/impl arguments are not explicit call arguments",
+      body_test_error(declaration + "pure f(box: Box[Nat]): Nat { box->value[Nat]() }") != "ok", "owner argument accepted"),
+    std_testing.expect("generic owned/explicit method argument checked",
+      body_test_error(declaration + "pure f(box: Box[Nat]): Nat { box->replace[Str](1)->value() }") != "ok", "wrong explicit argument accepted"),
+    std_testing.equal_str("generic owned/binder collision",
+      signature_test_error("record Box[T] { item: T }; impl[T] Box[T] { pure value[T](item: T): T { item } }"), "invalid or duplicate type parameter T"),
+    std_testing.equal_str("generic owned/empty specialization rejected",
+      signature_test_error("record Box[T] { item: T }; impl Box[Nat] { ; }"), "impl requires a local nominal owner with uniform type parameters: Box"),
+    std_testing.equal_str("generic owned/empty foreign owner rejected",
+      signature_test_error("impl Unknown {}"), "impl requires a local nominal owner with uniform type parameters: Unknown"),
+    std_testing.equal_str("generic owned/empty reserved binder rejected",
+      signature_test_error("record Box[T] { item: T }; impl[Nat] Box[Nat] {}"), "impl requires a local nominal owner with uniform type parameters: Box"),
+    std_testing.equal_str("generic owned/empty later owner accepted",
+      signature_test_error("impl[T] Box[T] {} record Box[T] { item: T }"), "ok"),
+    std_testing.equal_str("generic owned/specialization rejected",
+      signature_test_error("record Box[T] { item: T }; impl Box[Nat] { pure value(): Nat { self.item } }"), "impl requires a local nominal owner with uniform type parameters: Box"),
+    std_testing.equal_str("generic owned/unused binder rejected",
+      signature_test_error("record Box[T] { item: T }; impl[T,U] Box[T] { pure value(): T { self.item } }"), "impl requires a local nominal owner with uniform type parameters: Box"),
+    std_testing.equal_str("generic owned/explicit self rejected",
+      signature_test_error("record Box[T] { item: T }; impl[T] Box[T] { pure value(self: T): T { self } }"), "owned method cannot declare an explicit self parameter"),
+    std_testing.expect("generic owned/self immutable",
+      body_test_error("record Box[T] { item: T }; impl[T] Box[T] { pure value(other: Box[T]): T { self = other; self.item } }") != "ok", "self assignment accepted")
+  ]
+  library: LoadedModule = signature_test_module(namespace_identity("generic_library"), declaration)
+  facade: LoadedModule = signature_test_module(namespace_identity("generic_facade"),
+    "pub import project/generic_library::{Box as Crate}")
+  app: LoadedModule = signature_test_module(namespace_identity("generic_app"),
+    "import project/generic_facade::{Crate as Renamed}; pure f(box: Renamed[Nat]): Str { box->replace[Str](\"ok\")->value() }; pure denied(box: Renamed[Nat]): Nat { box->hidden() }")
+  graph: ModuleBindingGraph = ModuleBindingGraph([library.bindings, facade.bindings, app.bindings], [
+    ModuleImportEdge(facade.bindings.identity, 0, library.bindings.identity),
+    ModuleImportEdge(app.bindings.identity, 0, facade.bindings.identity)
+  ])
+  checked: CheckedModuleBodies = body_test_graph([library, facade, app], graph, app)
+  results = results.append(std_testing.equal_nat("generic owned/alias only private rejected", len(checked.diagnostics), 1))
+  if len(checked.diagnostics) > 0 {
+    results = results.append(std_testing.equal_str("generic owned/private through facade", checked.diagnostics[0].message, "owned method Box->hidden is private"))
+  }
+  core: LoadedModule = signature_test_module(ModuleIdentity(ToolchainModulePackage(), "core.panack"),
+    "pub enum Option[T] { Some(T), None }; pub enum Result[T,E] { Ok(T), Error(E) }; " +
+    "impl[T] Option[T] { pub pure value_or(fallback: T): T { match self { Some(value) => value, None() => fallback } } }; " +
+    "impl[T,E] Result[T,E] { pub pure value_or(fallback: T): T { match self { Ok(value) => value, Error(error) => fallback } } }")
+  core_use: LoadedModule = signature_test_module(namespace_identity("generic_core_use"),
+    "import stdlib/core::{Option as Maybe, Result as Outcome}; pure option(value: Maybe[Nat]): Nat { value->value_or(9) }; pure result(value: Outcome[Str,Nat]): Str { value->value_or(\"no\") }; pure inferred(): Nat { None()->value_or(9) }; pure inferred_result(): Nat { Error(\"failed\")->value_or(7) }")
+  core_graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, core_use.bindings], [ModuleImportEdge(core_use.bindings.identity, 0, core.bindings.identity)])
+  for diagnostic in body_test_graph([core, core_use], core_graph, core).diagnostics {
+    results = results.append(std_testing.equal_str("generic owned/core diagnostic", diagnostic.message, "ok"))
+  }
+  results = results.append(std_testing.equal_nat("generic owned/core Option Result bodies", len(body_test_graph([core, core_use], core_graph, core).diagnostics), 0))
+  results = results.append(std_testing.equal_nat("generic owned/core Option Result aliases", len(body_test_graph([core, core_use], core_graph, core_use).diagnostics), 0))
+  for function in body_test_graph([core, core_use], core_graph, core_use).functions {
+    results = results.append(std_testing.expect("generic owned/core call identity checked/" + function.signature.binding.identity.name,
+      function.status == BodyIdentityChecked(), "core call remained deferred"))
+  }
+  inferred: CheckedModuleBodies = body_test_module(declaration +
+    "pure f(box: Box[Nat]): Str { box->replace[Str](\"ok\")->value() }")
+  for function in inferred.functions {
+    results = results.append(std_testing.expect("generic owned/checked status/" + function.signature.binding.identity.name,
+      function.status == BodyIdentityChecked(), "generic method remained deferred"))
+  }
+  results
 }

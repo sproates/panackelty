@@ -312,10 +312,40 @@ nominal owner identity. Neither a same-name local type nor a same-name global
 function changes arrow lookup. Visibility is checked against the original
 method declaration, including when the receiver type is re-exported.
 
-This experiment accepts only non-generic records declared earlier in the same
-module as their `impl`, with non-generic synchronous methods. It does not add
-implementations for imported types, extension methods, traits, inheritance,
-dynamic dispatch, generic methods or async methods. Method declarations have
+Records and enums may own synchronous methods, including generic owners and
+methods. The owner must be declared in the same module, before or after its impl.
+Implementation binders are explicit and must occur exactly once as the owner's
+type arguments; their names may differ from the type declaration's binders:
+
+```panack
+impl[T] Box[T] {
+  pub pure value(): T { self.item }
+  pub pure replace[U](item: U): Box[U] { Box(item) }
+  pub pure empty[U](): [U] { [] }
+}
+
+pub record Box[T] { item: T }
+```
+
+`Box(42)->replace[Str]("hello")->value()` returns `"hello"`. The receiver
+supplies implementation parameters; explicit call type arguments supply only
+method parameters. Method parameters can also be inferred from arguments or the
+expected result, as in `values: [Str] = Box(42)->empty()`. Known nominal receivers
+may retain argument holes until method arguments or surrounding result constraints
+solve them; an unresolved
+receiver or method type parameter is rejected before emission. Lookup never
+chooses an owner from the method's spelling.
+
+Implementation and method binders must be disjoint and individually unique.
+Specialised impls such as `impl Box[Nat]`, unused implementation binders, explicit
+`self` parameters, assignment to `self`, and duplicate methods across impl blocks
+are rejected. There is no overloading. The canonical core Option and Result enums
+support this declaration mechanism in their defining toolchain module; production
+stdlib receiver API migration is separate work and is not yet delivered.
+
+This does not add implementations for imported types, built-in collection or
+primitive owners, extension methods, traits, inheritance, dynamic dispatch or
+async methods. Method declarations have
 compiler-only identities; they do not introduce ordinary callable names. The project-aware CLI is required, including its regular
 source-file commands or explicit `--project` commands. The standalone legacy
 parser does not execute this form. Method diagnostics use the source owner and

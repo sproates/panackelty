@@ -811,8 +811,8 @@ pure parser_unit_owned_methods(): [TestResult] {
     Ok(tokens) => match parse_module_complete(tokens) {
       Error(error) => false,
       Ok(module) => len(module.syntax) == 3 &&
-        module.syntax[1].method == Some(OwnedMethodSyntax("Fruit", "apple")) &&
-        module.syntax[2].method == Some(OwnedMethodSyntax("Fruit", "banana")) &&
+        module.syntax[1].method == Some(OwnedMethodSyntax("Fruit", [], "apple")) &&
+        module.syntax[2].method == Some(OwnedMethodSyntax("Fruit", [], "banana")) &&
         !module.program.function_indices.has("apple")
     }
   }
@@ -825,13 +825,23 @@ pure parser_unit_owned_methods(): [TestResult] {
         module.syntax[1].is_public && !module.syntax[2].is_public
     }
   }
+  generic_ok: Bool = match lex("impl[T] Box[T] { pub pure replace[U](item: U): Box[U] { Box(item) } } record Box[T] { item: T }") {
+    Error(error) => false,
+    Ok(tokens) => match parse_module_complete(tokens) {
+      Error(error) => false,
+      Ok(module) => module.syntax[0].method == Some(OwnedMethodSyntax("Box", ["T"], "replace")) &&
+        module.syntax[0].type_spans[0].start.column == 9 &&
+        len(module.implementations) == 1 && module.implementations[0].owner == "Box[T]"
+    }
+  }
   [
+    std_testing.expect("parser/owned/generic-metadata", generic_ok, "implementation binders or owner span lost"),
     std_testing.expect("parser/owned/declarations", parsed_ok, "methods must have distinct owner identities"),
     std_testing.expect("parser/owned/visibility", visibility_ok, "pub applies to its method only"),
     std_testing.equal_str("parser/owned/arrow", parse_source("fruit->apple()"), "fruit->apple()"),
     std_testing.equal_str("parser/owned/dot-unchanged", parse_source("fruit.apple()"), "apple(fruit)"),
     std_testing.equal_str("parser/owned/missing-call", parse_source("fruit->apple"), "expected opening method parenthesis"),
-    std_testing.equal_str("parser/owned/invalid-owner", parse_program_source("impl Fruit {}"), "impl requires an earlier local non-generic record: Fruit")
+    std_testing.expect("parser/owned/deferred-owner", match lex("impl Fruit {} record Fruit { value: Nat }") { Error(error) => false, Ok(tokens) => match parse_module_complete(tokens) { Ok(module) => true, Error(error) => false } }, "owner checking belongs to signatures")
   ]
 }
 

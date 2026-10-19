@@ -545,6 +545,17 @@ main(): Void {
             ProcessOutput(0, 0, source_disasm.stdout, byte_buffer.empty())))
         }
       }
+      match std_process.run(path("./bin/panack"),
+          ["check", "--project", "tests/functional/failures/owned_builtin_spoof/panack.json"],
+          byte_buffer.empty(), std_path.current(), [], std_time.seconds(30), 1048576) {
+        Error(error) => { results = results.append(std_testing.expect("built-in owner manifest spoof",
+          false, "public CLI failed to launch")) },
+        Ok(output) => { results = results.append(std_testing.expect("built-in owner manifest spoof",
+          output.exit_code == 1 && output.signal == 0 && output.stdout == byte_buffer.empty() &&
+            compiler_driver_contains(std_text.decode_utf8(output.stderr),
+              "built-in impl requires the designated toolchain core module: Map"),
+          std_text.decode_utf8(output.stderr))) }
+      }
       generic_core_source: Str = "tests/fixtures/compiler_contracts/owned_generic_core/core_methods.panack"
       generic_core_environment: [Str] = [
         "PANACKELTY_STDLIB_PATH=tests/fixtures/compiler_contracts/owned_generic_core/stdlib"
@@ -552,7 +563,7 @@ main(): Void {
       generic_core_artifact: Path = child(workspace.root, "generic-core.bc")
       generic_core_artifact_text: Str = std_result.value_or(std_path.to_text(generic_core_artifact), "invalid-core-artifact")
       generic_core_output: ProcessOutput = ProcessOutput(0, 0,
-        std_text.encode_utf8("7\n9\nyes\nno\n9\n7\n"), byte_buffer.empty())
+        std_text.encode_utf8("7\n9\nyes\nno\n9\n7\n42\nselected\ntrue\n9\ntext\n5\n"), byte_buffer.empty())
       // Invoke the compiler driver directly: the installed launcher deliberately
       // pins its bundled core and must not accept an environment override.
       results = results.append(std_testing_commands.run_command("generic core owned methods/source",

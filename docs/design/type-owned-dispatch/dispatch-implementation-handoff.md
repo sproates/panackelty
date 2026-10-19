@@ -1,6 +1,8 @@
 # Type-owned dispatch: implementation handoff
 
-[P04 generic nominal owners](p04-generic-owners.md) records generic implementation and method binders, expected-result inference and isolated core-enum acceptance. P05 is next.
+[P05 built-in ownership registry](p05-builtin-owners.md) records canonical built-in source-method ownership and spoof rejection. P06 owned intrinsic dispatch is next.
+
+[P04 generic nominal owners](p04-generic-owners.md) records generic implementation and method binders, expected-result inference and isolated core-enum acceptance. P05 is recorded separately above.
 
 [P03 Server/Map coexistence](p03-server-map.md) records the representative implementation trial.
 

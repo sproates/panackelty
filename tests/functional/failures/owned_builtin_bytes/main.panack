@@ -1,0 +1,2 @@
+impl Bytes {}
+main(): Void { print(0) }

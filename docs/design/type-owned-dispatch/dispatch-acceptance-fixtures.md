@@ -1,5 +1,7 @@
 # Dispatch acceptance fixtures
 
+[P05 built-in ownership registry](p05-builtin-owners.md) records canonical built-in source-method ownership and spoof rejection. P06 owned intrinsic dispatch is next.
+
 Acceptance tests for [the implementation handoff](dispatch-implementation-handoff.md).
 [P03 delivery evidence](p03-server-map.md) records executable F01, its import and
 owner-identity variants, and F02-F08/F10. The source blocks below retain the

@@ -36,6 +36,13 @@ with unchanged output. The isolated core-enum test uses a test stdlib; productio
 core/compiler sources retain seed-compatible declaration syntax. This does not
 complete P09's later expanded-arrow checkpoint. See [P04 acceptance](../design/type-owned-dispatch/p04-generic-owners.md).
 
+P05 refreshes the seed to
+`2f64ce0ad979ec07080fe263ddf546aa53dc454ff3e47e807eac128687158e12`
+for canonical built-in owner metadata, designated-core signature checks and array
+implementation syntax. Stages 2/3/4 reproduce this hash; standard-library bytecode
+and output remain unchanged. Production core methods are not migrated and the P09
+checkpoint is still pending. See [P05 acceptance](../design/type-owned-dispatch/p05-builtin-owners.md).
+
 ## Historical P2 completion checkpoint — 2026-10-10
 
 PR#358 merged on 2026-10-10 as `bfb34a44107d345eb9f4784e5b8ca02e64c7124d`.

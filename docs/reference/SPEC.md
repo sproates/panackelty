@@ -343,9 +343,19 @@ are rejected. There is no overloading. The canonical core Option and Result enum
 support this declaration mechanism in their defining toolchain module; production
 stdlib receiver API migration is separate work and is not yet delivered.
 
-This does not add implementations for imported types, built-in collection or
-primitive owners, extension methods, traits, inheritance, dynamic dispatch or
-async methods. Method declarations have
+Only the designated toolchain core module can declare source methods for the
+registered built-in families Nat, Int, Dec, Rat, Bool, Unit, Str, Bytes, Path,
+Duration, Instant, Array, Map and Set. Array implementations use `impl[T] [T]`
+(or `impl[T] Array[T]`); Map and Set use `impl[K,V] Map[K,V]` and `impl[T] Set[T]`.
+These owners are canonical family tags, distinct from nominal declarations.
+The same binder, privacy, purity and duplicate-method rules apply. A user package
+or module named `core.panack` cannot grant itself built-in ownership. No methods
+are added to production built-in APIs by this registry change; intrinsic method
+declarations and library migration remain later work.
+
+This does not add implementations for imported nominal types, extension methods,
+traits, inheritance, dynamic dispatch or async methods. Guarded nominal types do
+not inherit their underlying built-in family's methods. Method declarations have
 compiler-only identities; they do not introduce ordinary callable names. The project-aware CLI is required, including its regular
 source-file commands or explicit `--project` commands. The standalone legacy
 parser does not execute this form. Method diagnostics use the source owner and

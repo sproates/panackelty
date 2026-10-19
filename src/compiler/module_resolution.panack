@@ -1,3 +1,4 @@
+import project/src/compiler/module_bindings::{OwnedMethodIdentity, MethodOwnerIdentity, MethodOwnerIdentity.NominalMethodOwner, MethodOwnerIdentity.BuiltinMethodOwner, builtin_owner_arity, builtin_owner_module, method_owner_name}
 import stdlib/path as std_path
 pub import project/src/compiler/module_bindings::{module_reserved_binding, module_import_names, module_binding_diagnostics, ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleImportBinding, ModuleBindings, ModuleDeclarationKind, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant}
 pub import project/src/compiler/parser::{parse_reference_path, lowered_method_name, reference_head, reference_tail, expression_reference_path, type_has_qualification, lex, Expr, TopLevel, Statement, BlockValue, Program, Block, ParsedModule, ParsedTypeRef, ImportSelector, ImportBindingSyntax, DeclarationSyntax, SourcePos, SourceSpan, Diagnostic, Token, TokenKind, TokenKind.Identifier, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue.NoBlockValue, BlockValue.TailBlockValue, ImportBindingSyntax.NoImportBinding, ImportBindingSyntax.NamespaceImportBinding, ImportBindingSyntax.SelectiveImportBinding}
@@ -998,14 +999,34 @@ pub pure resolve_module_dot_call(
 pub pure resolve_owned_method(
   graph: ModuleBindingGraph, owner: DeclarationIdentity, name: Str
 ): Result[ModuleDeclarationBinding, Str] {
-  match binding_graph_module(graph, owner.module) {
+  resolve_method_owner(graph, NominalMethodOwner(owner), owner.module, name)
+}
+
+pub pure resolve_builtin_owned_method(
+  graph: ModuleBindingGraph, family: Str, name: Str
+): Result[ModuleDeclarationBinding, Str] {
+  match builtin_owner_arity(family) {
+    None() => Error("unknown built-in method owner " + family),
+    Some(arity) => resolve_method_owner(graph, BuiltinMethodOwner(family), builtin_owner_module(), name)
+  }
+}
+
+pure resolve_method_owner(
+  graph: ModuleBindingGraph, owner: MethodOwnerIdentity, module_identity: ModuleIdentity, name: Str
+): Result[ModuleDeclarationBinding, Str] {
+  owner_name: Str = method_owner_name(owner)
+  match binding_graph_module(graph, module_identity) {
     Error(message) => Error(message),
     Ok(module) => {
-      mut result: Result[ModuleDeclarationBinding, Str] = Error("unknown owned method " + owner.name + "->" + name)
-      if module.methods.has(owner.name) {
-        methods: Map[Str, ModuleDeclarationBinding] = module.methods.get(owner.name)
+      mut result: Result[ModuleDeclarationBinding, Str] = Error("unknown owned method " + owner_name + "->" + name)
+      if module.methods.has(owner_name) {
+        methods: Map[Str, ModuleDeclarationBinding] = module.methods.get(owner_name)
         if methods.has(name) {
-          result = Ok(methods.get(name))
+          binding: ModuleDeclarationBinding = methods.get(name)
+          if binding.identity.module == module_identity &&
+              binding.method == Some(OwnedMethodIdentity(owner, name)) {
+            result = Ok(binding)
+          }
         }
       }
       result

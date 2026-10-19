@@ -66,6 +66,8 @@ main(): Void {
     "invalid_logical_import", "invalid_logical_segment", "legacy_function_keyword",
     "main_parameters", "method_collection_receiver", "missing_import",
     "missing_main", "negative_natural", "non_exhaustive_match", "opaque_path",
+    "owned_builtin_array", "owned_builtin_bytes", "owned_builtin_map",
+    "owned_builtin_set", "owned_builtin_spoof", "owned_builtin_str",
     "owned_duplicate", "owned_generic_assignment", "owned_generic_duplicate_binder", "owned_generic_method_argument", "owned_generic_no_context", "owned_generic_owner_argument", "owned_generic_self", "owned_generic_shadow", "owned_generic_specialized", "owned_generic_unresolved_method", "owned_generic_unused", "owned_generic_wrong_argument", "owned_import_no_fallback", "owned_no_global_fallback",
     "owned_private_import", "owned_public_private_type", "owned_purity",
     "owned_server_map_duplicate", "owned_server_map_foreign", "owned_server_map_get_arity",
@@ -85,11 +87,11 @@ main(): Void {
     }
     expected_text = "${expected_text}PASS failure/${name}/no artifact\n"
   }
-  expected = std_text.encode_utf8("${expected_text}PASS selected failure count\ntests: 475, failures: 0\n")
+  expected = std_text.encode_utf8("${expected_text}PASS selected failure count\ntests: 493, failures: 0\n")
   command = TestCommand(runner_path("./bin/panack"),
     ["run", "tests/runner/main.panack"], byte_buffer.empty(), std_path.current(),
     runner_test_environment(),
-    // This deadline encloses the entire 400-assertion corpus, including nested
+    // This deadline encloses the entire fixture corpus, including nested
     // compiler and package checks; individual commands keep their own bounds.
     std_time.seconds(600), 1048576)
   result = match std_environment.get("PANACK_TEST_RUNNER_REPORT") {

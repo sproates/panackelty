@@ -1,5 +1,15 @@
 # Specification coverage
 
+P05 covers all 14 registered built-in owner families, source-method signatures,
+canonical metadata, body selection, privacy, invalid/empty implementation headers,
+duplicate array spellings, global fallback rejection and guarded-type separation.
+Each family rejects standalone, manifest-package and wrong-toolchain-module
+spoofs. Six `owned_builtin_*` CLI fixtures assert rejection and no artifact,
+including a package named `toolchain` containing `core.panack`. The isolated
+compiler-driver core executes Map/Set/array/Str/Bytes source methods through source
+and saved bytecode. Production intrinsic dispatch is unchanged.
+See [P05 evidence](../docs/design/type-owned-dispatch/p05-builtin-owners.md).
+
 P04 generic owned-method coverage: `owned_generic_methods` runs imported Box
 methods, facade/selective aliases, namespace construction, inferred and explicit
 method binders, expected-result inference, empty receiver argument inference and

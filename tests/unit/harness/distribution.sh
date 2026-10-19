@@ -129,7 +129,7 @@ done
 cd "$checkout"
 capture 0 30 env PANACK_TEST_COMPILER="$checkout/build/bootstrap/stage2/compiler.bc" PANACK_TEST_NAMESPACE_EMISSION=1 ./bin/panack run tests/runner/compiler_driver.panack
 contains "$work/stdout" 'PASS byte-identical compiler output'
-test "$(tail -n 1 "$work/stdout")" = 'tests: 40, failures: 0' || fail 'compiler driver summary'
+test "$(tail -n 1 "$work/stdout")" = 'tests: 41, failures: 0' || fail 'compiler driver summary'
 pass
 case_name=archive-rejects-invalid-metadata-and-links
 cd "$work"

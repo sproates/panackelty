@@ -1,5 +1,7 @@
 # Type-owned dispatch migration plan
 
+[P05 built-in ownership registry](p05-builtin-owners.md) records canonical built-in source-method ownership and spoof rejection. P06 owned intrinsic dispatch is next.
+
 Current packet evidence: [P01 inventory](p01-inventory.md) and
 [P02 explicit ownership metadata](p02-owned-metadata.md), and
 [P03 Server/Map coexistence](p03-server-map.md), and

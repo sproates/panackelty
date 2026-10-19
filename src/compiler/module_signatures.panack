@@ -1,3 +1,4 @@
+import project/src/compiler/module_bindings::{builtin_owner_arity, builtin_owner_module}
 pub import project/src/compiler/module_resolution::{ModuleBindingGraph, ResolvedModuleUses, ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant, ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget, binding_graph_module, binding_graph_target, module_identity_in, resolve_module_expression_uses, resolve_module_path_inner, resolve_module_type, module_import_names, module_reserved_binding}
 pub import project/src/compiler/module_bindings::{LoadedModule, ModulePackageIdentity, ModulePackageIdentity.ToolchainModulePackage}
 pub import project/src/compiler/parser::{TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, DeclarationSyntax, RecordField, FunctionParameter, EnumVariant, SourceSpan, Diagnostic}
@@ -349,7 +350,8 @@ pub pure check_module_signatures(
   // declaration set. The owner spelling is never used as its semantic identity.
   for implementation in module.parsed.implementations {
     shape: TypeShape = type_shape(implementation.owner)
-    mut owner_arity: Option[Nat] = None()
+    mut owner_arity: Option[Nat] = builtin_owner_arity(shape.base)
+    builtin_owner: Bool = owner_arity != None()
     match signature_declaration(modules, DeclarationIdentity(module.bindings.identity, shape.base)) {
       Error(message) => {},
       Ok(owner_declaration) => match owner_declaration {
@@ -360,7 +362,8 @@ pub pure check_module_signatures(
         FunctionDeclaration(name, values, result, pure_flag, async_flag, body, types) => {}
       }
     }
-    mut valid: Bool = owner_arity == Some(len(implementation.parameters)) &&
+    mut valid: Bool = (!builtin_owner || module.bindings.identity == builtin_owner_module()) &&
+      owner_arity == Some(len(implementation.parameters)) &&
       len(shape.arguments) == len(implementation.parameters)
     mut binders: Set[Str] = set()
     for parameter in implementation.parameters {
@@ -374,7 +377,11 @@ pub pure check_module_signatures(
     }
     if !valid {
       diagnostics = append(diagnostics, Diagnostic(
-        "impl requires a local nominal owner with uniform type parameters: " + shape.base,
+        if builtin_owner && module.bindings.identity != builtin_owner_module() {
+          "built-in impl requires the designated toolchain core module: " + shape.base
+        } else if builtin_owner {
+          "built-in impl requires uniform type parameters: " + shape.base
+        } else { "impl requires a local nominal owner with uniform type parameters: " + shape.base },
         implementation.span.start))
     }
   }

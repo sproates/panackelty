@@ -1,5 +1,5 @@
-import project/src/compiler/module_bindings::{OwnedMethodIdentity}
-import project/src/compiler/module_resolution::{resolve_owned_method}
+import project/src/compiler/module_bindings::{OwnedMethodIdentity, MethodOwnerIdentity.NominalMethodOwner, MethodOwnerIdentity.BuiltinMethodOwner, builtin_owner_arity, builtin_owner_module}
+import project/src/compiler/module_resolution::{resolve_owned_method, resolve_builtin_owned_method}
 import project/src/compiler/path_support as path_support
 import stdlib/option as std_option
 import stdlib/result as std_result
@@ -224,7 +224,7 @@ pure body_type_check_for_context(
 }
 
 main(): Void {
-  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(owned_method_import_tests()).concat(owned_server_map_tests()).concat(owned_generic_method_tests()).concat(namespace_effect_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests()).concat(module_emission_identity_tests()).concat(module_emission_program_tests()).concat(module_emission_effect_tests()).concat(module_emission_status_tests()).concat(stdlib_public_api_tests())
+  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(owned_method_import_tests()).concat(owned_server_map_tests()).concat(owned_generic_method_tests()).concat(builtin_owner_tests()).concat(namespace_effect_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests()).concat(module_emission_identity_tests()).concat(module_emission_program_tests()).concat(module_emission_effect_tests()).concat(module_emission_status_tests()).concat(stdlib_public_api_tests())
   loaded: LoadedProject = load_project("tests/fixtures/compiler_contracts/indexed_lookup/main.panack")
   results = append(results, std_testing.expect(
     "existing project resolves with identity-checked bodies",
@@ -4464,7 +4464,7 @@ pure owned_method_import_tests(): [TestResult] {
       match resolve_owned_method(graph, DeclarationIdentity(library.bindings.identity, "Fruit"), "apple") {
         Error(message) => false,
         Ok(binding) => binding.method == Some(OwnedMethodIdentity(
-          DeclarationIdentity(library.bindings.identity, "Fruit"), "apple"))
+          NominalMethodOwner(DeclarationIdentity(library.bindings.identity, "Fruit")), "apple"))
       }, "canonical owner identity missing"),
     std_testing.expect("owned metadata/no fallback to another owner",
       match resolve_owned_method(graph, DeclarationIdentity(app.bindings.identity, "Fruit"), "apple") {
@@ -4524,7 +4524,7 @@ pure owned_server_map_tests(): [TestResult] {
             BodyDeclaration(binding) => {
               method: Str = if name == "read_server" { "get" } else { "put" }
               correct = (name == "read_server" || name == "write_server") &&
-                binding.method == Some(OwnedMethodIdentity(owner, method)) &&
+                binding.method == Some(OwnedMethodIdentity(NominalMethodOwner(owner), method)) &&
                 len(call.children) == 3
               if name == "write_server" {
                 correct = correct && call.type == Some(SignatureType(SignatureNominal(owner), []))
@@ -4648,5 +4648,88 @@ pure owned_generic_method_tests(): [TestResult] {
     results = results.append(std_testing.expect("generic owned/checked status/" + function.signature.binding.identity.name,
       function.status == BodyIdentityChecked(), "generic method remained deferred"))
   }
+  results
+}
+
+// A registry tag is distinct from a nominal declaration, even with the same name.
+pure builtin_owner_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  for family in ["Nat", "Int", "Dec", "Rat", "Bool", "Unit", "Str", "Bytes",
+      "Path", "Duration", "Instant", "Array", "Map", "Set"] {
+    binders: Str = if family == "Map" { "[K,V]" }
+      else if family == "Array" || family == "Set" { "[T]" } else { "" }
+    owner: Str = if family == "Array" { "[T]" } else { family + binders }
+    source: Str = "impl" + binders + " " + owner +
+      " { pub pure echo(): " + owner + " { self } pure hidden(): " + owner + " { self } }"
+    core: LoadedModule = signature_test_module(builtin_owner_module(), source)
+    arguments: Str = if family == "Map" { "[Str,Nat]" }
+      else if family == "Array" || family == "Set" { "[Nat]" } else { "" }
+    receiver: Str = if family == "Array" { "[Nat]" } else { family + arguments }
+    app: LoadedModule = signature_test_module(namespace_identity("builtin_use"),
+      "pure use(value: " + receiver + "): " + receiver + " { value->echo() }")
+    graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, app.bindings], [])
+    results = results.append(std_testing.equal_nat("builtin/core bodies/" + family,
+      len(body_test_graph([core, app], graph, core).diagnostics), 0))
+    checked: CheckedModuleBodies = body_test_graph([core, app], graph, app)
+    results = results.append(std_testing.expect("builtin/checked receiver/" + family,
+      len(checked.diagnostics) == 0 && len(checked.functions) == 1 &&
+        checked.functions[0].status == BodyIdentityChecked(), "receiver did not select core method"))
+    results = results.append(std_testing.expect("builtin/canonical metadata/" + family,
+      match resolve_builtin_owned_method(graph, family, "echo") {
+        Error(message) => false,
+        Ok(binding) => binding.identity.module == builtin_owner_module() &&
+          binding.method == Some(OwnedMethodIdentity(BuiltinMethodOwner(family), "echo"))
+      }, "built-in identity missing"))
+    results = results.append(std_testing.expect("builtin/not a nominal declaration/" + family,
+      match resolve_owned_method(graph, DeclarationIdentity(builtin_owner_module(), family), "echo") {
+        Error(message) => true, Ok(binding) => false
+      }, "nominal lookup selected built-in metadata"))
+    hidden: LoadedModule = signature_test_module(namespace_identity("private_use"),
+      "pure use(value: " + receiver + "): " + receiver + " { value->hidden() }")
+    hidden_graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, hidden.bindings], [])
+    results = results.append(std_testing.equal_nat("builtin/private/" + family,
+      len(body_test_graph([core, hidden], hidden_graph, hidden).diagnostics), 1))
+    for identity in [ModuleIdentity(StandaloneModulePackage(), "core.panack"),
+        ModuleIdentity(ManifestModulePackage("toolchain", "1"), "core.panack"),
+        ModuleIdentity(ToolchainModulePackage(), "other/core.panack")] {
+      spoof: LoadedModule = signature_test_module(identity, source)
+      spoof_graph: ModuleBindingGraph = ModuleBindingGraph([spoof.bindings], [])
+      rejected: CheckedModuleSignatures = check_module_signatures(spoof_graph, [spoof], spoof)
+      results = results.append(std_testing.expect("builtin/spoof rejected/" + family + "/" + identity.path,
+        len(rejected.diagnostics) > 0 && rejected.diagnostics[0].message ==
+          "built-in impl requires the designated toolchain core module: " + family,
+        "spoofed core gained built-in ownership"))
+      results = results.append(std_testing.expect("builtin/spoof cannot resolve/" + family + "/" + identity.path,
+        match resolve_builtin_owned_method(spoof_graph, family, "echo") {
+          Error(message) => true, Ok(binding) => false
+        }, "lookup trusted a spoofed owner"))
+    }
+  }
+  for source in ["impl Map[Nat,Str] {}", "impl[T] Map[T,T] {}",
+      "impl[T,U] [T] {}", "impl[T] Str {}", "impl[T] [Array[T]] {}"] {
+    core: LoadedModule = signature_test_module(builtin_owner_module(), source)
+    graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings], [])
+    results = results.append(std_testing.expect("builtin/uniform header/" + source,
+      len(check_module_signatures(graph, [core], core).diagnostics) > 0,
+      "invalid built-in header accepted"))
+  }
+  for unknown in ["Unknown", "Option", "Result", "Void", "Fn", "AsyncFn"] {
+    results = results.append(std_testing.expect("builtin/closed registry/" + unknown,
+      builtin_owner_arity(unknown) == None(), "non-builtin registered"))
+  }
+  core: LoadedModule = signature_test_module(builtin_owner_module(),
+    "pub pure echo(value: Nat): Nat { value } impl Nat { pub pure marker(): Nat { self } }")
+  for source in ["pure use(value: Nat): Nat { value->echo() }",
+      "type Guarded = Nat where value > 0; pure use(value: Guarded): Nat { value->marker() }"] {
+    app: LoadedModule = signature_test_module(namespace_identity("no_fallback"), source)
+    graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, app.bindings], [])
+    results = results.append(std_testing.expect("builtin/no global fallback or guard inheritance/" + source,
+      len(body_test_graph([core, app], graph, app).diagnostics) > 0,
+      "receiver borrowed an unrelated declaration"))
+  }
+  duplicate: LoadedModule = signature_test_module(builtin_owner_module(),
+    "impl[T] [T] { pure echo(): [T] { self } } impl[T] Array[T] { pure echo(): Array[T] { self } }")
+  results = results.append(std_testing.expect("builtin/array spellings share duplicate check",
+    len(module_binding_diagnostics(duplicate.bindings)) > 0, "duplicate array methods accepted"))
   results
 }

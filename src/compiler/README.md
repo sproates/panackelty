@@ -359,3 +359,14 @@ staging no longer prevents loading the entry module. Core owned methods use
 checked identity emission; the unmigrated core helpers retain their bootstrap
 lowering. The isolated `owned_generic_core` compiler-driver fixture exercises
 this route without migrating production stdlib methods ahead of P08.
+
+P05 introduces `MethodOwnerIdentity`: nominal declaration identities and
+registered built-in family tags are separate variants. `builtin_owner_arity`
+is the closed registry; `builtin_owner_module` identifies the toolchain package's
+exact `core.panack`. Signature checking requires that identity even for empty
+built-in impls. The loader already assigns toolchain identity from its configured
+stdlib root, independently of user package names. Built-in lookup checks both the
+selected module and retained method metadata, with no ordinary-function fallback.
+Array source spelling retains its syntax span while `[T]` and `Array[T]` share the
+Array family key. Option/Result remain nominal core declarations. Intrinsic tags,
+production core migration and callable ownership are later packets.

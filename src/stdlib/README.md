@@ -157,3 +157,14 @@ See the [assertion case](../../tests/functional/cases/testing_library/main.panac
 `stdlib/tcp` remains a separate native module. See the
 [TCP server contract](../../docs/reference/SPEC.md#native-tcp-server-development-toolchain);
 raw TCP is unavailable in the browser.
+
+## Owned source methods on next
+
+Core now owns Str.ends_with, Array.first/sort_by, Option.value_or and
+Result.value_or, Path's existing receiver operations, and Duration's existing
+receiver arithmetic/comparisons. Use arrow calls during migration, such as
+`items->first()->value_or(fallback)` and `base->join(child)`.
+PathError and DurationError are defined once in core and re-exported from path
+and time, including their variants. Existing module functions are compatibility
+forwarders until caller migration and P12 removal. Path/time factories and clock
+services remain module functions; ClockError stays in time.

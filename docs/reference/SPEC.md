@@ -360,8 +360,20 @@ also provide owned `map` and `reduce`, requiring pure callbacks with the existin
 argument/result contracts. `PureFn`, `Fn` and `AsyncFn` each own `call`; its arity,
 arguments and result are specialised from the receiver's callable signature.
 `await callback->call(args)` retains the existing async boundary. Invoke a callable
-field explicitly as `(value.field)->call(args)`. Source core API migration and
-Path error-type ownership remain later work.
+field explicitly as `(value.field)->call(args)`.
+
+Core also defines source-owned `Str.ends_with`, `Array[T].first/sort_by`,
+`Option[T].value_or`, `Result[T,E].value_or`, Path's join/text/native-byte/display/
+absolute/directory/filename operations, and Duration's add/subtract/scale/
+is_before/as_seconds/divide/ratio operations. Existing Unicode, stable sorting,
+exact arithmetic, native-byte and error contracts are preserved. Path factories,
+time factories and clock services remain explicit module functions.
+
+`PathError` and `DurationError` have one canonical declaration in core. The path
+and time modules re-export those types and their variants, preserving existing
+imports. `ClockError` remains in time. Legacy module functions and internal core
+helpers forward to owned methods during migration; their removal belongs to P12.
+See the [P08 report](../design/type-owned-dispatch/p08-core-methods.md).
 
 This does not add implementations for imported nominal types, extension methods,
 traits, inheritance or dynamic dispatch. Async methods use ordinary `async`

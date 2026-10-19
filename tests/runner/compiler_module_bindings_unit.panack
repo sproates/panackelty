@@ -1,3 +1,4 @@
+import project/src/compiler/checker::{check_program_evidence_mode}
 import project/src/compiler/owned_intrinsics::{owned_intrinsic_declarations}
 import project/src/compiler/module_bindings::{OwnedMethodIdentity, MethodOwnerIdentity.NominalMethodOwner, MethodOwnerIdentity.BuiltinMethodOwner, builtin_owner_arity, builtin_owner_module}
 import project/src/compiler/module_resolution::{resolve_owned_method, resolve_builtin_owned_method}
@@ -225,7 +226,7 @@ pure body_type_check_for_context(
 }
 
 main(): Void {
-  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(owned_method_import_tests()).concat(owned_server_map_tests()).concat(owned_generic_method_tests()).concat(builtin_owner_tests()).concat(owned_intrinsic_tests()).concat(owned_callback_tests()).concat(namespace_effect_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests()).concat(module_emission_identity_tests()).concat(module_emission_program_tests()).concat(module_emission_effect_tests()).concat(module_emission_status_tests()).concat(stdlib_public_api_tests())
+  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(owned_method_import_tests()).concat(owned_server_map_tests()).concat(owned_generic_method_tests()).concat(builtin_owner_tests()).concat(owned_intrinsic_tests()).concat(owned_callback_tests()).concat(core_error_identity_tests()).concat(core_bridge_emission_tests()).concat(namespace_effect_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests()).concat(module_emission_identity_tests()).concat(module_emission_program_tests()).concat(module_emission_effect_tests()).concat(module_emission_status_tests()).concat(stdlib_public_api_tests())
   loaded: LoadedProject = load_project("tests/fixtures/compiler_contracts/indexed_lookup/main.panack")
   results = append(results, std_testing.expect(
     "existing project resolves with identity-checked bodies",
@@ -4866,4 +4867,77 @@ pure owned_callback_tests(): [TestResult] {
       len(checked.diagnostics) > 0, "invalid callable contract accepted"))
   }
   results
+}
+
+
+pure core_error_identity_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  core: LoadedModule = signature_test_module(builtin_owner_module(),
+    "pub enum PathError { EmptyPath, PathContainsNul, PathNotUtf8, AbsolutePathAppend }; " +
+    "pub enum DurationError { FractionalNanosecond, ZeroDurationDivisor }; " +
+    "impl Path { pub pure to_text(): Result[Str,PathError] { path_to_text(self) } }; " +
+    "impl Duration { pub pure divide(n: Int): Result[Duration,DurationError] { duration_from_seconds(duration_ticks(self) / n) } }")
+  facade: LoadedModule = signature_test_module(ModuleIdentity(ToolchainModulePackage(), "path.panack"),
+    "pub import stdlib/core::{PathError as PathError}")
+  app: LoadedModule = signature_test_module(namespace_identity("core_error_use"),
+    "import stdlib/path::{PathError as PublicError}; import stdlib/core::{PathError as CoreError}; " +
+    "pure converted(p: Path): Result[Str,PublicError] { p->to_text() }; " +
+    "pure same(e: PublicError): CoreError { e }")
+  graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, facade.bindings, app.bindings], [
+    ModuleImportEdge(facade.bindings.identity, 0, core.bindings.identity),
+    ModuleImportEdge(app.bindings.identity, 0, facade.bindings.identity),
+    ModuleImportEdge(app.bindings.identity, 1, core.bindings.identity)
+  ])
+  for module in [core, app] {
+    checked: CheckedModuleBodies = body_test_graph([core, facade, app], graph, module)
+    results = results.append(std_testing.expect("core error identity/" + module.bindings.identity.path,
+      len(checked.diagnostics) == 0, "canonical error identity changed across reexport"))
+    for function in checked.functions {
+      results = results.append(std_testing.expect("core error fully checked/" + function.signature.binding.identity.name,
+        function.status == BodyIdentityChecked(), "error contract remained deferred"))
+    }
+  }
+  results
+}
+
+
+core_bridge_emission_tests(): [TestResult] {
+  core: LoadedModule = signature_test_module(builtin_owner_module(),
+    "impl Str { pub pure ends_with(suffix: Str): Bool { self->len() >= suffix->len() } }; " +
+    "pure core_ends_with(value: Str, suffix: Str): Bool { value->ends_with(suffix) }; " +
+    "pure signed(value: Nat): Int { wide: Int = value; wide - 1 }; " +
+    "pure empty[T](): [T] { values: [T] = []; values }")
+  graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings], [])
+  signatures: CheckedModuleSignatures = check_module_signatures(graph, [core], core)
+  bodies: CheckedModuleBodies = check_module_bodies(graph, [core], signatures.declarations, core)
+  emitted: ModuleEmissionResult = module_emission_program(graph, [core], signatures.declarations,
+    bodies.functions, core.bindings.identity)
+  mut target: Str = ""
+  for declaration in emitted.program.declarations {
+    match declaration {
+      FunctionDeclaration(name, parameters, result, pure_flag, async_flag, body, types) => {
+        if name == "$core_ends_with" {
+          match body.value {
+            TailBlockValue(value) => { target = module_emission_guard_call_name(value) },
+            NoBlockValue() => {}
+          }
+        }
+      },
+      ImportDeclaration(path) => {},
+      TypeDeclaration(name, base, guard) => {},
+      RecordDeclaration(name, parameters, fields) => {},
+      EnumDeclaration(name, parameters, variants) => {}
+    }
+  }
+  [
+    std_testing.expect("core bridge emission/checked", len(emitted.diagnostics) == 0,
+      "checked core bridge was rejected"),
+    std_testing.expect("core bridge emission/owned target", target == "$core_$owned$Str$ends_with",
+      "core bridge retained an unresolved owned call"),
+    std_testing.expect("core bridge emission/prunable declaration",
+      emitted.program.function_indices.has(target), "owned target does not match declaration"),
+    std_testing.expect("core bridge emission/local types survive tooling recheck",
+      len(check_program_evidence_mode(emitted.program, true, false).diagnostics) == 0,
+      "core signed or generic local type was lost")
+  ]
 }

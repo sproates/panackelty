@@ -1258,3 +1258,19 @@ evaluation order and array map/reduce through source and saved bytecode.
 `owned_async_handlers` executes ordinary/contextual HTTP-shaped handler signatures,
 including suspension and resumed result checks, without networking. Actual HTTP
 server integration remains GI#518. Source coverage baseline scope is unchanged.
+
+### P08 source core methods and error identity
+
+The binding suite checks canonical error types through core and wrapper re-exports,
+and verifies that core compatibility helpers emit calls to checked owned targets.
+`owned_core_methods` covers Unicode suffixes, empty/nonempty first, Option/Result
+fallbacks, stable generic sorting, native-byte paths, checked path errors and
+Duration arithmetic including fractional/zero-divisor rejection. Two CLI failure
+fixtures reject same-spelled foreign error types and ordinary sort callbacks.
+Existing core_methods and host_types fixtures retain legacy compatibility coverage.
+Legacy failure fixtures and cli_explanations verify that implicit core impls do
+not replace user resolution diagnostics or misreport effect-check availability.
+The driver-logical and stdlib bytecode goldens include the reviewed forwarding calls.
+The legacy checker adapter prepares real core through module binding/emission.
+The runner count/transcript and harness totals include the added cases; source-coverage scope is
+unchanged. See the [P08 report](../docs/design/type-owned-dispatch/p08-core-methods.md).

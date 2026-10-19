@@ -136,7 +136,8 @@ loader-assigned toolchain package's designated `core.panack`; a user package nam
 or matching filename is insufficient. Body lookup uses that owner registry and
 checks the selected binding's retained owner metadata. Source methods emit
 ordinary checked direct calls. The registry adds no runtime table or opcode;
-intrinsic-method declarations and library migration remain later work.
+the registry now supplies intrinsic declarations and source-owned core methods.
+Broader caller migration remains follow-on work.
 
 The effectful loader obtains source modules and assigns their canonical module
 identifiers. Quoted file imports are rooted at their importer, `project/`
@@ -1265,7 +1266,7 @@ framing and typed errors. The backend is replaceable after alpha.13 evidence.
 
 ## Implicit core and standard methods
 
-The loader loads the toolchain-owned `src/stdlib/core.panack` before the entry module, using the same canonical visited set. It internalises only the core algorithm tokens (`$core_ends_with`, `$core_first`, `$core_sort_by`), retaining source positions. The parser selects these identities for standard dot calls; generic checking and purity use their ordinary source signatures. Core enums are shared with the compiler, replacing its duplicate Result definition. Reachable core algorithms are emitted through existing calls; unused core algorithms are omitted. No VM, opcode or bytecode-v9 contract changes are required. Other stdlib modules remain explicit. Native packages and browser assets must carry the matching core source and compiler seed.
+The loader loads the toolchain-owned `src/stdlib/core.panack` before the entry module, using the same canonical visited set. Legacy standard dot calls select internal compatibility helpers (`$core_ends_with`, `$core_first`, `$core_sort_by`). Those helpers now forward to source-owned methods, whose checked identities also support arrow calls. All core functions use checked emission; local types and source positions survive tooling rechecks. Generic checking and purity use their source signatures. Core enums are shared with the compiler, replacing its duplicate Result definition. Reachable core algorithms are emitted through existing calls; unused core algorithms are omitted. No VM, opcode or bytecode-v9 contract changes are required. Other stdlib modules remain explicit. Native packages and browser assets must carry the matching core source and compiler seed.
 
 ## Compiler and runtime understanding: initial investigation, 2026-10-01
 
@@ -1681,3 +1682,19 @@ callable/collection checker specialises receiver signatures. Bound calls retain
 the declaration ID through emission. Synthetic callable effects match their
 family; async source methods retain their parser flag and use the ordinary effect
 pass. No VM instruction or scheduling semantics change.
+
+### Core source ownership and error identities (P08)
+
+Core owns 19 source-defined methods in addition to the intrinsic registry.
+PathError and DurationError move to core, with public re-exports from their former
+modules. Intrinsic result checking selects the canonical core declaration when
+present and retains the old-module identity for pre-conversion/custom toolchains.
+Core has no imports, so the re-exports introduce no cycle.
+
+All core functions emit from checked bodies, including legacy forwarding helpers.
+Owned core methods receive private `$core_` emission names so the existing
+reachability pass omits unused core algorithms while following their calls.
+Source method selection still uses canonical owner metadata, not these names.
+The loader substitutes checked core declarations into legacy execution programs
+while preserving user resolution diagnostics and effect-check availability.
+No VM, opcode or bytecode-version change is introduced.

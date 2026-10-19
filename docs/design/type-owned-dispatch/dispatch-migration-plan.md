@@ -1,6 +1,6 @@
 # Type-owned dispatch migration plan
 
-[P06 owned intrinsic dispatch](p06-owned-intrinsics.md) records checked collection/text/numeric operations and owned Server/Map acceptance. [P07 callable and effect contracts](p07-callable-effects.md) adds owned callbacks and async method execution; P08 is next on acceptance.
+[P06 owned intrinsic dispatch](p06-owned-intrinsics.md) records checked collection/text/numeric operations and owned Server/Map acceptance. [P07 callable and effect contracts](p07-callable-effects.md) adds owned callbacks and async method execution; [P08 source core methods](p08-core-methods.md) records the source/identity migration; P09 is next on acceptance.
 
 [P05 built-in ownership registry](p05-builtin-owners.md) records canonical built-in source-method ownership and spoof rejection. P06 is recorded separately above.
 

@@ -105,15 +105,20 @@ pure module_emission_callable_symbol(
   entry: ModuleIdentity,
   binding: ModuleDeclarationBinding
 ): Str {
-  if binding.kind == ModuleFunction() &&
-    binding.identity.module.package == ToolchainModulePackage() &&
-    binding.identity.module.path != "core.panack" {
-    match module_emission_module_index(graph, binding.identity.module) {
-      None() => "$missing_" + binding.identity.name,
-      Some(index) => "$module" + module_emission_nat_text(index) + "_" + binding.identity.name
-    }
+  if binding.method != None() &&
+      binding.identity.module == ModuleIdentity(ToolchainModulePackage(), "core.panack") {
+    "$core_" + binding.identity.name
   } else {
-    module_emission_symbol(graph, entry, binding.identity)
+    if binding.kind == ModuleFunction() &&
+      binding.identity.module.package == ToolchainModulePackage() &&
+      binding.identity.module.path != "core.panack" {
+      match module_emission_module_index(graph, binding.identity.module) {
+        None() => "$missing_" + binding.identity.name,
+        Some(index) => "$module" + module_emission_nat_text(index) + "_" + binding.identity.name
+      }
+    } else {
+      module_emission_symbol(graph, entry, binding.identity)
+    }
   }
 }
 
@@ -466,14 +471,23 @@ pure module_emission_interpolation(body: BoundBody): Expr {
   }
 }
 
+pub pure module_emission_expression(
+  graph: ModuleBindingGraph,
+  entry: ModuleIdentity,
+  body: BoundBody
+): Expr {
+  module_emission_expression_with_parameters(graph, entry, [], body)
+}
+
 pure module_emission_expressions(
   graph: ModuleBindingGraph,
   entry: ModuleIdentity,
+  parameters: [Str],
   bodies: [BoundBody]
 ): [Expr] {
   mut result: [Expr] = []
   for body in bodies {
-    result = append(result, module_emission_expression(graph, entry, body))
+    result = append(result, module_emission_expression_with_parameters(graph, entry, parameters, body))
   }
   result
 }
@@ -481,6 +495,7 @@ pure module_emission_expressions(
 pure module_emission_block(
   graph: ModuleBindingGraph,
   entry: ModuleIdentity,
+  parameters: [Str],
   body: BoundBody
 ): Block {
   mut statements: [Statement] = []
@@ -514,38 +529,43 @@ pure module_emission_block(
       statement: Option[Statement] = match child.node {
         BodyBinding(identity, type, mutable, inferred, type_evidence) => Some(BindingStatement(
           identity.name,
-          "",
+          if identity.owner.module == ModuleIdentity(ToolchainModulePackage(), "core.panack") {
+            match type {
+              Some(value) => module_emission_signature_type(graph, entry, identity.owner, parameters, value),
+              None() => ""
+            }
+          } else { "" },
           None(),
           mutable,
-          module_emission_expression(graph, entry, child.children[0])
+          module_emission_expression_with_parameters(graph, entry, parameters, child.children[0])
         )),
         BodyAssignment(identity, assignment_evidence) => Some(AssignmentStatement(
           identity.name,
-          module_emission_expression(graph, entry, child.children[0])
+          module_emission_expression_with_parameters(graph, entry, parameters, child.children[0])
         )),
         BodyWhile() => Some(WhileStatement(
-          module_emission_expression(graph, entry, child.children[0]),
-          module_emission_block(graph, entry, child.children[1])
+          module_emission_expression_with_parameters(graph, entry, parameters, child.children[0]),
+          module_emission_block(graph, entry, parameters, child.children[1])
         )),
         BodyFor(identity) => Some(ForStatement(
           identity.name,
-          module_emission_expression(graph, entry, child.children[0]),
-          module_emission_block(graph, entry, child.children[1])
+          module_emission_expression_with_parameters(graph, entry, parameters, child.children[0]),
+          module_emission_block(graph, entry, parameters, child.children[1])
         )),
         BodyEmpty() => None(),
         BodyLiteral(value) => Some(ExpressionStatement(value)),
-        BodyInterpolation(parts) => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
+        BodyInterpolation(parts) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
         BodyLocalUse(identity) => Some(ExpressionStatement(NameExpr(identity.name))),
         BodyFunction(binding) => Some(ExpressionStatement(FunctionExpr(module_emission_callable_symbol(graph, entry, binding)))),
-        BodyCall(target, types, call_arguments) => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
-        BodyArray() => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
-        BodyUnary(operator) => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
-        BodyBinary(operator) => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
-        BodyField(name) => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
-        BodyIndex() => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
-        BodyIf(value) => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
-        BodyBlock(value) => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
-        BodyMatch(targets, bindings, spans) => Some(ExpressionStatement(module_emission_expression(graph, entry, child)))
+        BodyCall(target, types, call_arguments) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
+        BodyArray() => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
+        BodyUnary(operator) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
+        BodyBinary(operator) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
+        BodyField(name) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
+        BodyIndex() => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
+        BodyIf(value) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
+        BodyBlock(value) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
+        BodyMatch(targets, bindings, spans) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child)))
       }
       match statement {
         None() => {},
@@ -557,16 +577,17 @@ pure module_emission_block(
     index = index + 1
   }
   block_value: BlockValue = if has_tail && len(body.children) > 0 {
-    TailBlockValue(module_emission_expression(graph, entry, body.children[prior_index(len(body.children))]))
+    TailBlockValue(module_emission_expression_with_parameters(graph, entry, parameters, body.children[prior_index(len(body.children))]))
   } else {
     NoBlockValue()
   }
   Block(statements, block_value)
 }
 
-pub pure module_emission_expression(
+pure module_emission_expression_with_parameters(
   graph: ModuleBindingGraph,
   entry: ModuleIdentity,
+  parameters: [Str],
   body: BoundBody
 ): Expr {
   emitted: Expr = match body.node {
@@ -576,28 +597,28 @@ pub pure module_emission_expression(
     BodyFunction(binding) => FunctionExpr(module_emission_callable_symbol(graph, entry, binding)),
     BodyCall(target, types, call_arguments) => CallExpr(
       module_emission_target(graph, entry, target),
-      module_emission_expressions(graph, entry, body.children),
+      module_emission_expressions(graph, entry, parameters, body.children),
       []
     ),
-    BodyArray() => ArrayExpr(module_emission_expressions(graph, entry, body.children)),
-    BodyUnary(operator) => UnaryExpr(operator, module_emission_expression(graph, entry, body.children[0])),
+    BodyArray() => ArrayExpr(module_emission_expressions(graph, entry, parameters, body.children)),
+    BodyUnary(operator) => UnaryExpr(operator, module_emission_expression_with_parameters(graph, entry, parameters, body.children[0])),
     BodyBinary(operator) => BinaryExpr(
       operator,
-      module_emission_expression(graph, entry, body.children[0]),
-      module_emission_expression(graph, entry, body.children[1])
+      module_emission_expression_with_parameters(graph, entry, parameters, body.children[0]),
+      module_emission_expression_with_parameters(graph, entry, parameters, body.children[1])
     ),
-    BodyField(name) => FieldExpr(module_emission_expression(graph, entry, body.children[0]), name),
+    BodyField(name) => FieldExpr(module_emission_expression_with_parameters(graph, entry, parameters, body.children[0]), name),
     BodyIndex() => IndexExpr(
-      module_emission_expression(graph, entry, body.children[0]),
-      module_emission_expression(graph, entry, body.children[1])
+      module_emission_expression_with_parameters(graph, entry, parameters, body.children[0]),
+      module_emission_expression_with_parameters(graph, entry, parameters, body.children[1])
     ),
     BodyIf(has_else) => IfExpr(
-      module_emission_expression(graph, entry, body.children[0]),
-      module_emission_block(graph, entry, body.children[1]),
-      module_emission_block(graph, entry, body.children[2]),
+      module_emission_expression_with_parameters(graph, entry, parameters, body.children[0]),
+      module_emission_block(graph, entry, parameters, body.children[1]),
+      module_emission_block(graph, entry, parameters, body.children[2]),
       has_else
     ),
-    BodyBlock(has_tail) => BlockExpr(module_emission_block(graph, entry, body)),
+    BodyBlock(has_tail) => BlockExpr(module_emission_block(graph, entry, parameters, body)),
     BodyMatch(targets, bindings, pattern_spans) => {
       mut arms: [MatchArm] = []
       mut index: Nat = 0
@@ -610,11 +631,11 @@ pub pure module_emission_expression(
         } else {}
         arms = append(arms, MatchArm(
           MatchPattern(module_emission_target(graph, entry, target), names, pattern_spans[index]),
-          module_emission_expression(graph, entry, body.children[index + 1])
+          module_emission_expression_with_parameters(graph, entry, parameters, body.children[index + 1])
         ))
         index = index + 1
       }
-      MatchExpr(module_emission_expression(graph, entry, body.children[0]), arms)
+      MatchExpr(module_emission_expression_with_parameters(graph, entry, parameters, body.children[0]), arms)
     },
     BodyBinding(identity, type, mutable, inferred, type_evidence) => CallExpr("$unit", [], []),
     BodyAssignment(identity, assignment_evidence) => CallExpr("$unit", [], []),
@@ -679,7 +700,7 @@ pure module_emission_function(
               result_type,
               is_pure,
               is_async,
-              module_emission_block(graph, entry, body.body),
+              module_emission_block(graph, entry, body.signature.parameters, body.body),
               type_parameters
             ))
           } else {
@@ -732,21 +753,25 @@ pub pure module_emission_program(
   for module in modules {
     if module.bindings.identity.package == ToolchainModulePackage() &&
       module.bindings.identity.path == "core.panack" {
-      // Existing core helpers retain their bootstrap-compatible lowering. Owned
-      // methods use checked calls and canonical identities just like user methods.
+      // Every core function uses its checked body, including compatibility
+      // helpers that forward to owned calls. Enums retain their core identities.
       mut core_index: Nat = 0
-      for declaration in module.execution_program.declarations {
-        if module.parsed.syntax[core_index].method == None() {
-          declarations = append(declarations, declaration)
-        } else {
-          match module_emission_function(graph, entry, module, declaration, bodies) {
-            Some(converted) => { declarations = append(declarations, converted) },
-            None() => {
-              diagnostics = append(diagnostics, Diagnostic(
-                "core owned method is not completely checked for identity emission",
-                module.parsed.syntax[core_index].span.start))
+      for declaration in module.parsed.program.declarations {
+        match declaration {
+          FunctionDeclaration(name, parameters, result, pure_flag, async_flag, body, types) => {
+            match module_emission_function(graph, entry, module, declaration, bodies) {
+              Some(converted) => { declarations = append(declarations, converted) },
+              None() => {
+                diagnostics = append(diagnostics, Diagnostic(
+                  "core function is not completely checked for identity emission",
+                  module.parsed.syntax[core_index].span.start))
+              }
             }
-          }
+          },
+          ImportDeclaration(path) => {},
+          TypeDeclaration(name, base, guard) => { declarations = append(declarations, declaration) },
+          RecordDeclaration(name, parameters, fields) => { declarations = append(declarations, declaration) },
+          EnumDeclaration(name, parameters, variants) => { declarations = append(declarations, declaration) }
         }
         core_index = core_index + 1
       }

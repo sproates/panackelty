@@ -43,6 +43,14 @@ implementation syntax. Stages 2/3/4 reproduce this hash; standard-library byteco
 and output remain unchanged. Production core methods are not migrated and the P09
 checkpoint is still pending. See [P05 acceptance](../design/type-owned-dispatch/p05-builtin-owners.md).
 
+P06 adds compiler-owned intrinsic declarations and preserves their typed identities
+through checking and emission. Stages 2/3/4 reproduce seed
+`99f7b745472e5361c7cca72cb8bb9afdc1591e82431dd1934d1b3506af484670`.
+Standard-library bytecode and output remain unchanged. Validation is recorded in
+[P06 acceptance](../design/type-owned-dispatch/p06-owned-intrinsics.md).
+Source core/compiler callers remain unmigrated; P09's expanded-arrow checkpoint
+is still pending. The VM and bytecode format are unchanged.
+
 ## Historical P2 completion checkpoint — 2026-10-10
 
 PR#358 merged on 2026-10-10 as `bfb34a44107d345eb9f4784e5b8ca02e64c7124d`.

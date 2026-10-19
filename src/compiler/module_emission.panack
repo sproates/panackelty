@@ -1,3 +1,4 @@
+import project/src/compiler/owned_intrinsics::{owned_intrinsic_lowering}
 import project/src/compiler/module_bodies::{
   BodyTarget, BodyTarget.BodyCore, BodyTarget.BodyDeclaration,
   BodyNode.BodyArray, BodyNode.BodyAssignment, BodyNode.BodyBinary,
@@ -123,7 +124,10 @@ pure module_emission_target(
 ): Str {
   match target {
     BodyCore(name) => name,
-    BodyDeclaration(binding) => module_emission_callable_symbol(graph, entry, binding)
+    BodyDeclaration(binding) => match binding.intrinsic {
+      None() => module_emission_callable_symbol(graph, entry, binding),
+      Some(id) => owned_intrinsic_lowering(id)
+    }
   }
 }
 

@@ -1,0 +1,46 @@
+import stdlib/time as time
+
+pure append_one[T](items: [T], value: T): [T] { items->append(value) }
+make_map(): Map[Str,Nat] { print("receiver once"); map() }
+main(): Void {
+  original: Map[Str,Nat] = map()
+  changed = original->put("a", 7)->put("b", 9)
+  print(original->has("a"))
+  print(changed->has("a"))
+  print(changed->get("b"))
+  print(make_map()->put("x", 4)->get("x"))
+  empty: Set[Nat] = set()
+  values = empty->add(3)->add(3)
+  print(empty->has(3))
+  print(values->has(3))
+  items = append_one([1,2], 3)->concat([4])
+  print(items)
+  print(items->len())
+  print("hello"->len())
+  print("hello"->slice(1,4))
+  print("hello"->reverse())
+  print("hello"->starts_with("he"))
+  print("hello"->starts_with_at("ll", 2))
+  print("7"->is_digit())
+  print("a"->is_letter())
+  print(" "->is_whitespace())
+  print("42"->parse_nat())
+  data = "hi"->encode_utf8()->push(33)->join("?"->encode_utf8())
+  print(data->length())
+  print(data->at(0))
+  print(data->decode_utf8())
+  n: Nat = 9
+  print(n->divide(2))
+  rational: Rat = 7 / 2
+  print((8 / 2)->nat())
+  print(rational->dec())
+  print(time.from_nanoseconds(17)->ticks())
+  match time.now() {
+    Error(error) => { print("clock unavailable") },
+    Ok(now) => {
+      later = now->add(time.from_nanoseconds(17))
+      print(now->is_before(later))
+      print(later->difference(now)->ticks())
+    }
+  }
+}

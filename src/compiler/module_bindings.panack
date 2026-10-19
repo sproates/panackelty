@@ -1,3 +1,5 @@
+pub import project/src/compiler/owned_intrinsics::{OwnedIntrinsic}
+import project/src/compiler/owned_intrinsics::{owned_intrinsic_declarations}
 pub import project/src/compiler/parser::{Program, ParsedModule, ImportSelector, ImportBindingSyntax, DeclarationSyntax, SourceSpan, SourcePos, Diagnostic, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, ImportBindingSyntax.NoImportBinding, ImportBindingSyntax.NamespaceImportBinding, ImportBindingSyntax.SelectiveImportBinding}
 import project/src/compiler/resolver::{is_builtin}
 
@@ -74,7 +76,8 @@ pub record ModuleDeclarationBinding {
   kind: ModuleDeclarationKind,
   is_public: Bool,
   span: SourceSpan,
-  method: Option[OwnedMethodIdentity]
+  method: Option[OwnedMethodIdentity],
+  intrinsic: Option[OwnedIntrinsic]
 }
 
 pub record ModuleImportBinding {
@@ -131,7 +134,7 @@ pure module_declaration_binding(
     None() => None(),
     Some(value) => Some(OwnedMethodIdentity(method_owner_identity(identity, value.owner), value.name))
   }
-  ModuleDeclarationBinding(DeclarationIdentity(identity, name), kind, syntax.is_public, syntax.span, method)
+  ModuleDeclarationBinding(DeclarationIdentity(identity, name), kind, syntax.is_public, syntax.span, method, None())
 }
 
 pub pure collect_module_bindings(identity: ModuleIdentity, parsed: ParsedModule): ModuleBindings {
@@ -180,6 +183,16 @@ pub pure collect_module_bindings(identity: ModuleIdentity, parsed: ParsedModule)
       }
     }
     index = index + 1
+  }
+  if identity == builtin_owner_module() {
+    position: SourcePos = SourcePos("<toolchain intrinsic>", 0, 1, 1)
+    for intrinsic in owned_intrinsic_declarations() {
+      declarations = append(declarations, ModuleDeclarationBinding(
+        DeclarationIdentity(identity, "$intrinsic$" + intrinsic.owner + "$" + intrinsic.name),
+        ModuleFunction(), true, SourceSpan(position, position),
+        Some(OwnedMethodIdentity(BuiltinMethodOwner(intrinsic.owner), intrinsic.name)),
+        Some(intrinsic.id)))
+    }
   }
   mut methods: Map[Str, Map[Str, ModuleDeclarationBinding]] = map()
   for declaration in declarations {

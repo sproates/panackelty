@@ -73,7 +73,7 @@ cmp -s "$workspace/expected.stdout" "$workspace/bytecode.stdout" || fail "saved 
 # combined-loader path that previously masked missing exports and imports.
 compiler_workspace="$workspace/compiler-source"
 mkdir -p "$compiler_workspace/src/compiler"
-cp src/compiler/types.panack src/compiler/lexer.panack src/compiler/parser.panack src/compiler/expression_contracts.panack src/compiler/resolver.panack src/compiler/checker.panack src/compiler/module_bindings.panack src/compiler/module_resolution.panack src/compiler/module_signatures.panack src/compiler/purity.panack src/compiler/module_bodies.panack src/compiler/module_effects.panack src/compiler/module_emission.panack src/compiler/emitter.panack "$compiler_workspace/src/compiler/"
+cp src/compiler/owned_intrinsics.panack src/compiler/types.panack src/compiler/lexer.panack src/compiler/parser.panack src/compiler/expression_contracts.panack src/compiler/resolver.panack src/compiler/checker.panack src/compiler/module_bindings.panack src/compiler/module_resolution.panack src/compiler/module_signatures.panack src/compiler/purity.panack src/compiler/module_bodies.panack src/compiler/module_effects.panack src/compiler/module_emission.panack src/compiler/emitter.panack "$compiler_workspace/src/compiler/"
 cat > "$compiler_workspace/main.panack" <<'EOF'
 import stdlib/bytes as byte_buffer
 import stdlib/option as option

@@ -1,3 +1,4 @@
+import project/src/compiler/owned_intrinsics::{owned_intrinsic_declarations}
 import project/src/compiler/module_bindings::{builtin_owner_arity, builtin_owner_module}
 pub import project/src/compiler/module_resolution::{ModuleBindingGraph, ResolvedModuleUses, ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant, ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget, binding_graph_module, binding_graph_target, module_identity_in, resolve_module_expression_uses, resolve_module_path_inner, resolve_module_type, module_import_names, module_reserved_binding}
 pub import project/src/compiler/module_bindings::{LoadedModule, ModulePackageIdentity, ModulePackageIdentity.ToolchainModulePackage}
@@ -547,6 +548,29 @@ pub pure check_module_signatures(
       }
     }
     declaration_index = declaration_index + 1
+  }
+  // Synthetic declarations use the same canonical signature types and effects.
+  if module.bindings.identity == builtin_owner_module() {
+    for intrinsic in owned_intrinsic_declarations() {
+      for binding in module.bindings.declarations {
+        if binding.intrinsic == Some(intrinsic.id) {
+          mut slots: [SignatureSlot] = []
+          mut slot_index: Nat = 0
+          for spelling in concat(intrinsic.inputs, [intrinsic.output]) {
+            match signature_type(graph, modules, binding.identity, intrinsic.parameters,
+                spelling, true, false) {
+              Error(message) => { diagnostics = append(diagnostics, Diagnostic(message, binding.span.start)) },
+              Ok(type) => { slots = append(slots, SignatureSlot(
+                if slot_index == len(intrinsic.inputs) { "return" }
+                else if slot_index == 0 { "self" } else { "argument" }, type)) }
+            }
+            slot_index = slot_index + 1
+          }
+          signatures = append(signatures, ModuleSignature(binding, intrinsic.parameters,
+            slots, Some(SignaturePure())))
+        }
+      }
+    }
   }
   CheckedModuleSignatures(signatures, diagnostics)
 }

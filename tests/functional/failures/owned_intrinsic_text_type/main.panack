@@ -1,0 +1,2 @@
+pure use(value: Str): Str { value->slice(0, "x") }
+main(): Void { print(0) }

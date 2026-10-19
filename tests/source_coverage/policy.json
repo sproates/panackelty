@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Alpha.13 retains the 45-file measured corpus and records all six explicitly unmeasured sources. Coverage amounts remain informational.",
+    "reason": "P06 preserves the 45-file measured corpus and explicitly accounts for the new intrinsic registry as unmeasured. Coverage amounts remain informational.",
     "basis": "All 31 fresh local sessions completed for a914d81 with the hashing repair. Reviewed all 410 exclusions against source declarations: 255 imports, 130 records and 25 enums; no executable declaration is excluded.",
-    "scopeChange": "Keep measured files and execution roots unchanged. Bind the existing async_filesystem, async_host and tcp_service unmeasured entries added during GI#162, alongside the three package sources. Refresh exclusion identities and line positions for accepted namespace/compiler changes; no percentage thresholds or new exclusions are introduced by this repair."
+    "scopeChange": "Add owned_intrinsics.panack to the explicit unmeasured partition. No previously measured file or execution root is removed, and no executable exclusion or percentage threshold is added. Existing alpha.13 exclusion evidence remains historical; this bookkeeping update does not claim fresh source-execution measurements."
   },
-  "manifestHash": "a09ccf645a4769bb7c6aea09c8f89d2725d35a233cee8cb784d1e875d3c96d26",
+  "manifestHash": "4ab83ee5bed65cee43586b9c4e0e10165694d24fb293e776a0abf2cd8dbed5d9",
   "exclusionHash": "773435167944b7750a18a232c06a2697356e8fb853efda5dfcf1a3acd8f10a7e"
 }

@@ -1010,7 +1010,8 @@ load_project_mode_with_configuration(
     }
     for module in loaded.modules {
       for declaration in module.bindings.declarations {
-        if declaration.kind == ModuleFunction() {
+        // Intrinsics have typed signatures and primitive lowering, not source bodies.
+        if declaration.kind == ModuleFunction() && declaration.intrinsic == None() {
           mut found_body: Bool = false
           for body in bodies {
             found_body = found_body || body.signature.binding.identity == declaration.identity

@@ -1,3 +1,4 @@
+import project/src/compiler/owned_intrinsics::{owned_intrinsic_declarations}
 import project/src/compiler/module_bindings::{OwnedMethodIdentity, MethodOwnerIdentity.NominalMethodOwner, MethodOwnerIdentity.BuiltinMethodOwner, builtin_owner_arity, builtin_owner_module}
 import project/src/compiler/module_resolution::{resolve_owned_method, resolve_builtin_owned_method}
 import project/src/compiler/path_support as path_support
@@ -224,7 +225,7 @@ pure body_type_check_for_context(
 }
 
 main(): Void {
-  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(owned_method_import_tests()).concat(owned_server_map_tests()).concat(owned_generic_method_tests()).concat(builtin_owner_tests()).concat(namespace_effect_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests()).concat(module_emission_identity_tests()).concat(module_emission_program_tests()).concat(module_emission_effect_tests()).concat(module_emission_status_tests()).concat(stdlib_public_api_tests())
+  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(owned_method_import_tests()).concat(owned_server_map_tests()).concat(owned_generic_method_tests()).concat(builtin_owner_tests()).concat(owned_intrinsic_tests()).concat(namespace_effect_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests()).concat(module_emission_identity_tests()).concat(module_emission_program_tests()).concat(module_emission_effect_tests()).concat(module_emission_status_tests()).concat(stdlib_public_api_tests())
   loaded: LoadedProject = load_project("tests/fixtures/compiler_contracts/indexed_lookup/main.panack")
   results = append(results, std_testing.expect(
     "existing project resolves with identity-checked bodies",
@@ -369,7 +370,7 @@ module_emission_program_tests(): [TestResult] {
   }
   left_binding: ModuleDeclarationBinding = match left_target {
     DeclarationTarget(binding) => binding,
-    NamespaceTarget(module) => ModuleDeclarationBinding(DeclarationIdentity(module, "make"), ModuleFunction(), false, SourceSpan(SourcePos("", 0, 1, 1), SourcePos("", 0, 1, 1)), None())
+    NamespaceTarget(module) => ModuleDeclarationBinding(DeclarationIdentity(module, "make"), ModuleFunction(), false, SourceSpan(SourcePos("", 0, 1, 1), SourcePos("", 0, 1, 1)), None(), None())
   }
   call: BoundBody = BoundBody(
     BodyCall(BodyDeclaration(left_binding), [], []),
@@ -4497,13 +4498,16 @@ pure owned_method_import_tests(): [TestResult] {
 pure owned_server_map_tests(): [TestResult] {
   source: Str = "record Server { id: Nat, routes: Map[Str,Nat] }; " +
     "impl Server { pure get(route: Str, fallback: Nat): Nat { self.id + fallback } " +
-    "pure put(route: Str, amount: Nat): Server { Server(self.id, self.routes.put(route, amount)) } }; " +
+    "pure put(route: Str, amount: Nat): Server { Server(self.id, self.routes->put(route, amount)) } }; " +
     "pure get(server: Server): Nat { 901 }; pure put(server: Server): Nat { 902 }; " +
     "pure read_server(server: Server): Nat { server->get(\"/fruit\", 99) }; " +
     "pure write_server(server: Server): Server { server->put(\"/fruit\", 1) }; " +
-    "pure read_map(routes: Map[Str,Nat]): Nat { routes.get(\"/fruit\") }; " +
-    "pure write_map(routes: Map[Str,Nat]): Map[Str,Nat] { routes.put(\"/fruit\", 7) }"
-  checked: CheckedModuleBodies = body_test_module(source)
+    "pure read_map(routes: Map[Str,Nat]): Nat { routes->get(\"/fruit\") }; " +
+    "pure write_map(routes: Map[Str,Nat]): Map[Str,Nat] { routes->put(\"/fruit\", 7) }"
+  core: LoadedModule = signature_test_module(builtin_owner_module(), "")
+  app: LoadedModule = signature_test_module(namespace_identity("body.panack"), source)
+  graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, app.bindings], [])
+  checked: CheckedModuleBodies = body_test_graph([core, app], graph, app)
   mut results: [TestResult] = [
     std_testing.equal_nat("server/Map binding diagnostics", len(checked.diagnostics), 0),
     std_testing.equal_nat("server/Map checked function count", len(checked.functions), 8)
@@ -4522,23 +4526,23 @@ pure owned_server_map_tests(): [TestResult] {
         match call.node {
           BodyCall(target, types, substitutions) => match target {
             BodyDeclaration(binding) => {
-              method: Str = if name == "read_server" { "get" } else { "put" }
-              correct = (name == "read_server" || name == "write_server") &&
-                binding.method == Some(OwnedMethodIdentity(NominalMethodOwner(owner), method)) &&
-                len(call.children) == 3
+              method: Str = if name == "read_server" || name == "read_map" { "get" } else { "put" }
+              server_call: Bool = name == "read_server" || name == "write_server"
+              correct = binding.method == Some(OwnedMethodIdentity(
+                if server_call { NominalMethodOwner(owner) } else { BuiltinMethodOwner("Map") }, method)) &&
+                len(call.children) == if name == "read_map" { 2 } else { 3 }
+              if server_call { correct = correct && binding.intrinsic == None() }
+              else { correct = correct && binding.intrinsic != None() }
               if name == "write_server" {
                 correct = correct && call.type == Some(SignatureType(SignatureNominal(owner), []))
               }
-            },
-            BodyCore(operation) => {
-              correct = (name == "read_map" && operation == "$method_get" && len(call.children) == 2) ||
-                (name == "write_map" && operation == "$method_put" && len(call.children) == 3)
               if name == "write_map" {
                 correct = correct && call.type == Some(SignatureType(SignatureCore("Map"), [
                   SignatureType(SignatureCore("Str"), []), SignatureType(SignatureCore("Nat"), [])
                 ]))
               }
-            }
+            },
+            BodyCore(operation) => { correct = false }
           },
           BodyEmpty() => {},
           BodyLiteral(value) => {},
@@ -4563,8 +4567,10 @@ pure owned_server_map_tests(): [TestResult] {
         correct, "receiver selected the wrong owner, intrinsic, arity or return type"))
     }
   }
-  bad_map: CheckedModuleBodies = body_test_module(source +
-    " pure wrong_map(routes: Map[Str,Nat]): Nat { routes.get(\"/fruit\", 99) }")
+  bad_app: LoadedModule = signature_test_module(app.bindings.identity, source +
+    " pure wrong_map(routes: Map[Str,Nat]): Nat { routes->get(\"/fruit\", 99) }")
+  bad_graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, bad_app.bindings], [])
+  bad_map: CheckedModuleBodies = body_test_graph([core, bad_app], bad_graph, bad_app)
   results = results.append(std_testing.equal_nat("server/Map bad Map arity rejected",
     len(bad_map.diagnostics), 1))
   if len(bad_map.diagnostics) == 1 {
@@ -4731,5 +4737,85 @@ pure builtin_owner_tests(): [TestResult] {
     "impl[T] [T] { pure echo(): [T] { self } } impl[T] Array[T] { pure echo(): Array[T] { self } }")
   results = results.append(std_testing.expect("builtin/array spellings share duplicate check",
     len(module_binding_diagnostics(duplicate.bindings)) > 0, "duplicate array methods accepted"))
+  results
+}
+
+
+pure owned_intrinsic_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  core: LoadedModule = signature_test_module(builtin_owner_module(), "")
+  for intrinsic in owned_intrinsic_declarations() {
+    mut generics: Str = ""
+    for parameter in intrinsic.parameters {
+      generics = generics + if generics == "" { parameter } else { "," + parameter }
+    }
+    if generics != "" { generics = "[" + generics + "]" }
+    mut inputs: Str = ""
+    mut arguments: Str = ""
+    mut index: Nat = 0
+    for type in intrinsic.inputs {
+      name: Str = "arg${index}"
+      inputs = inputs + if inputs == "" { name + ": " + type } else { ", " + name + ": " + type }
+      if index > 0 {
+        arguments = arguments + if arguments == "" { name } else { ", " + name }
+      }
+      index = index + 1
+    }
+    app: LoadedModule = signature_test_module(namespace_identity("intrinsic_use"),
+      "pure use" + generics + "(" + inputs + "): " + intrinsic.output +
+      " { arg0->" + intrinsic.name + "(" + arguments + ") }")
+    graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, app.bindings], [])
+    checked: CheckedModuleBodies = body_test_graph([core, app], graph, app)
+    label: Str = intrinsic.owner + "->" + intrinsic.name
+    results = results.append(std_testing.expect("intrinsic/checked/" + label,
+      len(checked.diagnostics) == 0 && len(checked.functions) == 1 &&
+        checked.functions[0].status == BodyIdentityChecked(),
+      if len(checked.diagnostics) > 0 { checked.diagnostics[0].message } else { "not identity checked" }))
+    results = results.append(std_testing.expect("intrinsic/selected metadata/" + label,
+      match resolve_builtin_owned_method(graph, intrinsic.owner, intrinsic.name) {
+        Error(message) => false,
+        Ok(binding) => binding.intrinsic == Some(intrinsic.id) &&
+          binding.method == Some(OwnedMethodIdentity(BuiltinMethodOwner(intrinsic.owner), intrinsic.name))
+      }, "selected intrinsic lost owner or operation"))
+    results = results.append(std_testing.expect("intrinsic/retained call target/" + label,
+      match resolve_builtin_owned_method(graph, intrinsic.owner, intrinsic.name) {
+        Error(message) => false,
+        Ok(binding) => len(checked.functions) == 1 && len(checked.functions[0].body.children) == 1 &&
+          checked.functions[0].body.children[0].node == BodyCall(BodyDeclaration(binding), [], [])
+      }, "call lost checked intrinsic identity"))
+    signatures: CheckedModuleSignatures = check_module_signatures(graph, [core, app], core)
+    mut signature_found: Bool = false
+    for signature in signatures.declarations {
+      if signature.binding.intrinsic == Some(intrinsic.id) {
+        signature_found = signature.effect == Some(SignaturePure()) &&
+          len(signature.slots) == len(intrinsic.inputs) + 1 &&
+          signature.parameters == intrinsic.parameters
+      }
+    }
+    results = results.append(std_testing.expect("intrinsic/signature/" + label,
+      signature_found, "missing typed intrinsic signature"))
+  }
+  for source in [
+    "pure use(value: Map[Str,Nat]): Nat { value->get(1) }",
+    "pure use(value: Map[Str,Nat]): Nat { value->get(\"x\", 2) }",
+    "pure use(value: Set[Nat]): Set[Nat] { value->add(\"x\") }",
+    "pure use(value: [Nat]): [Nat] { value->append(\"x\") }",
+    "pure use(value: Str): Str { value->slice(0, \"x\") }",
+    "pure use(value: Bytes): Bytes { value->push(\"x\") }",
+    "pure use(value: Nat): Nat { value->divide(\"x\") }",
+    "pure use(value: Nat): Nat { value->get(0) }",
+    "type Guarded = Nat where value > 0; pure use(value: Guarded): Nat { value->divide(2) }",
+    "pure missing(value: Nat): Nat { value } pure use(value: Nat): Nat { value->missing() }",
+    "pure use(value: Str): Nat { value->len[Nat]() }"
+  ] {
+    app: LoadedModule = signature_test_module(namespace_identity("intrinsic_reject"), source)
+    graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, app.bindings], [])
+    results = results.append(std_testing.expect("intrinsic/reject/" + source,
+      len(body_test_graph([core, app], graph, app).diagnostics) > 0, "invalid intrinsic call accepted"))
+  }
+  duplicate: LoadedModule = signature_test_module(builtin_owner_module(),
+    "impl Str { pub pure len(): Nat { 1 } }")
+  results = results.append(std_testing.expect("intrinsic/source duplicate rejected",
+    len(module_binding_diagnostics(duplicate.bindings)) > 0, "source replaced an intrinsic"))
   results
 }

@@ -1663,3 +1663,12 @@ instruction-cell, execution-count and total-session budgets are unchanged.
 Synchronous filesystem reads/writes allow 32 MiB so the exporter and self-hosted
 reporter can exchange these bounded containers. Rooted/async filesystem, directory
 listing, process-output and HTTP limits retain their separate contracts.
+
+### Owned intrinsic declarations
+
+The compiler supplies built-in method declarations from `owned_intrinsics.panack`
+only in the designated toolchain core. A declaration carries a closed intrinsic ID
+alongside its owner/name, visibility and canonical typed signature. Body checking
+reuses existing primitive constraints after owner selection and retains the
+selected declaration in the bound call. Emission lowers its ID to existing VM
+operations. No runtime lookup, opcode or bytecode-format change is involved.

@@ -1242,3 +1242,9 @@ P06 source-coverage accounting: `owned_intrinsics.panack` is explicitly unmeasur
 in the bounded source-execution baseline. Its behavioral coverage above does not
 claim a source-execution percentage. The existing 45 measured files and execution
 roots are preserved.
+
+
+Nightly conformance isolation: `tests/ci_conformance.sh` checks that the nested
+`runner_smoke` corpus follows completion of ordinary observations, preserves the
+source/bytecode partition union at one and two workers, and propagates nested
+source, compile and bytecode failures. The compiler-source deadline stays 90 seconds.

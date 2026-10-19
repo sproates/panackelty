@@ -22,6 +22,7 @@ fail() {
 }
 
 : > "$temporary/programs"
+: > "$temporary/nested-programs"
 
 for case_directory in "$project"/tests/functional/cases/*; do
   label="case-$(basename "$case_directory")"
@@ -31,7 +32,11 @@ for case_directory in "$project"/tests/functional/cases/*; do
   else
     source="$case_directory/main.panack"
   fi
-  printf '%s\0%s\0%s\0' "$label" "$source" "$case_directory/expected.stdout" >> "$temporary/programs"
+  # runner_smoke launches the complete corpus, including a timed compiler build.
+  # Do not make that nested workload compete with ordinary conformance workers.
+  queue="$temporary/programs"
+  if [ "$label" = case-runner_smoke ]; then queue="$temporary/nested-programs"; fi
+  printf '%s\0%s\0%s\0' "$label" "$source" "$case_directory/expected.stdout" >> "$queue"
 done
 
 for source in "$project"/examples/*.panack; do
@@ -42,6 +47,9 @@ done
 # NUL-delimited arguments preserve checkout and fixture paths containing spaces.
 # Every worker owns its artifact and captures; failures propagate through xargs.
 xargs -0 -n 3 -P "$jobs" sh "$project/tests/native_conformance_program.sh" "$mode" < "$temporary/programs"
+if [ -s "$temporary/nested-programs" ]; then
+  xargs -0 -n 3 -P 1 sh "$project/tests/native_conformance_program.sh" "$mode" < "$temporary/nested-programs"
+fi
 
 if [ "$mode" = source ]; then
   echo 'native source conformance: ok'

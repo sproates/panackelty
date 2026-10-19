@@ -53,6 +53,17 @@ and release smoke. Hosted acceptance is recorded in the delivery PR against the
 exact integrated revision. No issue was created solely for
 this repair. Website: no impact; production APIs and released claims are unchanged.
 
+## Nightly conformance isolation — 2026-10-19
+
+The macOS ARM64 bytecode-conformance failure in nightly run `39226029349`
+was a nested compiler-source timeout. The conformance scheduler now runs the
+complete nested fixture corpus after ordinary workers finish, retaining all
+assertions and the existing 90-second compiler-source bound. Acceptance and
+performance evidence are recorded in [validation profiling](tests/VALIDATION_PROFILE.md#nightly-nested-corpus-isolation--2026-10-19).
+The repair completes on integration and verification of the failed hosted lane.
+No compiler/VM/seed change or new timing policy is included. No issue was created
+solely for this repair. Website: no impact; product behavior is unchanged.
+
 ## Existing links
 
 Existing RM links remain valid below and lead to their detailed record.

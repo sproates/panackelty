@@ -209,7 +209,10 @@ workers explicitly: one for the harness and two for compiler probes. The macOS
 matrix retains five jobs to avoid a sixth job waiting for a runner.
 Native conformance also uses bounded workers (four by default). Each program
 keeps its source/compile/bytecode assertions together in an isolated temporary
-directory; NUL-delimited arguments preserve paths containing spaces. Negative
+directory; NUL-delimited arguments preserve paths containing spaces. The nested
+`runner_smoke` corpus runs after the ordinary worker pool has drained, so its
+bounded compiler build does not compete with another conformance program.
+Its complete source/compile/bytecode observations and deadlines are unchanged. Negative
 fixtures and CLI/archive checks still run after every program succeeds.
 Bootstrap overlaps the ordinary fixed-point check with the isolated native
 seed-refresh proof. They read the same immutable sources and seed but build

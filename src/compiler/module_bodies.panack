@@ -1247,7 +1247,17 @@ pure body_owned_target(
           }
         },
         SignatureParameter(owner, index) => {},
-        SignatureCallable(effect) => {},
+        SignatureCallable(effect) => {
+          family: Str = match effect {
+            SignaturePure() => "PureFn",
+            SignatureOrdinary() => "Fn",
+            SignatureAsync() => "AsyncFn"
+          }
+          match resolve_builtin_owned_method(context.graph, family, method) {
+            Error(message) => { result = Error(message) },
+            Ok(binding) => { result = Ok(BodyDeclaration(binding)) }
+          }
+        },
         SignatureHole(owner, location, index) => {}
       }
     }

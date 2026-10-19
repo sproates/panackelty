@@ -1,6 +1,11 @@
 // Compiler-provided owned operations. No user-facing intrinsic declaration syntax.
 // IDs survive checked binding; lowering spellings are chosen only from these IDs.
 pub enum OwnedIntrinsic {
+  ArrayMap,
+  ArrayReduce,
+  PureCallableCall,
+  OrdinaryCallableCall,
+  AsyncCallableCall,
   MapPut,
   MapGet,
   MapHas,
@@ -44,6 +49,13 @@ pub record OwnedIntrinsicDeclaration {
 
 pub pure owned_intrinsic_declarations(): [OwnedIntrinsicDeclaration] {
   [
+    OwnedIntrinsicDeclaration(ArrayMap(), "Array", "map", ["T", "R"], ["Array[T]", "PureFn[T,R]"], "Array[R]"),
+    OwnedIntrinsicDeclaration(ArrayReduce(), "Array", "reduce", ["T", "R"], ["Array[T]", "R", "PureFn[R,T,R]"], "R"),
+    // Callable arity and parameter types come from the selected receiver. These
+    // zero-argument schemas identify the family; the call checker specialises it.
+    OwnedIntrinsicDeclaration(PureCallableCall(), "PureFn", "call", ["R"], ["PureFn[R]"], "R"),
+    OwnedIntrinsicDeclaration(OrdinaryCallableCall(), "Fn", "call", ["R"], ["Fn[R]"], "R"),
+    OwnedIntrinsicDeclaration(AsyncCallableCall(), "AsyncFn", "call", ["R"], ["AsyncFn[R]"], "R"),
     OwnedIntrinsicDeclaration(MapPut(), "Map", "put", ["K", "V"], ["Map[K,V]", "K", "V"], "Map[K,V]"),
     OwnedIntrinsicDeclaration(MapGet(), "Map", "get", ["K", "V"], ["Map[K,V]", "K"], "V"),
     OwnedIntrinsicDeclaration(MapHas(), "Map", "has", ["K", "V"], ["Map[K,V]", "K"], "Bool"),
@@ -79,6 +91,11 @@ pub pure owned_intrinsic_declarations(): [OwnedIntrinsicDeclaration] {
 
 pub pure owned_intrinsic_lowering(id: OwnedIntrinsic): Str {
   match id {
+    ArrayMap() => "$method_map",
+    ArrayReduce() => "$method_reduce",
+    PureCallableCall() => "$method_call",
+    OrdinaryCallableCall() => "$method_call",
+    AsyncCallableCall() => "$method_call",
     MapPut() => "map_put",
     MapGet() => "map_get",
     MapHas() => "map_has",

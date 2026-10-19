@@ -1005,9 +1005,13 @@ pub pure resolve_owned_method(
 pub pure resolve_builtin_owned_method(
   graph: ModuleBindingGraph, family: Str, name: Str
 ): Result[ModuleDeclarationBinding, Str] {
-  match builtin_owner_arity(family) {
-    None() => Error("unknown built-in method owner " + family),
-    Some(arity) => resolve_method_owner(graph, BuiltinMethodOwner(family), builtin_owner_module(), name)
+  if family == "PureFn" || family == "Fn" || family == "AsyncFn" {
+    resolve_method_owner(graph, BuiltinMethodOwner(family), builtin_owner_module(), name)
+  } else {
+    match builtin_owner_arity(family) {
+      None() => Error("unknown built-in method owner " + family),
+      Some(arity) => resolve_method_owner(graph, BuiltinMethodOwner(family), builtin_owner_module(), name)
+    }
   }
 }
 

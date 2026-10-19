@@ -567,7 +567,9 @@ pub pure check_module_signatures(
             slot_index = slot_index + 1
           }
           signatures = append(signatures, ModuleSignature(binding, intrinsic.parameters,
-            slots, Some(SignaturePure())))
+            slots, Some(if intrinsic.owner == "AsyncFn" { SignatureAsync() }
+              else if intrinsic.owner == "Fn" { SignatureOrdinary() }
+              else { SignaturePure() })))
         }
       }
     }

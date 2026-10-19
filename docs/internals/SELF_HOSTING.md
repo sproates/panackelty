@@ -48,6 +48,11 @@ through checking and emission. Stages 2/3/4 reproduce seed
 `99f7b745472e5361c7cca72cb8bb9afdc1591e82431dd1934d1b3506af484670`.
 Standard-library bytecode and output remain unchanged. Validation is recorded in
 [P06 acceptance](../design/type-owned-dispatch/p06-owned-intrinsics.md).
+P07 extends the owned registry with callable and array callback identities and
+preserves async method flags. Compiler stages 2/3/4 reproduce seed
+`57ee20ce5916b59e85fb23db0a286c3e372124617489e09e342d8b0d50a1152c`;
+standard-library bytecode remains unchanged. See
+[P07 acceptance](../design/type-owned-dispatch/p07-callable-effects.md).
 Source core/compiler callers remain unmigrated; P09's expanded-arrow checkpoint
 is still pending. The VM and bytecode format are unchanged.
 

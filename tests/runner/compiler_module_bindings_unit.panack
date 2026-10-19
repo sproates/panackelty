@@ -225,7 +225,7 @@ pure body_type_check_for_context(
 }
 
 main(): Void {
-  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(owned_method_import_tests()).concat(owned_server_map_tests()).concat(owned_generic_method_tests()).concat(builtin_owner_tests()).concat(owned_intrinsic_tests()).concat(namespace_effect_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests()).concat(module_emission_identity_tests()).concat(module_emission_program_tests()).concat(module_emission_effect_tests()).concat(module_emission_status_tests()).concat(stdlib_public_api_tests())
+  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(owned_method_import_tests()).concat(owned_server_map_tests()).concat(owned_generic_method_tests()).concat(builtin_owner_tests()).concat(owned_intrinsic_tests()).concat(owned_callback_tests()).concat(namespace_effect_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests()).concat(module_emission_identity_tests()).concat(module_emission_program_tests()).concat(module_emission_effect_tests()).concat(module_emission_status_tests()).concat(stdlib_public_api_tests())
   loaded: LoadedProject = load_project("tests/fixtures/compiler_contracts/indexed_lookup/main.panack")
   results = append(results, std_testing.expect(
     "existing project resolves with identity-checked bodies",
@@ -4762,8 +4762,10 @@ pure owned_intrinsic_tests(): [TestResult] {
       index = index + 1
     }
     app: LoadedModule = signature_test_module(namespace_identity("intrinsic_use"),
-      "pure use" + generics + "(" + inputs + "): " + intrinsic.output +
-      " { arg0->" + intrinsic.name + "(" + arguments + ") }")
+      (if intrinsic.owner == "AsyncFn" { "async " }
+        else if intrinsic.owner == "Fn" { "" } else { "pure " }) +
+      "use" + generics + "(" + inputs + "): " + intrinsic.output +
+      " { " + (if intrinsic.owner == "AsyncFn" { "await " } else { "" }) + "arg0->" + intrinsic.name + "(" + arguments + ") }")
     graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, app.bindings], [])
     checked: CheckedModuleBodies = body_test_graph([core, app], graph, app)
     label: Str = intrinsic.owner + "->" + intrinsic.name
@@ -4781,13 +4783,16 @@ pure owned_intrinsic_tests(): [TestResult] {
       match resolve_builtin_owned_method(graph, intrinsic.owner, intrinsic.name) {
         Error(message) => false,
         Ok(binding) => len(checked.functions) == 1 && len(checked.functions[0].body.children) == 1 &&
-          checked.functions[0].body.children[0].node == BodyCall(BodyDeclaration(binding), [], [])
+          (if intrinsic.owner == "AsyncFn" {
+            len(checked.functions[0].body.children[0].children) == 1 &&
+              checked.functions[0].body.children[0].children[0].node == BodyCall(BodyDeclaration(binding), [], [])
+          } else { checked.functions[0].body.children[0].node == BodyCall(BodyDeclaration(binding), [], []) })
       }, "call lost checked intrinsic identity"))
     signatures: CheckedModuleSignatures = check_module_signatures(graph, [core, app], core)
     mut signature_found: Bool = false
     for signature in signatures.declarations {
       if signature.binding.intrinsic == Some(intrinsic.id) {
-        signature_found = signature.effect == Some(SignaturePure()) &&
+        signature_found = signature.effect == Some(signature_effect(intrinsic.owner != "Fn" && intrinsic.owner != "AsyncFn", intrinsic.owner == "AsyncFn")) &&
           len(signature.slots) == len(intrinsic.inputs) + 1 &&
           signature.parameters == intrinsic.parameters
       }
@@ -4817,5 +4822,48 @@ pure owned_intrinsic_tests(): [TestResult] {
     "impl Str { pub pure len(): Nat { 1 } }")
   results = results.append(std_testing.expect("intrinsic/source duplicate rejected",
     len(module_binding_diagnostics(duplicate.bindings)) > 0, "source replaced an intrinsic"))
+  results
+}
+
+
+pure owned_callback_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  core: LoadedModule = signature_test_module(builtin_owner_module(), "")
+  for source in [
+    "record Box { n: Nat } impl Box { async get(): Nat { self.n } } async f(b: Box): Nat { await b->get() }",
+    "pure f(cb: PureFn[Nat,Nat]): Nat { cb->call(1) }",
+    "f(cb: Fn[Nat,Nat]): Nat { cb->call(1) }",
+    "async f(cb: AsyncFn[Nat,Nat]): Nat { await cb->call(1) }",
+    "pure f(xs: [Nat], cb: PureFn[Nat,Str]): [Str] { xs->map(cb) }",
+    "pure f(xs: [Nat], cb: PureFn[Str,Nat,Str]): Str { xs->reduce(\"\", cb) }"
+  ] {
+    app: LoadedModule = signature_test_module(namespace_identity("owned_callback"), source)
+    graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, app.bindings], [])
+    checked: CheckedModuleEffects = body_test_graph_effects([core, app], graph, app)
+    results = results.append(std_testing.expect("owned callback accepts/" + source,
+      len(checked.diagnostics) == 0, "valid callable contract rejected"))
+  }
+  for source in [
+    "record Box { n: Nat } impl Box { async get(): Nat { self.n } } pure f(b: Box): Nat { b->get() }",
+    "record Request { n: Nat } record ResponseWriter { n: Nat } record Server { n: Nat } impl Server { pure get(cb: AsyncFn[Request,ResponseWriter,Result[Unit,Str]]): Unit { () } } pure f(s: Server, cb: Fn[Request,ResponseWriter,Result[Unit,Str]]): Unit { s->get(cb) }",
+    "pure f(cb: Fn[Nat,Nat]): Nat { cb->call(1) }",
+    "pure f(cb: AsyncFn[Nat,Nat]): Nat { cb->call(1) }",
+    "f(cb: AsyncFn[Nat,Nat]): Nat { cb->call(1) }",
+    "async f(cb: Fn[Nat,Nat]): Nat { cb->call(1) }",
+    "async f(cb: PureFn[Nat,Nat]): Nat { await cb->call(1) }",
+    "pure f(cb: PureFn[Nat,Nat]): Nat { cb->call() }",
+    "pure f(cb: PureFn[Nat,Nat]): Nat { cb->call(\"wrong\") }",
+    "pure f(xs: [Nat], cb: Fn[Nat,Nat]): [Nat] { xs->map(cb) }",
+    "pure f(xs: [Nat], cb: AsyncFn[Nat,Nat]): [Nat] { xs->map(cb) }",
+    "pure f(xs: [Nat], cb: PureFn[Str,Nat]): [Nat] { xs->map(cb) }",
+    "pure f(xs: [Nat], cb: PureFn[Nat,Nat,Str]): Nat { xs->reduce(0, cb) }",
+    "pure f(cb: PureFn[Nat,Nat]): Nat { cb->missing(1) }"
+  ] {
+    app: LoadedModule = signature_test_module(namespace_identity("owned_callback_reject"), source)
+    graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, app.bindings], [])
+    checked: CheckedModuleEffects = body_test_graph_effects([core, app], graph, app)
+    results = results.append(std_testing.expect("owned callback rejects/" + source,
+      len(checked.diagnostics) > 0, "invalid callable contract accepted"))
+  }
   results
 }

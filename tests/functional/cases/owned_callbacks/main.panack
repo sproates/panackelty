@@ -1,0 +1,16 @@
+record Holder { call: PureFn[Nat,Nat] }
+pure twice(value: Nat): Nat { value * 2 }
+pure plus(left: Nat, right: Nat): Nat { left + right }
+pure zero(): Nat { 7 }
+ordinary(value: Nat): Nat { print("ordinary"); value }
+receiver(): PureFn[Nat,Nat] { print("receiver"); @twice }
+argument(): Nat { print("argument"); 3 }
+main(): Void {
+  print([1, 2, 3]->map(@twice)->reduce(0, @plus))
+  print((@zero)->call())
+  print((@plus)->call(4, 5))
+  print((@ordinary)->call(8))
+  print(receiver()->call(argument()))
+  holder = Holder(@twice)
+  print((holder.call)->call(6))
+}

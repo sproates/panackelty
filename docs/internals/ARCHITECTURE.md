@@ -1672,3 +1672,12 @@ alongside its owner/name, visibility and canonical typed signature. Body checkin
 reuses existing primitive constraints after owner selection and retains the
 selected declaration in the bound call. Emission lowers its ID to existing VM
 operations. No runtime lookup, opcode or bytecode-format change is involved.
+
+### Owned callable dispatch (P07)
+
+The intrinsic registry supplies distinct PureFn/Fn/AsyncFn call identities and
+Array map/reduce declarations. Owned resolution selects these before the existing
+callable/collection checker specialises receiver signatures. Bound calls retain
+the declaration ID through emission. Synthetic callable effects match their
+family; async source methods retain their parser flag and use the ordinary effect
+pass. No VM instruction or scheduling semantics change.

@@ -352,13 +352,20 @@ The same binder, privacy, purity and duplicate-method rules apply. A user packag
 or module named `core.panack` cannot grant itself built-in ownership. The compiler supplies owned intrinsic methods for Map, Set, arrays, text, bytes,
 Nat/Rat and time values; the complete list and acceptance evidence are in the
 [P06 report](../design/type-owned-dispatch/p06-owned-intrinsics.md). These declarations
-have canonical owner identity, typed signatures and pure effects. Existing
+have canonical owner identity and typed signatures. Collection and primitive
+operations are pure; callable invocation preserves its receiver effect. Existing
 primitive argument checks, collection behaviour and exact-conversion traps are
-preserved. Source implementations cannot replace registered intrinsics. Callable
-methods, source core API migration and Path error-type ownership remain later work.
+preserved. Source implementations cannot replace registered intrinsics. Arrays
+also provide owned `map` and `reduce`, requiring pure callbacks with the existing
+argument/result contracts. `PureFn`, `Fn` and `AsyncFn` each own `call`; its arity,
+arguments and result are specialised from the receiver's callable signature.
+`await callback->call(args)` retains the existing async boundary. Invoke a callable
+field explicitly as `(value.field)->call(args)`. Source core API migration and
+Path error-type ownership remain later work.
 
 This does not add implementations for imported nominal types, extension methods,
-traits, inheritance, dynamic dispatch or async methods. Guarded nominal types do
+traits, inheritance or dynamic dispatch. Async methods use ordinary `async`
+declarations and must be invoked with `await` under the existing effect rules. Guarded nominal types do
 not inherit their underlying built-in family's methods. Method declarations have
 compiler-only identities; they do not introduce ordinary callable names. The project-aware CLI is required, including its regular
 source-file commands or explicit `--project` commands. The standalone legacy

@@ -1248,3 +1248,13 @@ Nightly conformance isolation: `tests/ci_conformance.sh` checks that the nested
 `runner_smoke` corpus follows completion of ordinary observations, preserves the
 source/bytecode partition union at one and two workers, and propagates nested
 source, compile and bytecode failures. The compiler-source deadline stays 90 seconds.
+
+### P07 callable and effect contracts
+
+Binding tests cover owned call arity, parameter/result checking, pure array
+callbacks, callable-family effects, async methods and invalid HTTP handler effects.
+`owned_callbacks` checks zero/multiple arguments, callable fields, receiver/argument
+evaluation order and array map/reduce through source and saved bytecode.
+`owned_async_handlers` executes ordinary/contextual HTTP-shaped handler signatures,
+including suspension and resumed result checks, without networking. Actual HTTP
+server integration remains GI#518. Source coverage baseline scope is unchanged.

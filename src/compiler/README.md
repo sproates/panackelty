@@ -376,3 +376,11 @@ Only designated core binding collection injects these declarations. Checked owne
 calls retain the selected declaration through specialised primitive checks and
 emission; emission selects a primitive from the typed ID, never from the receiver
 method spelling. Existing dot/global paths remain for the staged P12 removal.
+
+P07 adds owned array `map`/`reduce` and effect-specific callable `call` identities.
+Callable registry signatures are family schemas; the checked receiver supplies
+arity and concrete argument/result types. Intrinsic IDs select existing lowering
+only after owned lookup, and synthetic signatures carry pure, ordinary or async
+effects. Source impl methods preserve their async declaration flag. The
+[P07 report](../../docs/design/type-owned-dispatch/p07-callable-effects.md) records
+callback/effect rejection tests and exact HTTP-shaped handler execution.

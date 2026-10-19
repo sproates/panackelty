@@ -1,6 +1,6 @@
 # Dispatch acceptance fixtures
 
-[P06 owned intrinsic dispatch](p06-owned-intrinsics.md) records checked collection/text/numeric operations and owned Server/Map acceptance. P07 callable and effect contracts is next.
+[P06 owned intrinsic dispatch](p06-owned-intrinsics.md) records checked collection/text/numeric operations and owned Server/Map acceptance. [P07 callable and effect contracts](p07-callable-effects.md) adds owned callbacks and async method execution; P08 is next on acceptance.
 
 [P05 built-in ownership registry](p05-builtin-owners.md) records canonical built-in source-method ownership and spoof rejection. P06 is recorded separately above.
 

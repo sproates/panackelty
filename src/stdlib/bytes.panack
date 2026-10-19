@@ -3,17 +3,17 @@ pub pure empty(): Bytes {
 }
 
 pub pure push(buffer: Bytes, value: Nat): Bytes {
-  byte_append(buffer, value)
+  buffer->push(value)
 }
 
 pub pure join(left: Bytes, right: Bytes): Bytes {
-  bytes_concat(left, right)
+  left->join(right)
 }
 
 pub pure length(buffer: Bytes): Nat {
-  byte_len(buffer)
+  buffer->length()
 }
 
 pub pure at(buffer: Bytes, index: Nat): Nat {
-  byte_get(buffer, index)
+  buffer->at(index)
 }

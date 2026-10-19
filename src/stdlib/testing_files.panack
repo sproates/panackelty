@@ -12,8 +12,15 @@ pub workspace_create(parent: Path): Result[TestWorkspace,HostError] {
 }
 
 // Refuse to discard a workspace that still contains fixtures or output.
+impl TestWorkspace {
+  pub remove_empty(): Result[Unit,HostError] {
+    fs_remove_directory(self.root)
+  }
+}
+
+// Compatibility forwarder for P11 callers; removed in P12.
 pub workspace_remove_empty(workspace: TestWorkspace): Result[Unit,HostError] {
-  fs_remove_directory(workspace.root)
+  workspace->remove_empty()
 }
 
 // Discover immediate directory children in fs_list's native-byte sorted order.
@@ -29,7 +36,7 @@ pub discover_fixtures(root: Path): Result[[Path],HostError] {
         match failure {
           Some(problem) => {},
           None() => {
-            match path_append(root, name) {
+            match root->join(name) {
               Error(path_error) => {
                 failure = Some(HostError("discover_fixtures", "invalid_argument", 0))
               },
@@ -38,7 +45,7 @@ pub discover_fixtures(root: Path): Result[[Path],HostError] {
                   Error(error) => { failure = Some(error) },
                   Ok(metadata) => {
                     if metadata.kind == Directory() {
-                      fixtures = fixtures.append(child)
+                      fixtures = fixtures->append(child)
                     }
                   }
                 }

@@ -60,8 +60,9 @@ local type information for tooling rechecks. Final seed and conformance evidence
 are in the [P08 report](../design/type-owned-dispatch/p08-core-methods.md).
 [P09's audited arrow-capable seed checkpoint](../design/type-owned-dispatch/p09-arrow-seed-checkpoint.md)
 reproduces P08's saved seed and conformance artifact before broader caller migration.
-The seed remains byte-identical; P10 stdlib callers are next and P11 compiler/source
-callers remain unstarted. The VM and bytecode format are unchanged.
+[P10](../design/type-owned-dispatch/p10-stdlib-callers.md) migrates stdlib callers
+and conformance programs using that accepted seed. Its report records regenerated
+fixed points; P11 compiler/source callers remain unstarted. The VM and bytecode format are unchanged.
 
 ## Historical P2 completion checkpoint — 2026-10-10
 

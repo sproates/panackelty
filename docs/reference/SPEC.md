@@ -1551,3 +1551,15 @@ are explicit. Generic results describe definitions, not specialisations. No user
 code executes and no bytecode or files are emitted. See the
 [command contract](../guides/COMPILER_EXPLANATIONS.md) for exit status, source bounds,
 positions and deliberate limits. Bytecode v9 and numeric semantics are unchanged.
+
+### Standard-library owned caller migration (next)
+
+The standard library and its conformance programs use owned arrow calls during
+GI#525 migration. `TestWorkspace` owns the effectful `remove_empty()` method,
+returning `Result[Unit,HostError]` and refusing nonempty directories as before.
+Constructors and host services remain explicit module functions. Generic owner
+arguments belong to a typed receiver binding, not to `value_or` or `sort_by`.
+The [P10 compatibility register](../design/type-owned-dispatch/p10-stdlib-callers.md)
+lists temporary receiver-function exports retained until P12. Pure
+`Bytes.decode_utf8` still traps on invalid UTF-8; `host.decode_utf8` still returns
+a checked result. This packet does not change dot syntax or runtime semantics.

@@ -1274,3 +1274,13 @@ The driver-logical and stdlib bytecode goldens include the reviewed forwarding c
 The legacy checker adapter prepares real core through module binding/emission.
 The runner count/transcript and harness totals include the added cases; source-coverage scope is
 unchanged. See the [P08 report](../docs/design/type-owned-dispatch/p08-core-methods.md).
+
+## GI#525 P10 standard-library callers
+
+The stdlib bootstrap conformance program and `stdlib_module_api` use owned
+receiver calls while retaining explicit constructors and host services.
+`stdlib_unit` exercises all 42 existing assertions through owned calls, including
+typed Option/Result receivers, sorting, text, paths and duration errors.
+`testing_fixtures` exercises imported `TestWorkspace.remove_empty` on both a
+nonempty workspace and a successfully emptied workspace, preserving exact output.
+Existing compiler/legacy callers continue to exercise the temporary forwarders.

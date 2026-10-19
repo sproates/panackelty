@@ -7,13 +7,11 @@ name within that domain:
 
 ```panackelty
 import stdlib/path as path
-import stdlib/bytes as byte_buffer
-import stdlib/text as text
 
 main(): Void {
   location: Result[Path,path.PathError] = path.from_text("notes.txt")
-  encoded: Bytes = text.encode_utf8("hello")
-  print(byte_buffer.length(encoded))
+  encoded: Bytes = "hello"->encode_utf8()
+  print(encoded->length())
 }
 ```
 
@@ -68,7 +66,11 @@ The function signatures and checked error behavior are documented in the
 `FileKind` and `FileMetadata` belong to `filesystem`, while
 `ProcessOutput` belongs to `process`.
 
-The short source wrappers keep operations grouped by domain. Older
+The module table includes temporary compatibility exports for existing callers.
+Their exact list and P12 removal boundary are recorded in the
+[P10 migration report](../../docs/design/type-owned-dispatch/p10-stdlib-callers.md).
+New code uses owned methods for receiver operations; constructors and services
+remain module functions. Older
 `path_string_*` and trapping `filesystem_*` wrappers are not exported by the
 stdlib modules or the prelude. Compiler-only Str path and file adapters are in
 `src/compiler` while the compiler's source paths remain strings.
@@ -76,11 +78,10 @@ stdlib modules or the prelude. Compiler-only Str path and file adapters are in
 ## Core operations and generic helpers
 
 Persistent array, map, and set operations and compiler-known conversions keep
-their core signatures and VM lowering. Array `map` and `reduce` retain their
-compiler lowering. The pure generic `option.value_or[T]` and
-`result.value_or[T,E]` functions are ordinary Panackelty source; for example,
-write `result.value_or[Nat,Str](Ok(42), 0)` when the argument does not provide
-enough type evidence.
+their VM lowering. Use owned calls such as `values->map(@transform)` and
+`answer->value_or(0)`. If a generic owner cannot be inferred, give the receiver
+a type, for example `answer: Result[Nat,Str] = Ok(42)`, then call its method.
+The method itself does not take the owner's type arguments.
 
 The concise collection operations are method-only and type-directed, so they
 do not reserve `put`, `has`, `get`, or `add` as global source functions.
@@ -92,14 +93,14 @@ outputs check the module graph at each stage.
 
 ## Sorting and suffix matching
 
-Use `values.sort_by(@less)` without imports, where
+Use `values->sort_by(@less)` without imports, where
 `less: PureFn[T,T,Bool]` and `values: [T]`. It returns a stable sorted array
 without changing its input. The comparator must define a consistent strict weak
 ordering and be pure. Equivalent elements retain input order; comparator traps
 propagate. Merge sort uses O(n log n) comparisons and O(log n) recursive depth,
 building temporary immutable arrays.
 
-Use `value.ends_with(suffix): Bool` without imports. It matches a literal,
+Use `value->ends_with(suffix): Bool` without imports. It matches a literal,
 case-sensitive suffix at Unicode code-point boundaries. An empty suffix matches
 every value; a longer suffix never matches. There is no normalization, locale
 collation, or wildcard interpretation.
@@ -114,8 +115,8 @@ do not access the filesystem. A `Path` does not imply existence, canonical
 identity, permissions, or containment.
 
 `time.seconds(5)` creates an exact duration.
-`time.add_instant(start, time.seconds(5))` creates a deadline, and
-`time.difference(end, start)` measures elapsed time. Only `time.now()` reads
+`start->add(time.seconds(5))` creates a deadline, and
+`end->difference(start)` measures elapsed time. Only `time.now()` reads
 the monotonic clock. See the executable
 [host types case](../../tests/functional/cases/host_types/main.panack) and the
 [path and timing contract](../../docs/reference/SPEC.md#paths-and-monotonic-time).
@@ -130,7 +131,7 @@ deletion, atomic writes, implicit PATH search, or a shell.
 
 Import `stdlib/host` for process arguments, exit, terminal output, nested
 bytecode execution, checked UTF-8 decoding, and sleep. The pure portable
-`text.decode_utf8` operation traps on invalid input; `host.decode_utf8`
+`buffer->decode_utf8()` operation traps on invalid input; `host.decode_utf8`
 returns a checked result.
 
 See the [host capability case](../../tests/functional/cases/host_capabilities/main.panack)
@@ -146,7 +147,8 @@ failure count; a caller chooses the exit policy.
 
 Import `stdlib/testing_files` to discover immediate directory children in
 unsigned native-byte order or to create and explicitly remove an owned empty
-temporary workspace. Import `stdlib/testing_commands` for structured,
+temporary workspace. Call `workspace->remove_empty()` to remove it; a nonempty
+workspace returns the existing host error. Import `stdlib/testing_commands` for structured,
 byte-exact subprocess assertions. No testing helper provides process
 containment or automatic fixture cleanup.
 
@@ -168,3 +170,8 @@ PathError and DurationError are defined once in core and re-exported from path
 and time, including their variants. Existing module functions are compatibility
 forwarders until caller migration and P12 removal. Path/time factories and clock
 services remain module functions; ClockError stays in time.
+
+P10 migrates library bodies and conformance callers to owned dispatch.
+`TestWorkspace.remove_empty` is defined in its owning testing_files module.
+Its old module function also forwards until P12; compiler and remaining callers
+migrate in P11.

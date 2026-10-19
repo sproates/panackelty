@@ -58,8 +58,10 @@ into core, retaining forwarding functions for existing callers. Compiler support
 and a validated seed were saved before library conversion. Core emission retains
 local type information for tooling rechecks. Final seed and conformance evidence
 are in the [P08 report](../design/type-owned-dispatch/p08-core-methods.md).
-Broader compiler/stdlib caller migration and P09's expanded-arrow checkpoint are
-still pending. The VM and bytecode format are unchanged.
+[P09's audited arrow-capable seed checkpoint](../design/type-owned-dispatch/p09-arrow-seed-checkpoint.md)
+reproduces P08's saved seed and conformance artifact before broader caller migration.
+The seed remains byte-identical; P10 stdlib callers are next and P11 compiler/source
+callers remain unstarted. The VM and bytecode format are unchanged.
 
 ## Historical P2 completion checkpoint — 2026-10-10
 

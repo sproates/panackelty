@@ -6234,3 +6234,34 @@ points, release smoke (8s) and quick start (1s). Bootstrap took 232s and the
 overall check took 341s, so both emitted their existing timing-budget warnings.
 No tests failed. These measurements are validation evidence, not a paired
 performance comparison.
+
+
+## Nightly nested-corpus isolation — 2026-10-19
+
+Nightly run `39226029349` failed only macOS ARM64 bytecode conformance:
+`case/compiler_skeleton/source` exceeded its existing 90-second bound inside
+`runner_smoke`. Its compile and saved-bytecode observations passed. The archived
+macOS profiles show the standalone compiler source path at 67 seconds in the
+source lane and compilation at 84 seconds in the bytecode lane. The nested
+runner took 263 seconds before reporting the failure. These profiles do not
+measure the timed-out child's CPU usage, so contention is a supported scheduling
+risk rather than a proven explanation of every elapsed second.
+
+`runner_smoke` executes the entire fixture corpus, including another full
+compiler build. It previously shared the ordinary conformance worker pool.
+It now runs after that pool drains, preserving every observation, fresh execution,
+negative check and deadline. Ordinary fixtures remain parallel. This trades some
+whole-lane parallelism for predictable resources during bounded nested tests;
+it does not hide slow compilation or claim a compiler speedup.
+
+The scheduling regression rejects the original implementation and checks
+partition equivalence at one/two workers plus nested source/compile/bytecode
+failure propagation. An isolated local source run took 37.69 seconds. The first
+ad-hoc conformance invocation omitted the canonical target's compiler environment
+and failed unrelated CLI assertions; it is not an acceptance or performance
+baseline. The corrected canonical two-worker `make ci-conformance-bytecode-check` passed
+in 204.89 seconds, with the nested corpus passing in 143 seconds. Full
+`make check` passed in 630 seconds, including 1,199 binding assertions, 517
+functional assertions, bootstrap/namespace acceptance, release smoke and quick
+start. These local observations are not a controlled before/after speed comparison.
+The failed hosted macOS lane remains the post-merge acceptance check. No source, VM or seed change is involved.

@@ -11,4 +11,3 @@ impl[T] Box[T] {
 }
 
 pub record Box[T] { item: T }
-

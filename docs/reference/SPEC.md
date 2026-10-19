@@ -349,9 +349,13 @@ Duration, Instant, Array, Map and Set. Array implementations use `impl[T] [T]`
 (or `impl[T] Array[T]`); Map and Set use `impl[K,V] Map[K,V]` and `impl[T] Set[T]`.
 These owners are canonical family tags, distinct from nominal declarations.
 The same binder, privacy, purity and duplicate-method rules apply. A user package
-or module named `core.panack` cannot grant itself built-in ownership. No methods
-are added to production built-in APIs by this registry change; intrinsic method
-declarations and library migration remain later work.
+or module named `core.panack` cannot grant itself built-in ownership. The compiler supplies owned intrinsic methods for Map, Set, arrays, text, bytes,
+Nat/Rat and time values; the complete list and acceptance evidence are in the
+[P06 report](../design/type-owned-dispatch/p06-owned-intrinsics.md). These declarations
+have canonical owner identity, typed signatures and pure effects. Existing
+primitive argument checks, collection behaviour and exact-conversion traps are
+preserved. Source implementations cannot replace registered intrinsics. Callable
+methods, source core API migration and Path error-type ownership remain later work.
 
 This does not add implementations for imported nominal types, extension methods,
 traits, inheritance, dynamic dispatch or async methods. Guarded nominal types do

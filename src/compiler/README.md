@@ -370,3 +370,9 @@ selected module and retained method metadata, with no ordinary-function fallback
 Array source spelling retains its syntax span while `[T]` and `Array[T]` share the
 Array family key. Option/Result remain nominal core declarations. Intrinsic tags,
 production core migration and callable ownership are later packets.
+
+P06 adds `owned_intrinsics.panack`, the closed operation-ID and signature registry.
+Only designated core binding collection injects these declarations. Checked owned
+calls retain the selected declaration through specialised primitive checks and
+emission; emission selects a primitive from the typed ID, never from the receiver
+method spelling. Existing dot/global paths remain for the staged P12 removal.

@@ -1226,3 +1226,14 @@ Native host contracts cover accepted/rejected read limits and reject an oversize
 write before touching its data. Rooted/async file and process limits are unchanged.
 The previously failing module-bindings coverage reproduction executes all 846
 assertions and validates its 20,810,250-byte wrapped record with unchanged identities.
+
+### P06 owned intrinsics
+
+The module-binding suite checks every registered intrinsic's signature, owner,
+operation ID and retained checked target, including generic collection receivers.
+The P03 Server/Map fixtures now use owned Map calls inside and outside Server.
+`owned_intrinsics` covers complete source/bytecode execution and receiver-once
+behaviour; seven `owned_intrinsic_*` failure fixtures cover typed arguments and
+no global fallback. `cli_rational_failures` adds owned conversion/division traps
+without removing earlier cases. Callable methods and Path error identity are
+later packet acceptance. See the [P06 report](../docs/design/type-owned-dispatch/p06-owned-intrinsics.md).

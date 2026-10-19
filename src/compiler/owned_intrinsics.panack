@@ -1,0 +1,113 @@
+// Compiler-provided owned operations. No user-facing intrinsic declaration syntax.
+// IDs survive checked binding; lowering spellings are chosen only from these IDs.
+pub enum OwnedIntrinsic {
+  MapPut,
+  MapGet,
+  MapHas,
+  SetAdd,
+  SetHas,
+  ArrayAppend,
+  ArrayConcat,
+  ArrayLength,
+  StringLength,
+  StringSlice,
+  StringReverse,
+  StringStartsWith,
+  StringStartsWithAt,
+  StringIsDigit,
+  StringIsLetter,
+  StringIsWhitespace,
+  StringParseNat,
+  StringEncodeUtf8,
+  BytesPush,
+  BytesAt,
+  BytesLength,
+  BytesJoin,
+  BytesDecodeUtf8,
+  NaturalDivide,
+  RationalNat,
+  RationalDec,
+  DurationTicks,
+  InstantAdd,
+  InstantDifference,
+  InstantBefore
+}
+
+pub record OwnedIntrinsicDeclaration {
+  id: OwnedIntrinsic,
+  owner: Str,
+  name: Str,
+  parameters: [Str],
+  inputs: [Str],
+  output: Str
+}
+
+pub pure owned_intrinsic_declarations(): [OwnedIntrinsicDeclaration] {
+  [
+    OwnedIntrinsicDeclaration(MapPut(), "Map", "put", ["K", "V"], ["Map[K,V]", "K", "V"], "Map[K,V]"),
+    OwnedIntrinsicDeclaration(MapGet(), "Map", "get", ["K", "V"], ["Map[K,V]", "K"], "V"),
+    OwnedIntrinsicDeclaration(MapHas(), "Map", "has", ["K", "V"], ["Map[K,V]", "K"], "Bool"),
+    OwnedIntrinsicDeclaration(SetAdd(), "Set", "add", ["T"], ["Set[T]", "T"], "Set[T]"),
+    OwnedIntrinsicDeclaration(SetHas(), "Set", "has", ["T"], ["Set[T]", "T"], "Bool"),
+    OwnedIntrinsicDeclaration(ArrayAppend(), "Array", "append", ["T"], ["Array[T]", "T"], "Array[T]"),
+    OwnedIntrinsicDeclaration(ArrayConcat(), "Array", "concat", ["T"], ["Array[T]", "Array[T]"], "Array[T]"),
+    OwnedIntrinsicDeclaration(ArrayLength(), "Array", "len", ["T"], ["Array[T]"], "Nat"),
+    OwnedIntrinsicDeclaration(StringLength(), "Str", "len", [], ["Str"], "Nat"),
+    OwnedIntrinsicDeclaration(StringSlice(), "Str", "slice", [], ["Str", "Nat", "Nat"], "Str"),
+    OwnedIntrinsicDeclaration(StringReverse(), "Str", "reverse", [], ["Str"], "Str"),
+    OwnedIntrinsicDeclaration(StringStartsWith(), "Str", "starts_with", [], ["Str", "Str"], "Bool"),
+    OwnedIntrinsicDeclaration(StringStartsWithAt(), "Str", "starts_with_at", [], ["Str", "Str", "Nat"], "Bool"),
+    OwnedIntrinsicDeclaration(StringIsDigit(), "Str", "is_digit", [], ["Str"], "Bool"),
+    OwnedIntrinsicDeclaration(StringIsLetter(), "Str", "is_letter", [], ["Str"], "Bool"),
+    OwnedIntrinsicDeclaration(StringIsWhitespace(), "Str", "is_whitespace", [], ["Str"], "Bool"),
+    OwnedIntrinsicDeclaration(StringParseNat(), "Str", "parse_nat", [], ["Str"], "Nat"),
+    OwnedIntrinsicDeclaration(StringEncodeUtf8(), "Str", "encode_utf8", [], ["Str"], "Bytes"),
+    OwnedIntrinsicDeclaration(BytesPush(), "Bytes", "push", [], ["Bytes", "Nat"], "Bytes"),
+    OwnedIntrinsicDeclaration(BytesAt(), "Bytes", "at", [], ["Bytes", "Nat"], "Nat"),
+    OwnedIntrinsicDeclaration(BytesLength(), "Bytes", "length", [], ["Bytes"], "Nat"),
+    OwnedIntrinsicDeclaration(BytesJoin(), "Bytes", "join", [], ["Bytes", "Bytes"], "Bytes"),
+    OwnedIntrinsicDeclaration(BytesDecodeUtf8(), "Bytes", "decode_utf8", [], ["Bytes"], "Str"),
+    OwnedIntrinsicDeclaration(NaturalDivide(), "Nat", "divide", [], ["Nat", "Nat"], "Nat"),
+    OwnedIntrinsicDeclaration(RationalNat(), "Rat", "nat", [], ["Rat"], "Nat"),
+    OwnedIntrinsicDeclaration(RationalDec(), "Rat", "dec", [], ["Rat"], "Dec"),
+    OwnedIntrinsicDeclaration(DurationTicks(), "Duration", "ticks", [], ["Duration"], "Int"),
+    OwnedIntrinsicDeclaration(InstantAdd(), "Instant", "add", [], ["Instant", "Duration"], "Instant"),
+    OwnedIntrinsicDeclaration(InstantDifference(), "Instant", "difference", [], ["Instant", "Instant"], "Duration"),
+    OwnedIntrinsicDeclaration(InstantBefore(), "Instant", "is_before", [], ["Instant", "Instant"], "Bool")
+  ]
+}
+
+pub pure owned_intrinsic_lowering(id: OwnedIntrinsic): Str {
+  match id {
+    MapPut() => "map_put",
+    MapGet() => "map_get",
+    MapHas() => "map_has",
+    SetAdd() => "set_add",
+    SetHas() => "set_has",
+    ArrayAppend() => "append",
+    ArrayConcat() => "concat",
+    ArrayLength() => "len",
+    StringLength() => "len",
+    StringSlice() => "slice",
+    StringReverse() => "reverse",
+    StringStartsWith() => "starts_with",
+    StringStartsWithAt() => "starts_with_at",
+    StringIsDigit() => "is_digit",
+    StringIsLetter() => "is_letter",
+    StringIsWhitespace() => "is_whitespace",
+    StringParseNat() => "nat_from_str",
+    StringEncodeUtf8() => "utf8_encode",
+    BytesPush() => "byte_append",
+    BytesAt() => "byte_get",
+    BytesLength() => "byte_len",
+    BytesJoin() => "bytes_concat",
+    BytesDecodeUtf8() => "utf8_decode",
+    NaturalDivide() => "quotient",
+    RationalNat() => "nat",
+    RationalDec() => "dec",
+    DurationTicks() => "duration_ticks",
+    InstantAdd() => "instant_add",
+    InstantDifference() => "instant_difference",
+    InstantBefore() => "instant_before"
+  }
+}

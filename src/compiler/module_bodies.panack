@@ -1,3 +1,4 @@
+import project/src/compiler/owned_intrinsics::{owned_intrinsic_lowering}
 import project/src/compiler/module_bindings::{module_declaration_display, builtin_owner_arity, method_owner_name}
 import project/src/compiler/module_resolution::{resolve_owned_method, resolve_builtin_owned_method}
 import stdlib/path as std_path
@@ -1648,11 +1649,18 @@ pure body_call_with_receiver(
     }
   }
   if body_special_core_call(target) {
-    body_retain_rejected_type_argument_arity(
+    lowered: BodyTarget = match target {
+      BodyCore(name) => target,
+      BodyDeclaration(binding) => match binding.intrinsic {
+        None() => target,
+        Some(id) => BodyCore(owned_intrinsic_lowering(id))
+      }
+    }
+    checked: BodyResult = body_retain_rejected_type_argument_arity(
       context,
       body_check_special_core_call(
         context,
-        target,
+        lowered,
         children,
         resolved_types,
         body_type_argument_span(type_argument_spans, 0, span),
@@ -1663,6 +1671,36 @@ pure body_call_with_receiver(
       len(types),
       body_type_argument_span(type_argument_spans, 0, span)
     )
+    match target {
+      BodyCore(name) => checked,
+      BodyDeclaration(binding) => {
+        value: BoundBody = checked.body
+        node: BodyNode = match value.node {
+          BodyCall(ignored, inferred, evidence) => BodyCall(target, inferred, evidence),
+          BodyLiteral(literal) => value.node,
+          BodyInterpolation(parts) => value.node,
+          BodyLocalUse(local) => value.node,
+          BodyFunction(function) => value.node,
+          BodyArray() => value.node,
+          BodyUnary(operator) => value.node,
+          BodyBinary(operator) => value.node,
+          BodyField(field) => value.node,
+          BodyIndex() => value.node,
+          BodyIf(has_else) => value.node,
+          BodyBlock(has_tail) => value.node,
+          BodyMatch(targets, bindings, locations) => value.node,
+          BodyBinding(local, type, mutable, inferred, evidence) => value.node,
+          BodyAssignment(local, evidence) => value.node,
+          BodyWhile() => value.node,
+          BodyFor(local) => value.node,
+          BodyEmpty() => value.node
+        }
+        BodyResult(BoundBody(node, value.span, value.children, value.type,
+          value.constraints, value.guard_conversions, value.type_joins,
+          value.callback_contracts, value.operator_checks, value.type_checks),
+          checked.diagnostics, checked.deferred)
+      }
+    }
   } else {
     BodyResult(
       BoundBody(BodyCall(target, resolved_types, call_arguments), span, children, output, [], [], type_joins, [], [], type_checks),
@@ -1674,7 +1712,7 @@ pure body_call_with_receiver(
 
 pure body_special_core_call(target: BodyTarget): Bool {
   match target {
-    BodyDeclaration(binding) => false,
+    BodyDeclaration(binding) => binding.intrinsic != None(),
     BodyCore(name) => name == "$unit" || name == "$method_call" || name == "len" || name == "$method_map" ||
       name == "$method_reduce" || name == "$method_put" || name == "$method_get" ||
       name == "$method_has" || name == "$method_add" || name == "map_put" ||

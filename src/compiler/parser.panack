@@ -1013,7 +1013,7 @@ pure parse_primary(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] 
   } else {
     token: Token = tokens[index]
     if token.text == "@" {
-      if index + 1 < len(tokens) && tokens[index + 1].kind == Identifier() {
+      if index + 1 < len(tokens) && (tokens[index + 1].kind == Identifier() || tokens[index + 1].text == "[") {
         match parse_reference_path(tokens, index + 1) {
           Error(error) => Error(error),
           Ok(path) => Ok(ParsedExpr(
@@ -1169,7 +1169,7 @@ pure parse_postfix_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedE
     }
   } else {
     if index < len(tokens) && (tokens[index].text == "." || tokens[index].text == "->") {
-      if index + 1 < len(tokens) && tokens[index + 1].kind == Identifier() {
+      if index + 1 < len(tokens) && (tokens[index + 1].kind == Identifier() || tokens[index + 1].text == "[") {
         name: Str = tokens[index + 1].text
         match parse_call_type_arguments(tokens, index + 2) {
           Error(error) => Error(error),
@@ -2033,6 +2033,7 @@ pub enum ImportBindingSyntax {
 
 pub record OwnedMethodSyntax {
   owner: Str,
+  parameters: [Str],
   name: Str
 }
 
@@ -2044,9 +2045,16 @@ pub record DeclarationSyntax {
   method: Option[OwnedMethodSyntax]
 }
 
+pub record OwnedImplementationSyntax {
+  owner: Str,
+  parameters: [Str],
+  span: SourceSpan
+}
+
 pub record ParsedModule {
   program: Program,
-  syntax: [DeclarationSyntax]
+  syntax: [DeclarationSyntax],
+  implementations: [OwnedImplementationSyntax]
 }
 
 record ParsedImportBinding {
@@ -2180,7 +2188,7 @@ pure parse_nonimport_declaration(tokens: [Token], index: Nat): Result[ParsedTopL
 }
 
 // Owned methods have compiler-only names, never ordinary source callables.
-// The first slice deliberately accepts earlier, local, non-generic records only.
+// Owner validity is checked after collecting all module declarations.
 pub pure owned_method_name(owner: Str, method: Str): Str {
   "$owned$" + owner + "$" + method
 }
@@ -2191,12 +2199,14 @@ pure parse_impl_items(
   syntax: [DeclarationSyntax],
   owner: Str,
   owner_span: SourceSpan,
+  owner_parameters: [Str],
+  owner_type: Str,
   index: Nat
 ): Result[ParsedModule, Diagnostic] {
   if index >= len(tokens) {
     Error(parse_error("expected closing impl brace", token_position(tokens, index)))
   } else if tokens[index].text == ";" {
-    parse_impl_items(tokens, declarations, syntax, owner, owner_span, index + 1)
+    parse_impl_items(tokens, declarations, syntax, owner, owner_span, owner_parameters, owner_type, index + 1)
   } else if tokens[index].text == "}" {
     parse_module_items(tokens, declarations, syntax, index + 1)
   } else {
@@ -2206,20 +2216,20 @@ pure parse_impl_items(
       Error(error) => Error(error),
       Ok(parsed) => match parsed.value {
         FunctionDeclaration(name, parameters, result, pure_flag, async_flag, body, types) => {
-          if len(types) > 0 || async_flag {
-            Error(parse_error("owned method proof of concept does not support generic or async methods", token_position(tokens, index)))
+          if async_flag {
+            Error(parse_error("owned methods do not yet support async methods", token_position(tokens, index)))
           } else {
             method: TopLevel = FunctionDeclaration(
               owned_method_name(owner, name),
-              concat([FunctionParameter("self", owner)], parameters),
-              result, pure_flag, false, body, []
+              concat([FunctionParameter("self", owner_type)], parameters),
+              result, pure_flag, false, body, concat(owner_parameters, types)
             )
             metadata: DeclarationSyntax = DeclarationSyntax(
               SourceSpan(token_position(tokens, index), token_end_position(tokens, parsed.next)),
               concat([owner_span], parsed.type_spans), is_public, NoImportBinding(),
-              Some(OwnedMethodSyntax(owner, name))
+              Some(OwnedMethodSyntax(owner, owner_parameters, name))
             )
-            parse_impl_items(tokens, append(declarations, method), append(syntax, metadata), owner, owner_span, parsed.next)
+            parse_impl_items(tokens, append(declarations, method), append(syntax, metadata), owner, owner_span, owner_parameters, owner_type, parsed.next)
           }
         },
         ImportDeclaration(path) => Error(parse_error("expected method", token_position(tokens, index))),
@@ -2234,25 +2244,30 @@ pure parse_impl_items(
 pure parse_impl_declaration(
   tokens: [Token], declarations: [TopLevel], syntax: [DeclarationSyntax], index: Nat
 ): Result[ParsedModule, Diagnostic] {
-  if index + 2 >= len(tokens) || tokens[index + 1].kind != Identifier() || tokens[index + 2].text != "{" {
-    Error(parse_error("expected impl RecordName {", token_position(tokens, index)))
-  } else {
-    owner: Str = tokens[index + 1].text
-    mut valid: Bool = false
-    for declaration in declarations {
-      match declaration {
-        RecordDeclaration(name, types, fields) => { valid = valid || (name == owner && len(types) == 0) },
-        ImportDeclaration(path) => {},
-        TypeDeclaration(name, base, guard) => {},
-        EnumDeclaration(name, types, variants) => {},
-        FunctionDeclaration(name, parameters, result, pure_flag, async_flag, body, types) => {}
+  match parse_generic_parameters(tokens, index + 1) {
+    Error(error) => Error(error),
+    Ok(parameters) => {
+      owner_start: Nat = parameters.next
+      if owner_start >= len(tokens) || tokens[owner_start].kind != Identifier() {
+        Error(parse_error("expected nominal impl owner", token_position(tokens, owner_start)))
+      } else {
+        match parse_type_ref(tokens, owner_start) {
+          Error(error) => Error(error),
+          Ok(owner) => {
+            if owner.next >= len(tokens) || tokens[owner.next].text != "{" {
+              Error(parse_error("expected opening impl brace", token_position(tokens, owner.next)))
+            } else {
+              match parse_impl_items(tokens, declarations, syntax, tokens[owner_start].text,
+                owner.span, parameters.values, owner.text, owner.next + 1) {
+                Error(error) => Error(error),
+                Ok(module) => Ok(ParsedModule(module.program, module.syntax,
+                  append(module.implementations, OwnedImplementationSyntax(
+                    owner.text, parameters.values, owner.span))))
+              }
+            }
+          }
+        }
       }
-    }
-    if !valid {
-      Error(parse_error("impl requires an earlier local non-generic record: " + owner, token_position(tokens, index + 1)))
-    } else {
-      parse_impl_items(tokens, declarations, syntax, owner,
-        SourceSpan(token_position(tokens, index + 1), token_end_position(tokens, index + 2)), index + 3)
     }
   }
 }
@@ -2264,12 +2279,12 @@ pure parse_module_items(
   index: Nat
 ): Result[ParsedModule, Diagnostic] {
   if index == len(tokens) {
-    Ok(ParsedModule(indexed_program(declarations), syntax))
+    Ok(ParsedModule(indexed_program(declarations), syntax, []))
   } else {
     if tokens[index].text == ";" {
       parse_module_items(tokens, declarations, syntax, index + 1)
     } else if tokens[index].text == "impl" && index + 1 < len(tokens) &&
-        tokens[index + 1].kind == Identifier() {
+        (tokens[index + 1].kind == Identifier() || tokens[index + 1].text == "[") {
       parse_impl_declaration(tokens, declarations, syntax, index)
     } else {
       is_public: Bool = tokens[index].text == "pub"
@@ -2364,6 +2379,11 @@ pub pure module_execution_diagnostics(module: ParsedModule): [Diagnostic] {
     }
   }
   mut diagnostics: [Diagnostic] = []
+  for implementation in module.implementations {
+    diagnostics = append(diagnostics, Diagnostic(
+      "namespace syntax is parsed but execution is not yet supported (language namespace migration pending)",
+      implementation.span.start))
+  }
   mut index: Nat = 0
   for syntax in module.syntax {
     mut requires_namespaces: Bool = syntax.is_public || syntax.method != None() || declaration_requires_namespaces(

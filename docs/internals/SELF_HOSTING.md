@@ -27,6 +27,15 @@ for the collection-arity diagnostic correction discovered by the Server/Map
 fixture. Stages 2/3/4 reproduce that hash; stdlib bytecode and output are unchanged.
 No new syntax capability or later migration seed checkpoint is claimed.
 
+P04 refreshes the seed to
+`b97ffe6165ef9037b1aa27a3d6225f958afa21129aadb06eebcd9dd4e5798b6d`
+for generic nominal owners, implementation/method binders and expected-result
+inference. Compiler stages 2/3/4 reproduce that hash. Standard-library bytecode
+remains `eea94d9ea68fcafaa4a68d1eabb926add89f1fc8f3e2d9b6b5877353609c052b`,
+with unchanged output. The isolated core-enum test uses a test stdlib; production
+core/compiler sources retain seed-compatible declaration syntax. This does not
+complete P09's later expanded-arrow checkpoint. See [P04 acceptance](../design/type-owned-dispatch/p04-generic-owners.md).
+
 ## Historical P2 completion checkpoint — 2026-10-10
 
 PR#358 merged on 2026-10-10 as `bfb34a44107d345eb9f4784e5b8ca02e64c7124d`.

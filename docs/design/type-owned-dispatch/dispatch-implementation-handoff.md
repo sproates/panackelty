@@ -1,5 +1,7 @@
 # Type-owned dispatch: implementation handoff
 
+[P04 generic nominal owners](p04-generic-owners.md) records generic implementation and method binders, expected-result inference and isolated core-enum acceptance. P05 is next.
+
 [P03 Server/Map coexistence](p03-server-map.md) records the representative implementation trial.
 
 [P02 ownership metadata delivery](p02-owned-metadata.md) records the next implementation step and its remaining bridge.

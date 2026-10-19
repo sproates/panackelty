@@ -1,5 +1,20 @@
 # Specification coverage
 
+P04 generic owned-method coverage: `owned_generic_methods` runs imported Box
+methods, facade/selective aliases, namespace construction, inferred and explicit
+method binders, expected-result inference, empty receiver argument inference and
+reordered enum implementation binders through source and saved bytecode.
+`compiler_driver.panack` executes an isolated toolchain core containing Option
+and Result methods, including a private helper and imported aliases, through both
+CLI paths. Production core sources remain unchanged. Binding tests retain
+canonical identity and checked status, privacy, uniform owners and disjoint
+binders. Eleven `owned_generic_*` rejection fixtures cover specialisation, unused
+and duplicate binders, shadowing, explicit/assigned self, owner-versus-method
+argument lists, mismatched values and unresolved receiver/method arguments.
+The existing foreign-owner fixture now fails during signature checking.
+See [P04 evidence](../docs/design/type-owned-dispatch/p04-generic-owners.md).
+
+
 P03 Server/Map coverage: `owned_server_map` and its namespace, alias and facade
 variants share one Server implementation and identical expected stdout. They
 cover persistent updates, two instances, global get/put separation, nested Map

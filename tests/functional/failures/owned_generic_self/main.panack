@@ -1,0 +1,3 @@
+record Box[T] { item: T }
+impl[T] Box[T] { pure value(self: T): T { self } }
+main(): Void {}

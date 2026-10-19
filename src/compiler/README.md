@@ -313,8 +313,7 @@ and local replay. See [the contract](../../docs/reference/SOURCE_INVENTORY.md).
 The lexer recognises `->` separately from dot syntax. The parser retains an
 `OwnedCallExpr` with its receiver, method name, arguments and explicit type
 arguments, wrapped in the existing source spans. Each method has
-`OwnedMethodSyntax` metadata alongside its source declaration. The bounded
-nongeneric implementation still uses `$owned$Record$method` function identities
+`OwnedMethodSyntax` metadata alongside its source declaration. The implementation still uses `$owned$Owner$method` function identities
 as an internal signature/emission bridge, never to select a method.
 
 Declaration collection attaches `OwnedMethodIdentity` (canonical owner identity
@@ -342,3 +341,21 @@ methods. Import aliases, facade re-exports and an unrelated same-named Server
 retain separate owner identities. This is a numeric dispatch regression, not an
 HTTP server implementation. Collection arity diagnostics render the actual
 argument count, including the receiver, rather than an interpolation placeholder.
+
+P04 adds explicit implementation binders to `OwnedMethodSyntax` and retains every
+`OwnedImplementationSyntax` header on `ParsedModule`, including empty blocks. Flattened
+function signatures retain implementation binders before method binders for the
+existing signature/emission bridge; source explicit arguments address only the
+method suffix. Signature checking validates local record/enum ownership after
+all declarations have been collected, uniform owner arguments, binder uniqueness
+and implicit self. The body binder obtains implementation substitutions from the
+checked receiver and fixes them before inferring method parameters. Expected
+result constraints can solve remaining holes; unresolved owned-call substitutions
+fail the existing identity-emission gate.
+
+Option and Result use their canonical toolchain declarations for method lookup,
+while retaining their existing `SignatureCore` representation. Core namespace
+staging no longer prevents loading the entry module. Core owned methods use
+checked identity emission; the unmigrated core helpers retain their bootstrap
+lowering. The isolated `owned_generic_core` compiler-driver fixture exercises
+this route without migrating production stdlib methods ahead of P08.

@@ -1,0 +1,6 @@
+error: <case>/main.panack:3:36: explicit type arguments require a generic function
+  3 | main(): Void { print(Box(1)->value[Nat]()) }
+    |                                    ^
+<case>/main.panack:3:36: call Box->value has incorrect type argument count
+  3 | main(): Void { print(Box(1)->value[Nat]()) }
+    |                                    ^

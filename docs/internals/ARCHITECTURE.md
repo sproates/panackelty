@@ -9,7 +9,12 @@ calls supply `self`; no bytecode or runtime extension is required. Public method
 remain owned by the original type across imports and re-exports; cross-module
 calls check declaration visibility during binding. Owned-call syntax and method
 metadata remain distinct from globals; the receiver is bound once and its checked
-method identity is retained through emission. Dot-call
+method identity is retained through emission. Generic record/enum methods retain
+implementation and method binder boundaries; receiver substitutions precede method
+inference and expected-result constraint solving. Local ownership is checked
+after declaration collection, so impl order is unrestricted. Core Option/Result
+methods use the same checked emission path while unmigrated core helpers retain
+their existing lowering. Dot-call
 resolution is unchanged. See the [compiler notes](../../src/compiler/README.md#type-owned-method-proof-of-concept).
 
 ## Overview

@@ -728,7 +728,24 @@ pub pure module_emission_program(
   for module in modules {
     if module.bindings.identity.package == ToolchainModulePackage() &&
       module.bindings.identity.path == "core.panack" {
-      declarations = concat(declarations, module.execution_program.declarations)
+      // Existing core helpers retain their bootstrap-compatible lowering. Owned
+      // methods use checked calls and canonical identities just like user methods.
+      mut core_index: Nat = 0
+      for declaration in module.execution_program.declarations {
+        if module.parsed.syntax[core_index].method == None() {
+          declarations = append(declarations, declaration)
+        } else {
+          match module_emission_function(graph, entry, module, declaration, bodies) {
+            Some(converted) => { declarations = append(declarations, converted) },
+            None() => {
+              diagnostics = append(diagnostics, Diagnostic(
+                "core owned method is not completely checked for identity emission",
+                module.parsed.syntax[core_index].span.start))
+            }
+          }
+        }
+        core_index = core_index + 1
+      }
     } else {
       for declaration in module.parsed.program.declarations {
         converted: Option[TopLevel] = match declaration {

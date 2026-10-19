@@ -906,7 +906,13 @@ load_project_mode_with_configuration(
       []
     )
   }
-  loaded: ProjectLoadState = if len(core.diagnostics) == 0 {
+  // Namespace staging is handled by the identity pipeline, including core impls.
+  mut core_failed: Bool = false
+  for diagnostic in core.diagnostics {
+    core_failed = core_failed || diagnostic.message !=
+      "namespace syntax is parsed but execution is not yet supported (language namespace migration pending)"
+  }
+  loaded: ProjectLoadState = if !core_failed {
     load_project_module(
       resolved,
       core,

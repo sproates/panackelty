@@ -88,8 +88,8 @@ static int response_contains(int fd, const char *status, const char *body, int h
     const char *header_end = strstr(response, "\r\n\r\n");
     if (strstr(response, status) && strstr(response, body) &&
         (!head_only || (header_end && header_end[4] == '\0'))) return 0;
-    fprintf(stderr, "unexpected HTTP response; expected %s and body %s\n%s\n",
-            status, body, response);
+    fprintf(stderr, "unexpected HTTP response (%zu bytes); expected %s and body %s\n%s\n",
+            total, status, body, response);
     return -1;
 }
 
@@ -186,6 +186,15 @@ int main(int argc, char **argv)
     if (!strcmp(mode, "header-limit")) {
         int fd = connect_to(port);
         if (fd < 0) return 1;
+        /* This framing test scans a 64 KiB header in the source VM. Allow the
+         * fixture's 10-second client deadline to expire before our receive
+         * timeout, so slow CI workers still observe its actual response/EOF.
+         * The process-wide alarm remains the outer bound. */
+        struct timeval timeout = {.tv_sec = 12, .tv_usec = 0};
+        if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout))) {
+            close(fd);
+            return 1;
+        }
         const char *prefix = "GET / HTTP/1.1\r\nHost: example.test\r\nX-Large: ";
         int result = send_all(fd, prefix, strlen(prefix));
         char block[4096];

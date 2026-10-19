@@ -37,6 +37,22 @@ records its limits. Runtime performance uses existing direct calls; extra work i
 confined to parsing and checking arrow calls. Website: no current-release claim
 changes are needed for this unreleased experiment; reassess at release selection.
 
+## Nightly HTTP fixture repair — 2026-10-19
+
+The 18 October macOS runtime nightly failed its oversized-header HTTP 431
+assertion with an empty response while testing `next`. A focused local probe
+took 1.21 seconds; lowering its server deadline to one second reproduced the
+same empty response and reported `TCP client timed out`. The framing fixture
+now allows ten seconds per connection, thirty seconds for admission and twelve
+seconds for the oversized-header peer's receive, retaining its twenty-second
+outer alarm. The request and response assertions and native deadline tests are
+unchanged. This is a test allowance repair, not a runtime performance improvement
+or a new latency target. Local acceptance passed the focused source/bytecode
+HTTP suite and full `make check` in 640 seconds, including bootstrap, functional
+and release smoke. Hosted acceptance is recorded in the delivery PR against the
+exact integrated revision. No issue was created solely for
+this repair. Website: no impact; production APIs and released claims are unchanged.
+
 ## Existing links
 
 Existing RM links remain valid below and lead to their detailed record.

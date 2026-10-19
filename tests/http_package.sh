@@ -82,8 +82,11 @@ pure expect(value: Bool): Unit {
 }
 
 async main(): Unit {
+  // Framing assertions need headroom for the 64 KiB header scan on hosted VMs.
+  // Runtime deadline enforcement has separate native tests; this is not a
+  // three-second performance assertion. All waits remain bounded.
   result = await http.serve("127.0.0.1", PORT, @respond,
-    http.ServerLimits(18, 2, 131072, 4096, 3000, 10000, 1000))
+    http.ServerLimits(18, 2, 131072, 4096, 10000, 30000, 1000))
   match result {
     Error(problem) => expect(false),
     Ok(reports) => expect(reports.len() == 18)
@@ -103,7 +106,11 @@ for extension in panack bc; do
     fi
     server_pid=$!
     for mode in get post handler-error method malformed partial body-limit header-limit head head-body head-chunked head-error head-invalid-response head-malformed; do
-        "$http_client" "$port" "$mode" || { cat "$work/stderr"; exit 1; }
+        "$http_client" "$port" "$mode" || {
+            printf 'HTTP package %s/%s failed\n' "$extension" "$mode" >&2
+            cat "$work/stderr" >&2
+            exit 1
+        }
     done
     "$http_client" "$port" concurrent || { cat "$work/stderr"; exit 1; }
     "$http_client" "$port" disconnect || { cat "$work/stderr"; exit 1; }

@@ -48,7 +48,7 @@ async ready(endpoint: service.TcpServiceReady): Result[Unit,Str] {
 
 async respond(configuration: Nat, request: server.Request): Result[server.Response,server.HttpError] {
   match await host.stderr("request handled") {
-    Ok(done) => Ok(server.Response(200, [], text.encode_utf8(if configuration == 42 { "ok" } else { "bad" }))),
+    Ok(done) => Ok(server.Response(200, [], (if configuration == 42 { "ok" } else { "bad" })->encode_utf8())),
     Error(problem) => Error(service.TransportFailure("diagnostic output failed"))
   }
 }

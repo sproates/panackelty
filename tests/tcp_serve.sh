@@ -34,7 +34,7 @@ async main(): Unit {
   result = await tcp_serve("127.0.0.1", $port, @reply, limits)
   match result {
     Ok(reports) => {
-      expect(reports.len() == 2)
+      expect(reports->len() == 2)
       first_ok = match reports[0] { Ok(done) => true, Error(problem) => false }
       second_ok = match reports[1] { Ok(done) => true, Error(problem) => false }
       expect(first_ok == $first)
@@ -88,7 +88,7 @@ async main(): Unit {
     TcpServerLimits(1, 1, 256, 256, 3000, 10000, 1000)
   )
   match result {
-    Ok(reports) => expect(reports.len() == 1),
+    Ok(reports) => expect(reports->len() == 1),
     Error(problem) => expect(false)
   }
   ()

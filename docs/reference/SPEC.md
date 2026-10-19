@@ -1563,3 +1563,8 @@ The [P10 compatibility register](../design/type-owned-dispatch/p10-stdlib-caller
 lists temporary receiver-function exports retained until P12. Pure
 `Bytes.decode_utf8` still traps on invalid UTF-8; `host.decode_utf8` still returns
 a checked result. This packet does not change dot syntax or runtime semantics.
+
+P11 extends owned-arrow caller migration to compiler, packages, tools, examples
+and executable test harnesses. It does not remove the compatibility language.
+The [retained legacy test inputs](../design/type-owned-dispatch/p11-legacy-test-boundary.md)
+continue checking that language until P12 replaces it with rejection coverage.

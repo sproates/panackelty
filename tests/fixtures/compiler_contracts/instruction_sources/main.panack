@@ -8,10 +8,10 @@ pure total(accumulator: Nat, value: Nat): Nat { accumulator + value }
 pure choose(choice: Choice, flag: Bool): Nat {
   match choice {
     Left(items) => {
-      if flag { items.map(@twice).reduce(0, @total) }
-      else { items.reduce(1, @total) }
+      if flag { items->map(@twice)->reduce(0, @total) }
+      else { items->reduce(1, @total) }
     },
-    Right(items) => items.map(@twice).reduce(2, @total)
+    Right(items) => items->map(@twice)->reduce(2, @total)
   }
 }
 

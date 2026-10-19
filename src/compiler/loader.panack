@@ -1,5 +1,4 @@
 import project/src/compiler/path_support as path_support
-import stdlib/text as std_text
 import stdlib/path as std_path
 import stdlib/filesystem as std_filesystem
 import stdlib/environment as std_environment
@@ -7,7 +6,6 @@ import stdlib/package_filesystem as std_package_filesystem
 import project/src/compiler/filesystem_support as filesystem_support
 import stdlib/filesystem::{FileKind.SymbolicLink}
 import stdlib/package_filesystem::{FilesystemRootRead}
-import stdlib/bytes as byte_buffer
 import project/src/bytecode/decoder::{valid_utf8}
 pub import project/src/compiler/module_bodies::{
   Diagnostic, LoadedModule, ModuleBindingGraph, ModuleSignature, BoundFunctionBody
@@ -80,16 +78,16 @@ pure loader_diagnostic(message: Str): Diagnostic {
 }
 
 pure is_logical_import(path: Str): Bool {
-  starts_with_at(path, "stdlib/", 0) || starts_with_at(path, "project/", 0)
+  path->starts_with_at("stdlib/", 0) || path->starts_with_at("project/", 0)
 }
 
 pure logical_import_without_suffix(path: Str): Str {
   mut output: Str = ""
   mut index: Nat = 0
 
-  while index < len(path) {
-    if starts_with_at(path, ".panack", index) && index + len(".panack") == len(path) {
-      index = len(path)
+  while index < path->len() {
+    if path->starts_with_at(".panack", index) && index + ".panack"->len() == path->len() {
+      index = path->len()
     } else {
       output = output + path[index]
       index = index + 1
@@ -100,11 +98,11 @@ pure logical_import_without_suffix(path: Str): Str {
 }
 
 pure logical_import_segments_valid(path: Str): Bool {
-  mut valid: Bool = len(path) > 0
+  mut valid: Bool = path->len() > 0
   mut segment_start: Bool = true
   mut index: Nat = 0
 
-  while index < len(path) {
+  while index < path->len() {
     character: Str = path[index]
     if character == "/" {
       if segment_start {
@@ -113,12 +111,12 @@ pure logical_import_segments_valid(path: Str): Bool {
       segment_start = true
     } else {
       if segment_start {
-        if !(is_letter(character) || character == "_") {
+        if !(character->is_letter() || character == "_") {
           valid = false
         } else {}
         segment_start = false
       } else {
-        if !(is_letter(character) || is_digit(character) || character == "_") {
+        if !(character->is_letter() || character->is_digit() || character == "_") {
           valid = false
         } else {}
       }
@@ -131,11 +129,11 @@ pure logical_import_segments_valid(path: Str): Bool {
 pure logical_import_valid(path: Str): Bool {
   suffix: Str = path_support.suffix(path)
   without_suffix: Str = logical_import_without_suffix(path)
-  relative: Str = if starts_with_at(without_suffix, "stdlib/", 0) {
-    slice(without_suffix, len("stdlib/"), len(without_suffix))
+  relative: Str = if without_suffix->starts_with_at("stdlib/", 0) {
+    without_suffix->slice("stdlib/"->len(), without_suffix->len())
   } else {
-    if starts_with_at(without_suffix, "project/", 0) {
-      slice(without_suffix, len("project/"), len(without_suffix))
+    if without_suffix->starts_with_at("project/", 0) {
+      without_suffix->slice("project/"->len(), without_suffix->len())
     } else {
       without_suffix
     }
@@ -144,14 +142,14 @@ pure logical_import_valid(path: Str): Bool {
 }
 
 pure resolve_import_path(imported: Str, parent: Str, project_root: Str, stdlib_root: Str): Str {
-  if starts_with_at(imported, "stdlib/", 0) {
+  if imported->starts_with_at("stdlib/", 0) {
     without_suffix: Str = logical_import_without_suffix(imported)
-    relative: Str = slice(without_suffix, len("stdlib/"), len(without_suffix))
+    relative: Str = without_suffix->slice("stdlib/"->len(), without_suffix->len())
     path_support.join(stdlib_root, "${relative}.panack")
   } else {
-    if starts_with_at(imported, "project/", 0) {
+    if imported->starts_with_at("project/", 0) {
       without_suffix: Str = logical_import_without_suffix(imported)
-      relative: Str = slice(without_suffix, len("project/"), len(without_suffix))
+      relative: Str = without_suffix->slice("project/"->len(), without_suffix->len())
       path_support.join(project_root, "${relative}.panack")
     } else {
       path_support.join(parent, imported)
@@ -167,7 +165,7 @@ pure package_dependency_import(
   mut found: Bool = false
   for dependency in dependencies {
     found = found || (dependency.owner_root_identity == owner_root_identity &&
-      starts_with_at(imported, dependency.alias + "/", 0))
+      imported->starts_with_at(dependency.alias + "/", 0))
   }
   found
 }
@@ -264,9 +262,9 @@ pure package_import_export_path(
   mut selected_count: Nat = 0
   for dependency in dependencies {
     if dependency.owner_root_identity == owner_root_identity &&
-        starts_with_at(imported, dependency.alias + "/", 0) {
+        imported->starts_with_at(dependency.alias + "/", 0) {
       logical: Str = logical_import_without_suffix(imported)
-      module: Str = slice(logical, len(dependency.alias) + 1, len(logical))
+      module: Str = logical->slice(dependency.alias->len() + 1, logical->len())
       for exported in dependency.exported_modules {
         if exported.module == module {
           found = Some(path_support.join(dependency.source_root, exported.path))
@@ -286,8 +284,8 @@ pure resolve_package_import_path(
   owner_root_identity: FilesystemRootIdentity,
   dependencies: [ManifestDependencyProject]
 ): Result[Str, Str] {
-  if starts_with_at(imported, "stdlib/", 0) || starts_with_at(imported, "project/", 0) {
-    if starts_with_at(imported, "stdlib/", 0) && len(stdlib_root) == 0 {
+  if imported->starts_with_at("stdlib/", 0) || imported->starts_with_at("project/", 0) {
+    if imported->starts_with_at("stdlib/", 0) && stdlib_root->len() == 0 {
       Error("standard library root is not configured")
     } else {
       Ok(resolve_import_path(imported, parent, project_root, stdlib_root))
@@ -306,9 +304,9 @@ pure resolve_package_import_path(
 
 pure loader_path_within(path: Str, root: Str): Bool {
   if root == "/" {
-    starts_with_at(path, "/", 0)
+    path->starts_with_at("/", 0)
   } else {
-    path == root || starts_with_at(path, root + "/", 0)
+    path == root || path->starts_with_at(root + "/", 0)
   }
 }
 
@@ -329,16 +327,16 @@ loader_path_has_symlink(path: Str, root: Str, allow_leaf_symlink: Bool): Bool {
     relative: Str = if path == root {
       ""
     } else {
-      if root == "/" { slice(path, 1, len(path)) } else { slice(path, len(root) + 1, len(path)) }
+      if root == "/" { path->slice(1, path->len()) } else { path->slice(root->len() + 1, path->len()) }
     }
     mut current: Str = root
     mut segment: Str = ""
     mut found: Bool = false
     mut index: Nat = 0
-    while index < len(relative) {
+    while index < relative->len() {
       character: Str = relative[index]
       if character == "/" {
-        if len(segment) > 0 {
+        if segment->len() > 0 {
           current = path_support.join(current, segment)
           found = found || loader_path_component_is_symlink(current)
           segment = ""
@@ -348,7 +346,7 @@ loader_path_has_symlink(path: Str, root: Str, allow_leaf_symlink: Bool): Bool {
       }
       index = index + 1
     }
-    if len(segment) > 0 {
+    if segment->len() > 0 {
       current = path_support.join(current, segment)
       if !allow_leaf_symlink {
         found = found || loader_path_component_is_symlink(current)
@@ -369,9 +367,9 @@ pub read_project_source(
   } else {
     mut total: Nat = 0
     for loaded in paths {
-      total = total + byte_buffer.length(std_text.encode_utf8(sources.get(loaded)))
+      total = total + sources->get(loaded)->encode_utf8()->length()
     }
-    if len(paths) >= 256 || total > 8388608 {
+    if paths->len() >= 256 || total > 8388608 {
       Error("source-map source closure limit exceeded")
     } else {
       match std_path.from_text(path) {
@@ -379,13 +377,13 @@ pub read_project_source(
         Ok(file) => match std_filesystem.read(file, 1048576) {
           Error(error) => Error("source-map source unavailable or exceeds 1 MiB"),
           Ok(data) => {
-            if total + byte_buffer.length(data) > 8388608 {
+            if total + data->length() > 8388608 {
               Error("source-map source closure exceeds 8 MiB")
             } else {
               if !valid_utf8(data) {
                 Error("source-map source is not valid UTF-8")
               } else {
-                Ok(std_text.decode_utf8(data))
+                Ok(data->decode_utf8())
               }
             }
           }
@@ -408,10 +406,10 @@ pub read_package_source(
   } else {
     mut total: Nat = 0
     for loaded in paths {
-      total = total + byte_buffer.length(std_text.encode_utf8(sources.get(loaded)))
+      total = total + sources->get(loaded)->encode_utf8()->length()
     }
     relative: Str = module_relative_path(path, package_root)
-    if len(paths) >= 256 || total > 8388608 {
+    if paths->len() >= 256 || total > 8388608 {
       Error("package source closure limit exceeded")
     } else {
       match std_path.from_text(package_root) {
@@ -429,13 +427,13 @@ pub read_package_source(
                 Some(expected) => read.identity != expected
               } {
                 Error("package root identity changed while loading source")
-              } else if bounded && total + byte_buffer.length(read.contents) > 8388608 {
+              } else if bounded && total + read.contents->length() > 8388608 {
                 Error("package source closure exceeds 8 MiB")
               } else {
                 if !valid_utf8(read.contents) {
                   Error("package source is not valid UTF-8")
                 } else {
-                  Ok(std_text.decode_utf8(read.contents))
+                  Ok(read.contents->decode_utf8())
                 }
               }
             }
@@ -461,37 +459,33 @@ load_project_module(
   package_confined: Bool,
   dependencies: [ManifestDependencyProject]
 ): ProjectLoadState {
-  if state.visited.has(path) {
+  if state.visited->has(path) {
     state
   } else {
     if (package_confined && !package_source_contains(path, project_root, stdlib_root, dependencies)) ||
         (!package_confined && !loader_path_within(path, project_root) && !loader_path_within(path, stdlib_root)) {
-      diagnostics: [Diagnostic] = append(
-        state.diagnostics,
+      diagnostics: [Diagnostic] = state.diagnostics->append(
         loader_diagnostic("module path escapes the entry directory and standard library roots: " + path)
       )
-      ProjectLoadState(state.modules, state.visited.add(path), diagnostics, state.sources, state.source_paths)
+      ProjectLoadState(state.modules, state.visited->add(path), diagnostics, state.sources, state.source_paths)
     } else {
     trusted_root: Str = if loader_path_within(path, stdlib_root) { stdlib_root } else {
       if package_confined { package_owner_root(path, package_root, dependencies) } else { project_root }
     }
     if !package_confined && loader_path_has_symlink(path, trusted_root, allow_leaf_symlink) {
-      diagnostics: [Diagnostic] = append(
-        state.diagnostics,
+      diagnostics: [Diagnostic] = state.diagnostics->append(
         loader_diagnostic("module path traverses a symbolic link: " + path)
       )
-      ProjectLoadState(state.modules, state.visited.add(path), diagnostics, state.sources, state.source_paths)
+      ProjectLoadState(state.modules, state.visited->add(path), diagnostics, state.sources, state.source_paths)
     } else {
     if path_in_stack(stack, path) {
-      diagnostics: [Diagnostic] = append(
-        state.diagnostics,
+      diagnostics: [Diagnostic] = state.diagnostics->append(
         loader_diagnostic("import cycle includes ${path}")
       )
       ProjectLoadState(state.modules, state.visited, diagnostics, state.sources, state.source_paths)
     } else {
       if path_support.suffix(path) != ".panack" {
-        diagnostics: [Diagnostic] = append(
-          state.diagnostics,
+        diagnostics: [Diagnostic] = state.diagnostics->append(
           loader_diagnostic("import must reference a .panack file: ${path}")
         )
         ProjectLoadState(
@@ -503,8 +497,7 @@ load_project_module(
         )
       } else {
         if !package_confined && !filesystem_support.exists(path) {
-          diagnostics: [Diagnostic] = append(
-            state.diagnostics,
+          diagnostics: [Diagnostic] = state.diagnostics->append(
             loader_diagnostic("missing source module ${path}")
           )
           ProjectLoadState(
@@ -538,22 +531,22 @@ load_project_module(
             Error(message) => ProjectLoadState(
               state.modules,
               state.visited,
-              append(state.diagnostics, loader_diagnostic(message + ": " + path)),
+              state.diagnostics->append(loader_diagnostic(message + ": " + path)),
               state.sources,
               state.source_paths
             ),
             Ok(source) => {
-              paths: [Str] = append(state.source_paths, path)
-              sources: Map[Str, Str] = state.sources.put(path, source)
+              paths: [Str] = state.source_paths->append(path)
+              sources: Map[Str, Str] = state.sources->put(path, source)
               match lex_file(source, path) {
                 Error(errors) => {
                   mut diagnostics: [Diagnostic] = state.diagnostics
                   for error in errors {
-                    diagnostics = append(diagnostics, error)
+                    diagnostics = diagnostics->append(error)
                   }
                   ProjectLoadState(
                     state.modules,
-                    state.visited.add(path),
+                    state.visited->add(path),
                     diagnostics,
                     sources,
                     paths
@@ -562,10 +555,10 @@ load_project_module(
                 Ok(tokens) => {
                   match parse_module_complete(tokens) {
                     Error(error) => {
-                      diagnostics: [Diagnostic] = append(state.diagnostics, error)
+                      diagnostics: [Diagnostic] = state.diagnostics->append(error)
                       ProjectLoadState(
                         state.modules,
-                        state.visited.add(path),
+                        state.visited->add(path),
                         diagnostics,
                         sources,
                         paths
@@ -602,7 +595,7 @@ load_project_module(
                         loaded_module_declaration_index(parsed)
                       )
                       staged: [Diagnostic] = module_execution_diagnostics(parsed)
-                      binding_errors: [Diagnostic] = if len(staged) > 0 {
+                      binding_errors: [Diagnostic] = if staged->len() > 0 {
                         module_binding_diagnostics(bindings)
                       } else {
                         []
@@ -610,19 +603,18 @@ load_project_module(
                       mut current: ProjectLoadState = ProjectLoadState(
                         state.modules,
                         state.visited,
-                        concat(state.diagnostics, concat(binding_errors, staged)),
+                        state.diagnostics->concat(binding_errors->concat(staged)),
                         sources,
                         paths
                       )
-                      next_stack: [Str] = append(stack, path)
+                      next_stack: [Str] = stack->append(path)
                       for declaration in program.declarations {
                         match declaration {
                           ImportDeclaration(imported) => {
                             if is_logical_import(imported) ||
                                 (package_confined && logical_import_valid(imported)) {
                               if !logical_import_valid(imported) {
-                                diagnostics: [Diagnostic] = append(
-                                  current.diagnostics,
+                                diagnostics: [Diagnostic] = current.diagnostics->append(
                                   loader_diagnostic("invalid logical import path: ${imported}")
                                 )
                                 current = ProjectLoadState(
@@ -633,9 +625,8 @@ load_project_module(
                                   current.source_paths
                                 )
                               } else {
-                                if starts_with_at(imported, "stdlib/", 0) && len(stdlib_root) == 0 {
-                                  diagnostics: [Diagnostic] = append(
-                                    current.diagnostics,
+                                if imported->starts_with_at("stdlib/", 0) && stdlib_root->len() == 0 {
+                                  diagnostics: [Diagnostic] = current.diagnostics->append(
                                     loader_diagnostic("standard library root is not configured")
                                   )
                                   current = ProjectLoadState(
@@ -666,7 +657,7 @@ load_project_module(
                                       current = ProjectLoadState(
                                         current.modules,
                                         current.visited,
-                                        append(current.diagnostics, loader_diagnostic(message)),
+                                        current.diagnostics->append(loader_diagnostic(message)),
                                         current.sources,
                                         current.source_paths
                                       )
@@ -693,8 +684,7 @@ load_project_module(
                               }
                             } else {
                               if path_support.is_absolute(imported) {
-                                diagnostics: [Diagnostic] = append(
-                                  current.diagnostics,
+                                diagnostics: [Diagnostic] = current.diagnostics->append(
                                   loader_diagnostic("imports must use relative or logical paths: ${imported}")
                                 )
                                 current = ProjectLoadState(
@@ -706,8 +696,7 @@ load_project_module(
                                 )
                               } else {
                                 if path_support.suffix(imported) != ".panack" {
-                                  diagnostics: [Diagnostic] = append(
-                                    current.diagnostics,
+                                  diagnostics: [Diagnostic] = current.diagnostics->append(
                                     loader_diagnostic("relative import must reference a .panack file: ${imported}")
                                   )
                                   current = ProjectLoadState(
@@ -745,10 +734,10 @@ load_project_module(
                           FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {}
                         }
                       }
-                      modules: [LoadedModule] = append(current.modules, module)
+                      modules: [LoadedModule] = current.modules->append(module)
                       ProjectLoadState(
                         modules,
-                        current.visited.add(path),
+                        current.visited->add(path),
                         current.diagnostics,
                         current.sources,
                         current.source_paths
@@ -881,7 +870,7 @@ load_project_mode_with_configuration(
   stack: [Str] = []
   mut core: ProjectLoadState = initial
 
-  if len(stdlib_root) == 0 {
+  if stdlib_root->len() == 0 {
     core = ProjectLoadState(
       [],
       empty,
@@ -943,11 +932,11 @@ load_project_mode_with_configuration(
   mut staged_core_path: Str = ""
   for module in loaded.modules {
     if module.bindings.identity == builtin_owner_module() {
-      if len(module_execution_diagnostics(module.parsed)) > 0 {
+      if module_execution_diagnostics(module.parsed)->len() > 0 {
         staged_core_path = module.source_path
       }
     } else {
-      staged = staged || len(module_execution_diagnostics(module.parsed)) > 0
+      staged = staged || module_execution_diagnostics(module.parsed)->len() > 0
     }
   }
   if !staged && staged_core_path != "" {
@@ -955,13 +944,13 @@ load_project_mode_with_configuration(
     for diagnostic in diagnostics {
       if diagnostic.position.file != staged_core_path || diagnostic.message !=
           "namespace syntax is parsed but execution is not yet supported (language namespace migration pending)" {
-        legacy_diagnostics = append(legacy_diagnostics, diagnostic)
+        legacy_diagnostics = legacy_diagnostics->append(diagnostic)
       }
     }
-    if len(legacy_diagnostics) == 0 {
+    if legacy_diagnostics->len() == 0 {
       for diagnostic in resolve_program_at(program, module_declaration_positions(loaded.modules)) {
         if diagnostic.position.file != staged_core_path {
-          legacy_diagnostics = append(legacy_diagnostics, diagnostic)
+          legacy_diagnostics = legacy_diagnostics->append(diagnostic)
         }
       }
     }
@@ -971,10 +960,10 @@ load_project_mode_with_configuration(
     loaded.modules, project_root, stdlib_root, package_confined, package_root_identity, dependencies
   )
   graph_errors: [Diagnostic] = module_graph_diagnostics(graph)
-  if staged || (len(diagnostics) == 0 && len(graph_errors) > 0) {
-    diagnostics = concat(diagnostics, graph_errors)
+  if staged || (diagnostics->len() == 0 && graph_errors->len() > 0) {
+    diagnostics = diagnostics->concat(graph_errors)
   }
-  if len(graph_errors) == 0 {
+  if graph_errors->len() == 0 {
     mut signatures_valid: Bool = true
     mut identity_checks_ok: Bool = true
     // Retain identity-bound checks for every module. Project commands require
@@ -985,11 +974,11 @@ load_project_mode_with_configuration(
         loaded.modules,
         module
       )
-      signatures = concat(signatures, checked_signatures.declarations)
-      signatures_valid = signatures_valid && len(checked_signatures.diagnostics) == 0
-      identity_checks_ok = identity_checks_ok && len(checked_signatures.diagnostics) == 0
-      if len(module_execution_diagnostics(module.parsed)) > 0 {
-        diagnostics = concat(diagnostics, checked_signatures.diagnostics)
+      signatures = signatures->concat(checked_signatures.declarations)
+      signatures_valid = signatures_valid && checked_signatures.diagnostics->len() == 0
+      identity_checks_ok = identity_checks_ok && checked_signatures.diagnostics->len() == 0
+      if module_execution_diagnostics(module.parsed)->len() > 0 {
+        diagnostics = diagnostics->concat(checked_signatures.diagnostics)
       }
     }
     for module in loaded.modules {
@@ -1000,13 +989,13 @@ load_project_mode_with_configuration(
         module,
         retain
       )
-      if len(module_execution_diagnostics(module.parsed)) > 0 {
-        diagnostics = concat(diagnostics, checked_bodies.diagnostics)
+      if module_execution_diagnostics(module.parsed)->len() > 0 {
+        diagnostics = diagnostics->concat(checked_bodies.diagnostics)
       }
-      bodies = concat(bodies, checked_bodies.functions)
-      identity_checks_ok = identity_checks_ok && len(checked_bodies.diagnostics) == 0
+      bodies = bodies->concat(checked_bodies.functions)
+      identity_checks_ok = identity_checks_ok && checked_bodies.diagnostics->len() == 0
       for body in checked_bodies.functions {
-        identity_checks_ok = identity_checks_ok && body.status == BodyIdentityChecked() && len(body.deferred) == 0
+        identity_checks_ok = identity_checks_ok && body.status == BodyIdentityChecked() && body.deferred->len() == 0
       }
       if signatures_valid {
         checked_effects: CheckedModuleEffects = check_module_effects(
@@ -1016,18 +1005,18 @@ load_project_mode_with_configuration(
           checked_bodies.functions,
           retain
         )
-        if len(module_execution_diagnostics(module.parsed)) > 0 {
-          diagnostics = concat(diagnostics, checked_effects.diagnostics)
+        if module_execution_diagnostics(module.parsed)->len() > 0 {
+          diagnostics = diagnostics->concat(checked_effects.diagnostics)
           if module.bindings.identity != builtin_owner_module() {
             effects_checked = true
           }
         }
-        identity_checks_ok = identity_checks_ok && len(checked_effects.diagnostics) == 0
-        effects = concat(effects, checked_effects.evidence)
+        identity_checks_ok = identity_checks_ok && checked_effects.diagnostics->len() == 0
+        effects = effects->concat(checked_effects.evidence)
         for function in checked_bodies.functions {
           name: Str = function.signature.binding.identity.name
-          if checked_effects.function_types.has(name) {
-            function_types = function_types.put(name, checked_effects.function_types.get(name))
+          if checked_effects.function_types->has(name) {
+            function_types = function_types->put(name, checked_effects.function_types->get(name))
           }
         }
       } else {
@@ -1053,44 +1042,43 @@ load_project_mode_with_configuration(
     mut execution_programs: [Program] = []
     for module in loaded.modules {
       if module.bindings.identity == builtin_owner_module() &&
-          len(module_execution_diagnostics(module.parsed)) > 0 {
+          module_execution_diagnostics(module.parsed)->len() > 0 {
         core_emitted: ModuleEmissionResult = module_emission_program(
           graph, [module], signatures, bodies, module.bindings.identity)
-        if len(core_emitted.diagnostics) == 0 {
-          execution_programs = append(execution_programs, core_emitted.program)
+        if core_emitted.diagnostics->len() == 0 {
+          execution_programs = execution_programs->append(core_emitted.program)
           mut retained: [Diagnostic] = []
           for diagnostic in diagnostics {
             if diagnostic.position.file != module.source_path || diagnostic.message !=
                 "namespace syntax is parsed but execution is not yet supported (language namespace migration pending)" {
-              retained = append(retained, diagnostic)
+              retained = retained->append(diagnostic)
             }
           }
           diagnostics = retained
         } else {
-          execution_programs = append(execution_programs, module.execution_program)
-          diagnostics = concat(diagnostics, core_emitted.diagnostics)
+          execution_programs = execution_programs->append(module.execution_program)
+          diagnostics = diagnostics->concat(core_emitted.diagnostics)
         }
       } else {
-        execution_programs = append(execution_programs, module.execution_program)
+        execution_programs = execution_programs->append(module.execution_program)
       }
     }
     program = append_program_declarations(execution_programs)
   }
-  if len(diagnostics) == 0 {
-    diagnostics = concat(
-      diagnostics,
+  if diagnostics->len() == 0 {
+    diagnostics = diagnostics->concat(
       resolve_program_at(program, module_declaration_positions(loaded.modules))
     )
   } else {}
   mut evidence: [SubtractionEvidence] = []
-  if len(diagnostics) == 0 {
+  if diagnostics->len() == 0 {
     checked: CheckedProgram = check_program_evidence_mode(program, retain, require_main)
     checked_effects: CheckedEffects = check_frontend_effects(program, checked, retain)
     diagnostics = checked_effects.diagnostics
     evidence = checked.evidence
     effects = checked_effects.evidence
     function_types = checked.function_types
-    effects_checked = len(checked.diagnostics) == 0 || (retain && checked.declarations_valid)
+    effects_checked = checked.diagnostics->len() == 0 || (retain && checked.declarations_valid)
   } else {
     if retain && identity_ready {
       entry_identity: ModuleIdentity = if package_confined {
@@ -1111,16 +1099,16 @@ load_project_mode_with_configuration(
         bodies,
         entry_identity
       )
-      if len(emitted.diagnostics) == 0 {
+      if emitted.diagnostics->len() == 0 {
         checked: CheckedProgram = check_program_evidence_mode(emitted.program, true, require_main)
         checked_effects: CheckedEffects = check_frontend_effects(emitted.program, checked, true)
-        diagnostics = concat(diagnostics, checked_effects.diagnostics)
+        diagnostics = diagnostics->concat(checked_effects.diagnostics)
         evidence = checked.evidence
         effects = checked_effects.evidence
         function_types = checked.function_types
-        effects_checked = len(checked.diagnostics) == 0 || checked.declarations_valid
+        effects_checked = checked.diagnostics->len() == 0 || checked.declarations_valid
       } else {
-        diagnostics = concat(diagnostics, emitted.diagnostics)
+        diagnostics = diagnostics->concat(emitted.diagnostics)
       }
     }
   }
@@ -1178,7 +1166,7 @@ pub pure loaded_package_binding_graph(
   mut edges: [ModuleImportEdge] = []
 
   for module in modules {
-    bindings = append(bindings, module.bindings)
+    bindings = bindings->append(module.bindings)
     mut index: Nat = 0
     for imported in module.bindings.imports {
       parent: Str = path_support.parent(module.source_path)
@@ -1198,8 +1186,7 @@ pub pure loaded_package_binding_graph(
       } else {
         resolve_import_path(imported.path, parent, project_root, stdlib_root)
       }
-      edges = append(
-        edges,
+      edges = edges->append(
         ModuleImportEdge(
         module.bindings.identity,
         index,

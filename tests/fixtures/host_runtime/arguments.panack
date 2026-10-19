@@ -1,5 +1,5 @@
 main(): Void {
   arguments: [Str] = command_args()
-  print(len(arguments))
+  print(arguments->len())
   print(arguments[0])
 }

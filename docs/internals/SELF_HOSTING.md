@@ -62,7 +62,9 @@ are in the [P08 report](../design/type-owned-dispatch/p08-core-methods.md).
 reproduces P08's saved seed and conformance artifact before broader caller migration.
 [P10](../design/type-owned-dispatch/p10-stdlib-callers.md) migrates stdlib callers
 and conformance programs using that accepted seed. Its report records regenerated
-fixed points; P11 compiler/source callers remain unstarted. The VM and bytecode format are unchanged.
+fixed points. [P11](../design/type-owned-dispatch/p11-remaining-callers.md) migrates
+compiler and maintained source callers, saving a new verified compiler seed.
+Legacy frontend test inputs remain explicitly registered for P12. The VM and bytecode format are unchanged.
 
 ## Historical P2 completion checkpoint — 2026-10-10
 

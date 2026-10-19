@@ -1,4 +1,3 @@
-import stdlib/text as std_text
 import stdlib/bytes as byte_buffer
 trapping_read_text(path: Str): Str { read_file(path) }
-main(): Void { print(trapping_read_text(("invalid" + std_text.decode_utf8(byte_buffer.push(byte_buffer.empty(), 0)) + "path"))) }
+main(): Void { print(trapping_read_text(("invalid" + byte_buffer.empty()->push(0)->decode_utf8() + "path"))) }

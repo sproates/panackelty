@@ -8,8 +8,8 @@ pure total(accumulator: Nat, value: Nat): Nat {
 
 main(): Void {
   operation: PureFn[Nat,Nat] = @square
-  squares: [Nat] = [1, 2, 3, 4].map(operation)
+  squares: [Nat] = [1, 2, 3, 4]->map(operation)
   print(squares)
-  print(squares.reduce(0, @total))
-  print(operation.call(5))
+  print(squares->reduce(0, @total))
+  print(operation->call(5))
 }

@@ -1,5 +1,3 @@
-import stdlib/text as std_text
-import stdlib/numeric as std_numeric
 import stdlib/bytes as byte_buffer
 import project/src/bytecode/codec::{encode_u8, serialize_bytecode}
 import project/src/compiler/emitter::{
@@ -88,12 +86,12 @@ pure invalid_reader(reader: ByteReader, message: Str): ByteReader {
 }
 
 pure reader_has(reader: ByteReader, count: Nat): Bool {
-  reader.valid && reader.offset + count <= byte_buffer.length(reader.data)
+  reader.valid && reader.offset + count <= reader.data->length()
 }
 
 pure read_u8(reader: ByteReader): ReadNat {
   if reader_has(reader, 1) {
-    value: Nat = byte_buffer.at(reader.data, reader.offset)
+    value: Nat = reader.data->at(reader.offset)
     ReadNat(ByteReader(reader.data, reader.offset + 1, true, ""), value)
   } else {
     ReadNat(invalid_reader(reader, "truncated data"), 0)
@@ -102,7 +100,7 @@ pure read_u8(reader: ByteReader): ReadNat {
 
 pure read_u16(reader: ByteReader): ReadNat {
   if reader_has(reader, 2) {
-    value: Nat = byte_buffer.at(reader.data, reader.offset) * 256 + byte_buffer.at(reader.data, reader.offset + 1)
+    value: Nat = reader.data->at(reader.offset) * 256 + reader.data->at(reader.offset + 1)
     ReadNat(ByteReader(reader.data, reader.offset + 2, true, ""), value)
   } else {
     ReadNat(invalid_reader(reader, "truncated data"), 0)
@@ -111,10 +109,10 @@ pure read_u16(reader: ByteReader): ReadNat {
 
 pure read_u32(reader: ByteReader): ReadNat {
   if reader_has(reader, 4) {
-    value: Nat = byte_buffer.at(reader.data, reader.offset) * 16777216 +
-      byte_buffer.at(reader.data, reader.offset + 1) * 65536 +
-      byte_buffer.at(reader.data, reader.offset + 2) * 256 +
-      byte_buffer.at(reader.data, reader.offset + 3)
+    value: Nat = reader.data->at(reader.offset) * 16777216 +
+      reader.data->at(reader.offset + 1) * 65536 +
+      reader.data->at(reader.offset + 2) * 256 +
+      reader.data->at(reader.offset + 3)
     ReadNat(ByteReader(reader.data, reader.offset + 4, true, ""), value)
   } else {
     ReadNat(invalid_reader(reader, "truncated data"), 0)
@@ -126,7 +124,7 @@ pure read_raw(reader: ByteReader, count: Nat): ReadBytes {
     mut output: Bytes = byte_buffer.empty()
     mut cursor: Nat = 0
     while cursor < count {
-      output = byte_buffer.push(output, byte_buffer.at(reader.data, reader.offset + cursor))
+      output = output->push(reader.data->at(reader.offset + cursor))
       cursor = cursor + 1
     }
     ReadBytes(ByteReader(reader.data, reader.offset + count, true, ""), output)
@@ -142,20 +140,20 @@ pure utf8_continuation(value: Nat): Bool {
 pub pure valid_utf8(data: Bytes): Bool {
   mut valid: Bool = true
   mut cursor: Nat = 0
-  while cursor < byte_buffer.length(data) && valid {
-    first: Nat = byte_buffer.at(data, cursor)
+  while cursor < data->length() && valid {
+    first: Nat = data->at(cursor)
     if first <= 127 {
       cursor = cursor + 1
     } else {
       if first >= 194 && first <= 223 {
-        if cursor + 1 < byte_buffer.length(data) && utf8_continuation(byte_buffer.at(data, cursor + 1)) {
+        if cursor + 1 < data->length() && utf8_continuation(data->at(cursor + 1)) {
           cursor = cursor + 2
         } else { valid = false; }
       } else {
         if first >= 224 && first <= 239 {
-          if cursor + 2 < byte_buffer.length(data) {
-            second: Nat = byte_buffer.at(data, cursor + 1)
-            third: Nat = byte_buffer.at(data, cursor + 2)
+          if cursor + 2 < data->length() {
+            second: Nat = data->at(cursor + 1)
+            third: Nat = data->at(cursor + 2)
             second_valid: Bool = utf8_continuation(second) &&
               (first != 224 || second >= 160) && (first != 237 || second <= 159)
             if second_valid && utf8_continuation(third) { cursor = cursor + 3; }
@@ -163,10 +161,10 @@ pub pure valid_utf8(data: Bytes): Bool {
           } else { valid = false; }
         } else {
           if first >= 240 && first <= 244 {
-            if cursor + 3 < byte_buffer.length(data) {
-              second: Nat = byte_buffer.at(data, cursor + 1)
-              third: Nat = byte_buffer.at(data, cursor + 2)
-              fourth: Nat = byte_buffer.at(data, cursor + 3)
+            if cursor + 3 < data->length() {
+              second: Nat = data->at(cursor + 1)
+              third: Nat = data->at(cursor + 2)
+              fourth: Nat = data->at(cursor + 3)
               second_valid: Bool = utf8_continuation(second) &&
                 (first != 240 || second >= 144) && (first != 244 || second <= 143)
               if second_valid && utf8_continuation(third) && utf8_continuation(fourth) {
@@ -187,7 +185,7 @@ pure decode_utf8(reader: ByteReader, count: Nat, limit: Nat, label: Str): ReadTe
   } else {
     raw: ReadBytes = read_raw(reader, count)
     if raw.reader.valid && valid_utf8(raw.value) {
-      ReadText(raw.reader, std_text.decode_utf8(raw.value))
+      ReadText(raw.reader, raw.value->decode_utf8())
     } else {
       if raw.reader.valid {
         ReadText(invalid_reader(raw.reader, "invalid UTF-8 in ${label}"), "")
@@ -214,7 +212,7 @@ pure nat_digit_count(value: Nat): Nat {
     mut count: Nat = 0
     mut remaining: Nat = value
     while remaining > 0 {
-      remaining = std_numeric.divide(remaining, 10)
+      remaining = remaining->divide(10)
       count = count + 1
     }
     count
@@ -231,7 +229,7 @@ pure read_natural(reader: ByteReader): ReadNat {
       raw: ReadBytes = read_raw(size.reader, size.value)
       if !raw.reader.valid { ReadNat(raw.reader, 0) }
       else {
-        if size.value > 0 && byte_buffer.at(raw.value, 0) == 0 {
+        if size.value > 0 && raw.value->at(0) == 0 {
           ReadNat(invalid_reader(raw.reader, "non-minimal integer"), 0)
         } else {
           mut value: Nat = 0
@@ -275,24 +273,24 @@ pure read_decimal(reader: ByteReader): ReadConstant {
   if sign.value > 1 { current = invalid_reader(current, "invalid decimal sign"); } else {}
   if exponent.value.magnitude > 4096 { current = invalid_reader(current, "decimal exponent exceeds limit"); } else {}
   if count.value == 0 || count.value > 4096 { current = invalid_reader(current, "decimal coefficient exceeds digit limit"); } else {}
-  raw: ReadBytes = read_raw(current, std_numeric.divide(count.value + 1, 2))
+  raw: ReadBytes = read_raw(current, (count.value + 1)->divide(2))
   mut digits: [Nat] = []
   mut cursor: Nat = 0
-  while cursor < byte_buffer.length(raw.value) && raw.reader.valid {
-    byte: Nat = byte_buffer.at(raw.value, cursor)
-    high: Nat = std_numeric.divide(byte, 16)
+  while cursor < raw.value->length() && raw.reader.valid {
+    byte: Nat = raw.value->at(cursor)
+    high: Nat = byte->divide(16)
     low: Nat = byte % 16
     if high > 9 { current = invalid_reader(raw.reader, "invalid decimal digit"); }
-    else { digits = append(digits, high); }
-    if len(digits) < count.value {
+    else { digits = digits->append(high); }
+    if digits->len() < count.value {
       if low > 9 { current = invalid_reader(current, "invalid decimal digit"); }
-      else { digits = append(digits, low); }
+      else { digits = digits->append(low); }
     } else {
       if low != 15 { current = invalid_reader(current, "invalid decimal padding"); } else {}
     }
     cursor = cursor + 1
   }
-  if len(digits) > 1 && digits[0] == 0 {
+  if digits->len() > 1 && digits[0] == 0 {
     current = invalid_reader(current, "non-minimal decimal coefficient")
   } else {}
   value: ConstantValue = DecimalPartsConstant(sign.value == 1, digits, exponent.value.negative, exponent.value.magnitude)
@@ -347,7 +345,7 @@ pure read_names(reader: ByteReader, count: Nat): ReadNames {
   while cursor < count && current.valid {
     item: ReadText = read_name(current)
     current = item.reader
-    values = append(values, item.value)
+    values = values->append(item.value)
     cursor = cursor + 1
   }
   ReadNames(current, values)
@@ -364,7 +362,7 @@ pure read_texts(reader: ByteReader): ReadNames {
     while cursor < count.value && current.valid {
       item: ReadText = read_text(current)
       current = item.reader
-      values = append(values, item.value)
+      values = values->append(item.value)
       cursor = cursor + 1
     }
     ReadNames(current, values)
@@ -473,7 +471,7 @@ pure read_instructions(reader: ByteReader, count: Nat): ReadInstructions {
   while cursor < count && current.valid {
     instruction: ReadInstruction = read_instruction(current)
     current = instruction.reader
-    values = append(values, instruction.value)
+    values = values->append(instruction.value)
     cursor = cursor + 1
   }
   ReadInstructions(current, values)
@@ -526,14 +524,14 @@ pure duplicate_names(names: [Str]): Bool {
   mut seen: Set[Str] = set()
   mut duplicate: Bool = false
   for name in names {
-    if set_has(seen, name) { duplicate = true; }
-    else { seen = set_add(seen, name); }
+    if seen->has(name) { duplicate = true; }
+    else { seen = seen->add(name); }
   }
   duplicate
 }
 
 pure verify_instruction(instruction: Instruction, function: FunctionCode, program: BytecodeProgram): Str {
-  count: Nat = len(function.instructions)
+  count: Nat = function.instructions->len()
   match instruction {
     ConstInstruction(value) => "",
     LoadInstruction(name) => "",
@@ -544,7 +542,7 @@ pure verify_instruction(instruction: Instruction, function: FunctionCode, progra
     MakeRangeInstruction() => "",
     MakeArrayInstruction(item_count) => "",
     IndexGetInstruction() => "",
-    InterpolateInstruction(parts) => if len(parts) > 0 { "" } else { "invalid INTERPOLATE operand" },
+    InterpolateInstruction(parts) => if parts->len() > 0 { "" } else { "invalid INTERPOLATE operand" },
     IterInitInstruction(name) => "",
     IterNextInstruction(iterator, name, end) => if end < count { "" } else { "invalid ITER_NEXT operand" },
     MakeRecordInstruction(name, fields) => "",
@@ -557,7 +555,7 @@ pure verify_instruction(instruction: Instruction, function: FunctionCode, progra
       if !target.found && !builtin_exists(name) {
         "bytecode calls unknown function ${name}"
       } else {
-        expected: Nat = if builtin_exists(name) { builtin_arity(name) } else { len(target.value.parameters) }
+        expected: Nat = if builtin_exists(name) { builtin_arity(name) } else { target.value.parameters->len() }
         target_pure: Bool = if builtin_exists(name) { builtin_is_pure(name) } else { target.value.is_pure }
         if (!builtin_exists(name) && target.found && target.value.is_async) ||
           name == "async_fake_read" || name == "$tcp_exchange" || name == "$http_transport_exchange" || name == "$tcp_serve" ||
@@ -580,10 +578,10 @@ pure verify_instruction(instruction: Instruction, function: FunctionCode, progra
 }
 
 pure verify_function(function: FunctionCode, program: BytecodeProgram): Str {
-  if (function.is_pure && function.is_async) || len(function.name) == 0 || duplicate_names(function.parameters) {
+  if (function.is_pure && function.is_async) || function.name->len() == 0 || duplicate_names(function.parameters) {
     "invalid function signature"
   } else {
-    if len(function.instructions) == 0 {
+    if function.instructions->len() == 0 {
       "bytecode function is empty"
     } else {
       mut message: Str = ""
@@ -602,9 +600,9 @@ pure verify_function(function: FunctionCode, program: BytecodeProgram): Str {
           CallValueInstruction(arity) => {}, AwaitCallInstruction(name, arity) => {}, AwaitValueInstruction(arity) => {},
           JumpInstruction(target) => {}, PendingEndJumpInstruction() => {}
         }
-        if len(message) == 0 { message = verify_instruction(instruction, function, program); } else {}
+        if message->len() == 0 { message = verify_instruction(instruction, function, program); } else {}
       }
-      if len(message) > 0 { message }
+      if message->len() > 0 { message }
       else { if has_return { "" } else { "bytecode function has no RETURN" } }
     }
   }
@@ -613,27 +611,27 @@ pure verify_function(function: FunctionCode, program: BytecodeProgram): Str {
 pure verify_bytecode_program(program: BytecodeProgram): Str {
   main: FunctionCodeLookup = bytecode_function(program, "main")
   if !main.found { "bytecode has no main function" }
-  else { if len(main.value.parameters) > 0 { "bytecode main function cannot take parameters" }
+  else { if main.value.parameters->len() > 0 { "bytecode main function cannot take parameters" }
   else {
     mut message: Str = ""
     mut total: Nat = 0
     for function in program.functions {
-      total = total + len(function.instructions)
-      if total > 4000000 && len(message) == 0 { message = "bytecode exceeds total instruction limit"; } else {}
-      if len(message) == 0 { message = verify_function(function, program); } else {}
+      total = total + function.instructions->len()
+      if total > 4000000 && message->len() == 0 { message = "bytecode exceeds total instruction limit"; } else {}
+      if message->len() == 0 { message = verify_function(function, program); } else {}
     }
     message
   } }
 }
 
 pure has_bytecode_magic(data: Bytes): Bool {
-  expected: Bytes = byte_buffer.join(std_text.encode_utf8("PANACKBC"), encode_u8(0))
-  if byte_buffer.length(data) < byte_buffer.length(expected) { false }
+  expected: Bytes = "PANACKBC"->encode_utf8()->join(encode_u8(0))
+  if data->length() < expected->length() { false }
   else {
     mut matches: Bool = true
     mut cursor: Nat = 0
-    while cursor < byte_buffer.length(expected) && matches {
-      if byte_buffer.at(data, cursor) != byte_buffer.at(expected, cursor) { matches = false; } else {}
+    while cursor < expected->length() && matches {
+      if data->at(cursor) != expected->at(cursor) { matches = false; } else {}
       cursor = cursor + 1
     }
     matches
@@ -641,7 +639,7 @@ pure has_bytecode_magic(data: Bytes): Bool {
 }
 
 pure decode_bytecode(data: Bytes): BytecodeDecodeResult {
-  if byte_buffer.length(data) > 16777216 { BytecodeDecodeError("bytecode artifact exceeds size limit") }
+  if data->length() > 16777216 { BytecodeDecodeError("bytecode artifact exceeds size limit") }
   else { if !has_bytecode_magic(data) { BytecodeDecodeError("not a Panackelty bytecode file") }
   else {
     initial: ByteReader = ByteReader(data, 9, true, "")
@@ -668,18 +666,18 @@ pure decode_bytecode(data: Bytes): BytecodeDecodeResult {
           current = invalid_reader(current, "duplicate function ${duplicate_name}")
         }
         else { if cursor > 0 && function.name < previous_name { current = invalid_reader(current, "functions are not canonically ordered"); } else {} }
-        total = total + len(function.instructions)
+        total = total + function.instructions->len()
         if total > 4000000 { current = invalid_reader(current, "total instruction count exceeds limit"); } else {}
-        functions = append(functions, function)
+        functions = functions->append(function)
         previous_name = function.name
         cursor = cursor + 1
       }
-      if current.valid && current.offset != byte_buffer.length(data) { current = invalid_reader(current, "trailing data"); } else {}
+      if current.valid && current.offset != data->length() { current = invalid_reader(current, "trailing data"); } else {}
       if !current.valid { BytecodeDecodeError(current.message) }
       else {
         program: BytecodeProgram = BytecodeProgram(functions)
         verification: Str = verify_bytecode_program(program)
-        if len(verification) == 0 { BytecodeDecoded(program) } else { BytecodeDecodeError(verification) }
+        if verification->len() == 0 { BytecodeDecoded(program) } else { BytecodeDecodeError(verification) }
       }
     } }
   } }
@@ -713,5 +711,5 @@ pure verify_await_call(name: Str, arity: Nat, function: FunctionCode, program: B
     name == "$tcp_serve_stream" || name == "$tcp_server_read_chunk" {
     if arity == builtin_arity(name) { "" } else { "async service arity mismatch" }
   } else { if builtin_exists(name) || !target.found || !target.value.is_async { "await target must be async" }
-  else { if arity != len(target.value.parameters) { "async call arity mismatch" } else { "" } } } }
+  else { if arity != target.value.parameters->len() { "async call arity mismatch" } else { "" } } } }
 }

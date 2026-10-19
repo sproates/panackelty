@@ -34,6 +34,6 @@ main(): Void {
   print(different->banana())
   print(local->apple())
   print(local->banana())
-  print(first.apple())
-  print(first.banana())
+  print(apple(first))
+  print(banana(first))
 }

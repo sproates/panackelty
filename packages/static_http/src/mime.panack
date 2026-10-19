@@ -1,22 +1,22 @@
 pub pure content_type(filename: Str): Str {
-  if filename.ends_with(".html") || filename.ends_with(".htm") { "text/html; charset=utf-8" }
-  else if filename.ends_with(".css") { "text/css; charset=utf-8" }
-  else if filename.ends_with(".js") || filename.ends_with(".mjs") { "text/javascript; charset=utf-8" }
-  else if filename.ends_with(".json") || filename.ends_with(".map") { "application/json" }
-  else if filename.ends_with(".txt") { "text/plain; charset=utf-8" }
-  else if filename.ends_with(".xml") { "application/xml" }
-  else if filename.ends_with(".svg") { "image/svg+xml" }
-  else if filename.ends_with(".png") { "image/png" }
-  else if filename.ends_with(".jpg") || filename.ends_with(".jpeg") { "image/jpeg" }
-  else if filename.ends_with(".gif") { "image/gif" }
-  else if filename.ends_with(".webp") { "image/webp" }
-  else if filename.ends_with(".avif") { "image/avif" }
-  else if filename.ends_with(".ico") { "image/x-icon" }
-  else if filename.ends_with(".woff2") { "font/woff2" }
-  else if filename.ends_with(".woff") { "font/woff" }
-  else if filename.ends_with(".ttf") { "font/ttf" }
-  else if filename.ends_with(".otf") { "font/otf" }
-  else if filename.ends_with(".pdf") { "application/pdf" }
-  else if filename.ends_with(".wasm") { "application/wasm" }
+  if filename->ends_with(".html") || filename->ends_with(".htm") { "text/html; charset=utf-8" }
+  else if filename->ends_with(".css") { "text/css; charset=utf-8" }
+  else if filename->ends_with(".js") || filename->ends_with(".mjs") { "text/javascript; charset=utf-8" }
+  else if filename->ends_with(".json") || filename->ends_with(".map") { "application/json" }
+  else if filename->ends_with(".txt") { "text/plain; charset=utf-8" }
+  else if filename->ends_with(".xml") { "application/xml" }
+  else if filename->ends_with(".svg") { "image/svg+xml" }
+  else if filename->ends_with(".png") { "image/png" }
+  else if filename->ends_with(".jpg") || filename->ends_with(".jpeg") { "image/jpeg" }
+  else if filename->ends_with(".gif") { "image/gif" }
+  else if filename->ends_with(".webp") { "image/webp" }
+  else if filename->ends_with(".avif") { "image/avif" }
+  else if filename->ends_with(".ico") { "image/x-icon" }
+  else if filename->ends_with(".woff2") { "font/woff2" }
+  else if filename->ends_with(".woff") { "font/woff" }
+  else if filename->ends_with(".ttf") { "font/ttf" }
+  else if filename->ends_with(".otf") { "font/otf" }
+  else if filename->ends_with(".pdf") { "application/pdf" }
+  else if filename->ends_with(".wasm") { "application/wasm" }
   else { "application/octet-stream" }
 }

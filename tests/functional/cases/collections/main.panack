@@ -2,17 +2,17 @@
 pure number_before(left: Nat, right: Nat): Bool { left < right }
 
 pure numbers(): [Nat] {
-  [2, 3].concat([5, 7])
+  [2, 3]->concat([5, 7])
 }
 
 pure symbols(): Map[Str,Nat] {
   mut values: Map[Str,Nat] = map()
-  values = values.put("answer", 42)
+  values = values->put("answer", 42)
   values
 }
 
 pure encoded(): Bytes {
-  utf8_encode("λ").byte_append(33)
+  "λ"->encode_utf8()->push(33)
 }
 
 record Snapshot {
@@ -21,33 +21,33 @@ record Snapshot {
 
 pure persistent_append(): Bool {
   mut values: [Nat] = []
-  for i in 0..64 { values = values.append(i) }
+  for i in 0..64 { values = values->append(i) }
   snapshot = Snapshot(values)
-  branch = values.append(99)
+  branch = values->append(99)
   mut visited: Nat = 0
   for item in values {
-    values = values.append(item + 100)
+    values = values->append(item + 100)
     visited = visited + 1
   }
   nested: [[Nat]] = [snapshot.values]
   boxes: [Snapshot] = [snapshot]
-  nested_more = nested.append(values)
-  boxes_more = boxes.append(Snapshot(branch))
-  len(values) == 128 && len(snapshot.values) == 64 && len(branch) == 65 &&
+  nested_more = nested->append(values)
+  boxes_more = boxes->append(Snapshot(branch))
+  values->len() == 128 && snapshot.values->len() == 64 && branch->len() == 65 &&
     branch[64] == 99 && snapshot.values[63] == 63 && visited == 64 &&
-    len(nested) == 1 && len(nested_more[0]) == 64 && len(nested_more[1]) == 128 &&
-    len(boxes) == 1 && len(boxes_more[1].values) == 65
+    nested->len() == 1 && nested_more[0]->len() == 64 && nested_more[1]->len() == 128 &&
+    boxes->len() == 1 && boxes_more[1].values->len() == 65
 }
 
 main(): Void {
   mut names: Set[Str] = set()
-  names = names.add("Panackelty")
+  names = names->add("Panackelty")
   print(numbers())
-  print(symbols().get("answer"))
-  print(names.has("Panackelty"))
-  print(encoded().utf8_decode())
+  print(symbols()->get("answer"))
+  print(names->has("Panackelty"))
+  print(encoded()->decode_utf8())
   print(persistent_append())
-  print([3, 1, 2, 1].sort_by(@number_before))
-  print("café.panack".ends_with(".panack"))
-  print("café.panack".ends_with(".PANACK"))
+  print([3, 1, 2, 1]->sort_by(@number_before))
+  print("café.panack"->ends_with(".panack"))
+  print("café.panack"->ends_with(".PANACK"))
 }

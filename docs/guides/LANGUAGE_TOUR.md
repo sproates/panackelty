@@ -6,8 +6,8 @@
 main(): Void {
   third = 1/3
   ten = third * 30
-  print(ten.nat())  // 10
-  print((1/8).dec()) // 0.125
+  print(ten->nat())  // 10
+  print((1/8)->dec()) // 0.125
   success: Unit = ()
   print(success)   // ()
 }
@@ -179,16 +179,16 @@ supplied as argument 1, so persistent updates still return new values:
 
 ```panackelty
 pure extend(values: [Nat], value: Nat): [Nat] {
-  values.append(value)
+  values->append(value)
 }
 
 main(): Void {
   mut values: Map[Str,Nat] = map()
-  values = values.put("answer", 42)
-  if values.has("answer") {
-    print(values.get("answer"))
+  values = values->put("answer", 42)
+  if values->has("answer") {
+    print(values->get("answer"))
   }
-  print("Aλ🙂".reverse())
+  print("Aλ🙂"->reverse())
 }
 ```
 
@@ -202,9 +202,9 @@ pure total(sum: Nat, value: Nat): Nat { sum + value }
 
 main(): Void {
   operation: PureFn[Nat,Nat] = @square
-  squares: [Nat] = [1, 2, 3, 4].map(operation)
+  squares: [Nat] = [1, 2, 3, 4]->map(operation)
   print(squares)
-  print(squares.reduce(0, @total))
+  print(squares->reduce(0, @total))
 }
 ```
 
@@ -218,7 +218,7 @@ pure safe_divide(numerator: Nat, denominator: Nat): Result[Nat,Str] {
   if denominator == 0 {
     Error("division by zero")
   } else {
-    Ok(quotient(numerator, denominator))
+    Ok(numerator->divide(denominator))
   }
 }
 

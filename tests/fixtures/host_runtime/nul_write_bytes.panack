@@ -1,4 +1,3 @@
-import stdlib/text as std_text
 import stdlib/bytes as byte_buffer
 trapping_write_bytes(path: Str, data: Bytes): Void { write_bytes(path, data) }
-main(): Void { trapping_write_bytes(("invalid" + std_text.decode_utf8(byte_buffer.push(byte_buffer.empty(), 0)) + "path"), std_text.encode_utf8("data")) }
+main(): Void { trapping_write_bytes(("invalid" + byte_buffer.empty()->push(0)->decode_utf8() + "path"), "data"->encode_utf8()) }

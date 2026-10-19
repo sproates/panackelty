@@ -1,7 +1,5 @@
 import stdlib/testing_commands as std_testing_commands
-import stdlib/text as std_text
 import stdlib/testing as std_testing
-import stdlib/result as std_result
 import stdlib/bytes as byte_buffer
 import stdlib/path as std_path
 import stdlib/filesystem as std_filesystem
@@ -11,7 +9,7 @@ import stdlib/testing_files as std_testing_files
 import stdlib/testing::{TestOutcome.TestPassed, TestOutcome.TestFailed, TestResult}
 import stdlib/time as std_time
 import stdlib/testing_commands::{TestCommand, ProcessOutput}
-pure capture_path(text: Str): Path { std_result.value_or(std_path.from_text(text), std_path.current()) }
+pure capture_path(text: Str): Path { std_path.from_text(text)->value_or(std_path.current()) }
 pure capture_command(script: Str): TestCommand {
   TestCommand(capture_path("/bin/sh"), ["-c", script], byte_buffer.empty(), std_path.current(), [],
     std_time.seconds(5), 4096)
@@ -29,47 +27,47 @@ main(): Void {
   match std_testing_files.workspace_create(capture_path("/tmp")) {
     Error(error) => { std_host.stderr("capture workspace failed"); std_host.exit(1) },
     Ok(workspace) => {
-      file = std_result.value_or(std_path.join(workspace.root, capture_path("report")), workspace.root)
-      expected = ProcessOutput(0, 0, std_text.encode_utf8("good\n"), byte_buffer.empty())
+      file = workspace.root->join(capture_path("report"))->value_or(workspace.root)
+      expected = ProcessOutput(0, 0, "good\n"->encode_utf8(), byte_buffer.empty())
       mut results: [TestResult] = []
       for script in ["printf 'wrong\\n'", "printf 'good\\n'; exit 7",
           "printf 'good\\n'; printf error >&2", "kill -TERM $$"] {
         result = std_testing_commands.capture_report("runner", capture_command(script), expected, Some(file))
         reason: Str = capture_failure_reason(result)
-        results = results.append(std_testing.expect("capture rejects ${script}",
+        results = results->append(std_testing.expect("capture rejects ${script}",
           !capture_passed(result) && capture_missing(file), "failed observation was published"))
         if script == "printf 'wrong\\n'" {
-          results = results.append(std_testing.expect("capture explains stdout mismatch",
-            reason.starts_with_at("stdout differed; actual stdout: wrong", 0),
+          results = results->append(std_testing.expect("capture explains stdout mismatch",
+            reason->starts_with_at("stdout differed; actual stdout: wrong", 0),
             "unexpected failure detail: ${reason}"))
         }
         if script == "printf 'good\\n'; exit 7" {
-          results = results.append(std_testing.expect("capture explains nonzero report command",
-            reason.starts_with_at("expected exit 0, got 7; actual stdout: good", 0),
+          results = results->append(std_testing.expect("capture explains nonzero report command",
+            reason->starts_with_at("expected exit 0, got 7; actual stdout: good", 0),
             "unexpected failure detail: ${reason}"))
         }
       }
       missing = TestCommand(capture_path("/not-a-test-executable"), [], byte_buffer.empty(),
         std_path.current(), [], std_time.seconds(5), 4096)
-      results = results.append(std_testing.expect("capture rejects host error",
+      results = results->append(std_testing.expect("capture rejects host error",
         !capture_passed(std_testing_commands.capture_report("runner", missing, expected, Some(file))) &&
           capture_missing(file), "host error was published"))
       good = capture_command("printf 'good\\n'")
-      results = results.append(std_testing.expect("capture optional destination",
+      results = results->append(std_testing.expect("capture optional destination",
         capture_passed(std_testing_commands.capture_report("runner", good, expected, None())) &&
           capture_missing(file), "optional capture failed"))
-      results = results.append(std_testing.expect("capture rejects write failure",
+      results = results->append(std_testing.expect("capture rejects write failure",
         !capture_passed(std_testing_commands.capture_report("runner", good, expected, Some(workspace.root))),
         "write failure was ignored"))
-      results = results.append(std_testing.expect("capture accepts exact success",
+      results = results->append(std_testing.expect("capture accepts exact success",
         capture_passed(std_testing_commands.capture_report("runner", good, expected, Some(file))),
         "successful observation was rejected"))
       actual = match std_filesystem.read(file, 4096) { Ok(value) => value, Error(error) => byte_buffer.empty() }
-      results = results.append(std_testing.expect("capture exact bytes", actual == expected.stdout,
+      results = results->append(std_testing.expect("capture exact bytes", actual == expected.stdout,
         "captured bytes differ"))
       std_filesystem.remove_file(file);
-      results = results.append(std_testing.expect("capture workspace cleanup",
-        match std_testing_files.workspace_remove_empty(workspace) { Ok(value) => true, Error(error) => false },
+      results = results->append(std_testing.expect("capture workspace cleanup",
+        match workspace->remove_empty() { Ok(value) => true, Error(error) => false },
         "workspace cleanup failed"))
       if std_testing.report(results) > 0 { std_host.exit(1) }
     }

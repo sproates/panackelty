@@ -40,7 +40,7 @@ pub record Diagnostic {
 pub pure diagnostic_text(diagnostic: Diagnostic): Str {
   position: SourcePos = diagnostic.position
 
-  if len(position.file) > 0 {
+  if position.file->len() > 0 {
     file: Str = position.file
     line: Nat = position.line
     column: Nat = position.column

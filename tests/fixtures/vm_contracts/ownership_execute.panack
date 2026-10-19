@@ -9,11 +9,11 @@ main(): Nat {
     negative: Dec = -1.25
     label: Str = holder.label
     text: Str = "value ${negative} ${label}"
-    encoded: Bytes = utf8_encode(text)
-    values: Map[Str,Nat] = map_put(map(), "total", total)
-    names: Set[Str] = set_add(set(), "total")
+    encoded: Bytes = text->encode_utf8()
+    values: Map[Str,Nat] = map()->put("total", total)
+    names: Set[Str] = set()->add("total")
     operation: PureFn[Nat,Nat] = @identity
-    choice: Option[Nat] = Some(operation.call(map_get(values, "total")))
+    choice: Option[Nat] = Some(operation->call(values->get("total")))
     answer: Nat = match choice { Some(value) => value, None() => 0 }
-    if answer == 6 && set_has(names, "total") && byte_len(encoded) > 0 { 42 } else { 0 }
+    if answer == 6 && names->has("total") && encoded->length() > 0 { 42 } else { 0 }
 }

@@ -1,6 +1,4 @@
-import stdlib/text as std_text
 import stdlib/environment as std_environment
-import stdlib/result as std_result
 import stdlib/testing_commands::{TestCommand, ProcessOutput}
 import stdlib/testing_commands as std_testing_commands
 import stdlib/testing as std_testing
@@ -11,14 +9,14 @@ import stdlib/bytes as byte_buffer
 import stdlib/filesystem as std_filesystem
 
 pure runner_path(text: Str): Path {
-  std_result.value_or(std_path.from_text(text), std_path.current())
+  std_path.from_text(text)->value_or(std_path.current())
 }
 
 runner_test_environment(): [Str] {
   mut environment: [Str] = ["PANACKELTY_BOOTSTRAP_ROOT=.", "PANACKELTY_STDLIB_VALUE=ambient-test"]
   match std_environment.get("PANACK_TEST_COMPILER") {
     None() => {},
-    Some(compiler) => { environment = append(environment, "PANACK_TEST_COMPILER=${compiler}") }
+    Some(compiler) => { environment = environment->append("PANACK_TEST_COMPILER=${compiler}") }
   }
   environment
 }
@@ -85,12 +83,12 @@ main(): Void {
     if name == "unknown_name" || name == "imported_unknown_name" ||
         name == "unexpected_character" || name == "same_line_without_separator" ||
         name == "inference_empty_array" || name == "inference_immutable" ||
-        name.starts_with_at("fact_mutation_", 0) {
+        name->starts_with_at("fact_mutation_", 0) {
       expected_text = "${expected_text}PASS failure/${name}/run\nPASS failure/${name}/disasm\n"
     }
     expected_text = "${expected_text}PASS failure/${name}/no artifact\n"
   }
-  expected = std_text.encode_utf8("${expected_text}PASS selected failure count\ntests: 532, failures: 0\n")
+  expected = "${expected_text}PASS selected failure count\ntests: 532, failures: 0\n"->encode_utf8()
   command = TestCommand(runner_path("./bin/panack"),
     ["run", "tests/runner/main.panack"], byte_buffer.empty(), std_path.current(),
     runner_test_environment(),

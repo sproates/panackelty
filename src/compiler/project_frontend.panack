@@ -37,10 +37,10 @@ pub pure prepare_project_program_with_dependencies(
   mut diagnostics: [Diagnostic] = []
   for diagnostic in project.diagnostics {
     if !namespace_gate_diagnostic(diagnostic) {
-      diagnostics = diagnostics.append(diagnostic)
+      diagnostics = diagnostics->append(diagnostic)
     }
   }
-  if len(diagnostics) > 0 {
+  if diagnostics->len() > 0 {
     Error(diagnostics)
   } else {
     graph: ModuleBindingGraph = loaded_package_binding_graph(
@@ -58,7 +58,7 @@ pub pure prepare_project_program_with_dependencies(
       project.module_bodies,
       entry
     )
-    if len(emitted.diagnostics) > 0 {
+    if emitted.diagnostics->len() > 0 {
       Error(emitted.diagnostics)
     } else {
       Ok(emitted.program)

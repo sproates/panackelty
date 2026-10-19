@@ -146,7 +146,7 @@ pure module_emission_signature_type(
   head: Str = match value.identity {
     SignatureCore(name) => name,
     SignatureNominal(identity) => module_emission_symbol(graph, entry, identity),
-    SignatureParameter(binder, index) => if binder == owner && index < len(parameters) {
+    SignatureParameter(binder, index) => if binder == owner && index < parameters->len() {
       parameters[index]
     } else {
       "$unresolved_type_parameter"
@@ -160,9 +160,9 @@ pure module_emission_signature_type(
   }
   mut arguments: [Str] = []
   for child in value.arguments {
-    arguments = append(arguments, module_emission_signature_type(graph, entry, owner, parameters, child))
+    arguments = arguments->append(module_emission_signature_type(graph, entry, owner, parameters, child))
   }
-  if len(arguments) == 0 {
+  if arguments->len() == 0 {
     head
   } else {
     render_type(head, arguments)
@@ -227,7 +227,7 @@ pure module_emission_guard_expressions(
 ): [Expr] {
   mut result: [Expr] = []
   for expression in expressions {
-    result = append(result, module_emission_guard_expression(graph, entry, owner, expression))
+    result = result->append(module_emission_guard_expression(graph, entry, owner, expression))
   }
   result
 }
@@ -240,7 +240,7 @@ pure module_emission_guard_block(
 ): Block {
   mut statements: [Statement] = []
   for statement in block.statements {
-    statements = append(statements, match statement {
+    statements = statements->append(match statement {
       BindingStatement(name, type_name, annotation_span, mutable, value) => BindingStatement(
         name,
         type_name,
@@ -282,7 +282,7 @@ pure module_emission_guard_arms(
 ): [MatchArm] {
   mut result: [MatchArm] = []
   for arm in arms {
-    result = append(result, MatchArm(
+    result = result->append(MatchArm(
       MatchPattern(
         module_emission_guard_target(graph, entry, owner, arm.pattern.variant),
         arm.pattern.bindings,
@@ -386,7 +386,7 @@ pure module_emission_guard_expression(
 pure module_emission_escape_string(text: Str): Str {
   mut result: Str = ""
   mut index: Nat = 0
-  while index < len(text) {
+  while index < text->len() {
     character: Str = text[index]
     if character == "\\" {
       result = result + "\\\\"
@@ -417,7 +417,7 @@ pure module_emission_escape_string(text: Str): Str {
 pure module_emission_interpolation(body: BoundBody): Expr {
   match body.node {
     BodyInterpolation(parts) => {
-      mut text: Str = if len(parts) > 0 { parts[0] } else { "" }
+      mut text: Str = if parts->len() > 0 { parts[0] } else { "" }
       mut index: Nat = 0
       for child in body.children {
         mut local_name: Str = ""
@@ -444,7 +444,7 @@ pure module_emission_interpolation(body: BoundBody): Expr {
           BodyEmpty() => {}
         }
         text = text + "${" + local_name + "}"
-        if index + 1 < len(parts) {
+        if index + 1 < parts->len() {
           text = text + parts[index + 1]
         } else {}
         index = index + 1
@@ -487,7 +487,7 @@ pure module_emission_expressions(
 ): [Expr] {
   mut result: [Expr] = []
   for body in bodies {
-    result = append(result, module_emission_expression_with_parameters(graph, entry, parameters, body))
+    result = result->append(module_emission_expression_with_parameters(graph, entry, parameters, body))
   }
   result
 }
@@ -499,7 +499,7 @@ pure module_emission_block(
   body: BoundBody
 ): Block {
   mut statements: [Statement] = []
-  mut count: Nat = len(body.children)
+  mut count: Nat = body.children->len()
   has_tail: Bool = match body.node {
     BodyBlock(value) => value,
     BodyLiteral(value) => false,
@@ -570,14 +570,14 @@ pure module_emission_block(
       match statement {
         None() => {},
         Some(value) => {
-          statements = append(statements, value)
+          statements = statements->append(value)
         }
       }
     } else {}
     index = index + 1
   }
-  block_value: BlockValue = if has_tail && len(body.children) > 0 {
-    TailBlockValue(module_emission_expression_with_parameters(graph, entry, parameters, body.children[prior_index(len(body.children))]))
+  block_value: BlockValue = if has_tail && body.children->len() > 0 {
+    TailBlockValue(module_emission_expression_with_parameters(graph, entry, parameters, body.children[prior_index(body.children->len())]))
   } else {
     NoBlockValue()
   }
@@ -624,12 +624,12 @@ pure module_emission_expression_with_parameters(
       mut index: Nat = 0
       for target in targets {
         mut names: [Str] = []
-        if index < len(bindings) {
+        if index < bindings->len() {
           for local in bindings[index] {
-            names = append(names, local.name)
+            names = names->append(local.name)
           }
         } else {}
-        arms = append(arms, MatchArm(
+        arms = arms->append(MatchArm(
           MatchPattern(module_emission_target(graph, entry, target), names, pattern_spans[index]),
           module_emission_expression_with_parameters(graph, entry, parameters, body.children[index + 1])
         ))
@@ -665,11 +665,11 @@ pure module_emission_function(
       match selected {
         None() => None(),
         Some(body) => match body.status {
-          BodyIdentityChecked() => if len(body.deferred) == 0 {
+          BodyIdentityChecked() => if body.deferred->len() == 0 {
             mut emitted_parameters: [FunctionParameter] = []
             mut parameter_index: Nat = 0
             for parameter in parameters {
-              parameter_type: Str = if parameter_index < len(body.signature.slots) {
+              parameter_type: Str = if parameter_index < body.signature.slots->len() {
                 module_emission_signature_type(
                   graph,
                   entry,
@@ -680,10 +680,10 @@ pure module_emission_function(
               } else {
                 parameter.type_name
               }
-              emitted_parameters = append(emitted_parameters, FunctionParameter(parameter.name, parameter_type))
+              emitted_parameters = emitted_parameters->append(FunctionParameter(parameter.name, parameter_type))
               parameter_index = parameter_index + 1
             }
-            result_type: Str = if len(body.signature.slots) > parameter_index {
+            result_type: Str = if body.signature.slots->len() > parameter_index {
               module_emission_signature_type(
                 graph,
                 entry,
@@ -760,18 +760,18 @@ pub pure module_emission_program(
         match declaration {
           FunctionDeclaration(name, parameters, result, pure_flag, async_flag, body, types) => {
             match module_emission_function(graph, entry, module, declaration, bodies) {
-              Some(converted) => { declarations = append(declarations, converted) },
+              Some(converted) => { declarations = declarations->append(converted) },
               None() => {
-                diagnostics = append(diagnostics, Diagnostic(
+                diagnostics = diagnostics->append(Diagnostic(
                   "core function is not completely checked for identity emission",
                   module.parsed.syntax[core_index].span.start))
               }
             }
           },
           ImportDeclaration(path) => {},
-          TypeDeclaration(name, base, guard) => { declarations = append(declarations, declaration) },
-          RecordDeclaration(name, parameters, fields) => { declarations = append(declarations, declaration) },
-          EnumDeclaration(name, parameters, variants) => { declarations = append(declarations, declaration) }
+          TypeDeclaration(name, base, guard) => { declarations = declarations->append(declaration) },
+          RecordDeclaration(name, parameters, fields) => { declarations = declarations->append(declaration) },
+          EnumDeclaration(name, parameters, variants) => { declarations = declarations->append(declaration) }
         }
         core_index = core_index + 1
       }
@@ -811,7 +811,7 @@ pub pure module_emission_program(
               },
               Some(signature) => {
                 for field in fields {
-                  emitted_fields = append(emitted_fields, RecordField(
+                  emitted_fields = emitted_fields->append(RecordField(
                     field.name,
                     module_emission_slot_type(graph, entry, signature, field.name, field.type_name)
                   ))
@@ -837,10 +837,10 @@ pub pure module_emission_program(
                   None() => type_name,
                   Some(value) => module_emission_slot_type(graph, entry, value, payload_slot, type_name)
                 }
-                payload = append(payload, mapped)
+                payload = payload->append(mapped)
                 payload_index = payload_index + 1
               }
-              renamed = append(renamed, EnumVariant(
+              renamed = renamed->append(EnumVariant(
                 module_emission_symbol(
                   graph,
                   entry,
@@ -867,12 +867,12 @@ pub pure module_emission_program(
           FunctionDeclaration(name, parameters, return_type, pure_flag, async_flag, body, type_parameters) => {
               mut detail: Str = ""
               for checked_body in bodies {
-                if checked_body.signature.binding.identity == DeclarationIdentity(module.bindings.identity, name) && len(checked_body.deferred) > 0 {
+                if checked_body.signature.binding.identity == DeclarationIdentity(module.bindings.identity, name) && checked_body.deferred->len() > 0 {
                   first: SourceSpan = checked_body.deferred[0]
-                  detail = " (" + module_emission_nat_text(len(checked_body.deferred)) + " deferred type check(s); first at " + first.start.file + ":" + module_emission_nat_text(first.start.line) + ":" + module_emission_nat_text(first.start.column) + ")"
+                  detail = " (" + module_emission_nat_text(checked_body.deferred->len()) + " deferred type check(s); first at " + first.start.file + ":" + module_emission_nat_text(first.start.line) + ":" + module_emission_nat_text(first.start.column) + ")"
                 } else {}
               }
-              diagnostics = append(diagnostics, Diagnostic(
+              diagnostics = diagnostics->append(Diagnostic(
                 "function is not completely checked for identity emission: " + name + detail,
                 module_emission_declaration_span(module, name).start
               ))
@@ -883,7 +883,7 @@ pub pure module_emission_program(
             EnumDeclaration(name, parameters, variants) => {}
           },
           Some(value) => {
-            declarations = append(declarations, value)
+            declarations = declarations->append(value)
           }
         }
       }

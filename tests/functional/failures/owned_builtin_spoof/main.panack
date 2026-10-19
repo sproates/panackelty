@@ -1,0 +1,2 @@
+import project/src/core::{value}
+main(): Void { print(value()) }

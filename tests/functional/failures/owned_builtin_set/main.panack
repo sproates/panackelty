@@ -1,0 +1,2 @@
+impl[T] Set[T] {}
+main(): Void { print(0) }

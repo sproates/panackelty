@@ -30,8 +30,42 @@ pub enum ModuleDeclarationKind {
   ModuleVariant(Str)
 }
 
+// Core tags are the canonical SignatureCore family names, never rendered types.
+// Only this closed registry can introduce a built-in implementation owner.
+pub pure builtin_owner_arity(name: Str): Option[Nat] {
+  if name == "Array" || name == "Set" { Some(1) }
+  else if name == "Map" { Some(2) }
+  else if name == "Nat" || name == "Int" || name == "Dec" || name == "Rat" ||
+      name == "Bool" || name == "Unit" || name == "Str" || name == "Bytes" ||
+      name == "Path" || name == "Duration" || name == "Instant" { Some(0) }
+  else { None() }
+}
+
+pub pure builtin_owner_module(): ModuleIdentity {
+  ModuleIdentity(ToolchainModulePackage(), "core.panack")
+}
+
+pub enum MethodOwnerIdentity {
+  NominalMethodOwner(DeclarationIdentity),
+  BuiltinMethodOwner(Str)
+}
+
+pub pure method_owner_name(owner: MethodOwnerIdentity): Str {
+  match owner {
+    NominalMethodOwner(identity) => identity.name,
+    BuiltinMethodOwner(family) => family
+  }
+}
+
+pub pure method_owner_identity(module: ModuleIdentity, name: Str): MethodOwnerIdentity {
+  match builtin_owner_arity(name) {
+    None() => NominalMethodOwner(DeclarationIdentity(module, name)),
+    Some(arity) => BuiltinMethodOwner(name)
+  }
+}
+
 pub record OwnedMethodIdentity {
-  owner: DeclarationIdentity,
+  owner: MethodOwnerIdentity,
   name: Str
 }
 
@@ -95,7 +129,7 @@ pure module_declaration_binding(
 ): ModuleDeclarationBinding {
   method: Option[OwnedMethodIdentity] = match syntax.method {
     None() => None(),
-    Some(value) => Some(OwnedMethodIdentity(DeclarationIdentity(identity, value.owner), value.name))
+    Some(value) => Some(OwnedMethodIdentity(method_owner_identity(identity, value.owner), value.name))
   }
   ModuleDeclarationBinding(DeclarationIdentity(identity, name), kind, syntax.is_public, syntax.span, method)
 }
@@ -152,11 +186,11 @@ pub pure collect_module_bindings(identity: ModuleIdentity, parsed: ParsedModule)
     match declaration.method {
       None() => {},
       Some(method) => {
-        mut owner_methods: Map[Str, ModuleDeclarationBinding] = if methods.has(method.owner.name) {
-          methods.get(method.owner.name)
+        mut owner_methods: Map[Str, ModuleDeclarationBinding] = if methods.has(method_owner_name(method.owner)) {
+          methods.get(method_owner_name(method.owner))
         } else { map() }
         owner_methods = owner_methods.put(method.name, declaration)
-        methods = methods.put(method.owner.name, owner_methods)
+        methods = methods.put(method_owner_name(method.owner), owner_methods)
       }
     }
   }
@@ -192,7 +226,7 @@ pub pure module_binding_diagnostics(bindings: ModuleBindings): [Diagnostic] {
   for declaration in bindings.declarations {
     name: Str = match declaration.method {
       None() => declaration.identity.name,
-      Some(method) => method.owner.name + "->" + method.name
+      Some(method) => method_owner_name(method.owner) + "->" + method.name
     }
     if names.has(name) {
       diagnostics = append(
@@ -345,6 +379,6 @@ pub pure module_declaration_positions(modules: [LoadedModule]): [SourcePos] {
 pub pure module_declaration_display(binding: ModuleDeclarationBinding): Str {
   match binding.method {
     None() => binding.identity.name,
-    Some(method) => method.owner.name + "->" + method.name
+    Some(method) => method_owner_name(method.owner) + "->" + method.name
   }
 }

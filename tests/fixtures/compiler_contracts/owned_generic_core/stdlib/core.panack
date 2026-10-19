@@ -17,3 +17,26 @@ impl[T, E] Result[T, E] {
     match self { Ok(value) => value, Error(error) => fallback }
   }
 }
+
+// P05 registry fixtures use source bodies; P06 adds intrinsic declarations.
+impl[K,V] Map[K,V] {
+  pub pure echo(): Map[K,V] { self }
+  pub pure choose[U](fallback: U): U { fallback }
+}
+
+impl[T] Set[T] {
+  pub pure echo(): Set[T] { self }
+}
+
+impl[T] [T] {
+  pub pure echo(): [T] { self }
+}
+
+impl Str {
+  pub pure echo(): Str { self->hidden() }
+  pure hidden(): Str { self }
+}
+
+impl Bytes {
+  pub pure echo(): Bytes { self }
+}

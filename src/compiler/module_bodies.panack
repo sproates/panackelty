@@ -1,5 +1,5 @@
-import project/src/compiler/module_bindings::{module_declaration_display}
-import project/src/compiler/module_resolution::{resolve_owned_method}
+import project/src/compiler/module_bindings::{module_declaration_display, builtin_owner_arity, method_owner_name}
+import project/src/compiler/module_resolution::{resolve_owned_method, resolve_builtin_owned_method}
 import stdlib/path as std_path
 import stdlib/filesystem as std_filesystem
 import stdlib/result as std_result
@@ -1211,7 +1211,7 @@ pure body_type_argument_count_span(
 pure body_owned_target(
   context: BodyContext, method: Str, receiver: BodyResult
 ): Result[BodyTarget, Str] {
-  mut result: Result[BodyTarget, Str] = Error("owned method requires a known nominal receiver: " + method)
+  mut result: Result[BodyTarget, Str] = Error("owned method requires a known receiver: " + method)
   if len(receiver.diagnostics) > 0 {
     result = Error(receiver.diagnostics[0].message)
   } else {
@@ -1231,8 +1231,11 @@ pure body_owned_target(
           }
         },
         SignatureCore(name) => {
-          if name == "Option" || name == "Result" {
-            match resolve_owned_method(context.graph, body_core_owner(name), method) {
+          if name == "Option" || name == "Result" || builtin_owner_arity(name) != None() {
+            selected: Result[ModuleDeclarationBinding, Str] = if name == "Option" || name == "Result" {
+              resolve_owned_method(context.graph, body_core_owner(name), method)
+            } else { resolve_builtin_owned_method(context.graph, name, method) }
+            match selected {
               Error(message) => { result = Error(message) },
               Ok(binding) => {
                 if binding.identity.module != context.owner.module && !binding.is_public {
@@ -1266,7 +1269,7 @@ pure body_impl_parameter_count(context: BodyContext, target: BodyTarget): Nat {
                   match binding.method {
                     None() => {},
                     Some(identity) => {
-                      if identity.owner.name == method.owner && identity.name == method.name {
+                      if method_owner_name(identity.owner) == method.owner && identity.name == method.name {
                         count = len(method.parameters)
                       }
                     }

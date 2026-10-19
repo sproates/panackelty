@@ -130,6 +130,14 @@ reports independently. The website owns compatibility coverage landing pages.
 
 ## Compiler pipeline
 
+P05's method owner metadata distinguishes nominal declaration identities from
+closed built-in family tags. Built-in declarations are accepted only in the
+loader-assigned toolchain package's designated `core.panack`; a user package name
+or matching filename is insufficient. Body lookup uses that owner registry and
+checks the selected binding's retained owner metadata. Source methods emit
+ordinary checked direct calls. The registry adds no runtime table or opcode;
+intrinsic-method declarations and library migration remain later work.
+
 The effectful loader obtains source modules and assigns their canonical module
 identifiers. Quoted file imports are rooted at their importer, `project/`
 imports at the entry directory, and `stdlib/` imports at the active toolchain's

@@ -2248,8 +2248,8 @@ pure parse_impl_declaration(
     Error(error) => Error(error),
     Ok(parameters) => {
       owner_start: Nat = parameters.next
-      if owner_start >= len(tokens) || tokens[owner_start].kind != Identifier() {
-        Error(parse_error("expected nominal impl owner", token_position(tokens, owner_start)))
+      if owner_start >= len(tokens) || (tokens[owner_start].kind != Identifier() && tokens[owner_start].text != "[") {
+        Error(parse_error("expected impl owner", token_position(tokens, owner_start)))
       } else {
         match parse_type_ref(tokens, owner_start) {
           Error(error) => Error(error),
@@ -2257,7 +2257,8 @@ pure parse_impl_declaration(
             if owner.next >= len(tokens) || tokens[owner.next].text != "{" {
               Error(parse_error("expected opening impl brace", token_position(tokens, owner.next)))
             } else {
-              match parse_impl_items(tokens, declarations, syntax, tokens[owner_start].text,
+              match parse_impl_items(tokens, declarations, syntax,
+                if tokens[owner_start].text == "[" { "Array" } else { tokens[owner_start].text },
                 owner.span, parameters.values, owner.text, owner.next + 1) {
                 Error(error) => Error(error),
                 Ok(module) => Ok(ParsedModule(module.program, module.syntax,

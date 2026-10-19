@@ -834,7 +834,18 @@ pure parser_unit_owned_methods(): [TestResult] {
         len(module.implementations) == 1 && module.implementations[0].owner == "Box[T]"
     }
   }
+  array_ok: Bool = match lex("impl[T] [T] { pub pure echo(): [T] { self } }") {
+    Error(error) => false,
+    Ok(tokens) => match parse_module_complete(tokens) {
+      Error(error) => false,
+      Ok(module) => len(module.syntax) == 1 &&
+        module.syntax[0].method == Some(OwnedMethodSyntax("Array", ["T"], "echo")) &&
+        module.syntax[0].type_spans[0].start.column == 9 &&
+        len(module.implementations) == 1 && module.implementations[0].owner == "[T]"
+    }
+  }
   [
+    std_testing.expect("parser/owned/array-metadata", array_ok, "array owner or binder metadata lost"),
     std_testing.expect("parser/owned/generic-metadata", generic_ok, "implementation binders or owner span lost"),
     std_testing.expect("parser/owned/declarations", parsed_ok, "methods must have distinct owner identities"),
     std_testing.expect("parser/owned/visibility", visibility_ok, "pub applies to its method only"),

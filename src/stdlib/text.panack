@@ -1,11 +1,11 @@
 pub pure reversed(value: Str): Str {
-  value.reverse()
+  value->reverse()
 }
 
 pub pure encode_utf8(value: Str): Bytes {
-  utf8_encode(value)
+  value->encode_utf8()
 }
 
 pub pure decode_utf8(value: Bytes): Str {
-  utf8_decode(value)
+  value->decode_utf8()
 }

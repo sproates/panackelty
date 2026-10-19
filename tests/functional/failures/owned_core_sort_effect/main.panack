@@ -1,0 +1,2 @@
+less(left: Nat, right: Nat): Bool { left < right }
+main(): Void { print([2, 1]->sort_by(@less)) }

@@ -1,6 +1,2 @@
-pub pure value_or[T,E](value: Result[T,E], fallback: T): T {
-  match value {
-    Ok(item) => item,
-    Error(error) => fallback
-  }
-}
+// Compatibility module function retained until P12.
+pub pure value_or[T,E](value: Result[T,E], fallback: T): T { value->value_or(fallback) }

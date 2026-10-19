@@ -1,5 +1,5 @@
-// Automatically loaded core types and method implementations.
-// The loader gives core_* functions internal, source-inaccessible identities.
+// Automatically loaded core types and owned method implementations.
+// Legacy core_* bridges remain internal until P12 removes their callers.
 
 enum Option[T] {
   None,
@@ -11,66 +11,127 @@ enum Result[T, E] {
   Error(E)
 }
 
-// Lengths and offsets use Unicode code points, like starts_with_at.
-pure core_ends_with(value: Str, suffix: Str): Bool {
-  value_length = len(value)
-  suffix_length = len(suffix)
-  if value_length >= suffix_length {
-    // The checker proves constant bounds, not relations between two lengths.
-    // Use exact signed arithmetic and a checked natural-number projection.
-    length: Int = value_length
-    offset = ((length - suffix_length) / 1).nat()
-    starts_with_at(value, suffix, offset)
-  } else {
-    false
+pub enum PathError { EmptyPath, PathContainsNul, PathNotUtf8, AbsolutePathAppend }
+pub enum DurationError { FractionalNanosecond, ZeroDurationDivisor }
+
+impl Str {
+  // Lengths and offsets use Unicode code points, like starts_with_at.
+  pub pure ends_with(suffix: Str): Bool {
+    value_length = self->len()
+    suffix_length = suffix->len()
+    if value_length >= suffix_length {
+      // The checker proves constant bounds, not relations between two lengths.
+      // Use exact signed arithmetic and a checked natural-number projection.
+      length: Int = value_length
+      offset = ((length - suffix_length) / 1)->nat()
+      self->starts_with_at(suffix, offset)
+    } else {
+      false
+    }
   }
 }
 
-pure core_first[T](values: [T]): Option[T] {
-  if values.len() == 0 {
-    None()
-  } else {
-    Some(values[0])
+impl[T] [T] {
+  pub pure first(): Option[T] {
+    if self->len() == 0 {
+      None()
+    } else {
+      Some(self[0])
+    }
   }
-}
 
-// Stable merge sort. less(a, b) must describe a strict weak ordering.
-// Equal elements come from the left half first, preserving input order.
-pure core_sort_by[T](values: [T], less: PureFn[T,T,Bool]): [T] {
-  if values.len() < 2 {
-    values
-  } else {
-    middle = quotient(values.len(), 2)
-    mut left_input: [T] = []
-    mut right_input: [T] = []
-    for index in 0..middle {
-      left_input = left_input.append(values[index])
-    }
-    for index in middle..values.len() {
-      right_input = right_input.append(values[index])
-    }
-    left = core_sort_by(left_input, less)
-    right = core_sort_by(right_input, less)
-    mut result: [T] = []
-    mut left_index: Nat = 0
-    mut right_index: Nat = 0
-    while left_index < left.len() && right_index < right.len() {
-      if less.call(right[right_index], left[left_index]) {
-        result = result.append(right[right_index])
-        right_index = right_index + 1
-      } else {
-        result = result.append(left[left_index])
+  // Stable merge sort. A strict weak ordering keeps equal items in input order.
+  pub pure sort_by(less: PureFn[T,T,Bool]): [T] {
+    if self->len() < 2 {
+      self
+    } else {
+      middle = self->len()->divide(2)
+      mut left_input: [T] = []
+      mut right_input: [T] = []
+      for index in 0..middle {
+        left_input = left_input->append(self[index])
+      }
+      for index in middle..self->len() {
+        right_input = right_input->append(self[index])
+      }
+      left = left_input->sort_by(less)
+      right = right_input->sort_by(less)
+      mut result: [T] = []
+      mut left_index: Nat = 0
+      mut right_index: Nat = 0
+      while left_index < left->len() && right_index < right->len() {
+        if less->call(right[right_index], left[left_index]) {
+          result = result->append(right[right_index])
+          right_index = right_index + 1
+        } else {
+          result = result->append(left[left_index])
+          left_index = left_index + 1
+        }
+      }
+      while left_index < left->len() {
+        result = result->append(left[left_index])
         left_index = left_index + 1
       }
+      while right_index < right->len() {
+        result = result->append(right[right_index])
+        right_index = right_index + 1
+      }
+      result
     }
-    while left_index < left.len() {
-      result = result.append(left[left_index])
-      left_index = left_index + 1
-    }
-    while right_index < right.len() {
-      result = result.append(right[right_index])
-      right_index = right_index + 1
-    }
-    result
   }
 }
+
+impl[T] Option[T] {
+  pub pure value_or(fallback: T): T {
+    match self { Some(item) => item, None() => fallback }
+  }
+}
+
+impl[T,E] Result[T,E] {
+  pub pure value_or(fallback: T): T {
+    match self { Ok(item) => item, Error(error) => fallback }
+  }
+}
+
+impl Path {
+  pub pure join(child: Path): Result[Path,PathError] { path_append(self, child) }
+  pub pure to_text(): Result[Str,PathError] { path_to_text(self) }
+  pub pure native_bytes(): Bytes { path_native_bytes(self) }
+  pub pure display(): Str { path_display(self) }
+  pub pure is_absolute(): Bool { path_absolute(self) }
+  pub pure directory(): Path { path_directory(self) }
+  pub pure filename(): Option[Path] { path_filename(self) }
+}
+
+impl Duration {
+  pub pure add(right: Duration): Duration {
+    duration_nanoseconds(self->ticks() + right->ticks())
+  }
+  pub pure subtract(right: Duration): Duration {
+    duration_nanoseconds(self->ticks() - right->ticks())
+  }
+  pub pure scale(factor: Int): Duration {
+    duration_nanoseconds(self->ticks() * factor)
+  }
+  pub pure is_before(right: Duration): Bool { self->ticks() < right->ticks() }
+  pub pure as_seconds(): Rat { self->ticks() / 1000000000 }
+  pub pure divide(divisor: Int): Result[Duration,DurationError] {
+    if duration_nanoseconds(divisor) == duration_nanoseconds(0) {
+      Error(ZeroDurationDivisor())
+    } else {
+      duration_from_seconds(self->ticks() / (divisor * 1000000000))
+    }
+  }
+  pub pure ratio(right: Duration): Result[Rat,DurationError] {
+    if right == duration_nanoseconds(0) {
+      Error(ZeroDurationDivisor())
+    } else {
+      Ok(self->ticks() / right->ticks())
+    }
+  }
+}
+
+// Compatibility bridges for legacy compiler lowering; removed in P12.
+pure core_ends_with(value: Str, suffix: Str): Bool { value->ends_with(suffix) }
+pure core_first[T](values: [T]): Option[T] { values->first() }
+pure core_sort_by[T](values: [T], less: PureFn[T,T,Bool]): [T] { values->sort_by(less) }

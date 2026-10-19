@@ -1,21 +1,15 @@
-pub enum DurationError { FractionalNanosecond, ZeroDurationDivisor }
+pub import stdlib/core::{DurationError, DurationError.FractionalNanosecond, DurationError.ZeroDurationDivisor}
 pub enum ClockError { ClockUnavailable }
 
-pub pure ticks(value: Duration): Int { duration_ticks(value) }
+pub pure ticks(value: Duration): Int { value->ticks() }
 pub pure from_nanoseconds(value: Int): Duration { duration_nanoseconds(value) }
 pub pure from_seconds(value: Rat): Result[Duration,DurationError] {
   duration_from_seconds(value)
 }
 pub now(): Result[Instant,ClockError] { instant_now() }
-pub pure add_instant(value: Instant, delta: Duration): Instant {
-  instant_add(value, delta)
-}
-pub pure is_before_instant(left: Instant, right: Instant): Bool {
-  instant_before(left, right)
-}
-pub pure difference(left: Instant, right: Instant): Duration {
-  instant_difference(left, right)
-}
+pub pure add_instant(value: Instant, delta: Duration): Instant { value->add(delta) }
+pub pure is_before_instant(left: Instant, right: Instant): Bool { left->is_before(right) }
+pub pure difference(left: Instant, right: Instant): Duration { left->difference(right) }
 
 pub pure seconds(value: Int): Duration {
   duration_nanoseconds(value * 1000000000)
@@ -23,26 +17,10 @@ pub pure seconds(value: Int): Duration {
 pub pure milliseconds(value: Int): Duration {
   duration_nanoseconds(value * 1000000)
 }
-pub pure add(left: Duration, right: Duration): Duration {
-  duration_nanoseconds(duration_ticks(left) + duration_ticks(right))
-}
-pub pure subtract(left: Duration, right: Duration): Duration {
-  duration_nanoseconds(duration_ticks(left) - duration_ticks(right))
-}
-pub pure scale(value: Duration, factor: Int): Duration {
-  duration_nanoseconds(duration_ticks(value) * factor)
-}
-pub pure is_before(left: Duration, right: Duration): Bool {
-  duration_ticks(left) < duration_ticks(right)
-}
-pub pure as_seconds(value: Duration): Rat {
-  duration_ticks(value) / 1000000000
-}
-pub pure divide(value: Duration, divisor: Int): Result[Duration,DurationError] {
-  if duration_nanoseconds(divisor) == duration_nanoseconds(0) { Error(ZeroDurationDivisor()) }
-  else { duration_from_seconds(duration_ticks(value) / (divisor * 1000000000)) }
-}
-pub pure ratio(left: Duration, right: Duration): Result[Rat,DurationError] {
-  if right == duration_nanoseconds(0) { Error(ZeroDurationDivisor()) }
-  else { Ok(duration_ticks(left) / duration_ticks(right)) }
-}
+pub pure add(left: Duration, right: Duration): Duration { left->add(right) }
+pub pure subtract(left: Duration, right: Duration): Duration { left->subtract(right) }
+pub pure scale(value: Duration, factor: Int): Duration { value->scale(factor) }
+pub pure is_before(left: Duration, right: Duration): Bool { left->is_before(right) }
+pub pure as_seconds(value: Duration): Rat { value->as_seconds() }
+pub pure divide(value: Duration, divisor: Int): Result[Duration,DurationError] { value->divide(divisor) }
+pub pure ratio(left: Duration, right: Duration): Result[Rat,DurationError] { left->ratio(right) }

@@ -53,8 +53,13 @@ preserves async method flags. Compiler stages 2/3/4 reproduce seed
 `57ee20ce5916b59e85fb23db0a286c3e372124617489e09e342d8b0d50a1152c`;
 standard-library bytecode remains unchanged. See
 [P07 acceptance](../design/type-owned-dispatch/p07-callable-effects.md).
-Source core/compiler callers remain unmigrated; P09's expanded-arrow checkpoint
-is still pending. The VM and bytecode format are unchanged.
+P08 moves 19 source methods and canonical PathError/DurationError declarations
+into core, retaining forwarding functions for existing callers. Compiler support
+and a validated seed were saved before library conversion. Core emission retains
+local type information for tooling rechecks. Final seed and conformance evidence
+are in the [P08 report](../design/type-owned-dispatch/p08-core-methods.md).
+Broader compiler/stdlib caller migration and P09's expanded-arrow checkpoint are
+still pending. The VM and bytecode format are unchanged.
 
 ## Historical P2 completion checkpoint — 2026-10-10
 

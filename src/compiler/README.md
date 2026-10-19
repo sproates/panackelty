@@ -384,3 +384,13 @@ only after owned lookup, and synthetic signatures carry pure, ordinary or async
 effects. Source impl methods preserve their async declaration flag. The
 [P07 report](../../docs/design/type-owned-dispatch/p07-callable-effects.md) records
 callback/effect rejection tests and exact HTTP-shaped handler execution.
+
+P08 moves source core operations into impl blocks and canonical PathError and
+DurationError declarations into core. Their old modules re-export the same types.
+Path intrinsic checking shares canonical error lookup with duration checking.
+Core helper bodies now use checked identity emission, allowing legacy bridges to
+call owned methods safely. The loader prepares core separately for legacy user
+programs so core impls do not suppress their resolver diagnostics or misreport
+user effect-check availability. Private core emission names preserve reachability
+pruning for owned algorithms. See the
+[P08 report](../../docs/design/type-owned-dispatch/p08-core-methods.md).

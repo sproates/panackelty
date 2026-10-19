@@ -16,7 +16,7 @@ import project/src/compiler/module_bodies::{
   CheckedModuleBodies, BodyCheckStatus.BodyIdentityChecked, check_module_bodies, check_module_bodies_explained
 }
 import project/src/compiler/module_effects::{CheckedModuleEffects, check_module_effects}
-import project/src/compiler/module_bindings::{ModuleBindings, ModuleIdentity, ModuleDeclarationKind.ModuleFunction, collect_module_bindings, loaded_module_declaration_index, module_binding_diagnostics, source_module_identity, source_package_module_identity, module_relative_path, module_programs, module_declaration_positions}
+import project/src/compiler/module_bindings::{ModuleBindings, ModuleIdentity, builtin_owner_module, ModuleDeclarationKind.ModuleFunction, collect_module_bindings, loaded_module_declaration_index, module_binding_diagnostics, source_module_identity, source_package_module_identity, module_relative_path, module_programs, module_declaration_positions}
 import project/src/compiler/module_signatures::{CheckedModuleSignatures, check_module_signatures}
 import project/src/compiler/module_resolution::{ModuleImportEdge, module_graph_diagnostics}
 import project/src/compiler/module_emission::{ModuleEmissionResult, module_emission_program}
@@ -931,7 +931,7 @@ load_project_mode_with_configuration(
   } else {
     core
   }
-  program: Program = append_program_declarations(module_programs(loaded.modules))
+  mut program: Program = append_program_declarations(module_programs(loaded.modules))
   mut diagnostics: [Diagnostic] = loaded.diagnostics
   mut signatures: [ModuleSignature] = []
   mut bodies: [BoundFunctionBody] = []
@@ -940,14 +940,38 @@ load_project_mode_with_configuration(
   mut identity_ready: Bool = false
   mut function_types: Map[Str, Bool] = map()
   mut staged: Bool = false
+  mut staged_core_path: Str = ""
   for module in loaded.modules {
-    staged = staged || len(module_execution_diagnostics(module.parsed)) > 0
+    if module.bindings.identity == builtin_owner_module() {
+      if len(module_execution_diagnostics(module.parsed)) > 0 {
+        staged_core_path = module.source_path
+      }
+    } else {
+      staged = staged || len(module_execution_diagnostics(module.parsed)) > 0
+    }
+  }
+  if !staged && staged_core_path != "" {
+    mut legacy_diagnostics: [Diagnostic] = []
+    for diagnostic in diagnostics {
+      if diagnostic.position.file != staged_core_path || diagnostic.message !=
+          "namespace syntax is parsed but execution is not yet supported (language namespace migration pending)" {
+        legacy_diagnostics = append(legacy_diagnostics, diagnostic)
+      }
+    }
+    if len(legacy_diagnostics) == 0 {
+      for diagnostic in resolve_program_at(program, module_declaration_positions(loaded.modules)) {
+        if diagnostic.position.file != staged_core_path {
+          legacy_diagnostics = append(legacy_diagnostics, diagnostic)
+        }
+      }
+    }
+    diagnostics = legacy_diagnostics
   }
   graph: ModuleBindingGraph = loaded_package_binding_graph(
     loaded.modules, project_root, stdlib_root, package_confined, package_root_identity, dependencies
   )
   graph_errors: [Diagnostic] = module_graph_diagnostics(graph)
-  if staged {
+  if staged || (len(diagnostics) == 0 && len(graph_errors) > 0) {
     diagnostics = concat(diagnostics, graph_errors)
   }
   if len(graph_errors) == 0 {
@@ -994,7 +1018,9 @@ load_project_mode_with_configuration(
         )
         if len(module_execution_diagnostics(module.parsed)) > 0 {
           diagnostics = concat(diagnostics, checked_effects.diagnostics)
-          effects_checked = true
+          if module.bindings.identity != builtin_owner_module() {
+            effects_checked = true
+          }
         }
         identity_checks_ok = identity_checks_ok && len(checked_effects.diagnostics) == 0
         effects = concat(effects, checked_effects.evidence)
@@ -1021,6 +1047,34 @@ load_project_mode_with_configuration(
       }
     }
     identity_ready = identity_checks_ok
+    // Core impls must not force legacy user modules past their normal resolver
+    // diagnostics. Replace only core's staging program with checked emission;
+    // retain every user-module gate and every real core diagnostic.
+    mut execution_programs: [Program] = []
+    for module in loaded.modules {
+      if module.bindings.identity == builtin_owner_module() &&
+          len(module_execution_diagnostics(module.parsed)) > 0 {
+        core_emitted: ModuleEmissionResult = module_emission_program(
+          graph, [module], signatures, bodies, module.bindings.identity)
+        if len(core_emitted.diagnostics) == 0 {
+          execution_programs = append(execution_programs, core_emitted.program)
+          mut retained: [Diagnostic] = []
+          for diagnostic in diagnostics {
+            if diagnostic.position.file != module.source_path || diagnostic.message !=
+                "namespace syntax is parsed but execution is not yet supported (language namespace migration pending)" {
+              retained = append(retained, diagnostic)
+            }
+          }
+          diagnostics = retained
+        } else {
+          execution_programs = append(execution_programs, module.execution_program)
+          diagnostics = concat(diagnostics, core_emitted.diagnostics)
+        }
+      } else {
+        execution_programs = append(execution_programs, module.execution_program)
+      }
+    }
+    program = append_program_declarations(execution_programs)
   }
   if len(diagnostics) == 0 {
     diagnostics = concat(

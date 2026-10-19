@@ -1,8 +1,9 @@
+import project/src/compiler/loader::{LoadedProject, load_project_for_inventory}
 import stdlib/testing as std_testing
 import project/src/compiler/filesystem_support as filesystem_support
 import project/src/bytecode/codec::{serialize_bytecode}
 import project/src/compiler/lexer::{lex}
-import project/src/compiler/parser::{parse_program_complete,indexed_program,core_tokens}
+import project/src/compiler/parser::{parse_program_complete,indexed_program}
 import project/src/compiler/checker::{check_source_types,check_loaded_source_types,check_program_types}
 import project/src/compiler/resolver::{LoadedSource,render_resolver_diagnostics}
 import project/src/compiler/emitter::{compile_program}
@@ -34,19 +35,20 @@ checker_unit_source(name: Str, expected: Str): TestResult {
 }
 
 checker_sort_contract(source: Str): Str {
-  match lex(filesystem_support.read_text("src/stdlib/core.panack")) {
-    Error(errors) => "core lexing failed",
-    Ok(tokens) => { match parse_program_complete(core_tokens(tokens)) {
-      Error(error) => error.message,
-      Ok(core) => { match lex(source) {
-        Error(errors) => "test lexing failed",
-        Ok(input) => { match parse_program_complete(input) {
-          Error(error) => error.message,
-          Ok(program) => render_resolver_diagnostics(check_program_types(
-            indexed_program(concat(core.declarations, program.declarations))))
-        } }
-      } }
-    } }
+  // Prepare the real core through module binding/emission before exercising the
+  // legacy checker. Core now contains impl declarations and owned calls.
+  core: LoadedProject = load_project_for_inventory("src/stdlib/core.panack")
+  if len(core.diagnostics) > 0 {
+    render_resolver_diagnostics(core.diagnostics)
+  } else {
+    match lex(source) {
+      Error(errors) => "test lexing failed",
+      Ok(input) => match parse_program_complete(input) {
+        Error(error) => error.message,
+        Ok(program) => render_resolver_diagnostics(check_program_types(
+          indexed_program(concat(core.program.declarations, program.declarations))))
+      }
+    }
   }
 }
 

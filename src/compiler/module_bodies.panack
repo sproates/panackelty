@@ -2699,10 +2699,17 @@ pure body_intrinsic_type(context: BodyContext, name: Str): SignatureType {
       }
     }
     if module_path != "" {
-      SignatureType(SignatureNominal(DeclarationIdentity(
-        ModuleIdentity(ToolchainModulePackage(), module_path),
-        name
-      )), [])
+      // During the core migration, prefer the actual canonical declaration.
+      // The old wrapper identity remains valid for pre-conversion toolchains.
+      owner: DeclarationIdentity = DeclarationIdentity(
+        ModuleIdentity(ToolchainModulePackage(), module_path), name)
+      canonical: DeclarationIdentity = if name == "PathError" || name == "DurationError" {
+        match resolve_module_type(context.graph, body_core_owner(name).module, name) {
+          Ok(binding) => binding.identity,
+          Error(message) => owner
+        }
+      } else { owner }
+      SignatureType(SignatureNominal(canonical), [])
     } else {
       match resolve_module_type(context.graph, context.owner.module, name) {
         Ok(binding) => SignatureType(SignatureNominal(binding.identity), []),
@@ -3135,18 +3142,8 @@ pure body_check_bytes_core_call(
   ), diagnostics, deferred)
 }
 
-pure body_path_error_type(): SignatureType {
-  SignatureType(
-    SignatureNominal(DeclarationIdentity(
-      ModuleIdentity(ToolchainModulePackage(), "path.panack"),
-      "PathError"
-    )),
-    []
-  )
-}
-
-pure body_path_result_type(value: SignatureType): Option[SignatureType] {
-  Some(SignatureType(SignatureCore("Result"), [value, body_path_error_type()]))
+pure body_path_result_type(context: BodyContext, value: SignatureType): Option[SignatureType] {
+  Some(body_intrinsic_result(value, body_intrinsic_type(context, "PathError")))
 }
 
 pure body_check_path_core_call(
@@ -3212,7 +3209,7 @@ pure body_check_path_core_call(
     if len(diagnostics) == 0 && len(deferred) == 0 {
       path: SignatureType = SignatureType(SignatureCore("Path"), [])
       output = if name == "path_from_text" || name == "path_from_native" || name == "path_append" {
-        body_path_result_type(path)
+        body_path_result_type(context, path)
       } else {
         if name == "path_join" || name == "path_suffix" || name == "path_parent" ||
           name == "path_with_suffix" || name == "path_resolve" {
@@ -3222,7 +3219,7 @@ pure body_check_path_core_call(
           body_core_type("Bool")
         } else {
         if name == "path_to_text" {
-          body_path_result_type(SignatureType(SignatureCore("Str"), []))
+          body_path_result_type(context, SignatureType(SignatureCore("Str"), []))
         } else {
           if name == "path_native_bytes" {
             body_core_type("Bytes")

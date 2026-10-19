@@ -225,7 +225,7 @@ pure body_type_check_for_context(
 }
 
 main(): Void {
-  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(owned_method_import_tests()).concat(owned_server_map_tests()).concat(owned_generic_method_tests()).concat(builtin_owner_tests()).concat(owned_intrinsic_tests()).concat(owned_callback_tests()).concat(namespace_effect_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests()).concat(module_emission_identity_tests()).concat(module_emission_program_tests()).concat(module_emission_effect_tests()).concat(module_emission_status_tests()).concat(stdlib_public_api_tests())
+  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(owned_method_import_tests()).concat(owned_server_map_tests()).concat(owned_generic_method_tests()).concat(builtin_owner_tests()).concat(owned_intrinsic_tests()).concat(owned_callback_tests()).concat(core_error_identity_tests()).concat(namespace_effect_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests()).concat(module_emission_identity_tests()).concat(module_emission_program_tests()).concat(module_emission_effect_tests()).concat(module_emission_status_tests()).concat(stdlib_public_api_tests())
   loaded: LoadedProject = load_project("tests/fixtures/compiler_contracts/indexed_lookup/main.panack")
   results = append(results, std_testing.expect(
     "existing project resolves with identity-checked bodies",
@@ -4864,6 +4864,37 @@ pure owned_callback_tests(): [TestResult] {
     checked: CheckedModuleEffects = body_test_graph_effects([core, app], graph, app)
     results = results.append(std_testing.expect("owned callback rejects/" + source,
       len(checked.diagnostics) > 0, "invalid callable contract accepted"))
+  }
+  results
+}
+
+
+pure core_error_identity_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  core: LoadedModule = signature_test_module(builtin_owner_module(),
+    "pub enum PathError { EmptyPath, PathContainsNul, PathNotUtf8, AbsolutePathAppend }; " +
+    "pub enum DurationError { FractionalNanosecond, ZeroDurationDivisor }; " +
+    "impl Path { pub pure to_text(): Result[Str,PathError] { path_to_text(self) } }; " +
+    "impl Duration { pub pure divide(n: Int): Result[Duration,DurationError] { duration_from_seconds(duration_ticks(self) / n) } }")
+  facade: LoadedModule = signature_test_module(ModuleIdentity(ToolchainModulePackage(), "path.panack"),
+    "pub import stdlib/core::{PathError as PathError}")
+  app: LoadedModule = signature_test_module(namespace_identity("core_error_use"),
+    "import stdlib/path::{PathError as PublicError}; import stdlib/core::{PathError as CoreError}; " +
+    "pure converted(p: Path): Result[Str,PublicError] { p->to_text() }; " +
+    "pure same(e: PublicError): CoreError { e }")
+  graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, facade.bindings, app.bindings], [
+    ModuleImportEdge(facade.bindings.identity, 0, core.bindings.identity),
+    ModuleImportEdge(app.bindings.identity, 0, facade.bindings.identity),
+    ModuleImportEdge(app.bindings.identity, 1, core.bindings.identity)
+  ])
+  for module in [core, app] {
+    checked: CheckedModuleBodies = body_test_graph([core, facade, app], graph, module)
+    results = results.append(std_testing.expect("core error identity/" + module.bindings.identity.path,
+      len(checked.diagnostics) == 0, "canonical error identity changed across reexport"))
+    for function in checked.functions {
+      results = results.append(std_testing.expect("core error fully checked/" + function.signature.binding.identity.name,
+        function.status == BodyIdentityChecked(), "error contract remained deferred"))
+    }
   }
   results
 }

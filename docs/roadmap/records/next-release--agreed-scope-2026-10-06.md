@@ -247,7 +247,7 @@ implementation and adds no gate to the ongoing Alpha.13 release.
 
 <a id="rm-156"></a>
 
-**RM#156: Routed HTTP server API — Alpha.14.**
+**RM#156: HTTP server framework and type-owned dispatch — Alpha.14.**
 
 **Selected by owner direction, 2026-10-16.** Implement the agreed routed HTTP
 server API in `packages/http`, as specified in [GI#518](https://github.com/sproates/panackelty/issues/518).
@@ -257,6 +257,17 @@ internal implementation detail. The public server API includes the simple
 form, with named handlers, route registration, request/response handling, fixed
 first-version defaults, error isolation and lifecycle behavior as specified in
 GI#518.
+
+Owner clarification, 2026-10-19: Alpha.14 includes the type-owned method dispatch
+migration in [GI#525](https://github.com/sproates/panackelty/issues/525), which
+supports this HTTP server framework. Server methods such as `get` and `put` must
+coexist with Map operations through checked owner identity. The migration includes
+built-in and nominal methods, generic and effect checking, maintained API/caller
+migration, removal of receiver-to-global fallback and collection-name exceptions,
+and final dot-call syntax. Arrow calls are temporary migration syntax. Follow the
+[implementation handoff on next](https://github.com/sproates/panackelty/blob/next/docs/design/type-owned-dispatch/dispatch-implementation-handoff.md)
+for packet acceptance and bootstrap checkpoints. This records release scope;
+GI#525 remains open until the full migration and release/consumer acceptance pass.
 
 Migrate the static preview tool to compose the generic server with its own typed
 static-serving context and fallback handler. Keep all static-file knowledge and

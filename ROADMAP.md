@@ -7,8 +7,9 @@ and [acceptance evidence](docs/releases/ALPHA13_RELEASE_ACCEPTANCE.md).
 
 Selected work includes compiler understanding, package management and compilation
 provenance, faster coverage collection with validated exact-input plan caching and
-fresh execution, prioritised authoring-friction improvements, and the routed HTTP
-server API in GI#518. It also includes a holistic performance review and selected
+fresh execution, prioritised authoring-friction improvements, type-owned method
+dispatch in [GI#525](https://github.com/sproates/panackelty/issues/525), and the HTTP
+server framework (routed API) in [GI#518](https://github.com/sproates/panackelty/issues/518). It also includes a holistic performance review and selected
 quick wins, with particular attention to HTTP server performance and source
 coverage instrumentation time. The detailed records retain the agreed scope,
 dependencies and acceptance criteria.

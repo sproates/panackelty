@@ -687,6 +687,11 @@ partial and oversized requests, concurrent clients, disconnect recovery and
 orderly shutdown. The Panackelty HTTP client also requests the example response
 from source and saved-bytecode server runs, using both client source and saved
 bytecode. A held loopback port verifies bind-conflict reporting.
+The framing fixture allows ten seconds per connection and thirty seconds for
+admission; the oversized-header peer waits up to twelve seconds for its response,
+inside its twenty-second process alarm. These are bounded functional-test
+allowances for hosted workers scanning a 64 KiB header, not latency targets.
+Native TCP tests independently assert deadline expiry and cancellation.
 Parser/serializer cases remain independent of the native TCP server and cover
 incremental input, Content-Length, chunked framing, malformed and ambiguous
 requests, method/version errors, header/body bounds and response framing/header

@@ -674,7 +674,11 @@ or protected coverage threshold and does not collect a new baseline.
 independent C peer across source and saved-bytecode server runs. It covers GET,
 HEAD, POST, handler failures, unsupported methods, malformed/partial and oversized
 requests, concurrent clients, disconnect recovery, orderly shutdown and bind
-conflicts. HEAD checks cover empty, Content-Length and chunked request framing,
+conflicts. The HTTP 431 assertion retains the full oversized-header input, with
+a ten-second connection allowance and a twelve-second peer receive timeout to
+avoid racing the former three-second fixture deadline on hosted macOS workers.
+Native TCP deadline assertions remain separate and unchanged.
+HEAD checks cover empty, Content-Length and chunked request framing,
 representation lengths, handler failures, invalid handler responses and parser
 errors, asserting that no response body is sent. The package parser suite also
 checks HEAD serialization, 404/204 responses and framing validation.

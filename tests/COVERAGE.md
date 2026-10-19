@@ -1237,3 +1237,8 @@ behaviour; seven `owned_intrinsic_*` failure fixtures cover typed arguments and
 no global fallback. `cli_rational_failures` adds owned conversion/division traps
 without removing earlier cases. Callable methods and Path error identity are
 later packet acceptance. See the [P06 report](../docs/design/type-owned-dispatch/p06-owned-intrinsics.md).
+
+P06 source-coverage accounting: `owned_intrinsics.panack` is explicitly unmeasured
+in the bounded source-execution baseline. Its behavioral coverage above does not
+claim a source-execution percentage. The existing 45 measured files and execution
+roots are preserved.

@@ -72,6 +72,12 @@ covered the exact source/test diff, synthetic declaration completeness, retained
 call identity, constraints and emission. The namespace copy list and functional
 selection list explicitly include the new registry and fixture.
 
+The source-coverage manifest explicitly lists the new registry as unmeasured in
+the bounded 45-file baseline. Behavioral tests exercise its operations; no
+source-execution percentage is claimed for the new file. Existing measured files,
+execution roots and exclusion policy remain intact. Fast source-coverage policy
+and report tests validate this scope bookkeeping.
+
 Performance: registration and typed metadata add compilation work; execution
 reuses existing VM instructions. Whole-suite timing records validation cost,
 not a controlled compiler benchmark. Historical budget warnings retain their

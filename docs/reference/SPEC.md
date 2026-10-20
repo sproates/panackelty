@@ -211,13 +211,20 @@ main(): Void {
 
 ### Type-owned methods (next)
 
-Methods use `receiver->method(arguments)` during the alpha.14 migration.
+Methods accept both `receiver.method(arguments)` and `receiver->method(arguments)`
+in the alpha.14 bridge compiler. Both spellings use the same owned-method resolver.
 Lookup selects a declaration owned by the receiver's checked type; an ordinary
 function with the same name cannot capture the call. The receiver and explicit
-arguments are evaluated once, in that order. `receiver.method(arguments)` is
-rejected at this checkpoint. Namespace calls such as `time.now()` and record
-field access such as `box.value` retain their meanings. The later dot cutover is
-separate work.
+arguments are evaluated once, in that order. Namespace calls such as `time.now()`
+and record field access such as `box.value` retain their meanings. A lexical value
+shadows a namespace alias; a failed namespace lookup never becomes a method call,
+and a failed method lookup never becomes a namespace or global call. Selectively
+imported declarations retain their local-binding collision checks.
+
+`value.name(...)` selects a method even when a callable field has that name.
+Invoke that field explicitly with `(value.name).call(...)`. Mixed arrow/dot
+chains are accepted during the bridge. Maintained implementation sources retain
+arrows until P14, which converts callers and removes arrow support.
 
 Core provides owned string, array, collection, byte, numeric, path, duration,
 instant and callable operations. For example, `items->append(42)->len()` and
@@ -787,8 +794,9 @@ return new collections rather than mutating their receivers. Map keys and set
 elements are currently restricted to scalar types, including `Rat` and `Unit`. `get` traps when a key is
 missing, so callers should use `has` until generic optional lookup is added.
 
-Receiver operations use owned `->` calls. The former global primitive aliases
-and receiver-dot sugar are rejected; namespace calls still use dots.
+Receiver operations accept owned dot and `->` calls through the same resolver.
+The former global primitive aliases and receiver-to-global sugar remain rejected;
+namespace calls still use dots.
 
 Arrays also provide pure higher-order operations. `values->map(callback)`
 requires `callback: PureFn[T,U]` for `values: Array[T]` and returns a new

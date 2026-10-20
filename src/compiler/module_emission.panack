@@ -34,7 +34,8 @@ pub import project/src/compiler/parser::{Program}
 import project/src/compiler/module_resolution::{
   ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget,
   ResolvedDotCall.NamespaceCall,
-  resolve_module_dot_call, resolve_module_path
+  ResolvedDotCall.OwnedDotCall,
+  resolve_module_dot_call_scoped, resolve_module_path
 }
 import project/src/compiler/module_bindings::{
   ModulePackageIdentity.ToolchainModulePackage,
@@ -328,13 +329,14 @@ pure module_emission_guard_expression(
       module_emission_guard_expressions(graph, entry, owner, arguments),
       types
     ),
-    DotCallExpr(target, name, arguments, types) => match resolve_module_dot_call(
+    DotCallExpr(target, name, arguments, types) => match resolve_module_dot_call_scoped(
       graph,
       owner,
       target,
       name,
       arguments,
-      types
+      types,
+      set()->add("value")
     ) {
       Error(message) => DotCallExpr(
         module_emission_guard_expression(graph, entry, owner, target),
@@ -343,6 +345,12 @@ pure module_emission_guard_expression(
         types
       ),
       Ok(resolved) => match resolved {
+        OwnedDotCall(receiver, method, values, type_arguments) => OwnedCallExpr(
+          module_emission_guard_expression(graph, entry, owner, receiver),
+          method,
+          module_emission_guard_expressions(graph, entry, owner, values),
+          type_arguments
+        ),
         NamespaceCall(binding, values, type_arguments) => CallExpr(
           module_emission_callable_symbol(graph, entry, binding),
           module_emission_guard_expressions(graph, entry, owner, values),

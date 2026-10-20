@@ -43,7 +43,7 @@ cat > "$work/main.panack" <<'SOURCE'
 pure transform(value: Nat): Nat { value }
 main(): Void { print(1.transform()) }
 SOURCE
-reject 'dot call'
+reject 'owned method'
 cat > "$work/main.panack" <<'SOURCE'
 pure missing(value: Str): Nat { 7 }
 main(): Void { print("x"->missing()) }
@@ -57,7 +57,7 @@ import "library.panack" as api
 record Item { value: Nat }
 main(): Void { api = Item(1); print(api.get(2)) }
 SOURCE
-reject 'local binding api conflicts with an import binding'
+reject 'owned method'
 cat > "$work/core.panack" <<'SOURCE'
 pub pure join(): Nat { path_append() }
 SOURCE

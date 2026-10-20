@@ -3,11 +3,6 @@
 Build a local server, try real requests, and then adapt the handlers to your application.
 The [API reference](../reference/http-server.md) lists signatures, return values and limits.
 
-**Alpha.14 development API — unreleased.** These guides require the `next`
-source checkout. The published alpha.13 toolchain and browser playground do not
-support this API. The development manifest still says `0.1.0-alpha.13`; that is
-its toolchain identifier, not a claim that the released alpha.13 supports these methods.
-
 ## Your first server
 
 ### Get the matching toolchain

@@ -1,8 +1,6 @@
 # HTTP Server reference
 
-**Alpha.14 development API — unreleased.** This page documents the unreleased
-alpha.14 HTTP server API. It is not part of the published alpha.13 toolchain or
-the current browser playground. Signatures and behaviour are checked against
+Signatures and behaviour are checked against
 the package source and integration tests linked in [Source and test evidence](#source-and-test-evidence).
 
 Use [`http/server`](../../packages/http/README.md) for routed handlers. The
@@ -582,8 +580,7 @@ route parameters, middleware, or closure-capture support.
 ## Runnable programs
 
 Both examples are complete Panackelty packages with manifests and use the
-matching toolchain version (`0.1.0-alpha.13` in the current development
-checkout). Run from the repository root; both bind to loopback and accept
+matching toolchain version. Run from the repository root; both bind to loopback and accept
 Ctrl-C for shutdown:
 
 ```sh

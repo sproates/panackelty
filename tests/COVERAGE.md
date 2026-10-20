@@ -1361,9 +1361,9 @@ internal package source/bytecode fixtures and raw C peer modes for framing, Expe
 handler errors/traps, first-send preservation, four-request/sixteen-connection caps,
 real ten-second deadlines, and lifecycle/port reuse. Public-package fixtures now
 cover corrected contract examples, checked arithmetic recovery and active-request
-shutdown. The checked-in ordinary/contextual example projects are also run from
-source and saved bytecode against the documented route responses. Static and
-archive smoke tests exercise both examples from relocated installations.
+shutdown. Static and archive smoke tests exercise both examples from relocated
+installations; the static installed-example test also checks the ordinary POST
+echo body and the contextual query value in `X-Query`.
 Canonical validation passed in 509 seconds; the
 final GI#518 acceptance adds distinct-context dispatch, all supported/unsupported
 method cases, callback arity/effect rejection, response byte boundaries and live

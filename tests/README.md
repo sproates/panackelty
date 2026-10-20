@@ -708,18 +708,18 @@ reject the read service outside a server-owned streaming child.
 bytecode, then exercises the public `http/server` facade with an independent C
 peer. It covers framing, Expect negotiation, handler errors/index/arithmetic
 faults, first-send preservation, request/connection capacity, byte limits and the
-real ten-second deadline. The checked-in ordinary and contextual examples compile
-and run as both source and saved bytecode; their README route behaviors are
-checked by the C peer. Corrected contract examples compile verbatim; socket copies
-change only their fixed demonstration port. Active-request close and destroy are
-controlled by a second listener, with bounded observations of the one-second
-drain and immediate cancellation. Old exports and wrong callback context types
-are compile-time rejection cases.
+real ten-second deadline. Corrected contract examples compile verbatim; socket
+copies change only their fixed demonstration port. Active-request close and
+destroy are controlled by a second listener, with bounded observations of the
+one-second drain and immediate cancellation. Old exports and wrong callback
+context types are compile-time rejection cases.
 
 `continuous_service.sh` checks process lifetime, readiness failure and signals.
 `static_http.sh` checks confinement and file policy plus source/bytecode runs of
-both public examples against a relocated installation. `release_archive_smoke.sh`
-repeats both examples through the extracted archive from an unrelated directory.
+both public examples against a relocated installation; its independent peer
+checks the ordinary POST echo and contextual query-header responses.
+`release_archive_smoke.sh` repeats both examples through the extracted archive
+from an unrelated directory.
 HTTP client tests remain independent. Native tests cover opaque ownership,
 invalid handles, request fault classification and cancellation safety.
 

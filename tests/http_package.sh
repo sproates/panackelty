@@ -57,29 +57,6 @@ exit_status=0
 wait "$server_pid" || exit_status=$?
 server_pid=
 test "$exit_status" = 7
-# Run the checked-in ordinary and contextual examples, exactly as linked from
-# their READMEs, from both source and saved bytecode. Only the port is supplied
-# at runtime so these loopback checks do not depend on demonstration defaults.
-for example in http_server http_contextual_server; do
-    project="examples/network/$example/panack.json"
-    ./bin/panack compile --project "$project" -o "$work/$example.bc" > /dev/null
-    for mode in source bytecode; do
-        port=$("$http_client" port)
-        if [ "$mode" = source ]; then
-            ./bin/panack run --project "$project" "$port" > "$work/stdout" 2> "$work/stderr" &
-        else
-            ./panack-vm run "$work/$example.bc" "$port" > "$work/stdout" 2> "$work/stderr" &
-        fi
-        server_pid=$!
-        peer_mode=example-contextual
-        if [ "$example" = http_server ]; then peer_mode=checked-in-ordinary; fi
-        "$http_client" "$port" "$peer_mode"
-        kill -TERM "$server_pid"
-        wait "$server_pid"
-        server_pid=
-        test ! -s "$work/stderr"
-    done
-done
 # Compile the exact agreed examples unchanged. Runtime copies change only the
 # fixed demonstration port so tests do not depend on port 8080 being available.
 for example in ordinary contextual; do

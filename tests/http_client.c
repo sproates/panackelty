@@ -377,13 +377,9 @@ int main(int argc, char **argv)
     }
     if (!strcmp(mode, "example-contextual")) {
         return exchange(port, "GET / HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\nHello", 0) ||
-            exchange(port, "GET /health HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\nOK: Hello", 0);
-    }
-    if (!strcmp(mode, "checked-in-ordinary")) {
-        return exchange(port, "GET / HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK",
-                        "hello from Panackelty HTTP server\n", 0) ||
-            exchange(port, "POST /echo HTTP/1.1\r\nHost: local\r\nContent-Length: 5\r\n\r\nhello",
-                     "200 OK", "\r\n\r\nhello", 0);
+            exchange(port, "GET /health HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\nOK: Hello", 0) ||
+            exchange(port, "GET /health?probe=1 HTTP/1.1\r\nHost: local\r\n\r\n",
+                     "200 OK", "X-Query: probe=1", 0);
     }
     if (!strcmp(mode, "routed-exit"))
         return exchange(port, "GET /exit HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "leaving", 0) ? 1 : 0;
@@ -396,7 +392,9 @@ int main(int argc, char **argv)
                         "HTTP/1.1 200 OK", "\r\n\r\nok", 0) ? 1 : 0;
     if (!strcmp(mode, "example"))
         return exchange(port, "GET / HTTP/1.1\r\nHost: example.test\r\n\r\n",
-                        "HTTP/1.1 200 OK", "hello from Panackelty HTTP server", 0) ? 1 : 0;
+                        "HTTP/1.1 200 OK", "hello from Panackelty HTTP server", 0) ||
+            exchange(port, "POST /echo HTTP/1.1\r\nHost: example.test\r\nContent-Length: 5\r\n\r\nhello",
+                     "HTTP/1.1 200 OK", "\r\n\r\nhello", 0) ? 1 : 0;
     if (!strcmp(mode, "head"))
         return exchange(port, "HEAD / HTTP/1.1\r\nHost: example.test\r\n\r\n",
                         "HTTP/1.1 200 OK", "Content-Length: 2\r\n", 0) ? 1 : 0;

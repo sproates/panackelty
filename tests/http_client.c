@@ -379,6 +379,12 @@ int main(int argc, char **argv)
         return exchange(port, "GET / HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\nHello", 0) ||
             exchange(port, "GET /health HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\nOK: Hello", 0);
     }
+    if (!strcmp(mode, "checked-in-ordinary")) {
+        return exchange(port, "GET / HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK",
+                        "hello from Panackelty HTTP server\n", 0) ||
+            exchange(port, "POST /echo HTTP/1.1\r\nHost: local\r\nContent-Length: 5\r\n\r\nhello",
+                     "200 OK", "\r\n\r\nhello", 0);
+    }
     if (!strcmp(mode, "routed-exit"))
         return exchange(port, "GET /exit HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "leaving", 0) ? 1 : 0;
     if (!strcmp(mode, "routed-limits")) return routed_limits(port) ? 1 : 0;

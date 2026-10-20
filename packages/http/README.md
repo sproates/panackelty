@@ -44,6 +44,11 @@ redirect, framing and size restrictions.
 
 ### Server (alpha.14 development branch)
 
+See the complete [HTTP server reference](../../docs/reference/http-server.md)
+for constructor and method signatures, routing, handler errors, lifecycle and
+fixed limits. The runnable ordinary and contextual programs link back to that
+reference.
+
 Import `http/server as http`. Create a server, register named async handlers, then
 `await server.listen()`. Successful listening means the socket is bound; the
 listener keeps the native process alive after `main` returns.

@@ -55,6 +55,17 @@ retains promotion prerequisites and ownership; no website deployment or current
 release-pin change is part of this delivery. Existing GI#106/RM#123 performance
 work remains open; this delivery does not establish a throughput benchmark.
 
+## HTTP reference review slice: GI#552
+
+This intermediate slice adds the first complete `http/server` reference page,
+links the existing ordinary and contextual runnable examples to it, and runs
+those checked-in examples from source and saved bytecode in the HTTP package
+integration suite. The slice is for review of the Server page and its format;
+further HTTP reference pages and example coverage remain open until that review.
+The wider standard-library reference remains outside this alpha.14 scope. This
+PR references GI#552 and does not complete or close it. Website: no current
+release claim changes; these alpha.14 development APIs remain unreleased.
+
 ## Bounded method experiment — 2026-10-17
 
 Owner-selected proof of concept: two `Fruit` instances call owned `apple` and

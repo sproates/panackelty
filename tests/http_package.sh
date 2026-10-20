@@ -23,7 +23,7 @@ import http/server as http
 
 async respond(request: http.Request): Result[http.Response,http.HttpError] {
   Ok(http.Response(200, [http.Header("Content-Type", "text/plain")],
-    "ok"->encode_utf8()))
+    "ok".encode_utf8()))
 }
 
 async main(): Unit {
@@ -66,11 +66,11 @@ async respond(request: http.Request): Result[http.Response,http.HttpError] {
   if request.target == "/fail" {
     Error(http.HttpError.InvalidRequest())
   } else if request.target == "/invalid" {
-    Ok(http.Response(200, [http.Header("Content-Length", "3")], "ok"->encode_utf8()))
+    Ok(http.Response(200, [http.Header("Content-Length", "3")], "ok".encode_utf8()))
   } else if request.target == "/echo" {
     Ok(http.Response(200, [], request.body))
   } else {
-    Ok(http.Response(200, [], "ok"->encode_utf8()))
+    Ok(http.Response(200, [], "ok".encode_utf8()))
   }
 }
 
@@ -87,7 +87,7 @@ async main(): Unit {
     http.ServerLimits(18, 2, 131072, 4096, 10000, 30000, 1000))
   match result {
     Error(problem) => expect(false),
-    Ok(reports) => expect(reports->len() == 18)
+    Ok(reports) => expect(reports.len() == 18)
   }
   ()
 }
@@ -129,7 +129,7 @@ pure expect(value: Bool): Unit {
 async respond(request: http.Request): Result[http.Response,http.HttpError] {
   Ok(http.Response(200,
     [http.Header("Content-Type", "text/plain; charset=utf-8")],
-    "hello from Panackelty HTTP server\n"->encode_utf8()))
+    "hello from Panackelty HTTP server\n".encode_utf8()))
 }
 
 async main(): Unit {
@@ -137,7 +137,7 @@ async main(): Unit {
     http.ServerLimits(3, 1, 4096, 4096, 3000, 10000, 1000))
   match result {
     Error(problem) => expect(false),
-    Ok(reports) => expect(reports->len() == 3)
+    Ok(reports) => expect(reports.len() == 3)
   }
   ()
 }
@@ -161,7 +161,7 @@ async main(): Unit {
     Error(problem) => expect(false),
     Ok(response) => {
       expect(response.status == 200)
-      expect(response.body == "hello from Panackelty HTTP server\n"->encode_utf8())
+      expect(response.body == "hello from Panackelty HTTP server\n".encode_utf8())
       expect(response.headers[0].name == "Content-Type" &&
         response.headers[0].value == "text/plain; charset=utf-8")
     }

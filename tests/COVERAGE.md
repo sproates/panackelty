@@ -44,7 +44,7 @@ Type-owned method proof-of-concept coverage: `owned_methods` asserts the exact
 global/dot coexistence, explicit arguments, nested self calls, indexed receivers
 and single receiver evaluation. Failure fixtures cover absent owned methods even
 when a global exists, wrong argument types, duplicate methods and purity.
-Parser unit tests distinguish arrow and dot representation, ownership and invalid
+Parser unit tests cover owned dot representation, ownership and rejected arrow
 syntax. Source and saved-bytecode workflows run through the native conformance
 harness. `owned_imports` adds a manifest-backed application with namespace and
 selective aliases, re-exports, same-name types from three modules and caller
@@ -1312,15 +1312,18 @@ record their historical acceptance boundaries; P12 supersedes compatibility
 coverage with the owned boundary and explicit old-syntax rejection.
 
 
-## GI#525 P13 owned-dot bridge
+## GI#525 P14 dot-only dispatch
 
-`tests/owned_dot_bridge.sh` runs dot-converted temporary copies of the accepted
-owned dispatch, import, generic, intrinsic, callback, async, core-method and
-Server/Map fixtures through the public CLI as source and saved bytecode. Their
-existing exact outputs remain the oracle, including evaluation order and receiver
-multiplicity. Maintained fixture sources remain arrow-compatible until P14.
-Additional programs cover namespace shadowing, mixed chains, callable fields
-versus methods and no fallback in either direction. Binding tests check both
-spellings with generic method arguments and callable-field rejection. Selective
-imports continue to reserve declaration bindings. Seed refresh verifies stages
-2/3/4 before the source conversion begins.
+`tests/owned_dot_dispatch.sh` runs the maintained dot fixtures for dispatch,
+imports, generics, intrinsics, callbacks, async methods, core methods and
+Server/Map coexistence as source and saved bytecode. Existing exact outputs
+remain unchanged, including receiver multiplicity and evaluation order. The
+P13 temporary conversion machinery is removed. Dedicated programs preserve
+namespace shadowing, re-exported namespace aliases, callable-field distinctions,
+privacy, guard scope, collision and no-fallback checks. Old arrow syntax is
+rejected for direct calls and either position in a mixed chain.
+
+Maintained compiler, library, package, example, test and generated-source callers
+use dots. Diagnostic goldens keep the same errors with dot spellings and source
+columns adjusted for the one-character-shorter separator. Historical plan and
+acceptance reports retain explicitly historical syntax.

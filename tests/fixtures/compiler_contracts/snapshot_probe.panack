@@ -7,9 +7,9 @@ import stdlib/bytes as byte_buffer
 import stdlib/filesystem as std_filesystem
 main(): Void {
   filename = std_host.arguments()[0]
-  filesystem_support.write_file_bytes(filename, "main(): Void { print(missing) }\n"->encode_utf8())
+  filesystem_support.write_file_bytes(filename, "main(): Void { print(missing) }\n".encode_utf8())
   loaded: LoadedProject = load_project(filename)
-  filesystem_support.write_file_bytes(filename, "main(): Void {}"->encode_utf8())
+  filesystem_support.write_file_bytes(filename, "main(): Void {}".encode_utf8())
   results = [
     std_testing.equal_str("snapshot file changed", filesystem_support.read_text(filename), "main(): Void {}"),
     std_testing.equal_str("loader retains original diagnostic source",

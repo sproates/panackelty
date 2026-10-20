@@ -267,8 +267,8 @@ contexts, including inferred callable targets. AsyncFn never coerces to Fn/PureF
 The project loader loads bundled `core.panack` once, then checks module declarations,
 bodies and effects before emitting executable code. Owned calls carry selected
 declaration identities through emission. The parser never rewrites receiver dots
-to global calls. During the P13 bridge, value dots enter the same owned-call
-binder as arrows after namespace/value classification. Lexical values shadow
+to global calls. Value dots enter the owned-call binder after namespace/value classification.
+The parser rejects the former arrow syntax. Lexical values shadow
 namespace aliases, and lookup failures never cross that boundary. Only designated toolchain declarations may name implementation
 primitives. The emitter prunes unreachable owned core algorithms. Raw backend
 test helpers accept explicit AST operations; they do not establish public source
@@ -315,11 +315,13 @@ source eligibility independently of emitted instructions. `inventory` and
 `inventory-check` use explicit roots, exact compiler/artifact/source identities
 and local replay. See [the contract](../../docs/reference/SOURCE_INVENTORY.md).
 
-## Type-owned method proof of concept
+## Type-owned methods
 
-The lexer recognises `->` separately from dot syntax. The parser retains an
-`OwnedCallExpr` with its receiver, method name, arguments and explicit type
-arguments, wrapped in the existing source spans. Each method has
+The parser retains `DotCallExpr` until namespace/value classification. Value calls
+normalize to the internal `OwnedCallExpr` binder node; that node has no separate
+source spelling. The lexer recognizes the former arrow token only so the parser
+can issue an explicit rejection diagnostic. Receiver, argument and explicit type
+argument spans remain attached to the call. Each method has
 `OwnedMethodSyntax` metadata alongside its source declaration. The implementation still uses `$owned$Owner$method` function identities
 as an internal signature/emission bridge, never to select a method.
 
@@ -335,7 +337,7 @@ the method name. `module_bodies` binds the receiver once, selects its method,
 checks visibility, and passes the bound receiver into the shared argument checker.
 Emission uses the selected declaration and ordinary VM calls. It performs no
 second method lookup and adds no opcode or runtime dispatch table. Diagnostics
-use source names such as `Fruit->apple` rather than internal bridge names.
+use source names such as `Fruit.apple` rather than internal bridge names.
 
 The parser's project-route gate uses explicit method metadata and owned-call
 nodes. Legacy visitors reject an unresolved owned call; ordinary dot lookup and
@@ -403,8 +405,8 @@ pruning for owned algorithms. See the
 
 ## Owned caller migration on next
 
-Compiler and bytecode implementation callers use owned arrow methods after
-GI#525 P11. P12 removes the compatibility frontend and receiver wrappers.
+Compiler and bytecode implementation callers use owned dot methods after
+GI#525 P14. P12 removes the compatibility frontend and receiver wrappers.
 Internal operation strings and VM primitive identities are not caller APIs.
 See the [P11 report](../../docs/design/type-owned-dispatch/p11-remaining-callers.md)
 for seed evidence and the exact retained test-input boundary.

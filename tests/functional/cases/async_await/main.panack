@@ -18,8 +18,8 @@ async select(value: Nat): Result[Bytes, Str] {
 
 async main(): Unit {
   reader: AsyncFn[Bool,Result[Bytes,Str]] = @read
-  match await reader->call(false) {
-    Ok(data) => expect(data->decode_utf8() == "fake bytes"),
+  match await reader.call(false) {
+    Ok(data) => expect(data.decode_utf8() == "fake bytes"),
     Error(problem) => expect(false)
   }
   match await read(true) {
@@ -27,12 +27,12 @@ async main(): Unit {
     Error(problem) => expect(problem == "fake I/O error")
   }
   match await nested(128) {
-    Ok(data) => expect(data->length() == 10),
+    Ok(data) => expect(data.length() == 10),
     Error(problem) => expect(false)
   }
   for value in [0, 1, 2] {
     match await select(value) {
-      Ok(data) => expect(value != 1 && data->decode_utf8() == "fake bytes"),
+      Ok(data) => expect(value != 1 && data.decode_utf8() == "fake bytes"),
       Error(problem) => expect(value == 1 && problem == "fake I/O error")
     }
   }

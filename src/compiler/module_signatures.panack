@@ -66,8 +66,8 @@ pub pure signature_declaration(
 
   for module in modules {
     if module.bindings.identity == identity.module {
-      if module.declaration_index->has(identity.name) {
-        found = Some(module.declaration_index->get(identity.name))
+      if module.declaration_index.has(identity.name) {
+        found = Some(module.declaration_index.get(identity.name))
       }
     }
   }
@@ -111,7 +111,7 @@ pub pure signature_public_identity(
                       graph,
                       target,
                       identity,
-                      visited->append(owner)
+                      visited.append(owner)
                     )
                   } else {
                     match resolve_module_path_inner(graph, target, selector.name, true, []) {
@@ -125,7 +125,7 @@ pub pure signature_public_identity(
                             graph,
                             namespace,
                             identity,
-                            visited->append(owner)
+                            visited.append(owner)
                           )
                         }
                       }
@@ -217,7 +217,7 @@ pub pure signature_type(
     if shape.base == "Fn" || shape.base == "PureFn" || shape.base == "AsyncFn" {
       known = true
       callable = true
-      arity = shape.arguments->len()
+      arity = shape.arguments.len()
       head = SignatureCallable(signature_effect(shape.base == "PureFn", shape.base == "AsyncFn"))
       if arity == 0 {
         failure = Some(shape.base + " expects at least a return type")
@@ -251,10 +251,10 @@ pub pure signature_type(
             },
             Ok(declaration) => match declaration {
               RecordDeclaration(name, types, fields) => {
-                arity = types->len()
+                arity = types.len()
               },
               EnumDeclaration(name, types, variants) => {
-                arity = types->len()
+                arity = types.len()
               },
               TypeDeclaration(name, base, guard) => {},
               ImportDeclaration(path) => {
@@ -269,13 +269,13 @@ pub pure signature_type(
       }
     }
   }
-  if shape.arguments->len() != arity {
+  if shape.arguments.len() != arity {
     failure = Some(shape.base + " has incorrect type argument count")
   }
   mut arguments: [SignatureType] = []
   index = 0
   for argument in shape.arguments {
-    return_slot: Bool = callable && shape.base != "AsyncFn" && index + 1 == shape.arguments->len()
+    return_slot: Bool = callable && shape.base != "AsyncFn" && index + 1 == shape.arguments.len()
     match signature_type(graph, modules, owner, parameters, argument, exported, return_slot) {
       Error(message) => {
         if failure == None() {
@@ -283,7 +283,7 @@ pub pure signature_type(
         }
       },
       Ok(resolved) => {
-        arguments = arguments->append(resolved)
+        arguments = arguments.append(resolved)
       }
     }
     index = index + 1
@@ -306,7 +306,7 @@ pub pure substitute_signature_type(
   match value.identity {
     SignatureParameter(binder, index) => {
       if binder == owner {
-        if index < arguments->len() {
+        if index < arguments.len() {
           replacement = Some(arguments[index])
         } else {
           failure = Some("missing signature substitution")
@@ -325,7 +325,7 @@ pub pure substitute_signature_type(
         failure = Some(message)
       },
       Ok(resolved) => {
-        nested = nested->append(resolved)
+        nested = nested.append(resolved)
       }
     }
   }
@@ -356,28 +356,28 @@ pub pure check_module_signatures(
     match signature_declaration(modules, DeclarationIdentity(module.bindings.identity, shape.base)) {
       Error(message) => {},
       Ok(owner_declaration) => match owner_declaration {
-        RecordDeclaration(name, types, fields) => { owner_arity = Some(types->len()) },
-        EnumDeclaration(name, types, variants) => { owner_arity = Some(types->len()) },
+        RecordDeclaration(name, types, fields) => { owner_arity = Some(types.len()) },
+        EnumDeclaration(name, types, variants) => { owner_arity = Some(types.len()) },
         TypeDeclaration(name, base, guard) => {},
         ImportDeclaration(path) => {},
         FunctionDeclaration(name, values, result, pure_flag, async_flag, body, types) => {}
       }
     }
     mut valid: Bool = (!builtin_owner || module.bindings.identity == builtin_owner_module()) &&
-      owner_arity == Some(implementation.parameters->len()) &&
-      shape.arguments->len() == implementation.parameters->len()
+      owner_arity == Some(implementation.parameters.len()) &&
+      shape.arguments.len() == implementation.parameters.len()
     mut binders: Set[Str] = set()
     for parameter in implementation.parameters {
-      valid = valid && !binders->has(parameter) && !module_reserved_binding(parameter)
-      binders = binders->add(parameter)
+      valid = valid && !binders.has(parameter) && !module_reserved_binding(parameter)
+      binders = binders.add(parameter)
     }
     mut arguments: Set[Str] = set()
     for argument in shape.arguments {
-      valid = valid && binders->has(argument) && !arguments->has(argument)
-      arguments = arguments->add(argument)
+      valid = valid && binders.has(argument) && !arguments.has(argument)
+      arguments = arguments.add(argument)
     }
     if !valid {
-      diagnostics = diagnostics->append(Diagnostic(
+      diagnostics = diagnostics.append(Diagnostic(
         if builtin_owner && module.bindings.identity != builtin_owner_module() {
           "built-in impl requires the designated toolchain core module: " + shape.base
         } else if builtin_owner {
@@ -388,7 +388,7 @@ pub pure check_module_signatures(
   }
 
   for declaration in module.parsed.program.declarations {
-    before: Nat = diagnostics->len()
+    before: Nat = diagnostics.len()
     syntax: DeclarationSyntax = module.parsed.syntax[declaration_index]
     mut name: Str = ""
     mut parameters: [Str] = []
@@ -401,7 +401,7 @@ pub pure check_module_signatures(
         name = declared
         fields = [RecordField("base", base)]
         if !is_scalar_base(base) || base == "Rat" || base == "Unit" {
-          diagnostics = diagnostics->append(Diagnostic("guarded type base must be a scalar, got " + base, if syntax.type_spans->len() > 0 { syntax.type_spans[0].start } else { syntax.span.start }))
+          diagnostics = diagnostics.append(Diagnostic("guarded type base must be a scalar, got " + base, if syntax.type_spans.len() > 0 { syntax.type_spans[0].start } else { syntax.span.start }))
         }
         if syntax.is_public {
           uses: ResolvedModuleUses = resolve_module_expression_uses(
@@ -409,9 +409,9 @@ pub pure check_module_signatures(
             module.bindings.identity,
             guard,
             syntax.span,
-            set()->add("value")
+            set().add("value")
           )
-          diagnostics = diagnostics->concat(uses.diagnostics)
+          diagnostics = diagnostics.concat(uses.diagnostics)
           for reference in uses.references {
             match reference.target {
               NamespaceTarget(identity) => {},
@@ -422,7 +422,7 @@ pub pure check_module_signatures(
                   binding.identity,
                   []
                 ) {
-                  diagnostics = diagnostics->append(
+                  diagnostics = diagnostics.append(
                     Diagnostic(
                     "public guard depends on inaccessible declaration " + reference.spelling + " from " + binding.identity.module.path,
                     reference.span.start
@@ -440,10 +440,10 @@ pub pure check_module_signatures(
         fields = members
         mut member_names: Set[Str] = set()
         for member in members {
-          if member_names->has(member.name) {
-            diagnostics = diagnostics->append(Diagnostic("duplicate field " + member.name, syntax.span.start))
+          if member_names.has(member.name) {
+            diagnostics = diagnostics.append(Diagnostic("duplicate field " + member.name, syntax.span.start))
           }
-          member_names = member_names->add(member.name)
+          member_names = member_names.add(member.name)
         }
       },
       EnumDeclaration(declared, types, variants) => {
@@ -452,7 +452,7 @@ pub pure check_module_signatures(
         for variant in variants {
           mut payload_index: Nat = 0
           for payload in variant.payload {
-            fields = fields->append(RecordField(variant.name + ":${payload_index}", payload))
+            fields = fields.append(RecordField(variant.name + ":${payload_index}", payload))
             payload_index = payload_index + 1
           }
         }
@@ -463,15 +463,15 @@ pub pure check_module_signatures(
         effect = Some(signature_effect(pure_flag, async_flag))
         result_void = !async_flag
         for parameter in values {
-          fields = fields->append(RecordField(parameter.name, parameter.type_name))
+          fields = fields.append(RecordField(parameter.name, parameter.type_name))
         }
-        fields = fields->append(RecordField("return", result))
+        fields = fields.append(RecordField("return", result))
       }
     }
     if name != "" {
       owner: DeclarationIdentity = DeclarationIdentity(module.bindings.identity, name)
       mut seen: Set[Str] = set()
-      mut valid: Bool = diagnostics->len() == before
+      mut valid: Bool = diagnostics.len() == before
       core_owner: Bool = owner.module == ModuleIdentity(ToolchainModulePackage(), "core.panack")
       if (module_reserved_binding(name) ||
         name == "Rat" ||
@@ -479,7 +479,7 @@ pub pure check_module_signatures(
         !(core_owner &&
         (name == "Option" ||
         name == "Result")) {
-        diagnostics = diagnostics->append(
+        diagnostics = diagnostics.append(
           Diagnostic(
           "declaration " + name + " conflicts with a reserved core identity",
           syntax.span.start
@@ -493,7 +493,7 @@ pub pure check_module_signatures(
           mut value_index: Nat = 0
           for field in fields {
             if value_index > 0 && field.name == "self" {
-              diagnostics = diagnostics->append(Diagnostic(
+              diagnostics = diagnostics.append(Diagnostic(
                 "owned method cannot declare an explicit self parameter", syntax.span.start))
               valid = false
             }
@@ -502,21 +502,21 @@ pub pure check_module_signatures(
         }
       }
       for parameter in parameters {
-        if seen->has(parameter) ||
+        if seen.has(parameter) ||
           module_reserved_binding(parameter) ||
           parameter == "Rat" ||
           parameter == "Array" {
-          diagnostics = diagnostics->append(
+          diagnostics = diagnostics.append(
             Diagnostic("invalid or duplicate type parameter " + parameter, syntax.span.start)
           )
           valid = false
         }
-        seen = seen->add(parameter)
+        seen = seen.add(parameter)
       }
       mut slots: [SignatureSlot] = []
       mut field_index: Nat = 0
       for field in fields {
-        field_span: SourceSpan = if field_index < syntax.type_spans->len() {
+        field_span: SourceSpan = if field_index < syntax.type_spans.len() {
           syntax.type_spans[field_index]
         } else {
           syntax.span
@@ -528,19 +528,19 @@ pub pure check_module_signatures(
           parameters,
           field.type_name,
           syntax.is_public,
-          field_index + 1 == fields->len() && result_void
+          field_index + 1 == fields.len() && result_void
         ) {
           Error(message) => {
-            diagnostics = diagnostics->append(
+            diagnostics = diagnostics.append(
               Diagnostic("signature " + (match syntax.method {
                 None() => name,
-                Some(method) => method.owner + "->" + method.name
+                Some(method) => method.owner + "." + method.name
               }) + "." + field.name + ": " + message, field_span.start)
             )
             valid = false
           },
           Ok(resolved) => {
-            slots = slots->append(SignatureSlot(field.name, resolved))
+            slots = slots.append(SignatureSlot(field.name, resolved))
           }
         }
         field_index = field_index + 1
@@ -548,7 +548,7 @@ pub pure check_module_signatures(
       if valid {
         for binding in module.bindings.declarations {
           if binding.identity == owner {
-            signatures = signatures->append(ModuleSignature(binding, parameters, slots, effect))
+            signatures = signatures.append(ModuleSignature(binding, parameters, slots, effect))
           }
         }
       }
@@ -562,17 +562,17 @@ pub pure check_module_signatures(
         if binding.intrinsic == Some(intrinsic.id) {
           mut slots: [SignatureSlot] = []
           mut slot_index: Nat = 0
-          for spelling in intrinsic.inputs->concat([intrinsic.output]) {
+          for spelling in intrinsic.inputs.concat([intrinsic.output]) {
             match signature_type(graph, modules, binding.identity, intrinsic.parameters,
                 spelling, true, false) {
-              Error(message) => { diagnostics = diagnostics->append(Diagnostic(message, binding.span.start)) },
-              Ok(type) => { slots = slots->append(SignatureSlot(
-                if slot_index == intrinsic.inputs->len() { "return" }
+              Error(message) => { diagnostics = diagnostics.append(Diagnostic(message, binding.span.start)) },
+              Ok(type) => { slots = slots.append(SignatureSlot(
+                if slot_index == intrinsic.inputs.len() { "return" }
                 else if slot_index == 0 { "self" } else { "argument" }, type)) }
             }
             slot_index = slot_index + 1
           }
-          signatures = signatures->append(ModuleSignature(binding, intrinsic.parameters,
+          signatures = signatures.append(ModuleSignature(binding, intrinsic.parameters,
             slots, Some(if intrinsic.owner == "AsyncFn" { SignatureAsync() }
               else if intrinsic.owner == "Fn" { SignatureOrdinary() }
               else { SignaturePure() })))

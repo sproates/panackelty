@@ -28,7 +28,7 @@ pure expect(value: Bool): Unit {
 }
 
 pure file_path(value: Str): Path {
-  path.from_text(value)->value_or(path.current())
+  path.from_text(value).value_or(path.current())
 }
 
 async respond(request: http.Request): Result[http.Response,http.HttpError] {
@@ -45,7 +45,7 @@ async main(): Unit {
   match await files.read_beneath(root, file_path("inside"), 2) {
     Error(problem) => expect(false),
     Ok(read) => {
-      expect(read.contents == "ok"->encode_utf8())
+      expect(read.contents == "ok".encode_utf8())
       expect(match identity { Ok(value) => value == read.identity, Error(problem) => false })
     }
   }
@@ -69,7 +69,7 @@ async main(): Unit {
   match report {
     Error(problem) => expect(false),
     Ok(reports) => {
-      expect(reports->len() == 2)
+      expect(reports.len() == 2)
       for outcome in reports {
         expect(match outcome { Ok(done) => true, Error(problem) => false })
       }

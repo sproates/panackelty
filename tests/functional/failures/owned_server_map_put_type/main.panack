@@ -3,5 +3,5 @@ import "server.panack"::{Server}
 pure put(server: Server, route: Str, amount: Str): Server { server }
 
 main(): Void {
-  print(Server(10, map())->put("/fruit", "wrong"))
+  print(Server(10, map()).put("/fruit", "wrong"))
 }

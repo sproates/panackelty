@@ -1,6 +1,6 @@
-error: <case>/main.panack:3:6: signature Fruit->apple.self: public signature exposes inaccessible type Fruit from main.panack
+error: <case>/main.panack:3:6: signature Fruit.apple.self: public signature exposes inaccessible type Fruit from main.panack
   3 | impl Fruit {
     |      ^
-<case>/main.panack:7:22: call signature unavailable for main.panack:Fruit->apple
-  7 | main(): Void { print(Fruit(10)->apple()) }
+<case>/main.panack:7:22: call signature unavailable for main.panack:Fruit.apple
+  7 | main(): Void { print(Fruit(10).apple()) }
     |                      ^

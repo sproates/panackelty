@@ -5,7 +5,7 @@ pure describe(name: Str, score: Nat, adjustment: Int): Str {
 
 main(): Void {
   print(describe("Ada", 1729, -3))
-  print("Panackelty"->slice(0, 3))
-  print("Panackelty"->starts_with("Pan"))
-  print("Aλ🙂"->reverse())
+  print("Panackelty".slice(0, 3))
+  print("Panackelty".starts_with("Pan"))
+  print("Aλ🙂".reverse())
 }

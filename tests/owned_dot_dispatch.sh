@@ -1,5 +1,5 @@
 #!/bin/sh
-# P13 bridge: both spellings must preserve the accepted owned API behavior.
+# P14 dot-only acceptance preserves owned API behavior and rejects arrows.
 set -eu
 work=$(mktemp -d "${TMPDIR:-/tmp}/panack-owned-dot.XXXXXX")
 trap 'rm -rf "$work"' 0
@@ -9,13 +9,6 @@ for fixture in owned_method_dispatch owned_imports owned_generic_methods owned_i
     owned_server_map_alias owned_server_map_facade owned_server_map_identity owned_server_map_namespace; do
     destination="$work/$fixture"
     cp -R "tests/functional/cases/$fixture" "$destination"
-    # These accepted fixtures contain executable arrows, not diagnostic strings.
-    find "$destination" -name '*.panack' -type f -exec sh -c '
-        for source do
-            sed "s/->/./g" "$source" > "$source.tmp"
-            mv "$source.tmp" "$source"
-        done
-    ' sh {} +
     if [ -f "$destination/panack.json" ]; then
         ./bin/panack run --project "$destination/panack.json" > "$work/out"
         ./bin/panack compile --project "$destination/panack.json" -o "$work/program.bc" > /dev/null
@@ -31,7 +24,7 @@ for fixture in owned_method_dispatch owned_imports owned_generic_methods owned_i
     cmp "$destination/expected.stdout" "$work/out"
     ./bin/panack run "$work/program.bc" > "$work/out"
     cmp "$destination/expected.stdout" "$work/out"
-    echo "owned dot bridge: $fixture source and bytecode passed"
+    echo "owned dot dispatch: $fixture source and bytecode passed"
 done
 cat > "$work/library.panack" <<'SOURCE'
 pub pure get(): Nat { 900 }
@@ -53,7 +46,7 @@ main(): Void {
   print(api.get())
   api = Item(42)
   print(api.get())
-  print(api->get())
+  print(api.get())
   print(parameter(api))
   print(nested.get())
   nested = Item(8)
@@ -62,7 +55,7 @@ main(): Void {
   print(holder.call(3))
   print((holder.call).call(3))
   for entry in [Item(7)] { print(entry.get()) }
-  print("abc".slice(0, 2)->len())
+  print("abc".slice(0, 2).len())
 }
 SOURCE
 printf '900\n42\n42\n42\n900\n8\n4\n6\n7\n2\n' > "$work/expected"
@@ -104,7 +97,7 @@ pure f(item: Item): Nat { item.get() }
 main(): Void { print(f(Item(1))) }
 SOURCE
 reject 'pure'
-echo 'owned dot bridge: shadowing, callable field, mixed chains and rejection passed'
+echo 'owned dot dispatch: shadowing, callable field, method chains and rejection passed'
 
 cat > "$work/main.panack" <<'SOURCE'
 import "library.panack" as api
@@ -130,4 +123,11 @@ import "library.panack"::{Item}
 main(): Void { print(Item(1).hidden()) }
 SOURCE
 reject 'private'
-echo 'owned dot bridge: import collision, guard scope and method privacy passed'
+echo 'owned dot dispatch: import collision, guard scope and method privacy passed'
+
+# The compatibility spelling is rejected even for an existing method.
+for expression in '"abc"->len()' '"abc"->slice(0, 1).len()' '"abc".slice(0, 1)->len()'; do
+    printf 'main(): Void { print(%s) }\n' "$expression" > "$work/main.panack"
+    reject 'arrow receiver calls are not supported; use dot syntax'
+done
+echo 'owned dot dispatch: obsolete arrow calls rejected'

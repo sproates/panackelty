@@ -6,11 +6,11 @@ record Item { rank: Nat, label: Str }
 pure less(left: Item, right: Item): Bool { left.rank < right.rank }
 pure path_identity(error: path.PathError): CorePathError { error }
 pure duration_identity(error: time.DurationError): CoreDurationError { error }
-pure location(text: Str): Path { path.from_text(text)->value_or(path.current()) }
+pure location(text: Str): Path { path.from_text(text).value_or(path.current()) }
 pure show_duration(value: Result[Duration,time.DurationError]): Str {
   match value {
     Ok(duration) => {
-      ticks = duration->ticks()
+      ticks = duration.ticks()
       "${ticks}"
     },
     Error(error) => match duration_identity(error) {
@@ -20,48 +20,48 @@ pure show_duration(value: Result[Duration,time.DurationError]): Str {
   }
 }
 main(): Void {
-  print("aλ"->ends_with("λ"))
-  print("x"->ends_with("long"))
-  print(""->ends_with(""))
+  print("aλ".ends_with("λ"))
+  print("x".ends_with("long"))
+  print("".ends_with(""))
   empty: [Nat] = []
-  print(empty->first()->value_or(9))
-  print([1, 2]->first()->value_or(9))
+  print(empty.first().value_or(9))
+  print([1, 2].first().value_or(9))
   success: Result[Nat,Str] = Ok(3)
-  print(success->value_or(7))
+  print(success.value_or(7))
   failed: Result[Nat,Str] = Error("failed")
-  print(failed->value_or(7))
-  ordered = [Item(2, "last"), Item(1, "first"), Item(1, "second")]->sort_by(@less)
+  print(failed.value_or(7))
+  ordered = [Item(2, "last"), Item(1, "first"), Item(1, "second")].sort_by(@less)
   for item in ordered { print(item.label) }
   base = location("a")
   child = location("b")
-  joined = base->join(child)->value_or(base)
-  print(joined->to_text()->value_or("invalid"))
-  print(joined->native_bytes() == "a/b"->encode_utf8())
-  print(joined->display())
-  print(location("/a")->is_absolute())
-  print(joined->directory()->display())
-  print(joined->filename()->value_or(base)->display())
-  match base->join(location("/b")) {
+  joined = base.join(child).value_or(base)
+  print(joined.to_text().value_or("invalid"))
+  print(joined.native_bytes() == "a/b".encode_utf8())
+  print(joined.display())
+  print(location("/a").is_absolute())
+  print(joined.directory().display())
+  print(joined.filename().value_or(base).display())
+  match base.join(location("/b")) {
     Ok(value) => print("unexpected"),
     Error(error) => print(path_identity(error) == path.PathError.AbsolutePathAppend())
   }
-  raw = path.from_native(bytes()->push(255))->value_or(base)
-  match raw->to_text() {
+  raw = path.from_native(bytes().push(255)).value_or(base)
+  match raw.to_text() {
     Ok(value) => print("unexpected"),
     Error(error) => print(path_identity(error) == path.PathError.PathNotUtf8())
   }
   one = time.seconds(1)
   half = time.milliseconds(500)
-  print(one->add(half)->ticks())
-  print(half->subtract(one)->ticks())
-  print(one->scale(-2)->ticks())
-  print(half->is_before(one))
-  print(half->as_seconds())
-  print(show_duration(time.from_nanoseconds(4)->divide(-2)))
-  print(show_duration(time.from_nanoseconds(3)->divide(2)))
-  print(show_duration(one->divide(0)))
-  print(one->ratio(half)->value_or(0 / 1))
-  match one->ratio(time.seconds(0)) {
+  print(one.add(half).ticks())
+  print(half.subtract(one).ticks())
+  print(one.scale(-2).ticks())
+  print(half.is_before(one))
+  print(half.as_seconds())
+  print(show_duration(time.from_nanoseconds(4).divide(-2)))
+  print(show_duration(time.from_nanoseconds(3).divide(2)))
+  print(show_duration(one.divide(0)))
+  print(one.ratio(half).value_or(0 / 1))
+  match one.ratio(time.seconds(0)) {
     Ok(value) => print("unexpected"),
     Error(error) => print(duration_identity(error) == time.DurationError.ZeroDurationDivisor())
   }

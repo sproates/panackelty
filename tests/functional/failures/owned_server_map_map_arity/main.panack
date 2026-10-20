@@ -4,5 +4,5 @@ pure get(server: Server, route: Str, fallback: Nat): Nat { 901 }
 
 main(): Void {
   routes: Map[Str, Nat] = map()
-  print(routes->get("/fruit", 99))
+  print(routes.get("/fruit", 99))
 }

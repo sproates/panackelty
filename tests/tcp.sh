@@ -31,7 +31,7 @@ for mode in echo empty example limit stall refuse; do
         stall) timeout=30; expected='Ok(data) => expect(false), Error(problem) => expect(problem == "TCP timed out")' ;;
         refuse) expected='Ok(data) => expect(false), Error(problem) => expect(problem == "TCP connect failed")' ;;
     esac
-    request_source='"hello"->encode_utf8()->push(0)'
+    request_source='"hello".encode_utf8().push(0)'
     [ "$mode" != empty ] || request_source='bytes()'
     cat > "$work/main.panack" <<SOURCE
 import stdlib/tcp as transport_tcp
@@ -41,9 +41,9 @@ async exchange(request: Bytes): Result[Bytes,Str] {
 }
 async main(): Unit {
   mut request: Bytes = $request_source
-  for i in 0..12 { request = request->join(request) }
+  for i in 0..12 { request = request.join(request) }
   operation: AsyncFn[Bytes,Result[Bytes,Str]] = @exchange
-  match await operation->call(request) { $expected }
+  match await operation.call(request) { $expected }
   ()
 }
 SOURCE

@@ -1,2 +1,2 @@
 import stdlib/bytes as byte_buffer
-main(): Void { write_file("invalid" + byte_buffer.empty()->push(0)->decode_utf8() + "path", "data") }
+main(): Void { write_file("invalid" + byte_buffer.empty().push(0).decode_utf8() + "path", "data") }

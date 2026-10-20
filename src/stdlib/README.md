@@ -10,8 +10,8 @@ import stdlib/path as path
 
 main(): Void {
   location: Result[Path,path.PathError] = path.from_text("notes.txt")
-  encoded: Bytes = "hello"->encode_utf8()
-  print(encoded->length())
+  encoded: Bytes = "hello".encode_utf8()
+  print(encoded.length())
 }
 ```
 
@@ -74,8 +74,8 @@ stdlib modules or the prelude. Compiler Str path and file adapters use the expli
 ## Core operations and generic helpers
 
 Persistent array, map, and set operations and compiler-known conversions keep
-their VM lowering. Use owned calls such as `values->map(@transform)` and
-`answer->value_or(0)`. If a generic owner cannot be inferred, give the receiver
+their VM lowering. Use owned calls such as `values.map(@transform)` and
+`answer.value_or(0)`. If a generic owner cannot be inferred, give the receiver
 a type, for example `answer: Result[Nat,Str] = Ok(42)`, then call its method.
 The method itself does not take the owner's type arguments.
 
@@ -89,14 +89,14 @@ outputs check the module graph at each stage.
 
 ## Sorting and suffix matching
 
-Use `values->sort_by(@less)` without imports, where
+Use `values.sort_by(@less)` without imports, where
 `less: PureFn[T,T,Bool]` and `values: [T]`. It returns a stable sorted array
 without changing its input. The comparator must define a consistent strict weak
 ordering and be pure. Equivalent elements retain input order; comparator traps
 propagate. Merge sort uses O(n log n) comparisons and O(log n) recursive depth,
 building temporary immutable arrays.
 
-Use `value->ends_with(suffix): Bool` without imports. It matches a literal,
+Use `value.ends_with(suffix): Bool` without imports. It matches a literal,
 case-sensitive suffix at Unicode code-point boundaries. An empty suffix matches
 every value; a longer suffix never matches. There is no normalization, locale
 collation, or wildcard interpretation.
@@ -111,8 +111,8 @@ do not access the filesystem. A `Path` does not imply existence, canonical
 identity, permissions, or containment.
 
 `time.seconds(5)` creates an exact duration.
-`start->add(time.seconds(5))` creates a deadline, and
-`end->difference(start)` measures elapsed time. Only `time.now()` reads
+`start.add(time.seconds(5))` creates a deadline, and
+`end.difference(start)` measures elapsed time. Only `time.now()` reads
 the monotonic clock. See the executable
 [host types case](../../tests/functional/cases/host_types/main.panack) and the
 [path and timing contract](../../docs/reference/SPEC.md#paths-and-monotonic-time).
@@ -127,7 +127,7 @@ deletion, atomic writes, implicit PATH search, or a shell.
 
 Import `stdlib/host` for process arguments, exit, terminal output, nested
 bytecode execution, checked UTF-8 decoding, and sleep. The pure portable
-`buffer->decode_utf8()` operation traps on invalid input; `host.decode_utf8`
+`buffer.decode_utf8()` operation traps on invalid input; `host.decode_utf8`
 returns a checked result.
 
 See the [host capability case](../../tests/functional/cases/host_capabilities/main.panack)
@@ -143,7 +143,7 @@ failure count; a caller chooses the exit policy.
 
 Import `stdlib/testing_files` to discover immediate directory children in
 unsigned native-byte order or to create and explicitly remove an owned empty
-temporary workspace. Call `workspace->remove_empty()` to remove it; a nonempty
+temporary workspace. Call `workspace.remove_empty()` to remove it; a nonempty
 workspace returns the existing host error. Import `stdlib/testing_commands` for structured,
 byte-exact subprocess assertions. No testing helper provides process
 containment or automatic fixture cleanup.
@@ -160,9 +160,8 @@ raw TCP is unavailable in the browser.
 
 Core now owns Str.ends_with, Array.first/sort_by, Option.value_or and
 Result.value_or, Path's existing receiver operations, and Duration's existing
-receiver arithmetic/comparisons. The P13 bridge accepts owned dots and arrows,
-such as `items.first().value_or(fallback)` and `base->join(child)`. Maintained
-library bodies keep arrows until P14.
+receiver arithmetic/comparisons. P14 uses owned dots,
+such as `items.first().value_or(fallback)` and `base.join(child)`. Library bodies and their callers use dots.
 PathError and DurationError are defined once in core and re-exported from path
 and time, including their variants. Receiver wrapper functions are removed. Path/time factories and clock
 services remain module functions; ClockError stays in time.

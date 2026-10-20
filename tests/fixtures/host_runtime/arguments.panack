@@ -1,6 +1,6 @@
 import stdlib/host as std_host
 main(): Void {
   arguments: [Str] = std_host.arguments()
-  print(arguments->len())
+  print(arguments.len())
   print(arguments[0])
 }

@@ -41,7 +41,7 @@ pub pure compile_source_disassembly(source: Str): Str {
     Error(message) => message,
     Ok(program) => {
       diagnostics = check_program_frontend(program)
-      if diagnostics->len() > 0 { render_resolver_diagnostics(diagnostics) }
+      if diagnostics.len() > 0 { render_resolver_diagnostics(diagnostics) }
       else { render_bytecode(compile_program(program)) }
     }
   }
@@ -55,7 +55,7 @@ pub pure backend_tokens(tokens: [Token]): [Token] {
        token.text == "intrinsic_reduce") {
       "$" + token.text
     } else { token.text }
-    internal = internal->append(Token(token.kind, text, token.start, token.end,
+    internal = internal.append(Token(token.kind, text, token.start, token.end,
       token.position, token.end_line, token.end_column))
   }
   internal

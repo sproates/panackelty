@@ -46,7 +46,7 @@ SOURCE
 reject 'owned method'
 cat > "$work/main.panack" <<'SOURCE'
 pure missing(value: Str): Nat { 7 }
-main(): Void { print("x"->missing()) }
+main(): Void { print("x".missing()) }
 SOURCE
 reject 'owned method'
 cat > "$work/library.panack" <<'SOURCE'
@@ -73,9 +73,9 @@ pure len(value: Nat): Nat { value + 1 }
 main(): Void {
   print(len(41))
   print(api.get(41))
-  print("abc"->len())
+  print("abc".len())
   values: Map[Str,Nat] = map()
-  print(values->put("key", 7)->get("key"))
+  print(values.put("key", 7).get("key"))
 }
 SOURCE
 printf '42\n42\n3\n7\n' > "$work/expected"

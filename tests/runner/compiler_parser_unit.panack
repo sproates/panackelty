@@ -807,10 +807,10 @@ pure parser_unit_owned_methods(): [TestResult] {
     Error(error) => false,
     Ok(tokens) => match parse_module_complete(tokens) {
       Error(error) => false,
-      Ok(module) => module.syntax->len() == 3 &&
+      Ok(module) => module.syntax.len() == 3 &&
         module.syntax[1].method == Some(OwnedMethodSyntax("Fruit", [], "apple")) &&
         module.syntax[2].method == Some(OwnedMethodSyntax("Fruit", [], "banana")) &&
-        !module.program.function_indices->has("apple")
+        !module.program.function_indices.has("apple")
     }
   }
   public_source: Str = "pub record Fruit { value: Nat } impl Fruit { pub pure apple(): Nat { self.value } pure banana(): Nat { self.value + 1 } }"
@@ -818,7 +818,7 @@ pure parser_unit_owned_methods(): [TestResult] {
     Error(error) => false,
     Ok(tokens) => match parse_module_complete(tokens) {
       Error(error) => false,
-      Ok(module) => module.syntax->len() == 3 && module.syntax[0].is_public &&
+      Ok(module) => module.syntax.len() == 3 && module.syntax[0].is_public &&
         module.syntax[1].is_public && !module.syntax[2].is_public
     }
   }
@@ -828,17 +828,17 @@ pure parser_unit_owned_methods(): [TestResult] {
       Error(error) => false,
       Ok(module) => module.syntax[0].method == Some(OwnedMethodSyntax("Box", ["T"], "replace")) &&
         module.syntax[0].type_spans[0].start.column == 9 &&
-        module.implementations->len() == 1 && module.implementations[0].owner == "Box[T]"
+        module.implementations.len() == 1 && module.implementations[0].owner == "Box[T]"
     }
   }
   array_ok: Bool = match lex("impl[T] [T] { pub pure echo(): [T] { self } }") {
     Error(error) => false,
     Ok(tokens) => match parse_module_complete(tokens) {
       Error(error) => false,
-      Ok(module) => module.syntax->len() == 1 &&
+      Ok(module) => module.syntax.len() == 1 &&
         module.syntax[0].method == Some(OwnedMethodSyntax("Array", ["T"], "echo")) &&
         module.syntax[0].type_spans[0].start.column == 9 &&
-        module.implementations->len() == 1 && module.implementations[0].owner == "[T]"
+        module.implementations.len() == 1 && module.implementations[0].owner == "[T]"
     }
   }
   [
@@ -846,9 +846,9 @@ pure parser_unit_owned_methods(): [TestResult] {
     std_testing.expect("parser/owned/generic-metadata", generic_ok, "implementation binders or owner span lost"),
     std_testing.expect("parser/owned/declarations", parsed_ok, "methods must have distinct owner identities"),
     std_testing.expect("parser/owned/visibility", visibility_ok, "pub applies to its method only"),
-    std_testing.equal_str("parser/owned/arrow", parse_source("fruit->apple()"), "fruit->apple()"),
+    std_testing.equal_str("parser/owned/arrow-rejected", parse_source("fruit->apple()"), "arrow receiver calls are not supported; use dot syntax"),
     std_testing.equal_str("parser/owned/dot-unchanged", parse_source("fruit.apple()"), "fruit.apple()"),
-    std_testing.equal_str("parser/owned/missing-call", parse_source("fruit->apple"), "expected opening method parenthesis"),
+    std_testing.equal_str("parser/owned/arrow-field-rejected", parse_source("fruit->apple"), "arrow receiver calls are not supported; use dot syntax"),
     std_testing.expect("parser/owned/deferred-owner", match lex("impl Fruit {} record Fruit { value: Nat }") { Error(error) => false, Ok(tokens) => match parse_module_complete(tokens) { Ok(module) => true, Error(error) => false } }, "owner checking belongs to signatures")
   ]
 }
@@ -856,47 +856,47 @@ pure parser_unit_owned_methods(): [TestResult] {
 
 main(): Void {
   mut results: [TestResult] = parser_unit_owned_methods()
-  results = results->append(std_testing.equal_str("parser/dot-method-spelling-retained",
+  results = results.append(std_testing.equal_str("parser/dot-method-spelling-retained",
     parse_source("items.sort_by(@less).first()"), "items.sort_by(@less).first()"))
 
-  results = results->concat(parser_unit_else_if_chains())
-  results = results->concat(parser_unit_binary_operators_are_left_associative())
-  results = results->concat(parser_unit_generic_function_syntax_and_explicit_calls_round_trip())
-  results = results->concat(parser_unit_match_expressions_participate_in_precedence_and_blocks())
-  results = results->concat(parser_unit_dot_calls_retain_receiver_until_namespace_resolution())
-  results = results->concat(parser_unit_parentheses_override_precedence())
-  results = results->concat(parser_unit_parses_bindings_assignments_and_nested_type_references())
-  results = results->concat(parser_unit_parses_complete_mixed_program())
-  results = results->concat(parser_unit_parses_complete_nested_type_references())
-  results = results->concat(parser_unit_parses_empty_and_import_only_programs())
-  results = results->concat(parser_unit_parses_empty_statement_and_value_blocks())
-  results = results->concat(parser_unit_parses_enum_declarations())
-  results = results->concat(parser_unit_parses_every_binary_operator())
-  results = results->concat(parser_unit_parses_every_binary_precedence_level())
-  results = results->concat(parser_unit_parses_function_declarations())
-  results = results->concat(parser_unit_parses_guarded_type_declarations())
-  results = results->concat(parser_unit_parses_if_expressions_as_block_items())
-  results = results->concat(parser_unit_parses_if_expressions_with_block_branches())
-  results = results->concat(parser_unit_parses_inferred_bindings_without_new_operators())
-  results = results->concat(parser_unit_parses_match_expressions_and_patterns())
-  results = results->concat(parser_unit_parses_named_function_references_and_functional_methods())
-  results = results->concat(parser_unit_parses_record_declarations())
-  results = results->concat(parser_unit_parses_scalar_and_array_literals())
-  results = results->concat(parser_unit_parses_semicolonless_blocks_and_multiline_expressions())
-  results = results->concat(parser_unit_parses_unary_calls_fields_and_indexes())
-  results = results->concat(parser_unit_parses_while_and_for_statements())
-  results = results->concat(parser_unit_program_parser_propagates_lexer_failures())
-  results = results->concat(parser_unit_propagates_lexer_failures())
-  results = results->concat(parser_unit_reports_malformed_blocks())
-  results = results->concat(parser_unit_reports_malformed_enum_declarations())
-  results = results->concat(parser_unit_reports_malformed_expressions())
-  results = results->concat(parser_unit_reports_malformed_function_declarations())
-  results = results->concat(parser_unit_reports_malformed_guarded_type_declarations())
-  results = results->concat(parser_unit_reports_malformed_if_expressions())
-  results = results->concat(parser_unit_reports_malformed_import_declarations())
-  results = results->concat(parser_unit_reports_malformed_loops())
-  results = results->concat(parser_unit_reports_malformed_match_expressions())
-  results = results->concat(parser_unit_reports_malformed_record_declarations())
-  results = results->concat(parser_unit_reports_malformed_type_references())
+  results = results.concat(parser_unit_else_if_chains())
+  results = results.concat(parser_unit_binary_operators_are_left_associative())
+  results = results.concat(parser_unit_generic_function_syntax_and_explicit_calls_round_trip())
+  results = results.concat(parser_unit_match_expressions_participate_in_precedence_and_blocks())
+  results = results.concat(parser_unit_dot_calls_retain_receiver_until_namespace_resolution())
+  results = results.concat(parser_unit_parentheses_override_precedence())
+  results = results.concat(parser_unit_parses_bindings_assignments_and_nested_type_references())
+  results = results.concat(parser_unit_parses_complete_mixed_program())
+  results = results.concat(parser_unit_parses_complete_nested_type_references())
+  results = results.concat(parser_unit_parses_empty_and_import_only_programs())
+  results = results.concat(parser_unit_parses_empty_statement_and_value_blocks())
+  results = results.concat(parser_unit_parses_enum_declarations())
+  results = results.concat(parser_unit_parses_every_binary_operator())
+  results = results.concat(parser_unit_parses_every_binary_precedence_level())
+  results = results.concat(parser_unit_parses_function_declarations())
+  results = results.concat(parser_unit_parses_guarded_type_declarations())
+  results = results.concat(parser_unit_parses_if_expressions_as_block_items())
+  results = results.concat(parser_unit_parses_if_expressions_with_block_branches())
+  results = results.concat(parser_unit_parses_inferred_bindings_without_new_operators())
+  results = results.concat(parser_unit_parses_match_expressions_and_patterns())
+  results = results.concat(parser_unit_parses_named_function_references_and_functional_methods())
+  results = results.concat(parser_unit_parses_record_declarations())
+  results = results.concat(parser_unit_parses_scalar_and_array_literals())
+  results = results.concat(parser_unit_parses_semicolonless_blocks_and_multiline_expressions())
+  results = results.concat(parser_unit_parses_unary_calls_fields_and_indexes())
+  results = results.concat(parser_unit_parses_while_and_for_statements())
+  results = results.concat(parser_unit_program_parser_propagates_lexer_failures())
+  results = results.concat(parser_unit_propagates_lexer_failures())
+  results = results.concat(parser_unit_reports_malformed_blocks())
+  results = results.concat(parser_unit_reports_malformed_enum_declarations())
+  results = results.concat(parser_unit_reports_malformed_expressions())
+  results = results.concat(parser_unit_reports_malformed_function_declarations())
+  results = results.concat(parser_unit_reports_malformed_guarded_type_declarations())
+  results = results.concat(parser_unit_reports_malformed_if_expressions())
+  results = results.concat(parser_unit_reports_malformed_import_declarations())
+  results = results.concat(parser_unit_reports_malformed_loops())
+  results = results.concat(parser_unit_reports_malformed_match_expressions())
+  results = results.concat(parser_unit_reports_malformed_record_declarations())
+  results = results.concat(parser_unit_reports_malformed_type_references())
   if std_testing.report(results) > 0 { std_host.exit(1) }
 }

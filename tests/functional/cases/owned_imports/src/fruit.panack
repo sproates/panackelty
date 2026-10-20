@@ -2,6 +2,6 @@ pub record Fruit { value: Nat }
 
 impl Fruit {
   pub pure apple(): Nat { self.value }
-  pub pure banana(): Nat { self->next_value() }
+  pub pure banana(): Nat { self.next_value() }
   pure next_value(): Nat { self.value + 1 }
 }

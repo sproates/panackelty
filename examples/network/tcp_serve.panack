@@ -17,7 +17,7 @@ async main(): Unit {
   limits = TcpServerLimits(1, 1, 4096, 4096, 2000, 10000, 2000)
   match await transport_tcp.serve("127.0.0.1", 9000, @reply, limits) {
     Ok(outcomes) => {
-      expect(outcomes->len() == 1)
+      expect(outcomes.len() == 1)
       match outcomes[0] { Ok(done) => (), Error(problem) => expect(false) }
     },
     Error(problem) => expect(false)

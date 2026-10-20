@@ -1,4 +1,4 @@
 main(): Void {
   mut names = []
-  names = names->append("Ada")
+  names = names.append("Ada")
 }

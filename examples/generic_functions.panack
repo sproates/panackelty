@@ -12,12 +12,12 @@ pure repeat[T](value: T, count: Nat): T {
 main(): Void {
   print(identity(42))
   print(identity[Str]("hello"))
-  print([10, 20]->first()->value_or(0))
+  print([10, 20].first().value_or(0))
   empty_texts: [Str] = []
-  print(empty_texts->first()->value_or("empty"))
+  print(empty_texts.first().value_or("empty"))
   value: Result[Nat,Str] = Error("unavailable")
-  print(value->value_or(99))
+  print(value.value_or(99))
   success: Result[Nat,Str] = Ok(5)
-  print(success->value_or(99))
+  print(success.value_or(99))
   print(repeat(true, 2))
 }

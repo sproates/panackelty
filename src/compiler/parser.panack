@@ -19,6 +19,7 @@ pub enum Expr {
   CallExpr(Str, [Expr], [Str]),
   // Raw dot calls retain the receiver and spelling until namespace resolution.
   DotCallExpr(Expr, Str, [Expr], [Str]),
+  // Internal owned-call normalization after dot classification; never parsed syntax.
   OwnedCallExpr(Expr, Str, [Expr], [Str]),
   FieldExpr(Expr, Str),
   IndexExpr(Expr, Expr),
@@ -121,19 +122,19 @@ pub pure indexed_program(declarations: [TopLevel]): Program {
     match declaration {
       ImportDeclaration(path) => {},
       TypeDeclaration(name, base, guard) => {
-        types = types->put(name, index)
+        types = types.put(name, index)
       },
       RecordDeclaration(name, parameters, fields) => {
-        records = records->put(name, index)
+        records = records.put(name, index)
       },
       EnumDeclaration(name, parameters, values) => {
-        enums = enums->put(name, index)
+        enums = enums.put(name, index)
         for value in values {
-          variants = variants->put(value.name, IndexedVariant(name, parameters, value.payload))
+          variants = variants.put(value.name, IndexedVariant(name, parameters, value.payload))
         }
       },
       FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
-        functions = functions->put(name, index)
+        functions = functions.put(name, index)
       }
     }
     index = index + 1
@@ -212,7 +213,7 @@ record ParsedTopLevel {
 pure token_end_position(tokens: [Token], next: Nat): SourcePos {
   if next > 0 {
     last: Nat = next - 1
-    if last < tokens->len() {
+    if last < tokens.len() {
       token: Token = tokens[last]
       SourcePos(token.position.file, token.end, token.end_line, token.end_column)
     } else {
@@ -333,11 +334,11 @@ pure parse_error(message: Str, position: SourcePos): Diagnostic {
 
 pure string_token_value(text: Str): Str {
   mut cursor: Nat = 1
-  mut closing: Nat = text->len()
+  mut closing: Nat = text.len()
   mut escaped: Bool = false
   mut found: Bool = false
 
-  while cursor < text->len() && !found {
+  while cursor < text.len() && !found {
     if escaped {
       escaped = false
     } else {
@@ -353,11 +354,11 @@ pure string_token_value(text: Str): Str {
     }
     cursor = cursor + 1
   }
-  text->slice(1, closing)
+  text.slice(1, closing)
 }
 
 pure token_position(tokens: [Token], index: Nat): SourcePos {
-  if index < tokens->len() {
+  if index < tokens.len() {
     tokens[index].position
   } else {
     mut position: SourcePos = SourcePos("", 0, 1, 1)
@@ -374,9 +375,9 @@ pure parse_logical_import_path_tail(
   index: Nat,
   has_separator: Bool
 ): Result[ParsedImportPath, Diagnostic] {
-  if index < tokens->len() && tokens[index].text == "/" {
+  if index < tokens.len() && tokens[index].text == "/" {
     segment_index: Nat = index + 1
-    if segment_index >= tokens->len() || tokens[segment_index].kind != Identifier() {
+    if segment_index >= tokens.len() || tokens[segment_index].kind != Identifier() {
       Error(parse_error(
         "expected logical import path segment",
         token_position(tokens, segment_index)
@@ -386,9 +387,9 @@ pure parse_logical_import_path_tail(
       parse_logical_import_path_tail(tokens, "${text}/${segment}", segment_index + 1, true)
     }
   } else {
-    if index < tokens->len() && tokens[index].text == "." {
+    if index < tokens.len() && tokens[index].text == "." {
       suffix_index: Nat = index + 1
-      if suffix_index >= tokens->len() ||
+      if suffix_index >= tokens.len() ||
         tokens[suffix_index].kind != Identifier() ||
         tokens[suffix_index].text != "panack" {
         Error(parse_error(
@@ -413,7 +414,7 @@ pure parse_logical_import_path_tail(
 }
 
 pure parse_import_path(tokens: [Token], index: Nat): Result[ParsedImportPath, Diagnostic] {
-  if index >= tokens->len() {
+  if index >= tokens.len() {
     Error(parse_error("expected import path", token_position(tokens, index)))
   } else {
     if tokens[index].kind == StringLiteral() {
@@ -450,7 +451,7 @@ pure parse_type_ref_list_tail(
   spans: [SourceSpan],
   index: Nat
 ): Result[ParsedTypeRefList, Diagnostic] {
-  if index >= tokens->len() {
+  if index >= tokens.len() {
     Error(parse_error("expected closing type bracket", token_position(tokens, index)))
   } else {
     if tokens[index].text == "]" {
@@ -460,8 +461,8 @@ pure parse_type_ref_list_tail(
         match parse_type_ref(tokens, index + 1) {
           Ok(parsed) => parse_type_ref_list_tail(
             tokens,
-            values->append(parsed.text),
-            spans->append(parsed.span),
+            values.append(parsed.text),
+            spans.append(parsed.span),
             parsed.next
           ),
           Error(error) => Error(error)
@@ -484,14 +485,14 @@ pure parse_type_ref_list(tokens: [Token], index: Nat): Result[ParsedTypeRefList,
 }
 
 pub pure parse_reference_path(tokens: [Token], index: Nat): Result[ParsedTypeRef, Diagnostic] {
-  if index >= tokens->len() || tokens[index].kind != Identifier() {
+  if index >= tokens.len() || tokens[index].kind != Identifier() {
     Error(parse_error("expected reference name", token_position(tokens, index)))
   } else {
     mut name: Str = tokens[index].text
     mut cursor: Nat = index + 1
     mut invalid: Bool = false
-    while cursor < tokens->len() && tokens[cursor].text == "." && !invalid {
-      if cursor + 1 < tokens->len() && tokens[cursor + 1].kind == Identifier() {
+    while cursor < tokens.len() && tokens[cursor].text == "." && !invalid {
+      if cursor + 1 < tokens.len() && tokens[cursor + 1].kind == Identifier() {
         name = name + "." + tokens[cursor + 1].text
         cursor = cursor + 2
       } else {
@@ -507,13 +508,13 @@ pub pure parse_reference_path(tokens: [Token], index: Nat): Result[ParsedTypeRef
 }
 
 pure parse_type_ref(tokens: [Token], index: Nat): Result[ParsedTypeRef, Diagnostic] {
-  if index >= tokens->len() {
+  if index >= tokens.len() {
     Error(parse_error("expected type", token_position(tokens, index)))
   } else {
     if tokens[index].text == "[" {
       match parse_type_ref(tokens, index + 1) {
         Ok(inner) => {
-          if inner.next < tokens->len() && tokens[inner.next].text == "]" {
+          if inner.next < tokens.len() && tokens[inner.next].text == "]" {
             text: Str = inner.text
             Ok(ParsedTypeRef("[${text}]", token_span(tokens, index, inner.next + 1), inner.next + 1))
           } else {
@@ -528,7 +529,7 @@ pure parse_type_ref(tokens: [Token], index: Nat): Result[ParsedTypeRef, Diagnost
           Error(error) => Error(error),
           Ok(path) => {
             name: Str = path.text
-            if path.next < tokens->len() && tokens[path.next].text == "[" {
+            if path.next < tokens.len() && tokens[path.next].text == "[" {
               match parse_type_ref_list(tokens, path.next + 1) {
                 Ok(arguments) => {
                   argument_text: Str = render_type_ref_list(arguments.values)
@@ -551,7 +552,7 @@ pure parse_type_ref(tokens: [Token], index: Nat): Result[ParsedTypeRef, Diagnost
 pure parse_type_complete(tokens: [Token]): Result[Str, Diagnostic] {
   match parse_type_ref(tokens, 0) {
     Ok(parsed) => {
-      if parsed.next == tokens->len() {
+      if parsed.next == tokens.len() {
         Ok(parsed.text)
       } else {
         Error(parse_error("unexpected token after type", tokens[parsed.next].position))
@@ -566,7 +567,7 @@ pure parse_generic_parameter_tail(
   parameters: [Str],
   index: Nat
 ): Result[ParsedNameList, Diagnostic] {
-  if index >= tokens->len() {
+  if index >= tokens.len() {
     Error(parse_error("expected closing type parameter bracket", token_position(tokens, index)))
   } else {
     if tokens[index].text == "]" {
@@ -574,12 +575,12 @@ pure parse_generic_parameter_tail(
     } else {
       if tokens[index].text == "," {
         parameter_index: Nat = index + 1
-        if parameter_index >= tokens->len() || tokens[parameter_index].kind != Identifier() {
+        if parameter_index >= tokens.len() || tokens[parameter_index].kind != Identifier() {
           Error(parse_error("expected type parameter", token_position(tokens, parameter_index)))
         } else {
           parse_generic_parameter_tail(
             tokens,
-            parameters->append(tokens[parameter_index].text),
+            parameters.append(tokens[parameter_index].text),
             parameter_index + 1
           )
         }
@@ -594,12 +595,12 @@ pure parse_generic_parameter_tail(
 }
 
 pure parse_generic_parameters(tokens: [Token], index: Nat): Result[ParsedNameList, Diagnostic] {
-  if index >= tokens->len() || tokens[index].text != "[" {
+  if index >= tokens.len() || tokens[index].text != "[" {
     parameters: [Str] = []
     Ok(ParsedNameList(parameters, index))
   } else {
     first_index: Nat = index + 1
-    if first_index >= tokens->len() || tokens[first_index].kind != Identifier() {
+    if first_index >= tokens.len() || tokens[first_index].kind != Identifier() {
       Error(parse_error("expected type parameter", token_position(tokens, first_index)))
     } else {
       parameters: [Str] = [tokens[first_index].text]
@@ -614,7 +615,7 @@ pure parse_variant_payload_tail(
   spans: [SourceSpan],
   index: Nat
 ): Result[ParsedTypeRefList, Diagnostic] {
-  if index >= tokens->len() {
+  if index >= tokens.len() {
     Error(parse_error("expected closing variant parenthesis", token_position(tokens, index)))
   } else {
     if tokens[index].text == ")" {
@@ -624,8 +625,8 @@ pure parse_variant_payload_tail(
         match parse_type_ref(tokens, index + 1) {
           Ok(parsed) => parse_variant_payload_tail(
             tokens,
-            payload->append(parsed.text),
-            spans->append(parsed.span),
+            payload.append(parsed.text),
+            spans.append(parsed.span),
             parsed.next
           ),
           Error(error) => Error(error)
@@ -638,7 +639,7 @@ pure parse_variant_payload_tail(
 }
 
 pure parse_variant_payload(tokens: [Token], index: Nat): Result[ParsedTypeRefList, Diagnostic] {
-  if index < tokens->len() && tokens[index].text == ")" {
+  if index < tokens.len() && tokens[index].text == ")" {
     payload: [Str] = []
     Ok(ParsedTypeRefList(payload, [], index + 1))
   } else {
@@ -658,7 +659,7 @@ pure parse_expression_list_tail(
   index: Nat,
   closing: Str
 ): Result[ParsedExprList, Diagnostic] {
-  if index >= tokens->len() {
+  if index >= tokens.len() {
     Error(parse_error("expected ${closing}", token_position(tokens, index)))
   } else {
     if tokens[index].text == closing {
@@ -668,7 +669,7 @@ pure parse_expression_list_tail(
         match parse_expression(tokens, index + 1) {
           Ok(parsed) => parse_expression_list_tail(
             tokens,
-            values->append(parsed.value),
+            values.append(parsed.value),
             parsed.next,
             closing
           ),
@@ -686,7 +687,7 @@ pure parse_expression_list(
   index: Nat,
   closing: Str
 ): Result[ParsedExprList, Diagnostic] {
-  if index < tokens->len() && tokens[index].text == closing {
+  if index < tokens.len() && tokens[index].text == closing {
     values: [Expr] = []
     Ok(ParsedExprList(values, index + 1))
   } else {
@@ -705,7 +706,7 @@ pure parse_pattern_bindings(
   bindings: [Str],
   index: Nat
 ): Result[ParsedNameList, Diagnostic] {
-  if index >= tokens->len() {
+  if index >= tokens.len() {
     Error(parse_error("expected closing pattern parenthesis", token_position(tokens, index)))
   } else {
     if tokens[index].text == ")" {
@@ -715,15 +716,15 @@ pure parse_pattern_bindings(
         Error(parse_error("expected pattern binding", tokens[index].position))
       } else {
         next: Nat = index + 1
-        values: [Str] = bindings->append(tokens[index].text)
-        if next >= tokens->len() {
+        values: [Str] = bindings.append(tokens[index].text)
+        if next >= tokens.len() {
           Error(parse_error("expected closing pattern parenthesis", token_position(tokens, next)))
         } else {
           if tokens[next].text == ")" {
             Ok(ParsedNameList(values, next + 1))
           } else {
             if tokens[next].text == "," {
-              if next + 1 < tokens->len() && tokens[next + 1].text == ")" {
+              if next + 1 < tokens.len() && tokens[next + 1].text == ")" {
                 Error(parse_error("expected pattern binding", tokens[next + 1].position))
               } else {
                 parse_pattern_bindings(tokens, values, next + 1)
@@ -742,7 +743,7 @@ pure parse_pattern_bindings(
 }
 
 pure parse_match_arm_body(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] {
-  if index < tokens->len() && tokens[index].text == "{" {
+  if index < tokens.len() && tokens[index].text == "{" {
     match parse_block(tokens, index) {
       Ok(block) => Ok(ParsedExpr(
         located_expression(tokens, index, block.next, BlockExpr(block.value)),
@@ -760,7 +761,7 @@ pure parse_match_arms(
   arms: [MatchArm],
   index: Nat
 ): Result[ParsedMatchArmList, Diagnostic] {
-  if index >= tokens->len() {
+  if index >= tokens.len() {
     Error(parse_error("expected closing match brace", token_position(tokens, index)))
   } else {
     if tokens[index].text == "}" {
@@ -774,7 +775,7 @@ pure parse_match_arms(
           Ok(path) => {
             variant: Str = path.text
             opening_index: Nat = path.next
-            if opening_index >= tokens->len() || tokens[opening_index].text != "(" {
+            if opening_index >= tokens.len() || tokens[opening_index].text != "(" {
               Error(parse_error(
                 "expected opening pattern parenthesis",
                 token_position(tokens, opening_index)
@@ -783,7 +784,7 @@ pure parse_match_arms(
               bindings: [Str] = []
               match parse_pattern_bindings(tokens, bindings, opening_index + 1) {
                 Ok(parsed_bindings) => {
-                  if parsed_bindings.next >= tokens->len() ||
+                  if parsed_bindings.next >= tokens.len() ||
                     tokens[parsed_bindings.next].text != "=>" {
                     Error(parse_error(
                       "expected => after pattern",
@@ -801,8 +802,8 @@ pure parse_match_arms(
                           )
                         )
                         arm: MatchArm = MatchArm(pattern, body.value)
-                        values: [MatchArm] = arms->append(arm)
-                        if body.next >= tokens->len() {
+                        values: [MatchArm] = arms.append(arm)
+                        if body.next >= tokens.len() {
                           Error(parse_error(
                             "expected closing match brace",
                             token_position(tokens, body.next)
@@ -839,7 +840,7 @@ pure parse_match_arms(
 pure parse_match_expression(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] {
   match parse_expression(tokens, index + 1) {
     Ok(subject) => {
-      if subject.next >= tokens->len() || tokens[subject.next].text != "{" {
+      if subject.next >= tokens.len() || tokens[subject.next].text != "{" {
         Error(parse_error("expected opening match brace", token_position(tokens, subject.next)))
       } else {
         arms: [MatchArm] = []
@@ -872,7 +873,7 @@ record ParsedConditional {
 pure discard_block_result(block: Block): Block {
   statements: [Statement] = match block.value {
     NoBlockValue() => block.statements,
-    TailBlockValue(value) => block.statements->append(ExpressionStatement(value))
+    TailBlockValue(value) => block.statements.append(ExpressionStatement(value))
   }
   Block(statements, NoBlockValue())
 }
@@ -883,9 +884,9 @@ pure parse_if_branches(
   condition: ParsedExpr,
   yes: ParsedBlock
 ): Result[ParsedConditional, Diagnostic] {
-  if yes.next < tokens->len() && tokens[yes.next].text == "else" {
+  if yes.next < tokens.len() && tokens[yes.next].text == "else" {
     alternative: Nat = yes.next + 1
-    if alternative < tokens->len() && tokens[alternative].text == "if" {
+    if alternative < tokens.len() && tokens[alternative].text == "if" {
       match parse_if_chain(tokens, alternative) {
         Error(error) => Error(error),
         Ok(chain) => {
@@ -954,9 +955,9 @@ pure parse_if_expression(tokens: [Token], index: Nat): Result[ParsedExpr, Diagno
 pure parse_call_type_arguments(tokens: [Token], index: Nat): Result[ParsedTypeRefList, Diagnostic] {
   mut closing: Nat = index
   mut depth: Int = 0
-  mut scanning: Bool = index < tokens->len() && tokens[index].text == "["
+  mut scanning: Bool = index < tokens.len() && tokens[index].text == "["
 
-  while scanning && closing < tokens->len() {
+  while scanning && closing < tokens.len() {
     if tokens[closing].text == "[" {
       depth = depth + 1
     }
@@ -970,7 +971,7 @@ pure parse_call_type_arguments(tokens: [Token], index: Nat): Result[ParsedTypeRe
       closing = closing + 1
     }
   }
-  if closing > index && closing + 1 < tokens->len() && tokens[closing + 1].text == "(" {
+  if closing > index && closing + 1 < tokens.len() && tokens[closing + 1].text == "(" {
     parse_type_ref_list(tokens, index + 1)
   } else {
     Ok(ParsedTypeRefList([], [], index))
@@ -981,7 +982,7 @@ pure parse_named_expression(tokens: [Token], index: Nat): Result[ParsedExpr, Dia
   match parse_call_type_arguments(tokens, index + 1) {
     Error(error) => Error(error),
     Ok(types) => {
-      if types.next < tokens->len() && tokens[types.next].text == "(" {
+      if types.next < tokens.len() && tokens[types.next].text == "(" {
         match parse_expression_list(tokens, types.next + 1, ")") {
           Ok(arguments) => Ok(ParsedExpr(
             located_expression_with_type_argument_spans(
@@ -1006,12 +1007,12 @@ pure parse_named_expression(tokens: [Token], index: Nat): Result[ParsedExpr, Dia
 }
 
 pure parse_primary(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] {
-  if index >= tokens->len() {
+  if index >= tokens.len() {
     Error(parse_error("expected expression", token_position(tokens, index)))
   } else {
     token: Token = tokens[index]
     if token.text == "@" {
-      if index + 1 < tokens->len() && (tokens[index + 1].kind == Identifier() || tokens[index + 1].text == "[") {
+      if index + 1 < tokens.len() && (tokens[index + 1].kind == Identifier() || tokens[index + 1].text == "[") {
         match parse_reference_path(tokens, index + 1) {
           Error(error) => Error(error),
           Ok(path) => Ok(ParsedExpr(
@@ -1031,7 +1032,7 @@ pure parse_primary(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] 
         } else {
           if token.kind == Number() {
             Ok(ParsedExpr(
-              located_expression(tokens, index, index + 1, NatExpr(token.text->parse_nat())),
+              located_expression(tokens, index, index + 1, NatExpr(token.text.parse_nat())),
               index + 1
             ))
           } else {
@@ -1057,7 +1058,7 @@ pure parse_primary(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] 
                     parse_named_expression(tokens, index)
                   } else {
                     if token.text == "(" {
-                      if index + 1 < tokens->len() && tokens[index + 1].text == ")" {
+                      if index + 1 < tokens.len() && tokens[index + 1].text == ")" {
                         Ok(ParsedExpr(
                           located_expression(tokens, index, index + 2, CallExpr("$unit", [], [])),
                           index + 2
@@ -1065,7 +1066,7 @@ pure parse_primary(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] 
                       } else {
                         match parse_expression(tokens, index + 1) {
                           Ok(inner) => {
-                            if inner.next < tokens->len() && tokens[inner.next].text == ")" {
+                            if inner.next < tokens.len() && tokens[inner.next].text == ")" {
                               Ok(ParsedExpr(
                                 located_expression(tokens, index, inner.next + 1, inner.value),
                                 inner.next + 1
@@ -1105,10 +1106,10 @@ pure parse_primary(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] 
 }
 
 pure parse_postfix_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedExpr, Diagnostic] {
-  if index < tokens->len() && tokens[index].text == "[" {
+  if index < tokens.len() && tokens[index].text == "[" {
     match parse_expression(tokens, index + 1) {
       Ok(parsed_index) => {
-        if parsed_index.next < tokens->len() && tokens[parsed_index.next].text == "]" {
+        if parsed_index.next < tokens.len() && tokens[parsed_index.next].text == "]" {
           parse_postfix_tail(
             tokens,
             extended_expression(
@@ -1126,13 +1127,15 @@ pure parse_postfix_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedE
       Error(error) => Error(error)
     }
   } else {
-    if index < tokens->len() && (tokens[index].text == "." || tokens[index].text == "->") {
-      if index + 1 < tokens->len() && (tokens[index + 1].kind == Identifier() || tokens[index + 1].text == "[") {
+    if index < tokens.len() && tokens[index].text == "->" {
+      Error(parse_error("arrow receiver calls are not supported; use dot syntax", token_position(tokens, index)))
+    } else if index < tokens.len() && tokens[index].text == "." {
+      if index + 1 < tokens.len() && (tokens[index + 1].kind == Identifier() || tokens[index + 1].text == "[") {
         name: Str = tokens[index + 1].text
         match parse_call_type_arguments(tokens, index + 2) {
           Error(error) => Error(error),
           Ok(types) => {
-            if types.next < tokens->len() && tokens[types.next].text == "(" {
+            if types.next < tokens.len() && tokens[types.next].text == "(" {
               match parse_expression_list(tokens, types.next + 1, ")") {
                 Ok(arguments) => {
                   parse_postfix_tail(
@@ -1141,11 +1144,7 @@ pure parse_postfix_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedE
                     tokens,
                     left,
                     arguments.next,
-                    if tokens[index].text == "->" {
-                      OwnedCallExpr(left, name, arguments.values, types.values)
-                    } else {
-                      DotCallExpr(left, name, arguments.values, types.values)
-                    },
+                    DotCallExpr(left, name, arguments.values, types.values),
                     types.spans
                   ),
                     arguments.next
@@ -1153,8 +1152,6 @@ pure parse_postfix_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedE
                 },
                 Error(error) => Error(error)
               }
-            } else if tokens[index].text == "->" {
-              Error(parse_error("expected opening method parenthesis", token_position(tokens, types.next)))
             } else {
               parse_postfix_tail(
                 tokens,
@@ -1181,7 +1178,7 @@ pure parse_postfix(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] 
 }
 
 pure parse_unary(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] {
-  if index < tokens->len() &&
+  if index < tokens.len() &&
     (tokens[index].text == "-" ||
     tokens[index].text == "!" ||
     tokens[index].text == "await") {
@@ -1199,7 +1196,7 @@ pure parse_unary(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] {
 }
 
 pure parse_product_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedExpr, Diagnostic] {
-  if index < tokens->len() &&
+  if index < tokens.len() &&
     (tokens[index].text == "*" ||
     tokens[index].text == "/" ||
     tokens[index].text == "%") {
@@ -1225,7 +1222,7 @@ pure parse_product(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] 
 }
 
 pure parse_sum_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedExpr, Diagnostic] {
-  if index < tokens->len() && (tokens[index].text == "+" || tokens[index].text == "-") {
+  if index < tokens.len() && (tokens[index].text == "+" || tokens[index].text == "-") {
     operator: Str = tokens[index].text
     match parse_product(tokens, index + 1) {
       Ok(right) => parse_sum_tail(
@@ -1252,7 +1249,7 @@ pure parse_comparison_tail(
   left: Expr,
   index: Nat
 ): Result[ParsedExpr, Diagnostic] {
-  if index < tokens->len() &&
+  if index < tokens.len() &&
     (tokens[index].text == "<" ||
     tokens[index].text == "<=" ||
     tokens[index].text == ">" ||
@@ -1279,7 +1276,7 @@ pure parse_comparison(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnosti
 }
 
 pure parse_equality_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedExpr, Diagnostic] {
-  if index < tokens->len() && (tokens[index].text == "==" || tokens[index].text == "!=") {
+  if index < tokens.len() && (tokens[index].text == "==" || tokens[index].text == "!=") {
     operator: Str = tokens[index].text
     match parse_comparison(tokens, index + 1) {
       Ok(right) => parse_equality_tail(
@@ -1302,7 +1299,7 @@ pure parse_equality(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic]
 }
 
 pure parse_and_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedExpr, Diagnostic] {
-  if index < tokens->len() && tokens[index].text == "&&" {
+  if index < tokens.len() && tokens[index].text == "&&" {
     match parse_equality(tokens, index + 1) {
       Ok(right) => parse_and_tail(
         tokens,
@@ -1324,7 +1321,7 @@ pure parse_and(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] {
 }
 
 pure parse_or_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedExpr, Diagnostic] {
-  if index < tokens->len() && tokens[index].text == "||" {
+  if index < tokens.len() && tokens[index].text == "||" {
     match parse_and(tokens, index + 1) {
       Ok(right) => parse_or_tail(
         tokens,
@@ -1346,7 +1343,7 @@ pure parse_or(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] {
 }
 
 pure parse_range_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedExpr, Diagnostic] {
-  if index < tokens->len() && tokens[index].text == ".." {
+  if index < tokens.len() && tokens[index].text == ".." {
     match parse_or(tokens, index + 1) {
       Ok(right) => parse_range_tail(
         tokens,
@@ -1370,7 +1367,7 @@ pure parse_expression(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnosti
 pub pure parse_complete(tokens: [Token]): Result[Expr, Diagnostic] {
   match parse_expression(tokens, 0) {
     Ok(parsed) => {
-      if parsed.next == tokens->len() {
+      if parsed.next == tokens.len() {
         Ok(parsed.value)
       } else {
         Error(parse_error("unexpected token", tokens[parsed.next].position))
@@ -1389,13 +1386,13 @@ pure parse_while_statement(
     Ok(condition) => {
       match parse_block(tokens, condition.next) {
         Ok(body) => {
-          next: Nat = if body.next < tokens->len() && tokens[body.next].text == ";" {
+          next: Nat = if body.next < tokens.len() && tokens[body.next].text == ";" {
             body.next + 1
           } else {
             body.next
           }
           statement: Statement = WhileStatement(condition.value, body.value)
-          parse_block_items(tokens, statements->append(statement), next)
+          parse_block_items(tokens, statements.append(statement), next)
         },
         Error(error) => Error(error)
       }
@@ -1411,18 +1408,18 @@ pure parse_for_statement(
 ): Result[ParsedBlock, Diagnostic] {
   variable_index: Nat = index + 1
 
-  if variable_index >= tokens->len() || tokens[variable_index].kind != Identifier() {
+  if variable_index >= tokens.len() || tokens[variable_index].kind != Identifier() {
     Error(parse_error("expected loop variable", token_position(tokens, variable_index)))
   } else {
     in_index: Nat = variable_index + 1
-    if in_index >= tokens->len() || tokens[in_index].text != "in" {
+    if in_index >= tokens.len() || tokens[in_index].text != "in" {
       Error(parse_error("expected in after loop variable", token_position(tokens, in_index)))
     } else {
       match parse_expression(tokens, in_index + 1) {
         Ok(iterable) => {
           match parse_block(tokens, iterable.next) {
             Ok(body) => {
-              next: Nat = if body.next < tokens->len() && tokens[body.next].text == ";" {
+              next: Nat = if body.next < tokens.len() && tokens[body.next].text == ";" {
                 body.next + 1
               } else {
                 body.next
@@ -1432,7 +1429,7 @@ pure parse_for_statement(
                 iterable.value,
                 body.value
               )
-              parse_block_items(tokens, statements->append(statement), next)
+              parse_block_items(tokens, statements.append(statement), next)
             },
             Error(error) => Error(error)
           }
@@ -1448,7 +1445,7 @@ pure parse_block_items(
   statements: [Statement],
   index: Nat
 ): Result[ParsedBlock, Diagnostic] {
-  if index >= tokens->len() {
+  if index >= tokens.len() {
     Error(parse_error("expected closing brace", token_position(tokens, index)))
   } else {
     if tokens[index].text == "}" {
@@ -1456,7 +1453,7 @@ pure parse_block_items(
     } else {
       if tokens[index].text == "mut" ||
         (tokens[index].kind == Identifier() &&
-        index + 1 < tokens->len() &&
+        index + 1 < tokens.len() &&
         tokens[index + 1].text == ":") {
         mutable: Bool = tokens[index].text == "mut"
         name_index: Nat = if mutable {
@@ -1464,12 +1461,12 @@ pure parse_block_items(
         } else {
           index
         }
-        if name_index >= tokens->len() || tokens[name_index].kind != Identifier() {
+        if name_index >= tokens.len() || tokens[name_index].kind != Identifier() {
           Error(parse_error("expected binding name", token_position(tokens, name_index)))
         } else {
           name: Str = tokens[name_index].text
           colon_index: Nat = name_index + 1
-          if colon_index >= tokens->len() ||
+          if colon_index >= tokens.len() ||
             (tokens[colon_index].text != ":" &&
             tokens[colon_index].text != "=") {
             Error(parse_error(
@@ -1484,7 +1481,7 @@ pure parse_block_items(
             }
             match annotation {
               Ok(type_ref) => {
-                if type_ref.next >= tokens->len() || tokens[type_ref.next].text != "=" {
+                if type_ref.next >= tokens.len() || tokens[type_ref.next].text != "=" {
                   Error(parse_error(
                     "expected = after binding type",
                     token_position(tokens, type_ref.next)
@@ -1505,11 +1502,11 @@ pure parse_block_items(
                         mutable,
                         initializer
                       )
-                      if value.next < tokens->len() && tokens[value.next].text == ";" {
-                        parse_block_items(tokens, statements->append(statement), value.next + 1)
+                      if value.next < tokens.len() && tokens[value.next].text == ";" {
+                        parse_block_items(tokens, statements.append(statement), value.next + 1)
                       } else {
-                        if value.next < tokens->len() && tokens[value.next].text == "}" {
-                          parse_block_items(tokens, statements->append(statement), value.next)
+                        if value.next < tokens.len() && tokens[value.next].text == "}" {
+                          parse_block_items(tokens, statements.append(statement), value.next)
                         } else {
                           Error(parse_error(
                             "expected line break, semicolon, or closing brace after binding",
@@ -1534,17 +1531,17 @@ pure parse_block_items(
             parse_for_statement(tokens, statements, index)
           } else {
             if tokens[index].kind == Identifier() &&
-              index + 1 < tokens->len() &&
+              index + 1 < tokens.len() &&
               tokens[index + 1].text == "=" {
               name: Str = tokens[index].text
               match parse_expression(tokens, index + 2) {
                 Ok(value) => {
                   statement: Statement = AssignmentStatement(name, value.value)
-                  if value.next < tokens->len() && tokens[value.next].text == ";" {
-                    parse_block_items(tokens, statements->append(statement), value.next + 1)
+                  if value.next < tokens.len() && tokens[value.next].text == ";" {
+                    parse_block_items(tokens, statements.append(statement), value.next + 1)
                   } else {
-                    if value.next < tokens->len() && tokens[value.next].text == "}" {
-                      parse_block_items(tokens, statements->append(statement), value.next)
+                    if value.next < tokens.len() && tokens[value.next].text == "}" {
+                      parse_block_items(tokens, statements.append(statement), value.next)
                     } else {
                       Error(parse_error(
                         "expected line break, semicolon, or closing brace after assignment",
@@ -1558,15 +1555,15 @@ pure parse_block_items(
             } else {
               match parse_expression(tokens, index) {
                 Ok(expression) => {
-                  if expression.next < tokens->len() && tokens[expression.next].text == ";" {
+                  if expression.next < tokens.len() && tokens[expression.next].text == ";" {
                     statement: Statement = ExpressionStatement(expression.value)
                     parse_block_items(
                       tokens,
-                      statements->append(statement),
+                      statements.append(statement),
                       expression.next + 1
                     )
                   } else {
-                    if expression.next < tokens->len() && tokens[expression.next].text == "}" {
+                    if expression.next < tokens.len() && tokens[expression.next].text == "}" {
                       Ok(ParsedBlock(
                         Block(statements, TailBlockValue(expression.value)),
                         expression.next + 1
@@ -1590,7 +1587,7 @@ pure parse_block_items(
 }
 
 pure parse_block(tokens: [Token], index: Nat): Result[ParsedBlock, Diagnostic] {
-  if index >= tokens->len() || tokens[index].text != "{" {
+  if index >= tokens.len() || tokens[index].text != "{" {
     Error(parse_error("expected opening brace", token_position(tokens, index)))
   } else {
     statements: [Statement] = []
@@ -1601,7 +1598,7 @@ pure parse_block(tokens: [Token], index: Nat): Result[ParsedBlock, Diagnostic] {
 pure parse_block_complete(tokens: [Token]): Result[Block, Diagnostic] {
   match parse_block(tokens, 0) {
     Ok(parsed) => {
-      if parsed.next == tokens->len() {
+      if parsed.next == tokens.len() {
         Ok(parsed.value)
       } else {
         Error(parse_error("unexpected token after block", tokens[parsed.next].position))
@@ -1614,19 +1611,19 @@ pure parse_block_complete(tokens: [Token]): Result[Block, Diagnostic] {
 pure parse_type_declaration(tokens: [Token], index: Nat): Result[ParsedTopLevel, Diagnostic] {
   name_index: Nat = index + 1
 
-  if name_index >= tokens->len() || tokens[name_index].kind != Identifier() {
+  if name_index >= tokens.len() || tokens[name_index].kind != Identifier() {
     Error(parse_error("expected type name", token_position(tokens, name_index)))
   } else {
     equals_index: Nat = name_index + 1
-    if equals_index >= tokens->len() || tokens[equals_index].text != "=" {
+    if equals_index >= tokens.len() || tokens[equals_index].text != "=" {
       Error(parse_error("expected = after type name", token_position(tokens, equals_index)))
     } else {
       base_index: Nat = equals_index + 1
-      if base_index >= tokens->len() || tokens[base_index].kind != Identifier() {
+      if base_index >= tokens.len() || tokens[base_index].kind != Identifier() {
         Error(parse_error("expected guarded type base", token_position(tokens, base_index)))
       } else {
         where_index: Nat = base_index + 1
-        if where_index >= tokens->len() || tokens[where_index].text != "where" {
+        if where_index >= tokens.len() || tokens[where_index].text != "where" {
           Error(parse_error(
             "expected where after guarded type base",
             token_position(tokens, where_index)
@@ -1639,7 +1636,7 @@ pure parse_type_declaration(tokens: [Token], index: Nat): Result[ParsedTopLevel,
                 tokens[base_index].text,
                 guard.value
               )
-              if guard.next == tokens->len() {
+              if guard.next == tokens.len() {
                 Ok(ParsedTopLevel(declaration, [token_span(tokens, base_index, base_index + 1)], guard.next))
               } else {
                 if tokens[guard.next].text == ";" {
@@ -1668,7 +1665,7 @@ pure parse_record_fields(
   type_spans: [SourceSpan],
   index: Nat
 ): Result[ParsedTopLevel, Diagnostic] {
-  if index >= tokens->len() {
+  if index >= tokens.len() {
     Error(parse_error("expected closing record brace", token_position(tokens, index)))
   } else {
     if tokens[index].text == "}" {
@@ -1680,7 +1677,7 @@ pure parse_record_fields(
       } else {
         field_name: Str = tokens[index].text
         colon_index: Nat = index + 1
-        if colon_index >= tokens->len() || tokens[colon_index].text != ":" {
+        if colon_index >= tokens.len() || tokens[colon_index].text != ":" {
           Error(parse_error(
             "expected colon after record field name",
             token_position(tokens, colon_index)
@@ -1689,9 +1686,9 @@ pure parse_record_fields(
           match parse_type_ref(tokens, colon_index + 1) {
             Ok(type_ref) => {
               field: RecordField = RecordField(field_name, type_ref.text)
-              values: [RecordField] = fields->append(field)
-              spans: [SourceSpan] = type_spans->append(type_ref.span)
-              if type_ref.next >= tokens->len() {
+              values: [RecordField] = fields.append(field)
+              spans: [SourceSpan] = type_spans.append(type_ref.span)
+              if type_ref.next >= tokens.len() {
                 Error(parse_error(
                   "expected closing record brace",
                   token_position(tokens, type_ref.next)
@@ -1723,13 +1720,13 @@ pure parse_record_fields(
 pure parse_record_declaration(tokens: [Token], index: Nat): Result[ParsedTopLevel, Diagnostic] {
   name_index: Nat = index + 1
 
-  if name_index >= tokens->len() || tokens[name_index].kind != Identifier() {
+  if name_index >= tokens.len() || tokens[name_index].kind != Identifier() {
     Error(parse_error("expected record name", token_position(tokens, name_index)))
   } else {
     name: Str = tokens[name_index].text
     match parse_generic_parameters(tokens, name_index + 1) {
       Ok(parameters) => {
-        if parameters.next >= tokens->len() || tokens[parameters.next].text != "{" {
+        if parameters.next >= tokens.len() || tokens[parameters.next].text != "{" {
           Error(parse_error(
             "expected opening record brace",
             token_position(tokens, parameters.next)
@@ -1752,7 +1749,7 @@ pure parse_enum_variants(
   type_spans: [SourceSpan],
   index: Nat
 ): Result[ParsedTopLevel, Diagnostic] {
-  if index >= tokens->len() {
+  if index >= tokens.len() {
     Error(parse_error("expected closing enum brace", token_position(tokens, index)))
   } else {
     if tokens[index].text == "}" {
@@ -1764,7 +1761,7 @@ pure parse_enum_variants(
       } else {
         variant_name: Str = tokens[index].text
         payload_index: Nat = index + 1
-        if payload_index < tokens->len() && tokens[payload_index].text == "(" {
+        if payload_index < tokens.len() && tokens[payload_index].text == "(" {
           match parse_variant_payload(tokens, payload_index + 1) {
             Ok(payload) => parse_enum_variant_tail(
               tokens,
@@ -1773,7 +1770,7 @@ pure parse_enum_variants(
               variants,
               variant_name,
               payload.values,
-              type_spans->concat(payload.spans),
+              type_spans.concat(payload.spans),
               payload.next
             ),
             Error(error) => Error(error)
@@ -1807,9 +1804,9 @@ pure parse_enum_variant_tail(
   index: Nat
 ): Result[ParsedTopLevel, Diagnostic] {
   variant: EnumVariant = EnumVariant(variant_name, payload)
-  values: [EnumVariant] = variants->append(variant)
+  values: [EnumVariant] = variants.append(variant)
 
-  if index >= tokens->len() {
+  if index >= tokens.len() {
     Error(parse_error("expected closing enum brace", token_position(tokens, index)))
   } else {
     if tokens[index].text == "," {
@@ -1828,13 +1825,13 @@ pure parse_enum_variant_tail(
 pure parse_enum_declaration(tokens: [Token], index: Nat): Result[ParsedTopLevel, Diagnostic] {
   name_index: Nat = index + 1
 
-  if name_index >= tokens->len() || tokens[name_index].kind != Identifier() {
+  if name_index >= tokens.len() || tokens[name_index].kind != Identifier() {
     Error(parse_error("expected enum name", token_position(tokens, name_index)))
   } else {
     name: Str = tokens[name_index].text
     match parse_generic_parameters(tokens, name_index + 1) {
       Ok(parameters) => {
-        if parameters.next >= tokens->len() || tokens[parameters.next].text != "{" {
+        if parameters.next >= tokens.len() || tokens[parameters.next].text != "{" {
           Error(parse_error("expected opening enum brace", token_position(tokens, parameters.next)))
         } else {
           variants: [EnumVariant] = []
@@ -1852,7 +1849,7 @@ pure parse_function_parameter_items(
   type_spans: [SourceSpan],
   index: Nat
 ): Result[ParsedFunctionParameterList, Diagnostic] {
-  if index >= tokens->len() {
+  if index >= tokens.len() {
     Error(parse_error("expected function parameter", token_position(tokens, index)))
   } else {
     if tokens[index].kind != Identifier() {
@@ -1860,7 +1857,7 @@ pure parse_function_parameter_items(
     } else {
       name: Str = tokens[index].text
       colon_index: Nat = index + 1
-      if colon_index >= tokens->len() || tokens[colon_index].text != ":" {
+      if colon_index >= tokens.len() || tokens[colon_index].text != ":" {
         Error(parse_error(
           "expected colon after parameter name",
           token_position(tokens, colon_index)
@@ -1869,18 +1866,18 @@ pure parse_function_parameter_items(
         match parse_type_ref(tokens, colon_index + 1) {
           Ok(type_ref) => {
             parameter: FunctionParameter = FunctionParameter(name, type_ref.text)
-            values: [FunctionParameter] = parameters->append(parameter)
-            if type_ref.next >= tokens->len() {
+            values: [FunctionParameter] = parameters.append(parameter)
+            if type_ref.next >= tokens.len() {
               Error(parse_error(
                 "expected closing function parenthesis",
                 token_position(tokens, type_ref.next)
               ))
             } else {
               if tokens[type_ref.next].text == ")" {
-                Ok(ParsedFunctionParameterList(values, type_spans->append(type_ref.span), type_ref.next + 1))
+                Ok(ParsedFunctionParameterList(values, type_spans.append(type_ref.span), type_ref.next + 1))
               } else {
                 if tokens[type_ref.next].text == "," {
-                  parse_function_parameter_items(tokens, values, type_spans->append(type_ref.span), type_ref.next + 1)
+                  parse_function_parameter_items(tokens, values, type_spans.append(type_ref.span), type_ref.next + 1)
                 } else {
                   Error(parse_error(
                     "expected comma or closing function parenthesis",
@@ -1901,7 +1898,7 @@ pure parse_function_parameters(
   tokens: [Token],
   index: Nat
 ): Result[ParsedFunctionParameterList, Diagnostic] {
-  if index < tokens->len() && tokens[index].text == ")" {
+  if index < tokens.len() && tokens[index].text == ")" {
     parameters: [FunctionParameter] = []
     Ok(ParsedFunctionParameterList(parameters, [], index + 1))
   } else {
@@ -1918,7 +1915,7 @@ pure parse_function_declaration(tokens: [Token], index: Nat): Result[ParsedTopLe
   } else {
     index
   }
-  if name_index >= tokens->len() || tokens[name_index].kind != Identifier() {
+  if name_index >= tokens.len() || tokens[name_index].kind != Identifier() {
     Error(parse_error("expected function name", token_position(tokens, name_index)))
   } else {
     name: Str = tokens[name_index].text
@@ -1926,7 +1923,7 @@ pure parse_function_declaration(tokens: [Token], index: Nat): Result[ParsedTopLe
       Error(error) => Error(error),
       Ok(generics) => {
         opening_index: Nat = generics.next
-        if opening_index >= tokens->len() || tokens[opening_index].text != "(" {
+        if opening_index >= tokens.len() || tokens[opening_index].text != "(" {
           Error(parse_error(
             "expected opening function parenthesis",
             token_position(tokens, opening_index)
@@ -1935,7 +1932,7 @@ pure parse_function_declaration(tokens: [Token], index: Nat): Result[ParsedTopLe
           match parse_function_parameters(tokens, opening_index + 1) {
             Ok(parameters) => {
               colon_index: Nat = parameters.next
-              if colon_index >= tokens->len() || tokens[colon_index].text != ":" {
+              if colon_index >= tokens.len() || tokens[colon_index].text != ":" {
                 Error(parse_error(
                   "expected colon after function parameters",
                   token_position(tokens, colon_index)
@@ -1956,7 +1953,7 @@ pure parse_function_declaration(tokens: [Token], index: Nat): Result[ParsedTopLe
                         )
                         Ok(ParsedTopLevel(
                           declaration,
-                          parameters.type_spans->concat([return_type.span]),
+                          parameters.type_spans.concat([return_type.span]),
                           body.next
                         ))
                       },
@@ -2022,23 +2019,23 @@ record ParsedImportBinding {
 
 pub pure default_import_alias(path: Str): Str {
   mut start: Nat = 0
-  mut end: Nat = path->len()
+  mut end: Nat = path.len()
   mut cursor: Nat = 0
 
-  while cursor < path->len() {
+  while cursor < path.len() {
     if path[cursor] == "/" {
       start = cursor + 1
     } else {}
-    if path->starts_with_at(".panack", cursor) && cursor + 7 == path->len() {
+    if path.starts_with_at(".panack", cursor) && cursor + 7 == path.len() {
       end = cursor
     } else {}
     cursor = cursor + 1
   }
-  path->slice(start, end)
+  path.slice(start, end)
 }
 
 pure import_identifier(tokens: [Token], index: Nat): Bool {
-  index < tokens->len() && tokens[index].kind == Identifier() &&
+  index < tokens.len() && tokens[index].kind == Identifier() &&
     tokens[index].text != "as" && tokens[index].text != "pub" && tokens[index].text != "import"
 }
 
@@ -2056,7 +2053,7 @@ pure parse_import_selectors(
     mut cursor: Nat = index + 1
     // Enum variants use a qualified selector; nested exported namespaces follow
     // the same retained path representation and are resolved in a later slice.
-    while cursor < tokens->len() && tokens[cursor].text == "." && import_identifier(
+    while cursor < tokens.len() && tokens[cursor].text == "." && import_identifier(
       tokens,
       cursor + 1
     ) {
@@ -2064,7 +2061,7 @@ pure parse_import_selectors(
       name = name + "." + alias
       cursor = cursor + 2
     }
-    if cursor < tokens->len() && tokens[cursor].text == "as" {
+    if cursor < tokens.len() && tokens[cursor].text == "as" {
       cursor = cursor + 1
       if import_identifier(tokens, cursor) {
         alias = tokens[cursor].text
@@ -2081,11 +2078,11 @@ pure parse_import_selectors(
         alias,
         SourceSpan(token_position(tokens, index), token_end_position(tokens, cursor))
       )
-      if cursor < tokens->len() && tokens[cursor].text == "}" {
-        Ok(ParsedImportBinding(SelectiveImportBinding(selectors->append(selected)), cursor + 1))
+      if cursor < tokens.len() && tokens[cursor].text == "}" {
+        Ok(ParsedImportBinding(SelectiveImportBinding(selectors.append(selected)), cursor + 1))
       } else {
-        if cursor < tokens->len() && tokens[cursor].text == "," {
-          parse_import_selectors(tokens, cursor + 1, selectors->append(selected))
+        if cursor < tokens.len() && tokens[cursor].text == "," {
+          parse_import_selectors(tokens, cursor + 1, selectors.append(selected))
         } else {
           Error(parse_error(
             "expected ',' or '}' after import selector",
@@ -2102,15 +2099,15 @@ pure parse_import_binding(
   index: Nat,
   path: Str
 ): Result[ParsedImportBinding, Diagnostic] {
-  if index < tokens->len() && tokens[index].text == "as" {
+  if index < tokens.len() && tokens[index].text == "as" {
     if import_identifier(tokens, index + 1) {
       Ok(ParsedImportBinding(NamespaceImportBinding(tokens[index + 1].text, true), index + 2))
     } else {
       Error(parse_error("expected namespace alias after as", token_position(tokens, index + 1)))
     }
   } else {
-    if index < tokens->len() && tokens[index].text == ":" {
-      if index + 2 < tokens->len() && tokens[index + 1].text == ":" && tokens[index + 2].text == "{" {
+    if index < tokens.len() && tokens[index].text == ":" {
+      if index + 2 < tokens.len() && tokens[index + 1].text == ":" && tokens[index + 2].text == "{" {
         parse_import_selectors(tokens, index + 3, [])
       } else {
         Error(parse_error("expected '::{...}' selective import", token_position(tokens, index)))
@@ -2122,7 +2119,7 @@ pure parse_import_binding(
 }
 
 pure parse_nonimport_declaration(tokens: [Token], index: Nat): Result[ParsedTopLevel, Diagnostic] {
-  if index >= tokens->len() {
+  if index >= tokens.len() {
     Error(parse_error("expected top-level declaration", token_position(tokens, index)))
   } else {
     if tokens[index].text == "type" {
@@ -2161,7 +2158,7 @@ pure parse_impl_items(
   owner_type: Str,
   index: Nat
 ): Result[ParsedModule, Diagnostic] {
-  if index >= tokens->len() {
+  if index >= tokens.len() {
     Error(parse_error("expected closing impl brace", token_position(tokens, index)))
   } else if tokens[index].text == ";" {
     parse_impl_items(tokens, declarations, syntax, owner, owner_span, owner_parameters, owner_type, index + 1)
@@ -2176,15 +2173,15 @@ pure parse_impl_items(
         FunctionDeclaration(name, parameters, result, pure_flag, async_flag, body, types) => {
           method: TopLevel = FunctionDeclaration(
             owned_method_name(owner, name),
-            [FunctionParameter("self", owner_type)]->concat(parameters),
-            result, pure_flag, async_flag, body, owner_parameters->concat(types)
+            [FunctionParameter("self", owner_type)].concat(parameters),
+            result, pure_flag, async_flag, body, owner_parameters.concat(types)
           )
           metadata: DeclarationSyntax = DeclarationSyntax(
             SourceSpan(token_position(tokens, index), token_end_position(tokens, parsed.next)),
-            [owner_span]->concat(parsed.type_spans), is_public, NoImportBinding(),
+            [owner_span].concat(parsed.type_spans), is_public, NoImportBinding(),
             Some(OwnedMethodSyntax(owner, owner_parameters, name))
           )
-          parse_impl_items(tokens, declarations->append(method), syntax->append(metadata), owner, owner_span, owner_parameters, owner_type, parsed.next)
+          parse_impl_items(tokens, declarations.append(method), syntax.append(metadata), owner, owner_span, owner_parameters, owner_type, parsed.next)
         },
         ImportDeclaration(path) => Error(parse_error("expected method", token_position(tokens, index))),
         TypeDeclaration(name, base, guard) => Error(parse_error("expected method", token_position(tokens, index))),
@@ -2202,13 +2199,13 @@ pure parse_impl_declaration(
     Error(error) => Error(error),
     Ok(parameters) => {
       owner_start: Nat = parameters.next
-      if owner_start >= tokens->len() || (tokens[owner_start].kind != Identifier() && tokens[owner_start].text != "[") {
+      if owner_start >= tokens.len() || (tokens[owner_start].kind != Identifier() && tokens[owner_start].text != "[") {
         Error(parse_error("expected impl owner", token_position(tokens, owner_start)))
       } else {
         match parse_type_ref(tokens, owner_start) {
           Error(error) => Error(error),
           Ok(owner) => {
-            if owner.next >= tokens->len() || tokens[owner.next].text != "{" {
+            if owner.next >= tokens.len() || tokens[owner.next].text != "{" {
               Error(parse_error("expected opening impl brace", token_position(tokens, owner.next)))
             } else {
               match parse_impl_items(tokens, declarations, syntax,
@@ -2216,7 +2213,7 @@ pure parse_impl_declaration(
                 owner.span, parameters.values, owner.text, owner.next + 1) {
                 Error(error) => Error(error),
                 Ok(module) => Ok(ParsedModule(module.program, module.syntax,
-                  module.implementations->append(OwnedImplementationSyntax(
+                  module.implementations.append(OwnedImplementationSyntax(
                     owner.text, parameters.values, owner.span))))
               }
             }
@@ -2233,12 +2230,12 @@ pure parse_module_items(
   syntax: [DeclarationSyntax],
   index: Nat
 ): Result[ParsedModule, Diagnostic] {
-  if index == tokens->len() {
+  if index == tokens.len() {
     Ok(ParsedModule(indexed_program(declarations), syntax, []))
   } else {
     if tokens[index].text == ";" {
       parse_module_items(tokens, declarations, syntax, index + 1)
-    } else if tokens[index].text == "impl" && index + 1 < tokens->len() &&
+    } else if tokens[index].text == "impl" && index + 1 < tokens.len() &&
         (tokens[index + 1].kind == Identifier() || tokens[index + 1].text == "[") {
       parse_impl_declaration(tokens, declarations, syntax, index)
     } else {
@@ -2248,7 +2245,7 @@ pure parse_module_items(
       } else {
         index
       }
-      if start < tokens->len() && tokens[start].text == "import" {
+      if start < tokens.len() && tokens[start].text == "import" {
         match parse_import_path(tokens, start + 1) {
           Error(error) => Error(error),
           Ok(path) => match parse_import_binding(tokens, path.next, path.text) {
@@ -2260,16 +2257,16 @@ pure parse_module_items(
                 is_public,
                 parsed.binding, None()
               )
-              if parsed.next == tokens->len() || tokens[parsed.next].text == ";" {
-                next: Nat = if parsed.next == tokens->len() {
+              if parsed.next == tokens.len() || tokens[parsed.next].text == ";" {
+                next: Nat = if parsed.next == tokens.len() {
                   parsed.next
                 } else {
                   parsed.next + 1
                 }
                 parse_module_items(
                   tokens,
-                  declarations->append(ImportDeclaration(path.text)),
-                  syntax->append(metadata),
+                  declarations.append(ImportDeclaration(path.text)),
+                  syntax.append(metadata),
                   next
                 )
               } else {
@@ -2293,8 +2290,8 @@ pure parse_module_items(
             )
             parse_module_items(
               tokens,
-              declarations->append(parsed.value),
-              syntax->append(metadata),
+              declarations.append(parsed.value),
+              syntax.append(metadata),
               parsed.next
             )
           }
@@ -2316,7 +2313,7 @@ pub pure module_execution_diagnostics(module: ParsedModule): [Diagnostic] {
   for syntax in module.syntax {
     match syntax.binding {
       NamespaceImportBinding(alias, explicit_alias) => {
-        aliases = aliases->add(alias)
+        aliases = aliases.add(alias)
       },
       NoImportBinding() => {},
       SelectiveImportBinding(selectors) => {}
@@ -2325,7 +2322,7 @@ pub pure module_execution_diagnostics(module: ParsedModule): [Diagnostic] {
   for declaration in module.program.declarations {
     match declaration {
       EnumDeclaration(name, parameters, variants) => {
-        aliases = aliases->add(name)
+        aliases = aliases.add(name)
       },
       ImportDeclaration(path) => {},
       TypeDeclaration(name, base, guard) => {},
@@ -2335,7 +2332,7 @@ pub pure module_execution_diagnostics(module: ParsedModule): [Diagnostic] {
   }
   mut diagnostics: [Diagnostic] = []
   for implementation in module.implementations {
-    diagnostics = diagnostics->append(Diagnostic(
+    diagnostics = diagnostics.append(Diagnostic(
       "namespace syntax is parsed but execution is not yet supported (language namespace migration pending)",
       implementation.span.start))
   }
@@ -2356,7 +2353,7 @@ pub pure module_execution_diagnostics(module: ParsedModule): [Diagnostic] {
       }
     }
     if requires_namespaces {
-      diagnostics = diagnostics->append(
+      diagnostics = diagnostics.append(
         Diagnostic(
         "namespace syntax is parsed but execution is not yet supported (language namespace migration pending)",
         syntax.span.start
@@ -2374,7 +2371,7 @@ pub pure parse_program_complete(tokens: [Token]): Result[Program, Diagnostic] {
     Error(error) => Error(error),
     Ok(module) => {
       diagnostics: [Diagnostic] = module_execution_diagnostics(module)
-      if diagnostics->len() > 0 {
+      if diagnostics.len() > 0 {
         Error(diagnostics[0])
       } else {
         Ok(module.program)
@@ -2473,7 +2470,7 @@ pub pure render_expr(expression: Expr): Str {
       types_text: Str = render_type_parameters(type_arguments)
       "${name}${types_text}(${arguments_text})"
     },
-    OwnedCallExpr(target, name, arguments, types) => render_expr(target) + "->" + name + render_type_parameters(types) + "(" + render_expr_list(arguments) + ")",
+    OwnedCallExpr(target, name, arguments, types) => render_expr(target) + "." + name + render_type_parameters(types) + "(" + render_expr_list(arguments) + ")",
     DotCallExpr(target, name, arguments, types) => render_expr(target) + "." + name + render_type_parameters(types) + "(" + render_expr_list(arguments) + ")",
     FieldExpr(target, field) => {
       target_text: Str = render_expr(target)
@@ -2498,7 +2495,7 @@ pub pure render_expr(expression: Expr): Str {
     MatchExpr(subject, arms) => {
       subject_text: Str = render_expr(subject)
       arms_text: Str = render_match_arms(arms)
-      if arms_text->len() == 0 {
+      if arms_text.len() == 0 {
         "match ${subject_text} {}"
       } else {
         "match ${subject_text} { ${arms_text} }"
@@ -2516,7 +2513,7 @@ pure render_statement(statement: Statement): Str {
         ""
       }
       value_text: Str = render_expr(value)
-      annotation: Str = if type_name->len() > 0 {
+      annotation: Str = if type_name.len() > 0 {
         ": ${type_name}"
       } else {
         ""
@@ -2548,7 +2545,7 @@ pure render_block(block: Block): Str {
   mut contents: Str = ""
 
   for statement in block.statements {
-    if contents->len() > 0 {
+    if contents.len() > 0 {
       contents = contents + " "
     } else {
     }
@@ -2557,14 +2554,14 @@ pure render_block(block: Block): Str {
   match block.value {
     NoBlockValue() => {},
     TailBlockValue(value) => {
-      if contents->len() > 0 {
+      if contents.len() > 0 {
         contents = contents + " "
       } else {
       }
       contents = contents + render_expr(value)
     }
   }
-  if contents->len() == 0 {
+  if contents.len() == 0 {
     "{}"
   } else {
     "{ ${contents} }"
@@ -2572,7 +2569,7 @@ pure render_block(block: Block): Str {
 }
 
 pure render_type_parameters(parameters: [Str]): Str {
-  if parameters->len() == 0 {
+  if parameters.len() == 0 {
     ""
   } else {
     parameters_text: Str = render_type_ref_list(parameters)
@@ -2602,7 +2599,7 @@ pure render_record_declaration(name: Str, parameters: [Str], fields: [RecordFiel
   parameters_text: Str = render_type_parameters(parameters)
   fields_text: Str = render_record_fields(fields)
 
-  if fields_text->len() == 0 {
+  if fields_text.len() == 0 {
     "record ${name}${parameters_text} {}"
   } else {
     "record ${name}${parameters_text} { ${fields_text} }"
@@ -2620,7 +2617,7 @@ pure render_enum_variants(variants: [EnumVariant]): Str {
       output = output + ", "
     }
     variant_name: Str = variant.name
-    if variant.payload->len() == 0 {
+    if variant.payload.len() == 0 {
       output = output + variant_name
     } else {
       payload_text: Str = render_type_ref_list(variant.payload)
@@ -2635,7 +2632,7 @@ pure render_enum_declaration(name: Str, parameters: [Str], variants: [EnumVarian
   parameters_text: Str = render_type_parameters(parameters)
   variants_text: Str = render_enum_variants(variants)
 
-  if variants_text->len() == 0 {
+  if variants_text.len() == 0 {
     "enum ${name}${parameters_text} {}"
   } else {
     "enum ${name}${parameters_text} { ${variants_text} }"
@@ -2716,7 +2713,7 @@ pure render_program(program: Program): Str {
   mut output: Str = ""
 
   for declaration in program.declarations {
-    if output->len() > 0 {
+    if output.len() > 0 {
       output = output + " "
     } else {
     }
@@ -2777,17 +2774,17 @@ pub pure parse_type_source(source: Str): Str {
 pub pure reference_head(name: Str): Str {
   mut end: Nat = 0
 
-  while end < name->len() && name[end] != "." {
+  while end < name.len() && name[end] != "." {
     end = end + 1
   }
-  name->slice(0, end)
+  name.slice(0, end)
 }
 
 pub pure reference_tail(name: Str): Str {
   head: Str = reference_head(name)
 
-  if head->len() < name->len() {
-    name->slice(head->len() + 1, name->len())
+  if head.len() < name.len() {
+    name.slice(head.len() + 1, name.len())
   } else {
     ""
   }
@@ -2827,7 +2824,7 @@ pub pure type_has_qualification(name: Str): Bool {
   mut found: Bool = false
   mut index: Nat = 0
 
-  while index < name->len() {
+  while index < name.len() {
     if name[index] == "." {
       found = true
     }
@@ -2844,8 +2841,8 @@ pure expression_requires_namespaces(expression: Expr, aliases: Set[Str], locals:
     LocatedExpr(span, value, located_type_argument_spans) => expression_requires_namespaces(value, aliases, locals),
     OwnedCallExpr(target, name, arguments, types) => true,
     DotCallExpr(target, name, arguments, types) => {
-      mut required: Bool = (aliases->has(reference_head(expression_reference_path(target))) &&
-        !locals->has(reference_head(expression_reference_path(target)))) ||
+      mut required: Bool = (aliases.has(reference_head(expression_reference_path(target))) &&
+        !locals.has(reference_head(expression_reference_path(target)))) ||
         expression_requires_namespaces(
         target,
         aliases,
@@ -2859,8 +2856,8 @@ pure expression_requires_namespaces(expression: Expr, aliases: Set[Str], locals:
       }
       required
     },
-    FieldExpr(target, field) => (aliases->has(reference_head(expression_reference_path(target))) &&
-      !locals->has(reference_head(expression_reference_path(target)))) ||
+    FieldExpr(target, field) => (aliases.has(reference_head(expression_reference_path(target))) &&
+      !locals.has(reference_head(expression_reference_path(target)))) ||
       expression_requires_namespaces(
       target,
       aliases,
@@ -2910,8 +2907,8 @@ pure expression_requires_namespaces(expression: Expr, aliases: Set[Str], locals:
       for arm in arms {
         mut arm_locals: Set[Str] = locals
         for name in arm.pattern.bindings {
-          if aliases->has(name) {
-            arm_locals = arm_locals->add(name)
+          if aliases.has(name) {
+            arm_locals = arm_locals.add(name)
           }
         }
         required = required ||
@@ -2944,14 +2941,14 @@ pure block_requires_namespaces(block: Block, aliases: Set[Str], locals: Set[Str]
           aliases,
           visible
         )
-        if aliases->has(name) {
-          visible = visible->add(name)
+        if aliases.has(name) {
+          visible = visible.add(name)
         }
       },
       AssignmentStatement(name, value) => {
         required = required || expression_requires_namespaces(value, aliases, visible)
-        if aliases->has(name) {
-          visible = visible->add(name)
+        if aliases.has(name) {
+          visible = visible.add(name)
         }
       },
       ExpressionStatement(value) => {
@@ -2969,8 +2966,8 @@ pure block_requires_namespaces(block: Block, aliases: Set[Str], locals: Set[Str]
           values,
           aliases,
           visible
-        ) || block_requires_namespaces(body, aliases, if aliases->has(name) {
-            visible->add(name)
+        ) || block_requires_namespaces(body, aliases, if aliases.has(name) {
+            visible.add(name)
           } else {
             visible
           })
@@ -2994,8 +2991,8 @@ pure declaration_requires_namespaces(
       expression_requires_namespaces(
       guard,
       aliases,
-      if aliases->has("value") {
-        locals->add("value")
+      if aliases.has("value") {
+        locals.add("value")
       } else {
         locals
       }),
@@ -3018,8 +3015,8 @@ pure declaration_requires_namespaces(
     FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
       mut parameters_in_scope: Set[Str] = locals
       for parameter in parameters {
-        if aliases->has(parameter.name) {
-          parameters_in_scope = parameters_in_scope->add(parameter.name)
+        if aliases.has(parameter.name) {
+          parameters_in_scope = parameters_in_scope.add(parameter.name)
         }
       }
       mut required: Bool = type_has_qualification(return_type) || block_requires_namespaces(

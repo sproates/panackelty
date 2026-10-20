@@ -6,7 +6,17 @@ in `docs/releases/RELEASE_POLICY.md`.
 
 ## Unreleased
 
-No unreleased changes.
+- Complete the source syntax cutover to type-owned dot methods on `next` for
+  alpha.14. A receiver call selects a method owned by its checked type; globals
+  with matching names do not supply methods. Namespace calls and record fields
+  retain their distinct meanings. Invoke callable fields explicitly through
+  `(value.field).call(...)`.
+- Remove temporary receiver-arrow syntax. Change `value->method(...)` to
+  `value.method(...)`; the old spelling now reports a migration diagnostic.
+  Use owned methods instead of the removed receiver-global APIs and wrappers.
+  Compiler, library, packages, tools, examples and maintained tests use dots.
+  Saved bytecode retains its existing VM contract. Release and browser-consumer
+  acceptance remains pending under GI#525 P15; this is not a published release.
 
 ## 0.1.0-alpha.13 — 2026-10-15
 

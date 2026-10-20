@@ -20,7 +20,7 @@ for mode in echo empty request-limit response-limit handler-error busy nested; d
     case "$mode" in
         nested) handler='nested = await transport_tcp.serve("127.0.0.1", 9000, @reply, TcpServerLimits(1, 1, 8, 8, 100, 100, 100)); Ok(request)' ;;
         empty) request_limit=0; response_limit=0 ;;
-        busy) handler='if request->length() > 0 { while true {} }; Ok(request)'; client_timeout=100; first=false ;;
+        busy) handler='if request.length() > 0 { while true {} }; Ok(request)'; client_timeout=100; first=false ;;
         request-limit) request_limit=0; second=false ;;
         response-limit) response_limit=0; second=false ;;
         handler-error) handler='Error("expected handler error")'; first=false; second=false ;;
@@ -35,7 +35,7 @@ async main(): Unit {
   result = await transport_tcp.serve("127.0.0.1", $port, @reply, limits)
   match result {
     Ok(reports) => {
-      expect(reports->len() == 2)
+      expect(reports.len() == 2)
       first_ok = match reports[0] { Ok(done) => true, Error(problem) => false }
       second_ok = match reports[1] { Ok(done) => true, Error(problem) => false }
       expect(first_ok == $first)
@@ -90,7 +90,7 @@ async main(): Unit {
     TcpServerLimits(1, 1, 256, 256, 3000, 10000, 1000)
   )
   match result {
-    Ok(reports) => expect(reports->len() == 1),
+    Ok(reports) => expect(reports.len() == 1),
     Error(problem) => expect(false)
   }
   ()

@@ -11,17 +11,17 @@ import stdlib/testing_commands as std_testing_commands
 import stdlib/bytes as byte_buffer
 import stdlib/host as std_host
 pure path(value: Str): Path {
-  std_path.from_text(value)->value_or(std_path.current())
+  std_path.from_text(value).value_or(std_path.current())
 }
 
 pure child(root: Path, name: Str): Path {
-  root->join(path(name))->value_or(root)
+  root.join(path(name)).value_or(root)
 }
 
 pure contains(value: Str, fragment: Str): Bool {
   mut found = false
-  for index in 0..value->len() {
-    if value->starts_with_at(fragment, index) { found = true }
+  for index in 0..value.len() {
+    if value.starts_with_at(fragment, index) { found = true }
   }
   found
 }
@@ -29,21 +29,21 @@ pure contains(value: Str, fragment: Str): Bool {
 pure replace_first(value: Str, needle: Str, replacement: Str): Str {
   mut index: Nat = 0
   mut found: Bool = false
-  while index + needle->len() <= value->len() && !found {
-    if value->slice(index, index + needle->len()) == needle { found = true }
+  while index + needle.len() <= value.len() && !found {
+    if value.slice(index, index + needle.len()) == needle { found = true }
     else { index = index + 1 }
   }
   if found {
-    value->slice(0, index) + replacement + value->slice(index + needle->len(), value->len())
+    value.slice(0, index) + replacement + value.slice(index + needle.len(), value.len())
   } else { value }
 }
 
 pure manifest_version_from_output(value: Str): Str {
   mut end: Nat = 7
-  while end < value->len() && !value->starts_with_at(" ", end) {
+  while end < value.len() && !value.starts_with_at(" ", end) {
     end = end + 1
   }
-  if end > 7 { value->slice(7, end) } else { "" }
+  if end > 7 { value.slice(7, end) } else { "" }
 }
 
 manifest_toolchain_version(): Str {
@@ -51,7 +51,7 @@ manifest_toolchain_version(): Str {
       std_path.current(), [], std_time.seconds(10), 1024) {
     Error(error) => "",
     Ok(output) => if output.exit_code == 0 && output.signal == 0 && output.stderr == byte_buffer.empty() {
-      manifest_version_from_output(output.stdout->decode_utf8())
+      manifest_version_from_output(output.stdout.decode_utf8())
     } else { "" }
   }
 }
@@ -62,12 +62,12 @@ pure command(arguments: [Str]): TestCommand {
 }
 
 source_compiler_arguments(arguments: [Str]): [Str] {
-  compiler: Str = std_environment.get("PANACK_TEST_COMPILER")->value_or("")
+  compiler: Str = std_environment.get("PANACK_TEST_COMPILER").value_or("")
   mut invocation: [Str] = ["run", if compiler == "" {
     "build/bootstrap/stage2/compiler.bc"
   } else { compiler }]
   for argument in arguments {
-    invocation = invocation->append(argument)
+    invocation = invocation.append(argument)
   }
   invocation
 }
@@ -86,10 +86,10 @@ main(): Void {
       bytecode = child(workspace.root, "hello.bc")
       arguments_source = child(workspace.root, "arguments.panack")
       failing_source = child(workspace.root, "failure.panack")
-      source_text = source->to_text()->value_or("invalid-source")
-      bytecode_text = bytecode->to_text()->value_or("invalid-bytecode")
-      arguments_text = arguments_source->to_text()->value_or("invalid-arguments")
-      failing_text = failing_source->to_text()->value_or("invalid-failure")
+      source_text = source.to_text().value_or("invalid-source")
+      bytecode_text = bytecode.to_text().value_or("invalid-bytecode")
+      arguments_text = arguments_source.to_text().value_or("invalid-arguments")
+      failing_text = failing_source.to_text().value_or("invalid-failure")
       package_root = child(workspace.root, "package")
       package_source_root = child(package_root, "src")
       package_entry = child(package_source_root, "main.panack")
@@ -114,40 +114,40 @@ main(): Void {
       relocated_entry = child(relocated_source_root, "main.panack")
       relocated_value = child(relocated_source_root, "value.panack")
       relocated_manifest = child(relocated_root, "panack.json")
-      package_root_text = package_root->to_text()->value_or("invalid-package")
-      package_source_root_text = package_source_root->to_text()->value_or("invalid-source-root")
-      package_entry_text = package_entry->to_text()->value_or("invalid-entry")
-      package_value_text = package_value->to_text()->value_or("invalid-value")
-      package_manifest_text = package_manifest->to_text()->value_or("invalid-manifest")
-      library_manifest_text = library_manifest->to_text()->value_or("invalid-library-manifest")
-      library_escape_text = library_escape->to_text()->value_or("invalid-library-escape")
-      library_escape_target_text = library_escape_target->to_text()->value_or("invalid-library-escape-target")
-      library_copy_manifest_text = library_copy_manifest->to_text()->value_or("invalid-library-copy-manifest")
-      internal_manifest_text = internal_manifest->to_text()->value_or("invalid-internal-manifest")
-      relocated_root_text = relocated_root->to_text()->value_or("invalid-relocated")
-      relocated_manifest_text = relocated_manifest->to_text()->value_or("invalid-relocated-manifest")
+      package_root_text = package_root.to_text().value_or("invalid-package")
+      package_source_root_text = package_source_root.to_text().value_or("invalid-source-root")
+      package_entry_text = package_entry.to_text().value_or("invalid-entry")
+      package_value_text = package_value.to_text().value_or("invalid-value")
+      package_manifest_text = package_manifest.to_text().value_or("invalid-manifest")
+      library_manifest_text = library_manifest.to_text().value_or("invalid-library-manifest")
+      library_escape_text = library_escape.to_text().value_or("invalid-library-escape")
+      library_escape_target_text = library_escape_target.to_text().value_or("invalid-library-escape-target")
+      library_copy_manifest_text = library_copy_manifest.to_text().value_or("invalid-library-copy-manifest")
+      internal_manifest_text = internal_manifest.to_text().value_or("invalid-internal-manifest")
+      relocated_root_text = relocated_root.to_text().value_or("invalid-relocated")
+      relocated_manifest_text = relocated_manifest.to_text().value_or("invalid-relocated-manifest")
       mut results: [TestResult] = []
 
-      results = results->append(std_testing_commands.run_command("bare source path", command([original]),
-        ProcessOutput(0, 0, "hello world\n"->encode_utf8(), byte_buffer.empty())))
+      results = results.append(std_testing_commands.run_command("bare source path", command([original]),
+        ProcessOutput(0, 0, "hello world\n".encode_utf8(), byte_buffer.empty())))
       match std_filesystem.read(path(original), 1048576) {
         Error(error) => {
-          results = results->append(std_testing.expect("default compile output", false,
+          results = results.append(std_testing.expect("default compile output", false,
             "fixture read failed"))
         },
         Ok(content) => {
           match std_filesystem.write(source, content) {
             Error(error) => {
-              results = results->append(std_testing.expect("default compile output", false,
+              results = results.append(std_testing.expect("default compile output", false,
                 "fixture write failed"))
             },
             Ok(value) => {
-              results = results->append(std_testing_commands.run_command("default compile output",
+              results = results.append(std_testing_commands.run_command("default compile output",
                 command(["compile", source_text]),
-                ProcessOutput(0, 0, "wrote ${bytecode_text}\n"->encode_utf8(), byte_buffer.empty())))
-              results = results->append(std_testing_commands.run_command("bare bytecode path",
+                ProcessOutput(0, 0, "wrote ${bytecode_text}\n".encode_utf8(), byte_buffer.empty())))
+              results = results.append(std_testing_commands.run_command("bare bytecode path",
                 command([bytecode_text]),
-                ProcessOutput(0, 0, "hello world\n"->encode_utf8(), byte_buffer.empty())))
+                ProcessOutput(0, 0, "hello world\n".encode_utf8(), byte_buffer.empty())))
             }
           }
         }
@@ -157,124 +157,124 @@ main(): Void {
       std_filesystem.create_directory(package_source_root)
       toolchain_version = manifest_toolchain_version()
       manifest_text = "{\"schema\":1,\"package\":\"example.application\",\"version\":\"1.0.0\",\"language\":\"modules-v1\",\"toolchain\":\"${toolchain_version}\",\"source\":\"src\",\"entry\":\"main.panack\",\"exports\":{\"value\":\"value.panack\"},\"dependencies\":{}}"
-      std_filesystem.write(package_manifest, manifest_text->encode_utf8())
-      std_filesystem.write(package_entry, "import stdlib/host as service_host\nimport project/value as value\nmain(): Void { print(value.answer()); arguments: [Str] = service_host.arguments(); print(arguments->len()); }\n"->encode_utf8())
-      std_filesystem.write(package_value, "pub pure answer(): Nat { 42 }\n"->encode_utf8())
-      results = results->append(std_testing_commands.run_command("explicit manifest package check",
+      std_filesystem.write(package_manifest, manifest_text.encode_utf8())
+      std_filesystem.write(package_entry, "import stdlib/host as service_host\nimport project/value as value\nmain(): Void { print(value.answer()); arguments: [Str] = service_host.arguments(); print(arguments.len()); }\n".encode_utf8())
+      std_filesystem.write(package_value, "pub pure answer(): Nat { 42 }\n".encode_utf8())
+      results = results.append(std_testing_commands.run_command("explicit manifest package check",
         command(["check", "--project", package_manifest_text]),
-        ProcessOutput(0, 0, "ok\n"->encode_utf8(), byte_buffer.empty())))
-      results = results->append(std_testing_commands.run_command("explicit manifest package source run",
+        ProcessOutput(0, 0, "ok\n".encode_utf8(), byte_buffer.empty())))
+      results = results.append(std_testing_commands.run_command("explicit manifest package source run",
         command(["run", "--project", package_manifest_text, "alpha"]),
-        ProcessOutput(0, 0, "42\n1\n"->encode_utf8(), byte_buffer.empty())))
-      results = results->append(std_testing_commands.run_command("explicit manifest package compile",
+        ProcessOutput(0, 0, "42\n1\n".encode_utf8(), byte_buffer.empty())))
+      results = results.append(std_testing_commands.run_command("explicit manifest package compile",
         command(["compile", "--project", package_manifest_text, "-o", bytecode_text]),
-        ProcessOutput(0, 0, "wrote ${bytecode_text}\n"->encode_utf8(), byte_buffer.empty())))
+        ProcessOutput(0, 0, "wrote ${bytecode_text}\n".encode_utf8(), byte_buffer.empty())))
       std_filesystem.create_directory(library_root)
       std_filesystem.create_directory(library_source_root)
       std_filesystem.create_directory(internal_root)
       std_filesystem.create_directory(internal_source_root)
       internal_manifest_contents = "{\"schema\":1,\"package\":\"example.math_support\",\"version\":\"1.0.0\",\"language\":\"modules-v1\",\"toolchain\":\"${toolchain_version}\",\"source\":\"src\",\"exports\":{\"math\":\"math.panack\"},\"dependencies\":{}}"
-      std_filesystem.write(internal_manifest, internal_manifest_contents->encode_utf8())
-      std_filesystem.write(internal_api, "pub pure answer(): Nat { 42 }\n"->encode_utf8())
+      std_filesystem.write(internal_manifest, internal_manifest_contents.encode_utf8())
+      std_filesystem.write(internal_api, "pub pure answer(): Nat { 42 }\n".encode_utf8())
       library_manifest_text_value = "{\"schema\":1,\"package\":\"example.geometry\",\"version\":\"1.0.0\",\"language\":\"modules-v1\",\"toolchain\":\"${toolchain_version}\",\"source\":\"src\",\"exports\":{\"api\":\"api.panack\",\"api_alias\":\"api.panack\",\"extra\":\"extra.panack\"},\"dependencies\":{}}"
-      std_filesystem.write(library_manifest, library_manifest_text_value->encode_utf8())
-      std_filesystem.write(library_api, "import project/implementation as implementation\npub pure answer(): Nat { implementation.answer() }\n"->encode_utf8())
-      std_filesystem.write(library_private, "pub pure answer(): Nat { 42 }\n"->encode_utf8())
-      std_filesystem.write(library_extra, "import project/api as api\npub pure next_answer(): Nat { api.answer() + 1 }\n"->encode_utf8())
-      results = results->append(std_testing_commands.run_command("manifest-only library checks each exported module without main",
+      std_filesystem.write(library_manifest, library_manifest_text_value.encode_utf8())
+      std_filesystem.write(library_api, "import project/implementation as implementation\npub pure answer(): Nat { implementation.answer() }\n".encode_utf8())
+      std_filesystem.write(library_private, "pub pure answer(): Nat { 42 }\n".encode_utf8())
+      std_filesystem.write(library_extra, "import project/api as api\npub pure next_answer(): Nat { api.answer() + 1 }\n".encode_utf8())
+      results = results.append(std_testing_commands.run_command("manifest-only library checks each exported module without main",
         source_compiler_command(["check", "--project", library_manifest_text], toolchain_version),
-        ProcessOutput(0, 0, "ok\n"->encode_utf8(), byte_buffer.empty())))
-      std_filesystem.write(library_escape_target, "pub pure leaked(): Nat { 99 }\n"->encode_utf8())
+        ProcessOutput(0, 0, "ok\n".encode_utf8(), byte_buffer.empty())))
+      std_filesystem.write(library_escape_target, "pub pure leaked(): Nat { 99 }\n".encode_utf8())
       escape_link_setup = std_process.run(path("/bin/ln"), ["-s", library_escape_target_text, library_escape_text],
         byte_buffer.empty(), std_path.current(), [], std_time.seconds(10), 1024)
       match escape_link_setup {
         Error(error) => {
-          results = results->append(std_testing.expect("package export escape symlink setup", false,
+          results = results.append(std_testing.expect("package export escape symlink setup", false,
             "symlink command failed"))
         },
         Ok(output) => {
-          results = results->append(std_testing.expect("package export escape symlink setup",
+          results = results.append(std_testing.expect("package export escape symlink setup",
             output.exit_code == 0 && output.signal == 0, "symlink command failed"))
         }
       }
       library_escape_manifest_text = replace_first(library_manifest_text_value,
         "\"extra\":\"extra.panack\"",
         "\"extra\":\"extra.panack\",\"escape\":\"escaped.panack\"")
-      std_filesystem.write(library_manifest, library_escape_manifest_text->encode_utf8())
+      std_filesystem.write(library_manifest, library_escape_manifest_text.encode_utf8())
       match std_process.run(path("./panack-vm"),
           source_compiler_arguments(["check", "--project", library_manifest_text]),
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           std_time.seconds(10), 1048576) {
         Error(error) => {
-          results = results->append(std_testing.expect("package exports reject symlink escapes", false,
+          results = results.append(std_testing.expect("package exports reject symlink escapes", false,
             "compiler process failed"))
         },
         Ok(output) => {
-          results = results->append(std_testing.expect("package exports reject symlink escapes",
+          results = results.append(std_testing.expect("package exports reject symlink escapes",
             output.exit_code == 1 && output.signal == 0 &&
-              contains(output.stderr->decode_utf8(), "package source read failed (invalid_argument)"),
+              contains(output.stderr.decode_utf8(), "package source read failed (invalid_argument)"),
             "a package export symlink escaped its physical package root"))
         }
       }
       std_filesystem.remove_file(library_escape)
       std_filesystem.remove_file(library_escape_target)
-      std_filesystem.write(library_manifest, library_manifest_text_value->encode_utf8())
+      std_filesystem.write(library_manifest, library_manifest_text_value.encode_utf8())
 
       dependency_manifest_text = replace_first(manifest_text, "\"dependencies\":{}",
         "\"dependencies\":{\"geometry\":{\"path\":\"../library\"}}")
-      std_filesystem.write(package_manifest, dependency_manifest_text->encode_utf8())
-      std_filesystem.write(package_entry, "import stdlib/host as service_host\nimport project/value as value\nimport geometry/api as geometry\nmain(): Void { print(value.answer()); print(geometry.answer()); arguments: [Str] = service_host.arguments(); print(arguments->len()); }\n"->encode_utf8())
-      results = results->append(std_testing_commands.run_command("manifest application checks declared local library",
+      std_filesystem.write(package_manifest, dependency_manifest_text.encode_utf8())
+      std_filesystem.write(package_entry, "import stdlib/host as service_host\nimport project/value as value\nimport geometry/api as geometry\nmain(): Void { print(value.answer()); print(geometry.answer()); arguments: [Str] = service_host.arguments(); print(arguments.len()); }\n".encode_utf8())
+      results = results.append(std_testing_commands.run_command("manifest application checks declared local library",
         source_compiler_command(["check", "--project", package_manifest_text], toolchain_version),
-        ProcessOutput(0, 0, "ok\n"->encode_utf8(), byte_buffer.empty())))
-      results = results->append(std_testing_commands.run_command("manifest application runs declared local library",
+        ProcessOutput(0, 0, "ok\n".encode_utf8(), byte_buffer.empty())))
+      results = results.append(std_testing_commands.run_command("manifest application runs declared local library",
         source_compiler_command(["run", "--project", package_manifest_text, "alpha"], toolchain_version),
-        ProcessOutput(0, 0, "42\n42\n1\n"->encode_utf8(), byte_buffer.empty())))
-      results = results->append(std_testing_commands.run_command("manifest application compiles declared local library",
+        ProcessOutput(0, 0, "42\n42\n1\n".encode_utf8(), byte_buffer.empty())))
+      results = results.append(std_testing_commands.run_command("manifest application compiles declared local library",
         source_compiler_command(["compile", "--project", package_manifest_text, "-o", bytecode_text], toolchain_version),
-        ProcessOutput(0, 0, "wrote ${bytecode_text}\n"->encode_utf8(), byte_buffer.empty())))
-      results = results->append(std_testing_commands.run_command("manifest application bytecode retains local library",
+        ProcessOutput(0, 0, "wrote ${bytecode_text}\n".encode_utf8(), byte_buffer.empty())))
+      results = results.append(std_testing_commands.run_command("manifest application bytecode retains local library",
         command([bytecode_text]),
-        ProcessOutput(0, 0, "42\n42\n0\n"->encode_utf8(), byte_buffer.empty())))
-      std_filesystem.write(package_entry, "import geometry/implementation as implementation\nmain(): Void { print(implementation.answer()); }\n"->encode_utf8())
+        ProcessOutput(0, 0, "42\n42\n0\n".encode_utf8(), byte_buffer.empty())))
+      std_filesystem.write(package_entry, "import geometry/implementation as implementation\nmain(): Void { print(implementation.answer()); }\n".encode_utf8())
       match std_process.run(path("./panack-vm"),
           source_compiler_arguments(["check", "--project", package_manifest_text]),
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           std_time.seconds(10), 1048576) {
         Error(error) => {
-          results = results->append(std_testing.expect("local dependency hides unexported modules", false,
+          results = results.append(std_testing.expect("local dependency hides unexported modules", false,
             "compiler process failed"))
         },
         Ok(output) => {
-          results = results->append(std_testing.expect("local dependency hides unexported modules",
+          results = results.append(std_testing.expect("local dependency hides unexported modules",
             output.exit_code == 1 && output.signal == 0 &&
-              contains(output.stderr->decode_utf8(), "dependency import is not declared or the module is not exported: geometry/implementation"),
+              contains(output.stderr.decode_utf8(), "dependency import is not declared or the module is not exported: geometry/implementation"),
             "an unexported dependency module was importable"))
         }
       }
-      std_filesystem.write(package_entry, "import missing/api as api\nmain(): Void { print(api.answer()); }\n"->encode_utf8())
+      std_filesystem.write(package_entry, "import missing/api as api\nmain(): Void { print(api.answer()); }\n".encode_utf8())
       match std_process.run(path("./panack-vm"),
           source_compiler_arguments(["check", "--project", package_manifest_text]),
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           std_time.seconds(10), 1048576) {
         Error(error) => {
-          results = results->append(std_testing.expect("local dependency aliases must be declared", false,
+          results = results.append(std_testing.expect("local dependency aliases must be declared", false,
             "compiler process failed"))
         },
         Ok(output) => {
-          results = results->append(std_testing.expect("local dependency aliases must be declared",
+          results = results.append(std_testing.expect("local dependency aliases must be declared",
             output.exit_code == 1 && output.signal == 0 &&
-              contains(output.stderr->decode_utf8(), "dependency import is not declared or the module is not exported: missing/api"),
+              contains(output.stderr.decode_utf8(), "dependency import is not declared or the module is not exported: missing/api"),
             "an undeclared dependency alias was importable"))
         }
       }
-      std_filesystem.write(package_entry, "import stdlib/host as service_host\nimport project/value as value\nimport geometry/api as geometry\nmain(): Void { print(value.answer()); print(geometry.answer()); arguments: [Str] = service_host.arguments(); print(arguments->len()); }\n"->encode_utf8())
+      std_filesystem.write(package_entry, "import stdlib/host as service_host\nimport project/value as value\nimport geometry/api as geometry\nmain(): Void { print(value.answer()); print(geometry.answer()); arguments: [Str] = service_host.arguments(); print(arguments.len()); }\n".encode_utf8())
 
       second_app_root = child(workspace.root, "second-app")
       second_app_source_root = child(second_app_root, "src")
       second_app_entry = child(second_app_source_root, "main.panack")
       second_app_manifest = child(second_app_root, "panack.json")
-      second_app_manifest_text = second_app_manifest->to_text()->value_or("invalid-second-app-manifest")
+      second_app_manifest_text = second_app_manifest.to_text().value_or("invalid-second-app-manifest")
       std_filesystem.create_directory(second_app_root)
       std_filesystem.create_directory(second_app_source_root)
       mut second_app_manifest_contents = replace_first(dependency_manifest_text,
@@ -282,29 +282,29 @@ main(): Void {
       second_app_manifest_contents = replace_first(second_app_manifest_contents,
         "\"geometry\":{\"path\":\"../library\"}",
         "\"geometry\":{\"path\":\"../library\"},\"geometry_copy\":{\"path\":\"../library\"}")
-      std_filesystem.write(second_app_manifest, second_app_manifest_contents->encode_utf8())
-      std_filesystem.write(second_app_entry, "import geometry_copy/api as geometry\nmain(): Void { print(geometry.answer()); }\n"->encode_utf8())
-      results = results->append(std_testing_commands.run_command("second manifest application shares the local library",
+      std_filesystem.write(second_app_manifest, second_app_manifest_contents.encode_utf8())
+      std_filesystem.write(second_app_entry, "import geometry_copy/api as geometry\nmain(): Void { print(geometry.answer()); }\n".encode_utf8())
+      results = results.append(std_testing_commands.run_command("second manifest application shares the local library",
         source_compiler_command(["run", "--project", second_app_manifest_text], toolchain_version),
-        ProcessOutput(0, 0, "42\n"->encode_utf8(), byte_buffer.empty())))
+        ProcessOutput(0, 0, "42\n".encode_utf8(), byte_buffer.empty())))
       std_filesystem.create_directory(library_copy_root)
-      std_filesystem.write(library_copy_manifest, library_manifest_text_value->encode_utf8())
+      std_filesystem.write(library_copy_manifest, library_manifest_text_value.encode_utf8())
       duplicate_root_manifest = replace_first(dependency_manifest_text,
         "\"geometry\":{\"path\":\"../library\"}",
         "\"geometry\":{\"path\":\"../library\"},\"geometry_alt\":{\"path\":\"../library-copy\"}")
-      std_filesystem.write(package_manifest, duplicate_root_manifest->encode_utf8())
+      std_filesystem.write(package_manifest, duplicate_root_manifest.encode_utf8())
       match std_process.run(path("./panack-vm"),
           source_compiler_arguments(["check", "--project", package_manifest_text]),
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           std_time.seconds(10), 1048576) {
         Error(error) => {
-          results = results->append(std_testing.expect("package identity cannot come from multiple roots", false,
+          results = results.append(std_testing.expect("package identity cannot come from multiple roots", false,
             "compiler process failed"))
         },
         Ok(output) => {
-          results = results->append(std_testing.expect("package identity cannot come from multiple roots",
+          results = results.append(std_testing.expect("package identity cannot come from multiple roots",
             output.exit_code == 1 && output.signal == 0 &&
-              contains(output.stderr->decode_utf8(), "resolves to multiple physical roots"),
+              contains(output.stderr.decode_utf8(), "resolves to multiple physical roots"),
             "duplicate physical package identities were accepted"))
         }
       }
@@ -314,27 +314,27 @@ main(): Void {
       std_filesystem.create_directory(overlap_package_root)
       std_filesystem.create_directory(overlap_source_root)
       overlap_manifest_contents = "{\"schema\":1,\"package\":\"example.embedded\",\"version\":\"1.0.0\",\"language\":\"modules-v1\",\"toolchain\":\"${toolchain_version}\",\"source\":\"src\",\"exports\":{\"api\":\"api.panack\"},\"dependencies\":{}}"
-      std_filesystem.write(overlap_manifest, overlap_manifest_contents->encode_utf8())
+      std_filesystem.write(overlap_manifest, overlap_manifest_contents.encode_utf8())
       app_root_overlap_manifest = replace_first(dependency_manifest_text,
         "\"geometry\":{\"path\":\"../library\"}",
         "\"geometry\":{\"path\":\"src/embedded-library\"}")
-      std_filesystem.write(package_manifest, app_root_overlap_manifest->encode_utf8())
+      std_filesystem.write(package_manifest, app_root_overlap_manifest.encode_utf8())
       match std_process.run(path("./panack-vm"),
           source_compiler_arguments(["check", "--project", package_manifest_text]),
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           std_time.seconds(10), 1048576) {
         Error(error) => {
-          results = results->append(std_testing.expect("package source roots cannot overlap the app root", false,
+          results = results.append(std_testing.expect("package source roots cannot overlap the app root", false,
             "compiler process failed"))
         },
         Ok(output) => {
-          results = results->append(std_testing.expect("package source roots cannot overlap the app root",
+          results = results.append(std_testing.expect("package source roots cannot overlap the app root",
             output.exit_code == 1 && output.signal == 0 &&
-              contains(output.stderr->decode_utf8(), "physical source root overlaps the application source root"),
+              contains(output.stderr.decode_utf8(), "physical source root overlaps the application source root"),
             "a dependency source root nested in the application source root was accepted"))
         }
       }
-      std_filesystem.write(package_manifest, dependency_manifest_text->encode_utf8())
+      std_filesystem.write(package_manifest, dependency_manifest_text.encode_utf8())
       std_filesystem.remove_file(overlap_manifest)
       std_filesystem.remove_directory(overlap_source_root)
       std_filesystem.remove_directory(overlap_package_root)
@@ -344,124 +344,124 @@ main(): Void {
       overlap_manifest_two = child(overlap_package_root_two, "panack.json")
       std_filesystem.create_directory(overlap_package_root_two)
       std_filesystem.create_directory(overlap_source_root_two)
-      std_filesystem.write(overlap_manifest_two, replace_first(overlap_manifest_contents, "example.embedded", "example.nested")->encode_utf8())
+      std_filesystem.write(overlap_manifest_two, replace_first(overlap_manifest_contents, "example.embedded", "example.nested").encode_utf8())
       dependency_overlap_manifest = replace_first(library_manifest_text_value,
         "\"dependencies\":{}",
         "\"dependencies\":{\"nested\":{\"path\":\"src/nested-library\"}}")
-      std_filesystem.write(library_manifest, dependency_overlap_manifest->encode_utf8())
+      std_filesystem.write(library_manifest, dependency_overlap_manifest.encode_utf8())
       match std_process.run(path("./panack-vm"),
           source_compiler_arguments(["check", "--project", package_manifest_text]),
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           std_time.seconds(10), 1048576) {
         Error(error) => {
-          results = results->append(std_testing.expect("nested dependency roots cannot overlap their parent", false,
+          results = results.append(std_testing.expect("nested dependency roots cannot overlap their parent", false,
             "compiler process failed"))
         },
         Ok(output) => {
-          results = results->append(std_testing.expect("nested dependency roots cannot overlap their parent",
+          results = results.append(std_testing.expect("nested dependency roots cannot overlap their parent",
             output.exit_code == 1 && output.signal == 0 &&
-              contains(output.stderr->decode_utf8(), "physical source root overlaps dependency geometry"),
+              contains(output.stderr.decode_utf8(), "physical source root overlaps dependency geometry"),
             "a nested dependency source root overlapped its declaring package"))
         }
       }
-      std_filesystem.write(package_manifest, dependency_manifest_text->encode_utf8())
-      std_filesystem.write(library_manifest, library_manifest_text_value->encode_utf8())
+      std_filesystem.write(package_manifest, dependency_manifest_text.encode_utf8())
+      std_filesystem.write(library_manifest, library_manifest_text_value.encode_utf8())
       std_filesystem.remove_file(overlap_manifest_two)
       std_filesystem.remove_directory(overlap_source_root_two)
       std_filesystem.remove_directory(overlap_package_root_two)
-      std_filesystem.write(package_manifest, dependency_manifest_text->encode_utf8())
+      std_filesystem.write(package_manifest, dependency_manifest_text.encode_utf8())
       missing_dependency_manifest = replace_first(dependency_manifest_text, "../library", "../missing")
-      std_filesystem.write(package_manifest, missing_dependency_manifest->encode_utf8())
+      std_filesystem.write(package_manifest, missing_dependency_manifest.encode_utf8())
       match std_process.run(path("./panack-vm"),
           source_compiler_arguments(["check", "--project", package_manifest_text]),
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           std_time.seconds(10), 1048576) {
         Error(error) => {
-          results = results->append(std_testing.expect("declared package path must contain a manifest", false,
+          results = results.append(std_testing.expect("declared package path must contain a manifest", false,
             "compiler process failed"))
         },
         Ok(output) => {
-          results = results->append(std_testing.expect("declared package path must contain a manifest",
+          results = results.append(std_testing.expect("declared package path must contain a manifest",
             output.exit_code == 1 && output.signal == 0 &&
-              contains(output.stderr->decode_utf8(), "dependency geometry: cannot read local dependency manifest"),
+              contains(output.stderr.decode_utf8(), "dependency geometry: cannot read local dependency manifest"),
             "a missing dependency manifest was accepted"))
         }
       }
-      std_filesystem.write(package_manifest, dependency_manifest_text->encode_utf8())
+      std_filesystem.write(package_manifest, dependency_manifest_text.encode_utf8())
       nested_dependency_manifest = replace_first(library_manifest_text_value,
         "\"dependencies\":{}", "\"dependencies\":{\"common\":{\"path\":\"../internal\"}}")
-      std_filesystem.write(library_manifest, nested_dependency_manifest->encode_utf8())
-      std_filesystem.write(library_api, "import common/math as math\npub pure answer(): Nat { math.answer() }\n"->encode_utf8())
+      std_filesystem.write(library_manifest, nested_dependency_manifest.encode_utf8())
+      std_filesystem.write(library_api, "import common/math as math\npub pure answer(): Nat { math.answer() }\n".encode_utf8())
       nested_diamond_manifest = replace_first(dependency_manifest_text,
         "\"geometry\":{\"path\":\"../library\"}",
         "\"geometry\":{\"path\":\"../library\"},\"math_direct\":{\"path\":\"../internal\"}")
-      std_filesystem.write(package_manifest, nested_diamond_manifest->encode_utf8())
-      std_filesystem.write(package_entry, "import stdlib/host as service_host\nimport project/value as value\nimport geometry/api as geometry\nimport math_direct/math as direct_math\nmain(): Void { print(value.answer()); print(geometry.answer()); print(direct_math.answer()); arguments: [Str] = service_host.arguments(); print(arguments->len()); }\n"->encode_utf8())
+      std_filesystem.write(package_manifest, nested_diamond_manifest.encode_utf8())
+      std_filesystem.write(package_entry, "import stdlib/host as service_host\nimport project/value as value\nimport geometry/api as geometry\nimport math_direct/math as direct_math\nmain(): Void { print(value.answer()); print(geometry.answer()); print(direct_math.answer()); arguments: [Str] = service_host.arguments(); print(arguments.len()); }\n".encode_utf8())
       match std_process.run(path("./panack-vm"),
           source_compiler_arguments(["check", "--project", package_manifest_text]),
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           std_time.seconds(10), 1048576) {
         Error(error) => {
-          results = results->append(std_testing.expect("nested diamond dependency checks", false,
+          results = results.append(std_testing.expect("nested diamond dependency checks", false,
             "compiler process failed"))
         },
         Ok(output) => {
-          results = results->append(std_testing.expect("nested diamond dependency checks",
+          results = results.append(std_testing.expect("nested diamond dependency checks",
             output.exit_code == 0 && output.signal == 0 &&
-              output.stdout->decode_utf8() == "ok\n" && output.stderr == byte_buffer.empty(),
+              output.stdout.decode_utf8() == "ok\n" && output.stderr == byte_buffer.empty(),
             "a valid nested dependency graph did not check"))
         }
       }
-      results = results->append(std_testing_commands.run_command("manifest application runs nested and direct paths to one library",
+      results = results.append(std_testing_commands.run_command("manifest application runs nested and direct paths to one library",
         source_compiler_command(["run", "--project", package_manifest_text, "alpha"], toolchain_version),
-        ProcessOutput(0, 0, "42\n42\n42\n1\n"->encode_utf8(), byte_buffer.empty())))
-      results = results->append(std_testing_commands.run_command("manifest application compiles nested and direct paths to one library",
+        ProcessOutput(0, 0, "42\n42\n42\n1\n".encode_utf8(), byte_buffer.empty())))
+      results = results.append(std_testing_commands.run_command("manifest application compiles nested and direct paths to one library",
         source_compiler_command(["compile", "--project", package_manifest_text, "-o", bytecode_text], toolchain_version),
-        ProcessOutput(0, 0, "wrote ${bytecode_text}\n"->encode_utf8(), byte_buffer.empty())))
-      results = results->append(std_testing_commands.run_command("nested dependency diamond survives bytecode compilation",
+        ProcessOutput(0, 0, "wrote ${bytecode_text}\n".encode_utf8(), byte_buffer.empty())))
+      results = results.append(std_testing_commands.run_command("nested dependency diamond survives bytecode compilation",
         command([bytecode_text]),
-        ProcessOutput(0, 0, "42\n42\n42\n0\n"->encode_utf8(), byte_buffer.empty())))
-      std_filesystem.write(package_entry, "import common/math as math\nmain(): Void { print(math.answer()); }\n"->encode_utf8())
+        ProcessOutput(0, 0, "42\n42\n42\n0\n".encode_utf8(), byte_buffer.empty())))
+      std_filesystem.write(package_entry, "import common/math as math\nmain(): Void { print(math.answer()); }\n".encode_utf8())
       match std_process.run(path("./panack-vm"),
           source_compiler_arguments(["check", "--project", package_manifest_text]),
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           std_time.seconds(10), 1048576) {
         Error(error) => {
-          results = results->append(std_testing.expect("nested dependency alias stays private to its package", false,
+          results = results.append(std_testing.expect("nested dependency alias stays private to its package", false,
             "compiler process failed"))
         },
         Ok(output) => {
-          results = results->append(std_testing.expect("nested dependency alias stays private to its package",
+          results = results.append(std_testing.expect("nested dependency alias stays private to its package",
             output.exit_code == 1 && output.signal == 0 &&
-              contains(output.stderr->decode_utf8(),
+              contains(output.stderr.decode_utf8(),
                 "dependency import is not declared or the module is not exported: common/math"),
             "the application inherited its dependency's alias"))
         }
       }
       cyclic_internal_manifest = replace_first(internal_manifest_contents,
         "\"dependencies\":{}", "\"dependencies\":{\"geometry\":{\"path\":\"../library\"}}")
-      std_filesystem.write(internal_manifest, cyclic_internal_manifest->encode_utf8())
+      std_filesystem.write(internal_manifest, cyclic_internal_manifest.encode_utf8())
       match std_process.run(path("./panack-vm"),
           source_compiler_arguments(["check", "--project", package_manifest_text]),
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           std_time.seconds(10), 1048576) {
         Error(error) => {
-          results = results->append(std_testing.expect("nested package dependency cycle is rejected", false,
+          results = results.append(std_testing.expect("nested package dependency cycle is rejected", false,
             "compiler process failed"))
         },
         Ok(output) => {
-          results = results->append(std_testing.expect("nested package dependency cycle is rejected",
+          results = results.append(std_testing.expect("nested package dependency cycle is rejected",
             output.exit_code == 1 && output.signal == 0 &&
-              contains(output.stderr->decode_utf8(), "package dependency cycle detected"),
+              contains(output.stderr.decode_utf8(), "package dependency cycle detected"),
             "a cyclic package graph was accepted"))
         }
       }
-      std_filesystem.write(internal_manifest, internal_manifest_contents->encode_utf8())
-      std_filesystem.write(package_manifest, dependency_manifest_text->encode_utf8())
-      std_filesystem.write(package_entry, "import stdlib/host as service_host\nimport project/value as value\nimport geometry/api as geometry\nmain(): Void { print(value.answer()); print(geometry.answer()); arguments: [Str] = service_host.arguments(); print(arguments->len()); }\n"->encode_utf8())
-      std_filesystem.write(library_manifest, library_manifest_text_value->encode_utf8())
-      std_filesystem.write(library_api, "import project/implementation as implementation\npub pure answer(): Nat { implementation.answer() }\n"->encode_utf8())
-      race_compiler: Str = std_environment.get("PANACK_TEST_COMPILER")->value_or("")
+      std_filesystem.write(internal_manifest, internal_manifest_contents.encode_utf8())
+      std_filesystem.write(package_manifest, dependency_manifest_text.encode_utf8())
+      std_filesystem.write(package_entry, "import stdlib/host as service_host\nimport project/value as value\nimport geometry/api as geometry\nmain(): Void { print(value.answer()); print(geometry.answer()); arguments: [Str] = service_host.arguments(); print(arguments.len()); }\n".encode_utf8())
+      std_filesystem.write(library_manifest, library_manifest_text_value.encode_utf8())
+      std_filesystem.write(library_api, "import project/implementation as implementation\npub pure answer(): Nat { implementation.answer() }\n".encode_utf8())
+      race_compiler: Str = std_environment.get("PANACK_TEST_COMPILER").value_or("")
       race_compiler_path: Str = if race_compiler == "" {
         "build/bootstrap/stage2/compiler.bc"
       } else { race_compiler }
@@ -471,16 +471,16 @@ main(): Void {
           byte_buffer.empty(), std_path.current(), [], std_time.seconds(120), 4096) {
         Error(error) => {
           race_error: Str = error.code
-          results = results->append(std_testing.expect(
+          results = results.append(std_testing.expect(
             "package-root symlink replacement never mixes sources", false,
             "race harness host error: ${race_error}"))
         },
         Ok(output) => {
-          race_output: Str = output.stdout->decode_utf8()
-          race_error_output: Str = output.stderr->decode_utf8()
+          race_output: Str = output.stdout.decode_utf8()
+          race_error_output: Str = output.stderr.decode_utf8()
           race_exit: Nat = output.exit_code
           race_signal: Nat = output.signal
-          results = results->append(std_testing.expect(
+          results = results.append(std_testing.expect(
             "package-root symlink replacement never mixes sources",
             output.exit_code == 0 && output.signal == 0 &&
               contains(race_output, "package root race passed (") &&
@@ -489,7 +489,7 @@ main(): Void {
             "race process exit ${race_exit}, signal ${race_signal}; stdout: ${race_output}; stderr: ${race_error_output}"))
         }
       }
-      graph_compiler: Str = std_environment.get("PANACK_TEST_COMPILER")->value_or("")
+      graph_compiler: Str = std_environment.get("PANACK_TEST_COMPILER").value_or("")
       graph_compiler_path: Str = if graph_compiler == "" {
         "build/bootstrap/stage2/compiler.bc"
       } else { graph_compiler }
@@ -499,43 +499,43 @@ main(): Void {
             graph_compiler_path, toolchain_version, "src/stdlib"],
           byte_buffer.empty(), std_path.current(), [], std_time.seconds(120), 4096) {
         Error(error) => {
-          results = results->append(std_testing.expect(
+          results = results.append(std_testing.expect(
             "nested package graph boundary fixture runs", false,
             "graph boundary fixture could not run"))
         },
         Ok(output) => {
-          graph_output = output.stdout->decode_utf8()
-          results = results->append(std_testing.expect(
+          graph_output = output.stdout.decode_utf8()
+          results = results.append(std_testing.expect(
             "nested package graph boundary fixture runs",
             output.exit_code == 0 && output.signal == 0 && output.stderr == byte_buffer.empty(),
             "graph boundary fixture did not complete successfully"))
         }
       }
-      results = results->append(std_testing.expect("nested package version conflicts are rejected",
+      results = results.append(std_testing.expect("nested package version conflicts are rejected",
         contains(graph_output, "PASS nested version conflict"),
         "a nested package version conflict was accepted"))
-      results = results->append(std_testing.expect("nested package identity conflicts are rejected",
+      results = results.append(std_testing.expect("nested package identity conflicts are rejected",
         contains(graph_output, "PASS nested package identity resolves to multiple roots"),
         "one nested package identity resolved to multiple roots"))
-      results = results->append(std_testing.expect("64 package manifests are accepted",
+      results = results.append(std_testing.expect("64 package manifests are accepted",
         contains(graph_output, "PASS 64 package manifests accepted"),
         "the documented package manifest limit rejected its boundary"))
-      results = results->append(std_testing.expect("65 package manifests are rejected",
+      results = results.append(std_testing.expect("65 package manifests are rejected",
         contains(graph_output, "PASS 65 package manifests rejected"),
         "the package manifest limit accepted an oversized graph"))
-      results = results->append(std_testing.expect("256 dependency edges are accepted",
+      results = results.append(std_testing.expect("256 dependency edges are accepted",
         contains(graph_output, "PASS 256 dependency edges accepted"),
         "the documented dependency edge limit rejected its boundary"))
-      results = results->append(std_testing.expect("257 dependency edges are rejected",
+      results = results.append(std_testing.expect("257 dependency edges are rejected",
         contains(graph_output, "PASS 257 dependency edges rejected"),
         "the dependency edge limit accepted an oversized graph"))
-      results = results->append(std_testing.expect("32 package levels are accepted",
+      results = results.append(std_testing.expect("32 package levels are accepted",
         contains(graph_output, "PASS 32 package levels accepted"),
         "the documented package depth limit rejected its boundary"))
-      results = results->append(std_testing.expect("33 package levels are rejected",
+      results = results.append(std_testing.expect("33 package levels are rejected",
         contains(graph_output, "PASS 33 package levels rejected"),
         "the package depth limit accepted an oversized graph"))
-      source_limit_compiler: Str = std_environment.get("PANACK_TEST_COMPILER")->value_or("")
+      source_limit_compiler: Str = std_environment.get("PANACK_TEST_COMPILER").value_or("")
       source_limit_compiler_path: Str = if source_limit_compiler == "" {
         "build/bootstrap/stage2/compiler.bc"
       } else { source_limit_compiler }
@@ -545,23 +545,23 @@ main(): Void {
             source_limit_compiler_path, toolchain_version, "src/stdlib"],
           byte_buffer.empty(), std_path.current(), [], std_time.seconds(120), 4096) {
         Error(error) => {
-          results = results->append(std_testing.expect(
+          results = results.append(std_testing.expect(
             "package source limit CLI fixture runs", false,
             "source limit CLI fixture could not run"))
         },
         Ok(output) => {
-          source_limit_output = output.stdout->decode_utf8()
-          results = results->append(std_testing.expect(
+          source_limit_output = output.stdout.decode_utf8()
+          results = results.append(std_testing.expect(
             "package source limit CLI fixture runs",
             output.exit_code == 0 && output.signal == 0 && output.stderr == byte_buffer.empty(),
             "source byte boundary fixture did not complete successfully"))
         }
       }
-      results = results->append(std_testing.expect("oversized package source fails closed through CLI",
+      results = results.append(std_testing.expect("oversized package source fails closed through CLI",
         contains(source_limit_output, "PASS oversized package source fails closed through CLI"),
         "the package CLI accepted a source file larger than 1 MiB"))
 
-      relocation_compiler: Str = std_environment.get("PANACK_TEST_COMPILER")->value_or("")
+      relocation_compiler: Str = std_environment.get("PANACK_TEST_COMPILER").value_or("")
       relocation_compiler_path: Str = if relocation_compiler == "" {
         "build/bootstrap/stage2/compiler.bc"
       } else { relocation_compiler }
@@ -571,82 +571,82 @@ main(): Void {
             relocation_compiler_path, toolchain_version, "src/stdlib"],
           byte_buffer.empty(), std_path.current(), [], std_time.seconds(120), 4096) {
         Error(error) => {
-          results = results->append(std_testing.expect(
+          results = results.append(std_testing.expect(
             "relocated shared package acceptance fixture runs", false,
             "package relocation fixture could not run: ${error.code}"))
         },
         Ok(output) => {
-          relocation_output = output.stdout->decode_utf8()
-          results = results->append(std_testing.expect(
+          relocation_output = output.stdout.decode_utf8()
+          results = results.append(std_testing.expect(
             "relocated shared package acceptance fixture runs",
             output.exit_code == 0 && output.signal == 0 && output.stderr == byte_buffer.empty(),
             "package relocation fixture failed: ${std_text.decode_utf8(output.stderr)}"))
         }
       }
-      results = results->append(std_testing.expect("relocated app one checks from unrelated cwd",
+      results = results.append(std_testing.expect("relocated app one checks from unrelated cwd",
         contains(relocation_output, "PASS app-one check after relocation from unrelated cwd"),
         "app one did not check from outside the relocated workspace"))
-      results = results->append(std_testing.expect("relocated app one runs source from unrelated cwd",
+      results = results.append(std_testing.expect("relocated app one runs source from unrelated cwd",
         contains(relocation_output, "PASS app-one source run after relocation from unrelated cwd"),
         "app one did not run source from outside the relocated workspace"))
-      results = results->append(std_testing.expect("relocated app one bytecode runs from unrelated cwd",
+      results = results.append(std_testing.expect("relocated app one bytecode runs from unrelated cwd",
         contains(relocation_output, "PASS app-one saved bytecode after relocation from unrelated cwd"),
         "app one bytecode did not run from outside the relocated workspace"))
-      results = results->append(std_testing.expect("relocated app two checks from unrelated cwd",
+      results = results.append(std_testing.expect("relocated app two checks from unrelated cwd",
         contains(relocation_output, "PASS app-two check after relocation from unrelated cwd"),
         "app two did not check from outside the relocated workspace"))
-      results = results->append(std_testing.expect("relocated app two runs source from unrelated cwd",
+      results = results.append(std_testing.expect("relocated app two runs source from unrelated cwd",
         contains(relocation_output, "PASS app-two source run after relocation from unrelated cwd"),
         "app two did not run source from outside the relocated workspace"))
-      results = results->append(std_testing.expect("relocated app two bytecode runs from unrelated cwd",
+      results = results.append(std_testing.expect("relocated app two bytecode runs from unrelated cwd",
         contains(relocation_output, "PASS app-two saved bytecode after relocation from unrelated cwd"),
         "app two bytecode did not run from outside the relocated workspace"))
 
-      results = results->append(std_testing_commands.run_command("manifest-only library compile requires an entry",
+      results = results.append(std_testing_commands.run_command("manifest-only library compile requires an entry",
         source_compiler_command(["compile", "--project", library_manifest_text, "-o", bytecode_text], toolchain_version),
-        ProcessOutput(1, 0, byte_buffer.empty(), "error: library manifests support check only; compile and run require an application entry\n"->encode_utf8())))
-      results = results->append(std_testing_commands.run_command("manifest-only library run requires an entry",
+        ProcessOutput(1, 0, byte_buffer.empty(), "error: library manifests support check only; compile and run require an application entry\n".encode_utf8())))
+      results = results.append(std_testing_commands.run_command("manifest-only library run requires an entry",
         source_compiler_command(["run", "--project", library_manifest_text], toolchain_version),
-        ProcessOutput(1, 0, byte_buffer.empty(), "error: library manifests support check only; compile and run require an application entry\n"->encode_utf8())))
+        ProcessOutput(1, 0, byte_buffer.empty(), "error: library manifests support check only; compile and run require an application entry\n".encode_utf8())))
       empty_library_manifest = replace_first(library_manifest_text_value,
         "\"api\":\"api.panack\",\"api_alias\":\"api.panack\",\"extra\":\"extra.panack\"", "")
-      std_filesystem.write(library_manifest, empty_library_manifest->encode_utf8())
-      results = results->append(std_testing_commands.run_command("manifest-only library requires an export",
+      std_filesystem.write(library_manifest, empty_library_manifest.encode_utf8())
+      results = results.append(std_testing_commands.run_command("manifest-only library requires an export",
         source_compiler_command(["check", "--project", library_manifest_text], toolchain_version),
-        ProcessOutput(1, 0, byte_buffer.empty(), "error: library manifest must export at least one module\n"->encode_utf8())))
-      std_filesystem.write(library_manifest, library_manifest_text_value->encode_utf8())
-      std_filesystem.write(library_extra, "import project/api as api\npub pure next_answer(): Nat { true }\n"->encode_utf8())
+        ProcessOutput(1, 0, byte_buffer.empty(), "error: library manifest must export at least one module\n".encode_utf8())))
+      std_filesystem.write(library_manifest, library_manifest_text_value.encode_utf8())
+      std_filesystem.write(library_extra, "import project/api as api\npub pure next_answer(): Nat { true }\n".encode_utf8())
       match std_process.run(path("./panack-vm"),
           source_compiler_arguments(["check", "--project", library_manifest_text]),
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           std_time.seconds(10), 1048576) {
         Error(error) => {
-          results = results->append(std_testing.expect("manifest-only library rejects invalid export", false,
+          results = results.append(std_testing.expect("manifest-only library rejects invalid export", false,
             "compiler process failed"))
         },
         Ok(output) => {
-          results = results->append(std_testing.expect("manifest-only library rejects invalid export",
+          results = results.append(std_testing.expect("manifest-only library rejects invalid export",
             output.exit_code == 1 && output.signal == 0 &&
-              contains(output.stderr->decode_utf8(), "expected Nat") && output.stdout == byte_buffer.empty(),
+              contains(output.stderr.decode_utf8(), "expected Nat") && output.stdout == byte_buffer.empty(),
             "invalid exported source passed checking"))
         }
       }
-      std_filesystem.write(library_extra, "import project/api as api\npub pure next_answer(): Nat { api.answer() + 1 }\n"->encode_utf8())
-      results = results->append(std_testing_commands.run_command("manifest application recompiles direct dependencies after nested checks",
+      std_filesystem.write(library_extra, "import project/api as api\npub pure next_answer(): Nat { api.answer() + 1 }\n".encode_utf8())
+      results = results.append(std_testing_commands.run_command("manifest application recompiles direct dependencies after nested checks",
         source_compiler_command(["compile", "--project", package_manifest_text, "-o", bytecode_text], toolchain_version),
-        ProcessOutput(0, 0, "wrote ${bytecode_text}\n"->encode_utf8(), byte_buffer.empty())))
+        ProcessOutput(0, 0, "wrote ${bytecode_text}\n".encode_utf8(), byte_buffer.empty())))
       move: ProcessOutput = match std_process.run(path("/bin/mv"), [package_root_text, relocated_root_text],
           byte_buffer.empty(), std_path.current(), [], std_time.seconds(10), 1048576) {
         Error(error) => ProcessOutput(1, 0, byte_buffer.empty(), byte_buffer.empty()),
         Ok(output) => output
       }
-      results = results->append(std_testing.expect("manifest package relocation fixture", move.exit_code == 0 && move.signal == 0, "could not move package root"))
-      results = results->append(std_testing_commands.run_command("relocated manifest package source run",
+      results = results.append(std_testing.expect("manifest package relocation fixture", move.exit_code == 0 && move.signal == 0, "could not move package root"))
+      results = results.append(std_testing_commands.run_command("relocated manifest package source run",
         source_compiler_command(["run", "--project", relocated_manifest_text, "alpha"], toolchain_version),
-        ProcessOutput(0, 0, "42\n42\n1\n"->encode_utf8(), byte_buffer.empty())))
-      results = results->append(std_testing_commands.run_command("saved package bytecode runs after relocation",
+        ProcessOutput(0, 0, "42\n42\n1\n".encode_utf8(), byte_buffer.empty())))
+      results = results.append(std_testing_commands.run_command("saved package bytecode runs after relocation",
         command(["run", bytecode_text]),
-        ProcessOutput(0, 0, "42\n42\n0\n"->encode_utf8(), byte_buffer.empty())))
+        ProcessOutput(0, 0, "42\n42\n0\n".encode_utf8(), byte_buffer.empty())))
       std_filesystem.remove_file(relocated_entry)
       std_filesystem.remove_file(relocated_value)
       std_filesystem.remove_file(relocated_manifest)
@@ -670,56 +670,56 @@ main(): Void {
       std_filesystem.remove_directory(second_app_root)
 
       match std_filesystem.write(arguments_source, ("import stdlib/host as service_host\nmain(): Void { arguments: [Str] = service_host.arguments(); " +
-          "print(arguments->len()); print(arguments[0]); }")->encode_utf8()) {
+          "print(arguments.len()); print(arguments[0]); }").encode_utf8()) {
         Error(error) => {
-          results = results->append(std_testing.expect("program arguments", false,
+          results = results.append(std_testing.expect("program arguments", false,
             "fixture write failed"))
         },
         Ok(value) => {
-          results = results->append(std_testing_commands.run_command("program arguments",
+          results = results.append(std_testing_commands.run_command("program arguments",
             command(["run", arguments_text, "alpha", "beta"]),
-            ProcessOutput(0, 0, "2\nalpha\n"->encode_utf8(), byte_buffer.empty())))
+            ProcessOutput(0, 0, "2\nalpha\n".encode_utf8(), byte_buffer.empty())))
         }
       }
       match std_filesystem.write(failing_source,
-          "import stdlib/host as service_host\nmain(): Void { service_host.stderr(\"failure\"); service_host.exit(7); }"->encode_utf8()) {
+          "import stdlib/host as service_host\nmain(): Void { service_host.stderr(\"failure\"); service_host.exit(7); }".encode_utf8()) {
         Error(error) => {
-          results = results->append(std_testing.expect("program stderr and exit", false,
+          results = results.append(std_testing.expect("program stderr and exit", false,
             "fixture write failed"))
         },
         Ok(value) => {
-          results = results->append(std_testing_commands.run_command("program stderr and exit",
+          results = results.append(std_testing_commands.run_command("program stderr and exit",
             command(["run", failing_text]),
-            ProcessOutput(7, 0, byte_buffer.empty(), "failure\n"->encode_utf8())))
+            ProcessOutput(7, 0, byte_buffer.empty(), "failure\n".encode_utf8())))
         }
       }
 
       match std_process.run(path("./bin/panack"), ["--help"], byte_buffer.empty(), std_path.current(), [],
           std_time.seconds(10), 1048576) {
         Error(error) => {
-          results = results->append(std_testing.expect("help command name", false,
+          results = results.append(std_testing.expect("help command name", false,
             "process failed"))
         },
         Ok(output) => {
-          results = results->append(std_testing.expect("help command name",
+          results = results.append(std_testing.expect("help command name",
             output.exit_code == 0 && output.signal == 0 && output.stderr == byte_buffer.empty() &&
-              contains(output.stdout->decode_utf8(), "usage: panack "),
+              contains(output.stdout.decode_utf8(), "usage: panack "),
             "unexpected help output"))
         }
       }
       match std_filesystem.read(path("VERSION"), 100) {
         Error(error) => {
-          results = results->append(std_testing.expect("version", false, "version read failed"))
+          results = results.append(std_testing.expect("version", false, "version read failed"))
         },
         Ok(content) => {
-          value = content->decode_utf8()
-          size = value->len()
+          value = content.decode_utf8()
+          size = value.len()
           if size > 0 {
-            release = value->slice(0, size - 1)
-            results = results->append(std_testing_commands.run_command("version", command(["--version"]),
-              ProcessOutput(0, 0, "panack ${release} (bytecode 9)\n"->encode_utf8(), byte_buffer.empty())))
+            release = value.slice(0, size - 1)
+            results = results.append(std_testing_commands.run_command("version", command(["--version"]),
+              ProcessOutput(0, 0, "panack ${release} (bytecode 9)\n".encode_utf8(), byte_buffer.empty())))
           } else {
-            results = results->append(std_testing.expect("version", false, "empty version"))
+            results = results.append(std_testing.expect("version", false, "empty version"))
           }
         }
       }
@@ -729,16 +729,16 @@ main(): Void {
           Ok(value) => {},
           Error(error) => {
             code = error.code
-            results = results->append(std_testing.expect("artifact cleanup", false,
+            results = results.append(std_testing.expect("artifact cleanup", false,
               "file removal failed: ${code}"))
           }
         }
       }
-      match workspace->remove_empty() {
+      match workspace.remove_empty() {
         Ok(value) => {},
         Error(error) => {
           code = error.code
-          results = results->append(std_testing.expect("workspace cleanup", false,
+          results = results.append(std_testing.expect("workspace cleanup", false,
             "workspace removal failed: ${code}"))
         }
       }

@@ -68,11 +68,11 @@ pure reason_phrase(status: Nat): Str {
 }
 
 pure header_name_valid(value: Str): Bool {
-  encoded: Bytes = value->encode_utf8()
-  mut valid = encoded->length() > 0
+  encoded: Bytes = value.encode_utf8()
+  mut valid = encoded.length() > 0
   mut cursor: Nat = 0
-  while cursor < encoded->length() {
-    byte: Nat = encoded->at(cursor)
+  while cursor < encoded.length() {
+    byte: Nat = encoded.at(cursor)
     token: Bool = (byte >= 48 && byte <= 57) || (byte >= 65 && byte <= 90) ||
       (byte >= 97 && byte <= 122) || byte == 33 || byte == 35 || byte == 36 ||
       byte == 37 || byte == 38 || byte == 39 || byte == 42 || byte == 43 ||
@@ -85,11 +85,11 @@ pure header_name_valid(value: Str): Bool {
 }
 
 pure header_value_valid(value: Str): Bool {
-  encoded: Bytes = value->encode_utf8()
+  encoded: Bytes = value.encode_utf8()
   mut valid = true
   mut cursor: Nat = 0
-  while cursor < encoded->length() {
-    byte: Nat = encoded->at(cursor)
+  while cursor < encoded.length() {
+    byte: Nat = encoded.at(cursor)
     if byte != 9 && (byte < 32 || byte > 126) { valid = false }
     cursor = cursor + 1
   }
@@ -97,22 +97,22 @@ pure header_value_valid(value: Str): Bool {
 }
 
 pure lower(value: Str): Str {
-  encoded: Bytes = value->encode_utf8()
+  encoded: Bytes = value.encode_utf8()
   mut output: Bytes = byte_buffer.empty()
   mut cursor: Nat = 0
-  while cursor < encoded->length() {
-    byte: Nat = encoded->at(cursor)
-    output = output->push(if byte >= 65 && byte <= 90 { byte + 32 } else { byte })
+  while cursor < encoded.length() {
+    byte: Nat = encoded.at(cursor)
+    output = output.push(if byte >= 65 && byte <= 90 { byte + 32 } else { byte })
     cursor = cursor + 1
   }
-  output->decode_utf8()
+  output.decode_utf8()
 }
 
 pure response_headers_valid(response: Response): Bool {
   mut valid = response.status >= 200 && response.status <= 599
   mut content_length_seen = false
   mut connection_seen = false
-  body_length: Nat = response.body->length()
+  body_length: Nat = response.body.length()
   body_length_text: Str = "${body_length}"
   for header in response.headers {
     name: Str = lower(header.name)
@@ -131,7 +131,7 @@ pure response_headers_valid(response: Response): Bool {
       connection_seen = true
     }
   }
-  if (response.status == 204 || response.status == 304) && response.body->length() != 0 {
+  if (response.status == 204 || response.status == 304) && response.body.length() != 0 {
     valid = false
   }
   valid
@@ -149,44 +149,44 @@ pub pure serialize_response(response: Response): Result[Bytes,HttpError] {
 pure serialize_response_mode(response: Response, head_only: Bool): Result[Bytes,HttpError] {
   if !response_headers_valid(response) {
     Error(InvalidResponse())
-  } else if response.body->length() > 1048576 {
+  } else if response.body.length() > 1048576 {
     Error(LimitExceeded("response"))
   } else {
     status: Nat = response.status
     status_text: Str = reason_phrase(status)
-    mut output: Bytes = "HTTP/1.1 ${status} ${status_text}\r\n"->encode_utf8()
+    mut output: Bytes = "HTTP/1.1 ${status} ${status_text}\r\n".encode_utf8()
     mut too_large = false
     for header in response.headers {
       name: Str = lower(header.name)
       if !too_large && name != "content-length" && name != "connection" {
         header_name: Str = header.name
         header_value: Str = header.value
-        field: Bytes = "${header_name}: ${header_value}\r\n"->encode_utf8()
-        if output->length() + field->length() > 1048576 {
+        field: Bytes = "${header_name}: ${header_value}\r\n".encode_utf8()
+        if output.length() + field.length() > 1048576 {
           too_large = true
         } else {
-          output = output->join(field)
+          output = output.join(field)
         }
       }
     }
     if response.status != 204 && response.status != 304 {
-      body_length: Nat = response.body->length()
+      body_length: Nat = response.body.length()
       body_length_text: Str = "${body_length}"
-      framing: Bytes = "Content-Length: ${body_length_text}\r\n"->encode_utf8()
-      if output->length() + framing->length() > 1048576 {
+      framing: Bytes = "Content-Length: ${body_length_text}\r\n".encode_utf8()
+      if output.length() + framing.length() > 1048576 {
         too_large = true
       } else {
-        output = output->join(framing)
+        output = output.join(framing)
       }
     }
-    closing: Bytes = "Connection: close\r\n\r\n"->encode_utf8()
-    total_length: Nat = output->length() + closing->length() +
-      response.body->length()
+    closing: Bytes = "Connection: close\r\n\r\n".encode_utf8()
+    total_length: Nat = output.length() + closing.length() +
+      response.body.length()
     if too_large || total_length > 1048576 {
       Error(LimitExceeded("response"))
     } else {
-      output = output->join(closing)
-      Ok(if head_only { output } else { output->join(response.body) })
+      output = output.join(closing)
+      Ok(if head_only { output } else { output.join(response.body) })
     }
   }
 }
@@ -219,24 +219,24 @@ pure simple_response(status: Nat, message: Str, head_only: Bool): Bytes {
 pure simple_response_with_headers(
   status: Nat, message: Str, head_only: Bool, headers: [Header]
 ): Bytes {
-  body: Bytes = message->encode_utf8()
+  body: Bytes = message.encode_utf8()
   response: Response = Response(status,
-    headers->append(Header("Content-Type", "text/plain; charset=utf-8")), body)
-  serialize_response_mode(response, head_only)->value_or("HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"->encode_utf8())
+    headers.append(Header("Content-Type", "text/plain; charset=utf-8")), body)
+  serialize_response_mode(response, head_only).value_or("HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".encode_utf8())
 }
 
 pure response_for_error(error: HttpError, head_only: Bool, policy: ConnectionPolicy): Bytes {
   status: Nat = error_status(error)
   if status == 405 {
-    body: Bytes = "Method Not Allowed"->encode_utf8()
+    body: Bytes = "Method Not Allowed".encode_utf8()
     mut allowed = ""
     for method in policy.methods {
       allowed = allowed + (if allowed == "" { "" } else { ", " }) + method
     }
     response: Response = Response(status,
-      policy.error_headers->append(Header("Allow", allowed))->append(
+      policy.error_headers.append(Header("Allow", allowed)).append(
         Header("Content-Type", "text/plain; charset=utf-8")), body)
-    serialize_response_mode(response, head_only)->value_or(simple_response(500, "Internal Server Error", head_only))
+    serialize_response_mode(response, head_only).value_or(simple_response(500, "Internal Server Error", head_only))
   } else if status == 501 {
     simple_response_with_headers(status, "Not Implemented", head_only, policy.error_headers)
   } else if status == 505 {
@@ -254,9 +254,9 @@ pure response_for_error(error: HttpError, head_only: Bool, policy: ConnectionPol
 // Recognise the exact method token even when later request framing is invalid.
 // This lets parser errors obey HEAD's no-body rule too.
 pure is_head_request(incoming: Bytes): Bool {
-  incoming->length() >= 5 && incoming->at(0) == 72 &&
-    incoming->at(1) == 69 && incoming->at(2) == 65 &&
-    incoming->at(3) == 68 && incoming->at(4) == 32
+  incoming.length() >= 5 && incoming.at(0) == 72 &&
+    incoming.at(1) == 69 && incoming.at(2) == 65 &&
+    incoming.at(3) == 68 && incoming.at(4) == 32
 }
 
 pure successful_report(): Result[Unit,HttpError] { Ok(()) }
@@ -268,7 +268,7 @@ async invoke_legacy_handler(
   handler: AsyncFn[Request,Result[Response,HttpError]],
   request: Request
 ): Result[Response,HttpError] {
-  await handler->call(request)
+  await handler.call(request)
 }
 
 async serve_connection(context: ServeContext): Result[Bytes,Str] {
@@ -304,9 +304,9 @@ pub async serve_connection_with_policy[T](
         finished = true
       },
       Ok(chunk) => {
-        incoming = incoming->join(chunk)
+        incoming = incoming.join(chunk)
         head_only = is_head_request(incoming)
-        eof: Bool = chunk->length() == 0
+        eof: Bool = chunk.length() == 0
         match parse_request_for_methods(incoming, eof, context.request_limit, policy.methods) {
           Error(error) => {
             outcome = Ok(response_for_error(error, head_only, policy))
@@ -315,7 +315,7 @@ pub async serve_connection_with_policy[T](
           Ok(parsed) => match parsed {
             None() => { finished = false },
             Some(request) => {
-              match await context.handler->call(context.configuration, request) {
+              match await context.handler.call(context.configuration, request) {
                 Error(error) => {
                   outcome = Ok(simple_response_with_headers(
                     500, "Internal Server Error", head_only, policy.error_headers))
@@ -327,7 +327,7 @@ pub async serve_connection_with_policy[T](
                       500, "Internal Server Error", head_only, policy.error_headers))
                     finished = true
                   },
-                  Ok(wire) => if wire->length() > context.response_limit {
+                  Ok(wire) => if wire.length() > context.response_limit {
                     outcome = Error("TCP response limit exceeded")
                     finished = true
                   } else {
@@ -369,8 +369,8 @@ pub async serve(
       mut results: [Result[Unit,HttpError]] = []
       for report in reports {
         match report {
-          Ok(done) => { results = results->append(successful_report()) },
-          Error(problem) => { results = results->append(failed_report(problem)) }
+          Ok(done) => { results = results.append(successful_report()) },
+          Error(problem) => { results = results.append(failed_report(problem)) }
         }
       }
       Ok(results)

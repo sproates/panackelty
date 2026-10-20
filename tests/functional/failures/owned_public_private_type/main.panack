@@ -4,4 +4,4 @@ impl Fruit {
   pub pure apple(): Nat { self.value }
 }
 
-main(): Void { print(Fruit(10)->apple()) }
+main(): Void { print(Fruit(10).apple()) }

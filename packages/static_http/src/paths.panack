@@ -17,7 +17,7 @@ pure hex(value: Nat): Option[Nat] {
 pure copy(input: Bytes, start: Nat, end: Nat): Bytes {
   mut output = buffer.empty()
   for index in start..end {
-    output = output->push(input->at(index))
+    output = output.push(input.at(index))
   }
   output
 }
@@ -28,21 +28,21 @@ pure decode(input: Bytes, end: Nat): Result[Str, Str] {
   mut cursor: Nat = 1
   mut valid = true
   while cursor < end && valid {
-    value = input->at(cursor)
+    value = input.at(cursor)
     if value == 37 {
       if cursor + 2 >= end {
         valid = false
       } else {
-        match hex(input->at(cursor + 1)) {
+        match hex(input.at(cursor + 1)) {
           None() => { valid = false },
-          Some(high) => match hex(input->at(cursor + 2)) {
+          Some(high) => match hex(input.at(cursor + 2)) {
             None() => { valid = false },
             Some(low) => {
               decoded = high * 16 + low
               if decoded < 32 || decoded == 47 || decoded == 92 || decoded == 127 {
                 valid = false
               } else {
-                output = output->push(decoded)
+                output = output.push(decoded)
               }
             }
           }
@@ -53,17 +53,17 @@ pure decode(input: Bytes, end: Nat): Result[Str, Str] {
       if value < 33 || value == 92 || value == 127 {
         valid = false
       } else {
-        output = output->push(value)
+        output = output.push(value)
       }
       cursor = cursor + 1
     }
   }
   if !valid { Error("malformed URL path") }
-  else if output->length() == 0 { Ok("") }
+  else if output.length() == 0 { Ok("") }
   else {
     match path.from_native(output) {
       Error(problem) => Error("invalid path bytes"),
-      Ok(native) => match native->to_text() {
+      Ok(native) => match native.to_text() {
         Error(problem) => Error("path is not UTF-8"),
         Ok(value) => Ok(value)
       }
@@ -72,34 +72,34 @@ pure decode(input: Bytes, end: Nat): Result[Str, Str] {
 }
 
 pure segments_valid(relative: Str): Bool {
-  input = relative->encode_utf8()
+  input = relative.encode_utf8()
   mut segment = buffer.empty()
   mut valid = true
-  for cursor in 0..input->length() {
-    value = input->at(cursor)
+  for cursor in 0..input.length() {
+    value = input.at(cursor)
     if value == 47 {
-      name = segment->decode_utf8()
+      name = segment.decode_utf8()
       if name == "" || name == "." || name == ".." { valid = false }
       segment = buffer.empty()
     } else {
-      segment = segment->push(value)
+      segment = segment.push(value)
     }
   }
-  last = segment->decode_utf8()
+  last = segment.decode_utf8()
   valid && last != "." && last != ".."
 }
 
 pub pure parse(target: Str): Result[Target, Str] {
-  input = target->encode_utf8()
-  length = input->length()
+  input = target.encode_utf8()
+  length = input.length()
   if length == 0 || length > 4096 { Error("invalid URL length") }
-  else if input->at(0) != 47 { Error("expected an origin-form URL") }
+  else if input.at(0) != 47 { Error("expected an origin-form URL") }
   else {
     mut end = length
     mut cursor: Nat = 0
     mut valid = true
     while cursor < length {
-      value = input->at(cursor)
+      value = input.at(cursor)
       if value < 33 || value > 126 || value == 35 { valid = false }
       if value == 63 && end == length { end = cursor }
       cursor = cursor + 1
@@ -112,11 +112,11 @@ pub pure parse(target: Str): Result[Target, Str] {
           Error("invalid path segments")
         } else {
           signed_end: Int = end
-          last = ((signed_end - 1) / 1)->nat()
-          slash = input->at(last) == 47
+          last = ((signed_end - 1) / 1).nat()
+          slash = input.at(last) == 47
           location = if slash { target } else {
-            copy(input, 0, end)->decode_utf8() + "/" +
-              copy(input, end, length)->decode_utf8()
+            copy(input, 0, end).decode_utf8() + "/" +
+              copy(input, end, length).decode_utf8()
           }
           Ok(Target(relative, slash, location))
         }

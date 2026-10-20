@@ -7,7 +7,7 @@ import stdlib/host::{HostError}
 import stdlib/filesystem::{FileKind, FileKind.RegularFile, FileKind.SymbolicLink}
 import stdlib/bytes as byte_buffer
 
-pure path(text: Str): Path { std_path.from_text(text)->value_or(std_path.current()) }
+pure path(text: Str): Path { std_path.from_text(text).value_or(std_path.current()) }
 pure outcome[T](result: Result[T,HostError]): Str {
   match result { Ok(value) => "ok", Error(error) => error.code }
 }
@@ -15,14 +15,14 @@ main(): Void {
   print(outcome(std_host.sleep(std_time.from_nanoseconds(-1))))
   print(outcome(std_host.sleep(std_time.seconds(31536001))))
   print(outcome(std_host.sleep(std_time.from_nanoseconds(0))))
-  print(outcome(std_host.decode_utf8(byte_buffer.empty()->push(255))))
-  print(std_host.decode_utf8("hello λ"->encode_utf8())->value_or("bad"))
+  print(outcome(std_host.decode_utf8(byte_buffer.empty().push(255))))
+  print(std_host.decode_utf8("hello λ".encode_utf8()).value_or("bad"))
   match std_filesystem.temp_directory(path("/tmp")) {
     Error(error) => { print(error.code) },
     Ok(directory) => {
-      file = directory->join(path("data"))->value_or(directory)
-      print(outcome(std_filesystem.write(file, "hello"->encode_utf8())))
-      print(std_filesystem.read(file, 5)->value_or(byte_buffer.empty()) == "hello"->encode_utf8())
+      file = directory.join(path("data")).value_or(directory)
+      print(outcome(std_filesystem.write(file, "hello".encode_utf8())))
+      print(std_filesystem.read(file, 5).value_or(byte_buffer.empty()) == "hello".encode_utf8())
       print(outcome(std_filesystem.read(file, 4)))
       match std_filesystem.metadata(file) { Error(error) => { print(error.code) }, Ok(info) => {
         print(info.kind == RegularFile())
@@ -30,13 +30,13 @@ main(): Void {
       } }
       print(outcome(std_filesystem.create_directory(file)))
       print(outcome(std_filesystem.remove_directory(directory)))
-      raw = std_path.from_native(byte_buffer.empty()->push(122))->value_or(path("bad"))
-      native_file = directory->join(raw)->value_or(directory)
+      raw = std_path.from_native(byte_buffer.empty().push(122)).value_or(path("bad"))
+      native_file = directory.join(raw).value_or(directory)
       print(outcome(std_filesystem.write(native_file, byte_buffer.empty())))
-      entries = std_filesystem.list_directory(directory)->value_or([path("bad")])
-      print(entries->len())
-      print(entries[0]->display())
-      print(entries[1]->native_bytes() == raw->native_bytes())
+      entries = std_filesystem.list_directory(directory).value_or([path("bad")])
+      print(entries.len())
+      print(entries[0].display())
+      print(entries[1].native_bytes() == raw.native_bytes())
       print(outcome(std_filesystem.remove_file(native_file)))
       print(outcome(std_filesystem.remove_file(file)))
       print(outcome(std_filesystem.read(file, 1)))
@@ -47,27 +47,27 @@ main(): Void {
       match std_process.run(path("/bin/sh"), ["-c", "printf child > child-output; ln -s child-output child-link"], byte_buffer.empty(), directory, [], std_time.seconds(3), 10) {
         Error(error) => { print(error.code) }, Ok(output) => { print(output.exit_code) }
       }
-      child_output = directory->join(path("child-output"))->value_or(directory)
-      child_link = directory->join(path("child-link"))->value_or(directory)
-      print(std_filesystem.read(child_link, 5)->value_or(byte_buffer.empty()) == "child"->encode_utf8())
+      child_output = directory.join(path("child-output")).value_or(directory)
+      child_link = directory.join(path("child-link")).value_or(directory)
+      print(std_filesystem.read(child_link, 5).value_or(byte_buffer.empty()) == "child".encode_utf8())
       match std_filesystem.metadata(child_link) {
         Error(error) => { print(error.code) }, Ok(info) => { print(info.kind == SymbolicLink()) }
       }
       print(outcome(std_filesystem.remove_file(child_link)))
       print(outcome(std_filesystem.remove_file(child_output)))
-      child = directory->join(path("child"))->value_or(directory)
+      child = directory.join(path("child")).value_or(directory)
       print(outcome(std_filesystem.create_directory(child)))
       print(outcome(std_filesystem.remove_directory(child)))
       print(outcome(std_filesystem.remove_directory(directory)))
     }
   }
-  match std_process.run(path("/bin/sh"), ["-c", "cat; printf err >&2; exit 7"], "in"->encode_utf8(), std_path.current(), [], std_time.seconds(3), 100) {
+  match std_process.run(path("/bin/sh"), ["-c", "cat; printf err >&2; exit 7"], "in".encode_utf8(), std_path.current(), [], std_time.seconds(3), 100) {
     Error(error) => { print(error.code) },
     Ok(output) => {
       print(output.exit_code)
       print(output.signal)
-      print(std_host.decode_utf8(output.stdout)->value_or("bad"))
-      print(std_host.decode_utf8(output.stderr)->value_or("bad"))
+      print(std_host.decode_utf8(output.stdout).value_or("bad"))
+      print(std_host.decode_utf8(output.stderr).value_or("bad"))
     }
   }
   print(outcome(std_process.run(path("/does-not-exist"), [], byte_buffer.empty(), std_path.current(), [], std_time.seconds(1), 10)))

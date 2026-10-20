@@ -8,5 +8,5 @@ pub pure ambiguous(): [Nat] { identity([]) }
 pure identity[T](value: T): T { value }
 main(): Void {}
 pub pure invalid_pattern(): Nat {
-  match [1]->first() { map() => 0 }
+  match [1].first() { map() => 0 }
 }

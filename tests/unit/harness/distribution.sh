@@ -77,9 +77,9 @@ cat > "$work/logical-import.panack" <<'PROGRAM'
 import stdlib/time as time
 import stdlib/path as path
 main(): Void {
-  print(Some(42)->value_or(0))
-  print(time.seconds(1)->ticks())
-  print(path.current()->display())
+  print(Some(42).value_or(0))
+  print(time.seconds(1).ticks())
+  print(path.current().display())
 }
 PROGRAM
 printf '42\n1000000000\n.\n' > "$work/import.stdout"

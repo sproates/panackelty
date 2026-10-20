@@ -5,7 +5,7 @@ import http/server as http
 async respond(request: http.Request): Result[http.Response,http.HttpError] {
   Ok(http.Response(200,
     [http.Header("Content-Type", "text/plain; charset=utf-8")],
-    "hello from Panackelty HTTP server\n"->encode_utf8()))
+    "hello from Panackelty HTTP server\n".encode_utf8()))
 }
 
 pure expect(value: Bool): Unit {
@@ -19,7 +19,7 @@ async main(): Unit {
   match result {
     Error(problem) => expect(false),
     Ok(reports) => {
-      expect(reports->len() == 1)
+      expect(reports.len() == 1)
       match reports[0] { Ok(done) => (), Error(problem) => expect(false) }
     }
   }

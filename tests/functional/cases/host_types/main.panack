@@ -3,10 +3,10 @@ import stdlib/time as std_time
 import stdlib/path::{PathError, PathError.EmptyPath, PathError.PathContainsNul, PathError.PathNotUtf8, PathError.AbsolutePathAppend}
 import stdlib/time::{DurationError, DurationError.ZeroDurationDivisor, DurationError.FractionalNanosecond, ClockError}
 import stdlib/bytes as byte_buffer
-pure path(value: Str): Path { std_path.from_text(value)->value_or(std_path.current()) }
+pure path(value: Str): Path { std_path.from_text(value).value_or(std_path.current()) }
 pure path_result(value: Result[Path,PathError]): Str {
   match value {
-    Ok(p) => p->display(),
+    Ok(p) => p.display(),
     Error(e) => match e {
       EmptyPath() => "empty", PathContainsNul() => "nul",
       PathNotUtf8() => "utf8", AbsolutePathAppend() => "absolute"
@@ -15,7 +15,7 @@ pure path_result(value: Result[Path,PathError]): Str {
 }
 pure duration_result(value: Result[Duration,DurationError]): Str {
   match value {
-    Ok(d) => { ticks = d->ticks(); "${ticks}ns" },
+    Ok(d) => { ticks = d.ticks(); "${ticks}ns" },
     Error(e) => match e {
       FractionalNanosecond() => "fractional", ZeroDurationDivisor() => "zero"
     }
@@ -23,50 +23,50 @@ pure duration_result(value: Result[Duration,DurationError]): Str {
 }
 main(): Void {
   print(path_result(std_path.from_text("")))
-  print(path_result(std_path.from_native(byte_buffer.empty()->push(0))))
-  print(path_result(path("a/../b")->join(path("./c"))))
-  print(path_result(path("a")->join(path("/b"))))
-  print(path("a/b/")->directory()->display())
-  print(path("//host")->directory()->display())
-  print(path("/a")->is_absolute())
+  print(path_result(std_path.from_native(byte_buffer.empty().push(0))))
+  print(path_result(path("a/../b").join(path("./c"))))
+  print(path_result(path("a").join(path("/b"))))
+  print(path("a/b/").directory().display())
+  print(path("//host").directory().display())
+  print(path("/a").is_absolute())
   print(path("a") == path("./a"))
   print(path("a") == path("a"))
-  print(path("hello")->native_bytes() == "hello"->encode_utf8())
-  print(match path("/a/b/")->filename() { Some(p) => p->display(), None() => "none" })
-  print(match path("/")->filename() { Some(p) => p->display(), None() => "none" })
-  raw = std_path.from_native(byte_buffer.empty()->push(255))->value_or(std_path.current())
-  print(raw->display())
-  print(match raw->to_text() { Ok(text) => text, Error(e) => "invalid UTF-8" })
-  print(match path("λ")->to_text() { Ok(text) => text, Error(e) => "invalid" })
-  print(path("line\nend")->display())
-  print(std_time.seconds(-2)->ticks())
-  print(std_time.milliseconds(250)->ticks())
-  print(std_time.seconds(1)->add(std_time.milliseconds(500))->ticks())
-  print(std_time.from_nanoseconds(1)->subtract(std_time.from_nanoseconds(2))->ticks())
-  print(std_time.seconds(1)->scale(-3)->ticks())
-  print(std_time.seconds(-1)->is_before(std_time.seconds(0)))
-  print(std_time.milliseconds(250)->as_seconds())
+  print(path("hello").native_bytes() == "hello".encode_utf8())
+  print(match path("/a/b/").filename() { Some(p) => p.display(), None() => "none" })
+  print(match path("/").filename() { Some(p) => p.display(), None() => "none" })
+  raw = std_path.from_native(byte_buffer.empty().push(255)).value_or(std_path.current())
+  print(raw.display())
+  print(match raw.to_text() { Ok(text) => text, Error(e) => "invalid UTF-8" })
+  print(match path("λ").to_text() { Ok(text) => text, Error(e) => "invalid" })
+  print(path("line\nend").display())
+  print(std_time.seconds(-2).ticks())
+  print(std_time.milliseconds(250).ticks())
+  print(std_time.seconds(1).add(std_time.milliseconds(500)).ticks())
+  print(std_time.from_nanoseconds(1).subtract(std_time.from_nanoseconds(2)).ticks())
+  print(std_time.seconds(1).scale(-3).ticks())
+  print(std_time.seconds(-1).is_before(std_time.seconds(0)))
+  print(std_time.milliseconds(250).as_seconds())
   print(duration_result(std_time.from_seconds(3/2)))
   print(duration_result(std_time.from_seconds(-3/2)))
   print(duration_result(std_time.from_seconds(1/3)))
-  print(duration_result(std_time.from_nanoseconds(3)->divide(2)))
-  print(duration_result(std_time.from_nanoseconds(4)->divide(-2)))
-  print(duration_result(std_time.seconds(1)->divide(0)))
-  print(std_time.seconds(3)->ratio(std_time.seconds(2))->value_or(0/1))
-  print(std_time.seconds(999999999999999999999999999999)->ticks())
+  print(duration_result(std_time.from_nanoseconds(3).divide(2)))
+  print(duration_result(std_time.from_nanoseconds(4).divide(-2)))
+  print(duration_result(std_time.seconds(1).divide(0)))
+  print(std_time.seconds(3).ratio(std_time.seconds(2)).value_or(0/1))
+  print(std_time.seconds(999999999999999999999999999999).ticks())
   print(std_time.seconds(2) == std_time.milliseconds(2000))
   match std_time.now() {
     Error(e) => print("clock unavailable"),
     Ok(start) => {
-      deadline = start->add(std_time.seconds(5))
-      print(start->is_before(deadline))
-      print(deadline->difference(start)->ticks())
-      print(start->difference(deadline)->ticks())
-      print(deadline->add(std_time.seconds(-5)) == start)
+      deadline = start.add(std_time.seconds(5))
+      print(start.is_before(deadline))
+      print(deadline.difference(start).ticks())
+      print(start.difference(deadline).ticks())
+      print(deadline.add(std_time.seconds(-5)) == start)
       print(start)
       match std_time.now() {
         Error(e) => print("clock unavailable"),
-        Ok(end) => print(!end->is_before(start))
+        Ok(end) => print(!end.is_before(start))
       }
     }
   }

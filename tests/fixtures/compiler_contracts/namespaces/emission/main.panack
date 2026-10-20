@@ -1,6 +1,6 @@
 import "left.panack" as left
 import "right.panack" as right
-pure invoke(callback: PureFn[Nat]): Nat { callback->call() }
+pure invoke(callback: PureFn[Nat]): Nat { callback.call() }
 main(): Void {
   left_item: left.Envelope[Nat] = left.make()
   right_item: right.Envelope[Nat] = right.make()

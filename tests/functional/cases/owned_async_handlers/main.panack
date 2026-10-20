@@ -6,13 +6,13 @@ record ContextualServer[T] { context: T, handler: AsyncFn[T,Request,ResponseWrit
 impl Server {
   pure get(path: Str, handler: AsyncFn[Request,ResponseWriter,Result[Unit,Str]]): Unit { () }
   async dispatch(request: Request, writer: ResponseWriter): Result[Unit,Str] {
-    await (self.handler)->call(request, writer)
+    await (self.handler).call(request, writer)
   }
 }
 impl[T] ContextualServer[T] {
   pure get(path: Str, handler: AsyncFn[T,Request,ResponseWriter,Result[Unit,Str]]): Unit { () }
   async dispatch(request: Request, writer: ResponseWriter): Result[Unit,Str] {
-    await (self.handler)->call(self.context, request, writer)
+    await (self.handler).call(self.context, request, writer)
   }
 }
 pure expect(value: Bool): Unit {
@@ -22,7 +22,7 @@ pure expect(value: Bool): Unit {
 async handler(request: Request, writer: ResponseWriter): Result[Unit,Str] {
   expect(request.path == "/" && writer.status == 200)
   match await testing_async.read(false) {
-    Ok(data) => { expect(data->decode_utf8() == "fake bytes"); Ok(()) },
+    Ok(data) => { expect(data.decode_utf8() == "fake bytes"); Ok(()) },
     Error(message) => Error(message)
   }
 }
@@ -32,14 +32,14 @@ async contextual(context: Nat, request: Request, writer: ResponseWriter): Result
 }
 async main(): Unit {
   server = Server(@handler)
-  server->get("/", @handler)
-  match await server->dispatch(Request("/"), ResponseWriter(200)) {
+  server.get("/", @handler)
+  match await server.dispatch(Request("/"), ResponseWriter(200)) {
     Ok(done) => expect(done == ()),
     Error(message) => expect(false)
   }
   contextual_server = ContextualServer(42, @contextual)
-  contextual_server->get("/", @contextual)
-  match await contextual_server->dispatch(Request("/"), ResponseWriter(200)) {
+  contextual_server.get("/", @contextual)
+  match await contextual_server.dispatch(Request("/"), ResponseWriter(200)) {
     Ok(done) => expect(done == ()),
     Error(message) => expect(false)
   }

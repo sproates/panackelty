@@ -3,7 +3,7 @@
 The [website repository](https://github.com/sproates/panackelty-website) owns website source, previews, release promotion
 and publication independently of native validation.
 
-The bounded type-owned method experiment uses checked nominal receiver identity
+Type-owned method dispatch uses checked receiver identity
 and an explicit owner/method index to select compiler-private method functions. Existing identity emission and VM
 calls supply `self`; no bytecode or runtime extension is required. Public methods
 remain owned by the original type across imports and re-exports; cross-module
@@ -13,9 +13,10 @@ method identity is retained through emission. Generic record/enum methods retain
 implementation and method binder boundaries; receiver substitutions precede method
 inference and expected-result constraint solving. Local ownership is checked
 after declaration collection, so impl order is unrestricted. Core Option/Result
-methods use the same checked emission path while unmigrated core helpers retain
-their existing lowering. Dot-call
-resolution is unchanged. See the [compiler notes](../../src/compiler/README.md#type-owned-method-proof-of-concept).
+methods use the same checked emission path. Dots select namespace calls or owned
+methods using lexical scope and checked identity, with no receiver-to-global
+fallback. Receiver arrows are rejected. See the
+[compiler notes](../../src/compiler/README.md#type-owned-methods).
 
 ## Overview
 
@@ -157,7 +158,7 @@ are rejected. Map/Set methods select typed intrinsic identities before emission;
 there is no overloaded source-name `has` dispatcher. Record fields retain dots.
 Explicit `@name` expressions create
 non-capturing callable values whose `PureFn[...]` or `Fn[...]` type retains the
-declared effect. `->call(...)` emits `CALL_VALUE`; array `map` and `reduce` lower
+declared effect. `.call(...)` emits `CALL_VALUE`; array `map` and `reduce` lower
 to ordinary iterator, persistent-array, and indirect-call instructions. The VM
 rechecks dynamic target existence, arity, and purity for untrusted artifacts.
 The
@@ -1046,7 +1047,7 @@ Value *host_capability_call(VM *vm, const char *name, Value **arguments)
 {
     (void)name;
     (void)arguments;
-    vm->error = "VM trap: host capability unavailable in browser experiment";
+    vm.error = "VM trap: host capability unavailable in browser experiment";
     return NULL;
 }
 ```
@@ -1260,7 +1261,7 @@ framing and typed errors. The backend is replaceable after alpha.13 evidence.
 
 ## Implicit core and standard methods
 
-The loader loads the toolchain-owned `src/stdlib/core.panack` before the entry module, using the same canonical visited set. Value-dot calls and arrow calls select the same checked owned declarations. Namespace/value classification happens before body binding; lexical values shadow namespace aliases, and neither path falls back to globals. The old core compatibility helpers are removed. All core functions use checked emission; local types and source positions survive tooling rechecks. Generic checking and purity use their source signatures. Core enums are shared with the compiler, replacing its duplicate Result definition. Reachable core algorithms are emitted through existing calls; unused core algorithms are omitted. No VM, opcode or bytecode-v9 contract changes are required. Other stdlib modules remain explicit. Native packages and browser assets must carry the matching core source and compiler seed.
+The loader loads the toolchain-owned `src/stdlib/core.panack` before the entry module, using the same canonical visited set. Value-dot calls select checked owned declarations; the temporary arrow-call syntax is rejected. Namespace/value classification happens before body binding; lexical values shadow namespace aliases, and neither path falls back to globals. The old core compatibility helpers are removed. All core functions use checked emission; local types and source positions survive tooling rechecks. Generic checking and purity use their source signatures. Core enums are shared with the compiler, replacing its duplicate Result definition. Reachable core algorithms are emitted through existing calls; unused core algorithms are omitted. No VM, opcode or bytecode-v9 contract changes are required. Other stdlib modules remain explicit. Native packages and browser assets must carry the matching core source and compiler seed.
 
 ## Compiler and runtime understanding: initial investigation, 2026-10-01
 

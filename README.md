@@ -44,7 +44,7 @@ Alpha.13 includes namespaces, local packages, native HTTP clients and services,
 expanded compiler explanations, and a static HTTP server for serving directories.
 Read the [release notes](CHANGELOG.md) and [compatibility policy](docs/releases/RELEASE_POLICY.md).
 
-The `next` source includes [type-owned methods](docs/reference/SPEC.md#type-owned-methods-next) for records, enums and built-in types. The alpha.14 bridge accepts both owned dot calls and temporary `->` calls through the same resolver, without receiver-to-global fallback. This is not part of the published alpha.13 release.
+The `next` source includes [type-owned methods](docs/reference/SPEC.md#type-owned-methods-next) for records, enums and built-in types. The alpha.14 compiler uses owned dot calls, without receiver-to-global fallback; the temporary arrow syntax is removed. This is not part of the published alpha.13 release.
 
 ## Explore
 

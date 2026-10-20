@@ -37,7 +37,7 @@ pub source_map_function_selector(
   stdlib_root: Str
 ): Result[SourceMapFunctionSelector, Str] {
   mut separator: Option[Nat] = None()
-  for index in 0..selector->len() {
+  for index in 0..selector.len() {
     if selector[index] == ":" {
       separator = Some(index)
     }
@@ -47,8 +47,8 @@ pub source_map_function_selector(
   qualified: Bool = match separator {
     None() => false,
     Some(index) => {
-      selected_module = selector->slice(0, index)
-      function_name = selector->slice(index + 1, selector->len())
+      selected_module = selector.slice(0, index)
+      function_name = selector.slice(index + 1, selector.len())
       true
     }
   }
@@ -100,10 +100,10 @@ pure source_path_parts(path: Str): [Str] {
   mut start: Nat = 0
   mut cursor: Nat = 0
 
-  while cursor <= path->len() {
-    if cursor == path->len() || path[cursor] == "/" {
+  while cursor <= path.len() {
+    if cursor == path.len() || path[cursor] == "/" {
       if start < cursor {
-        parts = parts->append(path->slice(start, cursor))
+        parts = parts.append(path.slice(start, cursor))
       }
       start = cursor + 1
     }
@@ -120,16 +120,16 @@ pub pure source_relative_path(root: Str, path: Str): Str {
   target: [Str] = source_path_parts(path)
   mut common: Nat = 0
 
-  while common < base->len() && common < target->len() && base[common] == target[common] {
+  while common < base.len() && common < target.len() && base[common] == target[common] {
     common = common + 1
   }
   mut output: Str = ""
-  for index in common..base->len() {
+  for index in common..base.len() {
     output = output + "../"
   }
-  for index in common..target->len() {
+  for index in common..target.len() {
     output = output + target[index]
-    if index + 1 < target->len() {
+    if index + 1 < target.len() {
       output = output + "/"
     }
   }
@@ -138,7 +138,7 @@ pub pure source_relative_path(root: Str, path: Str): Str {
 }
 
 pub pure source_identifier(path: Str, root: Str, stdlib_root: Str): Str {
-  if path->starts_with_at(stdlib_root + "/", 0) {
+  if path.starts_with_at(stdlib_root + "/", 0) {
     "stdlib/" + source_relative_path(stdlib_root, path)
   } else {
     "project/" + source_relative_path(root, path)
@@ -149,19 +149,19 @@ pub pure source_snapshots(project: LoadedProject, root: Str, stdlib_root: Str): 
   mut snapshots: [SourceSnapshot] = []
 
   for path in project.source_paths {
-    snapshots = snapshots->append(
-      SourceSnapshot(source_identifier(path, root, stdlib_root), path, project.sources->get(path))
+    snapshots = snapshots.append(
+      SourceSnapshot(source_identifier(path, root, stdlib_root), path, project.sources.get(path))
     )
   }
-  snapshots->sort_by(@source_snapshot_less)
+  snapshots.sort_by(@source_snapshot_less)
 }
 
 pub pure source_map_blob(data: Bytes): Bytes {
-  encode_u32(data->length())->join(data)
+  encode_u32(data.length()).join(data)
 }
 
 pub pure source_map_position(position: SourcePos): Bytes {
-  encode_u32(position.offset)->join(encode_u32(position.line))->join(
+  encode_u32(position.offset).join(encode_u32(position.line)).join(
     encode_u32(position.column)
   )
 }
@@ -175,8 +175,8 @@ pub pure source_map_join(chunks: [Bytes], start: Nat, end: Nat): Bytes {
     if end == start + 1 {
       chunks[start]
     } else {
-      middle: Nat = (start + end)->divide(2)
-      source_map_join(chunks, start, middle)->join(source_map_join(chunks, middle, end))
+      middle: Nat = (start + end).divide(2)
+      source_map_join(chunks, start, middle).join(source_map_join(chunks, middle, end))
     }
   }
 }
@@ -193,62 +193,62 @@ pub pure serialize_source_map(
   stdlib_root: Str
 ): Bytes {
   snapshots: [SourceSnapshot] = source_snapshots(project, root, stdlib_root)
-  mut valid: Bool = artifact->length() <= 16777216 && snapshots->len() <= 256
-  mut chunks: [Bytes] = ["PANACKMAP1\nlocal-replay-v9\n"->encode_utf8(),
+  mut valid: Bool = artifact.length() <= 16777216 && snapshots.len() <= 256
+  mut chunks: [Bytes] = ["PANACKMAP1\nlocal-replay-v9\n".encode_utf8(),
     encode_text(source_identifier(
     entry,
     root,
     stdlib_root
-  )), source_map_blob(artifact), encode_u32(snapshots->len())]
+  )), source_map_blob(artifact), encode_u32(snapshots.len())]
   mut size: Nat = 0
 
   for chunk in chunks {
-    size = size + chunk->length()
+    size = size + chunk.length()
   }
   valid = valid && size <= 16777216
   mut indices: Map[Str, Nat] = map()
   mut index: Nat = 0
   for snapshot in snapshots {
     if valid {
-      indices = indices->put(snapshot.path, index)
+      indices = indices.put(snapshot.path, index)
       name: Bytes = encode_text(snapshot.name)
       text: Bytes = encode_text(snapshot.text)
-      size = size + name->length() + text->length()
+      size = size + name.length() + text.length()
       valid = size <= 16777216
       if valid {
-        chunks = chunks->append(name)->append(text)
+        chunks = chunks.append(name).append(text)
       }
       index = index + 1
     }
   }
-  chunks = chunks->append(encode_u32(mapped.sources->len()))
+  chunks = chunks.append(encode_u32(mapped.sources.len()))
   size = size + 4
   for function in mapped.sources {
     if valid {
-      header: Bytes = encode_text(function.name)->join(encode_u32(function.entries->len()))
-      size = size + header->length()
+      header: Bytes = encode_text(function.name).join(encode_u32(function.entries.len()))
+      size = size + header.length()
       valid = size <= 16777216
       if valid {
-        chunks = chunks->append(header)
+        chunks = chunks.append(header)
       }
       for location in function.entries {
         span: SourceSpan = location.span
         size = size + 33
         if valid &&
           size <= 16777216 &&
-          indices->has(span.start.file) &&
+          indices.has(span.start.file) &&
           span.start.file == span.end.file {
-          mut chunk: Bytes = encode_u32(location.index)->join(
-            encode_u32(indices->get(span.start.file))
+          mut chunk: Bytes = encode_u32(location.index).join(
+            encode_u32(indices.get(span.start.file))
           )
-          chunk = chunk->join(source_map_position(span.start))
-          chunk = chunk->join(source_map_position(span.end))
-          chunk = chunk->push(if location.lowered {
+          chunk = chunk.join(source_map_position(span.start))
+          chunk = chunk.join(source_map_position(span.end))
+          chunk = chunk.push(if location.lowered {
               1
             } else {
               0
             })
-          chunks = chunks->append(chunk)
+          chunks = chunks.append(chunk)
         } else {
           valid = false
         }
@@ -256,7 +256,7 @@ pub pure serialize_source_map(
     }
   }
   if valid && size <= 16777216 {
-    source_map_join(chunks, 0, chunks->len())
+    source_map_join(chunks, 0, chunks.len())
   } else {
     byte_buffer.empty()
   }
@@ -273,7 +273,7 @@ pub source_map_read(path: Str, limit: Nat): Result[Bytes, Str] {
 }
 
 pub source_map_matches(path: Str, expected: Bytes): Bool {
-  match source_map_read(path, expected->length()) {
+  match source_map_read(path, expected.length()) {
     Error(error) => false,
     Ok(actual) => actual == expected
   }
@@ -285,7 +285,7 @@ pub source_snapshots_unchanged(project: LoadedProject): Bool {
   mut unchanged: Bool = true
 
   for path in project.source_paths {
-    if !source_map_matches(path, project.sources->get(path)->encode_utf8()) {
+    if !source_map_matches(path, project.sources.get(path).encode_utf8()) {
       unchanged = false
     }
   }
@@ -295,7 +295,7 @@ pub source_snapshots_unchanged(project: LoadedProject): Bool {
 pub pure source_map_escape(text: Str): Str {
   mut output: Str = ""
 
-  for index in 0..text->len() {
+  for index in 0..text.len() {
     output = output + diagnostic_character(text[index])
   }
 
@@ -331,8 +331,8 @@ pub pure source_map_location(
           column: Nat = span.start.column
           end_line: Nat = span.end.line
           end_column: Nat = span.end.column
-          source: Str = project.sources->get(span.start.file)
-          expression: Str = source_map_escape(source->slice(start, end))
+          source: Str = project.sources.get(span.start.file)
+          expression: Str = source_map_escape(source.slice(start, end))
           output = "source-map: ${kind}\nfunction: ${name}\ninstruction: ${pc}\nfile: ${file}\nrange: ${start}..${end}\nstart: ${line}:${column}\nend: ${end_line}:${end_column}\nexpression: ${expression}"
         }
       }

@@ -37,12 +37,12 @@ pure resolver_diagnostics_at(diagnostics: [Diagnostic], position: SourcePos): [D
   mut result: [Diagnostic] = []
 
   for diagnostic in diagnostics {
-    selected: SourcePos = if diagnostic.position.file->len() == 0 {
+    selected: SourcePos = if diagnostic.position.file.len() == 0 {
       position
     } else {
       diagnostic.position
     }
-    result = result->append(Diagnostic(diagnostic.message, selected))
+    result = result.append(Diagnostic(diagnostic.message, selected))
   }
 
   result
@@ -104,21 +104,21 @@ pure add_variant_symbol(symbols: ResolverSymbols, name: Str, position: SourcePos
   mut diagnostics: [Diagnostic] = symbols.diagnostics
 
   if name == "Path" || name == "Duration" || name == "Instant" || is_builtin(name) {
-    diagnostics = diagnostics->append(
+    diagnostics = diagnostics.append(
       Diagnostic("variant constructor ${name} conflicts with a built-in", position)
     )
   } else {
   }
-  if symbols.variants->has(name) {
-    diagnostics = diagnostics->append(
+  if symbols.variants.has(name) {
+    diagnostics = diagnostics.append(
       Diagnostic("variant constructor ${name} is declared by more than one enum", position)
     )
   } else {
   }
   ResolverSymbols(
     symbols.declarations,
-    symbols.callables->add(name),
-    symbols.variants->add(name),
+    symbols.callables.add(name),
+    symbols.variants.add(name),
     diagnostics
   )
 }
@@ -157,27 +157,27 @@ pure add_top_level_symbol(
 ): ResolverSymbols {
   mut diagnostics: [Diagnostic] = symbols.diagnostics
 
-  if symbols.declarations->has(name) {
-    diagnostics = diagnostics->append(
+  if symbols.declarations.has(name) {
+    diagnostics = diagnostics.append(
       Diagnostic("top-level name ${name} is already declared", position)
     )
   } else {
   }
-  if name == "Path" || name == "Duration" || name == "Instant" || is_builtin(name) || symbols.variants->has(
+  if name == "Path" || name == "Duration" || name == "Instant" || is_builtin(name) || symbols.variants.has(
     name
   ) {
-    diagnostics = diagnostics->append(
+    diagnostics = diagnostics.append(
       Diagnostic("top-level name ${name} conflicts with a constructor or built-in", position)
     )
   } else {
   }
   next_callables: Set[Str] = if callable {
-    symbols.callables->add(name)
+    symbols.callables.add(name)
   } else {
     symbols.callables
   }
   ResolverSymbols(
-    symbols.declarations->add(name),
+    symbols.declarations.add(name),
     next_callables,
     symbols.variants,
     diagnostics
@@ -221,7 +221,7 @@ pub pure collect_symbol_diagnostics(program: Program): [Diagnostic] {
 // Synthetic AST callers have no declaration positions. Production loading
 // supplies positions in declaration order before any flattening occurs.
 pure declaration_position(positions: [SourcePos], index: Nat): SourcePos {
-  if index < positions->len() {
+  if index < positions.len() {
     positions[index]
   } else {
     SourcePos("", 0, 1, 1)
@@ -233,18 +233,18 @@ pub pure append_program_declarations(programs: [Program]): Program {
 
   for program in programs {
     for declaration in program.declarations {
-      declarations = declarations->append(declaration)
+      declarations = declarations.append(declaration)
     }
   }
   indexed_program(declarations)
 }
 
 pub pure visit_module(units: [SourceUnit], path: Str, state: ModuleGraphState): ModuleGraphState {
-  if state.visited->has(path) {
+  if state.visited.has(path) {
     state
   } else {
-    if state.visiting->has(path) {
-      diagnostics: [Diagnostic] = state.diagnostics->append(
+    if state.visiting.has(path) {
+      diagnostics: [Diagnostic] = state.diagnostics.append(
         resolver_diagnostic("import cycle includes ${path}")
       )
       ModuleGraphState(state.programs, state.visiting, state.visited, diagnostics)
@@ -262,12 +262,12 @@ pub pure visit_module(units: [SourceUnit], path: Str, state: ModuleGraphState): 
         }
       }
       if !found {
-        diagnostics: [Diagnostic] = state.diagnostics->append(
+        diagnostics: [Diagnostic] = state.diagnostics.append(
           resolver_diagnostic("module ${path} is not loaded")
         )
         ModuleGraphState(state.programs, state.visiting, state.visited, diagnostics)
       } else {
-        active: Set[Str] = state.visiting->add(path)
+        active: Set[Str] = state.visiting.add(path)
         mut current: ModuleGraphState = ModuleGraphState(
           state.programs,
           active,
@@ -286,9 +286,9 @@ pub pure visit_module(units: [SourceUnit], path: Str, state: ModuleGraphState): 
           }
         }
         ModuleGraphState(
-          current.programs->append(selected),
+          current.programs.append(selected),
           state.visiting,
-          current.visited->add(path),
+          current.visited.add(path),
           current.diagnostics
         )
       }
@@ -302,14 +302,14 @@ pub pure duplicate_module_diagnostics(units: [SourceUnit]): [Diagnostic] {
   mut diagnostics: [Diagnostic] = []
 
   for unit in units {
-    if seen->has(unit.path) {
+    if seen.has(unit.path) {
       path: Str = unit.path
-      diagnostics = diagnostics->append(
+      diagnostics = diagnostics.append(
         resolver_diagnostic("module ${path} is loaded more than once")
       )
     } else {
     }
-    seen = seen->add(unit.path)
+    seen = seen.add(unit.path)
   }
 
   diagnostics
@@ -325,7 +325,7 @@ pure resolve_module_graph(units: [SourceUnit], entry: Str): [Diagnostic] {
   )
   graph: ModuleGraphState = visit_module(units, entry, initial)
   program: Program = append_program_declarations(graph.programs)
-  graph.diagnostics->concat(resolve_program(program))
+  graph.diagnostics.concat(resolve_program(program))
 }
 
 pure resolve_expression(expression: Expr, scope: Set[Str], symbols: ResolverSymbols): [Diagnostic] {
@@ -343,19 +343,19 @@ pure resolve_expression(expression: Expr, scope: Set[Str], symbols: ResolverSymb
     StringExpr(text) => {},
     BoolExpr(value) => {},
     NameExpr(name) => {
-      if !scope->has(name) {
-        diagnostics = diagnostics->append(resolver_diagnostic("unknown name ${name}"))
+      if !scope.has(name) {
+        diagnostics = diagnostics.append(resolver_diagnostic("unknown name ${name}"))
       } else {
       }
     },
     FunctionExpr(name) => {
-      if !symbols.callables->has(name) {
-        diagnostics = diagnostics->append(resolver_diagnostic("unknown function ${name}"))
+      if !symbols.callables.has(name) {
+        diagnostics = diagnostics.append(resolver_diagnostic("unknown function ${name}"))
       } else {}
     },
     ArrayExpr(items) => {
       for item in items {
-        diagnostics = diagnostics->concat(resolve_expression(item, scope, symbols))
+        diagnostics = diagnostics.concat(resolve_expression(item, scope, symbols))
       }
     },
     UnaryExpr(operator, operand) => {
@@ -363,25 +363,25 @@ pure resolve_expression(expression: Expr, scope: Set[Str], symbols: ResolverSymb
     },
     BinaryExpr(operator, left, right) => {
       diagnostics = resolve_expression(left, scope, symbols)
-      diagnostics = diagnostics->concat(resolve_expression(right, scope, symbols))
+      diagnostics = diagnostics.concat(resolve_expression(right, scope, symbols))
     },
     OwnedCallExpr(target, name, arguments, types) => {
-      diagnostics = diagnostics->append(
+      diagnostics = diagnostics.append(
         resolver_diagnostic("owned call requires module binding resolution")
       )
     },
     DotCallExpr(target, name, arguments, types) => {
-      diagnostics = diagnostics->append(
+      diagnostics = diagnostics.append(
         resolver_diagnostic("unresolved dot call requires module binding resolution")
       )
     },
     CallExpr(name, arguments, type_arguments) => {
-      if !is_builtin(name) && !symbols.callables->has(name) {
-        diagnostics = diagnostics->append(resolver_diagnostic("unknown function ${name}"))
+      if !is_builtin(name) && !symbols.callables.has(name) {
+        diagnostics = diagnostics.append(resolver_diagnostic("unknown function ${name}"))
       } else {
       }
       for argument in arguments {
-        diagnostics = diagnostics->concat(resolve_expression(argument, scope, symbols))
+        diagnostics = diagnostics.concat(resolve_expression(argument, scope, symbols))
       }
     },
     FieldExpr(target, field) => {
@@ -389,12 +389,12 @@ pure resolve_expression(expression: Expr, scope: Set[Str], symbols: ResolverSymb
     },
     IndexExpr(target, index) => {
       diagnostics = resolve_expression(target, scope, symbols)
-      diagnostics = diagnostics->concat(resolve_expression(index, scope, symbols))
+      diagnostics = diagnostics.concat(resolve_expression(index, scope, symbols))
     },
     IfExpr(condition, yes, no, has_else) => {
       diagnostics = resolve_expression(condition, scope, symbols)
-      diagnostics = diagnostics->concat(resolve_block(yes, scope, symbols))
-      diagnostics = diagnostics->concat(resolve_block(no, scope, symbols))
+      diagnostics = diagnostics.concat(resolve_block(yes, scope, symbols))
+      diagnostics = diagnostics.concat(resolve_block(no, scope, symbols))
     },
     BlockExpr(block) => {
       diagnostics = resolve_block(block, scope, symbols)
@@ -403,21 +403,21 @@ pure resolve_expression(expression: Expr, scope: Set[Str], symbols: ResolverSymb
       diagnostics = resolve_expression(subject, scope, symbols)
       for arm in arms {
         variant: Str = arm.pattern.variant
-        if !symbols.variants->has(variant) {
-          diagnostics = diagnostics->append(resolver_diagnostic("unknown variant ${variant}"))
+        if !symbols.variants.has(variant) {
+          diagnostics = diagnostics.append(resolver_diagnostic("unknown variant ${variant}"))
         } else {
         }
         mut arm_scope: Set[Str] = scope
         for binding in arm.pattern.bindings {
-          if arm_scope->has(binding) {
-            diagnostics = diagnostics->append(
+          if arm_scope.has(binding) {
+            diagnostics = diagnostics.append(
               resolver_diagnostic("pattern binding ${binding} shadows an existing binding")
             )
           } else {
           }
-          arm_scope = arm_scope->add(binding)
+          arm_scope = arm_scope.add(binding)
         }
-        diagnostics = diagnostics->concat(resolve_expression(arm.body, arm_scope, symbols))
+        diagnostics = diagnostics.concat(resolve_expression(arm.body, arm_scope, symbols))
       }
     }
   }
@@ -432,44 +432,44 @@ pure resolve_block(block: Block, parent_scope: Set[Str], symbols: ResolverSymbol
   for statement in block.statements {
     match statement {
       BindingStatement(name, type_name, annotation_span, mutable, value) => {
-        diagnostics = diagnostics->concat(resolve_expression(value, scope, symbols))
-        if scope->has(name) {
-          diagnostics = diagnostics->append(
+        diagnostics = diagnostics.concat(resolve_expression(value, scope, symbols))
+        if scope.has(name) {
+          diagnostics = diagnostics.append(
             resolver_diagnostic("local ${name} shadows an existing binding")
           )
         } else {
         }
-        scope = scope->add(name)
+        scope = scope.add(name)
       },
       AssignmentStatement(name, value) => {
-        diagnostics = diagnostics->concat(resolve_expression(value, scope, symbols))
-        scope = scope->add(name)
+        diagnostics = diagnostics.concat(resolve_expression(value, scope, symbols))
+        scope = scope.add(name)
       },
       ExpressionStatement(value) => {
-        diagnostics = diagnostics->concat(resolve_expression(value, scope, symbols))
+        diagnostics = diagnostics.concat(resolve_expression(value, scope, symbols))
       },
       WhileStatement(condition, body) => {
-        diagnostics = diagnostics->concat(resolve_expression(condition, scope, symbols))
-        diagnostics = diagnostics->concat(resolve_block(body, scope, symbols))
+        diagnostics = diagnostics.concat(resolve_expression(condition, scope, symbols))
+        diagnostics = diagnostics.concat(resolve_block(body, scope, symbols))
       },
       ForStatement(name, iterable, body) => {
-        diagnostics = diagnostics->concat(resolve_expression(iterable, scope, symbols))
+        diagnostics = diagnostics.concat(resolve_expression(iterable, scope, symbols))
         mut body_scope: Set[Str] = scope
-        if scope->has(name) {
-          diagnostics = diagnostics->append(
+        if scope.has(name) {
+          diagnostics = diagnostics.append(
             resolver_diagnostic("loop variable ${name} shadows an existing binding")
           )
         } else {
         }
-        body_scope = body_scope->add(name)
-        diagnostics = diagnostics->concat(resolve_block(body, body_scope, symbols))
+        body_scope = body_scope.add(name)
+        diagnostics = diagnostics.concat(resolve_block(body, body_scope, symbols))
       }
     }
   }
   match block.value {
     NoBlockValue() => {},
     TailBlockValue(value) => {
-      diagnostics = diagnostics->concat(resolve_expression(value, scope, symbols))
+      diagnostics = diagnostics.concat(resolve_expression(value, scope, symbols))
     }
   }
 
@@ -487,15 +487,15 @@ pure resolve_function(
 
   for parameter in parameters {
     name: Str = parameter.name
-    if function_scope->has(name) {
-      diagnostics = diagnostics->append(
+    if function_scope.has(name) {
+      diagnostics = diagnostics.append(
         resolver_diagnostic("parameter ${name} is already declared")
       )
     } else {
     }
-    function_scope = function_scope->add(name)
+    function_scope = function_scope.add(name)
   }
-  diagnostics->concat(resolve_block(body, function_scope, symbols))
+  diagnostics.concat(resolve_block(body, function_scope, symbols))
 }
 
 pub pure resolve_program_at(program: Program, positions: [SourcePos]): [Diagnostic] {
@@ -506,13 +506,13 @@ pub pure resolve_program_at(program: Program, positions: [SourcePos]): [Diagnost
     match declaration {
       ImportDeclaration(path) => {},
       TypeDeclaration(name, base, guard) => {
-        guard_scope: Set[Str] = set()->add("value")
-        diagnostics = diagnostics->concat(resolve_expression(guard, guard_scope, symbols))
+        guard_scope: Set[Str] = set().add("value")
+        diagnostics = diagnostics.concat(resolve_expression(guard, guard_scope, symbols))
       },
       RecordDeclaration(name, parameters, fields) => {},
       EnumDeclaration(name, parameters, variants) => {},
       FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
-        diagnostics = diagnostics->concat(resolve_function(parameters, body, symbols))
+        diagnostics = diagnostics.concat(resolve_function(parameters, body, symbols))
       }
     }
   }
@@ -525,12 +525,12 @@ pub pure resolve_program(program: Program): [Diagnostic] {
 }
 
 pub pure render_resolver_diagnostics(diagnostics: [Diagnostic]): Str {
-  if diagnostics->len() == 0 {
+  if diagnostics.len() == 0 {
     "ok"
   } else {
     mut output: Str = ""
     for diagnostic in diagnostics {
-      if output->len() > 0 {
+      if output.len() > 0 {
         output = output + "\n"
       } else {
       }
@@ -549,21 +549,21 @@ pub pure resolve_loaded_sources(sources: [LoadedSource], entry: Str): Str {
       Ok(tokens) => {
         match parse_program_complete(tokens) {
           Ok(program) => {
-            units = units->append(SourceUnit(source.path, program))
+            units = units.append(SourceUnit(source.path, program))
           },
           Error(error) => {
-            diagnostics = diagnostics->append(error)
+            diagnostics = diagnostics.append(error)
           }
         }
       },
       Error(errors) => {
         for error in errors {
-          diagnostics = diagnostics->append(error)
+          diagnostics = diagnostics.append(error)
         }
       }
     }
   }
-  if diagnostics->len() > 0 {
+  if diagnostics.len() > 0 {
     render_resolver_diagnostics(diagnostics)
   } else {
     render_resolver_diagnostics(resolve_module_graph(units, entry))

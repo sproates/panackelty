@@ -12,7 +12,7 @@ async echo(request: Bytes): Result[Bytes,Str] {
 }
 
 async main(): Unit {
-  request = "Hello from async Panackelty!"->encode_utf8()
+  request = "Hello from async Panackelty!".encode_utf8()
   match await echo(request) {
     Ok(response) => expect(response == request),
     Error(problem) => expect(false)

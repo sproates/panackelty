@@ -213,7 +213,7 @@ $(BUILD_DIR)/vm/http_fixture: tests/http_fixture.c
 functional-impl: $(BUILD_DIR)/vm/static_http_client $(STAGE2_COMPILER) $(BUILD_DIR)/vm/tcp_server $(BUILD_DIR)/vm/tcp_client $(BUILD_DIR)/vm/http_client $(BUILD_DIR)/vm/http_fixture
 	@$(MAKE) --no-print-directory identity-root-audit
 	@$(PROFILE) functional/owned-dispatch-removal sh tests/owned_dispatch_removal.sh
-	@$(PROFILE) functional/owned-dot-bridge sh tests/owned_dot_bridge.sh
+	@$(PROFILE) functional/owned-dot-dispatch sh tests/owned_dot_dispatch.sh
 	@PANACK_TCP_CLIENT="$(abspath $(BUILD_DIR)/vm/tcp_client)" $(PROFILE) functional/tcp-serve sh tests/tcp_serve.sh
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/http-package sh tests/http_package.sh
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/async-filesystem sh tests/async_filesystem.sh

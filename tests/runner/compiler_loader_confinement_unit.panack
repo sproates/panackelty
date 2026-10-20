@@ -14,15 +14,15 @@ import stdlib/testing_files as std_testing_files
 import stdlib/process::{ProcessOutput}
 import stdlib/time as std_time
 pure confinement_path(text: Str): Path {
-  std_path.from_text(text)->value_or(std_path.current())
+  std_path.from_text(text).value_or(std_path.current())
 }
 
 pure confinement_child(root: Path, name: Str): Path {
-  root->join(confinement_path(name))->value_or(root)
+  root.join(confinement_path(name)).value_or(root)
 }
 
 pure confinement_text(path: Path): Str {
-  path->to_text()->value_or("")
+  path.to_text().value_or("")
 }
 
 confinement_copy_file(source: Path, destination: Path): Bool {
@@ -56,8 +56,8 @@ main(): Void {
         confinement_path("src/compiler/filesystem_support.panack"),
         confinement_child(compiler_source, "filesystem_support.panack")
       )
-      std_filesystem.write(outside, "pub pure answer(): Nat { 42 }\n"->encode_utf8())
-      std_filesystem.write(entry, "import \"link.panack\"\nmain(): Void {}\n"->encode_utf8())
+      std_filesystem.write(outside, "pub pure answer(): Nat { 42 }\n".encode_utf8())
+      std_filesystem.write(entry, "import \"link.panack\"\nmain(): Void {}\n".encode_utf8())
       setup: ProcessOutput = match std_process.run(
         confinement_path("/bin/ln"),
         ["-s", confinement_text(outside), confinement_text(link)],
@@ -71,32 +71,32 @@ main(): Void {
         Ok(output) => output
       }
       mut results: [TestResult] = []
-      results = results->append(std_testing.expect(
+      results = results.append(std_testing.expect(
         "compiler path support fixture setup",
         support_fixtures_ready,
         "could not copy compiler path support modules into the temporary project"
       ))
-      results = results->append(std_testing.expect("symlink fixture setup", setup.exit_code == 0 && setup.signal == 0, "ln failed"))
+      results = results.append(std_testing.expect("symlink fixture setup", setup.exit_code == 0 && setup.signal == 0, "ln failed"))
       diagnostics = load_project_diagnostics(confinement_text(entry))
-      results = results->append(std_testing.expect(
+      results = results.append(std_testing.expect(
         "loader rejects import through symbolic link",
-        diagnostics->len() > 0 && diagnostics[0].message->starts_with_at("module path traverses a symbolic link:", 0),
-        if diagnostics->len() > 0 { diagnostics[0].message } else { "import unexpectedly loaded" }
+        diagnostics.len() > 0 && diagnostics[0].message.starts_with_at("module path traverses a symbolic link:", 0),
+        if diagnostics.len() > 0 { diagnostics[0].message } else { "import unexpectedly loaded" }
       ))
       std_filesystem.remove_file(link)
       std_filesystem.remove_file(entry)
       ordinary_entry: Path = confinement_child(project, "ordinary.panack")
-      std_filesystem.write(ordinary_entry, "main(): Void { while true {} }\n"->encode_utf8())
+      std_filesystem.write(ordinary_entry, "main(): Void { while true {} }\n".encode_utf8())
       ordinary_project: LoadedProject = load_project(confinement_text(ordinary_entry))
       mut ordinary_main_checked: Bool = false
       for body in ordinary_project.module_bodies {
         if body.signature.binding.identity.name == "main" {
-          ordinary_main_checked = body.status == BodyIdentityChecked() && body.deferred->len() == 0
+          ordinary_main_checked = body.status == BodyIdentityChecked() && body.deferred.len() == 0
         }
       }
-      results = results->append(std_testing.expect(
+      results = results.append(std_testing.expect(
         "ordinary entry retains checked identity body",
-        ordinary_project.diagnostics->len() == 0 && ordinary_main_checked,
+        ordinary_project.diagnostics.len() == 0 && ordinary_main_checked,
         "ordinary entry identity body is missing, deferred or invalid"
       ))
       std_filesystem.remove_file(ordinary_entry)
@@ -105,7 +105,7 @@ main(): Void {
       package_entry: Path = confinement_child(package_source_root, "main.panack")
       std_filesystem.create_directory(package_root)
       std_filesystem.create_directory(package_source_root)
-      std_filesystem.write(package_entry, "main(): Void {}\n"->encode_utf8())
+      std_filesystem.write(package_entry, "main(): Void {}\n".encode_utf8())
       identity_changed_project: LoadedProject = load_project_package(
         confinement_text(package_entry),
         confinement_text(package_source_root),
@@ -118,9 +118,9 @@ main(): Void {
       mut identity_changed_reported: Bool = false
       for diagnostic in identity_changed_project.diagnostics {
         identity_changed_reported = identity_changed_reported ||
-          diagnostic.message->starts_with_at("package root identity changed while loading source", 0)
+          diagnostic.message.starts_with_at("package root identity changed while loading source", 0)
       }
-      results = results->append(std_testing.expect(
+      results = results.append(std_testing.expect(
         "package source reads verify the manifest root identity",
         identity_changed_reported,
         "source from a different physical package root was not rejected"
@@ -131,28 +131,28 @@ main(): Void {
       inferred_entry: Path = confinement_child(project, "inferred-collections.panack")
       std_filesystem.write(
         inferred_entry,
-        "main(): Void { counts = map()->put(\"key\", 1); names = set()->add(\"Ada\"); print(counts->get(\"key\")); print(names->has(\"Ada\")) }\n"->encode_utf8()
+        "main(): Void { counts = map().put(\"key\", 1); names = set().add(\"Ada\"); print(counts.get(\"key\")); print(names.has(\"Ada\")) }\n".encode_utf8()
       )
       inferred_project: LoadedProject = load_project(confinement_text(inferred_entry))
       inferred_ready: Bool = inferred_project.identity_ready
-      inferred_diagnostic_count: Nat = inferred_project.diagnostics->len()
+      inferred_diagnostic_count: Nat = inferred_project.diagnostics.len()
       mut inferred_main_checked: Bool = false
       mut inferred_main_summary: Str = "missing main body"
       mut inferred_unchecked: Str = ""
       for body in inferred_project.module_bodies {
         if body.signature.binding.identity.name == "main" {
-          inferred_main_checked = body.status == BodyIdentityChecked() && body.deferred->len() == 0
+          inferred_main_checked = body.status == BodyIdentityChecked() && body.deferred.len() == 0
           inferred_main_summary = match body.status {
             BodyIdentityChecked() => "identity checked",
             BodyDeferred() => "deferred spans=${body.deferred.len()}",
             BodyInvalid() => "invalid body"
           }
         }
-        if body.status != BodyIdentityChecked() || body.deferred->len() > 0 {
+        if body.status != BodyIdentityChecked() || body.deferred.len() > 0 {
           inferred_unchecked = inferred_unchecked + body.signature.binding.identity.module.path + "/" + body.signature.binding.identity.name + " "
         }
       }
-      results = results->append(std_testing.expect(
+      results = results.append(std_testing.expect(
         "ordinary inferred Map and Set entry is identity ready",
         inferred_ready && inferred_diagnostic_count == 0 && inferred_main_checked,
         "identity_ready=${inferred_ready}; diagnostics=${inferred_diagnostic_count}; ${inferred_main_summary}; unchecked=${inferred_unchecked}"
@@ -161,7 +161,7 @@ main(): Void {
       path_entry: Path = confinement_child(project, "path-identities.panack")
       std_filesystem.write(
         path_entry,
-        "import stdlib/path as std_path\nimport project/src/compiler/path_support as path_support\nimport stdlib/environment as std_environment\nimport stdlib/time as std_time\nimport stdlib/host as std_host\nimport stdlib/filesystem as std_filesystem\nimport project/src/compiler/filesystem_support as filesystem_support\nmain(): Void { print(path_support.join(\"a\", \"b\")); print(path_support.suffix(\"file.panack\")); print(path_support.parent(\"a/b\")); print(path_support.is_absolute(\"/tmp\")); print(path_support.with_suffix(\"file\", \".panack\")); print(path_support.resolve(\".\")); print(std_environment.get(\"PATH\")->value_or(\"\")); print((std_environment.get(\"PATH\") != None())); print(std_time.seconds(1)); print(filesystem_support.exists(\".\")); }\n"->encode_utf8()
+        "import stdlib/path as std_path\nimport project/src/compiler/path_support as path_support\nimport stdlib/environment as std_environment\nimport stdlib/time as std_time\nimport stdlib/host as std_host\nimport stdlib/filesystem as std_filesystem\nimport project/src/compiler/filesystem_support as filesystem_support\nmain(): Void { print(path_support.join(\"a\", \"b\")); print(path_support.suffix(\"file.panack\")); print(path_support.parent(\"a/b\")); print(path_support.is_absolute(\"/tmp\")); print(path_support.with_suffix(\"file\", \".panack\")); print(path_support.resolve(\".\")); print(std_environment.get(\"PATH\").value_or(\"\")); print((std_environment.get(\"PATH\") != None())); print(std_time.seconds(1)); print(filesystem_support.exists(\".\")); }\n".encode_utf8()
       )
       path_project: LoadedProject = load_project(confinement_text(path_entry))
       mut path_module_ready: Bool = true
@@ -171,19 +171,19 @@ main(): Void {
           body.signature.binding.identity.module.path == "time.panack" ||
           body.signature.binding.identity.module.path == "host.panack" ||
           body.signature.binding.identity.module.path == "filesystem.panack" {
-          path_module_ready = path_module_ready && body.status == BodyIdentityChecked() && body.deferred->len() == 0
+          path_module_ready = path_module_ready && body.status == BodyIdentityChecked() && body.deferred.len() == 0
         }
       }
       mut path_failure_detail: Str = ""
       mut path_diagnostics_shown: Nat = 0
       for diagnostic in path_project.diagnostics {
         if path_diagnostics_shown < 4 &&
-          !diagnostic.message->starts_with_at("namespace syntax is parsed but execution is not yet supported", 0) {
+          !diagnostic.message.starts_with_at("namespace syntax is parsed but execution is not yet supported", 0) {
           path_failure_detail = path_failure_detail + diagnostic.message + "; "
           path_diagnostics_shown = path_diagnostics_shown + 1
         } else {}
       }
-      results = results->append(std_testing.expect(
+      results = results.append(std_testing.expect(
         "stdlib path and environment intrinsics are identity checked",
         path_project.identity_ready && path_module_ready,
         "identity_ready=" + (if path_project.identity_ready { "true" } else { "false" }) + "; " + path_failure_detail
@@ -191,7 +191,7 @@ main(): Void {
       std_filesystem.remove_file(path_entry)
       target: Path = confinement_child(project, "target.panack")
       alias: Path = confinement_child(project, "entry-link.panack")
-      std_filesystem.write(target, "main(): Void {}\n"->encode_utf8())
+      std_filesystem.write(target, "main(): Void {}\n".encode_utf8())
       alias_setup: ProcessOutput = match std_process.run(
         confinement_path("/bin/ln"),
         ["-s", confinement_text(target), confinement_text(alias)],
@@ -204,21 +204,21 @@ main(): Void {
         Error(error) => ProcessOutput(1, 0, byte_buffer.empty(), byte_buffer.empty()),
         Ok(output) => output
       }
-      results = results->append(std_testing.expect(
+      results = results.append(std_testing.expect(
         "explicit entry source may be a symlink within its root",
         alias_setup.exit_code == 0 && alias_setup.signal == 0 &&
-          load_project_diagnostics(confinement_text(alias))->len() == 0,
+          load_project_diagnostics(confinement_text(alias)).len() == 0,
         "explicit entry symlink was rejected"
       ))
       std_filesystem.remove_file(alias)
       std_filesystem.remove_file(target)
       escape_entry: Path = confinement_child(project, "escape.panack")
-      std_filesystem.write(escape_entry, "import \"../outside.panack\"\nmain(): Void {}\n"->encode_utf8())
+      std_filesystem.write(escape_entry, "import \"../outside.panack\"\nmain(): Void {}\n".encode_utf8())
       escaped = load_project_diagnostics(confinement_text(escape_entry))
-      results = results->append(std_testing.expect(
+      results = results.append(std_testing.expect(
         "loader rejects relative import outside entry root",
-        escaped->len() > 0 && escaped[0].message->starts_with_at("module path escapes the entry directory", 0),
-        if escaped->len() > 0 { escaped[0].message } else { "outside import unexpectedly loaded" }
+        escaped.len() > 0 && escaped[0].message.starts_with_at("module path escapes the entry directory", 0),
+        if escaped.len() > 0 { escaped[0].message } else { "outside import unexpectedly loaded" }
       ))
       std_filesystem.remove_file(escape_entry)
       std_filesystem.remove_file(outside)
@@ -227,8 +227,8 @@ main(): Void {
       std_filesystem.remove_directory(compiler_source)
       std_filesystem.remove_directory(source)
       std_filesystem.remove_directory(project)
-      match workspace->remove_empty() {
-        Error(error) => { results = results->append(std_testing.expect("workspace cleanup", false, "temporary files remain")) },
+      match workspace.remove_empty() {
+        Error(error) => { results = results.append(std_testing.expect("workspace cleanup", false, "temporary files remain")) },
         Ok(removed) => {}
       }
       if std_testing.report(results) > 0 { std_host.exit(1) }

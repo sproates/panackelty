@@ -41,8 +41,8 @@ main(): Void {
   expected_text = "${expected_text}PASS selected fixture count\n"
   examples = ["callables", "collections_and_bytes", "decimal", "euler001",
     "euler001_iterative", "euler002", "euler003", "euler004", "euler005",
-    "fibonacci", "fizzbuzz", "generic_functions", "guards", "lexer_foundation",
-    "option_result", "palindrome", "strings", "vm_arithmetic", "vm_branch_call",
+    "fibonacci", "fizzbuzz", "generic_functions", "generic_methods", "guards", "lexer_foundation",
+    "option_result", "owned_methods", "palindrome", "strings", "vm_arithmetic", "vm_branch_call",
     "vm_loop", "public_api", "trip_planner", "twin_sensors"]
   for name in examples {
     expected_text = "${expected_text}PASS example/${name}/source\nPASS example/${name}/compile\nPASS example/${name}/bytecode\n"
@@ -88,7 +88,7 @@ main(): Void {
     }
     expected_text = "${expected_text}PASS failure/${name}/no artifact\n"
   }
-  expected = "${expected_text}PASS selected failure count\ntests: 532, failures: 0\n".encode_utf8()
+  expected = "${expected_text}PASS selected failure count\ntests: 538, failures: 0\n".encode_utf8()
   command = TestCommand(runner_path("./bin/panack"),
     ["run", "tests/runner/main.panack"], byte_buffer.empty(), std_path.current(),
     runner_test_environment(),

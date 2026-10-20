@@ -11,6 +11,36 @@ to explain
 original decisions, not to assert that their release gates are still pending.
 See [alpha.13 acceptance](../../releases/ALPHA13_RELEASE_ACCEPTANCE.md).
 
+## Agreed release direction — 20 October 2026
+
+The owner selected the following general scope for alpha.14 through alpha.18.
+These are planned, unreleased directions, with no delivery dates. This decision
+supersedes the provisional alpha.15 candidate list in GI#410. Detailed designs,
+acceptance criteria and implementation sequencing remain bounded by the linked
+work records. Recording direction does not start implementation or claim delivery.
+Optional items are not release gates. Release promotion still requires its usual
+validation and explicit approval.
+
+| Release | General scope | Boundaries |
+| --- | --- | --- |
+| alpha.14 — strengthen the foundations | Type-owned methods and dot notation (GI#525); routed HTTP server framework (GI#518); package management (GI#200); compiler understanding, provenance and explanations; faster coverage; selected authoring-friction and performance improvements. | Existing RM#151–RM#157 detail remains authoritative, including the non-empty-string guard, inference assessment and compiler-facing library assessment. Package management's product model remains to be settled. |
+| alpha.15 — build useful programs | Typed HTTP exchanges between independent services ([GI#166](https://github.com/sproates/panackelty/issues/166)); recursive file discovery ([GI#167](https://github.com/sproates/panackelty/issues/167)); subprocess examples ([GI#168](https://github.com/sproates/panackelty/issues/168)); a tiny build tool ([GI#169](https://github.com/sproates/panackelty/issues/169)); tested guides ([GI#138](https://github.com/sproates/panackelty/issues/138)), coordinated with the examples inventory (GI#310). | Builds on alpha.14. Prove both success and failure cases using installed tools. No production build system, shell, general RPC framework or duplicated examples programme. GI#410 remains the programme discussion record. |
+| alpha.16 — improve everyday development | Basic support for one editor ([GI#139](https://github.com/sproates/panackelty/issues/139)); source-aware runtime errors ([GI#136](https://github.com/sproates/panackelty/issues/136)); Homebrew installation ([GI#147](https://github.com/sproates/panackelty/issues/147)). | Choose the editor before implementation. No full language server or debugger commitment. Runtime mapping needs design and saved-bytecode acceptance; installation includes upgrades and removal. |
+| alpha.17 — interactive and connected applications | Browser events invoking Panackelty handlers ([GI#165](https://github.com/sproates/panackelty/issues/165)); bounded service/library contract testing ([GI#142](https://github.com/sproates/panackelty/issues/142)). | Contract testing needs an agreed design based on concrete use cases. No general DOM/UI framework. Versioned Docker toolchain images (GI#146) and Linux ARM64 releases (GI#145) are optional; multi-architecture images depend on validated Linux targets. |
+| alpha.18 — improve language ergonomics | Error-propagation shorthand ([GI#274](https://github.com/sproates/panackelty/issues/274)) and a bounded further expansion of guarded types ([GI#435](https://github.com/sproates/panackelty/issues/435)), subject to design and evidence. | Preserve explicit Result contracts. Select guard cases from real programs, beyond alpha.14's existing guard scope. Targeted inference improvements (GI#170) and remaining standard-library discoverability work (GI#313) are possible supporting work, not automatic gates. Existing alpha.14 assessments remain there. |
+
+For alpha.15, completion means runnable service and developer-tool examples with
+checked guides and meaningful failure tests. For alpha.16, it means a supported
+installation route, basic editing support and actionable source-aware failures.
+For alpha.17 and alpha.18, settle the bounded feature acceptance during design;
+use earlier applications as evidence rather than expanding every linked proposal.
+The release themes do not mark their broad umbrella issues complete or allocate
+implementation credit. Future programme delivery registers must track their
+selected scope and evidence separately.
+
+The homepage and website roadmap will reflect this same direction. Historical
+articles and released-version documentation retain their original context.
+
 ## Historical alpha.12 plan — 2026-10-06
 
 <a id="rm-143"></a>

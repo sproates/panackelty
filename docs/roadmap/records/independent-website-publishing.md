@@ -83,6 +83,15 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
+- **Alpha.14–alpha.18 direction (20 October 2026):** update homepage summaries,
+  roadmap sections and website maintenance guidance to match the
+  [agreed release scope](next-release--agreed-scope-2026-10-06.md#agreed-release-direction--20-october-2026).
+  Owned by the maintainer delivering the companion website PR; publication and
+  live verification remain pending. Preserve alpha.13 pins, historical articles,
+  optional scope and unresolved design qualifications. Website tracking:
+  [release direction](https://github.com/sproates/panackelty-website/blob/main/ROADMAP.md#alpha14-through-alpha18-release-direction).
+
+
 - **GI#162 preview-tool adoption** — Done, 2026-10-15. Core PR #498 supplies
   the generic tool; website PR #42 adopted it with a pinned source installation.
   All 81 assembled assets matched; readiness, error handling, signals, parent loss,

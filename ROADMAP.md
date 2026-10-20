@@ -18,6 +18,27 @@ dependencies and acceptance criteria.
 - [All roadmap records](docs/roadmap/README.md)
 - [Decision and completion process](docs/roadmap/ROADMAP_PROCESS.md)
 
+## Planned direction: alpha.14 through alpha.18
+
+Owner-agreed general scope, 20 October 2026; all five releases remain unreleased.
+See the [release direction and scope boundaries](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#agreed-release-direction--20-october-2026).
+
+- **alpha.14:** strengthen the foundations — methods, HTTP framework, package
+  management (product scope to settle), compiler understanding, coverage and
+  selected friction/performance improvements; existing detailed selections remain.
+- **alpha.15:** build useful programs — typed HTTP exchange, file discovery,
+  subprocess examples, a tiny build tool and tested guides.
+- **alpha.16:** improve everyday development — one editor, source-aware runtime
+  errors and Homebrew installation.
+- **alpha.17:** interactive and connected applications — browser event handlers
+  and bounded contract testing; Docker toolchain images and Linux ARM64 optional.
+- **alpha.18:** language ergonomics — error propagation and further guarded types,
+  subject to design/evidence; targeted inference and API discoverability possible.
+
+No dates are selected. This records release direction using existing backlog
+items; it does not start implementation, select unresolved semantics, or make
+optional work a release gate.
+
 The original modules/packages/HTTP programme baseline remains **90/100 earned**;
 P7 retains its deferred 10-point allocation. Alpha.13 release acceptance is complete.
 No existing identifier or item scope changed; RM#156 records the GI#518 selection

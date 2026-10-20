@@ -18,29 +18,30 @@ dependencies and acceptance criteria.
 - [All roadmap records](docs/roadmap/README.md)
 - [Decision and completion process](docs/roadmap/ROADMAP_PROCESS.md)
 
-## Planned direction: alpha.14 through alpha.18
+## Planned direction: alpha.14 through alpha.19
 
-Owner-agreed general scope, 20 October 2026; all five releases remain unreleased.
-See the [release direction and scope boundaries](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#agreed-release-direction--20-october-2026).
+Owner-approved release rebalance, 20 October 2026. All remain unreleased; see the
+[scope and boundaries](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#agreed-release-direction--20-october-2026).
 
-- **alpha.14:** strengthen the foundations — methods, HTTP framework, package
-  management (product scope to settle), compiler understanding, validated domain
-  types (string constraints, collection sizes and cross-field invariants), coverage and
-  selected friction/performance improvements; existing detailed selections remain.
-- **alpha.15:** build useful programs — typed HTTP exchange, file discovery,
-  subprocess examples, a tiny build tool and tested guides; a concrete
-  [GI#106 validation-speed milestone](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#alpha15-validation-speed)
-  reduces local and CI feedback time while preserving and strengthening tests.
-- **alpha.16:** improve everyday development — one editor, source-aware runtime
-  errors and Homebrew installation.
-- **alpha.17:** interactive and connected applications — browser event handlers
-  and bounded contract testing; Docker toolchain images and Linux ARM64 optional.
-- **alpha.18:** language ergonomics — error propagation and further guarded types,
-  subject to design/evidence; targeted inference and API discoverability possible.
+- **alpha.14:** completed type-owned methods and HTTP framework, finished with
+  the HTTP API reference and runnable examples slice of GI#552. Colours (GI#555)
+  are optional, not a release gate.
+- **alpha.15:** remaining foundation work: package-management design, compiler
+  understanding, validated domain types, inference/stdlib assessments, faster
+  coverage, selected friction/performance work, and the GI#106 test-speed milestone.
+- **alpha.16:** build useful programs: typed service exchanges, file discovery,
+  subprocess examples, a tiny build tool and tested guides.
+- **alpha.17:** everyday development: one editor, source-aware runtime errors and
+  Homebrew installation.
+- **alpha.18:** interactive/connected applications: browser event handlers and
+  service contract testing; Docker images/Linux ARM64 remain optional.
+- **alpha.19:** language ergonomics: error propagation and further guarded types,
+  subject to design/evidence.
 
-No dates are selected. This records release direction using existing backlog
-items; it does not start implementation, select unresolved semantics, or make
-optional work a release gate.
+The full GI#552 reference, GI#553 load profiling and GI#555 colours retain candidate
+status beyond the explicitly selected HTTP documentation slice. No dates or new
+implementation authorisation are implied. Release validation/publication approval
+remain required; scope does not grow through optional candidates.
 
 The original modules/packages/HTTP programme baseline remains **90/100 earned**;
 P7 retains its deferred 10-point allocation. Alpha.13 release acceptance is complete.

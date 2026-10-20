@@ -42,16 +42,22 @@ Expected body:
 hello from Panackelty HTTP server
 ```
 
-Stop with Ctrl-C in the server terminal. If port 8080 is occupied, replace it
-with 8083 in both commands. A startup error is printed on stderr and the program
-exits with status 1. This server listens on `127.0.0.1`: only your machine can
-connect. Explicitly choose `0.0.0.0` if you intend to accept connections through
-other local network interfaces; it is a listening address, not a browser URL.
+When you've finished, press Ctrl-C in the terminal running the server. If
+another program is already using port 8080, use 8083 in both the server command
+and the curl request. If the server can't start, it writes an error message to
+stderr and exits with status 1.
+
+The example listens on `127.0.0.1`, so you can only connect from the same machine.
+To try it from another device on your network, change the address passed to
+`create_bound_server` to `0.0.0.0`. Then connect using the server machine's network
+IP address and port, for example `http://192.168.1.10:8080/`. Replace that example
+IP address with your machine's address; don't put `0.0.0.0` in your browser.
 
 ### The complete program
 
-The file is `examples/network/http_server/src/main.panack`. This single example
-also supplies the routes used in the next two guides. You can read every line here:
+Open `examples/network/http_server/src/main.panack` to see how the server works.
+The full program is shown below. We'll use its routes to explore requests,
+responses and fallbacks in the next two sections.
 
 ```panack
 import http/server as http

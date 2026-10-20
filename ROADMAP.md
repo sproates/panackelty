@@ -19,6 +19,16 @@ P7 retains its deferred 10-point allocation. Alpha.13 release acceptance is comp
 No item has been renumbered or given additional scope by this documentation split.
 **Next available roadmap identifier: RM#156.**
 
+## Example inventory preflight — 2026-10-20
+
+The selected authoring-friction improvement adds a compiler-free preflight before
+canonical validation builds. It detects stale example counts, ordered smoke lists,
+output pairs and transcript totals while retaining independent runtime assertions.
+Isolated mutations verify both rejection and correctly maintained additions.
+This bounded delivery does not replace full validation or resolve GI#106's broader
+performance reassessment. Website: no impact; this is contributor tooling only.
+No issue was created solely for this task. Acceptance is recorded in the delivery PR.
+
 ## Bounded method experiment — 2026-10-17
 
 Owner-selected proof of concept: two `Fruit` instances call owned `apple` and

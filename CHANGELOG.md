@@ -6,6 +6,9 @@ in `docs/releases/RELEASE_POLICY.md`.
 
 ## Unreleased
 
+- Detect stale example inventories and smoke transcript totals before canonical
+  validation starts compiler builds; preserve all executable fixture checks.
+
 - Add runnable owned-method and generic-method examples, with exact-output
   source and saved-bytecode checks. These demonstrate custom APIs alongside Map
   methods, persistent updates, chaining and typed callbacks.

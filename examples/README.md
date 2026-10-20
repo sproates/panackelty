@@ -107,3 +107,11 @@ use the corresponding `main.panack` path for the other examples.
 See the [network examples guide](network/README.md) for TCP exchanges and finite
 HTTP sessions. For serving a directory, use the [static HTTP server](../tools/http-server/README.md).
 The one-client HTTP example is a regression fixture, not a long-running application template.
+
+## Adding an example
+
+Add a matching `.stdout` file under `tests/functional/expected/examples/`, then
+update the example count in `tests/runner/main.panack` and the ordered example
+list and transcript total in `tests/functional/cases/runner_smoke/main.panack`.
+Run `sh tests/fixture_inventory.sh` for immediate bookkeeping feedback before
+`make check`. See the [preflight contract](../tests/README.md#fixture-inventory-preflight).

@@ -18,6 +18,8 @@ async main(): Unit {
   expect(failure(await invalid.listen()))
   malformed = http.create_bound_server("127.00.0.1", port)
   expect(failure(await malformed.listen()))
+  unavailable = http.create_bound_server("192.0.2.1", port)
+  expect(failure(await unavailable.listen()))
   duplicate = http.create_bound_server("127.0.0.1", port)
   duplicate.get("/", @respond)
   duplicate.get("/?query", @respond)

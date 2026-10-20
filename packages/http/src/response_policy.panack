@@ -74,8 +74,7 @@ pub pure lower(value: Str): Str {
   output.decode_utf8()
 }
 
-// Fixed routed-server policy. The legacy serializer keeps its existing budgets
-// until all callers migrate; both serializers share token and status spelling.
+// Fixed routed-server policy; framing and wire budgets belong to the framework.
 pub pure routed_wire(status: Nat, headers: [Header], body: Bytes): Result[Bytes,Str] {
   mut valid = status >= 200 && status <= 599 && body.length() <= 1048576
   if (status == 204 || status == 304) && body.length() != 0 { valid = false }

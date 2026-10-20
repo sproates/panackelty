@@ -46,10 +46,40 @@ async sent_stalled(request: http.Request, response: http.ResponseWriter): Result
   while true {}
   Ok(())
 }
+async oversized_body(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  mut body = "é".encode_utf8()
+  mut count: Nat = 0
+  while count < 19 { body = body.join(body); count = count + 1 }
+  response.send_bytes(body.push(120))
+  Ok(())
+}
+async oversized_header(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  mut value = "x"
+  mut count: Nat = 0
+  while count < 14 { value = value + value; count = count + 1 }
+  response.header("X-Large", value)
+  response.send("must never be committed")
+  Ok(())
+}
+async empty_response(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  response.status(if request.path == "/empty-204" { 204 } else { 304 })
+  response.send("")
+  Ok(())
+}
+async invalid_empty_response(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  response.status(204)
+  response.send("not empty")
+  Ok(())
+}
 async main(): Unit {
   arguments = await host.arguments()
   server = http.create_bound_server("127.0.0.1", arguments[0].parse_nat())
   server.get("/hello", @hello)
+  server.get("/large-response", @oversized_body)
+  server.get("/large-header", @oversized_header)
+  server.get("/empty-204", @empty_response)
+  server.get("/empty-304", @empty_response)
+  server.get("/invalid-empty", @invalid_empty_response)
   server.post("/echo", @echo)
   server.post("/size", @size)
   server.get("/failure", @failure)

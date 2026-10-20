@@ -5,6 +5,7 @@
 #include "decode.h"
 #include "fault_injection.h"
 #include "http_transport.h"
+#include "http_state.h"
 #include "numeric.h"
 #include "render.h"
 #include "tasks.h"
@@ -51,6 +52,27 @@ static void sweep(const char *name, void (*operation_fn)(void))
     fault_reset(0);
     operation_fn();
     assert(fault_live() == baseline);
+}
+
+static Value *http_values[6];
+static void routed_state_allocations(void)
+{
+    VM vm = {0};
+    const Builtin *create = builtin("http_state_create");
+    const Builtin *registration = builtin("http_state_register");
+    Value *state = create->call(&vm, create->name, http_values);
+    if (state) {
+        Value *args[] = {state, http_values[3], http_values[4], http_values[5]};
+        Value *result = registration->call(&vm, registration->name, args);
+        if (!fault_triggered()) assert(result && state->as.http_state->route_count == 1);
+        release(result);
+    }
+    release(state);
+    VMHttpWriter *writer = http_writer_create();
+    if (!fault_triggered()) assert(writer && writer->headers);
+    http_writer_free(writer);
+    /* Allocation failure must never be reclassified as a recoverable request fault. */
+    assert(vm.fault_kind != VM_FAULT_REQUEST);
 }
 
 static void decode_program(void)
@@ -815,6 +837,17 @@ int main(int argc, char **argv)
     }
     sweep("TCP request and completion", tcp_allocations);
     sweep("HTTP transport ownership", http_allocations);
+    fault_reset(0);
+    http_values[0] = value_data(V_STR, (const uint8_t *)"127.0.0.1", 9);
+    http_values[1] = value_size(8080);
+    http_values[2] = value_size(42);
+    http_values[3] = value_data(V_STR, (const uint8_t *)"GET", 3);
+    http_values[4] = value_data(V_STR, (const uint8_t *)"/", 1);
+    http_values[5] = value_data(V_STR, (const uint8_t *)"handler", 7);
+    for (size_t i = 0; i < 6; i++) assert(http_values[i]);
+    sweep("routed HTTP state and writer ownership", routed_state_allocations);
+    for (size_t i = 0; i < 6; i++) { assert(http_values[i]->refs == 1); release(http_values[i]); }
+
     for (server_cancel = 0; server_cancel < 3; server_cancel++) {
         server_streaming = false;
         sweep("TCP server ownership", server_allocations);

@@ -1,8 +1,10 @@
 # Routed HTTP server implementation plan
 
-Status: implementation in progress, 20 October 2026. Foundation PR#548 is merged
-into `next`; runtime PR#549 is also merged. Public API migration and consumer
-acceptance are in final validation. This plan implements [GI#518](https://github.com/sproates/panackelty/issues/518)
+Status: P01–P15 complete on the final acceptance PR's merge into `next`.
+Foundation PR#548, runtime PR#549 and public migration PR#550 are already merged.
+The final slice adds shutdown/failure/boundary evidence and fixes committed-response
+preservation during process exit. See the [acceptance register](acceptance-register.md)
+for validation provenance. This implements [GI#518](https://github.com/sproates/panackelty/issues/518)
 within [RM#156](../../roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-156).
 It does not reopen the completed low-level HTTP work or GI#525.
 
@@ -82,23 +84,19 @@ introduce a public options record or transport tuning.
 
 ## Sequence and weighted baseline
 
-Weights are provisional scope estimates, not time estimates. Runtime ownership,
-recovery and protocol integration carry more weight than documentation. Freeze
-this baseline when P01 is accepted; record any later change explicitly. Earn
-credit only for accepted outcomes, never for time spent, commits or a saved plan.
-The table below retains the planning baseline; formal packet acceptance is
-pending the consolidated evidence audit. Implementation progress is recorded in
-the acceptance register and must not be read as unstarted work.
+The original scope weights are unchanged. The table describes the accepted state
+on final delivery merge; until exact-head CI and merge, the final acceptance slice
+remains in review. Native alpha.14 publication is separate.
 
 | Stage / packets | Status | Weight | Complete | Earned |
 | --- | --- | ---: | ---: | ---: |
-| Contract and feasibility: P01–P02 | Implemented; acceptance audit pending | 10% | 0% | 0 |
-| Handles and request/response model: P03–P05 | Implemented; acceptance audit pending | 20% | 0% | 0 |
-| Routing and protocol: P06–P08 | Implemented; acceptance audit pending | 20% | 0% | 0 |
-| Runtime isolation and lifecycle: P09–P11 | Implemented; acceptance audit pending | 30% | 0% | 0 |
-| Consumers and API cleanup: P12–P13 | Implemented; acceptance audit pending | 10% | 0% | 0 |
-| Documentation and acceptance: P14–P15 | Implemented; acceptance audit pending | 10% | 0% | 0 |
-| **Total** | **Implementation in progress; acceptance audit pending** | **100%** | | **0%** |
+| Contract and feasibility: P01–P02 | Done on final acceptance merge | 10% | 100% | 10 |
+| Handles and request/response model: P03–P05 | Done on final acceptance merge | 20% | 100% | 20 |
+| Routing and protocol: P06–P08 | Done on final acceptance merge | 20% | 100% | 20 |
+| Runtime isolation and lifecycle: P09–P11 | Done on final acceptance merge | 30% | 100% | 30 |
+| Consumers and API cleanup: P12–P13 | Done on final acceptance merge | 10% | 100% | 10 |
+| Documentation and acceptance: P14–P15 | Done on final acceptance merge | 10% | 100% | 10 |
+| **Total** | **Done on final acceptance merge** | **100%** | | **100%** |
 
 Packet allocations: P01 4, P02 6, P03 8, P04 4, P05 8, P06 6, P07 7,
 P08 7, P09 12, P10 10, P11 8, P12 6, P13 4, P14 4, P15 6.

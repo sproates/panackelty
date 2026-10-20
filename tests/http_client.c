@@ -86,7 +86,10 @@ static int response_contains(int fd, const char *status, const char *body, int h
     }
     response[total] = '\0';
     const char *header_end = strstr(response, "\r\n\r\n");
-    if (!strstr(response, "HTTP/1.1 100 Continue") && strstr(response, status) && strstr(response, body) &&
+    if ((!strcmp(status, "204 No Content") || !strcmp(status, "304 Not Modified")) &&
+        (!header_end || header_end[4] || strstr(response, "Content-Length:"))) return -1;
+    const char *status_start = !strncmp(status, "HTTP/", 5) ? response : response + (total >= 9 ? 9 : 0);
+    if (!strstr(response, "HTTP/1.1 100 Continue") && !strncmp(status_start, status, strlen(status)) && strstr(response, body) &&
         (!head_only || (header_end && header_end[4] == '\0'))) return 0;
     fprintf(stderr, "unexpected HTTP response (%zu bytes); expected %s and body %s\n%s\n",
             total, status, body, response);
@@ -256,9 +259,19 @@ static int routed_exchange(const char *port)
         {"POST /echo HTTP/1.1\r\nContent-Length: 3\r\nExpect: 100-continue\r\n\r\n", "400 Bad Request", "Bad Request"},
         {"POST /echo HTTP/1.1\r\nHost: local\r\nContent-Length: 3\r\nExpect: 100-continue\r\n\r\nabc", "200 OK", "\r\n\r\nabc"},
         {"POST /echo HTTP/1.1\r\nHost: local\r\nContent-Length: 0\r\nExpect: 100-continue\r\n\r\n", "200 OK", "Content-Length: 0"},
+        {"GET /hello HTTP/1.1\r\n\r\n", "400 Bad Request", "Bad Request"},
+        {"GET /hello HTTP/1.1\r\nHost: local\r\nHost: duplicate\r\n\r\n", "400 Bad Request", "Bad Request"},
+        {"GET /hello HTTP/1.0\r\nHost: local\r\n\r\n", "505 HTTP Version Not Supported", "HTTP Version Not Supported"},
+        {"GET /hello HTTP/2.0\r\nHost: local\r\n\r\n", "505 HTTP Version Not Supported", "HTTP Version Not Supported"},
+        {"POST /echo HTTP/1.1\r\nHost: local\r\nTransfer-Encoding: gzip\r\n\r\n", "501 Not Implemented", "Not Implemented"},
         {"GET /failure HTTP/1.1\r\nHost: local\r\n\r\n", "500 Internal Server Error", "Internal Server Error"},
         {"GET /trap HTTP/1.1\r\nHost: local\r\n\r\n", "500 Internal Server Error", "Internal Server Error"},
         {"GET /arithmetic HTTP/1.1\r\nHost: local\r\n\r\n", "500 Internal Server Error", "Internal Server Error"},
+        {"GET /large-response HTTP/1.1\r\nHost: local\r\n\r\n", "500 Internal Server Error", "Internal Server Error"},
+        {"GET /large-header HTTP/1.1\r\nHost: local\r\n\r\n", "500 Internal Server Error", "Internal Server Error"},
+        {"GET /empty-204 HTTP/1.1\r\nHost: local\r\n\r\n", "204 No Content", "Connection: close\r\n\r\n"},
+        {"GET /empty-304 HTTP/1.1\r\nHost: local\r\n\r\n", "304 Not Modified", "Connection: close\r\n\r\n"},
+        {"GET /invalid-empty HTTP/1.1\r\nHost: local\r\n\r\n", "500 Internal Server Error", "Internal Server Error"},
         {"GET /missing-send HTTP/1.1\r\nHost: local\r\n\r\n", "500 Internal Server Error", "Internal Server Error"},
         {"GET /sent-error HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "first response"},
         {"GET /hello HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "hello"},
@@ -306,7 +319,9 @@ static int routed_shutdown(const char *port, const char *control, int destroy)
         else received += (size_t)count;
     }
     if (!result && memcmp(interim, "HTTP/1.1 100 Continue\r\n\r\n", sizeof(interim))) result = -1;
-    struct timespec start, end;
+    if (!result && destroy == 2) result = exchange(control,
+        "GET /begin-close HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "closing", 0);
+    struct timespec start = {0}, end = {0};
     if (clock_gettime(CLOCK_MONOTONIC, &start)) result = -1;
     if (!result) result = exchange(control, destroy ?
         "GET /destroy HTTP/1.1\r\nHost: local\r\n\r\n" :
@@ -338,8 +353,19 @@ int main(int argc, char **argv)
         close(fd);
         return 0;
     }
-    if (argc == 4 && (!strcmp(argv[2], "close") || !strcmp(argv[2], "destroy")))
-        return routed_shutdown(argv[1], argv[3], !strcmp(argv[2], "destroy"));
+    if (argc == 4 && !strcmp(argv[2], "contexts")) {
+        const char *methods[] = {"GET", "POST", "PUT", "DELETE"};
+        char request[100], body[100];
+        snprintf(body, sizeof(body), "\r\n\r\n%s", argv[3]);
+        for (size_t i = 0; i < 4; i++) {
+            snprintf(request, sizeof(request), "%s / HTTP/1.1\r\nHost: local\r\n\r\n", methods[i]);
+            if (exchange(argv[1], request, "200 OK", body, 0)) return 1;
+        }
+        snprintf(body, sizeof(body), "\r\n\r\nhealth %s", argv[3]);
+        return exchange(argv[1], "GET /health HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", body, 0) ? 1 : 0;
+    }
+    if (argc == 4 && (!strcmp(argv[2], "close") || !strcmp(argv[2], "destroy") || !strcmp(argv[2], "escalate")))
+        return routed_shutdown(argv[1], argv[3], !strcmp(argv[2], "escalate") ? 2 : !strcmp(argv[2], "destroy"));
     if (argc != 3) return 2;
     const char *port = argv[1];
     const char *mode = argv[2];
@@ -353,6 +379,8 @@ int main(int argc, char **argv)
         return exchange(port, "GET / HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\nHello", 0) ||
             exchange(port, "GET /health HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\nOK: Hello", 0);
     }
+    if (!strcmp(mode, "routed-exit"))
+        return exchange(port, "GET /exit HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "leaving", 0) ? 1 : 0;
     if (!strcmp(mode, "routed-limits")) return routed_limits(port) ? 1 : 0;
     if (!strcmp(mode, "routed-deadline")) return routed_deadline(port) ? 1 : 0;
     if (!strcmp(mode, "routed-capacity")) return routed_capacity(port) ? 1 : 0;

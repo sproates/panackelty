@@ -64,6 +64,13 @@ void http_state_contracts(void)
     assert(bad && bad->setup_error); http_state_free(bad);
     bad = http_state_create(args[0], large, args[2]);
     assert(bad && bad->setup_error); http_state_free(bad);
+    for (size_t port = 1; port <= 65535; port += 65534) {
+        Value *boundary = value_size(port);
+        VMHttpState *valid = http_state_create(args[0], boundary, args[2]);
+        assert(valid && !valid->setup_error);
+        http_state_free(valid);
+        release(boundary);
+    }
     release(zero); release(large);
     for (size_t i = 0; i < 4; i++) release(args[i]);
 

@@ -27,7 +27,9 @@ See the [release direction and scope boundaries](docs/roadmap/records/next-relea
   management (product scope to settle), compiler understanding, coverage and
   selected friction/performance improvements; existing detailed selections remain.
 - **alpha.15:** build useful programs — typed HTTP exchange, file discovery,
-  subprocess examples, a tiny build tool and tested guides.
+  subprocess examples, a tiny build tool and tested guides; a concrete
+  [GI#106 validation-speed milestone](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#alpha15-validation-speed)
+  reduces local and CI feedback time while preserving and strengthening tests.
 - **alpha.16:** improve everyday development — one editor, source-aware runtime
   errors and Homebrew installation.
 - **alpha.17:** interactive and connected applications — browser event handlers

@@ -31,10 +31,10 @@ pure file_path(value: Str): Path {
   path.from_text(value).value_or(path.current())
 }
 
-async respond(request: http.Request): Result[http.Response,http.HttpError] {
+async respond(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
   match await files.read_beneath(file_path("ROOT_PATH"), file_path("file"), 2) {
-    Error(problem) => Error(http.HttpError.InvalidResponse()),
-    Ok(read) => Ok(http.Response(200, [], read.contents))
+    Error(problem) => Error(problem.code),
+    Ok(read) => { response.send_bytes(read.contents); Ok(()) }
   }
 }
 
@@ -64,18 +64,9 @@ async main(): Unit {
   expect(match await files.read_beneath(root, file_path("empty"), 64) {
     Ok(value) => false, Error(problem) => problem.code == "not_regular_file"
   })
-  report = await http.serve("127.0.0.1", PORT, @respond,
-    http.ServerLimits(2, 2, 4096, 4096, 3000, 10000, 1000))
-  match report {
-    Error(problem) => expect(false),
-    Ok(reports) => {
-      expect(reports.len() == 2)
-      for outcome in reports {
-        expect(match outcome { Ok(done) => true, Error(problem) => false })
-      }
-      ()
-    }
-  }
+  server = http.create_bound_server("127.0.0.1", PORT)
+  server.get("/", @respond)
+  expect(match await server.listen() { Ok(done) => true, Error(problem) => false })
   ()
 }
 SOURCE
@@ -91,6 +82,7 @@ for mode in source bytecode; do
     fi
     server_pid=$!
     "$http_client" "$port" concurrent || { cat "$work/stderr"; exit 1; }
+    kill -TERM "$server_pid"
     wait "$server_pid" || { cat "$work/stderr"; exit 1; }
     server_pid=
     test ! -s "$work/stdout" && test ! -s "$work/stderr"

@@ -704,24 +704,22 @@ client that deliberately leaves its write side open while waiting for the
 response. The native owner unit tests also cover the cumulative request bound and
 reject the read service outside a server-owned streaming child.
 
-`http_package.sh` runs Panackelty-owned HTTP parser and serializer cases from both
-source and saved bytecode, then checks and compiles an application importing the
-packaged `http/server` facade. Its independent C peer exercises the runnable
-`examples/network/http_server` package source and saved bytecode, then drives one
-finite server through GET/POST, handler errors, method and framing errors,
-partial and oversized requests, concurrent clients, disconnect recovery and
-orderly shutdown. The Panackelty HTTP client also requests the example response
-from source and saved-bytecode server runs, using both client source and saved
-bytecode. A held loopback port verifies bind-conflict reporting.
-The framing fixture allows ten seconds per connection and thirty seconds for
-admission; the oversized-header peer waits up to twelve seconds for its response,
-inside its twenty-second process alarm. These are bounded functional-test
-allowances for hosted workers scanning a 64 KiB header, not latency targets.
-Native TCP tests independently assert deadline expiry and cancellation.
-Parser/serializer cases remain independent of the native TCP server and cover
-incremental input, Content-Length, chunked framing, malformed and ambiguous
-requests, method/version errors, header/body bounds and response framing/header
-injection.
+`http_package.sh` runs parser and routed-policy cases from source and saved
+bytecode, then exercises the public `http/server` facade with an independent C
+peer. It covers framing, Expect negotiation, handler errors/index/arithmetic
+faults, first-send preservation, request/connection capacity, byte limits and the
+real ten-second deadline. Corrected contract examples compile verbatim; socket
+copies change only their fixed demonstration port. Active-request close and
+destroy are controlled by a second listener, with bounded observations of the
+one-second drain and immediate cancellation. Old exports and wrong callback
+context types are compile-time rejection cases.
+
+`continuous_service.sh` checks process lifetime, readiness failure and signals.
+`static_http.sh` checks confinement and file policy plus source/bytecode runs of
+both public examples against a relocated installation. `release_archive_smoke.sh`
+repeats both examples through the extracted archive from an unrelated directory.
+HTTP client tests remain independent. Native tests cover opaque ownership,
+invalid handles, request fault classification and cancellation safety.
 
 ## Website validation ownership
 

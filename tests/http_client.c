@@ -86,7 +86,7 @@ static int response_contains(int fd, const char *status, const char *body, int h
     }
     response[total] = '\0';
     const char *header_end = strstr(response, "\r\n\r\n");
-    if (strstr(response, status) && strstr(response, body) &&
+    if (!strstr(response, "HTTP/1.1 100 Continue") && strstr(response, status) && strstr(response, body) &&
         (!head_only || (header_end && header_end[4] == '\0'))) return 0;
     fprintf(stderr, "unexpected HTTP response (%zu bytes); expected %s and body %s\n%s\n",
             total, status, body, response);
@@ -240,6 +240,7 @@ static int routed_exchange(const char *port)
         {"GET /hello HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\nhello"},
         {"GET /hello?raw=%2F HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "hello"},
         {"GET /Hello HTTP/1.1\r\nHost: local\r\n\r\n", "404 Not Found", "Not Found"},
+        {"HEAD /hello HTTP/1.1\r\nHost: local\r\n\r\n", "405 Method Not Allowed", "Allow: GET\r\n"},
         {"PATCH /hello HTTP/1.1\r\nHost: local\r\n\r\n", "405 Method Not Allowed", "Allow: GET\r\n"},
         {"POST /echo HTTP/1.1\r\nHost: local\r\nContent-Length: 3\r\n\r\nabc", "200 OK", "\r\n\r\nabc"},
         {"POST /echo HTTP/1.1\r\nHost: local\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nabc\r\n0\r\n\r\n", "200 OK", "\r\n\r\nabc"},
@@ -248,8 +249,16 @@ static int routed_exchange(const char *port)
         {"POST /echo HTTP/1.1\r\nHost: local\r\nContent-Length: 1048577\r\nExpect: 100-continue\r\n\r\n", "413 Content Too Large", "Content Too Large"},
         {"POST /echo HTTP/1.1\r\nHost: local\r\nContent-Length: 0\r\nTransfer-Encoding: gzip\r\n\r\n", "400 Bad Request", "Bad Request"},
         {"POST /echo HTTP/1.1\r\nHost: local\r\nExpect: something\r\n\r\n", "417 Expectation Failed", "Expectation Failed"},
+        {"POST /echo HTTP/1.1\r\nHost: local\r\nExpect: 100-continue\r\nExpect: 100-continue\r\n\r\n", "417 Expectation Failed", "Expectation Failed"},
+        {"POST /echo HTTP/1.1\r\nHost: local\r\nExpect: 100-continue, 100-continue\r\n\r\n", "417 Expectation Failed", "Expectation Failed"},
+        {"POST /missing HTTP/1.1\r\nHost: local\r\nContent-Length: 3\r\nExpect: 100-continue\r\n\r\n", "404 Not Found", "Not Found"},
+        {"PATCH /hello HTTP/1.1\r\nHost: local\r\nContent-Length: 3\r\nExpect: 100-continue\r\n\r\n", "405 Method Not Allowed", "Allow: GET"},
+        {"POST /echo HTTP/1.1\r\nContent-Length: 3\r\nExpect: 100-continue\r\n\r\n", "400 Bad Request", "Bad Request"},
+        {"POST /echo HTTP/1.1\r\nHost: local\r\nContent-Length: 3\r\nExpect: 100-continue\r\n\r\nabc", "200 OK", "\r\n\r\nabc"},
+        {"POST /echo HTTP/1.1\r\nHost: local\r\nContent-Length: 0\r\nExpect: 100-continue\r\n\r\n", "200 OK", "Content-Length: 0"},
         {"GET /failure HTTP/1.1\r\nHost: local\r\n\r\n", "500 Internal Server Error", "Internal Server Error"},
         {"GET /trap HTTP/1.1\r\nHost: local\r\n\r\n", "500 Internal Server Error", "Internal Server Error"},
+        {"GET /arithmetic HTTP/1.1\r\nHost: local\r\n\r\n", "500 Internal Server Error", "Internal Server Error"},
         {"GET /missing-send HTTP/1.1\r\nHost: local\r\n\r\n", "500 Internal Server Error", "Internal Server Error"},
         {"GET /sent-error HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "first response"},
         {"GET /hello HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "hello"},
@@ -257,11 +266,11 @@ static int routed_exchange(const char *port)
     for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
         if (exchange(port, cases[i].request, cases[i].status, cases[i].body, 0)) return -1;
     }
-    for (int chunked = 0; chunked < 2; chunked++) {
+    for (int chunked = 0; chunked < 3; chunked++) {
         int fd = connect_to(port);
         if (fd < 0) return -1;
         const char *head = chunked ?
-            "POST /echo HTTP/1.1\r\nHost: local\r\nExpect: 100-continue\r\nTransfer-Encoding: chunked\r\n\r\n" :
+            "POST /echo HTTP/1.1\r\nHost: local\r\nExpect:   100-CoNtInUe  \r\nTransfer-Encoding: chunked\r\n\r\n" :
             "POST /echo HTTP/1.1\r\nHost: local\r\nExpect: 100-continue\r\nContent-Length: 3\r\n\r\n";
         int result = send_all(fd, head, strlen(head));
         char interim[25];
@@ -272,14 +281,50 @@ static int routed_exchange(const char *port)
             else received += (size_t)count;
         }
         if (!result && memcmp(interim, "HTTP/1.1 100 Continue\r\n\r\n", sizeof(interim))) result = -1;
-        const char *body = chunked ? "3\r\nabc\r\n0\r\n\r\n" : "abc";
+        const char *body = chunked == 2 ? "100001\r\n" : chunked ? "3\r\nabc\r\n0\r\n\r\n" : "abc";
         /* Deliberately fragment the body/chunk framing across writes. */
         for (size_t i = 0; !result && body[i]; i++) result = send_all(fd, body + i, 1);
-        if (!result) result = response_contains(fd, "200 OK", "\r\n\r\nabc", 0);
+        if (!result) result = response_contains(fd, chunked == 2 ? "413 Content Too Large" : "200 OK",
+            chunked == 2 ? "Content Too Large" : "\r\n\r\nabc", 0);
         close(fd);
         if (result) return -1;
     }
     return 0;
+}
+
+static int routed_shutdown(const char *port, const char *control, int destroy)
+{
+    int fd = connect_to(port);
+    if (fd < 0) return 1;
+    const char *head = "POST /hold HTTP/1.1\r\nHost: local\r\nContent-Length: 3\r\nExpect: 100-continue\r\n\r\n";
+    int result = send_all(fd, head, strlen(head));
+    char interim[25];
+    size_t received = 0;
+    while (!result && received < sizeof(interim)) {
+        ssize_t count = read(fd, interim + received, sizeof(interim) - received);
+        if (count <= 0) result = -1;
+        else received += (size_t)count;
+    }
+    if (!result && memcmp(interim, "HTTP/1.1 100 Continue\r\n\r\n", sizeof(interim))) result = -1;
+    struct timespec start, end;
+    if (clock_gettime(CLOCK_MONOTONIC, &start)) result = -1;
+    if (!result) result = exchange(control, destroy ?
+        "GET /destroy HTTP/1.1\r\nHost: local\r\n\r\n" :
+        "GET /close HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "released", 0);
+    if (clock_gettime(CLOCK_MONOTONIC, &end)) result = -1;
+    double elapsed = (double)(end.tv_sec - start.tv_sec) +
+        (double)(end.tv_nsec - start.tv_nsec) / 1000000000.0;
+    /* Close exercises the real one-second drain; observer tolerance is not a
+       product timeout. Destroy must finish before that drain interval. */
+    if (!result && (elapsed > 2.5 || (!destroy && elapsed < 0.8) || (destroy && elapsed >= 0.8))) {
+        fprintf(stderr, "HTTP shutdown elapsed %.3f seconds (destroy=%d)\n", elapsed, destroy);
+        result = -1;
+    }
+    char byte;
+    ssize_t count = read(fd, &byte, 1);
+    if (count > 0 || (count < 0 && errno != ECONNRESET)) result = -1;
+    close(fd);
+    return result ? 1 : 0;
 }
 
 int main(int argc, char **argv)
@@ -293,9 +338,21 @@ int main(int argc, char **argv)
         close(fd);
         return 0;
     }
+    if (argc == 4 && (!strcmp(argv[2], "close") || !strcmp(argv[2], "destroy")))
+        return routed_shutdown(argv[1], argv[3], !strcmp(argv[2], "destroy"));
     if (argc != 3) return 2;
     const char *port = argv[1];
     const char *mode = argv[2];
+    if (!strcmp(mode, "example-ordinary")) {
+        return exchange(port, "GET / HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\nHello", 0) ||
+            exchange(port, "GET /health HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\nOK", 0) ||
+            exchange(port, "POST /messages HTTP/1.1\r\nHost: local\r\n\r\n", "201 Created", "\r\n\r\nCreated", 0) ||
+            exchange(port, "GET /about HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "About this service", 0);
+    }
+    if (!strcmp(mode, "example-contextual")) {
+        return exchange(port, "GET / HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\nHello", 0) ||
+            exchange(port, "GET /health HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\nOK: Hello", 0);
+    }
     if (!strcmp(mode, "routed-limits")) return routed_limits(port) ? 1 : 0;
     if (!strcmp(mode, "routed-deadline")) return routed_deadline(port) ? 1 : 0;
     if (!strcmp(mode, "routed-capacity")) return routed_capacity(port) ? 1 : 0;

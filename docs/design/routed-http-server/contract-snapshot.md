@@ -143,6 +143,14 @@ Any other expectation value, multiple `Expect` fields, or a comma-separated expe
 
 ## Examples
 
+Implementation erratum (2026-10-20): the example match arms use `Ok(done)`
+instead of the original `Ok(())`. Panackelty constructor patterns require a
+binding at that position. Example 3 also uses the existing positional record
+constructor `AppContext("Hello")`, replacing unsupported brace construction.
+These corrections fix example syntax without adding a language
+feature or changing the server API; acceptance compiles these corrected examples
+verbatim and changes only the demonstration port for isolated socket runs.
+
 All examples use the API names and semantics above. They are implementation targets, not claims that these APIs already exist.
 
 ### 1. Register several routes and listen
@@ -181,7 +189,7 @@ async main(): Unit {
   server.post("/messages", @create_message)
   server.get("/about", @about)
   match await server.listen() {
-    Ok(()) => (),
+    Ok(done) => (),
     Error(error) => {
       startup_error = error.message
       ()
@@ -251,12 +259,12 @@ async health(context: AppContext, request: http.Request, response: http.Response
 }
 
 async main(): Unit {
-  context = AppContext{greeting: "Hello"}
+  context = AppContext("Hello")
   server = http.create_contextual_server(8080, context)
   server.get("/", @home)
   server.get("/health", @health)
   match await server.listen() {
-    Ok(()) => (),
+    Ok(done) => (),
     Error(error) => {
       startup_error = error.message
       ()
@@ -322,7 +330,7 @@ async main(): Unit {
   server.put("/messages/current", @replace_message)
   server.delete("/messages/current", @delete_message)
   match await server.listen() {
-    Ok(()) => (),
+    Ok(done) => (),
     Error(error) => {
       startup_error = error.message
       ()

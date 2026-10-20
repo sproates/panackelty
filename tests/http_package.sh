@@ -1,63 +1,124 @@
 #!/bin/sh
 set -eu
-
 work=$(mktemp -d tests/http-package.XXXXXX)
 server_pid=
-holder_pid=
 cleanup() {
-    if [ -n "$server_pid" ]; then kill "$server_pid" 2>/dev/null || :; wait "$server_pid" 2>/dev/null || :; fi
-    if [ -n "$holder_pid" ]; then kill "$holder_pid" 2>/dev/null || :; wait "$holder_pid" 2>/dev/null || :; fi
+    if [ -n "$server_pid" ]; then kill -KILL "$server_pid" 2>/dev/null || :; wait "$server_pid" 2>/dev/null || :; fi
     rm -rf "$work"
 }
 trap cleanup EXIT HUP INT TERM
 http_client=${PANACK_HTTP_CLIENT:?}
 mkdir -p "$work/app/src"
 version=$(sed -n '1p' VERSION)
-
 cat > "$work/app/panack.json" <<MANIFEST
 {"schema":1,"package":"tests.http_app","version":"0.1.0","language":"modules-v1","toolchain":"$version","source":"src","entry":"main.panack","exports":{},"dependencies":{"http":{"path":"../../../packages/http"}}}
 MANIFEST
-
-cat > "$work/app/src/main.panack" <<'SOURCE'
-import http/server as http
-
-async respond(request: http.Request): Result[http.Response,http.HttpError] {
-  Ok(http.Response(200, [http.Header("Content-Type", "text/plain")],
-    "ok".encode_utf8()))
-}
-
-async main(): Unit {
-  report = await http.serve("127.0.0.1", 9000, @respond,
-    http.ServerLimits(1, 1, 4096, 4096, 1000, 1000, 100))
-  ()
-}
-SOURCE
-
-./bin/panack run packages/http/src/parser_test.panack
-./bin/panack compile packages/http/src/parser_test.panack -o "$work/parser.bc" > /dev/null
-./bin/panack run "$work/parser.bc"
-./bin/panack run packages/http/src/routed_test.panack
-./bin/panack compile packages/http/src/routed_test.panack -o "$work/routed.bc" > /dev/null
-./bin/panack run "$work/routed.bc"
+for probe in parser_test routed_test; do
+    ./bin/panack run "packages/http/src/$probe.panack"
+    ./bin/panack compile "packages/http/src/$probe.panack" -o "$work/$probe.bc" > /dev/null
+    ./bin/panack run "$work/$probe.bc"
+done
 ./bin/panack compile packages/http/src/writer_test.panack -o "$work/writer.bc" > /dev/null
 "${PANACK_NATIVE_MODULE_TEST:?}" http-writer "$work/writer.bc"
 port=$("$http_client" port)
 ./bin/panack run packages/http/src/routed_lifecycle_test.panack "$port"
 ./bin/panack compile packages/http/src/routed_lifecycle_test.panack -o "$work/lifecycle.bc" > /dev/null
 ./panack-vm run "$work/lifecycle.bc" "$port"
-./bin/panack compile packages/http/src/routed_socket_test.panack -o "$work/routed-socket.bc" > /dev/null
-port=$("$http_client" port)
-./panack-vm run "$work/routed-socket.bc" "$port" > "$work/routed.stdout" 2> "$work/routed.stderr" &
-server_pid=$!
-"$http_client" "$port" routed
-"$http_client" "$port" routed-limits
-"$http_client" "$port" routed-capacity
-"$http_client" "$port" routed-deadline
-kill -TERM "$server_pid"
-wait "$server_pid"
-server_pid=
-grep -q 'handler diagnostic only' "$work/routed.stderr"
-grep -q 'index is out of bounds' "$work/routed.stderr"
+# Run the real routed fixture through the exported module and an external manifest.
+sed 's/import project\/server as http/import http\/server as http/'     packages/http/src/routed_socket_test.panack > "$work/app/src/main.panack"
+./bin/panack compile --project "$work/app/panack.json" -o "$work/routed.bc" > /dev/null
+for mode in source bytecode; do
+    port=$("$http_client" port)
+    if [ "$mode" = source ]; then
+        ./bin/panack run --project "$work/app/panack.json" "$port" > "$work/stdout" 2> "$work/stderr" &
+    else
+        ./panack-vm run "$work/routed.bc" "$port" > "$work/stdout" 2> "$work/stderr" &
+    fi
+    server_pid=$!
+    "$http_client" "$port" routed
+    "$http_client" "$port" routed-capacity
+    if [ "$mode" = bytecode ]; then
+        "$http_client" "$port" routed-limits
+        "$http_client" "$port" routed-deadline
+    fi
+    kill -TERM "$server_pid"
+    wait "$server_pid"
+    server_pid=
+    grep -q 'handler diagnostic only' "$work/stderr"
+    grep -q 'index is out of bounds' "$work/stderr"
+    grep -q 'division by zero' "$work/stderr"
+done
+# Compile the exact agreed examples unchanged. Runtime copies change only the
+# fixed demonstration port so tests do not depend on port 8080 being available.
+for example in ordinary contextual; do
+    number=1
+    if [ "$example" = contextual ]; then number=3; fi
+    awk -v heading="### $number." '
+      index($0, heading) == 1 { section=1; next }
+      section && /^```panack$/ { code=1; next }
+      code && /^```$/ { exit }
+      code { print }
+    ' docs/design/routed-http-server/contract-snapshot.md > "$work/app/src/main.panack"
+    ./bin/panack compile --project "$work/app/panack.json" -o "$work/exact-$example.bc" > /dev/null
+    cp "$work/app/src/main.panack" "$work/exact.panack"
+    port=$("$http_client" port)
+    sed "s/(8080/($port/g" "$work/exact.panack" > "$work/app/src/main.panack"
+    ./bin/panack compile --project "$work/app/panack.json" -o "$work/example.bc" > /dev/null
+    for mode in source bytecode; do
+        if [ "$mode" = source ]; then
+            ./bin/panack run --project "$work/app/panack.json" > "$work/stdout" 2> "$work/stderr" &
+        else
+            ./bin/panack run "$work/example.bc" > "$work/stdout" 2> "$work/stderr" &
+        fi
+        server_pid=$!
+        "$http_client" "$port" "example-$example"
+        kill -TERM "$server_pid"
+        wait "$server_pid"
+        server_pid=
+        test ! -s "$work/stderr"
+    done
+done
+# A second listener controls shutdown of an admitted, body-waiting request.
+# Its response is sent only after the awaited operation releases the first server.
+cat > "$work/app/src/main.panack" <<'SOURCE'
+import http/server as http
+import stdlib/async_host as host
+async hold(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  response.send("must not run without the complete body")
+  Ok(())
+}
+async close(server: http.Server, request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  match await server.close() { Ok(done) => {}, Error(problem) => {} }
+  response.send("released")
+  Ok(())
+}
+async destroy(server: http.Server, request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  match await server.destroy() { Ok(done) => {}, Error(problem) => {} }
+  response.send("released")
+  Ok(())
+}
+async main(): Unit {
+  arguments = await host.arguments()
+  server = http.create_bound_server("127.0.0.1", arguments[0].parse_nat())
+  server.post("/hold", @hold)
+  control = http.create_bound_contextual_server("127.0.0.1", arguments[1].parse_nat(), server)
+  control.get("/close", @close)
+  control.get("/destroy", @destroy)
+  match await server.listen() { Ok(done) => (), Error(problem) => { await host.exit(1) } }
+  match await control.listen() { Ok(done) => (), Error(problem) => { await host.exit(1) } }
+}
+SOURCE
+./bin/panack compile --project "$work/app/panack.json" -o "$work/shutdown.bc" > /dev/null
+for operation in close destroy; do
+    port=$("$http_client" port)
+    control=$("$http_client" port)
+    ./bin/panack run "$work/shutdown.bc" "$port" "$control" > "$work/stdout" 2> "$work/stderr" &
+    server_pid=$!
+    "$http_client" "$port" "$operation" "$control"
+    kill -TERM "$server_pid"
+    wait "$server_pid"
+    server_pid=
+done
 cat > "$work/blocking-wrapper.panack" <<'SOURCE'
 import stdlib/http_runtime as runtime
 blocking(state: HttpResponseState): Unit {
@@ -74,203 +135,27 @@ if ./bin/panack check "$work/blocking-wrapper.panack" > "$work/rejected.stdout" 
 fi
 grep -q 'async function cannot call blocking function' "$work/rejected.stderr"
 
-./bin/panack check --project "$work/app/panack.json" > /dev/null
-./bin/panack compile --project "$work/app/panack.json" -o "$work/http-app.bc" > /dev/null
-test -s "$work/http-app.bc"
-./bin/panack check --project examples/network/http_server/panack.json > /dev/null
-./bin/panack compile --project examples/network/http_server/panack.json \
-    -o "$work/documented-example.bc" > /dev/null
-port=$("$http_client" port)
-sed "s/8080/$port/g" examples/network/http_server/src/main.panack > "$work/app/src/main.panack"
-./bin/panack check --project "$work/app/panack.json" > /dev/null
-./bin/panack compile --project "$work/app/panack.json" -o "$work/example.bc" > /dev/null
-for mode in source bytecode; do
-    if [ "$mode" = source ]; then
-        ./bin/panack run --project "$work/app/panack.json" > "$work/stdout" 2> "$work/stderr" &
-    else
-        ./bin/panack run "$work/example.bc" > "$work/stdout" 2> "$work/stderr" &
-    fi
-    server_pid=$!
-    "$http_client" "$port" example || { cat "$work/stderr"; exit 1; }
-    wait "$server_pid" || { cat "$work/stderr"; exit 1; }
-    server_pid=
-    test ! -s "$work/stdout" && test ! -s "$work/stderr"
-done
-
-cat > "$work/server.panack" <<'SOURCE'
+# Concrete context and async effect mismatches must fail through public imports.
+cat > "$work/app/src/main.panack" <<'SOURCE'
 import http/server as http
-
-async respond(request: http.Request): Result[http.Response,http.HttpError] {
-  if request.target == "/fail" {
-    Error(http.HttpError.InvalidRequest())
-  } else if request.target == "/invalid" {
-    Ok(http.Response(200, [http.Header("Content-Length", "3")], "ok".encode_utf8()))
-  } else if request.target == "/echo" {
-    Ok(http.Response(200, [], request.body))
-  } else {
-    Ok(http.Response(200, [], "ok".encode_utf8()))
-  }
-}
-
-pure expect(value: Bool): Unit {
-  checked = [0][if value { 0 } else { 1 }]
-  ()
-}
-
+async wrong(context: Str, request: http.Request, response: http.ResponseWriter): Result[Unit,Str] { Ok(()) }
 async main(): Unit {
-  // Framing assertions need headroom for the 64 KiB header scan on hosted VMs.
-  // Runtime deadline enforcement has separate native tests; this is not a
-  // three-second performance assertion. All waits remain bounded.
-  result = await http.serve("127.0.0.1", PORT, @respond,
-    http.ServerLimits(18, 2, 131072, 4096, 10000, 30000, 1000))
-  match result {
-    Error(problem) => expect(false),
-    Ok(reports) => expect(reports.len() == 18)
-  }
-  ()
+  server = http.create_contextual_server(8000, 42)
+  server.get("/", @wrong)
 }
 SOURCE
-port=$("$http_client" port)
-sed "s/PORT/$port/g" "$work/server.panack" > "$work/app/src/main.panack"
-./bin/panack check --project "$work/app/panack.json" > /dev/null
-./bin/panack compile --project "$work/app/panack.json" -o "$work/run.bc" > /dev/null
-for extension in panack bc; do
-    if [ "$extension" = panack ]; then
-        ./bin/panack run --project "$work/app/panack.json" > "$work/stdout" 2> "$work/stderr" &
-    else
-        ./bin/panack run "$work/run.bc" > "$work/stdout" 2> "$work/stderr" &
+if ./bin/panack check --project "$work/app/panack.json" > "$work/rejected.stdout" 2> "$work/rejected.stderr"; then
+    echo 'wrong HTTP context type was accepted' >&2; exit 1
+fi
+grep -q 'argument' "$work/rejected.stderr"
+for declaration in ServerLimits ConnectionContext ConnectionPolicy serialize_response serve; do
+    printf 'import http/server::{%s}\nmain(): Unit {}\n' "$declaration" > "$work/app/src/main.panack"
+    if ./bin/panack check --project "$work/app/panack.json" > "$work/rejected.stdout" 2> "$work/rejected.stderr"; then
+        echo "obsolete HTTP server export accepted: $declaration" >&2; exit 1
     fi
-    server_pid=$!
-    for mode in get post handler-error method malformed partial body-limit header-limit head head-body head-chunked head-error head-invalid-response head-malformed; do
-        "$http_client" "$port" "$mode" || {
-            printf 'HTTP package %s/%s failed\n' "$extension" "$mode" >&2
-            cat "$work/stderr" >&2
-            exit 1
-        }
-    done
-    "$http_client" "$port" concurrent || { cat "$work/stderr"; exit 1; }
-    "$http_client" "$port" disconnect || { cat "$work/stderr"; exit 1; }
-    "$http_client" "$port" get || { cat "$work/stderr"; exit 1; }
-    wait "$server_pid" || { cat "$work/stderr"; exit 1; }
-    server_pid=
-    test ! -s "$work/stdout" && test ! -s "$work/stderr"
 done
-
-cat > "$work/interop-server.panack" <<'SOURCE'
-import http/server as http
-
-pure expect(value: Bool): Unit {
-  checked = [0][if value { 0 } else { 1 }]
-  ()
-}
-
-async respond(request: http.Request): Result[http.Response,http.HttpError] {
-  Ok(http.Response(200,
-    [http.Header("Content-Type", "text/plain; charset=utf-8")],
-    "hello from Panackelty HTTP server\n".encode_utf8()))
-}
-
-async main(): Unit {
-  result = await http.serve("127.0.0.1", PORT, @respond,
-    http.ServerLimits(3, 1, 4096, 4096, 3000, 10000, 1000))
-  match result {
-    Error(problem) => expect(false),
-    Ok(reports) => expect(reports.len() == 3)
-  }
-  ()
-}
-SOURCE
-
-mkdir -p "$work/client/src"
-cat > "$work/client/panack.json" <<MANIFEST
-{"schema":1,"package":"tests.http_client_interop","version":"0.1.0","language":"modules-v1","toolchain":"$version","source":"src","entry":"main.panack","exports":{},"dependencies":{"http":{"path":"../../../packages/http"}}}
-MANIFEST
-cat > "$work/client/main.template" <<'SOURCE'
-import http/client as http
-
-pure expect(value: Bool): Unit {
-  checked = [0][if value { 0 } else { 1 }]
-  ()
-}
-
-async main(): Unit {
-  result = await http.get("http://127.0.0.1:PORT/")
-  match result {
-    Error(problem) => expect(false),
-    Ok(response) => {
-      expect(response.status == 200)
-      expect(response.body == "hello from Panackelty HTTP server\n".encode_utf8())
-      expect(response.headers[0].name == "Content-Type" &&
-        response.headers[0].value == "text/plain; charset=utf-8")
-    }
-  }
-  ()
-}
-SOURCE
-
-for server_mode in source bytecode; do
-    port=$("$http_client" port)
-    sed "s/PORT/$port/g" "$work/interop-server.panack" > "$work/app/src/main.panack"
-    sed "s/PORT/$port/g" "$work/client/main.template" > "$work/client/src/main.panack"
-    ./bin/panack check --project "$work/app/panack.json" > /dev/null
-    ./bin/panack compile --project "$work/app/panack.json" -o "$work/interop-server.bc" > /dev/null
-    ./bin/panack check --project "$work/client/panack.json" > /dev/null
-    ./bin/panack compile --project "$work/client/panack.json" -o "$work/interop-client.bc" > /dev/null
-    if [ "$server_mode" = source ]; then
-        ./bin/panack run --project "$work/app/panack.json" > "$work/server.stdout" 2> "$work/server.stderr" &
-    else
-        ./bin/panack run "$work/interop-server.bc" > "$work/server.stdout" 2> "$work/server.stderr" &
-    fi
-    server_pid=$!
-    "$http_client" "$port" example || { cat "$work/server.stderr"; exit 1; }
-    ./bin/panack run --project "$work/client/panack.json" > "$work/client.stdout" 2> "$work/client.stderr" || {
-        cat "$work/client.stderr" "$work/server.stderr"
-        exit 1
-    }
-    ./bin/panack run "$work/interop-client.bc" > "$work/client.stdout" 2> "$work/client.stderr" || {
-        cat "$work/client.stderr" "$work/server.stderr"
-        exit 1
-    }
-    wait "$server_pid" || { cat "$work/server.stderr"; exit 1; }
-    server_pid=
-    test ! -s "$work/server.stdout" && test ! -s "$work/server.stderr"
-    test ! -s "$work/client.stdout" && test ! -s "$work/client.stderr"
-done
-
-cat > "$work/conflict.panack" <<'SOURCE'
-import http/server as http
-async respond(request: http.Request): Result[http.Response,http.HttpError] {
-  Ok(http.Response(200, [], request.body))
-}
-pure expect(value: Bool): Unit {
-  checked = [0][if value { 0 } else { 1 }]
-  ()
-}
-async main(): Unit {
-  result = await http.serve("127.0.0.1", PORT, @respond,
-    http.ServerLimits(1, 1, 4096, 4096, 1000, 1000, 100))
-  match result {
-    Error(problem) => (),
-    Ok(reports) => expect(false)
-  }
-  ()
-}
-SOURCE
-"$http_client" reserve > "$work/held-port" &
-holder_pid=$!
-attempt=0
-while [ ! -s "$work/held-port" ] && [ "$attempt" -lt 100 ]; do
-    sleep 0.05
-    attempt=$((attempt + 1))
-done
-test -s "$work/held-port"
-port=$(cat "$work/held-port")
-sed "s/PORT/$port/g" "$work/conflict.panack" > "$work/app/src/main.panack"
-./bin/panack check --project "$work/app/panack.json" > /dev/null
-./bin/panack run --project "$work/app/panack.json" > "$work/stdout" 2> "$work/stderr"
-kill "$holder_pid"
-wait "$holder_pid" 2>/dev/null || :
-holder_pid=
-test ! -s "$work/stdout" && test ! -s "$work/stderr"
-
-printf '%s\n' 'HTTP package parser/serializer and C/P5-client server interoperability: ok'
+printf 'import http/service as old\nmain(): Unit {}\n' > "$work/app/src/main.panack"
+if ./bin/panack check --project "$work/app/panack.json" > "$work/rejected.stdout" 2> "$work/rejected.stderr"; then
+    echo 'obsolete HTTP service module accepted' >&2; exit 1
+fi
+printf '%s\n' 'Routed HTTP public package, lifecycle, protocol and limit contracts: ok'

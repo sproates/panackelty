@@ -59,6 +59,29 @@ installed=$PWD/$work/relocated\ installation/bin/panack-http-server
 "$installed" --version > "$work/version"
 printf 'panackelty-http-server 1\n' > "$work/expected"
 cmp "$work/version" "$work/expected"
+# Public application examples resolve only relocated installed packages, from an
+# unrelated working directory, in both source and saved-bytecode modes.
+installation=$PWD/$work/relocated\ installation
+mkdir -p "$installation/examples/network"
+for example in http_server http_contextual_server; do
+    cp -R "examples/network/$example" "$installation/examples/network/"
+    manifest=$installation/examples/network/$example/panack.json
+    "$installation/bin/panack" compile --project "$manifest" -o "$installation/$example.bc" > /dev/null
+    peer_mode=example
+    if [ "$example" = http_contextual_server ]; then peer_mode=example-contextual; fi
+    for mode in source bytecode; do
+        port=$("$port_client" port)
+        if [ "$mode" = source ]; then
+            (cd /tmp && exec "$installation/bin/panack" run --project "$manifest" "$port") > "$work/stdout" 2> "$work/stderr" &
+        else
+            (cd /tmp && exec "$installation/bin/panack" run "$installation/$example.bc" "$port") > "$work/stdout" 2> "$work/stderr" &
+        fi
+        server_pid=$!
+        "$port_client" "$port" "$peer_mode" || { cat "$work/stderr" >&2; exit 1; }
+        stop_server
+        test ! -s "$work/stderr"
+    done
+done
 for mode in source bytecode installed; do
     make_root
     port=$("$port_client" port)

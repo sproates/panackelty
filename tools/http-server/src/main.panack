@@ -59,11 +59,11 @@ pure configuration(arguments: [Str]): Result[service.Config, Str] {
   }
   if problem != "" { Error(problem) }
   else {
-    Ok(service.Config(root, address, port, service.ServiceLimits(4, 16384, 1048576, 10000, 1000), headers))
+    Ok(service.Config(root, address, port, 16384, 1048576, headers))
   }
 }
 
-async ready(endpoint: service.TcpServiceReady): Result[Unit, Str] {
+async ready(endpoint: service.Endpoint): Result[Unit, Str] {
   address = endpoint.address
   port = endpoint.port
   match await host.stdout("Serving http://${address}:${port}/") {

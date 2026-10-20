@@ -6,13 +6,13 @@ pure expect(value: Bool): Unit {
   ()
 }
 
-async unexpected_ready(endpoint: service.TcpServiceReady): Result[Unit,Str] {
+async unexpected_ready(endpoint: service.Endpoint): Result[Unit,Str] {
   Error("unexpected readiness")
 }
 
 async rejected_headers(headers: [service.Header]): Unit {
   configuration = service.Config(path.current(), "127.0.0.1", 0,
-    service.ServiceLimits(4, 16384, 1048576, 10000, 1000), headers)
+    16384, 1048576, headers)
   outcome = await service.serve(configuration, @unexpected_ready)
   expect(match outcome {
     Ok(summary) => false,
@@ -27,7 +27,7 @@ async main(): Unit {
   await rejected_headers([service.Header("Invalid Name", "value")])
   await rejected_headers([service.Header("X-Test", "value\r\nInjected: yes")])
   small = service.Config(path.current(), "127.0.0.1", 0,
-    service.ServiceLimits(4, 16384, 512, 10000, 1000), [])
+    16384, 512, [])
   expect(match await service.serve(small, @unexpected_ready) {
     Ok(summary) => false,
     Error(message) => message == "invalid headers or response budget"
@@ -36,7 +36,7 @@ async main(): Unit {
     Error(problem) => expect(false),
     Ok(root) => {
       invalid = service.Config(root, "127.0.0.1", 0,
-        service.ServiceLimits(4, 16384, 1048576, 10000, 1000), [])
+        16384, 1048576, [])
       expect(match await service.serve(invalid, @unexpected_ready) {
         Ok(summary) => false,
         Error(message) => message == "invalid document root: not_directory"

@@ -15,12 +15,13 @@ pure available(data: Bytes, cursor: Nat): Nat {
   if size >= cursor { ((size - cursor) / 1).nat() } else { 0 }
 }
 
-reject(connection: HttpConnectionState[Request,ResponseWriter], status: Nat, allow: Str): Unit {
+reject(connection: HttpConnectionState[Request,ResponseWriter], status: Nat, allow: Str, head_only: Bool): Unit {
   headers = if allow == "" { [] } else { [Header("Allow", allow)] }
   body = (reason_phrase(status) + "\n").encode_utf8()
   writer = runtime.connection_writer(connection)
   match routed_wire(status, headers, body) {
-    Ok(wire) => runtime.writer_commit(writer, wire),
+    Ok(wire) => runtime.writer_commit(writer,
+      if head_only { runtime.bytes_slice(wire, 0, available(wire, body.length())) } else { wire }),
     Error(problem) => runtime.writer_reject(writer)
   }
 }
@@ -151,8 +152,9 @@ pub async serve_connection(connection: HttpConnectionState[Request,ResponseWrite
       }
     }
   }
+  head_only = incoming.length() >= 5 && runtime.bytes_slice(incoming, 0, 5) == "HEAD ".encode_utf8()
   match head {
-    None() => reject(connection, failed.value_or(400), ""),
+    None() => reject(connection, failed.value_or(400), "", head_only),
     Some(parsed) => {
       view = from_transport(legacy.Request(parsed.method, parsed.target, parsed.headers, "".encode_utf8()))
       expectations = view.header_values("Expect")
@@ -180,7 +182,7 @@ pub async serve_connection(connection: HttpConnectionState[Request,ResponseWrite
       }
       if failed == None() && !runtime.connection_admit(connection) { failed = Some(503) }
       match failed {
-        Some(status) => reject(connection, status, allow),
+        Some(status) => reject(connection, status, allow, head_only),
         None() => {
           initial = runtime.bytes_slice(incoming, parsed.body_start, incoming.length())
           body = if parsed.chunked {
@@ -189,7 +191,7 @@ pub async serve_connection(connection: HttpConnectionState[Request,ResponseWrite
             await fixed_body(connection, initial, parsed.content_length.value_or(0), expect)
           }
           match body {
-            Error(status) => reject(connection, status, ""),
+            Error(status) => reject(connection, status, "", head_only),
             Ok(bytes) => {
               request = Request(view.method, view.path, view.query, view.headers, bytes)
               response = ResponseWriter(runtime.connection_writer(connection))

@@ -1,4 +1,4 @@
-import project/routed as http
+import project/server as http
 import stdlib/async_host as host
 
 async echo(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
@@ -19,6 +19,12 @@ async failure(request: http.Request, response: http.ResponseWriter): Result[Unit
 async trapped(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
   missing = [0][request.body.length() + 1]
   response.send("unreachable")
+  Ok(())
+}
+async arithmetic(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  denominator = request.body.length()
+  result = 1 / denominator
+  response.send("${result}")
   Ok(())
 }
 async sent_error(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
@@ -48,6 +54,7 @@ async main(): Unit {
   server.post("/size", @size)
   server.get("/failure", @failure)
   server.get("/trap", @trapped)
+  server.get("/arithmetic", @arithmetic)
   server.get("/sent-error", @sent_error)
   server.get("/missing-send", @missing_send)
   server.get("/exit", @leave)

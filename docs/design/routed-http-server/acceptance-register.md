@@ -1,6 +1,8 @@
 # Acceptance register
 
-These are test specifications, not results. Every row starts **Not run**. Packet
+The table defines required acceptance, not a blanket pass claim. Current evidence
+and remaining validation are recorded below; rows are not complete solely because
+a fixture exists. Packet
 reports must link actual test files, exact commands, source/bytecode mode and the
 validated revision. Do not replace assertions with log inspection. Run public
 examples from a manifest importing the package, not from private implementation
@@ -79,3 +81,42 @@ request saturation (four admitted handlers). Release held fixtures in cleanup
 on every failure. Ports should be selected/bound deterministically without
 assuming a fixed port is free. Keep raw two-phase Expect fixtures independently
 bounded so a missing interim response fails promptly and cannot hang the suite.
+
+## Integration evidence — 20 October 2026
+
+Foundation PR#548 and runtime PR#549 are merged into `next` (runtime merge
+`02d1878`). The runtime canonical `make check` passed in 629 seconds; compiler and
+stdlib seed fixed points passed. PR#549 passed all applicable exact-head CI checks
+at `f4933e3`. Its source-coverage inventory explicitly accounts for the new
+HTTP runtime adapter without claiming fresh coverage percentages.
+
+The public migration is under validation, with these focused results:
+
+- `tests/http_package.sh`: public source/bytecode framing, capacity, deadline,
+  recovery, negative exports and corrected contract examples passed. Arithmetic
+  division-by-zero recovery and later healthy requests passed. Early-Expect
+  rejection/no-interim cases, chunked overflow and active shutdown also passed
+  in the canonical run.
+- `tests/continuous_service.sh`: source/bytecode lifetime, SIGINT/SIGTERM and
+  startup-failure assertions passed with the routed public API.
+- `tests/static_http.sh`: static policy plus ordinary/contextual application
+  examples passed from source and bytecode against a relocated installation.
+- The focused active-shutdown probe passed: an admitted request awaits its body;
+  another listener awaits close/destroy and responds only after resource release.
+- Final `make check` passed in 509 seconds with the product tree unchanged,
+  including unit/functional suites, compiler and stdlib fixed points, relocated
+  release-archive examples and quick start. The 120-second aggregate and
+  15-second release-smoke budget warnings are historical comparisons, not
+  newly agreed performance gates (release smoke took 16 seconds).
+- Exact-head public-migration CI and the remaining row-by-row acceptance audit
+  are pending. Do not close GI#518 until those pass.
+
+Example errata are recorded in the contract snapshot: constructor patterns use
+`Ok(done)` and record construction uses `AppContext("Hello")`. These are existing
+syntax requirements, not new language features. Socket runs change only the fixed
+port; both corrected examples are also compiled without that substitution.
+
+Performance: runtime memory is bounded by accepted/admitted slots and byte caps;
+body assembly uses a native bounded buffer. Protocol tests exercise maximum-size
+bodies and real deadlines. This is correctness evidence, not a throughput or
+latency benchmark claim. The public-migration canonical run took 509 seconds.

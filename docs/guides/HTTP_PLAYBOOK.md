@@ -247,9 +247,22 @@ curl request in a second terminal:
 curl -i 'http://127.0.0.1:8081/health?probe=1'
 ```
 
-The response has status 200, headers `X-Service: preview` and `X-Query: probe=1`,
-and the body `OK: Hello`. A GET request to `/` returns `Hello`. Press Ctrl-C in
-the server terminal when you've finished.
+The curl request shows the response headers followed by the body:
+
+```http
+HTTP/1.1 200 OK
+X-Service: preview
+X-Query: probe=1
+Content-Type: text/plain; charset=utf-8
+Content-Length: 9
+Connection: close
+
+OK: Hello
+```
+
+`X-Service` comes from the application's context, while `X-Query` contains the
+query string from this request. A GET request to `/` returns `Hello`. Press
+Ctrl-C in the server terminal when you've finished.
 
 Here's the full program. To edit it, look for
 `examples/network/http_contextual_server/src/main.panack` in your release package:

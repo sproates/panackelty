@@ -1,7 +1,10 @@
 # HTTP server playbook
 
-Build a local server, try real requests, and then adapt the handlers to your application.
-The [API reference](../reference/http-server.md) lists signatures, return values and limits.
+This playbook walks through a working HTTP server, from sending your first
+request to sharing settings between handlers and shutting the server down.
+Each example includes the complete code, so you can read it here or try it with
+your alpha.14 release package. For individual methods and their options, see the
+[API reference](../reference/http-server.md).
 
 ## Your first server
 
@@ -108,64 +111,84 @@ async main(): Unit {
 }
 ```
 
-`import http/server as http` names the HTTP module. `@home` passes a named
-function as a handler; the server calls it when a matching request arrives.
-`response.send(...)` finishes the response. `Ok(())` reports successful handler
-completion: `()` is the Unit value, not the HTTP response body.
+The import lets us refer to the HTTP module as `http`. In `server.get("/", @home)`,
+`@home` tells the server which function to call when a GET request arrives at `/`.
+That function sends the response with `response.send(...)`, then returns `Ok(())`
+to report that it finished successfully. The `()` inside `Ok` is the Unit value;
+the response body is the text passed to `send`.
 
-Register the routes first, then `await server.listen()`. That call resolves once
-the listener is ready; it does not wait until the server stops. The active
-listener keeps the process alive after `main` returns.
+Once the routes are registered, `await server.listen()` starts the listener and
+returns when it's ready to accept connections. The server continues running
+after `main` finishes, so it can keep answering requests.
 
 ### The project manifest
 
-The existing file is `examples/network/http_server/panack.json`:
+The example also includes a `panack.json` file, which tells Panackelty where to
+find the program and its dependencies. Here's the manifest from
+`examples/network/http_server/panack.json`:
 
 ```json
 {"schema":1,"package":"examples.http_server","version":"0.1.0","language":"modules-v1","toolchain":"0.1.0-alpha.14","source":"src","entry":"main.panack","exports":{},"dependencies":{"http":{"path":"../../../packages/http"}}}
 ```
 
-`source` and `entry` locate the program. The `http` dependency resolves relative
-to this manifest to the release package's `packages/http` directory. If you move the
-project, update that relative dependency path. Copying just `main.panack` into
-an arbitrary directory is not sufficient to resolve the package import.
+Together, `source` and `entry` point to `src/main.panack`. The `http` dependency
+points to the HTTP package bundled with the release. Its path is relative to
+`panack.json`, so if you copy the example to another directory, copy the manifest
+too and update the dependency path to match the HTTP package's location.
 
 ## Handle requests and responses
 
-Start the ordinary program from the first guide. Its `/echo` handler receives
-`request.body` as bytes and sends the same bytes back:
+The first server includes an `/echo` route that sends back whatever you put in
+the request body. To try it, leave that server running and send this request
+from a second terminal:
 
 ```sh
 curl -i --data 'Hello, Ada' http://127.0.0.1:8080/echo
 ```
 
-Expect status `200 OK`, content type `application/octet-stream`, and body
-`Hello, Ada`. `send_bytes` preserves bytes; `send` accepts a `Str` and defaults
-to `text/plain; charset=utf-8`. Bodies are fully buffered, not streamed.
+You'll get a `200 OK` response with `Hello, Ada` as its body and
+`application/octet-stream` as its content type. The handler uses `send_bytes`
+to return the bytes unchanged. For text, use `send`, which takes a `Str` and
+uses `text/plain; charset=utf-8` unless you set another content type.
 
-The `/inspect` handler reads an optional header and the raw query string:
+The server holds each request and response body in memory in full. It doesn't
+stream the body in chunks.
+
+The `/inspect` route shows how to read a header and the query string. This
+request supplies an `X-Caller` header and puts `name=Ada` after the `?` in the URL:
 
 ```sh
 curl -i -H 'X-Caller: guide' 'http://127.0.0.1:8080/inspect?name=Ada'
 ```
 
-Expect status `200 OK`, header `X-Query: name=Ada`, and body `Caller: guide`.
-Without `X-Caller`, the body is `Caller: anonymous`. Header lookup is
-case-insensitive and returns `Option[Str]`, so the handler handles `Some` and
-`None`. `request.query` excludes the `?` and is not a decoded parameter map.
-For repeated request headers, `request.header_values(name)` returns all matches.
+The response has status `200 OK`, an `X-Query: name=Ada` header and the body
+`Caller: guide`. Leave out `X-Caller` and the body becomes `Caller: anonymous`.
 
-Set status and headers before calling `send` or `send_bytes`. Use
-`response.header(name, value)` to replace a header and `response.add_header(name,
-value)` to append one. Send exactly once. The server supplies `Content-Length`,
-`Transfer-Encoding` and `Connection`; applications must not set these framing
-headers. A handler that returns without sending produces a generic 500.
+A header may be missing, so `request.header(...)` returns `Option[Str]`. The
+handler uses `Some` for a supplied value and `None` for the default greeting.
+Header names aren't case-sensitive. If a request contains the same header more
+than once, use `request.header_values(name)` to get all its values.
+
+`request.query` contains the text after the `?`, without the `?` itself. It
+doesn't split that text into named parameters or decode escaped characters.
+
+Set the response status and headers before you call `send` or `send_bytes`.
+`response.header(name, value)` replaces any existing value for that header;
+`response.add_header(name, value)` adds another value without replacing it.
+
+Each handler must send one response. If it returns without sending anything,
+the server returns a generic 500 error. Leave `Content-Length`,
+`Transfer-Encoding` and `Connection` to the server; these headers control how
+the response is delivered and mustn't be set by your handler.
 
 ## Routes and fallbacks
 
-The ordinary program registers POST, PUT and DELETE on `/echo`. All three use
-the same byte-echo handler; this demonstrates dispatch, **not persistence or a
-resource store**. The HTTP verb does not automatically update or delete data.
+A route matches both an HTTP method and a path. In the first example, POST, PUT
+and DELETE requests to `/echo` all call the same handler, which sends back the
+request body. Using PUT or DELETE doesn't change any data by itself: your
+handler decides what each request does.
+
+With the first server running, try these requests in another terminal:
 
 ```sh
 curl -i -X PUT --data 'replacement' http://127.0.0.1:8080/echo
@@ -179,36 +202,43 @@ curl -i http://127.0.0.1:8080/echo
 - GET `/missing` invokes `not_found`, which sets 404 and sends `No route for /missing`.
 - GET `/echo` returns 405 and `Allow: POST, PUT, DELETE`. The path exists, but GET is not registered. The fallback is not called.
 
-A fallback is an application handler, so it must choose its own status; registering
-one does not automatically make its response a 404. Without a fallback, an unknown
-path receives the server's default 404. Unsupported methods such as PATCH receive
-405 and never enter a fallback.
+The fallback decides what to send when no route matches the path. In this
+example, `not_found` explicitly sets status 404. Registering a fallback doesn't
+set that status for you. If you don't register one, the server sends its own 404
+response for an unknown path. Unsupported methods, such as PATCH, receive 405
+without calling the fallback.
 
-Paths are exact and case-sensitive. `/echo/` differs from `/echo`. Query strings
-do not affect route selection; no wildcard or `:id` route parameters are supported.
-Registering the same method/path twice is a setup error reported by `listen()`.
+Paths must match exactly, including capitalisation and trailing slashes, so
+`/echo/` is a different path from `/echo`. The query string doesn't affect which
+route is chosen. Wildcards and parameters such as `:id` aren't supported.
+If you register the same method and path twice, `listen()` reports the error
+when you start the server.
 
 ## Share application configuration
 
-Use a contextual server when several handlers need application values. For
-example, a preview service needs a greeting and a service name. Put both in one
-record; one context argument can contain multiple settings.
+Handlers often need settings that belong to the application, such as a greeting
+or a service name. A contextual server lets you pass those settings to every
+handler. You can put several values in a record and pass that record as the
+context, so you aren't limited to one setting.
 
-The context is supplied by your application. The `Request` is supplied for each
-incoming request. Keeping these separate avoids relying on globals for configuration.
+The example below uses an `AppContext` record with a greeting and a service name.
+Each handler receives this context alongside the incoming request and the response
+writer. There's no need to store the settings in global variables.
 
-Run the complete example:
+To try the bundled example, start it with the following command, then run the
+curl request in a second terminal:
 
 ```sh
 ./bin/panack run --project examples/network/http_contextual_server/panack.json 8081
 curl -i 'http://127.0.0.1:8081/health?probe=1'
 ```
 
-Run curl in a second terminal. Expect status 200, `X-Service: preview`,
-`X-Query: probe=1`, and body `OK: Hello`. GET `/` returns `Hello`.
-Stop the server with Ctrl-C.
+The response has status 200, headers `X-Service: preview` and `X-Query: probe=1`,
+and the body `OK: Hello`. A GET request to `/` returns `Hello`. Press Ctrl-C in
+the server terminal when you've finished.
 
-The file is `examples/network/http_contextual_server/src/main.panack`:
+Here's the full program. To edit it, look for
+`examples/network/http_contextual_server/src/main.panack` in your release package:
 
 ```panack
 import http/server as http
@@ -251,37 +281,45 @@ async main(): Unit {
 }
 ```
 
-Its manifest, `examples/network/http_contextual_server/panack.json`:
+The accompanying manifest is shown below. It's included at
+`examples/network/http_contextual_server/panack.json`:
 
 ```json
 {"schema":1,"package":"examples.http_contextual_server","version":"0.1.0","language":"modules-v1","toolchain":"0.1.0-alpha.14","source":"src","entry":"main.panack","exports":{},"dependencies":{"http":{"path":"../../../packages/http"}}}
 ```
 
-Every registered handler receives `AppContext` first, then the request and
-response writer. The compiler infers the context type from the value passed to
-`create_bound_contextual_server`; all handlers on that server must accept it.
-The explicit address keeps this example on loopback. The shorter
-`create_contextual_server(port, context)` uses all local IPv4 interfaces.
+Every handler on this server takes `AppContext` as its first argument, followed
+by the request and response writer. The compiler works out the context type from
+the value passed to `create_bound_contextual_server` and checks that the handlers
+accept it.
 
-This example uses configuration values. It does not demonstrate a mutable shared
-store or a concurrent database pool; passing context alone does not establish a
-synchronization policy for those use cases.
+The address `127.0.0.1` keeps this example accessible only from the same machine.
+You can also use `create_contextual_server(port, context)`, which listens on all
+local IPv4 interfaces.
+
+These settings stay unchanged while the server runs. If you need handlers to
+update shared data or use a database connection pool, you'll also need to decide
+how concurrent access is managed. Passing a context doesn't handle that for you.
 
 ## Own the listener lifecycle
 
-For a normal service, keep the listener running and use Ctrl-C to stop it. For a
-test or an embedding application that owns the listener lifetime, explicitly
-await shutdown when its work is done:
+For the examples above, Ctrl-C is enough to stop the server. Sometimes your
+program needs to stop a server itself, perhaps because a test has finished or
+a larger application is shutting down. There are two methods for this:
 
-- `close()` stops accepting new work and allows active handlers and writes up to one second to finish, then cancels what remains.
-- `destroy()` cancels active work immediately. Use it when graceful draining is not appropriate.
-- Both are idempotent. A stopped handle cannot restart; create a new server instead.
+- `close()` stops accepting new work and gives running handlers and response writes up to one second to finish. It then cancels anything still running.
+- `destroy()` cancels active work immediately, without waiting for it to finish.
 
-Here is a complete lifecycle demonstration. It starts and immediately stops a
-server, as a test might do. It deliberately does not wait for browser requests.
-The final `destroy()` demonstrates an idempotent call after `close()`; ordinary
-applications normally choose one shutdown method.
+You can call either method again after the server has stopped. These repeated
+calls are safe, but they don't restart the server. To listen again, create a
+new server.
 
+The following program starts a server and immediately closes it, as you might
+do in a test. It won't stay running for you to visit in a browser. It also calls
+`destroy()` after `close()` to show that calling it on a stopped server is safe;
+in your own application, you'd normally choose one or the other.
+
+The full code is below. You'll also find it in the release package at
 `examples/network/http_server_lifecycle/src/main.panack`:
 
 ```panack
@@ -328,6 +366,7 @@ async main(): Unit {
 }
 ```
 
+Here's the accompanying manifest, included at
 `examples/network/http_server_lifecycle/panack.json`:
 
 ```json
@@ -352,24 +391,31 @@ async main(): Unit {
 ./bin/panack run --project examples/network/http_server_lifecycle/panack.json 8082
 ```
 
-Expected output, followed by process exit:
+The program prints these messages and then exits:
 
 ```text
 Server closed
 Server destroyed
 ```
 
-Use the same result-handling pattern with `await server.destroy()` instead of
-`close()` when immediate cancellation is required. The contextual server has
-the same lifecycle methods and return types. A failure to start or shut down
-returns `Error(ServerError)`; inspect its `message`, rather than matching exact
-error text.
+If you need to stop immediately, use `await server.destroy()` and handle its
+result in the same way as `close()`. Contextual servers use these same methods
+and return types.
+
+If starting or stopping the server fails, the result is `Error(ServerError)`.
+Use its `message` to explain the problem to the user, but don't make your
+program's behaviour depend on the exact wording of that message.
 
 ## Before building a larger service
 
-This first version has fixed limits: 16 open connections, 4 admitted requests,
-16 KiB request and response headers, 1 MiB request and response bodies, and a
-10-second accept-to-completion deadline. It closes each connection after one
-response. It has no TLS server, WebSocket, middleware, streaming responses or
-HTTP/2 support. See the [reference](../reference/http-server.md#fixed-limits)
-for errors and bounds before adapting these examples to production traffic.
+Before using these examples in a larger service, check that the server's limits
+fit what you need. It allows up to 16 open connections and handles up to four
+requests at a time. Request and response headers are limited to 16 KiB each,
+and request and response bodies to 1 MiB each.
+
+Each connection has ten seconds from being accepted to completing its response,
+and closes after that one response. The server doesn't yet support TLS,
+WebSocket, middleware, streaming responses or HTTP/2.
+
+The [reference](../reference/http-server.md#fixed-limits) explains these limits
+and the errors you'll receive when they're exceeded.

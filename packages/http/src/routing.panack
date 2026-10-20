@@ -1,0 +1,104 @@
+// Internal routing policy. Transport and callback ownership stay outside this module.
+pub record RouteKey {
+  method: Str,
+  path: Str
+}
+
+pub enum RouteDecision {
+  Handler(Nat),
+  Fallback,
+  NotFound,
+  MethodNotAllowed(Str)
+}
+
+pure hex_digit(byte: Nat): Bool {
+  (byte >= 48 && byte <= 57) || (byte >= 65 && byte <= 70) ||
+    (byte >= 97 && byte <= 102)
+}
+
+pure path_character(byte: Nat): Bool {
+  (byte >= 48 && byte <= 57) || (byte >= 65 && byte <= 90) ||
+    (byte >= 97 && byte <= 122) || byte == 45 || byte == 46 ||
+    byte == 95 || byte == 126 || byte == 33 || byte == 36 ||
+    byte == 38 || byte == 39 || byte == 40 || byte == 41 ||
+    byte == 42 || byte == 43 || byte == 44 || byte == 59 ||
+    byte == 61 || byte == 58 || byte == 64 || byte == 47
+}
+
+// Validate the entire reference, including ignored query and fragment components.
+// Matching retains raw path bytes: escapes, case, slashes and dot segments matter.
+pub pure route_path(reference: Str): Option[Str] {
+  data = reference.encode_utf8()
+  mut valid = data.length() > 0
+  if valid { valid = data.at(0) == 47 }
+  mut cursor: Nat = 0
+  mut path_end = data.length()
+  mut query = false
+  mut fragment = false
+  while cursor < data.length() && valid {
+    byte = data.at(cursor)
+    if byte == 37 {
+      if cursor + 2 >= data.length() {
+        valid = false
+      } else {
+        valid = hex_digit(data.at(cursor + 1)) && hex_digit(data.at(cursor + 2))
+        cursor = cursor + 2
+      }
+    } else if byte == 63 {
+      if !query && !fragment {
+        path_end = cursor
+        query = true
+      }
+    } else if byte == 35 {
+      if fragment {
+        valid = false
+      } else {
+        if !query { path_end = cursor }
+        fragment = true
+      }
+    } else if !path_character(byte) {
+      valid = false
+    }
+    cursor = cursor + 1
+  }
+  if valid { Some(reference.slice(0, path_end)) } else { None() }
+}
+
+pub pure supported_method(method: Str): Bool {
+  method == "GET" || method == "POST" || method == "PUT" || method == "DELETE"
+}
+
+pub pure dispatch(routes: [RouteKey], has_fallback: Bool, method: Str,
+    path: Str): RouteDecision {
+  mut selected: Option[Nat] = None()
+  mut path_found = false
+  mut allow = ""
+  for candidate in ["GET", "POST", "PUT", "DELETE"] {
+    mut found = false
+    mut index: Nat = 0
+    for route in routes {
+      if route.path == path && route.method == candidate {
+        path_found = true
+        found = true
+        if method == candidate { selected = Some(index) }
+      }
+      index = index + 1
+    }
+    if found {
+      if allow != "" { allow = allow + ", " }
+      allow = allow + candidate
+    }
+  }
+  match selected {
+    Some(index) => Handler(index),
+    None() => if path_found {
+      MethodNotAllowed(allow)
+    } else if !supported_method(method) {
+      MethodNotAllowed("GET, POST, PUT, DELETE")
+    } else if has_fallback {
+      Fallback()
+    } else {
+      NotFound()
+    }
+  }
+}

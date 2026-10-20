@@ -85,8 +85,11 @@ static Value *decimal_result(PnBigInt *coefficient, int exponent)
     return result;
 }
 
-Value *decimal_binary(uint8_t op, const Decimal *a, const Decimal *b, const char **error)
+Value *decimal_binary_classified(uint8_t op, const Decimal *a, const Decimal *b, const char **error, VMFaultKind *fault)
 {
+    if (fault) {
+        *fault = VM_FAULT_FATAL;
+    }
     PnBigInt left, right, result, q, r;
     int exponent;
     if (op == 0 || op == 1 || op == 4) {
@@ -104,6 +107,9 @@ Value *decimal_binary(uint8_t op, const Decimal *a, const Decimal *b, const char
         } else {
             if (pn_big_is_zero(&right)) {
                 *error = "VM trap: division by zero";
+                if (fault) {
+                    *fault = VM_FAULT_REQUEST;
+                }
                 goto fail_align;
             }
             if (!pn_big_divmod(&q, &r, &left, &right)) {
@@ -125,6 +131,9 @@ Value *decimal_binary(uint8_t op, const Decimal *a, const Decimal *b, const char
     if (op == 3) {
         if (pn_big_is_zero(&b->coefficient)) {
             *error = "VM trap: division by zero";
+            if (fault) {
+                *fault = VM_FAULT_REQUEST;
+            }
             return NULL;
         }
         PnBigInt gcd = {0}, den = {0}, num = {0};
@@ -178,6 +187,9 @@ Value *decimal_binary(uint8_t op, const Decimal *a, const Decimal *b, const char
             }
             pn_big_free(&probe);
             *error = "VM trap: non-terminating decimal division requires explicit rounding";
+            if (fault) {
+                *fault = VM_FAULT_REQUEST;
+            }
             pn_big_free(&num);
             pn_big_free(&den);
             return NULL;
@@ -271,12 +283,18 @@ int decimal_compare(const Decimal *a, const Decimal *b)
     return 0;
 }
 
-Value *value_rat(const PnBigInt *n, const PnBigInt *d, const char **error)
+Value *value_rat_classified(const PnBigInt *n, const PnBigInt *d, const char **error, VMFaultKind *fault)
 {
+    if (fault) {
+        *fault = VM_FAULT_FATAL;
+    }
     PnBigInt gcd = {0}, r = {0}, nn = {0}, dd = {0};
     Value *out = NULL;
     if (pn_big_is_zero(d)) {
         *error = "VM trap: division by zero";
+        if (fault) {
+            *fault = VM_FAULT_REQUEST;
+        }
         return NULL;
     }
     if (!big_gcd(&gcd, n, d)) {
@@ -313,8 +331,11 @@ static bool rational_operand(const Value *v)
     return v->kind == V_RAT || v->kind == V_NAT || v->kind == V_INT;
 }
 
-static Value *rational_binary(uint8_t op, const Value *a, const Value *b, const char **error)
+static Value *rational_binary(uint8_t op, const Value *a, const Value *b, const char **error, VMFaultKind *fault)
 {
+    if (fault) {
+        *fault = VM_FAULT_FATAL;
+    }
     PnBigInt one = {0}, left = {0}, right = {0}, n = {0}, d = {0};
     Value *out = NULL;
     if (!pn_big_from_u64(&one, 1)) {
@@ -350,7 +371,7 @@ static Value *rational_binary(uint8_t op, const Value *a, const Value *b, const 
         *error = "VM trap: Rat does not support remainder";
         goto done;
     }
-    out = value_rat(&n, &d, error);
+    out = value_rat_classified(&n, &d, error, fault);
 done:
     pn_big_free(&one);
     pn_big_free(&left);
@@ -386,11 +407,14 @@ static int compare_values(const Value *a, const Value *b)
     return 0;
 }
 
-Value *binary_value(uint8_t op, Value *a, Value *b, const char **error)
+Value *binary_value_classified(uint8_t op, Value *a, Value *b, const char **error, VMFaultKind *fault)
 {
+    if (fault) {
+        *fault = VM_FAULT_FATAL;
+    }
     if (op <= 10 && rational_operand(a) && rational_operand(b) &&
         (a->kind == V_RAT || b->kind == V_RAT || op == 3)) {
-        return rational_binary(op, a, b, error);
+        return rational_binary(op, a, b, error, fault);
     }
 
     if (op == 11 || op == 12) {
@@ -431,7 +455,7 @@ Value *binary_value(uint8_t op, Value *a, Value *b, const char **error)
         return v;
     }
     if (a->kind == V_DEC && b->kind == V_DEC) {
-        return decimal_binary(op, &a->as.decimal, &b->as.decimal, error);
+        return decimal_binary_classified(op, &a->as.decimal, &b->as.decimal, error, fault);
     }
     if ((a->kind == V_NAT || a->kind == V_INT) && (b->kind == V_NAT || b->kind == V_INT)) {
         PnBigInt result, q, r;
@@ -445,6 +469,9 @@ Value *binary_value(uint8_t op, Value *a, Value *b, const char **error)
         } else {
             if (pn_big_is_zero(&b->as.integer)) {
                 *error = "VM trap: division by zero";
+                if (fault) {
+                    *fault = VM_FAULT_REQUEST;
+                }
                 return NULL;
             }
             if (!pn_big_divmod(&q, &r, &a->as.integer, &b->as.integer)) {
@@ -474,6 +501,9 @@ Value *binary_value(uint8_t op, Value *a, Value *b, const char **error)
         if (kind == V_NAT && result.sign < 0) {
             pn_big_free(&result);
             *error = "VM trap: Nat underflow";
+            if (fault) {
+                *fault = VM_FAULT_REQUEST;
+            }
             return NULL;
         }
         Value *v = value_big(kind, &result);
@@ -482,4 +512,20 @@ Value *binary_value(uint8_t op, Value *a, Value *b, const char **error)
     }
     *error = "VM trap: incompatible binary operands";
     return NULL;
+}
+
+/* Existing numeric callers retain their diagnostic-only interface. */
+Value *binary_value(uint8_t op, Value *a, Value *b, const char **error)
+{
+    return binary_value_classified(op, a, b, error, NULL);
+}
+
+Value *decimal_binary(uint8_t op, const Decimal *a, const Decimal *b, const char **error)
+{
+    return decimal_binary_classified(op, a, b, error, NULL);
+}
+
+Value *value_rat(const PnBigInt *n, const PnBigInt *d, const char **error)
+{
+    return value_rat_classified(n, d, error, NULL);
 }

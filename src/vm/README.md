@@ -322,3 +322,19 @@ retained workers. Cancellation abandons delivery without waiting for host output
 Workers retain no VM/program pointers and suppress SIGPIPE without changing the
 process-wide signal disposition. See the
 [async host contract](../../docs/reference/SPEC.md#asynchronous-command-line-host-operations).
+
+## Request-fault classification foundation
+
+The internal VM context carries `fault_kind` separately from diagnostic text.
+Unknown faults, invalid operand types and allocation failures default to
+`VM_FAULT_FATAL`. Explicit checked numeric-domain failures, collection lookup
+failures and valid-type indexing/slicing failures set `VM_FAULT_REQUEST` at the
+failure site. Creating a new execution resets the category. Numeric classified
+entry points also reset it before work, so allocation failures cannot inherit an
+older recoverable category. The diagnostic-only numeric API remains available
+for existing consumers.
+
+This metadata does not catch traps or change standalone/TCP service behaviour.
+GI#518 will consume it only at an owned request boundary after cleanup and
+response-lifetime rules are implemented. No bytecode format or seed change is
+required for the metadata itself.

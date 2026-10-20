@@ -24,20 +24,19 @@ clarifications belong in the issue before implementation relies on them. Propose
 internal designs below cannot override its behaviour. Do not start implementation
 merely because this planning PR has merged; the owner selects the next packet.
 
-## Required owner approval before every merge
+## Integration permission and execution scope
 
-Owner instruction, 20 October 2026: every GI#518 implementation packet PR requires
-Ian's explicit approval for that specific PR before it may be merged, including
-PRs targeting `next`. This overrides any general standing permission to merge a
-green integration PR. Approval to implement a packet is not approval to merge it.
-Passing tests, green CI, earlier packet approvals and silence are not merge approval.
+Owner update, 20 October 2026: the programme-specific requirement to ask for
+approval before every GI#518 PR is withdrawn. Implementation may continue across
+packets. PRs targeting `next` may merge under standing permission only after
+self-review and all required checks pass for the exact current head. Do not enable
+auto-merge. Release promotion and publication remain separate decisions.
 
-Finish implementation, self-review, required validation and the acceptance report;
-then leave the PR open, report its exact head and ask Ian whether it may be merged.
-Do not enable auto-merge. If substantive changes follow approval, obtain fresh
-approval for the revised PR. Split packets require approval for each PR. Do not
-start a dependent packet that requires accepted integration while its prerequisite
-PR is awaiting approval. Independent work already authorised may continue.
+Use packets as acceptance checkpoints, not a requirement to manufacture fifteen
+PRs or repeatedly stop work. Routine implementation choices belong to the
+implementer; surface only new material changes to observable behaviour or language
+scope, with evidence and a recommendation. Questions from the owner do not pause
+ongoing work unless they explicitly change or stop it.
 
 ## Baseline
 
@@ -103,7 +102,7 @@ P08 7, P09 12, P10 10, P11 8, P12 6, P13 4, P14 4, P15 6.
 Stage completion is earned packet points divided by that stage's allocation.
 Do not count GI#525 or the previous HTTP implementation again.
 
-Use one packet per implementation request by default. P01 and P02 are mandatory
+The owner has authorised continuous implementation across packets. P01 and P02 are mandatory
 before committing to the runtime representation. Thereafter the dependency table
 in the packet document is authoritative; do not integrate a public facade that
 claims unsupported behaviour. Expected scale is roughly 15–20 implementation PRs,

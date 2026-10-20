@@ -37,6 +37,7 @@ Value *builtins_collections_call(VM *vm, const char *name, Value **a)
             return value_bool(false);
         }
         vm->error = "VM trap: map key was not found";
+        vm->fault_kind = VM_FAULT_REQUEST;
         return NULL;
     }
 

@@ -24,7 +24,8 @@ Owner-agreed general scope, 20 October 2026; all five releases remain unreleased
 See the [release direction and scope boundaries](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#agreed-release-direction--20-october-2026).
 
 - **alpha.14:** strengthen the foundations — methods, HTTP framework, package
-  management (product scope to settle), compiler understanding, coverage and
+  management (product scope to settle), compiler understanding, validated domain
+  types (string constraints, collection sizes and cross-field invariants), coverage and
   selected friction/performance improvements; existing detailed selections remain.
 - **alpha.15:** build useful programs — typed HTTP exchange, file discovery,
   subprocess examples, a tiny build tool and tested guides; a concrete

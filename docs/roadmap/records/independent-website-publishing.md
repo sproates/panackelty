@@ -83,6 +83,16 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
+- **GI#435 validated domain types (20 October 2026):** after the scope PR merges,
+  review the site's alpha.14/alpha.18 roadmap descriptions and related capability
+  summaries. Alpha.14 now selects string constraints, non-empty/bounded collections
+  and cross-field record invariants with explicit validation; alpha.18 remains
+  further expansion subject to design. Label these as planned, not released.
+  Core scope maintainer owns handover; website maintainer owns publication and
+  live verification, tracked alongside the existing release-direction entry.
+  Publication pending; existing numeric-guard release claims and pins stay valid.
+
+
 - **Alpha.15 validation-speed milestone (20 October 2026):** after the core
   roadmap PR merges, update the site's alpha.15 roadmap scope and review its
   homepage release summary and maintenance guidance for consistency. Describe

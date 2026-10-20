@@ -1353,3 +1353,11 @@ resumable tests distinguish checked arithmetic/index faults from invalid operand
 faults, check retained-value cleanup, and verify category reset between executions.
 These are foundation checks, not acceptance of the routed server, request recovery,
 readiness, bounded admission or shutdown; those remain under the GI#518 register.
+
+GI#518 internal routed-server coverage: `tests/unit/vm/http_state.c` checks shell
+ownership, aliasing, duplicate registration, expired writers, typed invocation and
+independent bytecode local-effect validation. `tests/http_package.sh` exercises the
+internal package source/bytecode fixtures and raw C peer modes for framing, Expect,
+handler errors/traps, first-send preservation, four-request/sixteen-connection caps,
+real ten-second deadlines, and lifecycle/port reuse. Public-package migration,
+installed routed examples, and the complete acceptance register remain pending.

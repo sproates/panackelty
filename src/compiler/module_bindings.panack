@@ -36,10 +36,10 @@ pub enum ModuleDeclarationKind {
 // Only this closed registry can introduce a built-in implementation owner.
 pub pure builtin_owner_arity(name: Str): Option[Nat] {
   if name == "Array" || name == "Set" { Some(1) }
-  else if name == "Map" { Some(2) }
+  else if name == "Map" || name == "HttpServerState" || name == "HttpConnectionState" { Some(2) }
   else if name == "Nat" || name == "Int" || name == "Dec" || name == "Rat" ||
       name == "Bool" || name == "Unit" || name == "Str" || name == "Bytes" ||
-      name == "Path" || name == "Duration" || name == "Instant" { Some(0) }
+      name == "Path" || name == "Duration" || name == "Instant" || name == "HttpResponseState" { Some(0) }
   else { None() }
 }
 
@@ -212,6 +212,7 @@ pub pure module_reserved_binding(name: Str): Bool {
     name == "Str" ||
     name == "Bytes" ||
     name == "Unit" ||
+    name == "HttpServerState" || name == "HttpConnectionState" || name == "HttpResponseState" ||
     name == "Void" || name == "Path" || name == "Duration" || name == "Instant" ||
     name == "Option" || name == "Result" || name == "Map" || name == "Set" ||
     name == "PureFn" || name == "Fn" || name == "AsyncFn" ||
@@ -391,6 +392,16 @@ pub pure module_declaration_display(binding: ModuleDeclarationBinding): Str {
 // A matching source filename in an application never grants primitive access.
 pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool {
   owner.module.package == ToolchainModulePackage() && (
+    (owner.module.path == "http_runtime.panack" && ((owner.name == "bytes_slice" && name == "http_bytes_slice") || (owner.name == "body" && name == "http_body") || (owner.name == "body_size" && name == "http_body_size") || (owner.name == "body_append" && name == "http_body_append") || (owner.name == "connection_continue" && name == "http_connection_continue"))) ||
+    (owner.module.path == "http_runtime.panack" && ((owner.name == "listen_ordinary" && name == "http_listen_ordinary") || (owner.name == "listen_contextual" && name == "http_listen_contextual") || (owner.name == "close" && name == "http_close") || (owner.name == "destroy" && name == "http_destroy"))) ||
+    (owner.module.path == "http_runtime.panack" && ((owner.name == "connection_writer" && name == "http_connection_writer") || (owner.name == "connection_routes" && name == "http_connection_routes") || (owner.name == "connection_fallback" && name == "http_connection_fallback") || (owner.name == "connection_admit" && name == "http_connection_admit") || (owner.name == "connection_invoke" && name == "http_connection_invoke"))) ||
+    (owner.module.path == "http_runtime.panack" && ((owner.name == "writer_get_status" && name == "http_writer_get_status") || (owner.name == "writer_get_headers" && name == "http_writer_get_headers") || (owner.name == "writer_reject" && name == "http_writer_reject") || (owner.name == "writer_status" && name == "http_writer_status") || (owner.name == "writer_headers" && name == "http_writer_headers") || (owner.name == "writer_commit" && name == "http_writer_commit"))) ||
+    (owner.module.path == "http_runtime.panack" && (
+      (owner.name == "create" && name == "http_state_create") ||
+      (owner.name == "context" && name == "http_state_context") ||
+      (owner.name == "setup_error" && name == "http_state_setup_error") ||
+      (owner.name == "invalid_route" && name == "http_state_fail_setup") ||
+      (owner.name == "register" && name == "http_state_register"))) ||
     (owner.module.path == "async_host.panack" && owner.name == "arguments" && (name == "host_arguments_async")) ||
     (owner.module.path == "async_host.panack" && owner.name == "stdout" && (name == "host_stdout_async")) ||
     (owner.module.path == "async_host.panack" && owner.name == "stderr" && (name == "host_stderr_async")) ||
@@ -461,6 +472,11 @@ pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool 
 
 pub pure module_internal_primitive_name(identity: ModuleIdentity, name: Str): Bool {
   identity.package == ToolchainModulePackage() && (
+    (identity.path == "http_runtime.panack" && (name == "http_bytes_slice" || name == "http_body" || name == "http_body_size" || name == "http_body_append" || name == "http_connection_continue")) ||
+    (identity.path == "http_runtime.panack" && (name == "http_listen_ordinary" || name == "http_listen_contextual" || name == "http_close" || name == "http_destroy")) ||
+    (identity.path == "http_runtime.panack" && (name == "http_connection_writer" || name == "http_connection_routes" || name == "http_connection_fallback" || name == "http_connection_admit" || name == "http_connection_invoke")) ||
+    (identity.path == "http_runtime.panack" && (name == "http_writer_get_status" || name == "http_writer_get_headers" || name == "http_writer_reject" || name == "http_writer_status" || name == "http_writer_headers" || name == "http_writer_commit")) ||
+    (identity.path == "http_runtime.panack" && (name == "http_state_create" || name == "http_state_context" || name == "http_state_setup_error" || name == "http_state_fail_setup" || name == "http_state_register")) ||
     (identity.path == "async_host.panack" && (name == "host_arguments_async" || name == "host_exit_async" || name == "host_stderr_async" || name == "host_stdout_async")) ||
     (identity.path == "time.panack" && (name == "duration_from_seconds" || name == "duration_nanoseconds" || name == "instant_now")) ||
     (identity.path == "process.panack" && (name == "process_run")) ||

@@ -1,7 +1,7 @@
 # Routed HTTP server implementation plan
 
-Status: implementation proposal and handoff, 20 October 2026. Product implementation
-has not started. This plan implements [GI#518](https://github.com/sproates/panackelty/issues/518)
+Status: implementation in progress, 20 October 2026. Foundation PR#548 is merged
+into `next`; typed handles, routed transport and lifecycle are under validation. This plan implements [GI#518](https://github.com/sproates/panackelty/issues/518)
 within [RM#156](../../roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-156).
 It does not reopen the completed low-level HTTP work or GI#525.
 

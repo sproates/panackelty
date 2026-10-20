@@ -1,10 +1,11 @@
-import project/types::{Header, HttpError.InvalidLimits, HttpError.InvalidRequest, HttpError.LimitExceeded,
+import project/types::{HttpError.InvalidLimits, HttpError.InvalidRequest, HttpError.LimitExceeded,
   HttpError.InvalidResponse, HttpError.ProtocolError, HttpError.UnsupportedMethod,
   HttpError.UnsupportedTransferEncoding, HttpError.UnsupportedVersion}
-pub import project/types::{HttpError, Request, Response}
+pub import project/types::{Header, HttpError, Request, Response}
+import stdlib/http_runtime as runtime
 import stdlib/bytes as byte_buffer
 
-record RequestHead {
+pub record RequestHead {
   method: Str,
   target: Str,
   headers: [Header],
@@ -36,7 +37,7 @@ pub pure http_header_limit(): Nat { 65536 }
 pure byte_length(data: Bytes): Nat { data.length() }
 pure byte_at(data: Bytes, index: Nat): Nat { data.at(index) }
 
-pure find_crlf(data: Bytes, start: Nat, limit: Nat): Option[Nat] {
+pub pure find_crlf(data: Bytes, start: Nat, limit: Nat): Option[Nat] {
   mut found: Option[Nat] = None()
   mut cursor = start
   while cursor + 1 < limit && found == None() {
@@ -64,13 +65,7 @@ pure find_header_end(data: Bytes): Option[Nat] {
 }
 
 pure copy_bytes(data: Bytes, start: Nat, end: Nat): Bytes {
-  mut output: Bytes = byte_buffer.empty()
-  mut cursor = start
-  while cursor < end {
-    output = output.push(byte_at(data, cursor))
-    cursor = cursor + 1
-  }
-  output
+  runtime.bytes_slice(data, start, end)
 }
 
 pure ascii_text(data: Bytes, start: Nat, end: Nat): Str {
@@ -120,7 +115,7 @@ pure trim_ows_end(data: Bytes, start: Nat, end: Nat): Nat {
   last_non_ows
 }
 
-pure parse_header(data: Bytes, start: Nat, end: Nat): Result[Header,HttpError] {
+pub pure parse_header(data: Bytes, start: Nat, end: Nat): Result[Header,HttpError] {
   if start >= end || byte_at(data, start) == 32 || byte_at(data, start) == 9 {
     Error(ProtocolError("invalid HTTP header line"))
   } else {
@@ -311,10 +306,10 @@ pure request_head(data: Bytes, header_end: Nat, body_limit: Nat): Result[Request
         }
         if failed != None() { match failed { Some(error) => Error(error), None() => Error(InvalidRequest()) } }
         else if host_count != 1 { Error(ProtocolError("HTTP/1.1 requires one Host header")) }
-        else if saw_transfer_encoding && !valid_transfer_encoding { Error(UnsupportedTransferEncoding()) }
         else if saw_transfer_encoding && content_length != None() {
           Error(ProtocolError("Transfer-Encoding conflicts with Content-Length"))
         }
+        else if saw_transfer_encoding && !valid_transfer_encoding { Error(UnsupportedTransferEncoding()) }
         else {
           Ok(RequestHead(method, target, headers, header_end + 4, content_length, saw_transfer_encoding))
         }
@@ -387,7 +382,7 @@ pure chunk_extensions_valid(data: Bytes, start: Nat, end: Nat): Bool {
   valid
 }
 
-pure parse_chunk_size(data: Bytes, start: Nat, end: Nat, remaining: Nat): Result[Nat,HttpError] {
+pub pure parse_chunk_size(data: Bytes, start: Nat, end: Nat, remaining: Nat): Result[Nat,HttpError] {
   mut digit_end = end
   mut cursor = start
   mut invalid = false
@@ -798,5 +793,14 @@ pub pure parse_response(data: Bytes, header_limit: Nat, body_limit: Nat): Result
         }
       }
     }}
+  }
+}
+
+
+pub pure parse_routed_head(data: Bytes): Result[Option[RequestHead],HttpError] {
+  match find_header_end(data) {
+    None() => if data.length() > 16384 { Error(LimitExceeded("request headers")) } else { Ok(None()) },
+    Some(end) => if end + 4 > 16384 { Error(LimitExceeded("request headers")) }
+      else { match request_head(data, end, 1048576) { Error(problem) => Error(problem), Ok(head) => Ok(Some(head)) } }
   }
 }

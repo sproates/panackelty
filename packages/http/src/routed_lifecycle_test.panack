@@ -1,0 +1,45 @@
+import project/routed as http
+import stdlib/async_host as host
+pure expect(value: Bool): Unit { checked = [0][if value { 0 } else { 1 }]; () }
+pure success(result: Result[Unit,http.ServerError]): Bool {
+  match result { Ok(done) => true, Error(problem) => false }
+}
+pure failure(result: Result[Unit,http.ServerError]): Bool {
+  match result { Ok(done) => false, Error(problem) => problem.message != "" }
+}
+async respond(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  response.send("ok")
+  Ok(())
+}
+async main(): Unit {
+  arguments = await host.arguments()
+  port = arguments[0].parse_nat()
+  invalid = http.create_server(0)
+  expect(failure(await invalid.listen()))
+  malformed = http.create_bound_server("127.00.0.1", port)
+  expect(failure(await malformed.listen()))
+  duplicate = http.create_bound_server("127.0.0.1", port)
+  duplicate.get("/", @respond)
+  duplicate.get("/?query", @respond)
+  expect(failure(await duplicate.listen()))
+  unused = http.create_bound_server("127.0.0.1", port)
+  expect(success(await unused.close()))
+  expect(success(await unused.close()))
+  expect(success(await unused.destroy()))
+  expect(success(await unused.destroy()))
+  expect(failure(await unused.listen()))
+  server = http.create_bound_server("127.0.0.1", port)
+  server.get("/", @respond)
+  expect(success(await server.listen()))
+  expect(failure(await server.listen()))
+  conflict = http.create_bound_server("127.0.0.1", port)
+  expect(failure(await conflict.listen()))
+  expect(success(await server.close()))
+  expect(success(await server.close()))
+  expect(failure(await server.listen()))
+  replacement = http.create_bound_server("127.0.0.1", port)
+  expect(success(await replacement.listen()))
+  expect(success(await replacement.destroy()))
+  expect(success(await replacement.destroy()))
+  expect(success(await replacement.close()))
+}

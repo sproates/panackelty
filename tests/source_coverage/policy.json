@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "P12 removes four wrapper-only modules and includes their four explicit service replacements in the eligible corpus. Coverage amounts remain informational.",
+    "reason": "GI518 adds the typed HTTP runtime adapter to the explicit unmeasured inventory; the bounded measured corpus is unchanged.",
     "basis": "All 31 fresh local sessions completed for a914d81 with the hashing repair. Reviewed all 410 exclusions against source declarations: 255 imports, 130 records and 25 enums; no executable declaration is excluded.",
-    "scopeChange": "Replace removed numeric/option/result/text files with compiler_files/compiler_paths/http_transport/testing_async. No surviving eligible file, execution root or executable declaration is excluded; no threshold is weakened. Exclusion evidence remains historical; this update does not claim fresh coverage measurements."
+    "scopeChange": "Account for src/stdlib/http_runtime.panack with its native and source/bytecode fixture evidence. No existing eligible file, execution root, exclusion or threshold changes; no fresh percentage measurement is claimed."
   },
-  "manifestHash": "a68043c1fcfc1d19794ec4da81d87409f4226263890088ea8faac19540701ea0",
+  "manifestHash": "fca63aa0f41107a8d11d5000f824909a19ed98475e49c75aace706daf72d7506",
   "exclusionHash": "773435167944b7750a18a232c06a2697356e8fb853efda5dfcf1a3acd8f10a7e"
 }

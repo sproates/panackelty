@@ -1,0 +1,60 @@
+import project/routed as http
+import stdlib/async_host as host
+
+async echo(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  response.header("X-Path", request.path)
+  response.send_bytes(request.body)
+  Ok(())
+}
+async size(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  count = request.body.length()
+  response.send("${count}")
+  Ok(())
+}
+async hello(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  response.send("hello")
+  Ok(())
+}
+async failure(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] { Error("handler diagnostic only") }
+async trapped(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  missing = [0][request.body.length() + 1]
+  response.send("unreachable")
+  Ok(())
+}
+async sent_error(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  response.send("first response")
+  Error("failure after send")
+}
+async missing_send(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] { Ok(()) }
+async leave(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  response.send("leaving")
+  await host.exit(7)
+  Ok(())
+}
+async stalled(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  while true {}
+  Ok(())
+}
+async sent_stalled(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  response.send("first response")
+  while true {}
+  Ok(())
+}
+async main(): Unit {
+  arguments = await host.arguments()
+  server = http.create_bound_server("127.0.0.1", arguments[0].parse_nat())
+  server.get("/hello", @hello)
+  server.post("/echo", @echo)
+  server.post("/size", @size)
+  server.get("/failure", @failure)
+  server.get("/trap", @trapped)
+  server.get("/sent-error", @sent_error)
+  server.get("/missing-send", @missing_send)
+  server.get("/exit", @leave)
+  server.get("/stall", @stalled)
+  server.get("/sent-stall", @sent_stalled)
+  match await server.listen() {
+    Ok(done) => { ignored = await host.stdout("READY\n"); () },
+    Error(problem) => { ignored = await host.stderr(problem.message); () }
+  }
+}

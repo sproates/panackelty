@@ -19,5 +19,9 @@ typedef struct {
 Value *builtin_call(VM *vm, const char *name, Value **arguments);
 const Builtin *builtin(const char *name);
 bool builtin_is_async(const Builtin *entry);
+/* Mutates an already-owned resource shell without accessing the host. */
+bool builtin_is_local_state(const Builtin *entry);
+VMHttpConnection *http_live_connection(VM *vm, Value *value);
+Function *http_connection_handler(VM *vm, Value **arguments, Value **call_arguments);
 
 #endif

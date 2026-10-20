@@ -1,0 +1,47 @@
+// Implementation bridge for the routed HTTP package; no general mutable cell.
+// T and H stay associated with the same unforgeable runtime state.
+pub create[T,H](address: Str, port: Nat, context: T): HttpServerState[T,H] {
+  http_state_create(address, port, context)
+}
+
+pub pure context[T,H](state: HttpServerState[T,H]): T { http_state_context(state) }
+
+pub setup_error[T,H](state: HttpServerState[T,H]): Option[Str] { http_state_setup_error(state) }
+
+pub invalid_route[T,H](state: HttpServerState[T,H]): Unit { http_state_fail_setup(state) }
+
+pub register[T,H](state: HttpServerState[T,H], method: Str, path: Str, handler: H): Unit {
+  http_state_register(state, method, path, handler)
+}
+
+pub writer_get_status(state: HttpResponseState): Nat { http_writer_get_status(state) }
+pub writer_get_headers(state: HttpResponseState): [[Str]] { http_writer_get_headers(state) }
+pub writer_reject(state: HttpResponseState): Unit { http_writer_reject(state) }
+pub writer_status(state: HttpResponseState, status: Nat): Unit { http_writer_status(state, status) }
+pub writer_headers(state: HttpResponseState, headers: [[Str]]): Unit { http_writer_headers(state, headers) }
+pub writer_commit(state: HttpResponseState, wire: Bytes): Unit { http_writer_commit(state, wire) }
+
+pub connection_writer[R,W](connection: HttpConnectionState[R,W]): HttpResponseState { http_connection_writer(connection) }
+pub connection_routes[R,W](connection: HttpConnectionState[R,W]): [[Str]] { http_connection_routes(connection) }
+pub connection_fallback[R,W](connection: HttpConnectionState[R,W]): Bool { http_connection_fallback(connection) }
+pub connection_admit[R,W](connection: HttpConnectionState[R,W]): Bool { http_connection_admit(connection) }
+pub async connection_invoke[R,W](connection: HttpConnectionState[R,W], route: Option[Nat], request: R, writer: W): Result[Unit,Str] {
+  await http_connection_invoke(connection, route, request, writer)
+}
+
+pub async listen_ordinary[R,W](state: HttpServerState[Unit,AsyncFn[R,W,Result[Unit,Str]]], worker: AsyncFn[HttpConnectionState[R,W],Result[Unit,Str]]): Result[Unit,Str] {
+  await http_listen_ordinary(state, worker)
+}
+pub async listen_contextual[T,R,W](state: HttpServerState[T,AsyncFn[T,R,W,Result[Unit,Str]]], worker: AsyncFn[HttpConnectionState[R,W],Result[Unit,Str]]): Result[Unit,Str] {
+  await http_listen_contextual(state, worker)
+}
+pub async close[T,H](state: HttpServerState[T,H]): Result[Unit,Str] { await http_close(state) }
+pub async destroy[T,H](state: HttpServerState[T,H]): Result[Unit,Str] { await http_destroy(state) }
+
+pub pure bytes_slice(data: Bytes, start: Nat, end: Nat): Bytes { http_bytes_slice(data, start, end) }
+pub body[R,W](connection: HttpConnectionState[R,W]): Bytes { http_body(connection) }
+pub body_size[R,W](connection: HttpConnectionState[R,W]): Nat { http_body_size(connection) }
+pub body_append[R,W](connection: HttpConnectionState[R,W], data: Bytes, start: Nat, end: Nat): Bool { http_body_append(connection, data, start, end) }
+pub async connection_continue[R,W](connection: HttpConnectionState[R,W]): Result[Unit,Str] {
+  match await http_connection_continue(connection) { Ok(done) => Ok(()), Error(problem) => Error(problem) }
+}

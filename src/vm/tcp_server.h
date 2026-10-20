@@ -33,6 +33,8 @@ void tcp_server_poll(VMTcpServer *server, unsigned max_wait_ms);
 /* At most budget bytecode instructions, round robin; no blocking socket calls. */
 void tcp_server_advance(VMTcpServer *server, size_t budget);
 void tcp_server_stop(VMTcpServer *server);
+bool tcp_server_http_continue(VM *vm, Value *token);
+VMTcpServer *tcp_server_start_http(const VM *vm, Function *worker, Value *handle, bool outbound);
 /* Grant before pumping; children inherit only this explicit filesystem grant. */
 void tcp_server_enable_filesystem(VMTcpServer *server);
 /* Console access is separate from filesystem and outbound network grants. */

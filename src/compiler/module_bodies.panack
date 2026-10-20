@@ -1856,7 +1856,7 @@ pure body_call_with_receiver(
 pure body_special_core_call(target: BodyTarget): Bool {
   match target {
     BodyDeclaration(binding) => binding.intrinsic != None(),
-    BodyCore(name) => name == "read_line" || name == "write_file" || name == "$unit" || name == "$intrinsic_call" || name == "len" || name == "$intrinsic_map" ||
+    BodyCore(name) => name == "http_bytes_slice" || name == "http_body" || name == "http_body_size" || name == "http_body_append" || name == "http_connection_continue" || name == "http_listen_ordinary" || name == "http_listen_contextual" || name == "http_close" || name == "http_destroy" || name == "http_connection_writer" || name == "http_connection_routes" || name == "http_connection_fallback" || name == "http_connection_admit" || name == "http_connection_invoke" || name == "http_writer_get_status" || name == "http_writer_get_headers" || name == "http_writer_reject" || name == "http_writer_status" || name == "http_writer_headers" || name == "http_writer_commit" || name == "http_state_create" || name == "http_state_context" || name == "http_state_setup_error" || name == "http_state_fail_setup" || name == "http_state_register" || name == "read_line" || name == "write_file" || name == "$unit" || name == "$intrinsic_call" || name == "len" || name == "$intrinsic_map" ||
       name == "$intrinsic_reduce" ||
         name == "map_put" ||
       name == "map_get" || name == "map_has" || name == "set_add" ||
@@ -2103,6 +2103,214 @@ pure body_tcp_legacy_expected_argument(
       }
     }
   }}
+}
+
+pure body_check_http_buffer_core_call(
+  context: BodyContext, name: Str, children: [BoundBody], span: SourceSpan,
+  initial_diagnostics: [Diagnostic], initial_deferred: [SourceSpan]
+): BodyResult {
+  count: Nat = if name == "http_bytes_slice" { 3 } else { if name == "http_body_append" { 4 } else { 1 } }
+  if children.len() != count { body_failure("invalid HTTP buffer argument count", span) }
+  else {
+    bytes = SignatureType(SignatureCore("Bytes"), [])
+    nat = SignatureType(SignatureCore("Nat"), [])
+    mut inputs: [SignatureType] = []
+    mut output = bytes
+    mut diagnostics = initial_diagnostics
+    mut deferred = initial_deferred
+    if name == "http_bytes_slice" { inputs = [bytes, nat, nat] }
+    else {
+      state = body_tcp_stream_context_type(context, children[0])
+      if state.identity != SignatureCore("HttpConnectionState") || state.arguments.len() != 2 {
+        diagnostics = diagnostics.append(Diagnostic("expected a typed HTTP connection state", span.start))
+      }
+      inputs = [state]
+      if name == "http_body_append" {
+        inputs = [state, bytes, nat, nat]
+        output = SignatureType(SignatureCore("Bool"), [])
+      } else if name == "http_body_size" { output = nat }
+    }
+    mut index: Nat = 0
+    for expected in inputs {
+      checked = body_require_value(context, children[index], expected, "argument to " + name)
+      diagnostics = diagnostics.concat(checked.diagnostics)
+      deferred = deferred.concat(checked.deferred)
+      index = index + 1
+    }
+    BodyResult(BoundBody(BodyCall(BodyCore(name), [], []), span, children,
+      if diagnostics.len() == 0 && deferred.len() == 0 { Some(output) } else { None() },
+      [], [], [], [], [], body_call_arity_evidence(context, "core", span, Some(count), children.len())),
+      diagnostics, deferred)
+  }
+}
+
+pure body_check_http_lifecycle_core_call(
+  context: BodyContext, name: Str, children: [BoundBody], span: SourceSpan,
+  initial_diagnostics: [Diagnostic], initial_deferred: [SourceSpan]
+): BodyResult {
+  listening = name == "http_listen_ordinary" || name == "http_listen_contextual"
+  count: Nat = if listening { 2 } else { 1 }
+  output = body_intrinsic_result(SignatureType(SignatureCore("Unit"), []), SignatureType(SignatureCore("Str"), []))
+  if children.len() != count { body_failure("invalid HTTP lifecycle argument count", span) }
+  else {
+    state = body_tcp_stream_context_type(context, children[0])
+    if state.identity != SignatureCore("HttpServerState") || state.arguments.len() != 2 {
+      body_failure("expected a typed HTTP server state", span)
+    } else {
+      mut inputs = [state]
+      mut diagnostics = initial_diagnostics
+      mut deferred = initial_deferred
+      if listening {
+        contextual = name == "http_listen_contextual"
+        handler = state.arguments[1]
+        offset: Nat = if contextual { 1 } else { 0 }
+        if handler.identity != SignatureCallable(SignatureAsync()) || handler.arguments.len() != offset + 3 {
+          diagnostics = diagnostics.append(Diagnostic("invalid HTTP handler signature", span.start))
+        } else {
+          request = handler.arguments[offset]
+          writer = handler.arguments[offset + 1]
+          expected_handler = SignatureType(SignatureCallable(SignatureAsync()),
+            if contextual { [state.arguments[0], request, writer, output] } else { [request, writer, output] })
+          expected_state = SignatureType(SignatureCore("HttpServerState"),
+            [if contextual { state.arguments[0] } else { SignatureType(SignatureCore("Unit"), []) }, expected_handler])
+          worker = SignatureType(SignatureCallable(SignatureAsync()), [SignatureType(SignatureCore("HttpConnectionState"), [request, writer]), output])
+          inputs = [expected_state, worker]
+        }
+      }
+      mut index: Nat = 0
+      for expected in inputs {
+        checked = body_require_value(context, children[index], expected, "argument to " + name)
+        diagnostics = diagnostics.concat(checked.diagnostics)
+        deferred = deferred.concat(checked.deferred)
+        index = index + 1
+      }
+      BodyResult(BoundBody(BodyCall(BodyCore(name), [], []), span, children,
+        if diagnostics.len() == 0 && deferred.len() == 0 { Some(output) } else { None() },
+        [], [], [], [], [], body_call_arity_evidence(context, "core", span, Some(count), children.len())),
+        diagnostics, deferred)
+    }
+  }
+}
+
+pure body_check_http_connection_core_call(
+  context: BodyContext, name: Str, children: [BoundBody], span: SourceSpan,
+  initial_diagnostics: [Diagnostic], initial_deferred: [SourceSpan]
+): BodyResult {
+  count: Nat = if name == "http_connection_invoke" { 4 } else { 1 }
+  if children.len() != count { body_failure("invalid HTTP connection argument count", span) }
+  else {
+    state = body_tcp_stream_context_type(context, children[0])
+    if state.identity != SignatureCore("HttpConnectionState") || state.arguments.len() != 2 {
+      body_failure("expected a typed HTTP connection state", span)
+    } else {
+      mut inputs = [state]
+      mut output = SignatureType(SignatureCore("Bool"), [])
+      if name == "http_connection_invoke" {
+        inputs = [state, SignatureType(SignatureCore("Option"), [SignatureType(SignatureCore("Nat"), [])]), state.arguments[0], state.arguments[1]]
+        output = body_intrinsic_result(SignatureType(SignatureCore("Unit"), []), SignatureType(SignatureCore("Str"), []))
+      } else if name == "http_connection_continue" {
+        output = body_tcp_bytes_result_type()
+      } else if name == "http_connection_writer" {
+        output = SignatureType(SignatureCore("HttpResponseState"), [])
+      } else if name == "http_connection_routes" {
+        output = SignatureType(SignatureCore("Array"), [SignatureType(SignatureCore("Array"), [SignatureType(SignatureCore("Str"), [])])])
+      }
+      mut diagnostics = initial_diagnostics
+      mut deferred = initial_deferred
+      mut index: Nat = 0
+      for expected in inputs {
+        checked = body_require_value(context, children[index], expected, "argument to " + name)
+        diagnostics = diagnostics.concat(checked.diagnostics)
+        deferred = deferred.concat(checked.deferred)
+        index = index + 1
+      }
+      BodyResult(BoundBody(BodyCall(BodyCore(name), [], []), span, children,
+        if diagnostics.len() == 0 && deferred.len() == 0 { Some(output) } else { None() },
+        [], [], [], [], [], body_call_arity_evidence(context, "core", span, Some(count), children.len())),
+        diagnostics, deferred)
+    }
+  }
+}
+
+pure body_check_http_writer_core_call(
+  context: BodyContext, name: Str, children: [BoundBody], span: SourceSpan,
+  initial_diagnostics: [Diagnostic], initial_deferred: [SourceSpan]
+): BodyResult {
+  headers = SignatureType(SignatureCore("Array"), [SignatureType(SignatureCore("Array"), [SignatureType(SignatureCore("Str"), [])])])
+  mut inputs = [SignatureType(SignatureCore("HttpResponseState"), [])]
+  mut output = SignatureType(SignatureCore("Unit"), [])
+  if name == "http_writer_status" { inputs = inputs.append(SignatureType(SignatureCore("Nat"), [])) }
+  else if name == "http_writer_headers" { inputs = inputs.append(headers) }
+  else if name == "http_writer_commit" { inputs = inputs.append(SignatureType(SignatureCore("Bytes"), [])) }
+  else if name == "http_writer_get_status" { output = SignatureType(SignatureCore("Nat"), []) }
+  else if name == "http_writer_get_headers" { output = headers }
+  if children.len() != inputs.len() { body_failure("invalid HTTP writer argument count", span) }
+  else {
+    mut diagnostics = initial_diagnostics
+    mut deferred = initial_deferred
+    mut index: Nat = 0
+    for expected in inputs {
+      checked = body_require_value(context, children[index], expected, "argument to " + name)
+      diagnostics = diagnostics.concat(checked.diagnostics)
+      deferred = deferred.concat(checked.deferred)
+      index = index + 1
+    }
+    BodyResult(BoundBody(BodyCall(BodyCore(name), [], []), span, children,
+      if diagnostics.len() == 0 && deferred.len() == 0 { Some(output) } else { None() },
+      [], [], [], [], [], body_call_arity_evidence(context, "core", span, Some(inputs.len()), children.len())),
+      diagnostics, deferred)
+  }
+}
+
+pure body_check_http_state_core_call(
+  context: BodyContext,
+  name: Str,
+  children: [BoundBody],
+  span: SourceSpan,
+  initial_diagnostics: [Diagnostic],
+  initial_deferred: [SourceSpan]
+): BodyResult {
+  count: Nat = if name == "http_state_create" { 3 } else { if name == "http_state_register" { 4 } else { 1 } }
+  if children.len() != count {
+    body_failure(name + " expects ${count} arguments", span)
+  } else {
+    mut inputs: [SignatureType] = []
+    mut output = SignatureType(SignatureCore("Unit"), [])
+    mut diagnostics = initial_diagnostics
+    mut deferred = initial_deferred
+    if name == "http_state_create" {
+      context_type = body_tcp_stream_context_type(context, children[2])
+      // The primitive is granted only to http_runtime.create[T,H].
+      handler_type = SignatureType(SignatureParameter(context.owner, 1), [])
+      inputs = [SignatureType(SignatureCore("Str"), []), SignatureType(SignatureCore("Nat"), []), context_type]
+      output = SignatureType(SignatureCore("HttpServerState"), [context_type, handler_type])
+    } else {
+      state = body_tcp_stream_context_type(context, children[0])
+      if state.identity != SignatureCore("HttpServerState") || state.arguments.len() != 2 {
+        diagnostics = diagnostics.append(Diagnostic("expected a typed HTTP server state", span.start))
+      } else {
+        inputs = [state]
+        if name == "http_state_register" {
+          inputs = [state, SignatureType(SignatureCore("Str"), []), SignatureType(SignatureCore("Str"), []), state.arguments[1]]
+        } else if name == "http_state_context" {
+          output = state.arguments[0]
+        } else if name == "http_state_setup_error" {
+          output = SignatureType(SignatureCore("Option"), [SignatureType(SignatureCore("Str"), [])])
+        }
+      }
+    }
+    mut index: Nat = 0
+    for expected in inputs {
+      checked = body_require_value(context, children[index], expected, "argument to " + name)
+      diagnostics = diagnostics.concat(checked.diagnostics)
+      deferred = deferred.concat(checked.deferred)
+      index = index + 1
+    }
+    BodyResult(BoundBody(BodyCall(BodyCore(name), [], []), span, children,
+      if diagnostics.len() == 0 && deferred.len() == 0 { Some(output) } else { None() },
+      [], [], [], [], [], body_call_arity_evidence(context, "core", span, Some(count), children.len())),
+      diagnostics, deferred)
+  }
 }
 
 pure body_check_tcp_core_call(
@@ -3105,7 +3313,17 @@ pure body_check_special_core_call(
       )
     }
   } else {
-  if name == "async_fake_read" || name == "tcp_exchange" || name == "http_transport_exchange" || name == "tcp_serve" ||
+  if name == "http_bytes_slice" || name == "http_body" || name == "http_body_size" || name == "http_body_append" {
+    body_check_http_buffer_core_call(context, name, children, span, initial_diagnostics, initial_deferred)
+  } else if name == "http_listen_ordinary" || name == "http_listen_contextual" || name == "http_close" || name == "http_destroy" {
+    body_check_http_lifecycle_core_call(context, name, children, span, initial_diagnostics, initial_deferred)
+  } else if name == "http_connection_continue" || name == "http_connection_writer" || name == "http_connection_routes" || name == "http_connection_fallback" || name == "http_connection_admit" || name == "http_connection_invoke" {
+    body_check_http_connection_core_call(context, name, children, span, initial_diagnostics, initial_deferred)
+  } else if name == "http_writer_get_status" || name == "http_writer_get_headers" || name == "http_writer_reject" || name == "http_writer_status" || name == "http_writer_headers" || name == "http_writer_commit" {
+    body_check_http_writer_core_call(context, name, children, span, initial_diagnostics, initial_deferred)
+  } else if name == "http_state_create" || name == "http_state_context" || name == "http_state_setup_error" || name == "http_state_fail_setup" || name == "http_state_register" {
+    body_check_http_state_core_call(context, name, children, span, initial_diagnostics, initial_deferred)
+  } else if name == "async_fake_read" || name == "tcp_exchange" || name == "http_transport_exchange" || name == "tcp_serve" ||
     name == "tcp_service" || name == "tcp_serve_stream" || name == "tcp_server_read_chunk" {
     if types.len() > 0 {
       body_failure("explicit type arguments require a generic function", type_argument_span)

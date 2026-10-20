@@ -84,6 +84,71 @@ run_clean run hello.panack alpha beta >source.stdout 2>source.stderr || \
 cmp source.expected source.stdout || fail "source output differs"
 test ! -s source.stderr || fail "source execution wrote unexpected stderr"
 
+cat >fruit.panack <<'EOF'
+record Fruit { value: Nat }
+impl Fruit {
+  pure apple(): Nat { self.value }
+  pure banana(): Nat { self.value + 1 }
+}
+main(): Void {
+  first = Fruit(10)
+  second = Fruit(20)
+  print(first.apple())
+  print(first.banana())
+  print(second.apple())
+  print(second.banana())
+}
+EOF
+printf '10\n11\n20\n21\n' >fruit.expected
+run_clean run fruit.panack >fruit.stdout
+cmp fruit.expected fruit.stdout || fail "original Fruit output differs"
+run_clean compile fruit.panack -o fruit.bc >/dev/null
+rm fruit.panack
+run_clean run fruit.bc >fruit.stdout
+cmp fruit.expected fruit.stdout || fail "original Fruit saved-bytecode output differs"
+
+# Exercise owned dispatch through the relocated installed toolchain, including
+# project manifests and saved bytecode after the copied sources are removed.
+for fixture in owned_method_dispatch owned_imports owned_generic_methods owned_intrinsics \
+    owned_callbacks owned_async_handlers owned_core_methods owned_server_map \
+    owned_server_map_alias owned_server_map_facade owned_server_map_identity owned_server_map_namespace; do
+  cp -R "$root/tests/functional/cases/$fixture" "$workspace/$fixture"
+done
+for fixture in owned_method_dispatch owned_imports owned_generic_methods owned_intrinsics \
+    owned_callbacks owned_async_handlers owned_core_methods owned_server_map \
+    owned_server_map_alias owned_server_map_facade owned_server_map_identity owned_server_map_namespace; do
+  directory="$workspace/$fixture"
+  if [ -f "$directory/panack.json" ]; then
+    run_clean run --project "$directory/panack.json" >owned.stdout
+    run_clean compile --project "$directory/panack.json" -o "$workspace/$fixture.bc" >/dev/null
+  else
+    source="$directory/main.panack"
+    if [ -f "$directory/source.path" ]; then
+      original=$(cat "$directory/source.path")
+      source="$workspace/${original#tests/functional/cases/}"
+    fi
+    run_clean run "$source" >owned.stdout
+    run_clean compile "$source" -o "$workspace/$fixture.bc" >/dev/null
+  fi
+  cmp "$directory/expected.stdout" owned.stdout || fail "$fixture source output differs"
+  cp "$directory/expected.stdout" "$workspace/$fixture.expected"
+done
+for fixture in owned_method_dispatch owned_imports owned_generic_methods owned_intrinsics \
+    owned_callbacks owned_async_handlers owned_core_methods owned_server_map \
+    owned_server_map_alias owned_server_map_facade owned_server_map_identity owned_server_map_namespace; do
+  rm -rf "$workspace/$fixture"
+done
+for expected in "$workspace"/owned_*.expected; do
+  run_clean run "${expected%.expected}.bc" >owned.stdout
+  cmp "$expected" owned.stdout || fail "owned saved-bytecode output differs"
+done
+printf 'main(): Void { print("abc"->len()) }\n' >obsolete-arrow.panack
+if run_clean check obsolete-arrow.panack >owned.stdout 2>owned.stderr; then
+  fail "obsolete arrow accepted"
+fi
+grep -F 'arrow receiver calls are not supported' owned.stderr >/dev/null || \
+  fail "arrow migration diagnostic missing"
+
 printf 'wrote hello.bc\n' >compile.expected
 run_clean compile hello.panack -o hello.bc >compile.stdout 2>compile.stderr || \
   fail "compilation failed"

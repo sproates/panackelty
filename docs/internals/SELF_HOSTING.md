@@ -71,7 +71,9 @@ public rejection coverage. All project acceptance uses checked identities.
 that accepts both owned dots and arrows before maintained callers convert in P14.
 [P14](../design/type-owned-dispatch/p14-dot-cutover.md) converts maintained sources
 and generators to dots, removes arrow-call parsing, and verifies the dot-only seed.
-The VM and bytecode format are unchanged.
+[P15](../design/type-owned-dispatch/p15-consumer-acceptance.md) verifies that same
+compiler/library in relocated native archives and the matched browser consumer.
+The VM, saved seed and bytecode format are unchanged by P15.
 
 ## Historical P2 completion checkpoint — 2026-10-10
 

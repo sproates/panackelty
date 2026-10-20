@@ -46,6 +46,10 @@ Read the [release notes](CHANGELOG.md) and [compatibility policy](docs/releases/
 
 The `next` source includes [type-owned methods](docs/reference/SPEC.md#type-owned-methods-next) for records, enums and built-in types. The alpha.14 compiler uses owned dot calls, without receiver-to-global fallback; the temporary arrow syntax is removed. This is not part of the published alpha.13 release.
 
+For the unreleased alpha.14 source transition, see the
+[type-owned method migration guide](docs/guides/METHOD_MIGRATION.md) and
+[P15 consumer acceptance](docs/design/type-owned-dispatch/p15-consumer-acceptance.md).
+
 ## Explore
 
 | I want to… | Start here |

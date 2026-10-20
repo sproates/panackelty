@@ -1,2 +1,2 @@
-pure missing(value: Nat): Nat { value }; pure use(value: Nat): Nat { value->missing() }
+pure missing(value: Nat): Nat { value }; pure use(value: Nat): Nat { value.missing() }
 main(): Void { print(0) }

@@ -31,7 +31,7 @@ pub discover_fixtures(root: Path): Result[[Path],HostError] {
         match failure {
           Some(problem) => {},
           None() => {
-            match root->join(name) {
+            match root.join(name) {
               Error(path_error) => {
                 failure = Some(HostError("discover_fixtures", "invalid_argument", 0))
               },
@@ -40,7 +40,7 @@ pub discover_fixtures(root: Path): Result[[Path],HostError] {
                   Error(error) => { failure = Some(error) },
                   Ok(metadata) => {
                     if metadata.kind == Directory() {
-                      fixtures = fixtures->append(child)
+                      fixtures = fixtures.append(child)
                     }
                   }
                 }

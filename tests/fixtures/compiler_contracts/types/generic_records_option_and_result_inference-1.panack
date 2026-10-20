@@ -5,7 +5,7 @@ pure choose(flag: Bool): Option[Nat] {
 }
 
 pure divide(a: Nat, b: Nat): Result[Nat,Str] {
-  if b == 0 { Error("zero") } else { Ok(a->divide(b)) }
+  if b == 0 { Error("zero") } else { Ok(a.divide(b)) }
 }
 
 pure unwrap(value: Option[Nat]): Nat {

@@ -5,7 +5,7 @@ pure previous(value: Nat): Nat {
 
 pure is_palindrome(text: Str): Bool {
   mut left: Nat = 0
-  mut right: Nat = text->len()
+  mut right: Nat = text.len()
   mut matches: Bool = true
 
   while right > 0 && left < right && matches {

@@ -10,8 +10,8 @@ import stdlib/testing::{TestResult}
 // Success requires ok; failures preserve the original diagnostic substrings.
 pure purity_unit_contains(actual: Str, expected: Str): Bool {
   mut found = false
-  for offset in 0..actual->len() {
-    if actual->starts_with_at(expected, offset) { found = true }
+  for offset in 0..actual.len() {
+    if actual.starts_with_at(expected, offset) { found = true }
   }
   found
 }
@@ -32,55 +32,55 @@ purity_unit_source(name: Str, expected: Str): TestResult {
 main(): Void {
   mut results: [TestResult] = []
   // Former test_accepts_pure_calls_constructors_and_recursion
-  results = results->append(purity_unit_source("accepts_pure_calls_constructors_and_recursion-1", "ok"))
+  results = results.append(purity_unit_source("accepts_pure_calls_constructors_and_recursion-1", "ok"))
   // Former test_callable_effects_are_part_of_purity_checking
-  results = results->append(purity_unit_source("callable_effects_are_part_of_purity_checking-1", "ok"))
-  results = results->append(purity_unit_source("callable_effects_are_part_of_purity_checking-2", "pure function cannot call impure function call"))
+  results = results.append(purity_unit_source("callable_effects_are_part_of_purity_checking-1", "ok"))
+  results = results.append(purity_unit_source("callable_effects_are_part_of_purity_checking-2", "pure function cannot call impure function call"))
   // Former test_checks_purity_across_loaded_modules
-  results = results->append(purity_unit_compare("checks_purity_across_loaded_modules-1",
+  results = results.append(purity_unit_compare("checks_purity_across_loaded_modules-1",
     check_loaded_source_frontend([
       LoadedSource("main.panack", "import \"output.panack\"; pure bad(): Void { output(); } main(): Void {}"),
       LoadedSource("output.panack", "output(): Void { print(1); }")
     ], "main.panack"), "pure function cannot call impure function output"))
   // Former test_guard_expressions_are_pure
-  results = results->append(purity_unit_source("guard_expressions_are_pure-1", "pure function cannot call impure function read_line"))
+  results = results.append(purity_unit_source("guard_expressions_are_pure-1", "pure function cannot call impure function read_line"))
   // Former test_impure_functions_may_call_pure_and_impure_functions
-  results = results->append(purity_unit_source("impure_functions_may_call_pure_and_impure_functions-1", "ok"))
+  results = results.append(purity_unit_source("impure_functions_may_call_pure_and_impure_functions-1", "ok"))
   // Former test_rejects_calls_to_impure_user_functions
-  results = results->append(purity_unit_source("rejects_calls_to_impure_user_functions-1", "pure function cannot call impure function output"))
-  results = results->append(purity_unit_source("rejects_calls_to_impure_user_functions-2", "pure function cannot call impure function output"))
+  results = results.append(purity_unit_source("rejects_calls_to_impure_user_functions-1", "pure function cannot call impure function output"))
+  results = results.append(purity_unit_source("rejects_calls_to_impure_user_functions-2", "pure function cannot call impure function output"))
   // Former test_rejects_impure_builtins_from_pure_functions
-  results = results->append(purity_unit_source("rejects_impure_builtins_from_pure_functions-1", "pure function cannot call impure function print"))
-  results = results->append(purity_unit_source("rejects_impure_builtins_from_pure_functions-2", "pure function cannot call impure function read_file"))
-  results = results->append(purity_unit_source("rejects_impure_builtins_from_pure_functions-3", "pure function cannot call impure function read_line"))
-  results = results->append(purity_unit_source("rejects_impure_builtins_from_pure_functions-4", "pure function cannot call impure function fs_read_beneath"))
-  results = results->append(std_testing.expect("directory ancestry query is classified as impure",
+  results = results.append(purity_unit_source("rejects_impure_builtins_from_pure_functions-1", "pure function cannot call impure function print"))
+  results = results.append(purity_unit_source("rejects_impure_builtins_from_pure_functions-2", "pure function cannot call impure function read_file"))
+  results = results.append(purity_unit_source("rejects_impure_builtins_from_pure_functions-3", "pure function cannot call impure function read_line"))
+  results = results.append(purity_unit_source("rejects_impure_builtins_from_pure_functions-4", "pure function cannot call impure function fs_read_beneath"))
+  results = results.append(std_testing.expect("directory ancestry query is classified as impure",
     is_impure_builtin("fs_directories_overlap"), "physical directory inspection must remain impure"))
-  results = results->append(purity_unit_compare("async direct and indirect", check_source_frontend("async child(): Nat { 42 } async main(): Unit { f: AsyncFn[Nat] = @child; n = await intrinsic_call(f); m = await child(); () }"), "ok"))
-  results = results->append(purity_unit_compare("async pure helper", check_source_frontend("pure child(): Nat { 42 } async main(): Unit { n = child(); () }"), "ok"))
-  results = results->append(purity_unit_compare("async generic helper", check_source_frontend("async identity[T](n: T): T { n } async main(): Unit { n = await identity(42); () }"), "ok"))
-  results = results->append(purity_unit_compare("bare async", check_source_frontend("async child(): Nat { 42 } async main(): Unit { n = child(); () }"), "async call requires await"))
-  results = results->append(purity_unit_compare("ordinary await", check_source_frontend("async child(): Nat { 42 } main(): Void { n = await child(); }"), "await requires an async function"))
-  results = results->append(purity_unit_compare("pure await", check_source_frontend("async child(): Nat { 42 } pure main(): Nat { await child() }"), "await requires an async function"))
-  results = results->append(purity_unit_compare("await ordinary", check_source_frontend("child(): Nat { 42 } async main(): Unit { n = await child(); () }"), "await requires an async call"))
-  results = results->append(purity_unit_compare("await value", check_source_frontend("async main(): Unit { n = await 42; () }"), "await requires an async call"))
-  results = results->append(purity_unit_compare("async print", check_source_frontend("async main(): Unit { print(42); () }"), "async function cannot call blocking function print"))
-  results = results->append(purity_unit_compare("async blocking helper", check_source_frontend("blocking(): Nat { print(42); 42 } async main(): Unit { n = blocking(); () }"), "async function cannot call blocking function blocking"))
-  results = results->append(purity_unit_compare("async indirect blocking", check_source_frontend("blocking(): Nat { print(42); 42 } async main(): Unit { f = @blocking; n = intrinsic_call(f); () }"), "async function cannot call blocking function call"))
-  results = results->append(purity_unit_compare("async reference conversion", check_source_frontend("async child(): Nat { 42 } main(): Void { f: Fn[Nat] = @child; }"), "cannot assign AsyncFn[Nat] to Fn[Nat]"))
-  results = results->append(purity_unit_compare("async pure conversion", check_source_frontend("async child(): Nat { 42 } main(): Void { f: PureFn[Nat] = @child; }"), "cannot assign AsyncFn[Nat] to PureFn[Nat]"))
-  results = results->append(purity_unit_compare("ordinary async conversion", check_source_frontend("child(): Nat { 42 } main(): Void { f: AsyncFn[Nat] = @child; }"), "cannot assign Fn[Nat] to AsyncFn[Nat]"))
-  results = results->append(purity_unit_compare("async argument bare call", check_source_frontend("async child(): Nat { 42 } async other(n: Nat): Nat { n } async main(): Unit { n = await other(child()); () }"), "async call requires await"))
-  results = results->append(purity_unit_compare("async indirect bare", check_source_frontend("async child(): Nat { 42 } async main(): Unit { f = @child; n = intrinsic_call(f); () }"), "async call requires await"))
-  results = results->append(purity_unit_compare("async nested await", check_source_frontend("async child(): Nat { 42 } async other(n: Nat): Nat { n } async main(): Unit { n = await other(await child()); () }"), "ok"))
-  results = results->append(purity_unit_compare("async return main", check_source_frontend("async main(): Nat { 42 }"), "async main must return Unit"))
-  results = results->append(purity_unit_compare("async void", check_source_frontend("async child(): Void {} main(): Void {}"), "use Unit instead of Void"))
-  results = results->append(purity_unit_compare("async array callback", check_source_frontend("async child(n: Nat): Nat { n } main(): Void { n = intrinsic_map([1], @child); }"), "requires a pure callable"))
-  results = results->append(purity_unit_compare("async method context", check_source_frontend("record Box { f: Fn[Nat] } blocking(): Nat { 42 } async main(): Unit { box = Box(@blocking); n = intrinsic_call(box.f); () }"), "async function cannot call blocking function call"))
-  results = results->append(purity_unit_compare("async nested ordinary context", check_source_frontend("async main(): Unit { if true { print(1); }; () }"), "async function cannot call blocking function print"))
-  results = results->append(purity_unit_compare("discarded await", check_source_frontend("async child(): Nat { 42 } async main(): Unit { await child(); () }"), "non-Unit await result"))
-  results = results->append(purity_unit_compare("Unit await statement", check_source_frontend("async child(): Unit { () } async main(): Unit { await child(); () }"), "ok"))
-  results = results->append(std_testing.equal_str("render async declaration", parse_program_source("async child(): Nat { 42 }"), "async child(): Nat { 42 }"))
-  results = results->append(std_testing.equal_str("render await expression", parse_source("await child()"), "(await child())"))
+  results = results.append(purity_unit_compare("async direct and indirect", check_source_frontend("async child(): Nat { 42 } async main(): Unit { f: AsyncFn[Nat] = @child; n = await intrinsic_call(f); m = await child(); () }"), "ok"))
+  results = results.append(purity_unit_compare("async pure helper", check_source_frontend("pure child(): Nat { 42 } async main(): Unit { n = child(); () }"), "ok"))
+  results = results.append(purity_unit_compare("async generic helper", check_source_frontend("async identity[T](n: T): T { n } async main(): Unit { n = await identity(42); () }"), "ok"))
+  results = results.append(purity_unit_compare("bare async", check_source_frontend("async child(): Nat { 42 } async main(): Unit { n = child(); () }"), "async call requires await"))
+  results = results.append(purity_unit_compare("ordinary await", check_source_frontend("async child(): Nat { 42 } main(): Void { n = await child(); }"), "await requires an async function"))
+  results = results.append(purity_unit_compare("pure await", check_source_frontend("async child(): Nat { 42 } pure main(): Nat { await child() }"), "await requires an async function"))
+  results = results.append(purity_unit_compare("await ordinary", check_source_frontend("child(): Nat { 42 } async main(): Unit { n = await child(); () }"), "await requires an async call"))
+  results = results.append(purity_unit_compare("await value", check_source_frontend("async main(): Unit { n = await 42; () }"), "await requires an async call"))
+  results = results.append(purity_unit_compare("async print", check_source_frontend("async main(): Unit { print(42); () }"), "async function cannot call blocking function print"))
+  results = results.append(purity_unit_compare("async blocking helper", check_source_frontend("blocking(): Nat { print(42); 42 } async main(): Unit { n = blocking(); () }"), "async function cannot call blocking function blocking"))
+  results = results.append(purity_unit_compare("async indirect blocking", check_source_frontend("blocking(): Nat { print(42); 42 } async main(): Unit { f = @blocking; n = intrinsic_call(f); () }"), "async function cannot call blocking function call"))
+  results = results.append(purity_unit_compare("async reference conversion", check_source_frontend("async child(): Nat { 42 } main(): Void { f: Fn[Nat] = @child; }"), "cannot assign AsyncFn[Nat] to Fn[Nat]"))
+  results = results.append(purity_unit_compare("async pure conversion", check_source_frontend("async child(): Nat { 42 } main(): Void { f: PureFn[Nat] = @child; }"), "cannot assign AsyncFn[Nat] to PureFn[Nat]"))
+  results = results.append(purity_unit_compare("ordinary async conversion", check_source_frontend("child(): Nat { 42 } main(): Void { f: AsyncFn[Nat] = @child; }"), "cannot assign Fn[Nat] to AsyncFn[Nat]"))
+  results = results.append(purity_unit_compare("async argument bare call", check_source_frontend("async child(): Nat { 42 } async other(n: Nat): Nat { n } async main(): Unit { n = await other(child()); () }"), "async call requires await"))
+  results = results.append(purity_unit_compare("async indirect bare", check_source_frontend("async child(): Nat { 42 } async main(): Unit { f = @child; n = intrinsic_call(f); () }"), "async call requires await"))
+  results = results.append(purity_unit_compare("async nested await", check_source_frontend("async child(): Nat { 42 } async other(n: Nat): Nat { n } async main(): Unit { n = await other(await child()); () }"), "ok"))
+  results = results.append(purity_unit_compare("async return main", check_source_frontend("async main(): Nat { 42 }"), "async main must return Unit"))
+  results = results.append(purity_unit_compare("async void", check_source_frontend("async child(): Void {} main(): Void {}"), "use Unit instead of Void"))
+  results = results.append(purity_unit_compare("async array callback", check_source_frontend("async child(n: Nat): Nat { n } main(): Void { n = intrinsic_map([1], @child); }"), "requires a pure callable"))
+  results = results.append(purity_unit_compare("async method context", check_source_frontend("record Box { f: Fn[Nat] } blocking(): Nat { 42 } async main(): Unit { box = Box(@blocking); n = intrinsic_call(box.f); () }"), "async function cannot call blocking function call"))
+  results = results.append(purity_unit_compare("async nested ordinary context", check_source_frontend("async main(): Unit { if true { print(1); }; () }"), "async function cannot call blocking function print"))
+  results = results.append(purity_unit_compare("discarded await", check_source_frontend("async child(): Nat { 42 } async main(): Unit { await child(); () }"), "non-Unit await result"))
+  results = results.append(purity_unit_compare("Unit await statement", check_source_frontend("async child(): Unit { () } async main(): Unit { await child(); () }"), "ok"))
+  results = results.append(std_testing.equal_str("render async declaration", parse_program_source("async child(): Nat { 42 }"), "async child(): Nat { 42 }"))
+  results = results.append(std_testing.equal_str("render await expression", parse_source("await child()"), "(await child())"))
   if std_testing.report(results) > 0 { std_host.exit(1) }
 }

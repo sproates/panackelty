@@ -31,7 +31,7 @@ pub report(results: [TestResult]): Nat {
       }
     }
   }
-  total = results->len()
+  total = results.len()
   print("tests: ${total}, failures: ${failures}")
   failures
 }

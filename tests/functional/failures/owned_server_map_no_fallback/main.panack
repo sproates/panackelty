@@ -1,5 +1,5 @@
 record Server { id: Nat }
 pure get(server: Server, route: Str, fallback: Nat): Nat { 901 }
 main(): Void {
-  print(Server(10)->get("/fruit", 99))
+  print(Server(10).get("/fruit", 99))
 }

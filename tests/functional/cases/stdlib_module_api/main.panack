@@ -5,17 +5,17 @@ main(): Void {
     Ok(_) => true,
     Error(_) => false
   }
-  left = bytes()->push(65)
-  right = bytes()->push(66)
-  joined = left->join(right)
-  expected = bytes()->push(65)->push(66)
-  divided_duration = prelude.time.seconds(8)->divide(2)
+  left = bytes().push(65)
+  right = bytes().push(66)
+  joined = left.join(right)
+  expected = bytes().push(65).push(66)
+  divided_duration = prelude.time.seconds(8).divide(2)
   print(if path_ok { "PASS path.from_text" } else { "FAIL path.from_text" })
   print(if bytes() == prelude.byte_buffer.empty() {
     "PASS bytes constructor"
   } else { "FAIL bytes constructor" })
   print(if joined == expected { "PASS byte_buffer.join" } else { "FAIL byte_buffer.join" })
-  print(if 9->divide(2) == 4 { "PASS numeric.divide" } else { "FAIL numeric.divide" })
+  print(if 9.divide(2) == 4 { "PASS numeric.divide" } else { "FAIL numeric.divide" })
   print(if divided_duration == Ok(prelude.time.seconds(4)) {
     "PASS time.divide"
   } else { "FAIL time.divide" })

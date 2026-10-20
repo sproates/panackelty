@@ -9,7 +9,7 @@ import project/tests/runner/compiler_coverage_session_helpers::{session_path,ses
 main(): Void {
   match std_testing_files.workspace_create(session_path("/tmp")) {
     Error(error) => { std_host.exit(1); }, Ok(workspace) => {
-      dir: Str = workspace.root->to_text()->value_or("")
+      dir: Str = workspace.root.to_text().value_or("")
       source: Str = dir + "/main.panack"
       child: Str = dir + "/child.panack"
       artifact: Str = dir + "/main.bc"
@@ -32,18 +32,18 @@ main(): Void {
       claimed: Bytes = session_read(first + "/claim-0.1")
       for file in ["raw-0.1", "expect-0.1", "claim-0.1"] { std_filesystem.remove_file(session_path(first + "/" + file)); }
       lost: ProcessOutput = session_command(args)
-      results = results->append(std_testing.expect("entire child cannot disappear", lost.exit_code == 1 && lost.stdout == byte_buffer.empty(), "lost child accepted"))
+      results = results.append(std_testing.expect("entire child cannot disappear", lost.exit_code == 1 && lost.stdout == byte_buffer.empty(), "lost child accepted"))
       session_write(raw_path, raw)
       session_write(first + "/expect-0.1", expected)
       session_write(first + "/claim-0.1", claimed)
       session_write(first + "/raw-extra", raw)
       surplus: ProcessOutput = session_command(args)
-      results = results->append(std_testing.expect("surplus record rejected", surplus.exit_code == 1 && surplus.stdout == byte_buffer.empty(), "surplus accepted"))
+      results = results.append(std_testing.expect("surplus record rejected", surplus.exit_code == 1 && surplus.stdout == byte_buffer.empty(), "surplus accepted"))
       std_filesystem.remove_file(session_path(first + "/raw-extra"))
       missing: Str = dir + "/unregistered"
       unregistered: ProcessOutput = session_command(["coverage-session", missing, artifact, inventory, "--", child_bc, "true"])
       unavailable: ProcessOutput = session_command(["coverage-aggregate", "--source", source, inventory, "--session", missing])
-      results = results->append(std_testing.expect("unregistered child preserves output but blocks report", unregistered.stdout == "7\n"->encode_utf8() && unavailable.exit_code == 1 && unavailable.stdout == byte_buffer.empty(), "missing identity accepted"))
+      results = results.append(std_testing.expect("unregistered child preserves output but blocks report", unregistered.stdout == "7\n".encode_utf8() && unavailable.exit_code == 1 && unavailable.stdout == byte_buffer.empty(), "missing identity accepted"))
       session_clean(dir)
       if std_testing.report(results) > 0 { std_host.exit(1); }
     }

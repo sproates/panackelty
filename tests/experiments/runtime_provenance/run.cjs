@@ -76,8 +76,8 @@ try {
   check(capped.value===40 && capped.gap==='metadata-cap' && capped.rootState==='missing', 'frame cap preserves VM result with unavailable root');
   for (const [name,source,value] of [
     ['collection','main(): Nat { xs: Array[Nat] = [6, 7]\n xs[0] * xs[1] }',42],
-    ['builtin','main(): Nat { text: Str = \"secret-input\"\n text->len() }',12],
-    ['indirect','pure answer(): Nat { 42 }\nmain(): Nat { f: PureFn[Nat] = @answer\n f->call() }',42],
+    ['builtin','main(): Nat { text: Str = \"secret-input\"\n text.len() }',12],
+    ['indirect','pure answer(): Nat { 42 }\nmain(): Nat { f: PureFn[Nat] = @answer\n f.call() }',42],
   ]) {
     const built = compile(name,source), result = observe(built);
     check(result.value===value && result.gap==='unsupported-opcode' && result.rootState==='missing', name+' boundary is unavailable without changing execution');

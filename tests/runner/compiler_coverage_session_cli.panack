@@ -8,7 +8,7 @@ import project/tests/runner/compiler_coverage_session_helpers::{session_path,ses
 main(): Void {
   match std_testing_files.workspace_create(session_path("/tmp")) {
     Error(error) => { std_host.exit(1); }, Ok(workspace) => {
-      dir: Str = workspace.root->to_text()->value_or("")
+      dir: Str = workspace.root.to_text().value_or("")
       source: Str = dir + "/main.panack"
       child: Str = dir + "/child.panack"
       artifact: Str = dir + "/main.bc"
@@ -19,30 +19,30 @@ main(): Void {
       second: Str = dir + "/second"
       mut results: [TestResult] = []
       for setup in session_setup(source, child, artifact, child_bc, inventory, child_inv) {
-        results = results->append(std_testing.expect("session setup", setup.exit_code == 0, setup.stderr->decode_utf8()))
+        results = results.append(std_testing.expect("session setup", setup.exit_code == 0, setup.stderr.decode_utf8()))
       }
       for args in [["coverage-session", first, artifact, inventory, child_bc, child_inv, "--", child_bc, "true"],
                    ["coverage-session", second, artifact, inventory, child_bc, child_inv, "--", child_bc, "false"]] {
         run: ProcessOutput = session_command(args)
-        results = results->append(std_testing.expect("nested execution", run.exit_code == 0 && (run.stdout == "7\n"->encode_utf8() || run.stdout == "9\n"->encode_utf8()), "exit=" + (if run.exit_code == 0 { "0" } else { "nonzero" }) + ", signal=" + (if run.signal == 0 { "0" } else { "nonzero" }) + ", output7=" + (if run.stdout == "7\n"->encode_utf8() { "yes" } else { "no" }) + ", output9=" + (if run.stdout == "9\n"->encode_utf8() { "yes" } else { "no" }) + ": " + run.stdout->decode_utf8() + "; stderr: " + run.stderr->decode_utf8()))
+        results = results.append(std_testing.expect("nested execution", run.exit_code == 0 && (run.stdout == "7\n".encode_utf8() || run.stdout == "9\n".encode_utf8()), "exit=" + (if run.exit_code == 0 { "0" } else { "nonzero" }) + ", signal=" + (if run.signal == 0 { "0" } else { "nonzero" }) + ", output7=" + (if run.stdout == "7\n".encode_utf8() { "yes" } else { "no" }) + ", output9=" + (if run.stdout == "9\n".encode_utf8() { "yes" } else { "no" }) + ": " + run.stdout.decode_utf8() + "; stderr: " + run.stderr.decode_utf8()))
       }
       base: [Str] = ["coverage-aggregate", "--source", source, inventory, "--source", child, child_inv]
       args: [Str] = ["coverage-aggregate", "--source", source, inventory, "--source", child, child_inv, "--session", first, "--session", second]
       report: ProcessOutput = session_command(args)
-      results = results->append(std_testing.expect("multi-session report", report.exit_code == 0, report.stderr->decode_utf8()))
+      results = results.append(std_testing.expect("multi-session report", report.exit_code == 0, report.stderr.decode_utf8()))
       for expected in ["aggregate sessions=2 executions=4", "declaration/1\tfunction\tchoose\tobserved\t2\t2\n",
         "declaration/1/tail/decision/true\toutcome\ttrue\tobserved\t1\t1\n", "declaration/1/tail/decision/false\toutcome\tfalse\tobserved\t1\t1\n",
         "declaration/2\tfunction\tunused\tobserved\t0\t0\n"] {
-        results = results->append(std_testing.expect("exact aggregate", session_contains(report.stdout->decode_utf8(), expected), expected))
+        results = results.append(std_testing.expect("exact aggregate", session_contains(report.stdout.decode_utf8(), expected), expected))
       }
       duplicate: ProcessOutput = session_command(["coverage-aggregate", "--source", source, inventory, "--source", child, child_inv, "--session", first, "--session", first])
-      results = results->append(std_testing.expect("duplicate session rejected", duplicate.exit_code == 1 && duplicate.stdout == byte_buffer.empty(), "duplicate accepted"))
+      results = results.append(std_testing.expect("duplicate session rejected", duplicate.exit_code == 1 && duplicate.stdout == byte_buffer.empty(), "duplicate accepted"))
       refused: ProcessOutput = session_command(["coverage-session", first, artifact, inventory, child_bc, child_inv, "--", child_bc, "true"])
-      results = results->append(std_testing.expect("exclusive session directory", refused.exit_code == 1, "session overwritten"))
+      results = results.append(std_testing.expect("exclusive session directory", refused.exit_code == 1, "session overwritten"))
       original: Bytes = session_read(child)
-      session_write(child, original->join("// stale\n"->encode_utf8()))
+      session_write(child, original.join("// stale\n".encode_utf8()))
       stale: ProcessOutput = session_command(args)
-      results = results->append(std_testing.expect("stale included source", stale.exit_code == 1 && stale.stdout == byte_buffer.empty(), "stale identity accepted"))
+      results = results.append(std_testing.expect("stale included source", stale.exit_code == 1 && stale.stdout == byte_buffer.empty(), "stale identity accepted"))
       session_clean(dir)
       if std_testing.report(results) > 0 { std_host.exit(1); }
     }

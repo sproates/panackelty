@@ -1,2 +1,2 @@
-pure use(value: [Nat]): [Nat] { value->append("x") }
+pure use(value: [Nat]): [Nat] { value.append("x") }
 main(): Void { print(0) }

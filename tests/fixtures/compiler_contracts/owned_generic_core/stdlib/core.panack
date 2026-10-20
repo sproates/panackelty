@@ -4,7 +4,7 @@ pub enum Result[T, E] { Ok(T), Error(E) }
 
 impl[T] Option[T] {
   pub pure value_or(fallback: T): T {
-    self->choose(fallback)
+    self.choose(fallback)
   }
 
   pure choose(fallback: T): T {
@@ -33,7 +33,7 @@ impl[T] [T] {
 }
 
 impl Str {
-  pub pure echo(): Str { self->hidden() }
+  pub pure echo(): Str { self.hidden() }
   pure hidden(): Str { self }
 }
 

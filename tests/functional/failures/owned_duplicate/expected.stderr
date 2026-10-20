@@ -1,6 +1,6 @@
-error: <case>/main.panack:4:3: module declaration Fruit->apple is already bound
+error: <case>/main.panack:4:3: module declaration Fruit.apple is already bound
   4 |   pure apple(): Nat { self.value + 1 }
     |   ^
-<case>/main.panack:4:3: module declaration Fruit->apple is already bound
+<case>/main.panack:4:3: module declaration Fruit.apple is already bound
   4 |   pure apple(): Nat { self.value + 1 }
     |   ^

@@ -4,7 +4,7 @@ output(value: Nat): Nat {
 }
 
 pure invalid(callback: Fn[Nat,Nat]): Nat {
-  callback->call(1)
+  callback.call(1)
 }
 
 main(): Void {

@@ -17,8 +17,8 @@ import stdlib/testing::{TestResult}
 // explicitly return ok, rather than merely agree with the other implementation.
 pure checker_unit_contains(actual: Str, expected: Str): Bool {
   mut found = false
-  for offset in 0..actual->len() {
-    if actual->starts_with_at(expected, offset) { found = true }
+  for offset in 0..actual.len() {
+    if actual.starts_with_at(expected, offset) { found = true }
   }
   found
 }
@@ -41,9 +41,9 @@ checker_sort_contract(source: Str): Str {
   match fixture_files.temp_directory(fixture_path.current()) {
     Error(error) => "fixture creation failed",
     Ok(root) => {
-      path = root->join(fixture_path.from_text("main.panack")->value_or(root))->value_or(root)
-      text: Str = path->to_text()->value_or("")
-      match fixture_files.write(path, source->encode_utf8()) {
+      path = root.join(fixture_path.from_text("main.panack").value_or(root)).value_or(root)
+      text: Str = path.to_text().value_or("")
+      match fixture_files.write(path, source.encode_utf8()) {
         Error(error) => { removed = fixture_files.remove_directory(root); "fixture write failed" },
         Ok(done) => {
           loaded: LoadedProject = load_project(text)
@@ -79,19 +79,19 @@ checker_mutation_matrix(): [TestResult] {
         label: Str = "mutation-matrix/${bound}/${value}/${shape}"
         prefix: Str = "main(): Void { mut n: Nat = ${start}; if n >= ${bound} { ${write}; "
         stale: Str = prefix + "print(n - ${bound}) } }"
-        results = results->append(checker_unit_compare(label + "/stale",
+        results = results.append(checker_unit_compare(label + "/stale",
           check_source_types(stale), "Nat subtraction may underflow"))
         expected: Nat = expected_values[bound_index][value]
         fresh: Str = prefix +
           "actual: Nat = if n >= ${bound} { n - ${bound} } else { 0 }; " +
           "if actual != ${expected} { process_exit(1) } } }"
         status: Str = check_source_types(fresh)
-        results = results->append(checker_unit_compare(label + "/fresh", status, "ok"))
+        results = results.append(checker_unit_compare(label + "/fresh", status, "ok"))
         if status == "ok" {
           match lex(fresh) {
-            Error(errors) => { results = results->append(std_testing.expect(label, false, "lex failed")) },
+            Error(errors) => { results = results.append(std_testing.expect(label, false, "lex failed")) },
             Ok(tokens) => { match parse_program_complete(tokens) {
-              Error(error) => { results = results->append(std_testing.expect(label, false, error.message)) },
+              Error(error) => { results = results.append(std_testing.expect(label, false, error.message)) },
               Ok(program) => { std_host.run(serialize_bytecode(compile_program(program)), []) }
             } }
           }
@@ -105,110 +105,110 @@ checker_mutation_matrix(): [TestResult] {
 
 main(): Void {
   mut results: [TestResult] = []
-  results = results->append(checker_unit_compare("core/wrong-text-receiver",
-    checker_sort_contract("main(): Void { print(42->ends_with(\"x\")); }"), "owned method"))
-  results = results->append(checker_unit_compare("core/wrong-array-receiver",
-    checker_sort_contract("main(): Void { print(42->first()); }"), "owned method"))
-  results = results->append(checker_unit_compare("core/empty-first-needs-type",
-    checker_sort_contract("main(): Void { result = []->first(); print(result); }"), "cannot infer complete type for local result"))
-  results = results->append(checker_unit_compare("core/empty-first-explicit-type",
-    checker_sort_contract("main(): Void { values: [Str] = []; print(values->first()); }"), "ok"))
+  results = results.append(checker_unit_compare("core/wrong-text-receiver",
+    checker_sort_contract("main(): Void { print(42.ends_with(\"x\")); }"), "owned method"))
+  results = results.append(checker_unit_compare("core/wrong-array-receiver",
+    checker_sort_contract("main(): Void { print(42.first()); }"), "owned method"))
+  results = results.append(checker_unit_compare("core/empty-first-needs-type",
+    checker_sort_contract("main(): Void { result = [].first(); print(result); }"), "cannot infer complete type for local result"))
+  results = results.append(checker_unit_compare("core/empty-first-explicit-type",
+    checker_sort_contract("main(): Void { values: [Str] = []; print(values.first()); }"), "ok"))
 
   // Former test_accepts_core_types_records_enums_and_control_flow
-  results = results->append(checker_unit_source("accepts_core_types_records_enums_and_control_flow-1", "ok"))
+  results = results.append(checker_unit_source("accepts_core_types_records_enums_and_control_flow-1", "ok"))
   // Former test_accepts_if_without_else_in_void_position
-  results = results->append(checker_unit_source("accepts_if_without_else_in_void_position-1", "ok"))
+  results = results.append(checker_unit_source("accepts_if_without_else_in_void_position-1", "ok"))
   // Former test_checks_callable_values_and_functional_array_methods
-  results = results->append(checker_unit_source("checks_callable_values_and_functional_array_methods-1", "ok"))
-  results = results->append(checker_unit_source("checks_callable_values_and_functional_array_methods-2", "map callback must accept Nat"))
+  results = results.append(checker_unit_source("checks_callable_values_and_functional_array_methods-1", "ok"))
+  results = results.append(checker_unit_source("checks_callable_values_and_functional_array_methods-2", "map callback must accept Nat"))
   // Former test_checks_calls_fields_and_constructor_inference
-  results = results->append(checker_unit_source("checks_calls_fields_and_constructor_inference-1", "ok"))
-  results = results->append(checker_unit_source("checks_calls_fields_and_constructor_inference-2", "Pair expects 2 arguments, got 1"))
-  results = results->append(checker_unit_source("checks_calls_fields_and_constructor_inference-3", "record Pair has no field missing"))
+  results = results.append(checker_unit_source("checks_calls_fields_and_constructor_inference-1", "ok"))
+  results = results.append(checker_unit_source("checks_calls_fields_and_constructor_inference-2", "Pair expects 2 arguments, got 1"))
+  results = results.append(checker_unit_source("checks_calls_fields_and_constructor_inference-3", "record Pair has no field missing"))
   // Former test_checks_guarded_literals_and_control_flow_facts
-  results = results->append(checker_unit_source("checks_guarded_literals_and_control_flow_facts-1", "ok"))
-  results = results->append(checker_unit_source("checks_guarded_literals_and_control_flow_facts-2", "guard is not proven"))
-  results = results->append(checker_unit_source("checks_guarded_literals_and_control_flow_facts-3", "ok"))
-  results = results->append(checker_unit_source("checks_guarded_literals_and_control_flow_facts-4", "ok"))
+  results = results.append(checker_unit_source("checks_guarded_literals_and_control_flow_facts-1", "ok"))
+  results = results.append(checker_unit_source("checks_guarded_literals_and_control_flow_facts-2", "guard is not proven"))
+  results = results.append(checker_unit_source("checks_guarded_literals_and_control_flow_facts-3", "ok"))
+  results = results.append(checker_unit_source("checks_guarded_literals_and_control_flow_facts-4", "ok"))
   // Former test_checks_match_exhaustiveness_payloads_and_branch_types
-  results = results->append(checker_unit_source("checks_match_exhaustiveness_payloads_and_branch_types-1", "non-exhaustive match; missing None"))
-  results = results->append(checker_unit_source("checks_match_exhaustiveness_payloads_and_branch_types-2", "pattern Some expects 1 bindings"))
-  results = results->append(checker_unit_source("checks_match_exhaustiveness_payloads_and_branch_types-3", "branches have incompatible types Nat and Str"))
-  results = results->append(checker_unit_source("checks_match_exhaustiveness_payloads_and_branch_types-4", "function bad returns Void, expected Nat"))
+  results = results.append(checker_unit_source("checks_match_exhaustiveness_payloads_and_branch_types-1", "non-exhaustive match; missing None"))
+  results = results.append(checker_unit_source("checks_match_exhaustiveness_payloads_and_branch_types-2", "pattern Some expects 1 bindings"))
+  results = results.append(checker_unit_source("checks_match_exhaustiveness_payloads_and_branch_types-3", "branches have incompatible types Nat and Str"))
+  results = results.append(checker_unit_source("checks_match_exhaustiveness_payloads_and_branch_types-4", "function bad returns Void, expected Nat"))
   // Former test_checks_method_calls_as_receiver_first_calls
-  results = results->append(checker_unit_source("checks_method_calls_as_receiver_first_calls-1", "ok"))
-  results = results->append(checker_unit_source("checks_method_calls_as_receiver_first_calls-2", "argument 1 to starts_with is Nat, expected Str"))
-  results = results->append(checker_unit_source("checks_method_calls_as_receiver_first_calls-3", "unknown function value"))
-  results = results->append(checker_unit_source("checks_method_calls_as_receiver_first_calls-4", "map_has expects a Map, got Array[Nat]"))
+  results = results.append(checker_unit_source("checks_method_calls_as_receiver_first_calls-1", "ok"))
+  results = results.append(checker_unit_source("checks_method_calls_as_receiver_first_calls-2", "argument 1 to starts_with is Nat, expected Str"))
+  results = results.append(checker_unit_source("checks_method_calls_as_receiver_first_calls-3", "unknown function value"))
+  results = results.append(checker_unit_source("checks_method_calls_as_receiver_first_calls-4", "map_has expects a Map, got Array[Nat]"))
   // Former test_checks_mutability_and_entry_point
-  results = results->append(checker_unit_source("checks_mutability_and_entry_point-1", "cannot assign to immutable local value"))
-  results = results->append(checker_unit_source("checks_mutability_and_entry_point-2", "program has no main function"))
-  results = results->append(checker_unit_source("checks_mutability_and_entry_point-3", "main cannot take parameters"))
+  results = results.append(checker_unit_source("checks_mutability_and_entry_point-1", "cannot assign to immutable local value"))
+  results = results.append(checker_unit_source("checks_mutability_and_entry_point-2", "program has no main function"))
+  results = results.append(checker_unit_source("checks_mutability_and_entry_point-3", "main cannot take parameters"))
   // Former test_checks_operators_arrays_indexing_and_loops
-  results = results->append(checker_unit_source("checks_operators_arrays_indexing_and_loops-1", "operator + does not accept Str and Nat"))
-  results = results->append(checker_unit_source("checks_operators_arrays_indexing_and_loops-2", "index must be Nat, got Str"))
-  results = results->append(checker_unit_source("checks_operators_arrays_indexing_and_loops-3", "for requires a Range or array, got Bool"))
-  results = results->append(checker_unit_source("checks_operators_arrays_indexing_and_loops-4", "while condition must be Bool"))
+  results = results.append(checker_unit_source("checks_operators_arrays_indexing_and_loops-1", "operator + does not accept Str and Nat"))
+  results = results.append(checker_unit_source("checks_operators_arrays_indexing_and_loops-2", "index must be Nat, got Str"))
+  results = results.append(checker_unit_source("checks_operators_arrays_indexing_and_loops-3", "for requires a Range or array, got Bool"))
+  results = results.append(checker_unit_source("checks_operators_arrays_indexing_and_loops-4", "while condition must be Bool"))
   // Former test_checks_persistent_collections_and_builtin_arguments
-  results = results->append(checker_unit_source("checks_persistent_collections_and_builtin_arguments-1", "ok"))
-  results = results->append(checker_unit_source("checks_persistent_collections_and_builtin_arguments-2", "expected Nat"))
+  results = results.append(checker_unit_source("checks_persistent_collections_and_builtin_arguments-1", "ok"))
+  results = results.append(checker_unit_source("checks_persistent_collections_and_builtin_arguments-2", "expected Nat"))
   // Former test_checks_type_references_and_function_returns
-  results = results->append(checker_unit_source("checks_type_references_and_function_returns-1", "unknown type Missing"))
-  results = results->append(checker_unit_source("checks_type_references_and_function_returns-2", "function bad returns Bool, expected Nat"))
-  results = results->append(checker_unit_source("checks_type_references_and_function_returns-3", "Box expects 1 type arguments, got 0"))
+  results = results.append(checker_unit_source("checks_type_references_and_function_returns-1", "unknown type Missing"))
+  results = results.append(checker_unit_source("checks_type_references_and_function_returns-2", "function bad returns Bool, expected Nat"))
+  results = results.append(checker_unit_source("checks_type_references_and_function_returns-3", "Box expects 1 type arguments, got 0"))
   // Former test_checks_types_across_loaded_modules
-  results = results->append(checker_unit_compare("checks_types_across_loaded_modules-1",
+  results = results.append(checker_unit_compare("checks_types_across_loaded_modules-1",
     check_loaded_source_types([
       LoadedSource("main.panack", "import \"model.panack\"; main(): Void { item: Box = Box(42); print(item.value); }"),
       LoadedSource("model.panack", "record Box { value: Nat }")
     ], "main.panack"), "ok"))
-  results = results->append(checker_unit_compare("checks_types_across_loaded_modules-2",
+  results = results.append(checker_unit_compare("checks_types_across_loaded_modules-2",
     check_loaded_source_types([
       LoadedSource("main.panack", "import \"model.panack\"; main(): Void { item: Box = Box(\"bad\"); }"),
       LoadedSource("model.panack", "record Box { value: Nat }")
     ], "main.panack"), "argument 1 to Box is Str, expected Nat"))
-  results = results->append(checker_unit_compare("checks_types_across_loaded_modules-3",
+  results = results.append(checker_unit_compare("checks_types_across_loaded_modules-3",
     check_loaded_source_types([
       LoadedSource("main.panack", "import \"broken.panack\"; main(): Void { broken(); }"),
       LoadedSource("broken.panack", "broken(): Void {\n  invalid: Nat = \"bad\";\n}")
     ], "main.panack"), "broken.panack:2:18: cannot assign Str to Nat; guard is not proven"))
-  results = results->append(checker_unit_compare("generic guarded source proves broader target",
+  results = results.append(checker_unit_compare("generic guarded source proves broader target",
     check_source_types("type Positive = Nat where value > 0; type NonNegative = Nat where value >= 0; pure convert[T](tag: T, value: Positive): NonNegative { value }; main(): Void {}"),
     "ok"))
-  results = results->append(checker_unit_compare("guarded source does not prove stricter target",
+  results = results.append(checker_unit_compare("guarded source does not prove stricter target",
     check_source_types("type Positive = Nat where value > 0; type Greater = Nat where value > 5; pure convert(value: Positive): Greater { value }"),
     "function convert returns Positive, expected Greater"))
-  results = results->append(checker_unit_compare("sort accepts pure comparator",
-    checker_sort_contract("pure less(a: Nat, b: Nat): Bool { a < b } main(): Void { print([2, 1]->sort_by(@less)); }"), "ok"))
-  results = results->append(checker_unit_compare("sort rejects effectful comparator",
-    checker_sort_contract("less(a: Nat, b: Nat): Bool { print(a); a < b } main(): Void { print([2, 1]->sort_by(@less)); }"), "expected PureFn"))
-  results = results->append(checker_unit_compare("sort rejects nonboolean comparator",
-    checker_sort_contract("pure less(a: Nat, b: Nat): Nat { a } main(): Void { print([2, 1]->sort_by(@less)); }"), "expected PureFn"))
-  results = results->append(checker_unit_source("fact_mutation_direct", "Nat subtraction may underflow"))
-  results = results->append(checker_unit_source("fact_mutation_nested", "Nat subtraction may underflow"))
-  results = results->append(checker_unit_source("fact_mutation_operand", "Nat subtraction may underflow"))
-  results = results->append(checker_unit_source("fact_mutation_arguments", "Nat subtraction may underflow"))
-  results = results->append(checker_unit_source("fact_mutation_array", "Nat subtraction may underflow"))
-  results = results->append(checker_unit_source("fact_mutation_index", "Nat subtraction may underflow"))
-  results = results->append(checker_unit_source("fact_mutation_while_carried", "Nat subtraction may underflow"))
-  results = results->append(checker_unit_source("fact_mutation_for_carried", "Nat subtraction may underflow"))
-  results = results->append(checker_unit_source("fact_mutation_while_condition", "Nat subtraction may underflow"))
-  results = results->append(checker_unit_source("fact_mutation_while_condition_write", "Nat subtraction may underflow"))
-  results = results->append(checker_unit_source("fact_mutation_for_iterable_write", "Nat subtraction may underflow"))
-  results = results->append(checker_unit_source("fact_mutation_after_loop", "Nat subtraction may underflow"))
-  results = results->append(checker_unit_source("fact_mutation_match", "Nat subtraction may underflow"))
-  results = results->append(checker_unit_source("fact_mutation_condition", "Nat subtraction may underflow"))
-  results = results->append(checker_unit_source("fact_mutation_guarded_assignment", "guard is not proven"))
-  results = results->append(checker_unit_source("fact_mutation_guarded_call", "expected Positive"))
-  results = results->append(checker_unit_source("fact_mutation_guarded_loop", "guard is not proven"))
-  results = results->append(checker_unit_source("fact_mutation_valid", "ok"))
-  results = results->append(checker_unit_source("fact_mutation_upper_bound", "guard is not proven"))
-  results = results->append(checker_unit_source("fact_mutation_false_branch", "Nat subtraction may underflow"))
-  results = results->append(checker_unit_source("fact_mutation_initializer", "Nat subtraction may underflow"))
-  results = results->append(checker_unit_source("fact_mutation_short_circuit", "Nat subtraction may underflow"))
-  results = results->append(checker_unit_source("fact_mutation_match_subject", "Nat subtraction may underflow"))
-  results = results->append(checker_unit_source("fact_mutation_false_refresh", "ok"))
-  results = results->append(checker_unit_source("fact_mutation_unrelated_mutable", "ok"))
-  results = results->concat(checker_mutation_matrix())
+  results = results.append(checker_unit_compare("sort accepts pure comparator",
+    checker_sort_contract("pure less(a: Nat, b: Nat): Bool { a < b } main(): Void { print([2, 1].sort_by(@less)); }"), "ok"))
+  results = results.append(checker_unit_compare("sort rejects effectful comparator",
+    checker_sort_contract("less(a: Nat, b: Nat): Bool { print(a); a < b } main(): Void { print([2, 1].sort_by(@less)); }"), "expected PureFn"))
+  results = results.append(checker_unit_compare("sort rejects nonboolean comparator",
+    checker_sort_contract("pure less(a: Nat, b: Nat): Nat { a } main(): Void { print([2, 1].sort_by(@less)); }"), "expected PureFn"))
+  results = results.append(checker_unit_source("fact_mutation_direct", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_nested", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_operand", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_arguments", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_array", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_index", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_while_carried", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_for_carried", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_while_condition", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_while_condition_write", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_for_iterable_write", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_after_loop", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_match", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_condition", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_guarded_assignment", "guard is not proven"))
+  results = results.append(checker_unit_source("fact_mutation_guarded_call", "expected Positive"))
+  results = results.append(checker_unit_source("fact_mutation_guarded_loop", "guard is not proven"))
+  results = results.append(checker_unit_source("fact_mutation_valid", "ok"))
+  results = results.append(checker_unit_source("fact_mutation_upper_bound", "guard is not proven"))
+  results = results.append(checker_unit_source("fact_mutation_false_branch", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_initializer", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_short_circuit", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_match_subject", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_false_refresh", "ok"))
+  results = results.append(checker_unit_source("fact_mutation_unrelated_mutable", "ok"))
+  results = results.concat(checker_mutation_matrix())
   if std_testing.report(results) > 0 { std_host.exit(1) }
 }

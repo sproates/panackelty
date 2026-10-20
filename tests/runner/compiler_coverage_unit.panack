@@ -11,106 +11,106 @@ import stdlib/environment as std_environment
 import stdlib/host as std_host
 import project/src/bytecode/codec::{encode_u32, serialize_bytecode, sort_functions}
 import stdlib/testing::{TestResult}
-pure coverage_test_u64(value: Nat): Bytes { encode_u32(0)->join(encode_u32(value)) }
+pure coverage_test_u64(value: Nat): Bytes { encode_u32(0).join(encode_u32(value)) }
 pure coverage_test_cell(a: Nat, c: Nat, f: Nat, b: Nat): Bytes {
   source_map_join([coverage_test_u64(a), coverage_test_u64(c), coverage_test_u64(f), coverage_test_u64(b)], 0, 4)
 }
 pure coverage_test_raw(cell: Bytes, terminal: Nat, flags: Nat): Bytes {
-  source_map_join(["PANACKCOV1\n"->encode_utf8(), source_map_blob("a"->encode_utf8()), source_map_blob("i"->encode_utf8()),
-    encode_u32(1), coverage_test_u64(1), encode_u32(1), cell, "END\n"->encode_utf8(),
-    bytes()->push(terminal)->push(flags)], 0, 9)
+  source_map_join(["PANACKCOV1\n".encode_utf8(), source_map_blob("a".encode_utf8()), source_map_blob("i".encode_utf8()),
+    encode_u32(1), coverage_test_u64(1), encode_u32(1), cell, "END\n".encode_utf8(),
+    bytes().push(terminal).push(flags)], 0, 9)
 }
 pure coverage_text_contains(text: Str, needle: Str): Bool {
   mut found: Bool = false
-  for index in 0..text->len() {
-    if index + needle->len() <= text->len() && text->slice(index, index + needle->len()) == needle { found = true; }
+  for index in 0..text.len() {
+    if index + needle.len() <= text.len() && text.slice(index, index + needle.len()) == needle { found = true; }
   }
   found
 }
 main(): Void {
   mut results: [TestResult] = []
   for id in ["0", "0.1", "0.4096.2"] {
-    results = results->append(std_testing.expect("canonical execution id", coverage_execution_id(id), id))
+    results = results.append(std_testing.expect("canonical execution id", coverage_execution_id(id), id))
   }
   for id in ["", "1", "0.", "0.0", "0.01", "0..1", "0.1.", "0/1", "0.a", "00"] {
-    results = results->append(std_testing.expect("reject malformed execution id", !coverage_execution_id(id), id))
+    results = results.append(std_testing.expect("reject malformed execution id", !coverage_execution_id(id), id))
   }
   left: CoverageData = CoverageData(true, 1, [CoverageFunction(2, [CoverageCell(3, 2, 1, 1)])])
   right: CoverageData = CoverageData(true, 2, [CoverageFunction(1, [CoverageCell(1, 1, 0, 1)])])
   total: CoverageData = coverage_sum(left, right)
-  results = results->append(std_testing.expect("exact sum includes trapped prefix", total.valid && total.functions[0].entries == 3 &&
+  results = results.append(std_testing.expect("exact sum includes trapped prefix", total.valid && total.functions[0].entries == 3 &&
     total.functions[0].cells[0].attempted == 4 && total.functions[0].cells[0].completed == 3 &&
     total.functions[0].cells[0].fallthrough == 1 && total.functions[0].cells[0].branched == 2, "wrong sum"))
   maximum: CoverageData = CoverageData(true, 1, [CoverageFunction(18446744073709551615, [CoverageCell(18446744073709551615, 0, 0, 0)])])
-  results = results->append(std_testing.expect("aggregate overflow rejected", !coverage_sum(maximum, right).valid, "wrapped"))
-  results = results->append(std_testing.expect("invalid prefix cannot become zero", !coverage_sum(left, CoverageData(false, 0, [])).valid, "accepted"))
+  results = results.append(std_testing.expect("aggregate overflow rejected", !coverage_sum(maximum, right).valid, "wrapped"))
+  results = results.append(std_testing.expect("invalid prefix cannot become zero", !coverage_sum(left, CoverageData(false, 0, [])).valid, "accepted"))
   program: BytecodeProgram = BytecodeProgram([FunctionCode("main", [], false, false, [JumpFalseInstruction(1)])])
   good: Bytes = coverage_test_raw(coverage_test_cell(1, 1, 0, 1), 1, 0)
-  results = results->append(std_testing.expect("coverage valid literal raw", decode_coverage(good, "a"->encode_utf8(), "i"->encode_utf8(), program).valid, "rejected"))
+  results = results.append(std_testing.expect("coverage valid literal raw", decode_coverage(good, "a".encode_utf8(), "i".encode_utf8(), program).valid, "rejected"))
   // Combined identities exceed 16 MiB although each identity stays bounded.
-  mut large_identity: Bytes = "x"->encode_utf8()
-  for index in 0..23 { large_identity = large_identity->join(large_identity) }
-  large_raw: Bytes = source_map_join(["PANACKCOV1\n"->encode_utf8(), source_map_blob(large_identity), source_map_blob(large_identity),
-    encode_u32(1), coverage_test_u64(1), encode_u32(1), coverage_test_cell(1, 1, 0, 1), "END\n"->encode_utf8(),
-    bytes()->push(1)->push(0)], 0, 9)
-  results = results->append(std_testing.expect("coverage accepts combined identities above 16 MiB",
+  mut large_identity: Bytes = "x".encode_utf8()
+  for index in 0..23 { large_identity = large_identity.join(large_identity) }
+  large_raw: Bytes = source_map_join(["PANACKCOV1\n".encode_utf8(), source_map_blob(large_identity), source_map_blob(large_identity),
+    encode_u32(1), coverage_test_u64(1), encode_u32(1), coverage_test_cell(1, 1, 0, 1), "END\n".encode_utf8(),
+    bytes().push(1).push(0)], 0, 9)
+  results = results.append(std_testing.expect("coverage accepts combined identities above 16 MiB",
     decode_coverage(large_raw, large_identity, large_identity, program).valid, "rejected"))
-  doubled_identity: Bytes = large_identity->join(large_identity)
-  oversized_raw: Bytes = source_map_join(["PANACKCOV1\n"->encode_utf8(), source_map_blob(doubled_identity), source_map_blob(doubled_identity),
-    encode_u32(1), coverage_test_u64(1), encode_u32(1), coverage_test_cell(1, 1, 0, 1), "END\n"->encode_utf8(),
-    bytes()->push(1)->push(0)], 0, 9)
-  results = results->append(std_testing.expect("coverage rejects containers above 32 MiB",
+  doubled_identity: Bytes = large_identity.join(large_identity)
+  oversized_raw: Bytes = source_map_join(["PANACKCOV1\n".encode_utf8(), source_map_blob(doubled_identity), source_map_blob(doubled_identity),
+    encode_u32(1), coverage_test_u64(1), encode_u32(1), coverage_test_cell(1, 1, 0, 1), "END\n".encode_utf8(),
+    bytes().push(1).push(0)], 0, 9)
+  results = results.append(std_testing.expect("coverage rejects containers above 32 MiB",
     !decode_coverage(oversized_raw, doubled_identity, doubled_identity, program).valid, "accepted"))
   for flags in [1, 2, 3, 255] {
     raw: Bytes = coverage_test_raw(coverage_test_cell(1, 1, 0, 1), 1, flags)
-    results = results->append(std_testing.expect("reject gap overflow unknown flags", !decode_coverage(raw, "a"->encode_utf8(), "i"->encode_utf8(), program).valid, "accepted"))
+    results = results.append(std_testing.expect("reject gap overflow unknown flags", !decode_coverage(raw, "a".encode_utf8(), "i".encode_utf8(), program).valid, "accepted"))
   }
   for terminal in [0, 4, 255] {
     raw: Bytes = coverage_test_raw(coverage_test_cell(1, 1, 0, 1), terminal, 0)
-    results = results->append(std_testing.expect("reject partial unknown terminal", !decode_coverage(raw, "a"->encode_utf8(), "i"->encode_utf8(), program).valid, "accepted"))
+    results = results.append(std_testing.expect("reject partial unknown terminal", !decode_coverage(raw, "a".encode_utf8(), "i".encode_utf8(), program).valid, "accepted"))
   }
   for cell in [coverage_test_cell(0, 1, 0, 1), coverage_test_cell(1, 1, 1, 1), coverage_test_cell(1, 1, 0, 0)] {
     raw: Bytes = coverage_test_raw(cell, 1, 0)
-    results = results->append(std_testing.expect("reject inconsistent counters", !decode_coverage(raw, "a"->encode_utf8(), "i"->encode_utf8(), program).valid, "accepted"))
+    results = results.append(std_testing.expect("reject inconsistent counters", !decode_coverage(raw, "a".encode_utf8(), "i".encode_utf8(), program).valid, "accepted"))
   }
-  results = results->append(std_testing.expect("reject stale artifact", !decode_coverage(good, "b"->encode_utf8(), "i"->encode_utf8(), program).valid, "accepted"))
-  results = results->append(std_testing.expect("reject stale inventory", !decode_coverage(good, "a"->encode_utf8(), "j"->encode_utf8(), program).valid, "accepted"))
-  results = results->append(std_testing.expect("reject truncation", !decode_coverage(bytes(), "a"->encode_utf8(), "i"->encode_utf8(), program).valid, "accepted"))
-  results = results->append(std_testing.expect("reject appended record", !decode_coverage(good->join(good), "a"->encode_utf8(), "i"->encode_utf8(), program).valid, "accepted"))
+  results = results.append(std_testing.expect("reject stale artifact", !decode_coverage(good, "b".encode_utf8(), "i".encode_utf8(), program).valid, "accepted"))
+  results = results.append(std_testing.expect("reject stale inventory", !decode_coverage(good, "a".encode_utf8(), "j".encode_utf8(), program).valid, "accepted"))
+  results = results.append(std_testing.expect("reject truncation", !decode_coverage(bytes(), "a".encode_utf8(), "i".encode_utf8(), program).valid, "accepted"))
+  results = results.append(std_testing.expect("reject appended record", !decode_coverage(good.join(good), "a".encode_utf8(), "i".encode_utf8(), program).valid, "accepted"))
   span: SourceSpan = SourceSpan(SourcePos("test", 0, 1, 1), SourcePos("test", 10, 1, 11))
   loop_code: FunctionCode = FunctionCode("main", [], false, false,
     [LoadInstruction("condition"), JumpFalseInstruction(4), ConstInstruction(VoidConstant()),
      JumpInstruction(0), ConstInstruction(VoidConstant()), ReturnInstruction()])
   loop_data: CoverageFunction = CoverageFunction(1, [CoverageCell(3, 3, 0, 0), CoverageCell(3, 3, 2, 1),
     CoverageCell(2, 2, 0, 0), CoverageCell(2, 2, 0, 0), CoverageCell(1, 1, 0, 0), CoverageCell(1, 1, 0, 0)])
-  results = results->append(std_testing.equal_nat("outer block entered once", coverage_attempted(EmissionProbe("expression", span, 0, 5), loop_code, loop_data), 1))
-  results = results->append(std_testing.equal_nat("loop condition entered three times", coverage_attempted(EmissionProbe("expression", span, 0, 1), loop_code, loop_data), 3))
+  results = results.append(std_testing.equal_nat("outer block entered once", coverage_attempted(EmissionProbe("expression", span, 0, 5), loop_code, loop_data), 1))
+  results = results.append(std_testing.equal_nat("loop condition entered three times", coverage_attempted(EmissionProbe("expression", span, 0, 1), loop_code, loop_data), 3))
   loop_index: Map[Nat,[CoverageIncoming]] = coverage_incoming(loop_code, loop_data)
-  results = results->append(std_testing.equal_nat("indexed outer block entered once", coverage_attempted_indexed(EmissionProbe("expression", span, 0, 5), 1, loop_index), 1))
-  results = results->append(std_testing.equal_nat("indexed loop condition entered three times", coverage_attempted_indexed(EmissionProbe("expression", span, 0, 1), 1, loop_index), 3))
-  results = results->append(std_testing.equal_nat("indexed block completed once", coverage_completed_indexed(EmissionProbe("expression", span, 0, 5), loop_index), 1))
+  results = results.append(std_testing.equal_nat("indexed outer block entered once", coverage_attempted_indexed(EmissionProbe("expression", span, 0, 5), 1, loop_index), 1))
+  results = results.append(std_testing.equal_nat("indexed loop condition entered three times", coverage_attempted_indexed(EmissionProbe("expression", span, 0, 1), 1, loop_index), 3))
+  results = results.append(std_testing.equal_nat("indexed block completed once", coverage_completed_indexed(EmissionProbe("expression", span, 0, 5), loop_index), 1))
     entry: Str = path_support.resolve("tests/fixtures/compiler_contracts/source_inventory/main.panack")
   project: LoadedProject = load_project_for_inventory(entry)
   mapped_result: Result[SourceMappedProgram, [Diagnostic]] = coverage_mapped_project(
     project,
     entry,
     path_support.parent(entry),
-    path_support.resolve(std_environment.get("PANACKELTY_STDLIB_PATH")->value_or(""))
+    path_support.resolve(std_environment.get("PANACKELTY_STDLIB_PATH").value_or(""))
   )
   mut mapped: SourceMappedProgram = SourceMappedProgram(BytecodeProgram([]), [], [])
   match mapped_result {
-    Error(diagnostics) => { results = results->append(std_testing.expect("identity coverage source compiles", false, "identity preparation failed")); },
-    Ok(value) => { mapped = value; results = results->append(std_testing.expect("identity coverage source compiles", true, "")); }
+    Error(diagnostics) => { results = results.append(std_testing.expect("identity coverage source compiles", false, "identity preparation failed")); },
+    Ok(value) => { mapped = value; results = results.append(std_testing.expect("identity coverage source compiles", true, "")); }
   }
   mut observations: [CoverageFunction] = []
   for function in sort_functions(mapped.bytecode.functions) {
     mut cells: [CoverageCell] = []
-    for instruction in function.instructions { cells = cells->append(CoverageCell(0, 0, 0, 0)); }
-    observations = observations->append(CoverageFunction(0, cells))
+    for instruction in function.instructions { cells = cells.append(CoverageCell(0, 0, 0, 0)); }
+    observations = observations.append(CoverageFunction(0, cells))
   }
   missing: Str = render_coverage(project, SourceMappedProgram(mapped.bytecode, mapped.sources, []),
-    CoverageData(true, 2, observations), path_support.parent(entry), path_support.resolve(std_environment.get("PANACKELTY_STDLIB_PATH")->value_or("")))
-  results = results->append(std_testing.expect("missing source probes preserve unavailable line", coverage_text_contains(missing,
+    CoverageData(true, 2, observations), path_support.parent(entry), path_support.resolve(std_environment.get("PANACKELTY_STDLIB_PATH").value_or("")))
+  results = results.append(std_testing.expect("missing source probes preserve unavailable line", coverage_text_contains(missing,
     "project/main.panack\tline/3\tline\tanchor\tunavailable\t0\n"), "invented observed zero"))
   if std_testing.report(results) > 0 { std_host.exit(1); }
 }

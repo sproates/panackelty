@@ -16,8 +16,8 @@ main(): Void {
   first: Fruit = Fruit(10)
   second: Fruit = Fruit(20)
 
-  print(first->apple())
-  print(first->banana())
-  print(second->apple())
-  print(second->banana())
+  print(first.apple())
+  print(first.banana())
+  print(second.apple())
+  print(second.banana())
 }

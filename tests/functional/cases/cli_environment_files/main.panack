@@ -10,46 +10,46 @@ import stdlib/testing_commands as std_testing_commands
 import stdlib/bytes as byte_buffer
 import stdlib/host as std_host
 pure path(value: Str): Path {
-  std_path.from_text(value)->value_or(std_path.current())
+  std_path.from_text(value).value_or(std_path.current())
 }
 
 pure child(root: Path, name: Str): Path {
-  root->join(path(name))->value_or(root)
+  root.join(path(name)).value_or(root)
 }
 
 pure contains(value: Str, fragment: Str): Bool {
   mut found = false
-  for index in 0..value->len() {
-    if value->starts_with_at(fragment, index) { found = true }
+  for index in 0..value.len() {
+    if value.starts_with_at(fragment, index) { found = true }
   }
   found
 }
 
 pure ends_with(value: Str, suffix: Str): Bool {
   mut found = false
-  for index in 0..value->len() {
-    if index + suffix->len() == value->len() &&
-        value->starts_with_at(suffix, index) { found = true }
+  for index in 0..value.len() {
+    if index + suffix.len() == value.len() &&
+        value.starts_with_at(suffix, index) { found = true }
   }
   found
 }
 
 pure command(arguments: [Str], environment: [Str]): TestCommand {
-  TestCommand(path("/usr/bin/env"), ["-u", "PANACKELTY_BOOTSTRAP_ROOT", "./bin/panack"]->concat(arguments), byte_buffer.empty(), std_path.current(), environment,
+  TestCommand(path("/usr/bin/env"), ["-u", "PANACKELTY_BOOTSTRAP_ROOT", "./bin/panack"].concat(arguments), byte_buffer.empty(), std_path.current(), environment,
     std_time.seconds(10), 1048576)
 }
 
 io_failure(name: Str, source: Str, file: Path): TestResult {
-  match std_filesystem.write(file, source->encode_utf8()) {
+  match std_filesystem.write(file, source.encode_utf8()) {
     Error(error) => std_testing.expect(name, false, "source write failed"),
     Ok(value0) => {
-      file_text = file->to_text()->value_or("invalid-file")
+      file_text = file.to_text().value_or("invalid-file")
       match std_process.run(path("/usr/bin/env"), ["-u", "PANACKELTY_BOOTSTRAP_ROOT", "./bin/panack", "run", file_text], byte_buffer.empty(), std_path.current(), [],
           std_time.seconds(10), 1048576) {
         Error(error) => std_testing.expect(name, false, "process failed"),
         Ok(output) => std_testing.expect(name,
           output.exit_code == 1 && output.signal == 0 && output.stdout == byte_buffer.empty() &&
-            contains(output.stderr->decode_utf8(), if name == "failure-4" {
+            contains(output.stderr.decode_utf8(), if name == "failure-4" {
               "I/O error: file is not valid UTF-8"
             } else { "I/O error:" }),
           "unexpected I/O failure result")
@@ -73,76 +73,76 @@ main(): Void {
       missing_binary = child(workspace.root, "absent.bin")
       bad_text = child(missing_directory, "text.txt")
       bad_binary = child(missing_directory, "binary.bin")
-      source_text = source->to_text()->value_or("invalid-source")
-      artifact_text = artifact->to_text()->value_or("invalid-artifact")
-      text_name = text_file->to_text()->value_or("invalid-text")
-      binary_name = binary_file->to_text()->value_or("invalid-binary")
-      missing_text_name = missing_text->to_text()->value_or("invalid-missing-text")
-      missing_binary_name = missing_binary->to_text()->value_or("invalid-missing-binary")
-      bad_text_name = bad_text->to_text()->value_or("invalid-bad-text")
-      bad_binary_name = bad_binary->to_text()->value_or("invalid-bad-binary")
-      invalid_name = invalid_file->to_text()->value_or("invalid-invalid")
-      denied_name = denied_file->to_text()->value_or("invalid-denied")
+      source_text = source.to_text().value_or("invalid-source")
+      artifact_text = artifact.to_text().value_or("invalid-artifact")
+      text_name = text_file.to_text().value_or("invalid-text")
+      binary_name = binary_file.to_text().value_or("invalid-binary")
+      missing_text_name = missing_text.to_text().value_or("invalid-missing-text")
+      missing_binary_name = missing_binary.to_text().value_or("invalid-missing-binary")
+      bad_text_name = bad_text.to_text().value_or("invalid-bad-text")
+      bad_binary_name = bad_binary.to_text().value_or("invalid-bad-binary")
+      invalid_name = invalid_file.to_text().value_or("invalid-invalid")
+      denied_name = denied_file.to_text().value_or("invalid-denied")
       mut results: [TestResult] = []
       support_module = child(workspace.root, "filesystem_support.panack")
       support_source = "pub import stdlib/compiler_files::{read_text, read_file_bytes, write_file_bytes}\n"
-      match std_filesystem.write(support_module, support_source->encode_utf8()) {
-        Error(error) => { results = results->append(std_testing.expect("support fixture", false,
+      match std_filesystem.write(support_module, support_source.encode_utf8()) {
+        Error(error) => { results = results.append(std_testing.expect("support fixture", false,
           "support module write failed")) },
-        Ok(value0) => { results = results->append(std_testing.expect("support fixture", true, "")) }
+        Ok(value0) => { results = results.append(std_testing.expect("support fixture", true, "")) }
       }
 
       match std_process.run(path("./bin/panack"), ["run", "tests/functional/cases/stdlib/main.panack"],
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_STDLIB_VALUE=configured"],
           std_time.seconds(10), 1048576) {
-        Error(error) => { results = results->append(std_testing.expect("environment override", false,
+        Error(error) => { results = results.append(std_testing.expect("environment override", false,
           "process failed")) },
-        Ok(output) => { results = results->append(std_testing.expect("environment override",
+        Ok(output) => { results = results.append(std_testing.expect("environment override",
           output.exit_code == 0 && output.signal == 0 && output.stderr == byte_buffer.empty() &&
-          ends_with(output.stdout->decode_utf8(), ".\ntrue\nconfigured\n0\n"),
+          ends_with(output.stdout.decode_utf8(), ".\ntrue\nconfigured\n0\n"),
           "unexpected environment output")) }
       }
 
       program = "import stdlib/bytes as byte_buffer\n" +
         "" +
         "import \"filesystem_support.panack\" as filesystem_support\n" +
-        "main(): Void { filesystem_support.write_file_bytes(\"${text_name}\", \"λ-data\"->encode_utf8()); " +
+        "main(): Void { filesystem_support.write_file_bytes(\"${text_name}\", \"λ-data\".encode_utf8()); " +
         "print(filesystem_support.read_text(\"${text_name}\")); mut data: Bytes = byte_buffer.empty(); " +
-        "data = data->push(0); data = data->push(255); " +
-        "data = data->push(65); filesystem_support.write_file_bytes(\"${binary_name}\", data); " +
+        "data = data.push(0); data = data.push(255); " +
+        "data = data.push(65); filesystem_support.write_file_bytes(\"${binary_name}\", data); " +
         "print(filesystem_support.read_file_bytes(\"${binary_name}\")); }"
-      match std_filesystem.write(source, program->encode_utf8()) {
-        Error(error) => { results = results->append(std_testing.expect("round trip source", false,
+      match std_filesystem.write(source, program.encode_utf8()) {
+        Error(error) => { results = results.append(std_testing.expect("round trip source", false,
           "source write failed")) },
         Ok(value1) => {
-          expected = ProcessOutput(0, 0, "λ-data\nbytes(00ff41)\n"->encode_utf8(), byte_buffer.empty())
-          results = results->append(std_testing_commands.run_command("round trip source",
+          expected = ProcessOutput(0, 0, "λ-data\nbytes(00ff41)\n".encode_utf8(), byte_buffer.empty())
+          results = results.append(std_testing_commands.run_command("round trip source",
             command(["run", source_text], []), expected))
-          results = results->append(std_testing_commands.run_command("compile round trip",
+          results = results.append(std_testing_commands.run_command("compile round trip",
             command(["compile", source_text, "-o", artifact_text], []),
-            ProcessOutput(0, 0, "wrote ${artifact_text}\n"->encode_utf8(), byte_buffer.empty())))
-          results = results->append(std_testing_commands.run_command("round trip bytecode",
+            ProcessOutput(0, 0, "wrote ${artifact_text}\n".encode_utf8(), byte_buffer.empty())))
+          results = results.append(std_testing_commands.run_command("round trip bytecode",
             command(["run", artifact_text], []), expected))
           match std_filesystem.read(text_file, 100) {
-            Error(error) => { results = results->append(std_testing.expect("text on disk", false, "read failed")) },
-            Ok(value2) => { results = results->append(std_testing.expect("text on disk",
-              value2 == "λ-data"->encode_utf8(), "text bytes differed")) }
+            Error(error) => { results = results.append(std_testing.expect("text on disk", false, "read failed")) },
+            Ok(value2) => { results = results.append(std_testing.expect("text on disk",
+              value2 == "λ-data".encode_utf8(), "text bytes differed")) }
           }
           match std_filesystem.read(binary_file, 100) {
-            Error(error) => { results = results->append(std_testing.expect("bytes on disk", false, "read failed")) },
+            Error(error) => { results = results.append(std_testing.expect("bytes on disk", false, "read failed")) },
             Ok(value3) => {
               mut expected_bytes = byte_buffer.empty()
-              expected_bytes = expected_bytes->push(0)
-              expected_bytes = expected_bytes->push(255)
-              expected_bytes = expected_bytes->push(65)
-              results = results->append(std_testing.expect("bytes on disk", value3 == expected_bytes,
+              expected_bytes = expected_bytes.push(0)
+              expected_bytes = expected_bytes.push(255)
+              expected_bytes = expected_bytes.push(65)
+              results = results.append(std_testing.expect("bytes on disk", value3 == expected_bytes,
                 "binary bytes differed"))
             }
           }
         }
       }
-      match std_filesystem.write(invalid_file, byte_buffer.empty()->push(255)) {
-        Error(error) => { results = results->append(std_testing.expect("invalid UTF-8 setup", false,
+      match std_filesystem.write(invalid_file, byte_buffer.empty().push(255)) {
+        Error(error) => { results = results.append(std_testing.expect("invalid UTF-8 setup", false,
           "write failed")) },
         Ok(value4) => {}
       }
@@ -151,48 +151,48 @@ main(): Void {
       failures = [
         source_imports + "main(): Void { print(filesystem_support.read_text(\"${missing_text_name}\")); }",
         source_imports + "main(): Void { print(filesystem_support.read_file_bytes(\"${missing_binary_name}\")); }",
-        source_imports + "main(): Void { filesystem_support.write_file_bytes(\"${bad_text_name}\", \"data\"->encode_utf8()); }",
-        source_imports + "main(): Void { filesystem_support.write_file_bytes(\"${bad_binary_name}\", \"data\"->encode_utf8()); }",
+        source_imports + "main(): Void { filesystem_support.write_file_bytes(\"${bad_text_name}\", \"data\".encode_utf8()); }",
+        source_imports + "main(): Void { filesystem_support.write_file_bytes(\"${bad_binary_name}\", \"data\".encode_utf8()); }",
         source_imports + "main(): Void { print(filesystem_support.read_text(\"${invalid_name}\")); }"
       ]
-      for index in 0..failures->len() {
+      for index in 0..failures.len() {
         name = "failure-${index}"
-        results = results->append(io_failure(name, failures[index],
+        results = results.append(io_failure(name, failures[index],
           child(workspace.root, "${name}.panack")))
       }
       match std_process.run(path("/bin/sh"), ["-c", "id -u"], byte_buffer.empty(), std_path.current(), [],
           std_time.seconds(5), 100) {
-        Error(error) => { results = results->append(std_testing.expect("permission probe", false,
+        Error(error) => { results = results.append(std_testing.expect("permission probe", false,
           "id failed")) },
         Ok(identity) => {
-          if identity.exit_code == 0 && identity.stdout == "0\n"->encode_utf8() {
-            results = results->append(std_testing.expect("permission setup", true, ""))
+          if identity.exit_code == 0 && identity.stdout == "0\n".encode_utf8() {
+            results = results.append(std_testing.expect("permission setup", true, ""))
             for service in ["read_file", "read_bytes", "write_file", "write_bytes"] {
-              results = results->append(std_testing.expect("denied-${service}", true,
+              results = results.append(std_testing.expect("denied-${service}", true,
                 "root cannot demonstrate permission denial"))
             }
-            results = results->append(std_testing.expect("permission restore", true, ""))
+            results = results.append(std_testing.expect("permission restore", true, ""))
           } else {
-            match std_filesystem.write(denied_file, "secret"->encode_utf8()) {
-              Error(error) => { results = results->append(std_testing.expect("permission setup", false,
+            match std_filesystem.write(denied_file, "secret".encode_utf8()) {
+              Error(error) => { results = results.append(std_testing.expect("permission setup", false,
                 "write failed")) },
               Ok(written) => {
                 locked = std_process.run(path("/bin/sh"),
                   ["-c", "chmod 000 \"$1\"", "permission", denied_name], byte_buffer.empty(),
                   std_path.current(), [], std_time.seconds(5), 100)
                 match locked {
-                  Error(error) => { results = results->append(std_testing.expect("permission setup", false,
+                  Error(error) => { results = results.append(std_testing.expect("permission setup", false,
                     "chmod failed")) },
                   Ok(output) => {
-                    results = results->append(std_testing.expect("permission setup",
+                    results = results.append(std_testing.expect("permission setup",
                       output.exit_code == 0 && output.signal == 0, "chmod failed"))
                     denied_services = ["read_file", "read_bytes", "write_file", "write_bytes"]
-                    for index in 0..denied_services->len() {
+                    for index in 0..denied_services.len() {
                       service = denied_services[index]
                       statement = if index == 0 { "print(filesystem_support.read_text(\"${denied_name}\"));" }
                         else { if index == 1 { "print(filesystem_support.read_file_bytes(\"${denied_name}\"));" }
-                          else { "filesystem_support.write_file_bytes(\"${denied_name}\", \"data\"->encode_utf8());" } }
-                      results = results->append(io_failure("denied-${service}",
+                          else { "filesystem_support.write_file_bytes(\"${denied_name}\", \"data\".encode_utf8());" } }
+                      results = results.append(io_failure("denied-${service}",
                         source_imports + "main(): Void { ${statement} }",
                         child(workspace.root, "denied-${service}.panack")))
                     }
@@ -202,20 +202,20 @@ main(): Void {
                   ["-c", "chmod 600 \"$1\"", "permission", denied_name], byte_buffer.empty(),
                   std_path.current(), [], std_time.seconds(5), 100)
                 match unlocked {
-                  Error(error) => { results = results->append(std_testing.expect("permission restore", false,
+                  Error(error) => { results = results.append(std_testing.expect("permission restore", false,
                     "chmod failed")) },
-                  Ok(output2) => { results = results->append(std_testing.expect("permission restore",
+                  Ok(output2) => { results = results.append(std_testing.expect("permission restore",
                     output2.exit_code == 0 && output2.signal == 0, "chmod failed")) }
                 }
                 for service in ["read_file", "read_bytes", "write_file", "write_bytes"] {
                   match std_filesystem.remove_file(child(workspace.root, "denied-${service}.panack")) {
-                    Error(error) => { results = results->append(std_testing.expect("denied cleanup", false,
+                    Error(error) => { results = results.append(std_testing.expect("denied cleanup", false,
                       "file removal failed")) },
                     Ok(removed) => {}
                   }
                 }
                 match std_filesystem.remove_file(denied_file) {
-                  Error(error) => { results = results->append(std_testing.expect("denied cleanup", false,
+                  Error(error) => { results = results.append(std_testing.expect("denied cleanup", false,
                     "file removal failed")) },
                   Ok(removed2) => {}
                 }
@@ -230,13 +230,13 @@ main(): Void {
           child(workspace.root, "failure-4.panack")] {
         match std_filesystem.remove_file(file) {
           Ok(value5) => {},
-          Error(error) => { results = results->append(std_testing.expect("artifact cleanup", false,
+          Error(error) => { results = results.append(std_testing.expect("artifact cleanup", false,
             "file removal failed")) }
         }
       }
-      match workspace->remove_empty() {
+      match workspace.remove_empty() {
         Ok(value6) => {},
-        Error(error) => { results = results->append(std_testing.expect("workspace cleanup", false,
+        Error(error) => { results = results.append(std_testing.expect("workspace cleanup", false,
           "workspace removal failed")) }
       }
       count = std_testing.report(results)

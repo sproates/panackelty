@@ -83,10 +83,10 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
-- **GI#525 alpha.14 method syntax** — Promotion pending. The P13 bridge accepts
-  owned dots and temporary arrows on `next`; published alpha.13 examples retain
+- **GI#525 alpha.14 method syntax** — Promotion pending. P14 now accepts only
+  owned dots on `next`; published alpha.13 examples retain
   their release contract. Before alpha.14 adoption, the core delivery maintainer
-  will hand off P14's final dot-only syntax and P15's native/browser consumer
+  will hand off the verified P14 dot-only syntax and P15's native/browser consumer
   evidence to the website maintainer. Review method examples, migration guidance
   and the method-dispatch article against the actual shipped toolchain. The
   [website roadmap](https://github.com/sproates/panackelty-website/blob/main/ROADMAP.md)

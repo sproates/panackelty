@@ -69,6 +69,8 @@ lowering and wrappers, retaining focused internal backend fixtures and adding
 public rejection coverage. All project acceptance uses checked identities.
 [P13](../design/type-owned-dispatch/p13-owned-dot-bridge.md) saves the bridge seed
 that accepts both owned dots and arrows before maintained callers convert in P14.
+[P14](../design/type-owned-dispatch/p14-dot-cutover.md) converts maintained sources
+and generators to dots, removes arrow-call parsing, and verifies the dot-only seed.
 The VM and bytecode format are unchanged.
 
 ## Historical P2 completion checkpoint — 2026-10-10

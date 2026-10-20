@@ -9,5 +9,5 @@ impl Fruit {
 pure apple(value: produce.Fruit): Nat { value.value + 9000 }
 
 main(): Void {
-  print(produce.Fruit(10)->apple())
+  print(produce.Fruit(10).apple())
 }

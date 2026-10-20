@@ -3,5 +3,5 @@ import "server.panack"::{Server}
 pure get(server: Server, route: Str): Nat { 901 }
 
 main(): Void {
-  print(Server(10, map())->get("/fruit"))
+  print(Server(10, map()).get("/fruit"))
 }

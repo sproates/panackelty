@@ -8,17 +8,17 @@ import stdlib/environment as std_environment
 import stdlib/host as std_host
 import stdlib/time as std_time
 
-pub pure session_path(text: Str): Path { std_path.from_text(text)->value_or(std_path.current()) }
+pub pure session_path(text: Str): Path { std_path.from_text(text).value_or(std_path.current()) }
 session_environment(base: [Str]): [Str] {
   mut values: [Str] = []
   for variable in base {
-    if !variable->starts_with_at("PANACKELTY_COMPILER_PATH=", 0) && !variable->starts_with_at("PANACKELTY_STDLIB_PATH=", 0) {
-      values = values->append(variable)
+    if !variable.starts_with_at("PANACKELTY_COMPILER_PATH=", 0) && !variable.starts_with_at("PANACKELTY_STDLIB_PATH=", 0) {
+      values = values.append(variable)
     } else {}
   }
-  values->append("PANACKELTY_COMPILER_PATH=" + std_environment.get("PANACK_TEST_COMPILER")->value_or(""))->append("PANACKELTY_STDLIB_PATH=" + std_environment.get("PANACKELTY_STDLIB_PATH")->value_or(""))
+  values.append("PANACKELTY_COMPILER_PATH=" + std_environment.get("PANACK_TEST_COMPILER").value_or("")).append("PANACKELTY_STDLIB_PATH=" + std_environment.get("PANACKELTY_STDLIB_PATH").value_or(""))
 }
-pub session_read(path: Str): Bytes { std_filesystem.read(session_path(path), 16777216)->value_or(bytes()) }
+pub session_read(path: Str): Bytes { std_filesystem.read(session_path(path), 16777216).value_or(bytes()) }
 pub session_write(path: Str, data: Bytes): Void {
   parent: Str = path_support.parent(path)
   if parent != "" { std_filesystem.create_directory(session_path(parent)); } else {}
@@ -26,7 +26,7 @@ pub session_write(path: Str, data: Bytes): Void {
 }
 pub pure session_contains(text: Str, needle: Str): Bool {
   mut found: Bool = false
-  for i in 0..text->len() { if i + needle->len() <= text->len() && text->slice(i, i + needle->len()) == needle { found = true; } }
+  for i in 0..text.len() { if i + needle.len() <= text.len() && text.slice(i, i + needle.len()) == needle { found = true; } }
   found
 }
 pub session_command(args: [Str]): ProcessOutput { session_command_env(args, []) }
@@ -35,35 +35,35 @@ pub session_command_env(args: [Str], environment: [Str]): ProcessOutput {
   if args[0] == "coverage-session" {
     command = args
   } else {
-    command = ["run", std_environment.get("PANACK_TEST_COMPILER")->value_or("")]
-    for argument in args { command = command->append(argument); }
+    command = ["run", std_environment.get("PANACK_TEST_COMPILER").value_or("")]
+    for argument in args { command = command.append(argument); }
   }
   match std_process.run(session_path("./panack-vm"), command, bytes(), std_path.current(), session_environment(environment), std_time.seconds(90), 1048576) {
     Error(error) => { std_host.stderr("session command failed"); std_host.exit(1); ProcessOutput(1, 0, bytes(), bytes()) }, Ok(result) => result
   }
 }
 pub session_setup(source: Str, child: Str, artifact: Str, child_bc: Str, inventory: Str, child_inv: Str): [ProcessOutput] {
-  session_write(source, "import stdlib/host as std_host\nimport stdlib/filesystem as std_filesystem\nimport stdlib/path as std_path\nimport stdlib/bytes as byte_buffer\nmain(): Void { args = std_host.arguments(); std_host.run(std_filesystem.read(std_path.from_text(args[0])->value_or(std_path.current()), 16777216)->value_or(byte_buffer.empty()), [args[1]]); }\n"->encode_utf8())
-  session_write(child, "import stdlib/host as std_host\npure choose(x: Bool): Nat { if x { 7 } else { 9 } }\npure unused(): Nat { 0 }\nmain(): Void { std_host.stdout(if choose(std_host.arguments()[0] == \"true\") == 7 { \"7\" } else { \"9\" }); }\n"->encode_utf8())
+  session_write(source, "import stdlib/host as std_host\nimport stdlib/filesystem as std_filesystem\nimport stdlib/path as std_path\nimport stdlib/bytes as byte_buffer\nmain(): Void { args = std_host.arguments(); std_host.run(std_filesystem.read(std_path.from_text(args[0]).value_or(std_path.current()), 16777216).value_or(byte_buffer.empty()), [args[1]]); }\n".encode_utf8())
+  session_write(child, "import stdlib/host as std_host\npure choose(x: Bool): Nat { if x { 7 } else { 9 } }\npure unused(): Nat { 0 }\nmain(): Void { std_host.stdout(if choose(std_host.arguments()[0] == \"true\") == 7 { \"7\" } else { \"9\" }); }\n".encode_utf8())
   mut outputs: [ProcessOutput] = []
-  outputs = outputs->append(session_command(["compile", source, "-o", artifact]))
-  outputs = outputs->append(session_command(["compile", child, "-o", child_bc]))
-  outputs = outputs->append(session_command(["inventory", source, "-o", inventory]))
-  outputs = outputs->append(session_command(["inventory", child, "-o", child_inv]))
+  outputs = outputs.append(session_command(["compile", source, "-o", artifact]))
+  outputs = outputs.append(session_command(["compile", child, "-o", child_bc]))
+  outputs = outputs.append(session_command(["inventory", source, "-o", inventory]))
+  outputs = outputs.append(session_command(["inventory", child, "-o", child_inv]))
   outputs
 }
 pub session_setup_child(child: Str, child_bc: Str, child_inv: Str): [ProcessOutput] {
-  session_write(child, "import stdlib/host as std_host\npure choose(x: Bool): Nat { if x { 7 } else { 9 } }\npure unused(): Nat { 0 }\nmain(): Void { std_host.stdout(if choose(std_host.arguments()[0] == \"true\") == 7 { \"7\" } else { \"9\" }); }\n"->encode_utf8())
+  session_write(child, "import stdlib/host as std_host\npure choose(x: Bool): Nat { if x { 7 } else { 9 } }\npure unused(): Nat { 0 }\nmain(): Void { std_host.stdout(if choose(std_host.arguments()[0] == \"true\") == 7 { \"7\" } else { \"9\" }); }\n".encode_utf8())
   [session_command(["compile", child, "-o", child_bc]), session_command(["inventory", child, "-o", child_inv])]
 }
 pub session_require_success(outputs: [ProcessOutput]): Void {
-  for output in outputs { if output.exit_code != 0 { std_host.stderr("session fixture setup failed: " + output.stderr->decode_utf8()); std_host.exit(1); } }
+  for output in outputs { if output.exit_code != 0 { std_host.stderr("session fixture setup failed: " + output.stderr.decode_utf8()); std_host.exit(1); } }
 }
 pub session_clean(path: Str): Void {
   match std_filesystem.list_directory(session_path(path)) {
     Error(error) => {}, Ok(children) => {
       for child in children {
-        file: Str = path + "/" + child->to_text()->value_or("")
+        file: Str = path + "/" + child.to_text().value_or("")
         match std_filesystem.metadata(session_path(file)) {
           Error(error) => {}, Ok(metadata) => {
             if metadata.kind == Directory() { session_clean(file); } else { std_filesystem.remove_file(session_path(file)); }

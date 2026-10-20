@@ -1,3 +1,3 @@
-error: <case>/main.panack:6:9: Server->get expects 3 arguments, got 2
-  6 |   print(Server(10, map())->get("/fruit"))
+error: <case>/main.panack:6:9: Server.get expects 3 arguments, got 2
+  6 |   print(Server(10, map()).get("/fruit"))
     |         ^

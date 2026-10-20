@@ -24,11 +24,11 @@ pure explanation_location(
   match origin {
     None() => "source: unavailable",
     Some(span) => {
-      if !sources->has(span.start.file) {
+      if !sources.has(span.start.file) {
         "source: unavailable"
       } else {
-        source: Str = sources->get(span.start.file)
-        if span.end.offset < span.start.offset || span.end.offset > source->len() {
+        source: Str = sources.get(span.start.file)
+        if span.end.offset < span.start.offset || span.end.offset > source.len() {
           "source: unavailable"
         } else {
           file: Str = source_map_escape(source_identifier(span.start.file, root, stdlib_root))
@@ -36,7 +36,7 @@ pure explanation_location(
           column: Nat = span.start.column
           end_line: Nat = span.end.line
           end_column: Nat = span.end.column
-          expression: Str = source_map_escape(source->slice(span.start.offset, span.end.offset))
+          expression: Str = source_map_escape(source.slice(span.start.offset, span.end.offset))
           "source: ${file}:${line}:${column}-${end_line}:${end_column}\nexpression: ${expression}"
         }
       }
@@ -156,7 +156,7 @@ pub explanation_function_selector(
     stdlib_root
   )
   match selected {
-    Error(message) => if message->starts_with_at("unknown function selector ", 0) &&
+    Error(message) => if message.starts_with_at("unknown function selector ", 0) &&
       explanation_has_project_error(project) {
       identity: DeclarationIdentity = DeclarationIdentity(
         source_module_identity(entry_path, root, stdlib_root),
@@ -230,11 +230,11 @@ pure effect_display_target(name: Str): Str {
   if name == "$unit" {
     "()"
   } else {
-    if name->starts_with_at("$intrinsic_", 0) {
-      name->slice(11, name->len())
+    if name.starts_with_at("$intrinsic_", 0) {
+      name.slice(11, name.len())
     } else {
-      if name->starts_with_at("$core_", 0) {
-        name->slice(6, name->len())
+      if name.starts_with_at("$core_", 0) {
+        name.slice(6, name.len())
       } else {
         name
       }
@@ -248,7 +248,7 @@ pure render_effect_evidence(
   root: Str,
   stdlib_root: Str
 ): Str {
-  status: Str = if entry.violations->len() > 0 {
+  status: Str = if entry.violations.len() > 0 {
     "rejected"
   } else {
     if entry.target_effect == "unavailable" { "unavailable" } else { "allowed" }
@@ -268,7 +268,7 @@ pure render_effect_evidence(
       "\nawaited: no"
     }
   }
-  if entry.violations->len() > 0 {
+  if entry.violations.len() > 0 {
     for reason in entry.violations {
       output = output + "\nreason: " + source_map_escape(reason)
     }
@@ -298,7 +298,7 @@ pure render_effect_evidence(
 pure body_guard_conversions(body: BoundBody): [GuardConversionEvidence] {
   mut entries: [GuardConversionEvidence] = body.guard_conversions
   for child in body.children {
-    entries = entries->concat(body_guard_conversions(child))
+    entries = entries.concat(body_guard_conversions(child))
   }
   entries
 }
@@ -307,7 +307,7 @@ pure body_inferred_locals(body: BoundBody): [BoundBody] {
   mut entries: [BoundBody] = []
   match body.node {
     BodyBinding(local, type, mutable, inferred, type_evidence) => match inferred {
-      Some(value) => if value { entries = entries->append(body) },
+      Some(value) => if value { entries = entries.append(body) },
       None() => {}
     },
     BodyLiteral(value) => {},
@@ -329,7 +329,7 @@ pure body_inferred_locals(body: BoundBody): [BoundBody] {
     BodyEmpty() => {}
   }
   for child in body.children {
-    entries = entries->concat(body_inferred_locals(child))
+    entries = entries.concat(body_inferred_locals(child))
   }
   entries
 }
@@ -394,10 +394,10 @@ pure explanation_position_contains(span: SourceSpan, line: Nat, column: Nat): Bo
 pure body_explanation_expressions(body: BoundBody): [BoundBody] {
   mut entries: [BoundBody] = []
   if explanation_expression_node(body) {
-    entries = entries->append(body)
+    entries = entries.append(body)
   }
   for child in body.children {
-    entries = entries->concat(body_explanation_expressions(child))
+    entries = entries.concat(body_explanation_expressions(child))
   }
   entries
 }
@@ -419,7 +419,7 @@ pub pure render_expression_type_explanation(
       match function.status {
         BodyIdentityChecked() => {
           valid_function = true
-          expressions = expressions->concat(body_explanation_expressions(function.body))
+          expressions = expressions.concat(body_explanation_expressions(function.body))
         },
         BodyDeferred() => {},
         BodyInvalid() => {}
@@ -430,7 +430,7 @@ pub pure render_expression_type_explanation(
   mut best_index: Nat = 0
   mut best_start: Nat = 0
   mut best_end: Nat = 4294967295
-  for index in 0..expressions->len() {
+  for index in 0..expressions.len() {
     candidate: BoundBody = expressions[index]
     if candidate.span.start.file == selector.source_path &&
       candidate.span.end.offset >= candidate.span.start.offset &&
@@ -570,11 +570,11 @@ pure render_call_argument_explanations(
   mut entries: [CallArgumentEvidence] = []
   for function in project.module_bodies {
     if function.signature.binding.identity == selector.identity {
-      entries = entries->concat(body_call_argument_evidence(function.body))
+      entries = entries.concat(body_call_argument_evidence(function.body))
     }
   }
   mut output: Str = "call argument checks:"
-  if entries->len() == 0 {
+  if entries.len() == 0 {
     output = output + " none (no retained call argument checks)"
   } else {
     for entry in entries {
@@ -627,11 +627,11 @@ pure render_binding_type_explanations(
   mut entries: [BindingTypeEvidence] = []
   for function in project.module_bodies {
     if function.signature.binding.identity == selector.identity {
-      entries = entries->concat(body_binding_type_evidence(function.body))
+      entries = entries.concat(body_binding_type_evidence(function.body))
     }
   }
   mut output: Str = "annotated local checks:"
-  if entries->len() == 0 {
+  if entries.len() == 0 {
     output = output + " none (no retained annotated local initializers)"
   } else {
     for entry in entries {
@@ -684,11 +684,11 @@ pure render_assignment_type_explanations(
   mut entries: [AssignmentTypeEvidence] = []
   for function in project.module_bodies {
     if function.signature.binding.identity == selector.identity {
-      entries = entries->concat(body_assignment_type_evidence(function.body))
+      entries = entries.concat(body_assignment_type_evidence(function.body))
     }
   }
   mut output: Str = "assignment value checks:"
-  if entries->len() == 0 {
+  if entries.len() == 0 {
     output = output + " none (no retained local assignment checks)"
   } else {
     for entry in entries {
@@ -738,11 +738,11 @@ pure render_type_join_explanations(
   mut entries: [TypeJoinEvidence] = []
   for function in project.module_bodies {
     if function.signature.binding.identity == selector.identity {
-      entries = entries->concat(body_type_join_evidence(function.body))
+      entries = entries.concat(body_type_join_evidence(function.body))
     }
   }
   mut output: Str = "checked type joins:"
-  if entries->len() == 0 {
+  if entries.len() == 0 {
     output = output + " none (no retained checked joins for this function)"
   } else {
     for entry in entries {
@@ -793,11 +793,11 @@ pure render_operator_type_explanations(
   mut entries: [OperatorTypeEvidence] = []
   for function in project.module_bodies {
     if function.signature.binding.identity == selector.identity {
-      entries = entries->concat(body_operator_type_evidence(function.body))
+      entries = entries.concat(body_operator_type_evidence(function.body))
     }
   }
   mut output: Str = "operator type checks:"
-  if entries->len() == 0 {
+  if entries.len() == 0 {
     output = output + " none (no retained unary or binary operator type checks)"
   } else {
     for entry in entries {
@@ -968,13 +968,13 @@ pure render_type_check_explanations(
         if evidence.context != "direct call arity" &&
           evidence.context != "core call arity" && evidence.context != "indirect call arity" &&
           evidence.context != "type argument arity" {
-          entries = entries->append(evidence)
+          entries = entries.append(evidence)
         }
       }
     }
   }
   mut output: Str = "checked type requirements:"
-  if entries->len() == 0 {
+  if entries.len() == 0 {
     output = output + " none (no retained checked type requirements)"
   } else {
     for entry in entries {
@@ -997,13 +997,13 @@ pure render_type_argument_arity_explanations(
     if function.signature.binding.identity == selector.identity {
       for evidence in body_type_check_evidence(function.body) {
         if evidence.context == "type argument arity" {
-          entries = entries->append(evidence)
+          entries = entries.append(evidence)
         }
       }
     }
   }
   mut output: Str = "explicit type argument arity checks:"
-  if entries->len() == 0 {
+  if entries.len() == 0 {
     output = output + " none (no retained explicit type argument arity checks)"
   } else {
     for entry in entries {
@@ -1027,13 +1027,13 @@ pure render_call_arity_explanations(
       for evidence in body_type_check_evidence(function.body) {
         if evidence.context == "direct call arity" ||
           evidence.context == "core call arity" || evidence.context == "indirect call arity" {
-          entries = entries->append(evidence)
+          entries = entries.append(evidence)
         }
       }
     }
   }
   mut output: Str = "call arity checks:"
-  if entries->len() == 0 {
+  if entries.len() == 0 {
     output = output + " none (no retained call arity checks)"
   } else {
     for entry in entries {
@@ -1088,11 +1088,11 @@ pure render_collection_callback_explanations(
   mut entries: [CollectionCallbackEvidence] = []
   for function in project.module_bodies {
     if function.signature.binding.identity == selector.identity {
-      entries = entries->concat(body_collection_callback_evidence(function.body))
+      entries = entries.concat(body_collection_callback_evidence(function.body))
     }
   }
   mut output: Str = "collection callback contracts:"
-  if entries->len() == 0 {
+  if entries.len() == 0 {
     output = output + " none (no retained array map or reduce callback checks)"
   } else {
     for entry in entries {
@@ -1114,7 +1114,7 @@ pure render_inferred_local(
     BodyBinding(local, type, mutable, inferred, type_evidence) => {
       local_name: Str = source_map_escape(local.name)
       mut output: Str = "inferred local: ${local_name}"
-      if body.children->len() == 0 {
+      if body.children.len() == 0 {
         output = output + "\nsource: unavailable\ninferred type: unavailable\nreason: no initializer evidence was retained"
       } else {
         initializer: BoundBody = body.children[0]
@@ -1242,14 +1242,14 @@ pure render_guard_conversion_explanations(
   for body in project.module_bodies {
     if body.signature.binding.identity == selector.identity {
       found_function = true
-      entries = entries->concat(body_guard_conversions(body.body))
+      entries = entries.concat(body_guard_conversions(body.body))
     }
   }
   mut output: Str = "guarded conversions:"
   if !found_function {
     output = output + " unavailable\nreason: no checked body was retained for this function"
   } else {
-    if entries->len() == 0 {
+    if entries.len() == 0 {
       output = output + " none"
     } else {
       for entry in entries {
@@ -1276,14 +1276,14 @@ pure render_inferred_local_explanations(
   for function in project.module_bodies {
     if function.signature.binding.identity == selector.identity {
       found_function = true
-      entries = entries->concat(body_inferred_locals(function.body))
+      entries = entries.concat(body_inferred_locals(function.body))
     }
   }
   mut output: Str = "inferred locals:"
   if !found_function {
     output = output + " unavailable\nreason: no checked body was retained for this function"
   } else {
-    if entries->len() == 0 {
+    if entries.len() == 0 {
       output = output + " none"
     } else {
       for entry in entries {

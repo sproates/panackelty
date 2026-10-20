@@ -11,13 +11,13 @@ import stdlib/testing_commands::{TestCommand, ProcessOutput}
 import stdlib/testing_files as std_testing_files
 import stdlib/testing::{TestResult}
 import stdlib/time as std_time
-pure contract_path(text: Str): Path { std_path.from_text(text)->value_or(std_path.current()) }
-pure contract_child(root: Path, text: Str): Path { root->join(contract_path(text))->value_or(root) }
-pure contract_text(path: Path): Str { path->to_text()->value_or("invalid-path") }
+pure contract_path(text: Str): Path { std_path.from_text(text).value_or(std_path.current()) }
+pure contract_child(root: Path, text: Str): Path { root.join(contract_path(text)).value_or(root) }
+pure contract_text(path: Path): Str { path.to_text().value_or("invalid-path") }
 pure integration_contains(actual: Str, expected: Str): Bool {
   mut found = false
-  for offset in 0..actual->len() {
-    if actual->starts_with_at(expected, offset) { found = true }
+  for offset in 0..actual.len() {
+    if actual.starts_with_at(expected, offset) { found = true }
   }
   found
 }
@@ -30,24 +30,24 @@ integration_output(name: Str, args: [Str], expected: Str): TestResult {
       command.environment, command.timeout, command.output_limit) {
     Error(error) => std_testing.expect(name, false, "process command failed"),
     Ok(actual) => std_testing.expect(name, actual.exit_code == 0 && actual.signal == 0 &&
-      actual.stdout == expected->encode_utf8() && actual.stderr == byte_buffer.empty(),
-      "arguments: " + args[0] + " / " + args[1] + "; stdout: " + actual.stdout->decode_utf8() +
-      "; stderr: " + actual.stderr->decode_utf8())
+      actual.stdout == expected.encode_utf8() && actual.stderr == byte_buffer.empty(),
+      "arguments: " + args[0] + " / " + args[1] + "; stdout: " + actual.stdout.decode_utf8() +
+      "; stderr: " + actual.stderr.decode_utf8())
   }
 }
 integration_probe(name: Str, args: [Str], expected: Str): TestResult {
   command = TestCommand(contract_path("/bin/sh"),
-    ["tests/run_probe.sh"]->concat(args), byte_buffer.empty(), std_path.current(), ["PANACKELTY_BOOTSTRAP_ROOT=."],
+    ["tests/run_probe.sh"].concat(args), byte_buffer.empty(), std_path.current(), ["PANACKELTY_BOOTSTRAP_ROOT=."],
     // These probes compile compiler modules on a cold cache. The hosted driver
     // build alone reached 90 seconds before its enclosing command timed out.
     std_time.seconds(300), 1048576)
-  std_testing_commands.run_command(name, command, ProcessOutput(0, 0, expected->encode_utf8(), byte_buffer.empty()))
+  std_testing_commands.run_command(name, command, ProcessOutput(0, 0, expected.encode_utf8(), byte_buffer.empty()))
 }
 integration_error(name: Str, args: [Str], status: Nat, output: Str, expected: Str): TestResult {
   match std_process.run(contract_path("./bin/panack"), args, byte_buffer.empty(), std_path.current(), [], std_time.seconds(90), 1048576) {
     Error(error) => std_testing.expect(name, false, "command failed"),
     Ok(actual) => std_testing.expect(name, actual.exit_code == status && actual.signal == 0 &&
-      actual.stdout == output->encode_utf8() && integration_contains(actual.stderr->decode_utf8(), expected),
+      actual.stdout == output.encode_utf8() && integration_contains(actual.stderr.decode_utf8(), expected),
       "unexpected status/output or missing diagnostic ${expected}; exit ${actual.exit_code}, signal ${actual.signal}, stdout: ${std_text.decode_utf8(actual.stdout)}, stderr: ${std_text.decode_utf8(actual.stderr)}")
   }
 }
@@ -56,11 +56,11 @@ integration_candidate_error(name: Str, args: [Str], expected: Str): TestResult {
     Some(value) => value,
     None() => "bootstrap/compiler-v9.bc"
   }
-  match std_process.run(contract_path("./panack-vm"), ["run", compiler]->concat(args), byte_buffer.empty(),
+  match std_process.run(contract_path("./panack-vm"), ["run", compiler].concat(args), byte_buffer.empty(),
       std_path.current(), [], std_time.seconds(90), 1048576) {
     Error(error) => std_testing.expect(name, false, "compiler process failed"),
     Ok(actual) => std_testing.expect(name, actual.exit_code == 1 && actual.signal == 0 &&
-      actual.stdout == byte_buffer.empty() && integration_contains(actual.stderr->decode_utf8(), expected),
+      actual.stdout == byte_buffer.empty() && integration_contains(actual.stderr.decode_utf8(), expected),
       "candidate compiler did not report ${expected}")
   }
 }
@@ -96,38 +96,38 @@ main(): Void {
       snapshot_path = contract_child(workspace.root, "broken.panack")
       snapshot = contract_text(snapshot_path)
       if integration_group == "all" || integration_group == "driver" {
-        results = results->append(integration_probe("build direct driver probe",
+        results = results.append(integration_probe("build direct driver probe",
           ["--compile", "tests/fixtures/compiler_contracts/driver_probe.panack", driver], "wrote ${driver}\n"))
       }
       if integration_group == "all" || integration_group == "frontend" {
-        results = results->append(integration_output("checker/int_accepts_negative_values_but_nat_does_not-1", ["run", "tests/fixtures/compiler_contracts/checker/int_accepts_negative_values_but_nat_does_not-1.panack"], "-42\n"))
-        results = results->append(integration_output("syntax/error_is_the_result_failure_variant-1", ["run", "tests/fixtures/compiler_contracts/syntax/error_is_the_result_failure_variant-1.panack"], "failed\n"))
-        results = results->append(integration_output("syntax/if_else_is_optional_in_void_position-1", ["run", "tests/fixtures/compiler_contracts/syntax/if_else_is_optional_in_void_position-1.panack"], "42\n"))
-        results = results->append(integration_output("syntax/keyword_free_functions_bindings_and_void_fallthrough-1", ["run", "tests/fixtures/compiler_contracts/syntax/keyword_free_functions_bindings_and_void_fallthrough-1.panack"], "answer 42\n"))
-        results = results->append(integration_output("syntax/line_breaks_replace_statement_semicolons-1", ["run", "tests/fixtures/compiler_contracts/syntax/line_breaks_replace_statement_semicolons-1.panack"], "yes\n43\n"))
-        results = results->append(integration_output("syntax/method_calls_lower_to_calls_with_the_receiver_first-1", ["run", "tests/fixtures/compiler_contracts/syntax/method_calls_lower_to_calls_with_the_receiver_first-1.panack"], "2\ntrue\n42\ntrue\n"))
-        results = results->append(integration_output("syntax/named_callable_values_map_reduce_and_indirect_calls-1", ["run", "tests/fixtures/compiler_contracts/syntax/named_callable_values_map_reduce_and_indirect_calls-1.panack"], "[2, 4, 6]\n6\n8\n9\n"))
-        results = results->append(integration_output("syntax/semicolons_still_separate_same_line_statements-1", ["run", "tests/fixtures/compiler_contracts/syntax/semicolons_still_separate_same_line_statements-1.panack"], "first\nsecond\n"))
-        results = results->append(integration_output("types/generic_records_option_and_result_inference-1", ["run", "tests/fixtures/compiler_contracts/types/generic_records_option_and_result_inference-1.panack"], "answer\n42\n0\n"))
-        results = results->append(integration_output("types/records_enums_and_exhaustive_match-1", ["run", "tests/fixtures/compiler_contracts/types/records_enums_and_exhaustive_match-1.panack"], "17\n25\n7\n"))
-        results = results->append(integration_output("instruction sources nested lowering execution", ["run", "tests/fixtures/compiler_contracts/instruction_sources/main.panack"], "4\n6\n4\n8\n9\nvalue\n"))
-        results = results->append(integration_output("indexed imported declarations and forward calls", ["run", "tests/fixtures/compiler_contracts/indexed_lookup/main.panack"], "indexed\n42\n0\n2\n"))
-        results = results->append(integration_output("indexed project compiles", ["compile", "tests/fixtures/compiler_contracts/indexed_lookup/main.panack", "-o", artifact], "wrote ${artifact}\n"))
-        results = results->append(integration_output("indexed project bytecode executes", ["run", artifact], "indexed\n42\n0\n2\n"))
-        results = results->append(integration_output("generic function execution", ["run", "tests/fixtures/compiler_contracts/emitter/emission_erases_type_arguments_and_preserves_one_body-1.panack"], "1\nx\n"))
-        results = results->append(integration_error("imports/import_cycles_are_rejected-1", ["check", "tests/fixtures/compiler_contracts/imports/import_cycles_are_rejected-1/first.panack"], 1, "", "import cycle"))
-        results = results->append(integration_error("imports/invalid_logical_imports_are_rejected-1", ["check", "tests/fixtures/compiler_contracts/imports/invalid_logical_imports_are_rejected-1/invalid-0.panack"], 1, "", "invalid logical import path"))
-        results = results->append(integration_error("imports/invalid_logical_imports_are_rejected-2", ["check", "tests/fixtures/compiler_contracts/imports/invalid_logical_imports_are_rejected-2/invalid-1.panack"], 1, "", "invalid logical import path"))
-        results = results->append(integration_output("imports/logical_standard_library_imports_are_extensionless_and_load_once-1", ["run", "tests/fixtures/compiler_contracts/imports/logical_standard_library_imports_are_extensionless_and_load_once-1/main.panack"], "42\n"))
-        results = results->append(integration_output("imports/project_imports_are_rooted_at_the_entry_module-1", ["run", "tests/fixtures/compiler_contracts/imports/project_imports_are_rooted_at_the_entry_module-1/main.panack"], "42\n"))
-        results = results->append(integration_output("imports/relative_module_imports-1", ["run", "tests/fixtures/compiler_contracts/imports/relative_module_imports-1/main.panack"], "42\n"))
+        results = results.append(integration_output("checker/int_accepts_negative_values_but_nat_does_not-1", ["run", "tests/fixtures/compiler_contracts/checker/int_accepts_negative_values_but_nat_does_not-1.panack"], "-42\n"))
+        results = results.append(integration_output("syntax/error_is_the_result_failure_variant-1", ["run", "tests/fixtures/compiler_contracts/syntax/error_is_the_result_failure_variant-1.panack"], "failed\n"))
+        results = results.append(integration_output("syntax/if_else_is_optional_in_void_position-1", ["run", "tests/fixtures/compiler_contracts/syntax/if_else_is_optional_in_void_position-1.panack"], "42\n"))
+        results = results.append(integration_output("syntax/keyword_free_functions_bindings_and_void_fallthrough-1", ["run", "tests/fixtures/compiler_contracts/syntax/keyword_free_functions_bindings_and_void_fallthrough-1.panack"], "answer 42\n"))
+        results = results.append(integration_output("syntax/line_breaks_replace_statement_semicolons-1", ["run", "tests/fixtures/compiler_contracts/syntax/line_breaks_replace_statement_semicolons-1.panack"], "yes\n43\n"))
+        results = results.append(integration_output("syntax/method_calls_lower_to_calls_with_the_receiver_first-1", ["run", "tests/fixtures/compiler_contracts/syntax/method_calls_lower_to_calls_with_the_receiver_first-1.panack"], "2\ntrue\n42\ntrue\n"))
+        results = results.append(integration_output("syntax/named_callable_values_map_reduce_and_indirect_calls-1", ["run", "tests/fixtures/compiler_contracts/syntax/named_callable_values_map_reduce_and_indirect_calls-1.panack"], "[2, 4, 6]\n6\n8\n9\n"))
+        results = results.append(integration_output("syntax/semicolons_still_separate_same_line_statements-1", ["run", "tests/fixtures/compiler_contracts/syntax/semicolons_still_separate_same_line_statements-1.panack"], "first\nsecond\n"))
+        results = results.append(integration_output("types/generic_records_option_and_result_inference-1", ["run", "tests/fixtures/compiler_contracts/types/generic_records_option_and_result_inference-1.panack"], "answer\n42\n0\n"))
+        results = results.append(integration_output("types/records_enums_and_exhaustive_match-1", ["run", "tests/fixtures/compiler_contracts/types/records_enums_and_exhaustive_match-1.panack"], "17\n25\n7\n"))
+        results = results.append(integration_output("instruction sources nested lowering execution", ["run", "tests/fixtures/compiler_contracts/instruction_sources/main.panack"], "4\n6\n4\n8\n9\nvalue\n"))
+        results = results.append(integration_output("indexed imported declarations and forward calls", ["run", "tests/fixtures/compiler_contracts/indexed_lookup/main.panack"], "indexed\n42\n0\n2\n"))
+        results = results.append(integration_output("indexed project compiles", ["compile", "tests/fixtures/compiler_contracts/indexed_lookup/main.panack", "-o", artifact], "wrote ${artifact}\n"))
+        results = results.append(integration_output("indexed project bytecode executes", ["run", artifact], "indexed\n42\n0\n2\n"))
+        results = results.append(integration_output("generic function execution", ["run", "tests/fixtures/compiler_contracts/emitter/emission_erases_type_arguments_and_preserves_one_body-1.panack"], "1\nx\n"))
+        results = results.append(integration_error("imports/import_cycles_are_rejected-1", ["check", "tests/fixtures/compiler_contracts/imports/import_cycles_are_rejected-1/first.panack"], 1, "", "import cycle"))
+        results = results.append(integration_error("imports/invalid_logical_imports_are_rejected-1", ["check", "tests/fixtures/compiler_contracts/imports/invalid_logical_imports_are_rejected-1/invalid-0.panack"], 1, "", "invalid logical import path"))
+        results = results.append(integration_error("imports/invalid_logical_imports_are_rejected-2", ["check", "tests/fixtures/compiler_contracts/imports/invalid_logical_imports_are_rejected-2/invalid-1.panack"], 1, "", "invalid logical import path"))
+        results = results.append(integration_output("imports/logical_standard_library_imports_are_extensionless_and_load_once-1", ["run", "tests/fixtures/compiler_contracts/imports/logical_standard_library_imports_are_extensionless_and_load_once-1/main.panack"], "42\n"))
+        results = results.append(integration_output("imports/project_imports_are_rooted_at_the_entry_module-1", ["run", "tests/fixtures/compiler_contracts/imports/project_imports_are_rooted_at_the_entry_module-1/main.panack"], "42\n"))
+        results = results.append(integration_output("imports/relative_module_imports-1", ["run", "tests/fixtures/compiler_contracts/imports/relative_module_imports-1/main.panack"], "42\n"))
         // Compound expressions now retain their own file/start location. Check
         // complete programs through the public CLI, including an imported generic.
         for operation in ["check", "run", "compile"] {
           args: [Str] = [operation, "tests/fixtures/compiler_contracts/spans/binary.panack"]
-          results = results->append(integration_error("source spans/local/" + operation,
+          results = results.append(integration_error("source spans/local/" + operation,
             args, 1, "", "spans/binary.panack:2:16: operator + does not accept Nat and Bool\n  2 |   value: Nat = 1 + true\n    |                ^"))
-          results = results->append(integration_error("source spans/imported/" + operation,
+          results = results.append(integration_error("source spans/imported/" + operation,
             [operation, "tests/fixtures/compiler_contracts/spans/imported.panack"], 1, "",
             "spans/library.panack:2:9: index is Bool, expected Nat\n  2 |   items[true]\n    |         ^"))
         }
@@ -136,111 +136,111 @@ main(): Void {
         for fixture in ["public", "alias", "selective", "reexport", "expression_valid", "aggregate_valid"] {
           source = "tests/fixtures/compiler_contracts/namespaces/" + fixture + ".panack"
           expected = if fixture == "expression_valid" || fixture == "aggregate_valid" { "" } else { "42\n" }
-          results = results->append(integration_output("namespace check/" + fixture, ["check", source], "ok\n"))
-          results = results->append(integration_output("namespace run/" + fixture, ["run", source], expected))
-          results = results->append(integration_output("namespace compile/" + fixture,
+          results = results.append(integration_output("namespace check/" + fixture, ["check", source], "ok\n"))
+          results = results.append(integration_output("namespace run/" + fixture, ["run", source], expected))
+          results = results.append(integration_output("namespace compile/" + fixture,
             ["compile", source, "-o", artifact], "wrote ${artifact}\n"))
-          results = results->append(integration_output("namespace compiled run/" + fixture, ["run", artifact], expected))
+          results = results.append(integration_output("namespace compiled run/" + fixture, ["run", artifact], expected))
         }
-        results = results->append(integration_output("same-name declarations keep module identity",
+        results = results.append(integration_output("same-name declarations keep module identity",
           ["run", "tests/fixtures/compiler_contracts/namespaces/duplicate.panack"], "42\n"))
         for operation in ["check", "run", "compile"] {
-          results = results->append(integration_error("public signature privacy/" + operation,
+          results = results.append(integration_error("public signature privacy/" + operation,
             [operation, "tests/fixtures/compiler_contracts/namespaces/signature_private.panack"], 1, "",
             "namespaces/signature_private.panack:2:29: signature Visible.value: public signature exposes inaccessible type Hidden from signature_private"))
-          results = results->append(std_testing.expect("signature failure writes no bytecode/" + operation,
+          results = results.append(std_testing.expect("signature failure writes no bytecode/" + operation,
             !filesystem_support.exists("tests/fixtures/compiler_contracts/namespaces/signature_private.bc"), "invalid signature emitted bytecode"))
         }
         for operation in ["check", "run", "compile"] {
-          results = results->append(integration_error("body nominal identity/" + operation,
+          results = results.append(integration_error("body nominal identity/" + operation,
             [operation, "tests/fixtures/compiler_contracts/namespaces/body_identity.panack"], 1, "",
             "namespaces/body_identity.panack:6:10: argument 1 to accept is body_identity.panack:Right, expected body_identity.panack:Left"))
-          results = results->append(std_testing.expect("body identity failure writes no bytecode/" + operation,
+          results = results.append(std_testing.expect("body identity failure writes no bytecode/" + operation,
             !filesystem_support.exists("tests/fixtures/compiler_contracts/namespaces/body_identity.bc"), "invalid body emitted bytecode"))
         }
         for operation in ["check", "run", "compile"] {
           for diagnostic in ["expression_types.panack:2:9: while condition is Nat, expected Bool", "expression_types.panack:3:10: unknown interpolation local missing"] {
-            results = results->append(integration_error("identity expression diagnostic/" + operation + "/" + diagnostic,
+            results = results.append(integration_error("identity expression diagnostic/" + operation + "/" + diagnostic,
               [operation, "tests/fixtures/compiler_contracts/namespaces/expression_types.panack"], 1, "", diagnostic))
           }
-          results = results->append(std_testing.expect("expression rejection writes no artifact/" + operation,
+          results = results.append(std_testing.expect("expression rejection writes no artifact/" + operation,
             !filesystem_support.exists("tests/fixtures/compiler_contracts/namespaces/expression_types.bc"), "invalid expression wrote bytecode"))
         }
         for operation in ["check", "run", "compile"] {
           for diagnostic in ["aggregate_types.panack:3:29: argument 1 to Box is Str, expected Nat", "aggregate_types.panack:5:3: non-exhaustive match; missing Empty", "aggregate_types.panack:7:31: cannot infer type parameter T for identity; supply explicit type arguments"] {
-            results = results->append(integration_error("aggregate identity diagnostic/" + operation + "/" + diagnostic,
+            results = results.append(integration_error("aggregate identity diagnostic/" + operation + "/" + diagnostic,
               [operation, "tests/fixtures/compiler_contracts/namespaces/aggregate_types.panack"], 1, "", diagnostic))
           }
-          for diagnostic in ["aggregate_types.panack:11:24: pattern is not a variant: map", "aggregate_types.panack:11:24: pattern map is not a variant of the matched enum"] {
-            results = results->append(integration_candidate_error("pattern identity diagnostic/" + operation + "/" + diagnostic,
+          for diagnostic in ["aggregate_types.panack:11:23: pattern is not a variant: map", "aggregate_types.panack:11:23: pattern map is not a variant of the matched enum"] {
+            results = results.append(integration_candidate_error("pattern identity diagnostic/" + operation + "/" + diagnostic,
               [operation, "tests/fixtures/compiler_contracts/namespaces/aggregate_types.panack"], diagnostic))
           }
-          results = results->append(integration_error("shared inference constraint diagnostic/" + operation,
+          results = results.append(integration_error("shared inference constraint diagnostic/" + operation,
             [operation, "tests/fixtures/compiler_contracts/namespaces/aggregate_constraints.panack"], 1, "", "aggregate_constraints.panack:1:1: incompatible inference constraints"))
           for fixture in ["aggregate_types", "aggregate_constraints"] {
-            results = results->append(std_testing.expect("aggregate rejection writes no artifact/" + fixture + "/" + operation,
+            results = results.append(std_testing.expect("aggregate rejection writes no artifact/" + fixture + "/" + operation,
               !filesystem_support.exists("tests/fixtures/compiler_contracts/namespaces/" + fixture + ".bc"), "invalid aggregate wrote bytecode"))
           }
         }
-        results = results->append(integration_output("three same-name modules keep identity",
+        results = results.append(integration_output("three same-name modules keep identity",
           ["run", "tests/fixtures/compiler_contracts/namespaces/triple.panack"], "58\n"))
-        results = results->append(integration_output("function and variant origins stay distinct",
+        results = results.append(integration_output("function and variant origins stay distinct",
           ["run", "tests/fixtures/compiler_contracts/namespaces/variant.panack"], "42\n"))
       }
       if integration_group == "all" || integration_group == "driver" {
         basic = "tests/fixtures/compiler_contracts/driver/basic.panack"
-        results = results->append(integration_output("driver check source", ["run", driver, "check", basic], "ok\n"))
-        results = results->append(integration_output("driver run source", ["run", driver, "run", basic], "42\n"))
+        results = results.append(integration_output("driver check source", ["run", driver, "check", basic], "ok\n"))
+        results = results.append(integration_output("driver run source", ["run", driver, "run", basic], "42\n"))
         for source in [basic, "tests/fixtures/compiler_contracts/driver/relative/main.panack",
             "tests/fixtures/compiler_contracts/driver/logical/main.panack"] {
-          results = results->append(integration_output("driver compile ${source}",
+          results = results.append(integration_output("driver compile ${source}",
             ["run", driver, "compile", source, "-o", artifact], "wrote ${artifact}\n"))
-          results = results->append(integration_output("native reference compile ${source}",
+          results = results.append(integration_output("native reference compile ${source}",
             ["compile", source, "-o", reference], "wrote ${reference}\n"))
-          results = results->append(integration_bytes("driver artifact ${source}", artifact_path, reference_path))
-          results = results->append(integration_output("driver check artifact ${source}", ["run", driver, "check", artifact], "ok\n"))
-          results = results->append(integration_output("driver run artifact ${source}", ["run", driver, artifact], "42\n"))
+          results = results.append(integration_bytes("driver artifact ${source}", artifact_path, reference_path))
+          results = results.append(integration_output("driver check artifact ${source}", ["run", driver, "check", artifact], "ok\n"))
+          results = results.append(integration_output("driver run artifact ${source}", ["run", driver, artifact], "42\n"))
           match std_process.run(contract_path("./bin/panack"), ["run", driver, "disasm", source], byte_buffer.empty(),
               std_path.current(), [], std_time.seconds(90), 1048576) {
-            Error(error) => { results = results->append(std_testing.expect("driver disassembly", false, "command failed")) },
+            Error(error) => { results = results.append(std_testing.expect("driver disassembly", false, "command failed")) },
             Ok(output) => {
-              text = output.stdout->decode_utf8()
-              results = results->append(std_testing.expect("driver disassembly shape ${source}",
+              text = output.stdout.decode_utf8()
+              results = results.append(std_testing.expect("driver disassembly shape ${source}",
                 output.exit_code == 0 && output.signal == 0 && output.stderr == byte_buffer.empty() &&
                 integration_contains(text, "FUNCTION|main|impure|") && integration_contains(text, "CALL|print|1"), "invalid disassembly"))
-              if source == basic { results = results->append(integration_output("driver artifact disassembly ${source}", ["run", driver, "disasm", artifact], text)) }
+              if source == basic { results = results.append(integration_output("driver artifact disassembly ${source}", ["run", driver, "disasm", artifact], text)) }
             }
           }
         }
         for operation in ["check", "run", "disasm"] {
-          results = results->append(integration_error("Void argument/" + operation,
+          results = results.append(integration_error("Void argument/" + operation,
             ["run", driver, operation, "tests/fixtures/compiler_contracts/syntax/void_is_only_valid_as_a_return_type-3.panack"],
             1, "", "Void is not a value"))
-          results = results->append(integration_error("public Void argument/" + operation,
+          results = results.append(integration_error("public Void argument/" + operation,
             [operation, "tests/fixtures/compiler_contracts/syntax/void_is_only_valid_as_a_return_type-3.panack"],
             1, "", "Void is not a value"))
         }
         rejected_path = contract_child(workspace.root, "rejected.bc")
-        results = results->append(integration_error("Void argument/compile",
+        results = results.append(integration_error("Void argument/compile",
           ["run", driver, "compile", "tests/fixtures/compiler_contracts/syntax/void_is_only_valid_as_a_return_type-3.panack", "-o", contract_text(rejected_path)],
           1, "", "Void is not a value"))
-        results = results->append(integration_error("public Void argument/compile",
+        results = results.append(integration_error("public Void argument/compile",
           ["compile", "tests/fixtures/compiler_contracts/syntax/void_is_only_valid_as_a_return_type-3.panack", "-o", contract_text(rejected_path)],
           1, "", "Void is not a value"))
         match std_filesystem.metadata(rejected_path) {
-          Error(error) => { results = results->append(std_testing.equal_str("Void argument/no artifact", error.code, "not_found")) },
+          Error(error) => { results = results.append(std_testing.equal_str("Void argument/no artifact", error.code, "not_found")) },
           Ok(metadata) => {
-            results = results->append(std_testing.expect("Void argument/no artifact", false, "invalid program produced an artifact"))
+            results = results.append(std_testing.expect("Void argument/no artifact", false, "invalid program produced an artifact"))
             std_filesystem.remove_file(rejected_path);
           }
         }
-        results = results->append(integration_error("driver missing module", ["run", driver, "check",
+        results = results.append(integration_error("driver missing module", ["run", driver, "check",
           "tests/fixtures/compiler_contracts/driver/missing-main.panack"], 1, "", "missing source module"))
-        results = results->append(integration_error("driver import cycle", ["run", driver, "check",
+        results = results.append(integration_error("driver import cycle", ["run", driver, "check",
           "tests/fixtures/compiler_contracts/driver/first.panack"], 1, "", "import cycle includes"))
       }
       if integration_group == "all" || integration_group == "snapshot" {
-        results = results->append(integration_probe("loader source snapshot",
+        results = results.append(integration_probe("loader source snapshot",
           ["tests/fixtures/compiler_contracts/snapshot_probe.panack", snapshot],
           "PASS snapshot file changed\nPASS loader retains original diagnostic source\ntests: 2, failures: 0\n"))
       }
@@ -248,13 +248,13 @@ main(): Void {
         if filesystem_support.exists(contract_text(file)) {
           match std_filesystem.remove_file(file) {
             Ok(done) => {},
-            Error(error) => { results = results->append(std_testing.expect("compiler file cleanup", false, "file removal failed")) }
+            Error(error) => { results = results.append(std_testing.expect("compiler file cleanup", false, "file removal failed")) }
           }
         }
       }
-      match workspace->remove_empty() {
+      match workspace.remove_empty() {
         Ok(done) => {},
-        Error(error) => { results = results->append(std_testing.expect("compiler workspace cleanup", false, "workspace removal failed")) }
+        Error(error) => { results = results.append(std_testing.expect("compiler workspace cleanup", false, "workspace removal failed")) }
       }
       if std_testing.report(results) > 0 { std_host.exit(1) }
     }

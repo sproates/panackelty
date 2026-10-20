@@ -24,6 +24,21 @@ clarifications belong in the issue before implementation relies on them. Propose
 internal designs below cannot override its behaviour. Do not start implementation
 merely because this planning PR has merged; the owner selects the next packet.
 
+## Required owner approval before every merge
+
+Owner instruction, 20 October 2026: every GI#518 implementation packet PR requires
+Ian's explicit approval for that specific PR before it may be merged, including
+PRs targeting `next`. This overrides any general standing permission to merge a
+green integration PR. Approval to implement a packet is not approval to merge it.
+Passing tests, green CI, earlier packet approvals and silence are not merge approval.
+
+Finish implementation, self-review, required validation and the acceptance report;
+then leave the PR open, report its exact head and ask Ian whether it may be merged.
+Do not enable auto-merge. If substantive changes follow approval, obtain fresh
+approval for the revised PR. Split packets require approval for each PR. Do not
+start a dependent packet that requires accepted integration while its prerequisite
+PR is awaiting approval. Independent work already authorised may continue.
+
 ## Baseline
 
 Core inspected: `f12717c9f8c3b79421688fd3cc829cd6c7d9ed72` on `next`.

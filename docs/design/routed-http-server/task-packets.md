@@ -13,6 +13,12 @@ add tests to the existing native/package/functional harnesses, and update affect
 documents. If a packet exceeds a reviewable change, split it with the same acceptance
 IDs and keep the packet incomplete until all sub-outcomes are accepted.
 
+Every packet and every split PR is subject to the
+[explicit owner merge-approval rule](implementation-plan.md#required-owner-approval-before-every-merge).
+Stop at a validated, reviewable open PR and request approval for that PR. Green
+checks do not authorise integration, and packet implementation permission does
+not authorise merging.
+
 ## P01: Contract, caller inventory and decision register
 
 **Prerequisites:** None. **Weight:** 4%. **Estimate:** Small; 1 documentation PR.

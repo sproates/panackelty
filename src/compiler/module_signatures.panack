@@ -199,7 +199,7 @@ pub pure signature_type(
       shape.base == "Bytes" ||
       shape.base == "Path" ||
       shape.base == "Duration" ||
-      shape.base == "Instant"
+      shape.base == "Instant" || shape.base == "HttpResponseState"
     if shape.base == "Void" {
       known = true
       if !allow_void {
@@ -210,7 +210,7 @@ pub pure signature_type(
       known = true
       arity = 1
     }
-    if shape.base == "Map" || shape.base == "Result" {
+    if shape.base == "Map" || shape.base == "Result" || shape.base == "HttpServerState" || shape.base == "HttpConnectionState" {
       known = true
       arity = 2
     }

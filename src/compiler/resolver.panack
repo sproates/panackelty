@@ -55,6 +55,11 @@ pub pure source_builtin(name: Str): Bool {
 
 // Internal operations accepted only after checked declaration lowering.
 pub pure is_builtin(name: Str): Bool {
+  name == "http_bytes_slice" || name == "http_body" || name == "http_body_size" || name == "http_body_append" || name == "http_connection_continue" ||
+  name == "http_listen_ordinary" || name == "http_listen_contextual" || name == "http_close" || name == "http_destroy" ||
+  name == "http_connection_writer" || name == "http_connection_routes" || name == "http_connection_fallback" || name == "http_connection_admit" || name == "http_connection_invoke" ||
+  name == "http_writer_get_status" || name == "http_writer_get_headers" || name == "http_writer_reject" || name == "http_writer_status" || name == "http_writer_headers" || name == "http_writer_commit" ||
+  name == "http_state_create" || name == "http_state_context" || name == "http_state_setup_error" || name == "http_state_fail_setup" || name == "http_state_register" ||
   name == "async_fake_read" || name == "tcp_exchange" || name == "http_transport_exchange" || name == "tcp_serve" ||
     name == "tcp_service" || name == "tcp_serve_stream" || name == "tcp_server_read_chunk" ||
     (name == "fs_read_beneath" || name == "host_arguments_async" || name == "host_stdout_async" ||

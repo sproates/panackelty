@@ -7,6 +7,11 @@ import project/src/compiler/lexer::{lex, lex_file}
 // Ordinary validation and opt-in explanations share the same decisions.
 
 pub pure is_impure_builtin(name: Str): Bool {
+  name == "http_body" || name == "http_body_size" || name == "http_body_append" || name == "http_connection_continue" ||
+  name == "http_listen_ordinary" || name == "http_listen_contextual" || name == "http_close" || name == "http_destroy" ||
+  name == "http_connection_writer" || name == "http_connection_routes" || name == "http_connection_fallback" || name == "http_connection_admit" || name == "http_connection_invoke" ||
+  name == "http_writer_get_status" || name == "http_writer_get_headers" || name == "http_writer_reject" || name == "http_writer_status" || name == "http_writer_headers" || name == "http_writer_commit" ||
+  name == "http_state_create" || name == "http_state_setup_error" || name == "http_state_fail_setup" || name == "http_state_register" ||
   (name == "async_fake_read" ||
     name == "tcp_exchange" || name == "http_transport_exchange" ||
     name == "tcp_serve" ||

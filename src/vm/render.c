@@ -54,6 +54,12 @@ bool render(Buffer *b, const Value *v, bool display)
 {
     char *number = NULL;
     switch (v->kind) {
+    case V_HTTP_CONNECTION:
+        return buffer_text(b, "<HttpConnectionState>");
+    case V_HTTP_STATE:
+        return buffer_text(b, "<HttpServerState>");
+    case V_HTTP_WRITER:
+        return buffer_text(b, "<HttpResponseState>");
     case V_PATH:
         return buffer_text(b, "<Path>");
     case V_INSTANT:

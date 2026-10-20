@@ -13,6 +13,6 @@
 bool verify(Program *p, const char **error);
 
 bool verify_call_edge(const Function *caller, const Function *callee,
-                      bool builtin_pure, bool builtin_async, bool awaited);
+                      bool builtin_pure, bool builtin_async, bool builtin_local, bool awaited);
 
 #endif

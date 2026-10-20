@@ -120,6 +120,168 @@ static int concurrent_exchange(const char *port)
     return result;
 }
 
+static int routed_capacity(const char *port)
+{
+    int waiting[16];
+    for (size_t i = 0; i < 16; i++) waiting[i] = -1;
+    int result = 0;
+    const char *head = "POST /echo HTTP/1.1\r\nHost: local\r\nExpect: 100-continue\r\nContent-Length: 3\r\n\r\n";
+    for (size_t i = 0; !result && i < 4; i++) {
+        waiting[i] = connect_to(port);
+        if (waiting[i] < 0 || send_all(waiting[i], head, strlen(head))) { result = -1; break; }
+        char interim[25];
+        size_t used = 0;
+        while (!result && used < sizeof(interim)) {
+            ssize_t count = read(waiting[i], interim + used, sizeof(interim) - used);
+            if (count <= 0) result = -1;
+            else used += (size_t)count;
+        }
+        if (!result && memcmp(interim, "HTTP/1.1 100 Continue\r\n\r\n", sizeof(interim))) result = -1;
+    }
+    if (!result) result = exchange(port, head, "503 Service Unavailable", "Service Unavailable", 0);
+    for (size_t i = 0; !result && i < 4; i++) {
+        result = send_all(waiting[i], "abc", 3);
+        if (!result) result = response_contains(waiting[i], "200 OK", "\r\n\r\nabc", 0);
+    }
+    for (size_t i = 0; i < 16; i++) { if (waiting[i] >= 0) close(waiting[i]); waiting[i] = -1; }
+    if (result) return result;
+    for (size_t i = 0; !result && i < 16; i++) {
+        waiting[i] = connect_to(port);
+        if (waiting[i] < 0 || send_all(waiting[i], "GET /hello HTTP/1.1\r\n", 21)) result = -1;
+    }
+    if (!result) result = exchange(port, "GET /hello HTTP/1.1\r\nHost: local\r\n\r\n",
+                                  "503 Service Unavailable", "Service Unavailable", 0);
+    for (size_t i = 0; i < 16; i++) if (waiting[i] >= 0) close(waiting[i]);
+    return result;
+}
+
+static int routed_deadline(const char *port)
+{
+    const char *requests[] = {
+        "GET /hello HTTP/1.1\r\n",
+        "POST /echo HTTP/1.1\r\nHost: local\r\nContent-Length: 3\r\n\r\na",
+        "GET /stall HTTP/1.1\r\nHost: local\r\n\r\n",
+        "GET /sent-stall HTTP/1.1\r\nHost: local\r\n\r\n"
+    };
+    int peers[] = {-1, -1, -1, -1};
+    struct timespec start, end;
+    if (clock_gettime(CLOCK_MONOTONIC, &start)) return -1;
+    int result = 0;
+    for (size_t i = 0; !result && i < 4; i++) {
+        peers[i] = connect_to(port);
+        struct timeval timeout = {.tv_sec = 12};
+        if (peers[i] < 0 || setsockopt(peers[i], SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) ||
+            send_all(peers[i], requests[i], strlen(requests[i]))) result = -1;
+    }
+    /* A committed response is delivered even while its handler remains busy. */
+    if (!result) result = response_contains(peers[3], "200 OK", "first response", 0);
+    if (!result && (clock_gettime(CLOCK_MONOTONIC, &end) || end.tv_sec - start.tv_sec > 3)) result = -1;
+    for (size_t i = 0; !result && i < 3; i++) {
+        result = response_contains(peers[i], "504 Gateway Timeout", "Gateway Timeout", 0);
+    }
+    if (!result) {
+        if (clock_gettime(CLOCK_MONOTONIC, &end)) result = -1;
+        else {
+            double elapsed = (double)(end.tv_sec - start.tv_sec) +
+                (double)(end.tv_nsec - start.tv_nsec) / 1000000000.0;
+            /* Scheduling tolerance belongs to this observer, not the product deadline. */
+            if (elapsed < 9.5 || elapsed > 12.0) {
+                fprintf(stderr, "HTTP deadline elapsed %.3f seconds\n", elapsed);
+                result = -1;
+            }
+        }
+    }
+    for (size_t i = 0; i < 4; i++) if (peers[i] >= 0) close(peers[i]);
+    if (!result) result = exchange(port, "GET /hello HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "hello", 0);
+    return result;
+}
+
+static int routed_limits(const char *port)
+{
+    for (size_t length = 1048575; length <= 1048577; length++) {
+        int fd = connect_to(port);
+        if (fd < 0) return -1;
+        char head[128], expected[32];
+        int count = snprintf(head, sizeof(head), "POST /size HTTP/1.1\r\nHost: local\r\nContent-Length: %zu\r\n\r\n", length);
+        int result = count < 0 ? -1 : send_all(fd, head, (size_t)count);
+        char bytes[16384];
+        memset(bytes, 'b', sizeof(bytes));
+        if (length <= 1048576) {
+            for (size_t sent = 0; !result && sent < length;) {
+                size_t block = length - sent < sizeof(bytes) ? length - sent : sizeof(bytes);
+                result = send_all(fd, bytes, block);
+                sent += block;
+            }
+            snprintf(expected, sizeof(expected), "\r\n\r\n%zu", length);
+            if (!result) result = response_contains(fd, "200 OK", expected, 0);
+        } else if (!result) result = response_contains(fd, "413 Content Too Large", "Content Too Large", 0);
+        close(fd);
+        if (result) return -1;
+    }
+    for (size_t length = 16383; length <= 16385; length++) {
+        const char *prefix = "GET /hello HTTP/1.1\r\nHost: local\r\nX-Large: ";
+        char *head = malloc(length + 1);
+        if (!head) return -1;
+        memcpy(head, prefix, strlen(prefix));
+        memset(head + strlen(prefix), 'a', length - strlen(prefix) - 4);
+        memcpy(head + length - 4, "\r\n\r\n", 4);
+        head[length] = 0;
+        int result = exchange(port, head, length <= 16384 ? "200 OK" : "431 Request Header Fields Too Large",
+                              length <= 16384 ? "hello" : "Request Header Fields Too Large", 0);
+        free(head);
+        if (result) return -1;
+    }
+    return 0;
+}
+
+static int routed_exchange(const char *port)
+{
+    struct { const char *request, *status, *body; } cases[] = {
+        {"GET /hello HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\nhello"},
+        {"GET /hello?raw=%2F HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "hello"},
+        {"GET /Hello HTTP/1.1\r\nHost: local\r\n\r\n", "404 Not Found", "Not Found"},
+        {"PATCH /hello HTTP/1.1\r\nHost: local\r\n\r\n", "405 Method Not Allowed", "Allow: GET\r\n"},
+        {"POST /echo HTTP/1.1\r\nHost: local\r\nContent-Length: 3\r\n\r\nabc", "200 OK", "\r\n\r\nabc"},
+        {"POST /echo HTTP/1.1\r\nHost: local\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nabc\r\n0\r\n\r\n", "200 OK", "\r\n\r\nabc"},
+        {"POST /echo HTTP/1.1\r\nHost: local\r\n\r\nx", "400 Bad Request", "Bad Request"},
+        {"POST /echo HTTP/1.1\r\nHost: local\r\nContent-Length: 0\r\nContent-Length: 0\r\n\r\n", "400 Bad Request", "Bad Request"},
+        {"POST /echo HTTP/1.1\r\nHost: local\r\nContent-Length: 1048577\r\nExpect: 100-continue\r\n\r\n", "413 Content Too Large", "Content Too Large"},
+        {"POST /echo HTTP/1.1\r\nHost: local\r\nContent-Length: 0\r\nTransfer-Encoding: gzip\r\n\r\n", "400 Bad Request", "Bad Request"},
+        {"POST /echo HTTP/1.1\r\nHost: local\r\nExpect: something\r\n\r\n", "417 Expectation Failed", "Expectation Failed"},
+        {"GET /failure HTTP/1.1\r\nHost: local\r\n\r\n", "500 Internal Server Error", "Internal Server Error"},
+        {"GET /trap HTTP/1.1\r\nHost: local\r\n\r\n", "500 Internal Server Error", "Internal Server Error"},
+        {"GET /missing-send HTTP/1.1\r\nHost: local\r\n\r\n", "500 Internal Server Error", "Internal Server Error"},
+        {"GET /sent-error HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "first response"},
+        {"GET /hello HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "hello"},
+    };
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        if (exchange(port, cases[i].request, cases[i].status, cases[i].body, 0)) return -1;
+    }
+    for (int chunked = 0; chunked < 2; chunked++) {
+        int fd = connect_to(port);
+        if (fd < 0) return -1;
+        const char *head = chunked ?
+            "POST /echo HTTP/1.1\r\nHost: local\r\nExpect: 100-continue\r\nTransfer-Encoding: chunked\r\n\r\n" :
+            "POST /echo HTTP/1.1\r\nHost: local\r\nExpect: 100-continue\r\nContent-Length: 3\r\n\r\n";
+        int result = send_all(fd, head, strlen(head));
+        char interim[25];
+        size_t received = 0;
+        while (!result && received < sizeof(interim)) {
+            ssize_t count = read(fd, interim + received, sizeof(interim) - received);
+            if (count <= 0) result = -1;
+            else received += (size_t)count;
+        }
+        if (!result && memcmp(interim, "HTTP/1.1 100 Continue\r\n\r\n", sizeof(interim))) result = -1;
+        const char *body = chunked ? "3\r\nabc\r\n0\r\n\r\n" : "abc";
+        /* Deliberately fragment the body/chunk framing across writes. */
+        for (size_t i = 0; !result && body[i]; i++) result = send_all(fd, body + i, 1);
+        if (!result) result = response_contains(fd, "200 OK", "\r\n\r\nabc", 0);
+        close(fd);
+        if (result) return -1;
+    }
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     signal(SIGPIPE, SIG_IGN);
@@ -134,6 +296,10 @@ int main(int argc, char **argv)
     if (argc != 3) return 2;
     const char *port = argv[1];
     const char *mode = argv[2];
+    if (!strcmp(mode, "routed-limits")) return routed_limits(port) ? 1 : 0;
+    if (!strcmp(mode, "routed-deadline")) return routed_deadline(port) ? 1 : 0;
+    if (!strcmp(mode, "routed-capacity")) return routed_capacity(port) ? 1 : 0;
+    if (!strcmp(mode, "routed")) return routed_exchange(port) ? 1 : 0;
     if (!strcmp(mode, "get"))
         return exchange(port, "GET / HTTP/1.1\r\nHost: example.test\r\n\r\n",
                         "HTTP/1.1 200 OK", "\r\n\r\nok", 0) ? 1 : 0;

@@ -36,6 +36,44 @@ SOURCE
 ./bin/panack run packages/http/src/parser_test.panack
 ./bin/panack compile packages/http/src/parser_test.panack -o "$work/parser.bc" > /dev/null
 ./bin/panack run "$work/parser.bc"
+./bin/panack run packages/http/src/routed_test.panack
+./bin/panack compile packages/http/src/routed_test.panack -o "$work/routed.bc" > /dev/null
+./bin/panack run "$work/routed.bc"
+./bin/panack compile packages/http/src/writer_test.panack -o "$work/writer.bc" > /dev/null
+"${PANACK_NATIVE_MODULE_TEST:?}" http-writer "$work/writer.bc"
+port=$("$http_client" port)
+./bin/panack run packages/http/src/routed_lifecycle_test.panack "$port"
+./bin/panack compile packages/http/src/routed_lifecycle_test.panack -o "$work/lifecycle.bc" > /dev/null
+./panack-vm run "$work/lifecycle.bc" "$port"
+./bin/panack compile packages/http/src/routed_socket_test.panack -o "$work/routed-socket.bc" > /dev/null
+port=$("$http_client" port)
+./panack-vm run "$work/routed-socket.bc" "$port" > "$work/routed.stdout" 2> "$work/routed.stderr" &
+server_pid=$!
+"$http_client" "$port" routed
+"$http_client" "$port" routed-limits
+"$http_client" "$port" routed-capacity
+"$http_client" "$port" routed-deadline
+kill -TERM "$server_pid"
+wait "$server_pid"
+server_pid=
+grep -q 'handler diagnostic only' "$work/routed.stderr"
+grep -q 'index is out of bounds' "$work/routed.stderr"
+cat > "$work/blocking-wrapper.panack" <<'SOURCE'
+import stdlib/http_runtime as runtime
+blocking(state: HttpResponseState): Unit {
+  runtime.writer_status(state, 200)
+  print("must remain blocking")
+  ()
+}
+async rejected(state: HttpResponseState): Unit { blocking(state) }
+main(): Unit { keep = @rejected; () }
+SOURCE
+if ./bin/panack check "$work/blocking-wrapper.panack" > "$work/rejected.stdout" 2> "$work/rejected.stderr"; then
+    echo 'HTTP local mutation accidentally allowed blocking I/O from async' >&2
+    exit 1
+fi
+grep -q 'async function cannot call blocking function' "$work/rejected.stderr"
+
 ./bin/panack check --project "$work/app/panack.json" > /dev/null
 ./bin/panack compile --project "$work/app/panack.json" -o "$work/http-app.bc" > /dev/null
 test -s "$work/http-app.bc"

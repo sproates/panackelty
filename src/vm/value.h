@@ -28,11 +28,17 @@ typedef enum {
     V_MAP,
     V_SET,
     V_BYTES,
-    V_ITER
+    V_ITER,
+    V_HTTP_STATE,
+    V_HTTP_WRITER,
+    V_HTTP_CONNECTION
 } ValueKind;
 
 typedef struct Value Value;
 typedef struct ArrayStorage ArrayStorage;
+typedef struct VMHttpState VMHttpState;
+typedef struct VMHttpWriter VMHttpWriter;
+typedef struct VMHttpConnection VMHttpConnection;
 
 typedef struct {
     size_t count;
@@ -86,6 +92,9 @@ struct Value {
         Sequence sequence;
         NamedValues named;
         Iterator iterator;
+        VMHttpState *http_state;
+        VMHttpWriter *http_writer;
+        VMHttpConnection *http_connection;
     } as;
 };
 

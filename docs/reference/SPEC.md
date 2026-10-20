@@ -1153,9 +1153,19 @@ until it returns. Arguments are evaluated once, left to right. There is no dorma
 operation value. Bare async calls, awaiting ordinary calls, awaiting a non-call,
 and await outside an async function are errors. `pure async` is not a declaration.
 
-Async bodies may call pure functions and await async functions; ordinary impure
-functions (including print, files, sleep, process and clock services) are rejected,
-both directly and through callable values or helper bodies. Named async references
+Async bodies may call pure functions, await async functions, and directly call
+checked wrappers around local HTTP resource operations. These local operations
+change an owned server or writer without performing host I/O. The compiler
+recognises the closed native operation set and propagates this permission through
+direct helpers containing only pure calls and those operations. It does not grant
+permission by a method's spelling, and it does not propagate through indirect
+calls. Pure functions still cannot perform these mutations.
+
+Other ordinary impure functions (including print, files, sleep, process and clock
+services) are rejected, both directly and through callable values or helper
+bodies. Adding blocking I/O to a local resource helper removes its permission.
+Bytecode verification independently derives the same direct-call permission;
+there is no producer-supplied trusted flag or new bytecode version. Named async references
 have `AsyncFn[A,...,R]` type and are invoked with `await callback.call(args)`.
 There is no conversion between AsyncFn and Fn/PureFn. Async functions must return
 a value; use Unit for no data. Async main takes no parameters and returns Unit.

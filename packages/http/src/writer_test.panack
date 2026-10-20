@@ -1,0 +1,51 @@
+import project/response::{ResponseWriter}
+import project/request::{Request}
+import stdlib/http_runtime as runtime
+
+writer_case(state: HttpResponseState, scenario: Nat): Unit {
+  response = ResponseWriter(state)
+  if scenario == 0 {
+    response.status(201)
+    response.header("X-Test", "before")
+    response.header("x-test", "after")
+    response.add_header("Set-Cookie", "a=1")
+    response.add_header("Set-Cookie", "b=2")
+    response.send("hello")
+  } else if scenario == 1 {
+    response.send("first")
+    response.send("second")
+  } else if scenario == 2 {
+    response.send("first")
+    response.status(202)
+  } else if scenario == 3 {
+    response.header("Content-Length", "0")
+  } else if scenario == 4 {
+    response.status(204)
+    response.send("")
+  } else if scenario == 5 {
+    response.status(304)
+    response.send("body")
+  } else if scenario == 6 {
+    response.send_bytes("bytes".encode_utf8())
+  } else if scenario == 7 {
+    response.header("Content-Type", "application/custom")
+    response.send("custom")
+  } else {
+    response.status(199)
+  }
+}
+
+async context_handler(context: Nat, request: Request, response: ResponseWriter): Result[Unit,Str] {
+  response.send("${context}")
+  Ok(())
+}
+
+async connection_case(connection: HttpConnectionState[Request,ResponseWriter]): Result[Unit,Str] {
+  if runtime.connection_admit(connection) {
+    response = ResponseWriter(runtime.connection_writer(connection))
+    request = Request("GET", "/", "", [], "".encode_utf8())
+    await runtime.connection_invoke(connection, Some(0), request, response)
+  } else { Error("admission refused") }
+}
+
+main(): Unit { keep = @writer_case; keep_connection = @connection_case; keep_handler = @context_handler; () }

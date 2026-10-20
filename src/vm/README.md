@@ -338,3 +338,28 @@ This metadata does not catch traps or change standalone/TCP service behaviour.
 GI#518 will consume it only at an owned request boundary after cleanup and
 response-lifetime rules are implemented. No bytecode format or seed change is
 required for the metadata itself.
+
+## Routed HTTP resource ownership
+
+The HTTP package's internal routed implementation uses `http_state.c` for retained
+server, response and connection identities, and `http_runtime.c` for listeners
+whose lifetime outlasts `main`. The package owns HTTP parsing, routing and response
+policy; native code owns admission, sockets, execution cancellation and identity.
+
+A server retains its typed context and named callbacks. A connection token is fresh
+for each request and binds to its execution; borrowed pointers are invalidated
+before a client slot is reused. The writer retains the first committed response,
+which can flush while its handler continues. Later mutation and recoverable request
+faults preserve that response. Fatal faults never enter the request recovery path.
+
+The routed mode of the existing TCP owner has sixteen connection slots, four
+admitted requests, a ten-second deadline from accept and a one-second close drain.
+The legacy low-level TCP modes retain their own contracts. Listener removal is
+performed by the outer runtime after child execution yields, avoiding destruction
+of an active execution stack. Diagnostic output uses the bounded asynchronous
+console worker pool and cannot block listener scheduling.
+
+Ordinary HTTP mutation wrappers have a derived local-resource permission. Both the
+source checker and bytecode verifier compute it from direct calls to the closed
+native operation set. It permits direct calls from async handlers, while preserving
+pure-function restrictions and rejecting blocking/indirect ordinary wrappers.

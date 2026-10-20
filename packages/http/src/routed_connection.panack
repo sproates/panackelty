@@ -1,0 +1,212 @@
+import stdlib/tcp as transport
+import stdlib/http_runtime as runtime
+import project/parser::{RequestHead, parse_routed_head, find_crlf, parse_chunk_size, parse_header}
+import project/routing::{RouteKey, dispatch, RouteDecision.Handler, RouteDecision.Fallback,
+  RouteDecision.NotFound, RouteDecision.MethodNotAllowed}
+import project/response_policy::{lower, reason_phrase, routed_wire, error_status}
+import project/types::{Header}
+import project/types as legacy
+import project/request::{from_transport}
+pub import project/request::{Request}
+pub import project/response::{ResponseWriter}
+
+pure available(data: Bytes, cursor: Nat): Nat {
+  size: Int = data.length()
+  if size >= cursor { ((size - cursor) / 1).nat() } else { 0 }
+}
+
+reject(connection: HttpConnectionState[Request,ResponseWriter], status: Nat, allow: Str): Unit {
+  headers = if allow == "" { [] } else { [Header("Allow", allow)] }
+  body = (reason_phrase(status) + "\n").encode_utf8()
+  writer = runtime.connection_writer(connection)
+  match routed_wire(status, headers, body) {
+    Ok(wire) => runtime.writer_commit(writer, wire),
+    Error(problem) => runtime.writer_reject(writer)
+  }
+}
+
+async more(connection: HttpConnectionState[Request,ResponseWriter], expect: Bool, continued: Bool): Result[Bytes,Nat] {
+  mut ready = true
+  if expect && !continued {
+    match await runtime.connection_continue(connection) { Ok(done) => {}, Error(problem) => { ready = false } }
+  }
+  if !ready { Error(400) }
+  else {
+    match await transport.read_chunk(16384) {
+      Error(problem) => Error(400),
+      Ok(bytes) => if bytes.length() == 0 { Error(400) } else { Ok(bytes) }
+    }
+  }
+}
+
+async fixed_body(connection: HttpConnectionState[Request,ResponseWriter], initial: Bytes,
+    length: Nat, expect: Bool): Result[Bytes,Nat] {
+  mut failed: Option[Nat] = None()
+  mut continued = false
+  if initial.length() > length { failed = Some(400) }
+  else if !runtime.body_append(connection, initial, 0, initial.length()) { failed = Some(413) }
+  while failed == None() && runtime.body_size(connection) < length {
+    match await more(connection, expect, continued) {
+      Error(status) => { failed = Some(status) },
+      Ok(bytes) => {
+        if runtime.body_size(connection) + bytes.length() > length { failed = Some(400) }
+        else if !runtime.body_append(connection, bytes, 0, bytes.length()) { failed = Some(413) }
+      }
+    }
+    continued = true
+  }
+  match failed { Some(status) => Error(status), None() => Ok(runtime.body(connection)) }
+}
+
+async chunked_body(connection: HttpConnectionState[Request,ResponseWriter], initial: Bytes,
+    header_bytes: Nat, expect: Bool): Result[Bytes,Nat] {
+  mut buffer = initial
+  mut cursor: Nat = 0
+  mut phase: Nat = 0
+  mut remaining: Nat = 0
+  mut trailer_bytes: Nat = 0
+  mut continued = false
+  mut failed: Option[Nat] = None()
+  while phase != 4 && failed == None() {
+    mut need_more = false
+    if phase == 0 {
+      match find_crlf(buffer, cursor, buffer.length()) {
+        None() => if available(buffer, cursor) > 16384 { failed = Some(431) } else { need_more = true },
+        Some(end) => {
+          used: Int = runtime.body_size(connection)
+          if used <= 1048576 {
+            match parse_chunk_size(buffer, cursor, end, ((1048576 - used) / 1).nat()) {
+              Error(problem) => { failed = Some(error_status(problem)) },
+              Ok(size) => { remaining = size; cursor = end + 2; phase = if size == 0 { 3 } else { 1 } }
+            }
+          } else { failed = Some(413) }
+        }
+      }
+    } else if phase == 1 {
+      count = if available(buffer, cursor) < remaining { available(buffer, cursor) } else { remaining }
+      if count == 0 { need_more = true }
+      else {
+        if !runtime.body_append(connection, buffer, cursor, cursor + count) { failed = Some(413) }
+        cursor = cursor + count
+        before: Int = remaining
+        if before >= count { remaining = ((before - count) / 1).nat() }
+        else { failed = Some(400) }
+        if remaining == 0 { phase = 2 }
+      }
+    } else if phase == 2 {
+      if available(buffer, cursor) < 2 { need_more = true }
+      else if buffer.at(cursor) != 13 || buffer.at(cursor + 1) != 10 { failed = Some(400) }
+      else { cursor = cursor + 2; phase = 0 }
+    } else {
+      match find_crlf(buffer, cursor, buffer.length()) {
+        None() => if header_bytes + trailer_bytes + available(buffer, cursor) > 16384 { failed = Some(431) }
+          else { need_more = true },
+        Some(end) => {
+          trailer_bytes = trailer_bytes + runtime.bytes_slice(buffer, cursor, end).length() + 2
+          if header_bytes + trailer_bytes > 16384 { failed = Some(431) }
+          else if end == cursor {
+            cursor = end + 2
+            if cursor != buffer.length() { failed = Some(400) }
+            phase = 4
+          } else {
+            match parse_header(buffer, cursor, end) {
+              Error(problem) => { failed = Some(error_status(problem)) },
+              Ok(header) => {
+                name = lower(header.name)
+                if name == "content-length" || name == "transfer-encoding" || name == "host" { failed = Some(400) }
+              }
+            }
+            cursor = end + 2
+          }
+        }
+      }
+    }
+    if need_more && failed == None() {
+      buffer = runtime.bytes_slice(buffer, cursor, buffer.length())
+      cursor = 0
+      match await more(connection, expect, continued) {
+        Error(status) => { failed = Some(status) },
+        Ok(bytes) => { buffer = buffer.join(bytes) }
+      }
+      continued = true
+    }
+  }
+  match failed { Some(status) => Error(status), None() => Ok(runtime.body(connection)) }
+}
+
+pub async serve_connection(connection: HttpConnectionState[Request,ResponseWriter]): Result[Unit,Str] {
+  mut handler_error: Option[Str] = None()
+  mut incoming = "".encode_utf8()
+  mut head: Option[RequestHead] = None()
+  mut failed: Option[Nat] = None()
+  while head == None() && failed == None() {
+    match await transport.read_chunk(16384) {
+      Error(problem) => { failed = Some(400) },
+      Ok(bytes) => if bytes.length() == 0 { failed = Some(400) } else {
+        incoming = incoming.join(bytes)
+        match parse_routed_head(incoming) {
+          Error(problem) => { failed = Some(error_status(problem)) },
+          Ok(parsed) => { head = parsed }
+        }
+      }
+    }
+  }
+  match head {
+    None() => reject(connection, failed.value_or(400), ""),
+    Some(parsed) => {
+      view = from_transport(legacy.Request(parsed.method, parsed.target, parsed.headers, "".encode_utf8()))
+      expectations = view.header_values("Expect")
+      mut expect = false
+      if expectations.len() > 0 {
+        if expectations.len() != 1 { failed = Some(417) }
+        else if lower(expectations[0]) != "100-continue" { failed = Some(417) }
+        else { expect = true }
+      }
+      mut routes: [RouteKey] = []
+      for pair in runtime.connection_routes(connection) { routes = routes.append(RouteKey(pair[0], pair[1])) }
+      decision = dispatch(routes, runtime.connection_fallback(connection), view.method, view.path)
+      mut selected: Option[Nat] = None()
+      mut allow = ""
+      if failed == None() {
+        match decision {
+          Handler(index) => { selected = Some(index) },
+          Fallback() => {},
+          NotFound() => { failed = Some(404) },
+          MethodNotAllowed(methods) => { failed = Some(405); allow = methods }
+        }
+      }
+      if failed == None() && parsed.content_length == None() && !parsed.chunked && incoming.length() != parsed.body_start {
+        failed = Some(400)
+      }
+      if failed == None() && !runtime.connection_admit(connection) { failed = Some(503) }
+      match failed {
+        Some(status) => reject(connection, status, allow),
+        None() => {
+          initial = runtime.bytes_slice(incoming, parsed.body_start, incoming.length())
+          body = if parsed.chunked {
+            await chunked_body(connection, initial, parsed.body_start, expect)
+          } else {
+            await fixed_body(connection, initial, parsed.content_length.value_or(0), expect)
+          }
+          match body {
+            Error(status) => reject(connection, status, ""),
+            Ok(bytes) => {
+              request = Request(view.method, view.path, view.query, view.headers, bytes)
+              response = ResponseWriter(runtime.connection_writer(connection))
+              result = await runtime.connection_invoke(connection, selected, request, response)
+              match result {
+                Ok(done) => {},
+                Error(message) => {
+                  // Preserve a completed writer; the runtime logs the returned error.
+                  handler_error = Some(message)
+                }
+              }
+              ()
+            }
+          }
+        }
+      }
+    }
+  }
+  match handler_error { Some(message) => Error(message), None() => Ok(()) }
+}

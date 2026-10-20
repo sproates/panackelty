@@ -977,18 +977,18 @@ load_project_mode_with_configuration(
         if retain { evidence = evidence.concat(body_subtraction_evidence_entries(body.body)) }
         identity_ready = identity_ready && body.status == BodyIdentityChecked() && body.deferred.len() == 0
       }
-      checked_effects: CheckedModuleEffects = check_module_effects(
-        graph, loaded.modules, signatures, checked.functions, retain)
-      if signatures_valid {
-        diagnostics = diagnostics.concat(checked_effects.diagnostics)
-        effects = effects.concat(checked_effects.evidence)
-      }
-      identity_ready = identity_ready && checked_effects.diagnostics.len() == 0
-      for function in checked.functions {
-        name: Str = function.signature.binding.identity.name
-        if checked_effects.function_types.has(name) {
-          function_types = function_types.put(name, checked_effects.function_types.get(name))
-        }
+    }
+    checked_effects: CheckedModuleEffects = check_module_effects(
+      graph, loaded.modules, signatures, bodies, retain)
+    if signatures_valid {
+      diagnostics = diagnostics.concat(checked_effects.diagnostics)
+      effects = effects.concat(checked_effects.evidence)
+    }
+    identity_ready = identity_ready && checked_effects.diagnostics.len() == 0
+    for body in bodies {
+      name: Str = body.signature.binding.identity.name
+      if checked_effects.function_types.has(name) {
+        function_types = function_types.put(name, checked_effects.function_types.get(name))
       }
     }
     for module in loaded.modules {

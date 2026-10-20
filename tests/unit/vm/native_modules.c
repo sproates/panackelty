@@ -25,6 +25,8 @@
 #include <unistd.h>
 
 void http_transport_contracts(void);
+void http_state_contracts(void);
+void http_writer_artifact(const char *path);
 void root_read_contracts(void);
 void console_write_contracts(void);
 void resumable_contracts(void);
@@ -980,6 +982,10 @@ static void artifact_returns_void(const char *path)
 
 int main(int argc, char **argv)
 {
+    if (argc == 3 && !strcmp(argv[1], "http-writer")) {
+        http_writer_artifact(argv[2]);
+        return 0;
+    }
     if (argc == 2 && !strcmp(argv[1], "filesystem-root")) {
         filesystem_data_limits_are_independent_of_process_limits();
         filesystem_root_reads_stay_beneath_the_open_root();
@@ -1017,6 +1023,7 @@ int main(int argc, char **argv)
         }
         return 0;
     }
+    http_state_contracts();
     resumable_contracts();
     record_module_progress("resumable");
     coverage_contracts();

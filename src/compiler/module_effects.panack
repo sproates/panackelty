@@ -1,4 +1,4 @@
-import project/src/compiler/module_bindings::{module_declaration_display}
+import project/src/compiler/module_bindings::{module_declaration_display, DeclarationIdentity}
 pub import project/src/compiler/module_bodies::{
   Diagnostic, LoadedModule, ModuleBindingGraph, ModuleSignature, BoundFunctionBody
 }
@@ -21,11 +21,13 @@ pub import project/src/compiler/purity::{EffectEvidence}
 import project/src/compiler/purity::{CheckedEffects, combine_effects, is_impure_builtin}
 
 // Check local call/await boundaries after names and callable types have been
-// resolved to module identities. This pass does not infer transitive effects.
+// resolved to module identities. Infer only the closed local-resource permission
+// for direct ordinary wrappers; other effect declarations remain explicit.
 record ModuleEffectContext {
   body: BodyContext,
   function_name: Str,
-  mode: Str
+  mode: Str,
+  local_functions: Set[DeclarationIdentity]
 }
 
 pub record CheckedModuleEffects {
@@ -46,6 +48,9 @@ pure module_effect_mode(effect: Option[SignatureEffect]): Str {
 }
 
 pure module_async_builtin(name: Str): Bool {
+  name == "http_connection_continue" ||
+  name == "http_listen_ordinary" || name == "http_listen_contextual" || name == "http_close" || name == "http_destroy" ||
+  name == "http_connection_invoke" ||
   name == "host_arguments_async" || name == "host_stdout_async" ||
     name == "host_stderr_async" || name == "host_exit_async" || name == "fs_read_beneath_async" || name == "fs_root_identity_async" || name == "async_fake_read" || name == "tcp_exchange" || name == "http_transport_exchange" || name == "tcp_serve" ||
     name == "tcp_service" || name == "tcp_serve_stream" || name == "tcp_server_read_chunk"
@@ -153,6 +158,76 @@ pure module_effect_name(effect: SignatureEffect): Str {
   }
 }
 
+// Local resource operations mutate owned shells but cannot block on host I/O.
+// Infer only their direct wrappers, transitively through checked identities.
+// Unknown/indirect calls and ordinary host services never acquire this permission.
+pure module_local_primitive(name: Str): Bool {
+  name == "http_body" || name == "http_body_size" || name == "http_body_append" ||
+  name == "http_state_create" || name == "http_state_setup_error" ||
+    name == "http_state_fail_setup" || name == "http_state_register" ||
+    name == "http_writer_get_status" || name == "http_writer_get_headers" ||
+    name == "http_writer_status" || name == "http_writer_headers" ||
+    name == "http_writer_commit" || name == "http_writer_reject" ||
+    name == "http_connection_writer" || name == "http_connection_routes" ||
+    name == "http_connection_fallback" || name == "http_connection_admit"
+}
+
+pure module_local_target(target: BodyTarget, known: Set[DeclarationIdentity]): Bool {
+  match target {
+    BodyCore(name) => module_local_primitive(name),
+    BodyDeclaration(binding) => known.has(binding.identity)
+  }
+}
+
+record LocalEffectSummary { safe: Bool, local: Bool }
+
+pure module_local_body(context: BodyContext, body: BoundBody, known: Set[DeclarationIdentity]): LocalEffectSummary {
+  mut safe = true
+  mut local = false
+  match body.node {
+    BodyCall(target, types, arguments) => {
+      local = module_local_target(target, known)
+      safe = local || module_effect_for_call(context, target, body) == Some(SignaturePure())
+      match target {
+        BodyCore(name) => if name == "$intrinsic_call" { safe = false },
+        BodyDeclaration(binding) => {}
+      }
+    },
+    BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity) => {},
+    BodyFunction(binding) => {}, BodyArray() => {}, BodyUnary(operator) => {},
+    BodyBinary(operator) => {}, BodyField(field) => {}, BodyIndex() => {}, BodyIf(value) => {},
+    BodyBlock(value) => {}, BodyMatch(targets, locals, spans) => {}, BodyBinding(identity, type, mutable, inferred, evidence) => {},
+    BodyAssignment(identity, evidence) => {}, BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
+  }
+  for child in body.children {
+    summary = module_local_body(context, child, known)
+    safe = safe && summary.safe
+    local = local || summary.local
+  }
+  LocalEffectSummary(safe, local)
+}
+
+pure module_local_functions(graph: ModuleBindingGraph, modules: [LoadedModule],
+    signatures: [ModuleSignature], functions: [BoundFunctionBody]): Set[DeclarationIdentity] {
+  mut known: Set[DeclarationIdentity] = set()
+  mut changed = true
+  while changed {
+    changed = false
+    for function in functions {
+      identity = function.signature.binding.identity
+      if function.status != BodyInvalid() && function.signature.effect == Some(SignatureOrdinary()) && !known.has(identity) {
+        context = BodyContext(graph, modules, signatures, identity, function.signature.parameters, map(), false)
+        summary = module_local_body(context, function.body, known)
+        if summary.safe && summary.local {
+          known = known.add(identity)
+          changed = true
+        }
+      }
+    }
+  }
+  known
+}
+
 pure module_effect_call(
   context: ModuleEffectContext,
   target: BodyTarget,
@@ -211,7 +286,7 @@ pure module_effect_call(
         diagnostics = diagnostics.append(Diagnostic(reason, expression.span.start))
         violations = violations.append(reason)
       }
-      if context.mode == "async" && impure && !async_call {
+      if context.mode == "async" && impure && !async_call && !module_local_target(target, context.local_functions) {
         reason: Str = "async function cannot call blocking function ${display_name}"
         diagnostics = diagnostics.append(Diagnostic(reason, expression.span.start))
         violations = violations.append(reason)
@@ -382,6 +457,7 @@ pub pure check_module_effects(
   mut diagnostics: [Diagnostic] = []
   mut evidence: [EffectEvidence] = []
   mut function_types: Map[Str, Bool] = map()
+  local_functions = module_local_functions(graph, modules, signatures, functions)
   for function in functions {
     valid_body: Bool = function.status != BodyInvalid()
     function_types = function_types.put(function.signature.binding.identity.name,
@@ -399,7 +475,8 @@ pub pure check_module_effects(
       context: ModuleEffectContext = ModuleEffectContext(
         body_context,
         function.signature.binding.identity.name,
-        module_effect_mode(function.signature.effect)
+        module_effect_mode(function.signature.effect),
+        local_functions
       )
       checked: CheckedEffects = module_effect_expression(context, function.body, false, retain)
       diagnostics = diagnostics.concat(checked.diagnostics)

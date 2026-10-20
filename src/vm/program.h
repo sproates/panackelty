@@ -30,6 +30,7 @@ typedef struct {
 typedef struct {
     char *name;
     bool pure, is_async;
+    bool local_effect; /* Derived by verification; never trusted from bytecode. */
     size_t param_count, ins_count;
     char **params;
     Instruction *ins;

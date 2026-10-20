@@ -5,6 +5,8 @@
 #include "console_write.h"
 #include "host.h"
 #include "http_transport.h"
+#include "http_runtime.h"
+#include "http_state.h"
 #include "numeric.h"
 #include "program.h"
 #include "render.h"
@@ -54,7 +56,8 @@ struct VMExecution {
     VMTcpServer *server;
     VMRootRead *root_read;
     VMConsoleWrite *console_write;
-    bool console_enabled;
+    bool console_enabled, yield_requested;
+    Value *http_waiting;
 #ifndef __wasi__
     bool owns_stop_signals;
     struct sigaction previous_interrupt, previous_terminate;
@@ -431,8 +434,83 @@ static Value *server_call(VMExecution *execution, Value **arguments)
     return server_call_mode(execution, arguments, false);
 }
 
-static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Value **arguments)
+static Value *http_unit_result(void)
 {
+    Value *unit = value_new(V_UNIT);
+    if (!unit) return NULL;
+    Value *result = named_value(V_VARIANT, "Ok", NULL, &unit, 1);
+    release(unit);
+    return result;
+}
+
+static Function *http_worker_function(VM *vm, Value *name)
+{
+    if (name->kind != V_STR) return NULL;
+    for (size_t i = 0; i < vm->program->count; i++) {
+        Function *function = &vm->program->functions[i];
+        if (strlen(function->name) == name->as.bytes.length &&
+            !memcmp(function->name, name->as.bytes.data, name->as.bytes.length) &&
+            function->is_async && !function->pure && function->param_count == 1) return function;
+    }
+    return NULL;
+}
+
+static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Value **arguments,
+                                bool *called_function)
+{
+    *called_function = false;
+    if (!strcmp(entry->name, "http_connection_continue")) {
+        if (tcp_server_http_continue(execution->vm, arguments[0])) {
+            execution->waiting_read = true;
+            execution->status = VM_WAITING;
+        }
+        return NULL;
+    }
+    if (!strcmp(entry->name, "http_listen_ordinary") || !strcmp(entry->name, "http_listen_contextual")) {
+        VM *vm = execution->vm;
+        Function *worker = http_worker_function(vm, arguments[1]);
+        if (!worker) { vm->error = "VM trap: invalid HTTP worker"; return NULL; }
+        if (execution->embedded && !execution->server_enabled) {
+            vm->error = "VM trap: listener capability is unavailable";
+            return NULL;
+        }
+        Value *result = http_runtime_listen(vm, arguments[0], worker,
+            !strcmp(entry->name, "http_listen_contextual"),
+            !execution->embedded || execution->network_enabled,
+            !execution->embedded || execution->filesystem_enabled,
+            !execution->embedded || execution->console_enabled);
+#ifndef __wasi__
+        if (http_runtime_active(vm->http_runtime) && !vm->http_runtime->owner->owns_stop_signals &&
+            !install_stop_signals(vm->http_runtime->owner)) {
+            release(result);
+            vm->error = "HTTP signal setup failed";
+            return NULL;
+        }
+#endif
+        execution->yield_requested = true;
+        return result;
+    }
+    if (!strcmp(entry->name, "http_close") || !strcmp(entry->name, "http_destroy")) {
+        VM *vm = execution->vm;
+        if (arguments[0]->kind != V_HTTP_STATE || !arguments[0]->as.http_state ||
+            !http_runtime_request_close(vm->http_runtime, arguments[0], !strcmp(entry->name, "http_destroy"))) {
+            vm->error = "VM trap: invalid HTTP shutdown handle";
+            return NULL;
+        }
+        if (!arguments[0]->as.http_state->resource) return http_unit_result();
+        execution->http_waiting = retain(arguments[0]);
+        execution->status = VM_WAITING;
+        return NULL;
+    }
+    if (!strcmp(entry->name, "http_connection_invoke")) {
+        Value *call_arguments[3];
+        Function *handler = http_connection_handler(execution->vm, arguments, call_arguments);
+        if (handler) {
+            *called_function = true;
+            frame_push(execution, handler, call_arguments);
+        }
+        return NULL;
+    }
     VM *vm = execution->vm;
     if (vm->coverage && !vm->coverage_run && (!strcmp(entry->name, "$http_transport_exchange") ||
         !strcmp(entry->name, "$tcp_serve") || !strcmp(entry->name, "tcp_service") ||
@@ -454,7 +532,7 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         if (arguments[0]->kind != V_NAT || !value_index(arguments[0], &execution->exit_status) ||
             execution->exit_status > 255) {
             vm->error = "VM trap: invalid process status";
-        } else if (execution->embedded) {
+        } else if (execution->embedded || http_runtime_active(vm->http_runtime)) {
             execution->status = VM_EXITED;
         } else {
             return host_call(vm, "process_exit", arguments);
@@ -552,16 +630,17 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         }
         return NULL;
     }
-    if (!execution->embedded || entry->pure) {
-        return builtin_call(vm, entry->name, arguments);
-    }
-    if (!strcmp(entry->name, "process_exit")) {
+    if (!strcmp(entry->name, "process_exit") &&
+        (execution->embedded || http_runtime_active(vm->http_runtime))) {
         if (arguments[0]->kind != V_NAT || !value_index(arguments[0], &execution->exit_status)) {
             vm->error = "VM trap: invalid process status";
         } else {
             execution->status = VM_EXITED;
         }
         return NULL;
+    }
+    if (!execution->embedded || entry->pure || builtin_is_local_state(entry)) {
+        return builtin_call(vm, entry->name, arguments);
     }
     if (!strcmp(entry->name, "run_bytecode") || !strcmp(entry->name, "run_bytecode_args")) {
         vm->error = "VM trap: nested execution is unavailable in resumable mode";
@@ -587,6 +666,21 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
 {
     if (execution->running) {
         return VM_BUSY;
+    }
+    if (execution->status == VM_WAITING && execution->http_waiting &&
+        !execution->http_waiting->as.http_state->resource) {
+        Value *result = http_unit_result();
+        if (!result || !stack_push(&execution->frames[execution->frame_count - 1], result)) {
+            execution->vm->error = "native VM out of memory";
+            execution->status = VM_TRAPPED;
+            vm_coverage_terminal(execution->vm->coverage, 2);
+            frames_clear(execution);
+        } else {
+            execution->status = VM_YIELDED;
+            coverage_complete_pending(execution);
+        }
+        release(execution->http_waiting);
+        execution->http_waiting = NULL;
     }
     if (execution->status != VM_YIELDED) {
         return execution->status;
@@ -967,6 +1061,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
             break;
         case OP_AWAIT_CALL:
         case OP_CALL: {
+            bool called_function = false;
             Value **args = calloc(instruction->arity, sizeof(Value *));
             if (instruction->arity && !args) {
                 goto oom;
@@ -986,11 +1081,11 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
             if ((!built && !called) ||
                 instruction->arity != (built ? built->arity : called->param_count) ||
                 !verify_call_edge(function, called, built && built->pure,
-                                  builtin_is_async(built),
+                                  builtin_is_async(built), builtin_is_local_state(built),
                                   instruction->op == OP_AWAIT_CALL)) {
                 vm->error = "VM trap: invalid async call effect or signature";
             } else if (built) {
-                v = execution_builtin(execution, built, args);
+                v = execution_builtin(execution, built, args, &called_function);
             } else {
                 frame_push(execution, called, args);
             }
@@ -998,7 +1093,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
                 release(args[i]);
             }
             free(args);
-            if (built && execution->status == VM_YIELDED &&
+            if (built && !called_function && execution->status == VM_YIELDED &&
                 ((!v && !vm->error) || (v && !stack_push(frame, v)))) {
                 goto oom;
             }
@@ -1081,14 +1176,14 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
                     vm->error = "VM trap: indirect call arity mismatch";
                 } else if (memchr(callable->as.bytes.data, 0, callable->as.bytes.length) ||
                            !verify_call_edge(function, built ? NULL : called, built && built->pure,
-                                             builtin_is_async(built),
+                                             builtin_is_async(built), builtin_is_local_state(built),
                                              instruction->op == OP_AWAIT_VALUE)) {
                     vm->error = function->pure
                         ? "VM trap: pure function invokes impure callable"
                         : "VM trap: invalid async callable effect";
                 } else {
                     if (built) {
-                        v = execution_builtin(execution, built, args);
+                        v = execution_builtin(execution, built, args, &called_function);
                     } else {
                         called_function = true;
                         frame_push(execution, called, args);
@@ -1120,6 +1215,8 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
                 vm_coverage_finish(vm->coverage, coverage_function, coverage_pc, coverage_branched);
             }
         }
+
+        if (execution->yield_requested) { execution->yield_requested = false; break; }
     }
     if (vm->error) {
         execution->status = VM_TRAPPED;
@@ -1181,7 +1278,7 @@ VMExecution *vm_execution_create_pending(VM *vm, Function *function, Value **arg
 bool vm_execution_complete_print(VMExecution *execution, const char *error)
 {
     if (execution->running || execution->status != VM_WAITING || execution->waiting_read ||
-        execution->server) {
+        execution->server || execution->http_waiting) {
         return false;
     }
     VM *vm = execution->vm;
@@ -1229,6 +1326,7 @@ bool vm_execution_destroy(VMExecution *execution)
     frames_clear(execution);
     free(execution->frames);
     release(execution->result);
+    release(execution->http_waiting);
     execution->vm->execution = NULL;
     free(execution);
     return true;
@@ -1239,37 +1337,54 @@ bool vm_execution_destroy(VMExecution *execution)
  */
 Value *execute(VM *vm, Function *function, Value **arguments)
 {
-    if (vm->execution) {
-        return NULL;
-    }
+    if (vm->execution) return NULL;
     VMExecution execution = {.vm = vm, .status = VM_YIELDED};
+    struct VMHttpRuntime runtime = {.owner = &execution};
+    bool owns_runtime = vm->http_runtime == NULL;
+    if (owns_runtime) vm->http_runtime = &runtime;
     vm->execution = &execution;
+    vm->fault_kind = VM_FAULT_FATAL;
     vm_coverage_start(vm->coverage, vm->program);
     if (frame_push(&execution, function, arguments)) {
         for (;;) {
-            VMExecutionStatus status = vm_execution_advance(&execution, SIZE_MAX);
-            if (status == VM_YIELDED) {
-                continue;
+            if (owns_runtime && http_runtime_active(&runtime)) {
+#ifndef __wasi__
+                if (execution.owns_stop_signals && service_stop_requested) {
+                    runtime.exit_requested = true;
+                    runtime.exit_status = 0;
+                    http_runtime_stop(&runtime);
+                }
+#endif
+                if (execution.status == VM_EXITED || runtime.exit_requested) http_runtime_stop(&runtime);
+                http_runtime_pump(&runtime, 1024, execution.status == VM_YIELDED ? 0 : 1);
+                if (runtime.error) { vm->error = runtime.error; break; }
             }
+            bool active = owns_runtime && http_runtime_active(&runtime);
+            if (execution.status == VM_COMPLETED || execution.status == VM_EXITED || runtime.exit_requested) {
+                if (active) continue;
+                break;
+            }
+            VMExecutionStatus status = vm_execution_advance(&execution, active ? 1024 : SIZE_MAX);
+            if (status == VM_YIELDED) continue;
+            if ((status == VM_COMPLETED || status == VM_EXITED) && owns_runtime && http_runtime_active(&runtime)) continue;
+            if (status == VM_WAITING && execution.http_waiting) continue;
             if (status == VM_WAITING && execution.server) {
-                vm_execution_pump_server(&execution, 1024, 10);
+                vm_execution_pump_server(&execution, 1024, active ? 1 : 10);
                 continue;
             }
             if (status == VM_WAITING && execution.console_write) {
-                console_write_wait(execution.console_write);
+                if (!active) console_write_wait(execution.console_write);
                 vm_execution_poll_console(&execution);
                 continue;
             }
             if (status == VM_WAITING && execution.root_read) {
-                root_read_wait(execution.root_read);
+                if (!active) root_read_wait(execution.root_read);
                 vm_execution_poll_filesystem(&execution);
                 continue;
             }
-            if (status != VM_WAITING || !execution.waiting_read) {
-                break;
-            }
+            if (status != VM_WAITING || !execution.waiting_read) break;
             if (execution.tcp || execution.http) {
-                vm_execution_poll_network(&execution, 1000);
+                vm_execution_poll_network(&execution, active ? 1 : 1000);
                 continue;
             }
             Value *result = vm_fake_read_result(execution.fake_fail);
@@ -1278,6 +1393,10 @@ Value *execute(VM *vm, Function *function, Value **arguments)
         }
     }
     if (vm->error) vm_coverage_terminal(vm->coverage, 2);
+    if (owns_runtime) {
+        http_runtime_destroy(&runtime);
+        vm->http_runtime = NULL;
+    }
     tcp_exchange_destroy(execution.tcp);
     http_transport_destroy(execution.http);
     root_read_destroy(execution.root_read);
@@ -1286,7 +1405,13 @@ Value *execute(VM *vm, Function *function, Value **arguments)
     restore_stop_signals(&execution);
     frames_clear(&execution);
     free(execution.frames);
+    release(execution.http_waiting);
     vm->execution = NULL;
+    if (owns_runtime && !vm->error && (execution.status == VM_EXITED || runtime.exit_requested)) {
+        Value *code = value_size(runtime.exit_requested ? runtime.exit_status : execution.exit_status);
+        if (!code) vm->error = "native VM out of memory";
+        else { Value *ignored = host_call(vm, "process_exit", &code); release(ignored); release(code); }
+    }
     return execution.result;
 }
 

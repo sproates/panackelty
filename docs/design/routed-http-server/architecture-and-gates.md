@@ -122,3 +122,84 @@ Existing low-level TCP behaviour must remain unchanged unless a separately agree
 compatibility decision says otherwise. Do not change saved-bytecode ABI by accident;
 P02 must decide whether new operations require new verification/seed work and show
 how existing artifacts remain handled.
+
+## Implementation evidence (20 October 2026)
+
+The internal runtime trial now uses reference-counted opaque shells rather than a
+numeric registry. No shell can be reconstructed from a language integer. Every
+request gets a fresh connection token and writer; client-slot reuse cannot revive
+an expired token. The package entry point remains private until consumer migration
+and public acceptance are complete.
+
+| Object | Owns | Release boundary |
+| --- | --- | --- |
+| Server shell | Immutable context, named callbacks and route keys | Last language/resource reference |
+| Active listener | Server shell, native listener and bounded client slots | close drain, destroy, termination or fatal failure |
+| Connection token | Writer and bounded request-body buffer | Last reference; borrowed client/execution pointers invalidated before slot reuse |
+| Writer shell | Header draft and first committed wire snapshot | Last reference; mutation rejected after completion or request end |
+| Handler execution | Selected callback frame and retained arguments | Normal completion, request failure, disconnect, deadline or shutdown |
+
+`HttpServerState[T,H]` preserves the context/callback relationship in the checker.
+`HttpConnectionState[Request,ResponseWriter]` lets one non-generic package worker
+invoke the selected ordinary or contextual callback without closures, generic
+function references, or an erased public context. Listen checks the worker and
+callback signatures together. Native invocation rechecks function kind and arity.
+
+Direct registration and writer methods require a narrow local-resource effect
+permission. The compiler infers this only for direct wrappers around a closed set
+of HTTP state operations and pure calls. Blocking I/O and indirect calls disqualify
+a wrapper. Pure functions still cannot mutate resources. Saved-bytecode verification
+independently recomputes this permission; it is not a trusted serialized flag.
+There is no bytecode-version change or general mutable-cell feature.
+
+The implementation follows these concrete boundary interpretations:
+
+- **G3:** A valid send commits one immutable response and permits flushing while the
+  handler continues. The ten-second accept-to-completion deadline still cancels
+  the handler and closes the socket. At cutoff only a nonblocking best-effort flush
+  is possible; a slow reader cannot extend the deadline.
+- **G4:** Sixteen retained service connections are allowed. An additional accepted
+  socket is used only for one immediate best-effort 503 and close, with no handler
+  and no queue.
+- **G5:** Bytes already buffered after an unframed request head cause 400. An empty
+  buffered remainder means an empty body and one final response followed by close;
+  future bytes cannot retroactively change that decision.
+- **G6:** Main returning leaves active listeners alive. Explicit host exit and
+  SIGINT/SIGTERM request bounded drain; fatal VM errors take the fatal cleanup path.
+- **G8:** Preview migration retains explicit IPv4 binding, its loopback default and
+  stricter application policies. The generic server owns transport limits; preview
+  does not introduce public tuning knobs for them.
+
+Focused evidence is in `tests/unit/vm/http_state.c`, the internal routed package
+fixtures, and the `routed`, `routed-capacity`, and `routed-deadline` raw-peer modes
+in `tests/http_client.c`. These cover aliasing, immutable first send, typed callback
+invocation, local-effect rejection, readiness after main returns, real framing and
+Expect exchanges, request recovery, separate admission caps, and the real deadline.
+This is implementation evidence, not final acceptance of all packet rows. Public
+imports, installed consumers, static migration and complete validation remain gates.
+
+### Maintained caller migration inventory
+
+| Current surface or caller | Required migration | Evidence location |
+| --- | --- | --- |
+| `http/server`: `serve`, `serve_with_context`, `ConnectionContext`, connection policies and serializer | Replace exported server module with routed constructors, types and lifecycle; move any shared response policy behind package internals | `packages/http/src/server.panack`, package manifest |
+| `http/service`: transport-oriented limits, readiness and summary | Remove obsolete public export after callers migrate | `packages/http/src/service.panack`, package manifest |
+| Shared legacy `Request(target)` and `Response` | Keep HTTP-client nominal types intact; explicit adapters for routed `Request(path,query)` | `types.panack`, `request.panack`, `client.panack` |
+| Static-preview service | Contextual fallback, GET-only application policy, retained filesystem identity/confinement and stricter content limits | `packages/static_http/src/service.panack`, package tests |
+| Preview command | Preserve loopback/`--host`, root validation and readiness; replace transport tuning with application limits | `tools/http-server/src/main.panack`, `tests/static_http.sh` |
+| Network example | Ordinary routed API and executable documentation | `examples/network/http_server/` |
+| Generated package consumers | Replace low-level HTTP server/service fixtures while retaining separate native TCP tests | `tests/http_package.sh`, `tests/continuous_service.sh`, `tests/async_filesystem.sh`, `tests/namespace_seed.sh` |
+| Installed artifacts and guides | Update file inventory, package README, async/HTTP guide and relocated consumer checks | `tests/unit/harness/installed-files.txt`, package/archive tests, `docs/guides/ASYNC_AND_HTTP.md` |
+
+Historical completed plan records are not maintained runtime consumers. They may
+retain historical API names; current public examples and exported APIs may not.
+
+### Runtime-slice validation
+
+On 20 October, `make regenerate-seed` verified compiler and standard-library fixed
+points. `PANACK_HTTP_CLIENT=... PANACK_NATIVE_MODULE_TEST=... sh tests/http_package.sh`
+passed after the nested-program ownership and separate body-limit fixes. The
+unchanged product tree then passed full `make check` in 629 seconds, including
+packaging and relocated consumers of the existing public API. The timing-budget
+warnings were advisory; the command exited successfully. Exact-head CI remains
+required before merge. This does not accept the unfinished public migration rows.

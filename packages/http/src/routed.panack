@@ -1,0 +1,56 @@
+import stdlib/http_runtime as runtime
+import project/routing::{route_path}
+import project/routed_connection::{serve_connection}
+
+pub record ServerError { message: Str }
+pure server_result(result: Result[Unit,Str]): Result[Unit,ServerError] {
+  match result { Ok(done) => Ok(done), Error(message) => Error(ServerError(message)) }
+}
+pub import project/request::{Request}
+pub import project/response::{ResponseWriter}
+
+pub record Server {
+  state: HttpServerState[Unit,AsyncFn[Request,ResponseWriter,Result[Unit,Str]]]
+}
+pub record ContextualServer[T] {
+  state: HttpServerState[T,AsyncFn[T,Request,ResponseWriter,Result[Unit,Str]]]
+}
+
+pub create_bound_server(address: Str, port: Nat): Server {
+  Server(runtime.create[Unit,AsyncFn[Request,ResponseWriter,Result[Unit,Str]]](address, port, ()))
+}
+pub create_server(port: Nat): Server { create_bound_server("0.0.0.0", port) }
+pub create_bound_contextual_server[T](address: Str, port: Nat, context: T): ContextualServer[T] {
+  ContextualServer(runtime.create[T,AsyncFn[T,Request,ResponseWriter,Result[Unit,Str]]](address, port, context))
+}
+pub create_contextual_server[T](port: Nat, context: T): ContextualServer[T] {
+  create_bound_contextual_server("0.0.0.0", port, context)
+}
+
+register[T,H](state: HttpServerState[T,H], method: Str, reference: Str, handler: H): Unit {
+  match route_path(reference) {
+    None() => runtime.invalid_route(state),
+    Some(path) => runtime.register(state, method, path, handler)
+  }
+}
+
+impl Server {
+  pub async listen(): Result[Unit,ServerError] { server_result(await runtime.listen_ordinary(self.state, @serve_connection)) }
+  pub async close(): Result[Unit,ServerError] { server_result(await runtime.close(self.state)) }
+  pub async destroy(): Result[Unit,ServerError] { server_result(await runtime.destroy(self.state)) }
+  pub get(path: Str, handler: AsyncFn[Request,ResponseWriter,Result[Unit,Str]]): Unit { register(self.state, "GET", path, handler) }
+  pub post(path: Str, handler: AsyncFn[Request,ResponseWriter,Result[Unit,Str]]): Unit { register(self.state, "POST", path, handler) }
+  pub put(path: Str, handler: AsyncFn[Request,ResponseWriter,Result[Unit,Str]]): Unit { register(self.state, "PUT", path, handler) }
+  pub delete(path: Str, handler: AsyncFn[Request,ResponseWriter,Result[Unit,Str]]): Unit { register(self.state, "DELETE", path, handler) }
+  pub fallback(handler: AsyncFn[Request,ResponseWriter,Result[Unit,Str]]): Unit { runtime.register(self.state, "", "", handler) }
+}
+impl[T] ContextualServer[T] {
+  pub async listen(): Result[Unit,ServerError] { server_result(await runtime.listen_contextual(self.state, @serve_connection)) }
+  pub async close(): Result[Unit,ServerError] { server_result(await runtime.close(self.state)) }
+  pub async destroy(): Result[Unit,ServerError] { server_result(await runtime.destroy(self.state)) }
+  pub get(path: Str, handler: AsyncFn[T,Request,ResponseWriter,Result[Unit,Str]]): Unit { register(self.state, "GET", path, handler) }
+  pub post(path: Str, handler: AsyncFn[T,Request,ResponseWriter,Result[Unit,Str]]): Unit { register(self.state, "POST", path, handler) }
+  pub put(path: Str, handler: AsyncFn[T,Request,ResponseWriter,Result[Unit,Str]]): Unit { register(self.state, "PUT", path, handler) }
+  pub delete(path: Str, handler: AsyncFn[T,Request,ResponseWriter,Result[Unit,Str]]): Unit { register(self.state, "DELETE", path, handler) }
+  pub fallback(handler: AsyncFn[T,Request,ResponseWriter,Result[Unit,Str]]): Unit { runtime.register(self.state, "", "", handler) }
+}

@@ -7,11 +7,19 @@ packages/http/src/client.panack
 packages/http/src/parser.panack
 packages/http/src/parser_test.panack
 packages/http/src/request.panack
+packages/http/src/response.panack
+packages/http/src/response_policy.panack
+packages/http/src/routed.panack
+packages/http/src/routed_connection.panack
+packages/http/src/routed_lifecycle_test.panack
+packages/http/src/routed_socket_test.panack
+packages/http/src/routed_test.panack
 packages/http/src/routing.panack
 packages/http/src/server.panack
 packages/http/src/service.panack
 packages/http/src/transport.panack
 packages/http/src/types.panack
+packages/http/src/writer_test.panack
 packages/static_http/README.md
 packages/static_http/panack.json
 packages/static_http/src/mime.panack
@@ -37,6 +45,7 @@ share/panackelty/stdlib/core.panack
 share/panackelty/stdlib/environment.panack
 share/panackelty/stdlib/filesystem.panack
 share/panackelty/stdlib/host.panack
+share/panackelty/stdlib/http_runtime.panack
 share/panackelty/stdlib/http_transport.panack
 share/panackelty/stdlib/package_filesystem.panack
 share/panackelty/stdlib/path.panack

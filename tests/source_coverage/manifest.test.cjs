@@ -18,6 +18,7 @@ test('the reviewed manifest accounts for every tracked production source', () =>
     'src/compiler/package_project.panack',
     'src/stdlib/async_filesystem.panack',
     'src/stdlib/async_host.panack',
+    'src/stdlib/http_runtime.panack',
     'src/stdlib/tcp_service.panack',
     'src/stdlib/package_filesystem.panack'
   ]);

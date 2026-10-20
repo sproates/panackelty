@@ -1,1 +1,1 @@
-main(): Void { print(42.ends_with("x")) }
+main(): Void { print(42->ends_with("x")) }

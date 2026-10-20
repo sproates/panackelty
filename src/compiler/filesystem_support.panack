@@ -1,5 +1,1 @@
-// Compiler-internal trapping file operations used by diagnostics and CLI plumbing.
-pub read_text(path: Str): Str { read_file(path) }
-pub exists(path: Str): Bool { file_exists(path) }
-pub read_file_bytes(path: Str): Bytes { read_bytes(path) }
-pub write_file_bytes(path: Str, data: Bytes): Void { write_bytes(path, data) }
+pub import stdlib/compiler_files::{read_text, exists, read_file_bytes, write_file_bytes}

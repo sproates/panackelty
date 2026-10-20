@@ -1,4 +1,4 @@
 
 output(value: Nat): Void { print(value); }
-pure hidden(value: Nat): Void { value.output(); }
+pure hidden(value: Nat): Void { output(value); }
 main(): Void {}

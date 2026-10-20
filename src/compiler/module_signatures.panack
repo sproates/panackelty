@@ -400,6 +400,9 @@ pub pure check_module_signatures(
       TypeDeclaration(declared, base, guard) => {
         name = declared
         fields = [RecordField("base", base)]
+        if !is_scalar_base(base) || base == "Rat" || base == "Unit" {
+          diagnostics = diagnostics->append(Diagnostic("guarded type base must be a scalar, got " + base, if syntax.type_spans->len() > 0 { syntax.type_spans[0].start } else { syntax.span.start }))
+        }
         if syntax.is_public {
           uses: ResolvedModuleUses = resolve_module_expression_uses(
             graph,
@@ -435,6 +438,13 @@ pub pure check_module_signatures(
         name = declared
         parameters = types
         fields = members
+        mut member_names: Set[Str] = set()
+        for member in members {
+          if member_names->has(member.name) {
+            diagnostics = diagnostics->append(Diagnostic("duplicate field " + member.name, syntax.span.start))
+          }
+          member_names = member_names->add(member.name)
+        }
       },
       EnumDeclaration(declared, types, variants) => {
         name = declared

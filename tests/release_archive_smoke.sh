@@ -117,7 +117,7 @@ main(): Void {
   print(missing)
 }
 EOF
-printf 'error: %s/broken.panack:2:9: unknown name missing\n' "$(pwd -P)" >broken.expected
+printf 'error: %s/broken.panack:2:9: unknown local value missing\n' "$(pwd -P)" >broken.expected
 cat >>broken.expected <<'EOF'
   2 |   print(missing)
     |         ^

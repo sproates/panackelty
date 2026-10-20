@@ -102,14 +102,13 @@ host_nested(workspace: TestWorkspace, source: Str, args: Bool): [TestResult] {
     ProcessOutput(0, 0, "wrote ${artifact_file}\n"->encode_utf8(), byte_buffer.empty())))
   script = if args {
     "import stdlib/host as std_host\n" +
-      "fixture_read(path: Str): Bytes { read_bytes(path) }\n" +
+      "pub import stdlib/compiler_files::{read_file_bytes as fixture_read}\n" +
       "main(): Void { std_host.run(fixture_read(\"${artifact_file}\"), [\"child\"]) }\n"
   } else {
     "import stdlib/host as std_host\n" +
-      "fixture_suffix(path: Str): Str { path_suffix(path) }\n" +
-      "fixture_resolve(path: Str): Str { path_resolve(path) }\n" +
-      "fixture_exists(path: Str): Bool { file_exists(path) }\n" +
-      "fixture_read(path: Str): Bytes { read_bytes(path) }\n" +
+      "pub import stdlib/compiler_paths::{suffix as fixture_suffix, resolve as fixture_resolve}\n" +
+      "pub import stdlib/compiler_files::{exists as fixture_exists}\n" +
+      "pub import stdlib/compiler_files::{read_file_bytes as fixture_read}\n" +
       "main(): Void { print(fixture_suffix(\"${artifact_file}\")); " +
       "print(fixture_exists(fixture_resolve(\"${artifact_file}\"))); " +
       "std_host.run(fixture_read(\"${artifact_file}\"), []); }\n"
@@ -324,7 +323,7 @@ host_paths(): [TestResult] {
 
 main(): Void {
   match std_testing_files.workspace_create(host_path("/tmp")) {
-    Error(problem) => { eprint("host test workspace failed: ${problem.code}"); std_host.exit(1) },
+    Error(problem) => { std_host.stderr("host test workspace failed: ${problem.code}"); std_host.exit(1) },
     Ok(workspace) => {
       mut results = host_direct(workspace)->concat(host_paths())
       results = results->append(host_fixture("testing report order and empty case", "library_reports", [], [],
@@ -337,8 +336,12 @@ main(): Void {
         ProcessOutput(0, 0, "2\nalpha\n"->encode_utf8(), byte_buffer.empty())))
       results = results->append(host_fixture("environment snapshot", "environment_snapshot", [], ["PANACK_PRESENT=configured"],
         ProcessOutput(0, 0, "true\nconfigured\nfalse\n"->encode_utf8(), byte_buffer.empty())))
+      missing_artifact = host_path(host_text(workspace.root) + "/environment-missing.bc")
+      results = results->append(std_testing.equal_str("write missing environment bytecode",
+        host_error(std_filesystem.write(missing_artifact, host_hex(filesystem_support.read_text(
+          "tests/fixtures/host_runtime/environment_missing.hex")))), "ok"))
       missing = std_process.run(host_path("/bin/sh"), ["-c", "unset PANACK_MISSING; exec ./bin/panack \"$@\"",
-        "host-missing", "run", "tests/fixtures/host_runtime/environment_missing.panack"], byte_buffer.empty(),
+        "host-missing", "run", host_text(missing_artifact)], byte_buffer.empty(),
         std_path.current(), [], std_time.seconds(20), 1048576)
       match missing {
         Error(problem) => { results = results->append(std_testing.expect("missing environment traps", false, problem.code)) },
@@ -347,6 +350,8 @@ main(): Void {
           host_contains(command.stderr->decode_utf8(), "environment variable was not found"),
           "missing variable did not trap")) }
       }
+      results = results->append(std_testing.equal_str("remove missing environment bytecode",
+        host_error(std_filesystem.remove_file(missing_artifact)), "ok"))
       results = results->append(host_fixture("stderr and exit status", "process_exit", [], [],
         ProcessOutput(7, 0, byte_buffer.empty(), "failure\n"->encode_utf8())))
       results = results->append(host_fixture("native arguments, environment and status", "native_boundary",

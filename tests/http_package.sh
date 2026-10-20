@@ -20,7 +20,6 @@ MANIFEST
 
 cat > "$work/app/src/main.panack" <<'SOURCE'
 import http/server as http
-import stdlib/text as text
 
 async respond(request: http.Request): Result[http.Response,http.HttpError] {
   Ok(http.Response(200, [http.Header("Content-Type", "text/plain")],
@@ -62,7 +61,6 @@ done
 
 cat > "$work/server.panack" <<'SOURCE'
 import http/server as http
-import stdlib/text as text
 
 async respond(request: http.Request): Result[http.Response,http.HttpError] {
   if request.target == "/fail" {
@@ -122,7 +120,6 @@ done
 
 cat > "$work/interop-server.panack" <<'SOURCE'
 import http/server as http
-import stdlib/text as text
 
 pure expect(value: Bool): Unit {
   checked = [0][if value { 0 } else { 1 }]
@@ -152,7 +149,6 @@ cat > "$work/client/panack.json" <<MANIFEST
 MANIFEST
 cat > "$work/client/main.template" <<'SOURCE'
 import http/client as http
-import stdlib/text as text
 
 pure expect(value: Bool): Unit {
   checked = [0][if value { 0 } else { 1 }]

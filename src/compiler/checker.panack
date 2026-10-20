@@ -1135,7 +1135,7 @@ pure builtin_legacy_return(name: Str): Str {
                                                                     name == "is_whitespace" ||
                                                                     name == "map_has" ||
                                                                     name == "set_has" ||
-                                                                    name == "$method_has" ||
+
                                                                     name == "environment_has" ||
                                                                     name == "path_is_absolute" ||
                                                                     name == "file_exists" {
@@ -1334,10 +1334,10 @@ pure builtin_legacy_arity(name: Str): Nat {
                                                 name == "starts_with" ||
                                                 name == "map_has" ||
                                                 name == "map_get" ||
-                                                name == "$method_has" ||
-                                                name == "$method_get" ||
-                                                name == "$method_add" ||
-                                                name == "$method_map" ||
+
+
+
+                                                name == "$intrinsic_map" ||
                                                 name == "set_add" ||
                                                 name == "set_has" ||
                                                 name == "byte_append" ||
@@ -1744,25 +1744,13 @@ pure builtin_legacy_parameter(name: Str, index: Nat): Str {
 pure method_operation(name: Str): Str {
   mut result: Str = name
 
-  if name == "$method_put" {
-    result = "map_put"
-  }
-  if name == "$method_get" {
-    result = "map_get"
-  }
-  if name == "$method_add" {
-    result = "set_add"
-  }
-  if name == "$method_has" {
-    result = "has"
-  }
-  if name == "$method_call" {
+  if name == "$intrinsic_call" {
     result = "call"
   }
-  if name == "$method_map" {
+  if name == "$intrinsic_map" {
     result = "array_map"
   }
-  if name == "$method_reduce" {
+  if name == "$intrinsic_reduce" {
     result = "array_reduce"
   }
 
@@ -1772,34 +1760,13 @@ pure method_operation(name: Str): Str {
 pure method_display_name(name: Str): Str {
   mut result: Str = name
 
-  if name == "$core_ends_with" {
-    result = "ends_with"
-  }
-  if name == "$core_first" {
-    result = "first"
-  }
-  if name == "$core_sort_by" {
-    result = "sort_by"
-  }
-  if name == "$method_put" {
-    result = "put"
-  }
-  if name == "$method_get" {
-    result = "get"
-  }
-  if name == "$method_add" {
-    result = "add"
-  }
-  if name == "$method_has" {
-    result = "has"
-  }
-  if name == "$method_call" {
+  if name == "$intrinsic_call" {
     result = "call"
   }
-  if name == "$method_map" {
+  if name == "$intrinsic_map" {
     result = "map"
   }
-  if name == "$method_reduce" {
+  if name == "$intrinsic_reduce" {
     result = "reduce"
   }
 
@@ -2404,7 +2371,7 @@ pub pure check_expression_evidence(
           }
         }
       }
-      expected_count: Nat = if name == "$method_call" {
+      expected_count: Nat = if name == "$intrinsic_call" {
         arguments->len()
       } else {
         if is_builtin(name) {
@@ -2614,50 +2581,7 @@ pub pure check_expression_evidence(
                   if operation == "map" {
                     result = "Map[$K,$V]"
                   } else {
-                    if operation == "has" {
-                      collection_type: Str = argument_infos[0].name
-                      shape: TypeShape = type_shape(collection_type)
-                      if shape.base == "Map" && shape.arguments->len() == 2 {
-                        key_type: Str = merge_types(
-                          program,
-                          shape.arguments[0],
-                          argument_infos[1].name
-                        )
-                        if key_type == "Unknown" || !is_scalar_base(base_type(
-                          program,
-                          argument_infos[1].name
-                        )) {
-                          invalid_key: Str = argument_infos[1].name
-                          diagnostics = diagnostics->append(
-                            checker_diagnostic("invalid map key type ${invalid_key}")
-                          )
-                        } else {}
-                        result = "Bool"
-                      } else {
-                        if shape.base == "Set" && shape.arguments->len() == 1 {
-                          item_type: Str = merge_types(
-                            program,
-                            shape.arguments[0],
-                            argument_infos[1].name
-                          )
-                          if item_type == "Unknown" || !is_scalar_base(base_type(
-                            program,
-                            argument_infos[1].name
-                          )) {
-                            invalid_item: Str = argument_infos[1].name
-                            diagnostics = diagnostics->append(
-                              checker_diagnostic("invalid set element type ${invalid_item}")
-                            )
-                          } else {}
-                          result = "Bool"
-                        } else {
-                          diagnostics = diagnostics->append(
-                            checker_diagnostic("has expects a Map or Set, got ${collection_type}")
-                          )
-                        }
-                      }
-                    } else {
-                      if operation == "map_put" ||
+                    if operation == "map_put" ||
                         operation == "map_has" ||
                         operation == "map_get" {
                         collection_type: Str = argument_infos[0].name
@@ -2765,7 +2689,6 @@ pub pure check_expression_evidence(
                           }
                         }
                       }
-                    }
                   }
                 }
               }

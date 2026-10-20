@@ -20,14 +20,14 @@
     "decimal.stdin": "b164725e8adf0b672a62aa771ccbead5a76329942a1d98db97e91901242f4f44",
     "decimal.stdout": "923ba5819be9f1083803c448d044901ccc8ee4eee422fd4019cdff545e98b8af",
     "driver-basic.hex": "be3bd568af38c4ba143452d79825e117e91fc27973671b42a2117b15a32cadea",
-    "driver-logical.hex": "dea14b53e7d0f80529b35c3736facbfdb056f71d41e340f49072d4be13cbdbe7",
+    "driver-logical.hex": "0196e21c3421bd03c7b4183173e07d8a719f591d06698bfd0bf979f6f07c99e4",
     "driver-relative.hex": "be3bd568af38c4ba143452d79825e117e91fc27973671b42a2117b15a32cadea",
     "euler001.hex": "c71f6445c03e375776714ce138ecfdbc18bc9f3ba502441e1d1ddbab75a0d9e3",
     "integer.stdin": "eea20683cf0740b780d617d4276f056ea7d9e7a12163a90a23d6b6d1514e316f",
     "integer.stdout": "b76ed4198632a6466e759d15b4ba7968cb2395f81400e28e1ec0aead6c5b76cd",
     "rational.panack": "90083187fd0e85d3d5310517390ca796b8695206ec15ab7a75fde85349dd60d6",
     "rational.stdout": "0090c4a2f10d38441e3801b3a4aadd236f2475ae3921eb1092259161d052ae3a",
-    "stdlib.hex": "b18291438beafcd0793b7397387ecc635cc53187e166fa0f06d622d27d4c36dc"
+    "stdlib.hex": "ce10ebe82e593c9d53d75fc62974781907d5731ee6cd20d35834fa4cd965cc02"
   },
   "artifact_updates": {
     "stdlib": {
@@ -59,6 +59,12 @@
       "reason": "Replace flattened standard-library wrappers with concise domain-module APIs; preserve the bytes() constructor under the prelude alias byte_buffer, and qualify ordinary module callables to prevent name collisions.",
       "generator": "Current refreshed v9 seed after stage-2/3/4 compiler fixed point; serialized artifacts were reviewed against disassembly, runtime output, module-binding assertions, and stdlib conformance.",
       "review": "The logical-import artifact changes option_value_or to $module1_value_or with the same matching body and unchanged program behavior. The stdlib artifact reflects the module API names, removal of legacy prefixed and trapping wrappers, and additional domain APIs; execution output remains byte-for-byte identical. Focused tests assert new module access and absence of removed public exports."
+    },
+    "p12-legacy-removal": {
+      "date": "2026-10-20",
+      "reason": "Remove the deleted option wrapper module from the logical-import fixture",
+      "generator": "Fixed-point P12 seed; old and new artifact disassembly compared",
+      "review": "Only the unused Option value_or method/wrapper blocks disappear and the two remaining imported function IDs shift down one. Main instructions otherwise match and both old/new artifacts print 42. VM registry expectations remain unchanged for saved-bytecode compatibility. Stdlib removes compatibility wrappers and their otherwise unused core callees. Every surviving function body is identical after the explicit imported-module index renumbering; main is included in that comparison. Old/new stdout is identical."
     }
   }
 }

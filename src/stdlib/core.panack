@@ -1,5 +1,4 @@
 // Automatically loaded core types and owned method implementations.
-// Legacy core_* bridges remain internal until P12 removes their callers.
 
 enum Option[T] {
   None,
@@ -130,8 +129,3 @@ impl Duration {
     }
   }
 }
-
-// Compatibility bridges for legacy compiler lowering; removed in P12.
-pure core_ends_with(value: Str, suffix: Str): Bool { value->ends_with(suffix) }
-pure core_first[T](values: [T]): Option[T] { values->first() }
-pure core_sort_by[T](values: [T], less: PureFn[T,T,Bool]): [T] { values->sort_by(less) }

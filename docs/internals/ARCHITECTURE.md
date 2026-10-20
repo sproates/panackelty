@@ -151,19 +151,13 @@ rejects missing units, duplicate identifiers, cycles, and declarations that
 collide across modules. The name resolver then checks top-level and lexical
 references. Before parsing, each lexer normalizes only terminating physical line
 breaks into statement separators; breaks inside continued expressions remain
-soft, so the AST and bytecode do not depend on source layout. Both parsers lower
-`receiver.name(arguments)` to a receiver-first call AST. Ordinary method
-spelling reuses global name
-resolution, argument and generic checking, purity analysis, and bytecode
-emission; dot access without parentheses remains a record-field AST node.
-Method-only collection names lower to internal, unspellable built-in targets so
-they cannot collide with global source functions. The checker resolves
-`put/get/add` to their single collection family and accepts `has` only for Map
-or Set receivers. Because the emitter deliberately consumes the existing
-untyped AST, the VM safely dispatch the erased internal `has` call from the
-runtime value tag after the static check. Explicit `@name` expressions create
+soft, so the AST and bytecode do not depend on source layout. The parser preserves dot calls for namespace resolution and owned `->` calls
+for canonical receiver-type lookup. Receiver dots and receiver-to-global fallback
+are rejected. Map/Set methods select typed intrinsic identities before emission;
+there is no overloaded source-name `has` dispatcher. Record fields retain dots.
+Explicit `@name` expressions create
 non-capturing callable values whose `PureFn[...]` or `Fn[...]` type retains the
-declared effect. `.call(...)` emits `CALL_VALUE`; array `map` and `reduce` lower
+declared effect. `->call(...)` emits `CALL_VALUE`; array `map` and `reduce` lower
 to ordinary iterator, persistent-array, and indirect-call instructions. The VM
 rechecks dynamic target existence, arity, and purity for untrusted artifacts.
 The
@@ -247,7 +241,7 @@ array/generic/callable types, origin arity and guard helper accessibility; publi
 function bodies may still call private helpers. Substitution follows the owning
 binder rather than source spelling. The loader first collects contracts across the loaded graph, then binds staged
 function bodies, so recursion and declaration/import order cannot hide a callee.
-Ordinary legacy programs do not traverse either pass. Nominal declaration lookup and export reachability still
+All project programs traverse these passes. Nominal declaration lookup and export reachability still
 scan the small loaded graph; this is not a scaling or indexing claim.
 
 `module_bodies.panack` retains a structural body tree with original declaration
@@ -1691,10 +1685,11 @@ modules. Intrinsic result checking selects the canonical core declaration when
 present and retains the old-module identity for pre-conversion/custom toolchains.
 Core has no imports, so the re-exports introduce no cycle.
 
-All core functions emit from checked bodies, including legacy forwarding helpers.
+All core functions emit from checked bodies; compatibility forwarders are removed.
 Owned core methods receive private `$core_` emission names so the existing
 reachability pass omits unused core algorithms while following their calls.
 Source method selection still uses canonical owner metadata, not these names.
-The loader substitutes checked core declarations into legacy execution programs
-while preserving user resolution diagnostics and effect-check availability.
+The loader emits every accepted project from checked declaration identities.
+Guard validity, mutation-sensitive arithmetic proofs and effect evidence are
+checked in that same pipeline.
 No VM, opcode or bytecode-version change is introduced.

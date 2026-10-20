@@ -1,1 +1,5 @@
 error: invalid logical import path: stdlib/../option
+missing module ../../../../src/option.panack
+<case>/main.panack:1:1: missing module ../../../../src/option.panack
+  1 | import "stdlib/../option"
+    | ^

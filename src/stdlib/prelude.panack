@@ -1,8 +1,5 @@
 // A curated facade that preserves domain namespaces while making common APIs easy to find.
-pub import stdlib/option as option
-pub import stdlib/result as result
 pub import stdlib/bytes as byte_buffer
-pub import stdlib/text as text
 pub import stdlib/path as path
 pub import stdlib/environment as environment
 pub import stdlib/time as time

@@ -1,1 +1,1 @@
-main(): Void { print(map().add(1)); }
+main(): Void { print(set_add(map(), 1)); }

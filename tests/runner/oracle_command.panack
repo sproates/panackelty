@@ -1,3 +1,4 @@
+import stdlib/compiler_files as compiler_files
 import stdlib/process as std_process
 import stdlib/time as std_time
 import stdlib/path as std_path
@@ -6,14 +7,14 @@ import stdlib/environment as std_environment
 import stdlib/bytes as byte_buffer
 
 pure oracle_path(text: Str): Path { std_path.from_text(text)->value_or(std_path.current()) }
-oracle_read_file_bytes(path: Str): Bytes { read_bytes(path) }
-oracle_write_file_bytes(path: Str, data: Bytes): Void { write_bytes(path, data) }
+oracle_read_file_bytes(path: Str): Bytes { compiler_files.read_file_bytes(path) }
+oracle_write_file_bytes(path: Str, data: Bytes): Void { compiler_files.write_file_bytes(path, data) }
 
 // Preserve the former registry/arithmetic subprocess timeouts while using only
 // native host capabilities. Arguments: seconds, stdin file, stdout file, command...
 main(): Void {
   args = std_host.arguments()
-  if args->len() < 4 { eprint("oracle command requires timeout, input, output and executable"); std_host.exit(1) }
+  if args->len() < 4 { std_host.stderr("oracle command requires timeout, input, output and executable"); std_host.exit(1) }
   mut command: [Str] = []
   for index in 4..args->len() { command = command->append(args[index]) }
   mut environment: [Str] = []
@@ -22,11 +23,11 @@ main(): Void {
   }
   match std_process.run(oracle_path(args[3]), command, oracle_read_file_bytes(args[1]), std_path.current(),
       environment, std_time.seconds(args[0]->parse_nat()), 16777216) {
-    Error(problem) => { eprint("oracle command failed: ${problem.code}"); std_host.exit(1) },
+    Error(problem) => { std_host.stderr("oracle command failed: ${problem.code}"); std_host.exit(1) },
     Ok(output) => {
       if output.exit_code != 0 || output.signal != 0 || output.stderr != byte_buffer.empty() {
-        eprint("oracle command failed status, signal or stderr contract")
-        if output.stderr != byte_buffer.empty() { eprint(output.stderr->decode_utf8()) }
+        std_host.stderr("oracle command failed status, signal or stderr contract")
+        if output.stderr != byte_buffer.empty() { std_host.stderr(output.stderr->decode_utf8()) }
         std_host.exit(1)
       }
       oracle_write_file_bytes(args[2], output.stdout)

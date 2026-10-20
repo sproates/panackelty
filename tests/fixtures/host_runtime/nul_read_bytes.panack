@@ -1,3 +1,4 @@
+import stdlib/compiler_files as files
 import stdlib/bytes as byte_buffer
-trapping_read_bytes(path: Str): Bytes { read_bytes(path) }
+trapping_read_bytes(path: Str): Bytes { files.read_file_bytes(path) }
 main(): Void { print(trapping_read_bytes(("invalid" + byte_buffer.empty()->push(0)->decode_utf8() + "path"))) }

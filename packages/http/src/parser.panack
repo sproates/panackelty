@@ -3,7 +3,6 @@ import project/types::{Header, HttpError.InvalidLimits, HttpError.InvalidRequest
   HttpError.UnsupportedTransferEncoding, HttpError.UnsupportedVersion}
 pub import project/types::{HttpError, Request, Response}
 import stdlib/bytes as byte_buffer
-import stdlib/text as text
 
 record RequestHead {
   method: Str,

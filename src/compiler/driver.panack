@@ -105,7 +105,7 @@ prepare_loaded_project(path: Str, loaded: LoadedProject): PreparedProject {
 }
 
 report_driver_error(message: Str): Nat {
-  eprint("error: ${message}")
+  std_host.stderr("error: ${message}")
   1
 }
 

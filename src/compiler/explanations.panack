@@ -230,8 +230,8 @@ pure effect_display_target(name: Str): Str {
   if name == "$unit" {
     "()"
   } else {
-    if name->starts_with_at("$method_", 0) {
-      name->slice(8, name->len())
+    if name->starts_with_at("$intrinsic_", 0) {
+      name->slice(11, name->len())
     } else {
       if name->starts_with_at("$core_", 0) {
         name->slice(6, name->len())

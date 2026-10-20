@@ -1,20 +1,21 @@
+import project/src/compiler/resolver::{is_builtin}
 import project/src/compiler/owned_intrinsics::{owned_intrinsic_lowering}
 import project/src/compiler/module_bindings::{module_declaration_display, builtin_owner_arity, method_owner_name}
 import project/src/compiler/module_resolution::{resolve_owned_method, resolve_builtin_owned_method}
 import project/src/compiler/module_signatures::{signature_effect, signature_declaration, signature_type, substitute_signature_type, check_module_signatures}
-import project/src/compiler/module_bindings::{ModulePackageIdentity, ModulePackageIdentity.ToolchainModulePackage, module_import_names, module_reserved_binding}
-import project/src/compiler/module_resolution::{ResolvedModuleUses, ResolvedModuleTarget, ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget, ResolvedDotCall, ResolvedDotCall.NamespaceCall, ResolvedDotCall.ValueMethodCall, binding_graph_module, binding_graph_target, module_identity_in, resolve_module_expression_uses, resolve_module_path_inner, resolve_module_type, module_head_is_namespace, resolve_module_function, resolve_module_path, resolve_module_dot_call_scoped, module_import_shadow_diagnostics}
-import project/src/compiler/parser::{Statement, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue, BlockValue.NoBlockValue, BlockValue.TailBlockValue, Block, Program, MatchArm, MatchPattern, ParsedModule, ParsedTypeRef, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, DeclarationSyntax, RecordField, FunctionParameter, EnumVariant, expression_span, expression_reference_path, reference_head, unlocated_expression, lowered_method_name, render_expr}
+import project/src/compiler/module_bindings::{ModulePackageIdentity, ModulePackageIdentity.ToolchainModulePackage, module_import_names, module_internal_primitive, module_reserved_binding}
+import project/src/compiler/module_resolution::{ResolvedModuleUses, ResolvedModuleTarget, ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget, ResolvedDotCall, ResolvedDotCall.NamespaceCall, binding_graph_module, binding_graph_target, module_identity_in, resolve_module_expression_uses, resolve_module_path_inner, resolve_module_type, module_head_is_namespace, resolve_module_function, resolve_module_path, resolve_module_dot_call_scoped, module_import_shadow_diagnostics}
+import project/src/compiler/parser::{Statement, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue, BlockValue.NoBlockValue, BlockValue.TailBlockValue, Block, Program, MatchArm, MatchPattern, ParsedModule, ParsedTypeRef, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, DeclarationSyntax, RecordField, FunctionParameter, EnumVariant, expression_span, expression_reference_path, reference_head, unlocated_expression, render_expr}
 import project/src/compiler/lexer::{prior_index}
 import project/src/compiler/types::{SourcePos}
-import project/src/compiler/checker::{GuardedTypeLookup, condition_facts, render_type, prove_guard_bounds}
+import project/src/compiler/checker::{TypeInfo, SubtractionDecision, GuardOrigin, GuardedTypeLookup, condition_facts, render_type, prove_guard_bounds}
 import project/src/compiler/expression_contracts::{decode_string_literal, split_interpolated_string, scalar_arithmetic_result, scalar_compatible_numeric, scalar_numeric}
 pub import project/src/compiler/module_signatures::{SignatureEffect, SignatureEffect.SignaturePure, SignatureEffect.SignatureOrdinary, SignatureEffect.SignatureAsync, SignatureTypeIdentity, SignatureTypeIdentity.SignatureCore, SignatureTypeIdentity.SignatureNominal, SignatureTypeIdentity.SignatureParameter, SignatureTypeIdentity.SignatureCallable, SignatureTypeIdentity.SignatureHole, SignatureType, SignatureSlot, ModuleSignature}
 pub import project/src/compiler/module_bindings::{LoadedModule, ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleDeclarationKind, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant}
 pub import project/src/compiler/module_resolution::{ModuleBindingGraph}
 pub import project/src/compiler/parser::{Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr}
 pub import project/src/compiler/types::{SourceSpan, Diagnostic}
-pub import project/src/compiler/checker::{Bounds}
+pub import project/src/compiler/checker::{Bounds, SubtractionEvidence}
 pub import project/src/compiler/expression_contracts::{InterpolatedString}
 
 // Bind namespace-aware bodies and solve local type constraints by semantic identity.
@@ -164,7 +165,8 @@ pub record OperatorTypeEvidence {
   left: Option[SignatureType],
   right: Option[SignatureType],
   result: Option[SignatureType],
-  accepted: Option[Bool]
+  accepted: Option[Bool],
+  subtraction: Option[SubtractionEvidence]
 }
 
 pub record BodyTypeCheckEvidence {
@@ -760,6 +762,38 @@ pure body_operand_lower_bound(context: BodyContext, value: BoundBody): Option[Na
   result
 }
 
+// Retained at the same identity-bound decision point as source acceptance.
+pure body_subtraction_evidence(context: BodyContext, node: BoundBody, valid: Option[Bool]): SubtractionEvidence {
+  left: BoundBody = node.children[0]
+  right: BoundBody = node.children[1]
+  left_literal: Option[Nat] = body_condition_literal(left)
+  right_literal: Option[Nat] = body_condition_literal(right)
+  left_name: Str = body_operation_scalar(context, left)
+  right_name: Str = body_operation_scalar(context, right)
+  lower: Option[Nat] = body_operand_lower_bound(context, left)
+  guard: Option[GuardOrigin] = match body_guard_bounds(context, left) {
+    None() => None(), Some(bounds) => bounds.lower_origin
+  }
+  proven: Bool = body_proves_nat_subtraction(context, left, right)
+  rule: Str = if valid != Some(true) { "invalid-operands" }
+    else if left_name != "Nat" || right_name != "Nat" { "unsupported" }
+    else if proven && left_literal != None() && right_literal != None() { "constants" }
+    else if proven { "lower-bound" } else { "insufficient" }
+  SubtractionEvidence(context.owner.name, Some(node.span),
+    TypeInfo(left_name, left_literal != None(), left_literal->value_or(0), false),
+    TypeInfo(right_name, right_literal != None(), right_literal->value_or(0), false),
+    SubtractionDecision(proven, rule, lower != None(), lower->value_or(0), guard))
+}
+
+pub pure body_subtraction_evidence_entries(body: BoundBody): [SubtractionEvidence] {
+  mut result: [SubtractionEvidence] = []
+  for child in body.children { result = result->concat(body_subtraction_evidence_entries(child)) }
+  for check in body.operator_checks {
+    match check.subtraction { None() => {}, Some(entry) => { result = result->append(entry) } }
+  }
+  result
+}
+
 pure body_proves_nat_subtraction(
   context: BodyContext,
   left: BoundBody,
@@ -859,7 +893,8 @@ pure body_add_local_bound(
   identity: BodyLocalIdentity,
   operator: Str,
   value: Nat,
-  truth: Bool
+  truth: Bool,
+  span: SourceSpan
 ): Map[Str, Bounds] {
   key: Str = body_fact_key(identity)
   prior: Bounds = if facts->has(key) {
@@ -869,10 +904,10 @@ pure body_add_local_bound(
   }
   mut next: Bounds = prior
   if (operator == ">" && truth) || (operator == "<=" && !truth) {
-    next = Bounds(true, value + 1, prior.has_upper, prior.upper, None())
+    next = Bounds(true, value + 1, prior.has_upper, prior.upper, Some(GuardOrigin(Some(span), truth)))
   }
   if (operator == ">=" && truth) || (operator == "<" && !truth) {
-    next = Bounds(true, value, prior.has_upper, prior.upper, None())
+    next = Bounds(true, value, prior.has_upper, prior.upper, Some(GuardOrigin(Some(span), truth)))
   }
   if (operator == "<=" && truth) || (operator == ">" && !truth) {
     next = Bounds(prior.has_lower, prior.lower, true, value, prior.lower_origin)
@@ -883,13 +918,13 @@ pure body_add_local_bound(
     }
   }
   if operator == "==" && truth {
-    next = Bounds(true, value, true, value, None())
+    next = Bounds(true, value, true, value, Some(GuardOrigin(Some(span), truth)))
   }
   if operator == "!=" && truth && value == 0 {
-    next = Bounds(true, 1, prior.has_upper, prior.upper, None())
+    next = Bounds(true, 1, prior.has_upper, prior.upper, Some(GuardOrigin(Some(span), truth)))
   }
   if operator == "==" && !truth && value == 0 {
-    next = Bounds(true, 1, prior.has_upper, prior.upper, None())
+    next = Bounds(true, 1, prior.has_upper, prior.upper, Some(GuardOrigin(Some(span), truth)))
   }
   facts->put(key, next)
 }
@@ -918,7 +953,7 @@ pure body_condition_facts(
             BodyLocalUse(identity) => match body_condition_literal(condition.children[1]) {
               None() => {},
               Some(value) => {
-                result = body_add_local_bound(facts, identity, operator, value, truth)
+                result = body_add_local_bound(facts, identity, operator, value, truth, condition.span)
               }
             },
             BodyLiteral(literal) => match condition.children[1].node {
@@ -938,7 +973,7 @@ pure body_condition_facts(
                       }
                     }
                   }
-                  result = body_add_local_bound(facts, identity, reversed, value, truth)
+                  result = body_add_local_bound(facts, identity, reversed, value, truth, condition.span)
                 }
               },
               BodyLiteral(other_literal) => {},
@@ -996,6 +1031,117 @@ pure body_condition_facts(
     BodyFor(identity) => {},
     BodyEmpty() => {}
   }
+  result
+}
+
+// Source evaluation may assign through nested expressions. Invalidate incoming
+// bounds before checking sibling operands or loop-carried uses, using lexical IDs.
+pure body_forget_written_fact(facts: Map[Str, Bounds], name: Str, locals: Map[Str, BodyLocal]): Map[Str, Bounds] {
+  if locals->has(name) {
+    facts->put(body_fact_key(locals->get(name).identity), Bounds(false, 0, false, 0, None()))
+  } else { facts }
+}
+
+pure body_facts_after_expression(expression: Expr, facts: Map[Str, Bounds], locals: Map[Str, BodyLocal]): Map[Str, Bounds] {
+  empty: Map[Str, Bounds] = map()
+  mut result: Map[Str, Bounds] = facts
+
+  if facts != empty {
+    match expression {
+      LocatedExpr(position, value, located_type_argument_spans) => {
+        result = body_facts_after_expression(value, result, locals)
+      },
+      ArrayExpr(items) => {
+        for item in items {
+          result = body_facts_after_expression(item, result, locals)
+        }
+      },
+      UnaryExpr(operator, value) => {
+        result = body_facts_after_expression(value, result, locals)
+      },
+      BinaryExpr(operator, left, right) => {
+        result = body_facts_after_expression(right, body_facts_after_expression(left, result, locals), locals)
+      },
+      OwnedCallExpr(target, name, arguments, types) => {
+        result = body_facts_after_expression(target, result, locals)
+        for argument in arguments {
+          result = body_facts_after_expression(argument, result, locals)
+        }
+      },
+      DotCallExpr(target, name, arguments, types) => {
+        result = body_facts_after_expression(target, result, locals)
+        for argument in arguments {
+          result = body_facts_after_expression(argument, result, locals)
+        }
+      },
+      CallExpr(name, arguments, type_arguments) => {
+        for argument in arguments {
+          result = body_facts_after_expression(argument, result, locals)
+        }
+      },
+      FieldExpr(target, field) => {
+        result = body_facts_after_expression(target, result, locals)
+      },
+      IndexExpr(target, index) => {
+        result = body_facts_after_expression(index, body_facts_after_expression(target, result, locals), locals)
+      },
+      IfExpr(condition, yes, no, has_else) => {
+        result = body_facts_after_expression(condition, result, locals)
+        result = body_facts_after_block(yes, result, locals)
+        if has_else {
+          result = body_facts_after_block(no, result, locals)
+        }
+      },
+      BlockExpr(block) => {
+        result = body_facts_after_block(block, result, locals)
+      },
+      MatchExpr(subject, arms) => {
+        result = body_facts_after_expression(subject, result, locals)
+        for arm in arms {
+          result = body_facts_after_expression(arm.body, result, locals)
+        }
+      },
+      NatExpr(value) => {},
+      DecimalExpr(text) => {},
+      StringExpr(text) => {},
+      BoolExpr(value) => {},
+      NameExpr(name) => {},
+      FunctionExpr(name) => {}
+    }
+  }
+
+  result
+}
+
+pure body_facts_after_statement(statement: Statement, facts: Map[Str, Bounds], locals: Map[Str, BodyLocal]): Map[Str, Bounds] {
+  match statement {
+    BindingStatement(name, type_name, annotation_span, mutable, value) => body_facts_after_expression(value, facts, locals),
+    AssignmentStatement(name, value) => body_forget_written_fact(body_facts_after_expression(value, facts, locals), name, locals),
+    ExpressionStatement(value) => body_facts_after_expression(value, facts, locals),
+    WhileStatement(condition, body) => body_facts_after_block(
+      body,
+      body_facts_after_expression(condition, facts, locals)
+    , locals),
+    ForStatement(name, iterable, body) => body_facts_after_block(
+      body,
+      body_facts_after_expression(iterable, facts, locals)
+    , locals)
+  }
+}
+
+pure body_facts_after_block(block: Block, facts: Map[Str, Bounds], locals: Map[Str, BodyLocal]): Map[Str, Bounds] {
+  mut result: Map[Str, Bounds] = facts
+
+  for statement in block.statements {
+    result = body_facts_after_statement(statement, result, locals)
+  }
+  match block.value {
+    NoBlockValue() => {},
+    TailBlockValue(value) => {
+      result = body_facts_after_expression(value, result, locals)
+    }
+  }
+
   result
 }
 
@@ -1151,11 +1297,11 @@ pure body_require(
 }
 
 pure body_target(context: BodyContext, name: Str, function_only: Bool): Result[BodyTarget, Str] {
-  if !function_only && module_reserved_binding(name) {
+  if !function_only && (module_reserved_binding(name) || module_internal_primitive(context.owner, name)) {
     Ok(BodyCore(name))
   } else {
     match resolve_module_path(context.graph, context.owner.module, name) {
-      Error(message) => Error(message),
+      Error(message) => Error(if is_builtin(name) { "removed global primitive: " + name } else { message }),
       Ok(target) => match target {
         NamespaceTarget(owner) => Error("namespace cannot be called: " + name),
         DeclarationTarget(binding) => {
@@ -1345,7 +1491,7 @@ pure body_replace_type_argument(arguments: [SignatureType], index: Nat, value: S
 }
 
 pure body_call_with_receiver(
-  context: BodyContext,
+  incoming_context: BodyContext,
   target: BodyTarget,
   arguments: [Expr],
   types: [Str],
@@ -1355,6 +1501,7 @@ pure body_call_with_receiver(
   path: [Nat],
   receiver: Option[BodyResult]
 ): BodyResult {
+  mut current_context: BodyContext = incoming_context
   mut children: [BoundBody] = []
   mut diagnostics: [Diagnostic] = []
   mut deferred: [SourceSpan] = []
@@ -1364,11 +1511,12 @@ pure body_call_with_receiver(
     checked: BodyResult = if index == 0 {
       match receiver {
         Some(value) => value,
-        None() => bind_body_expression(context, argument, span, locals, path->append(index))
+        None() => bind_body_expression(current_context, argument, span, locals, path->append(index))
       }
     } else {
-      bind_body_expression(context, argument, span, locals, path->append(index))
+      bind_body_expression(current_context, argument, span, locals, path->append(index))
     }
+    current_context = body_context_with_facts(current_context, body_invalidate_assigned_locals(current_context.facts, checked.body))
     children = children->append(checked.body)
     diagnostics = diagnostics->concat(checked.diagnostics)
     deferred = deferred->concat(checked.deferred)
@@ -1382,6 +1530,7 @@ pure body_call_with_receiver(
     }
     index = index + 1
   }
+  context: BodyContext = current_context
   mut resolved_types: [SignatureType] = []
   mut call_arguments: [CallArgumentEvidence] = []
   mut type_checks: [BodyTypeCheckEvidence] = []
@@ -1707,10 +1856,10 @@ pure body_call_with_receiver(
 pure body_special_core_call(target: BodyTarget): Bool {
   match target {
     BodyDeclaration(binding) => binding.intrinsic != None(),
-    BodyCore(name) => name == "$unit" || name == "$method_call" || name == "len" || name == "$method_map" ||
-      name == "$method_reduce" || name == "$method_put" || name == "$method_get" ||
-      name == "$method_has" || name == "$method_add" || name == "map_put" ||
-      name == "map_get" || name == "map_has" || name == "has" || name == "set_add" ||
+    BodyCore(name) => name == "read_line" || name == "write_file" || name == "$unit" || name == "$intrinsic_call" || name == "len" || name == "$intrinsic_map" ||
+      name == "$intrinsic_reduce" ||
+        name == "map_put" ||
+      name == "map_get" || name == "map_has" || name == "set_add" ||
       name == "set_has" || name == "append" || name == "concat" || name == "print" ||
       name == "eprint" || name == "nat_from_str" || name == "nat" || name == "dec" || name == "quotient" || name == "is_digit" || name == "is_letter" ||
       name == "is_whitespace" || name == "starts_with" || name == "starts_with_at" ||
@@ -2057,12 +2206,12 @@ pure body_check_existing_special_core_call(
     BodyDeclaration(binding) => ""
   }
 
-  if name != "$method_call" && types->len() > 0 {
+  if name != "$intrinsic_call" && types->len() > 0 {
     diagnostics = diagnostics->append(
       Diagnostic("explicit type arguments require a generic function", type_argument_span.start)
     )
   }
-  if name == "$method_call" && types->len() > 0 {
+  if name == "$intrinsic_call" && types->len() > 0 {
     diagnostics = diagnostics->append(
       Diagnostic("explicit type arguments require a generic function", type_argument_span.start)
     )
@@ -2077,15 +2226,15 @@ pure body_check_existing_special_core_call(
   } else {
   if name == "$unit" {
     if children->len() != 0 {
-      diagnostics = diagnostics->append(Diagnostic("Unit expects 0 arguments, got ${len(children)}", span.start))
+      diagnostics = diagnostics->append(Diagnostic("Unit expects 0 arguments, got " + body_nat_text(children->len()), span.start))
     } else {
       output = body_core_type("Unit")
     }
   } else {
-  if name == "$method_call" && children->len() == 0 {
+  if name == "$intrinsic_call" && children->len() == 0 {
     diagnostics = diagnostics->append(Diagnostic("call requires a callable", span.start))
   } else {
-    if name == "$method_call" {
+    if name == "$intrinsic_call" {
     if context.retain_guard_conversions {
       target_accepted: Option[Bool] = match children[0].type {
         None() => None(),
@@ -2208,7 +2357,7 @@ pure body_check_existing_special_core_call(
       } else {
       if name == "len" {
         if children->len() != 1 {
-          diagnostics = diagnostics->append(Diagnostic("len expects 1 arguments, got ${len(children)}", span.start))
+          diagnostics = diagnostics->append(Diagnostic("len expects 1 arguments, got " + body_nat_text(children->len()), span.start))
         } else {
           match children[0].type {
             None() => {
@@ -2265,8 +2414,8 @@ pure body_check_existing_special_core_call(
           if name == "bytes" || name == "byte_append" || name == "bytes_concat" ||
             name == "byte_len" || name == "byte_get" || name == "utf8_encode" || name == "utf8_decode" {
             checked: BodyResult = body_check_bytes_core_call(context, name, children, span)
-            diagnostics = checked.diagnostics
-            deferred = checked.deferred
+            diagnostics = diagnostics->concat(checked.diagnostics)
+            deferred = deferred->concat(checked.deferred)
             output = checked.body.type;
             call_arguments = body_direct_call_argument_metadata(checked.body)
             type_checks = checked.body.type_checks
@@ -2366,7 +2515,7 @@ pure body_check_existing_special_core_call(
   }
   }
   }
-  if name == "$method_call" {
+  if name == "$intrinsic_call" {
     if children->len() > 0 {
       match children[0].type {
         None() => {
@@ -2887,6 +3036,18 @@ pure body_check_special_core_call(
     BodyCore(value) => value,
     BodyDeclaration(binding) => ""
   }
+  if name == "read_line" || name == "write_file" {
+    checked: BodyResult = if types->len() > 0 {
+      body_failure("explicit type arguments require a generic function", type_argument_span)
+    } else {
+      text: SignatureType = body_intrinsic_type(context, "Str")
+      body_check_typed_intrinsic(context, name, children, span,
+        if name == "read_line" { [] } else { [text, text] },
+        if name == "read_line" { text } else { body_intrinsic_type(context, "Void") })
+    }
+    BodyResult(checked.body, initial_diagnostics->concat(checked.diagnostics),
+      initial_deferred->concat(checked.deferred))
+  } else {
   if name == "environment_has" || name == "environment_get" {
     if types->len() > 0 {
       body_failure("explicit type arguments require a generic function", type_argument_span)
@@ -2962,6 +3123,7 @@ pure body_check_special_core_call(
       initial_diagnostics,
       initial_deferred
     )
+  }
   }
   }
   }
@@ -3244,17 +3406,10 @@ pure body_check_collection_core_call(
   initial_diagnostics: [Diagnostic],
   initial_deferred: [SourceSpan]
 ): BodyResult {
-  operation: Str = if name == "$method_put" { "map_put" } else {
-    if name == "$method_get" { "map_get" } else {
-      if name == "$method_add" { "set_add" } else {
-        if name == "$method_has" { "has" } else {
-          if name == "$method_map" { "array_map" } else {
-            if name == "$method_reduce" { "array_reduce" } else { name }
-          }
-        }
-      }
-    }
+  operation: Str = if name == "$intrinsic_map" { "array_map" } else {
+    if name == "$intrinsic_reduce" { "array_reduce" } else { name }
   }
+
   expected_count: Nat = if operation == "map_put" || operation == "array_reduce" { 3 } else { 2 }
   mut diagnostics: [Diagnostic] = initial_diagnostics
   mut deferred: [SourceSpan] = initial_deferred
@@ -3537,7 +3692,7 @@ pure body_collection_receiver_requirement(operation: Str): Str {
       if operation == "set_add" || operation == "set_has" {
         "Set"
       } else {
-        "Map or Set"
+        "Set"
       }
     }
   }
@@ -3558,8 +3713,7 @@ pure body_collection_receiver_acceptance(
         if operation == "set_add" || operation == "set_has" {
           Some(type.identity == SignatureCore("Set") && type.arguments->len() == 1)
         } else {
-          Some((type.identity == SignatureCore("Map") && type.arguments->len() == 2) ||
-            (type.identity == SignatureCore("Set") && type.arguments->len() == 1))
+          Some(false)
         }
       }
     }
@@ -3581,7 +3735,7 @@ pure body_check_map_set_call(
   mut call_arguments: [CallArgumentEvidence] = []
   is_map: Bool = collection.identity == SignatureCore("Map") && collection.arguments->len() == 2
   is_set: Bool = collection.identity == SignatureCore("Set") && collection.arguments->len() == 1
-  is_lookup: Bool = operation == "map_get" || operation == "map_has" || operation == "has"
+  is_lookup: Bool = operation == "map_get" || operation == "map_has"
 
   if (operation == "map_put" || operation == "map_get" || operation == "map_has") && !is_map {
     diagnostics = diagnostics->append(Diagnostic(operation + " expects a Map, got " + body_type_text(collection), span.start))
@@ -3589,10 +3743,7 @@ pure body_check_map_set_call(
     if (operation == "set_add" || operation == "set_has") && !is_set {
       diagnostics = diagnostics->append(Diagnostic(operation + " expects a Set, got " + body_type_text(collection), span.start))
     } else {
-      if operation == "has" && !is_map && !is_set {
-        diagnostics = diagnostics->append(Diagnostic("has expects a Map or Set, got " + body_type_text(collection), span.start))
-      } else {
-        if is_map {
+      if is_map {
           expected_key: SignatureType = collection.arguments[0]
           key: BodyResult = body_require_value(context, children[1], expected_key, "key to " + operation)
           diagnostics = diagnostics->concat(key.diagnostics)
@@ -3656,7 +3807,6 @@ pure body_check_map_set_call(
           }
           output = if operation == "set_add" { Some(collection) } else { body_core_type("Bool") }
         }
-      }
     }
   }
   node: BodyNode = if context.retain_guard_conversions {
@@ -3675,7 +3825,7 @@ pure body_collection_call_solutions(
   operation: Str,
   children: [BoundBody]
 ): [BodySolution] {
-  if (operation == "map_put" || operation == "$method_put") && children->len() == 3 {
+  if (operation == "map_put") && children->len() == 3 {
     match children[0].type {
       None() => [],
       Some(collection) => if collection.identity == SignatureCore("Map") && collection.arguments->len() == 2 {
@@ -3693,7 +3843,7 @@ pure body_collection_call_solutions(
       }
     }
   } else {
-    if (operation == "set_add" || operation == "$method_add") && children->len() == 2 {
+    if (operation == "set_add") && children->len() == 2 {
       match children[0].type {
         None() => [],
         Some(collection) => if collection.identity == SignatureCore("Set") && collection.arguments->len() == 1 {
@@ -3832,7 +3982,10 @@ pure bind_body_expression_with_type_argument_spans(
     OwnedCallExpr(receiver, name, arguments, types) => {
       checked: BodyResult = bind_body_expression(context, receiver, origin, locals, path->append(0))
       match body_owned_target(context, name, checked) {
-        Error(message) => { result = body_failure(message, origin) },
+        Error(message) => {
+          failure: BodyResult = body_failure(message, origin)
+          result = BodyResult(failure.body, checked.diagnostics->concat(failure.diagnostics), checked.deferred)
+        },
         Ok(target) => {
           result = body_call_with_receiver(context, target, [receiver]->concat(arguments), types,
             type_argument_spans, origin, locals, path, Some(checked))
@@ -3869,38 +4022,6 @@ pure bind_body_expression_with_type_argument_spans(
               locals,
               path
             )
-          },
-          ValueMethodCall(value, method, values, type_arguments) => {
-            if module_reserved_binding(method) || lowered_method_name(method) != method {
-              result = body_call(
-                context,
-                BodyCore(lowered_method_name(method)),
-                [value]->concat(values),
-                type_arguments,
-                type_argument_spans,
-                origin,
-                locals,
-                path
-              )
-            } else {
-              match body_target(context, method, true) {
-                Error(message) => {
-                  result = body_failure(message, origin)
-                },
-                Ok(target) => {
-                  result = body_call(
-                    context,
-                    target,
-                    [value]->concat(values),
-                    type_arguments,
-                    type_argument_spans,
-                    origin,
-                    locals,
-                    path
-                  )
-                }
-              }
-            }
           }
         }
       }
@@ -3925,7 +4046,7 @@ pure bind_body_expression_with_type_argument_spans(
     },
     BinaryExpr(operator, left, right) => {
       result = check_body_operation(
-        context,
+        body_context_with_facts(context, body_facts_after_expression(expression, context.facts, locals)),
         bind_body_children(context, BodyBinary(operator), [left, right], origin, locals, path),
         operator,
         false
@@ -3983,11 +4104,11 @@ pure bind_body_if(
   )
   yes_context: BodyContext = body_context_with_facts(
     context,
-    body_condition_facts(checked_condition.body, context.facts, true)
+    body_condition_facts(checked_condition.body, body_invalidate_assigned_locals(context.facts, checked_condition.body), true)
   )
   no_context: BodyContext = body_context_with_facts(
     context,
-    body_condition_facts(checked_condition.body, context.facts, false)
+    body_condition_facts(checked_condition.body, body_invalidate_assigned_locals(context.facts, checked_condition.body), false)
   )
   checked_yes: BodyResult = bind_body_expression(
     yes_context,
@@ -4030,6 +4151,7 @@ pure bind_body_children(
   locals: Map[Str, BodyLocal],
   path: [Nat]
 ): BodyResult {
+  mut current_context: BodyContext = context
   mut children: [BoundBody] = []
   mut diagnostics: [Diagnostic] = []
   mut deferred: [SourceSpan] = [span]
@@ -4037,12 +4159,13 @@ pure bind_body_children(
 
   for expression in expressions {
     checked: BodyResult = bind_body_expression(
-      context,
+      current_context,
       expression,
       span,
       locals,
       path->append(index)
     )
+    current_context = body_context_with_facts(current_context, body_invalidate_assigned_locals(current_context.facts, checked.body))
     children = children->append(checked.body)
     diagnostics = diagnostics->concat(checked.diagnostics)
     deferred = deferred->concat(checked.deferred)
@@ -4324,6 +4447,7 @@ pure bind_body_block(
         checked = bind_body_expression(current_context, value, span, visible, statement_path)
       },
       WhileStatement(condition, body) => {
+        current_context = body_context_with_facts(current_context, body_facts_after_statement(statement, current_context.facts, visible))
         checked_condition: BodyResult = bind_body_expression(
           current_context,
           condition,
@@ -4354,6 +4478,7 @@ pure bind_body_block(
         )
       },
       ForStatement(name, values, body) => {
+        current_context = body_context_with_facts(current_context, body_facts_after_statement(statement, current_context.facts, visible))
         if visible->has(name) {
           diagnostics = diagnostics->append(
             Diagnostic("loop variable " + name + " shadows an existing binding", span.start)
@@ -4428,6 +4553,40 @@ pub pure check_module_bodies(
   module: LoadedModule
 ): CheckedModuleBodies {
   check_module_bodies_mode(graph, modules, signatures, module, false)
+}
+
+// Guard predicates are declaration contracts. Their synthetic bodies are used
+// only for validation/effect checking, never added to the emitted function list.
+pub pure check_module_guards(graph: ModuleBindingGraph, modules: [LoadedModule], signatures: [ModuleSignature], module: LoadedModule): CheckedModuleBodies {
+  mut functions: [BoundFunctionBody] = []
+  mut diagnostics: [Diagnostic] = []
+  for declaration in module.parsed.program.declarations {
+    match declaration {
+      TypeDeclaration(name, base, guard) => {
+        owner: DeclarationIdentity = DeclarationIdentity(module.bindings.identity, name)
+        match body_signature(signatures, owner) {
+          None() => {},
+          Some(signature) => {
+            context: BodyContext = BodyContext(graph, modules, signatures, owner, [], map(), false)
+            local: BodyLocal = BodyLocal(BodyLocalIdentity(owner, [0], "value"), Some(signature.slots[0].type), false)
+            checked: BodyResult = bind_body_expression(context, guard, signature.binding.span, map()->put("value", local), [1])
+            required: BodyResult = body_require_value(context, checked.body, SignatureType(SignatureCore("Bool"), []), "type guard")
+            diagnostics = diagnostics->concat(checked.diagnostics)->concat(required.diagnostics)
+            if checked.deferred->len() > 0 || required.deferred->len() > 0 {
+              diagnostics = diagnostics->append(Diagnostic("type guard is not completely checked", signature.binding.span.start))
+            }
+            functions = functions->append(BoundFunctionBody(
+              ModuleSignature(signature.binding, [], signature.slots, Some(SignaturePure())),
+              [local], checked.body, [],
+              if checked.diagnostics->len() == 0 && required.diagnostics->len() == 0 { BodyIdentityChecked() } else { BodyInvalid() }, None()))
+          }
+        }
+      },
+      FunctionDeclaration(name, parameters, output, pure_flag, async_flag, body, types) => {},
+      ImportDeclaration(path) => {}, RecordDeclaration(name, types, fields) => {}, EnumDeclaration(name, types, variants) => {}
+    }
+  }
+  CheckedModuleBodies(functions, diagnostics)
 }
 
 pub pure check_module_bodies_explained(
@@ -4739,7 +4898,7 @@ pure check_body_operation(
                         // this exact local identity, including its guarded type.
                         if operator == "-" && output == body_core_type("Nat") &&
                           !body_proves_nat_subtraction(context, node.children[0], node.children[1]) {
-                          deferred = deferred->append(node.span)
+                          diagnostics = diagnostics->append(Diagnostic("Nat subtraction may underflow; prove the left side is large enough or use Int", node.span.start))
                         }
                       }
                     }
@@ -4769,7 +4928,10 @@ pure check_body_operation(
       left_type,
       if unary { None() } else { right_type },
       output,
-      operator_accepted
+      operator_accepted,
+      if operator == "-" && !unary && node.children->len() == 2 {
+        Some(body_subtraction_evidence(context, node, operator_accepted))
+      } else { None() }
     ))
   }
   body_apply_solutions(
@@ -5721,22 +5883,6 @@ pub pure body_core_owner(name: Str): DeclarationIdentity {
   DeclarationIdentity(ModuleIdentity(ToolchainModulePackage(), "core.panack"), name)
 }
 
-pub pure body_core_function_name(name: Str): Str {
-  if name == "$core_first" {
-    "core_first"
-  } else {
-    if name == "$core_ends_with" {
-      "core_ends_with"
-    } else {
-      if name == "$core_sort_by" {
-        "core_sort_by"
-      } else {
-        ""
-      }
-    }
-  }
-}
-
 pure body_signature_contract(signature: ModuleSignature, name: Str): BodyContract {
   owner: DeclarationIdentity = signature.binding.identity
   mut inputs: [SignatureType] = []
@@ -5812,31 +5958,7 @@ pure body_core_constructor(name: Str): Option[BodyContract] {
 
 pure body_contract(context: BodyContext, target: BodyTarget): Result[Option[BodyContract], Str] {
   match target {
-    BodyCore(name) => match body_core_constructor(name) {
-      Some(contract) => Ok(Some(contract)),
-      None() => {
-        function_name: Str = body_core_function_name(name)
-        if function_name == "" {
-          Ok(None())
-        } else {
-          match body_signature(context.signatures, body_core_owner(function_name)) {
-            None() => Ok(None()),
-            Some(signature) => Ok(Some(body_signature_contract(
-              signature,
-              if function_name == "core_first" {
-                "first"
-              } else {
-                if function_name == "core_ends_with" {
-                  "ends_with"
-                } else {
-                  "sort_by"
-                }
-              }
-            )))
-          }
-        }
-      }
-    },
+    BodyCore(name) => Ok(body_core_constructor(name)),
     BodyDeclaration(binding) => {
       mut owner: DeclarationIdentity = binding.identity
       mut variant: Str = ""

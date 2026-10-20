@@ -1,1 +1,2 @@
 error: import cycle includes <case>/main.panack
+module import cycle: dependency.panack -> main.panack -> dependency.panack

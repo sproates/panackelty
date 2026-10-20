@@ -1,1 +1,1 @@
-main(): Void { mut names = []; names = names.append("Ada") }
+main(): Void { mut names = []; names = append(names, "Ada") }

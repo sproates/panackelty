@@ -1,3 +1,4 @@
+import stdlib/host as std_host
 import project/src/compiler/path_support as path_support
 import stdlib/path as std_path
 import stdlib/bytes as byte_buffer
@@ -370,7 +371,7 @@ pub run_coverage_aggregate(values: [Str]): Nat {
     valid = valid && source_snapshots_unchanged(root.project)
   }
   if !valid {
-    eprint("error: coverage aggregate unavailable: missing, partial, duplicate, incompatible or malformed session; no complete report")
+    std_host.stderr("error: coverage aggregate unavailable: missing, partial, duplicate, incompatible or malformed session; no complete report")
     1
   } else {
     count: Nat = sessions->len()

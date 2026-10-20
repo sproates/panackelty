@@ -137,7 +137,6 @@ cat > "$app/src/main.panack" <<SOURCE
 import http/client as http
 import http/client::{HttpError.ConnectFailure, HttpError.DnsFailure, HttpError.InvalidUrl, HttpError.LimitExceeded, HttpError.ProtocolError,
   HttpError.TlsFailure, HttpError.Timeout, HttpError.UnsupportedHost}
-import stdlib/text as text
 
 pure expect(value: Bool): Unit {
   checked = [0][if value { 0 } else { 1 }]

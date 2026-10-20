@@ -158,7 +158,7 @@ main(): Void {
       toolchain_version = manifest_toolchain_version()
       manifest_text = "{\"schema\":1,\"package\":\"example.application\",\"version\":\"1.0.0\",\"language\":\"modules-v1\",\"toolchain\":\"${toolchain_version}\",\"source\":\"src\",\"entry\":\"main.panack\",\"exports\":{\"value\":\"value.panack\"},\"dependencies\":{}}"
       std_filesystem.write(package_manifest, manifest_text->encode_utf8())
-      std_filesystem.write(package_entry, "import project/value as value\nmain(): Void { print(value.answer()); arguments: [Str] = command_args(); print(arguments->len()); }\n"->encode_utf8())
+      std_filesystem.write(package_entry, "import stdlib/host as service_host\nimport project/value as value\nmain(): Void { print(value.answer()); arguments: [Str] = service_host.arguments(); print(arguments->len()); }\n"->encode_utf8())
       std_filesystem.write(package_value, "pub pure answer(): Nat { 42 }\n"->encode_utf8())
       results = results->append(std_testing_commands.run_command("explicit manifest package check",
         command(["check", "--project", package_manifest_text]),
@@ -223,7 +223,7 @@ main(): Void {
       dependency_manifest_text = replace_first(manifest_text, "\"dependencies\":{}",
         "\"dependencies\":{\"geometry\":{\"path\":\"../library\"}}")
       std_filesystem.write(package_manifest, dependency_manifest_text->encode_utf8())
-      std_filesystem.write(package_entry, "import project/value as value\nimport geometry/api as geometry\nmain(): Void { print(value.answer()); print(geometry.answer()); arguments: [Str] = command_args(); print(arguments->len()); }\n"->encode_utf8())
+      std_filesystem.write(package_entry, "import stdlib/host as service_host\nimport project/value as value\nimport geometry/api as geometry\nmain(): Void { print(value.answer()); print(geometry.answer()); arguments: [Str] = service_host.arguments(); print(arguments->len()); }\n"->encode_utf8())
       results = results->append(std_testing_commands.run_command("manifest application checks declared local library",
         source_compiler_command(["check", "--project", package_manifest_text], toolchain_version),
         ProcessOutput(0, 0, "ok\n"->encode_utf8(), byte_buffer.empty())))
@@ -268,7 +268,7 @@ main(): Void {
             "an undeclared dependency alias was importable"))
         }
       }
-      std_filesystem.write(package_entry, "import project/value as value\nimport geometry/api as geometry\nmain(): Void { print(value.answer()); print(geometry.answer()); arguments: [Str] = command_args(); print(arguments->len()); }\n"->encode_utf8())
+      std_filesystem.write(package_entry, "import stdlib/host as service_host\nimport project/value as value\nimport geometry/api as geometry\nmain(): Void { print(value.answer()); print(geometry.answer()); arguments: [Str] = service_host.arguments(); print(arguments->len()); }\n"->encode_utf8())
 
       second_app_root = child(workspace.root, "second-app")
       second_app_source_root = child(second_app_root, "src")
@@ -396,7 +396,7 @@ main(): Void {
         "\"geometry\":{\"path\":\"../library\"}",
         "\"geometry\":{\"path\":\"../library\"},\"math_direct\":{\"path\":\"../internal\"}")
       std_filesystem.write(package_manifest, nested_diamond_manifest->encode_utf8())
-      std_filesystem.write(package_entry, "import project/value as value\nimport geometry/api as geometry\nimport math_direct/math as direct_math\nmain(): Void { print(value.answer()); print(geometry.answer()); print(direct_math.answer()); arguments: [Str] = command_args(); print(arguments->len()); }\n"->encode_utf8())
+      std_filesystem.write(package_entry, "import stdlib/host as service_host\nimport project/value as value\nimport geometry/api as geometry\nimport math_direct/math as direct_math\nmain(): Void { print(value.answer()); print(geometry.answer()); print(direct_math.answer()); arguments: [Str] = service_host.arguments(); print(arguments->len()); }\n"->encode_utf8())
       match std_process.run(path("./panack-vm"),
           source_compiler_arguments(["check", "--project", package_manifest_text]),
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_VERSION=${toolchain_version}"],
@@ -458,7 +458,7 @@ main(): Void {
       }
       std_filesystem.write(internal_manifest, internal_manifest_contents->encode_utf8())
       std_filesystem.write(package_manifest, dependency_manifest_text->encode_utf8())
-      std_filesystem.write(package_entry, "import project/value as value\nimport geometry/api as geometry\nmain(): Void { print(value.answer()); print(geometry.answer()); arguments: [Str] = command_args(); print(arguments->len()); }\n"->encode_utf8())
+      std_filesystem.write(package_entry, "import stdlib/host as service_host\nimport project/value as value\nimport geometry/api as geometry\nmain(): Void { print(value.answer()); print(geometry.answer()); arguments: [Str] = service_host.arguments(); print(arguments->len()); }\n"->encode_utf8())
       std_filesystem.write(library_manifest, library_manifest_text_value->encode_utf8())
       std_filesystem.write(library_api, "import project/implementation as implementation\npub pure answer(): Nat { implementation.answer() }\n"->encode_utf8())
       race_compiler: Str = std_environment.get("PANACK_TEST_COMPILER")->value_or("")
@@ -669,7 +669,7 @@ main(): Void {
       std_filesystem.remove_directory(second_app_source_root)
       std_filesystem.remove_directory(second_app_root)
 
-      match std_filesystem.write(arguments_source, ("main(): Void { arguments: [Str] = command_args(); " +
+      match std_filesystem.write(arguments_source, ("import stdlib/host as service_host\nmain(): Void { arguments: [Str] = service_host.arguments(); " +
           "print(arguments->len()); print(arguments[0]); }")->encode_utf8()) {
         Error(error) => {
           results = results->append(std_testing.expect("program arguments", false,
@@ -682,7 +682,7 @@ main(): Void {
         }
       }
       match std_filesystem.write(failing_source,
-          "main(): Void { eprint(\"failure\"); process_exit(7); }"->encode_utf8()) {
+          "import stdlib/host as service_host\nmain(): Void { service_host.stderr(\"failure\"); service_host.exit(7); }"->encode_utf8()) {
         Error(error) => {
           results = results->append(std_testing.expect("program stderr and exit", false,
             "fixture write failed"))

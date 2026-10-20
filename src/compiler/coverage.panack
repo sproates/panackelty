@@ -1,3 +1,4 @@
+import stdlib/host as std_host
 import project/src/compiler/path_support as path_support
 import stdlib/environment as std_environment
 pub import project/src/compiler/loader::{LoadedProject, LoadedModule, ModuleBindingGraph}
@@ -591,7 +592,7 @@ pub pure render_coverage(
 
 pub run_coverage_report(values: [Str]): Nat {
   if values->len() != 6 || values[2] != "--inventory" || values[4] != "--coverage" {
-    eprint("error: coverage-report SOURCE.panack --inventory FILE --coverage RAW")
+    std_host.stderr("error: coverage-report SOURCE.panack --inventory FILE --coverage RAW")
     1
   } else {
     entry: Str = path_support.resolve(values[1])
@@ -601,12 +602,12 @@ pub run_coverage_report(values: [Str]): Nat {
     project: LoadedProject = load_project_for_inventory(entry)
     match source_map_read(compiler_path, 16777216) {
       Error(error) => {
-        eprint("error: coverage compiler unavailable")
+        std_host.stderr("error: coverage compiler unavailable")
         1
       },
       Ok(compiler) => match coverage_mapped_project(project, entry, root, stdlib) {
         Error(errors) => {
-          eprint("error: coverage unavailable: invalid, changed or incompatible local inventory")
+          std_host.stderr("error: coverage unavailable: invalid, changed or incompatible local inventory")
           1
         },
         Ok(mapped) => {
@@ -622,18 +623,18 @@ pub run_coverage_report(values: [Str]): Nat {
           inventory
         ) ||
           !source_snapshots_unchanged(project) || !source_map_matches(compiler_path, compiler) {
-          eprint("error: coverage unavailable: invalid, changed or incompatible local inventory")
+          std_host.stderr("error: coverage unavailable: invalid, changed or incompatible local inventory")
           1
         } else {
           match source_map_read(values[5], 33554432) {
             Error(error) => {
-              eprint("error: coverage raw record unavailable")
+              std_host.stderr("error: coverage raw record unavailable")
               1
             },
             Ok(raw) => {
               data: CoverageData = decode_coverage(raw, artifact, inventory, mapped.bytecode)
               if !data.valid {
-                eprint("error: coverage unavailable: malformed, incomplete, stale, overflowed or uncollected execution")
+                std_host.stderr("error: coverage unavailable: malformed, incomplete, stale, overflowed or uncollected execution")
                 1
               } else {
                 print(render_coverage(project, mapped, data, root, stdlib))

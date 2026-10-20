@@ -1,1 +1,1 @@
-enum Option[T] { None, Some(T) } record Box[T] { value: T } main(): Void { inferred = map().put("Ada", true); checked: Map[Str,Bool] = inferred }
+enum Option[T] { None, Some(T) } record Box[T] { value: T } main(): Void { inferred = map_put(map(), "Ada", true); checked: Map[Str,Bool] = inferred }

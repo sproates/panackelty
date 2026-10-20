@@ -1,1 +1,1 @@
-main(): Void { x = ().nat() }
+main(): Void { x = nat(()) }

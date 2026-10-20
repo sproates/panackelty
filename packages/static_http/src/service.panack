@@ -6,7 +6,6 @@ import stdlib/async_filesystem as filesystem
 import stdlib/async_host as host
 import stdlib/bytes as buffer
 import stdlib/path as path
-import stdlib/text as text
 
 pub import http/server::{Header}
 pub import http/service::{ServiceLimits, TcpServiceReady, TcpServiceSummary}

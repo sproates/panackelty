@@ -1,7 +1,8 @@
+import stdlib/testing_async as testing_async
 
 // A failed assertion traps, so a silent successful exit verifies the values.
 pure expect(value: Bool): Unit { checked = [0][if value { 0 } else { 1 }]; () }
-async read(fail: Bool): Result[Bytes,Str] { await async_fake_read(fail) }
+async read(fail: Bool): Result[Bytes,Str] { await testing_async.read(fail) }
 async nested(depth: Nat): Result[Bytes,Str] {
   if depth > 0 { await nested(depth - 1) } else { await read(false) }
 }

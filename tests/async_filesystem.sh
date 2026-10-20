@@ -20,8 +20,6 @@ MANIFEST
 cat > "$work/template.panack" <<'SOURCE'
 import stdlib/async_filesystem as files
 import stdlib/path as path
-import stdlib/result as result
-import stdlib/text as text
 import http/server as http
 
 pure expect(value: Bool): Unit {

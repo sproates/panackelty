@@ -1,3 +1,4 @@
+import stdlib/tcp as transport
 import project/parser::{parse_request_for_methods}
 import project/types::{HttpError.Cancelled, HttpError.ConnectFailure, HttpError.DnsFailure,
   HttpError.InvalidLimits, HttpError.InvalidRequest, HttpError.InvalidResponse,
@@ -6,9 +7,7 @@ import project/types::{HttpError.Cancelled, HttpError.ConnectFailure, HttpError.
   HttpError.UnsupportedHost, HttpError.UnsupportedMethod,
   HttpError.UnsupportedTransferEncoding, HttpError.UnsupportedVersion}
 import stdlib/bytes as byte_buffer
-import stdlib/result as result
 import stdlib/tcp::{TcpServerLimits}
-import stdlib/text as text
 
 pub import project/types::{Header, HttpError, Request, Response}
 
@@ -294,7 +293,7 @@ pub async serve_connection_with_policy[T](
   mut finished = false
   mut head_only = false
   while !finished {
-    match await tcp_server_read_chunk(16384) {
+    match await transport.read_chunk(16384) {
       Error(problem) => {
         if problem == "TCP request limit exceeded" {
           outcome = Ok(simple_response_with_headers(
@@ -362,7 +361,7 @@ pub async serve(
     limits.drain_ms
   )
   context: ServeContext = ServeContext(handler, limits.request_limit, limits.response_limit)
-  match await tcp_serve_stream(address, port, @serve_connection, context, tcp_limits) {
+  match await transport.serve_stream(address, port, @serve_connection, context, tcp_limits) {
     Error(problem) => if problem == "invalid TCP server arguments" {
       Error(InvalidLimits())
     } else { Error(TransportFailure(problem)) },

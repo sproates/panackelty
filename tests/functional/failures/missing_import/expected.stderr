@@ -1,1 +1,5 @@
 error: missing source module <case>/missing.panack
+missing module missing.panack
+<case>/main.panack:1:1: missing module missing.panack
+  1 | import "missing.panack"
+    | ^

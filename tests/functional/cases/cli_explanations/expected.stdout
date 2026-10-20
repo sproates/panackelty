@@ -175,7 +175,7 @@ PASS incompatible numeric operands
 PASS incompatible numeric operands
 PASS incompatible numeric operands
 PASS local proof does not accept impure program
-PASS resolver failure has no fabricated proof
+PASS local constant proof survives an unrelated unknown value
 PASS syntax failure has no fabricated proof
 PASS missing source
 PASS invalid explain arguments

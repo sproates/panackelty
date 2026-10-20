@@ -1,3 +1,4 @@
+import stdlib/host as std_host
 import project/src/compiler/path_support as path_support
 import stdlib/bytes as byte_buffer
 import stdlib/environment as std_environment
@@ -324,13 +325,13 @@ pub run_inventory_command(values: [Str], checking: Bool): Nat {
   args: InventoryArguments = inventory_arguments(values, checking)
 
   if !args.valid {
-    eprint("error: inventory usage: inventory SOURCE.panack -o FILE [--include SOURCE.panack] | inventory-check SOURCE.panack --inventory FILE [--include SOURCE.panack]")
+    std_host.stderr("error: inventory usage: inventory SOURCE.panack -o FILE [--include SOURCE.panack] | inventory-check SOURCE.panack --inventory FILE [--include SOURCE.panack]")
     1
   } else {
     compiler_path: Str = std_environment.get("PANACKELTY_COMPILER_PATH")->value_or("")
     match source_map_read(compiler_path, 16777216) {
       Error(error) => {
-        eprint("error: inventory compiler identity unavailable")
+        std_host.stderr("error: inventory compiler identity unavailable")
         1
       },
       Ok(compiler) => {
@@ -386,7 +387,7 @@ pub run_inventory_command(values: [Str], checking: Bool): Nat {
         }
         valid = valid && source_map_matches(compiler_path, compiler)
         if !valid {
-          eprint("error: inventory unavailable: invalid, changed, duplicate or excessive inputs, or existing output")
+          std_host.stderr("error: inventory unavailable: invalid, changed, duplicate or excessive inputs, or existing output")
           1
         } else {
           expected: Bytes = source_map_join(chunks, 0, chunks->len())
@@ -395,7 +396,7 @@ pub run_inventory_command(values: [Str], checking: Bool): Nat {
               print("inventory: valid")
               0
             } else {
-              eprint("error: inventory unavailable: missing, malformed, stale or incompatible inventory")
+              std_host.stderr("error: inventory unavailable: missing, malformed, stale or incompatible inventory")
               1
             }
           } else {
@@ -406,7 +407,7 @@ pub run_inventory_command(values: [Str], checking: Bool): Nat {
               print("wrote inventory " + args.output)
               0
             } else {
-              eprint("error: could not write inventory; discard any partial output")
+              std_host.stderr("error: could not write inventory; discard any partial output")
               1
             }
           }

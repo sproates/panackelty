@@ -2,4 +2,4 @@
 effect(value: Nat): Nat { print(value); value }
 pure identity[T](value: T): T { value }
 pure pass_callback[T](value: Fn[T,T]): Fn[T,T] { value }
-pure leak(): Nat { identity(@effect).call(1) } main(): Void {}
+pure leak(): Nat { intrinsic_call(identity(@effect), 1) } main(): Void {}

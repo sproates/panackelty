@@ -240,14 +240,10 @@ grep -F 'aggregate sessions=1 executions=1' coverage-aggregate.stdout >/dev/null
   fail "coverage aggregation is missing its session summary"
 test ! -s coverage-aggregate.stderr || fail "coverage aggregation wrote unexpected stderr"
 
-http_example=$temporary/relocated/toolchain/examples/network/http_server
-http_manifest=$http_example/panack.json
-http_source=$http_example/src/main.panack
-cp "$http_source" "$temporary/http_example.main.panack"
-for mode in source bytecode; do
-  http_port=$("$http_client" port)
-  sed "s/8080/$http_port/g" "$temporary/http_example.main.panack" >"$http_source.next"
-  mv "$http_source.next" "$http_source"
+for example in http_server http_contextual_server; do
+  http_manifest=$temporary/relocated/toolchain/examples/network/$example/panack.json
+  peer_mode=example
+  if [ "$example" = http_contextual_server ]; then peer_mode=example-contextual; fi
   run_clean check --project "$http_manifest" >http-check.stdout 2>http-check.stderr || \
     fail "installed HTTP example project check failed"
   test ! -s http-check.stderr || fail "installed HTTP example check wrote unexpected stderr"
@@ -255,21 +251,33 @@ for mode in source bytecode; do
     >http-compile.stdout 2>http-compile.stderr || fail "installed HTTP example compile failed"
   test -s http-server.bc || fail "installed HTTP example produced no bytecode"
   test ! -s http-compile.stderr || fail "installed HTTP example compile wrote unexpected stderr"
-  if [ "$mode" = source ]; then
-    run_clean run --project "$http_manifest" >http-run.stdout 2>http-run.stderr &
-  else
-    run_clean run http-server.bc >http-run.stdout 2>http-run.stderr &
-  fi
-  server_pid=$!
-  if ! "$http_client" "$http_port" example; then
-    echo "installed HTTP example mode=$mode port=$http_port pid=$server_pid" >&2
-    cat http-run.stdout http-run.stderr >&2
-    fail "independent HTTP client rejected installed example"
-  fi
-  wait "$server_pid" || fail "installed HTTP example execution failed"
-  server_pid=
-  test ! -s http-run.stdout || fail "installed HTTP example wrote unexpected stdout"
-  test ! -s http-run.stderr || fail "installed HTTP example wrote unexpected stderr"
+  for mode in source bytecode; do
+    http_port=$("$http_client" port)
+    if [ "$mode" = source ]; then
+      env PATH="$runtime_path" PANACKELTY_STDLIB_PATH=/unavailable \
+        "$panack" run --project "$http_manifest" "$http_port" >http-run.stdout 2>http-run.stderr &
+    else
+      env PATH="$runtime_path" PANACKELTY_STDLIB_PATH=/unavailable \
+        "$panack" run http-server.bc "$http_port" >http-run.stdout 2>http-run.stderr &
+    fi
+    server_pid=$!
+    if ! "$http_client" "$http_port" "$peer_mode"; then
+      cat http-run.stdout http-run.stderr >&2
+      fail "independent HTTP client rejected installed example $example/$mode"
+    fi
+    kill -TERM "$server_pid"
+    remaining=100
+    while kill -0 "$server_pid" 2>/dev/null; do
+      test "$remaining" != 0 || fail "installed HTTP example shutdown timed out"
+      remaining=$((remaining - 1))
+      sleep 0.05
+    done
+    wait "$server_pid" || fail "installed HTTP example execution failed"
+    server_pid=
+    printf 'Listening on http://127.0.0.1:%s/\n' "$http_port" >http-run.expected
+    cmp http-run.stdout http-run.expected || fail "installed HTTP example readiness changed"
+    test ! -s http-run.stderr || fail "installed HTTP example wrote unexpected stderr"
+  done
 done
 
 sh "$root/tests/functional/cases/cli_commands/package_relocation.sh" \

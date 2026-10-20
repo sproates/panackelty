@@ -33,15 +33,17 @@ No issue was created solely for this task. Acceptance is recorded in the deliver
 
 The [staged implementation plan](docs/design/routed-http-server/implementation-plan.md)
 records fifteen acceptance checkpoints and runtime decision gates. Implementation
-is in progress: internal request/routing policy and structured VM fault metadata
-are under validation. The public routed-server API is not delivered yet. The owner
+is in progress: foundation PR#548 and typed runtime PR#549 are merged into `next`.
+The public API, static-preview migration, examples and obsolete-export removal
+are under final validation; GI#518 is not yet complete. The owner
 has authorised continuous implementation and exact-head green merges into `next`,
 with no per-PR approval pause.
 The owner-approved explicit-address constructors preserve preview loopback/`--host`
 behaviour while simple constructors retain all-interface binding. GI#518 remains
-open. Alpha.14 publication is separate. Website: no live API claim changes from
-this planning-only delivery; update package learning material at implementation
-and release acceptance.
+open. Alpha.14 publication is separate. Website follow-up: at alpha.14 release, link the routed-server package guide and
+ordinary/contextual examples from capabilities, examples and the HTTP article.
+Release acceptance owns that update; live alpha.13 claims must retain their
+version boundary until publication. No website deployment is included here.
 
 ## Bounded method experiment — 2026-10-17
 

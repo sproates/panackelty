@@ -1,4 +1,4 @@
-import project/routed as http
+import project/server as http
 import stdlib/async_host as host
 pure expect(value: Bool): Unit { checked = [0][if value { 0 } else { 1 }]; () }
 pure success(result: Result[Unit,http.ServerError]): Bool {

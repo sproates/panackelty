@@ -1359,5 +1359,8 @@ ownership, aliasing, duplicate registration, expired writers, typed invocation a
 independent bytecode local-effect validation. `tests/http_package.sh` exercises the
 internal package source/bytecode fixtures and raw C peer modes for framing, Expect,
 handler errors/traps, first-send preservation, four-request/sixteen-connection caps,
-real ten-second deadlines, and lifecycle/port reuse. Public-package migration,
-installed routed examples, and the complete acceptance register remain pending.
+real ten-second deadlines, and lifecycle/port reuse. Public-package fixtures now
+cover corrected contract examples, checked arithmetic recovery and active-request
+shutdown. Static and archive smoke tests exercise ordinary/contextual examples
+from relocated installations. Canonical validation passed in 509 seconds; the
+consolidated GI#518 acceptance audit and exact-head CI remain pending.

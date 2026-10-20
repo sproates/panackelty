@@ -29,47 +29,32 @@ cat > "$work/app/panack.json" <<MANIFEST
 MANIFEST
 cat > "$work/template.panack" <<'SOURCE'
 import stdlib/async_host as host
-import http/server as server
-import http/service as service
+import http/server as http
 
-async ready(endpoint: service.TcpServiceReady): Result[Unit,Str] {
-  arguments = await host.arguments()
-  if arguments[0] == "fail-ready" {
-    Error("readiness rejected")
-  } else {
-    port = endpoint.port
-    match await host.stdout("ready ${port}") {
-      Ok(done) => Ok(()),
-      Error(problem) => Error("readiness output failed")
-    }
-  }
-}
-
-async respond(configuration: Nat, request: server.Request): Result[server.Response,server.HttpError] {
+async respond(configuration: Nat, request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
   match await host.stderr("request handled") {
-    Ok(done) => Ok(server.Response(200, [], (if configuration == 42 { "ok" } else { "bad" }).encode_utf8())),
-    Error(problem) => Error(service.TransportFailure("diagnostic output failed"))
+    Ok(done) => { response.send(if configuration == 42 { "ok" } else { "bad" }); Ok(()) },
+    Error(problem) => Error("diagnostic output failed")
   }
-}
-
-async worker(context: server.ConnectionContext[Nat]): Result[Bytes,Str] {
-  await server.serve_connection_with_context[Nat](context)
 }
 
 async main(): Unit {
   arguments = await host.arguments()
   mode = arguments[0]
   port: Nat = if mode == "invalid" { 0 } else { PORT }
-  context: server.ConnectionContext[Nat] = server.ConnectionContext(42, @respond, 4096, 4096)
-  report = await service.serve[Nat]("127.0.0.1", port, @worker, context,
-    service.ServiceLimits(2, 4096, 4096, 3000, 1000), @ready)
-  match report {
+  server = http.create_bound_contextual_server("127.0.0.1", port, 42)
+  server.get("/", @respond)
+  match await server.listen() {
     Error(problem) => { ignored = await host.stderr("service failed"); await host.exit(7) },
-    Ok(summary) => {
-      accepted = summary.accepted
-      succeeded = summary.succeeded
-      ignored = await host.stdout("stopped ${accepted} ${succeeded}")
-      ()
+    Ok(done) => {
+      if mode == "fail-ready" {
+        ignored = await server.destroy()
+        ignored_output = await host.stderr("service failed")
+        await host.exit(7)
+      } else {
+        ignored = await host.stdout("ready ${port}")
+        ()
+      }
     }
   }
   ()
@@ -93,7 +78,7 @@ for mode in source bytecode interrupt; do
     fi
     wait_for_exit || { cat "$work/stderr"; exit 1; }
     server_pid=
-    printf 'ready %s\nstopped 2 2\n' "$port" > "$work/expected"
+    printf 'ready %s\n' "$port" > "$work/expected"
     cmp "$work/stdout" "$work/expected"
     printf 'request handled\nrequest handled\n' > "$work/expected"
     cmp "$work/stderr" "$work/expected"

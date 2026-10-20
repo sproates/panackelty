@@ -1,6 +1,6 @@
 # Ordered task packets
 
-All paths are repository-relative. Implementation is in progress across P01–P11;
+All paths are repository-relative. Implementation is in progress across P01–P15;
 individual exit gates remain pending until their full evidence is recorded. Follow the common
 [runbook](execution-runbook.md); acceptance IDs refer to the
 [register](acceptance-register.md). A packet is complete only after its exit evidence

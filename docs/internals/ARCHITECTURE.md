@@ -1189,11 +1189,13 @@ previous dispositions when the service ends. Embedded executions retain explicit
 stop and separate listening, outbound, filesystem and console grants. Request
 children inherit the granted filesystem and console services, never listening.
 
-`packages/http/src/service.panack` supplies the protocol composition over the
-isolated `stdlib/tcp_service` module. A generic `ConnectionContext` passes typed
-configuration and a named request callback through a concrete connection worker.
-HTTP parsing and serialization stay in the package; existing finite entry points
-use the same configured connection path.
+`packages/http/src/server.panack` exposes typed routed server handles and named
+async handlers. `http_runtime.c` retains listeners and drives request children;
+`http_state.c` owns opaque server, connection and response state. The package owns
+routing, framing, request construction and response policy. The internal
+`stdlib/http_runtime` bridge carries typed handles rather than public transport
+configuration. Source-launcher child executions own and drain their own runtime
+before releasing the compiled program. Low-level TCP services remain separate.
 
 `console_write.c` owns bounded asynchronous stdout/stderr workers for
 `stdlib/async_host`. Four retained operations, each at most 16 KiB plus newline,
@@ -1208,8 +1210,9 @@ boundary. Filesystem and console capacities are separate.
 `packages/static_http` owns URL decoding, MIME selection, directory indexes,
 redirects, configured headers and file-to-response policy. Its only package
 dependency is `packages/http`; async file and console operations use the existing
-isolated adapters. `http/server.ConnectionPolicy` selects allowed methods and
-error headers without changing existing connection-context records or callers.
+isolated adapters. A contextual routed-server fallback carries root identity and
+application policy. Generic protocol errors belong to the framework; static file
+responses retain configured application headers and stricter byte limits.
 
 ```mermaid
 flowchart LR

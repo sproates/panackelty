@@ -1362,50 +1362,68 @@ a time. Embedded services use explicit host stop and do not install signal handl
 Drain is enforced by the existing polling/instruction-budget scheduler, not a hard
 wall-clock guarantee around individual instructions or destructors.
 
-`http/service` composes this transport with the HTTP parser and serializer. Its
-`ServiceLimits` has the same five fields. A `server.ConnectionContext[T]` carries
-configuration, a named `AsyncFn[T,Request,Result[Response,HttpError]]`, and parser/
-serializer limits. Supply a concrete named worker calling
-`server.serve_connection_with_context[T]`; captured closures and generic function
-references are not required. Context and transport limits are independent: either
-can impose a stricter bound. Existing finite `http/server.serve` remains supported.
+The alpha.14 routed HTTP framework is exported by `http/server`; it replaces the
+previous HTTP service/finite-session facades while leaving low-level TCP APIs
+intact. Constructors return `Server` or `ContextualServer[T]`. The bound forms
+accept numeric IPv4; convenience forms bind all interfaces. Registration mutates
+opaque server state through `.get`, `.post`, `.put`, `.delete` and `.fallback`.
+Handlers are named async references, with a typed context parameter for contextual
+servers, and return `Result[Unit,Str]`. Invalid setup is sticky and reported by
+`listen` before binding. Registration after startup is a request/runtime fault.
 
-`server.ConnectionPolicy(methods, error_headers)` and
-`serve_connection_with_policy[T]` allow a caller to select accepted methods and
-headers on connection-generated error responses. The parser's
-`parse_request_for_methods` uses the supplied method list; `parse_request` and
-ordinary connection helpers retain GET/HEAD/POST. A 405 response reports the
-selected methods in Allow. Applications own normal response headers. Header
-serialization validation still applies; callers must supply valid policies.
+`listen` resolves after bind. The runtime retains active listeners after main
+returns. `close` stops admission and drains for at most one second; `destroy`
+cancels immediately. Shutdown is idempotent; a closed server cannot listen again.
+CLI signals and explicit exit perform bounded cleanup. Request children cannot
+forge host handles or resume cancelled host completions.
+
+Requests expose raw path/query, ordered headers and buffered bytes. The four
+supported methods use exact-path routing; unsupported methods never reach a
+handler. A known path with an unsupported or unregistered method returns 405 with
+its registered methods in Allow; an unknown path with an unsupported method lists
+all four. A supported unknown path reaches fallback or receives 404.
+
+Response writers own status, ordered headers and the first committed response.
+Later sends/mutations fault without replacing it. Missing sends, handler Error
+and recoverable request faults produce generic 500 before commitment. The limits
+are sixteen accepted connections, four admitted requests, 16 KiB request/response
+header blocks, 1 MiB request/response bodies and ten seconds from accept to
+completion. Fixed-length and chunked bodies and bounded 100-continue negotiation
+are supported. There is one final response per connection, no keep-alive or TLS.
+See the [HTTP package guide](../../packages/http/README.md#server-alpha14-development-branch)
+and [agreed contract](../design/routed-http-server/contract-snapshot.md) for the
+complete public surface and protocol rules.
 
 ### Static directory service (development toolchain)
 
-`packages/static_http` exports `service.Config(root, address, port, limits, headers)`
+`packages/static_http` exports `service.Config(root, address, port, request_body_limit, response_limit, headers)`
 and asynchronous `serve(config, ready)`. It composes existing HTTP and confined
 filesystem operations without extending the standard library. It validates the
 root and extra headers before binding, pins the root device/inode and rejects
 contents returned from a replacement root. The executable under `tools/http-server`
 is installed as `panack-http-server`; installation compiles its bytecode once.
 
-GET and HEAD serve regular files and `index.html`. A directory with an index and
+GET serves regular files and `index.html`. A directory with an index and
 no trailing slash redirects with 308, preserving the query. Missing indexes and
 inaccessible paths return 404; no directory listing or SPA fallback is supplied.
-Other methods return 405 with Allow: GET, HEAD. Percent decoding occurs once;
+POST, PUT and DELETE return 405 with Allow: GET. The framework rejects other
+methods before the static handler; HEAD error responses omit body bytes.
+Percent decoding occurs once;
 paths must be UTF-8, with no traversal, encoded separators, repeated separators,
 NUL or control bytes. Query strings do not become filenames. Relative symlinks
 are allowed only under the existing confined resolver policy.
 
 Extra headers cannot override framing, Content-Type, Location or Allow, and their
-serialized form must leave 512 bytes of response budget. They apply to errors and
-redirects as well as files. The full serialized GET representation must fit the
+serialized form must leave 512 bytes of response budget. They apply to application errors and
+redirects as well as files, but not framework-generated protocol errors. The full serialized GET representation must fit the
 response limit, including headers; oversize files return 503 with a diagnostic.
-HEAD uses the same bounded read and representation length but emits no body.
 Unexpected read failures return 500; resource exhaustion/root replacement returns
 503. Per-request reads expose edits without a snapshot guarantee. Ranges, TLS,
 compression, watch/rebuild and automatic reload are outside this contract.
 
-Tool defaults are four clients, 16 KiB requests, 1 MiB responses, ten seconds per
-client and one second of signal-driven drain. The [tool guide](../../tools/http-server/README.md)
+Tool application limits are 16 KiB request bodies and 1 MiB serialized responses.
+The framework permits sixteen connections and four admitted requests, with ten
+seconds per connection and one second of signal-driven drain. The [tool guide](../../tools/http-server/README.md)
 defines arguments, readiness and exit codes; the [package guide](../../packages/static_http/README.md)
 defines library configuration and cancellation limits.
 

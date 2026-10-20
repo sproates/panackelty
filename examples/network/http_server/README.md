@@ -1,26 +1,19 @@
-# Finite HTTP session fixture
+# Routed HTTP server
 
-This is a one-client regression example for the [HTTP package](../../../packages/http/README.md),
-not a continuously running web application or a recommended error-handling template.
-It deliberately asserts the finite session's result and exits after one client.
-
-From the root of a built checkout or extracted alpha.13 archive:
+This alpha.14 development example serves GET `/` and echoes POST `/echo` using
+named async handlers and response writers.
 
 ```sh
-./bin/panack run --project examples/network/http_server/panack.json
-```
-
-In another terminal, make one request:
-
-```sh
+./bin/panack run --project examples/network/http_server/panack.json 8080
 curl http://127.0.0.1:8080/
+curl --data 'hello' http://127.0.0.1:8080/echo
 ```
 
-The response body is `hello from Panackelty HTTP server` followed by a newline.
-The server then exits. Port 8080 must be free; the session has bounded admission
-and client timeouts. A browser may make additional requests, so use the single
-curl request for this fixture.
+Run the curl commands in another terminal. The server binds loopback and stays
+alive until Ctrl-C. The optional port defaults to 8080. Startup errors are reported
+on stderr and exit with status 1. GET `/` returns
+`hello from Panackelty HTTP server` followed by a newline.
 
-Read [the source](src/main.panack) beside [its manifest](panack.json).
-For serving a directory, use the [static HTTP server](../../../tools/http-server/README.md).
-For a long-running custom service, see `http/service` in the package guide.
+Read [the source](src/main.panack) and [manifest](panack.json), or try the
+[contextual server](../http_contextual_server/README.md) for shared configuration.
+For directory serving, use the [static HTTP tool](../../../tools/http-server/README.md).

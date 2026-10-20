@@ -105,7 +105,7 @@ use the corresponding `main.panack` path for the other examples.
 ## Networking
 
 See the [network examples guide](network/README.md) for TCP exchanges and finite
-HTTP sessions. For serving a directory, use the [static HTTP server](../tools/http-server/README.md).
+HTTP applications, including ordinary and contextual routed servers on the alpha.14 development branch. For serving a directory, use the [static HTTP server](../tools/http-server/README.md).
 The one-client HTTP example is a regression fixture, not a long-running application template.
 
 ## Adding an example

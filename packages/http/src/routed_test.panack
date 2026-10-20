@@ -1,4 +1,4 @@
-import project/routed as http
+import project/server as http
 import project/response_policy::{routed_wire}
 import project/types::{Header}
 import stdlib/http_runtime as runtime

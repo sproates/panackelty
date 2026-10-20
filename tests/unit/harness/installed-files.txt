@@ -9,14 +9,12 @@ packages/http/src/parser_test.panack
 packages/http/src/request.panack
 packages/http/src/response.panack
 packages/http/src/response_policy.panack
-packages/http/src/routed.panack
 packages/http/src/routed_connection.panack
 packages/http/src/routed_lifecycle_test.panack
 packages/http/src/routed_socket_test.panack
 packages/http/src/routed_test.panack
 packages/http/src/routing.panack
 packages/http/src/server.panack
-packages/http/src/service.panack
 packages/http/src/transport.panack
 packages/http/src/types.panack
 packages/http/src/writer_test.panack
@@ -25,6 +23,7 @@ packages/static_http/panack.json
 packages/static_http/src/mime.panack
 packages/static_http/src/paths.panack
 packages/static_http/src/paths_test.panack
+packages/static_http/src/policy.panack
 packages/static_http/src/service.panack
 packages/static_http/tests/panack.json
 packages/static_http/tests/src/main.panack

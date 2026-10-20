@@ -1,1 +1,0 @@
-main(): Void { print(environment_get("PANACK_MISSING")) }

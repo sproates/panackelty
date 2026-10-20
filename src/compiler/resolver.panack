@@ -48,6 +48,12 @@ pure resolver_diagnostics_at(diagnostics: [Diagnostic], position: SourcePos): [D
   result
 }
 
+// Source-visible constructors and explicit core services. Receiver operations are owned.
+pub pure source_builtin(name: Str): Bool {
+  name == "$unit" || name == "bytes" || name == "map" || name == "print" || name == "read_line" || name == "set" || name == "write_file"
+}
+
+// Internal operations accepted only after checked declaration lowering.
 pub pure is_builtin(name: Str): Bool {
   name == "async_fake_read" || name == "tcp_exchange" || name == "http_transport_exchange" || name == "tcp_serve" ||
     name == "tcp_service" || name == "tcp_serve_stream" || name == "tcp_server_read_chunk" ||
@@ -76,12 +82,12 @@ pub pure is_builtin(name: Str): Bool {
     name == "concat" || name == "slice" || name == "starts_with" ||
     name == "starts_with_at" || name == "reverse" || name == "is_digit" || name == "is_letter" ||
     name == "is_whitespace" || name == "map" || name == "map_put" ||
-    name == "map_has" || name == "map_get" || name == "$method_put" ||
-    name == "$method_has" || name == "$method_get" || name == "set" ||
-    name == "set_add" || name == "set_has" || name == "$method_add" ||
-    name == "$method_call" ||
-    name == "$method_map" ||
-    name == "$method_reduce" ||
+    name == "map_has" || name == "map_get" ||
+      name == "set" ||
+    name == "set_add" || name == "set_has" ||
+    name == "$intrinsic_call" ||
+    name == "$intrinsic_map" ||
+    name == "$intrinsic_reduce" ||
     name == "bytes" ||
     name == "byte_append" || name == "bytes_concat" || name == "byte_len" ||
     name == "byte_get" || name == "utf8_encode" || name == "utf8_decode" ||

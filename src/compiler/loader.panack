@@ -11,26 +11,24 @@ pub import project/src/compiler/module_bodies::{
   Diagnostic, LoadedModule, ModuleBindingGraph, ModuleSignature, BoundFunctionBody
 }
 import project/src/compiler/module_bodies::{
-  CheckedModuleBodies, BodyCheckStatus.BodyIdentityChecked, check_module_bodies, check_module_bodies_explained
+  CheckedModuleBodies, check_module_guards, body_subtraction_evidence_entries, BodyCheckStatus.BodyIdentityChecked, check_module_bodies, check_module_bodies_explained
 }
 import project/src/compiler/module_effects::{CheckedModuleEffects, check_module_effects}
-import project/src/compiler/module_bindings::{ModuleBindings, ModuleIdentity, builtin_owner_module, ModuleDeclarationKind.ModuleFunction, collect_module_bindings, loaded_module_declaration_index, module_binding_diagnostics, source_module_identity, source_package_module_identity, module_relative_path, module_programs, module_declaration_positions}
+import project/src/compiler/module_bindings::{ModuleBindings, ModuleIdentity, ModuleDeclarationKind.ModuleFunction, collect_module_bindings, loaded_module_declaration_index, module_binding_diagnostics, source_module_identity, source_package_module_identity, module_relative_path, module_programs}
 import project/src/compiler/module_signatures::{CheckedModuleSignatures, check_module_signatures}
 import project/src/compiler/module_resolution::{ModuleImportEdge, module_graph_diagnostics}
 import project/src/compiler/module_emission::{ModuleEmissionResult, module_emission_program}
 import project/src/compiler/parser::{
   ParsedModule, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration,
   TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, TopLevel.ImportDeclaration,
-  parse_module_complete, module_execution_diagnostics, lower_legacy_program, core_tokens
+  parse_module_complete, module_execution_diagnostics
 }
 pub import project/src/compiler/parser::{Program}
 import project/src/compiler/lexer::{lex_file}
 import project/src/compiler/types::{SourcePos}
 pub import project/src/compiler/checker::{SubtractionEvidence}
-import project/src/compiler/checker::{CheckedProgram, check_program_evidence_mode}
 pub import project/src/compiler/purity::{EffectEvidence}
-import project/src/compiler/purity::{CheckedEffects, check_frontend_effects}
-import project/src/compiler/resolver::{append_program_declarations, resolve_program_at}
+import project/src/compiler/resolver::{append_program_declarations}
 pub import project/src/compiler/package_project::{ManifestDependencyProject}
 pub import project/src/compiler/package_project::{FilesystemRootIdentity}
 import project/src/compiler/package_manifest::{PackageManifestExport}
@@ -577,20 +575,10 @@ load_project_module(
                         source_module_identity(path, project_root, stdlib_root)
                       }
                       bindings: ModuleBindings = collect_module_bindings(identity, parsed)
-                      // Retain original source bindings before the existing core-only
-                      // callable internalization used by the execution frontend.
-                      program: Program = if path == path_support.join(stdlib_root, "core.panack") {
-                        match parse_module_complete(core_tokens(tokens)) {
-                          Ok(internal) => lower_legacy_program(internal.program),
-                          Error(error) => lower_legacy_program(parsed.program)
-                        }
-                      } else {
-                        lower_legacy_program(parsed.program)
-                      }
                       module: LoadedModule = LoadedModule(
                         path,
                         parsed,
-                        program,
+                        parsed.program,
                         bindings,
                         loaded_module_declaration_index(parsed)
                       )
@@ -608,7 +596,7 @@ load_project_module(
                         paths
                       )
                       next_stack: [Str] = stack->append(path)
-                      for declaration in program.declarations {
+                      for declaration in parsed.program.declarations {
                         match declaration {
                           ImportDeclaration(imported) => {
                             if is_logical_import(imported) ||
@@ -921,194 +909,107 @@ load_project_mode_with_configuration(
     core
   }
   mut program: Program = append_program_declarations(module_programs(loaded.modules))
-  mut diagnostics: [Diagnostic] = loaded.diagnostics
+  mut diagnostics: [Diagnostic] = []
+  // Every source module uses checked identities. Parser staging markers belong
+  // to the standalone syntax API, not a second executable language frontend.
+  for diagnostic in loaded.diagnostics {
+    if diagnostic.message !=
+        "namespace syntax is parsed but execution is not yet supported (language namespace migration pending)" {
+      diagnostics = diagnostics->append(diagnostic)
+    }
+  }
+  mut has_main: Bool = false
+  for module in loaded.modules {
+    if module.source_path == resolved {
+      for declaration in module.parsed.program.declarations {
+        match declaration {
+          FunctionDeclaration(name, parameters, output, pure_flag, async_flag, body, types) => {
+            if name == "main" {
+              has_main = true
+              if parameters->len() > 0 { diagnostics = diagnostics->append(loader_diagnostic("main cannot take parameters")) }
+              if types->len() > 0 { diagnostics = diagnostics->append(loader_diagnostic("main cannot have type parameters")) }
+              if async_flag && output != "Unit" { diagnostics = diagnostics->append(loader_diagnostic("async main must return Unit")) }
+            }
+          },
+          ImportDeclaration(path) => {},
+          TypeDeclaration(name, base, guard) => {},
+          RecordDeclaration(name, parameters, fields) => {},
+          EnumDeclaration(name, parameters, variants) => {}
+        }
+      }
+    }
+  }
+  if require_main && !has_main && diagnostics->len() == 0 { diagnostics = diagnostics->append(loader_diagnostic("program has no main function")) }
+  graph: ModuleBindingGraph = loaded_package_binding_graph(
+    loaded.modules, project_root, stdlib_root, package_confined, package_root_identity, dependencies
+  )
+  diagnostics = diagnostics->concat(module_graph_diagnostics(graph))
   mut signatures: [ModuleSignature] = []
   mut bodies: [BoundFunctionBody] = []
   mut effects: [EffectEvidence] = []
   mut effects_checked: Bool = false
-  mut identity_ready: Bool = false
+  mut identity_ready: Bool = diagnostics->len() == 0
   mut function_types: Map[Str, Bool] = map()
-  mut staged: Bool = false
-  mut staged_core_path: Str = ""
-  for module in loaded.modules {
-    if module.bindings.identity == builtin_owner_module() {
-      if module_execution_diagnostics(module.parsed)->len() > 0 {
-        staged_core_path = module.source_path
-      }
-    } else {
-      staged = staged || module_execution_diagnostics(module.parsed)->len() > 0
-    }
-  }
-  if !staged && staged_core_path != "" {
-    mut legacy_diagnostics: [Diagnostic] = []
-    for diagnostic in diagnostics {
-      if diagnostic.position.file != staged_core_path || diagnostic.message !=
-          "namespace syntax is parsed but execution is not yet supported (language namespace migration pending)" {
-        legacy_diagnostics = legacy_diagnostics->append(diagnostic)
-      }
-    }
-    if legacy_diagnostics->len() == 0 {
-      for diagnostic in resolve_program_at(program, module_declaration_positions(loaded.modules)) {
-        if diagnostic.position.file != staged_core_path {
-          legacy_diagnostics = legacy_diagnostics->append(diagnostic)
-        }
-      }
-    }
-    diagnostics = legacy_diagnostics
-  }
-  graph: ModuleBindingGraph = loaded_package_binding_graph(
-    loaded.modules, project_root, stdlib_root, package_confined, package_root_identity, dependencies
-  )
-  graph_errors: [Diagnostic] = module_graph_diagnostics(graph)
-  if staged || (diagnostics->len() == 0 && graph_errors->len() > 0) {
-    diagnostics = diagnostics->concat(graph_errors)
-  }
-  if graph_errors->len() == 0 {
-    mut signatures_valid: Bool = true
-    mut identity_checks_ok: Bool = true
-    // Retain identity-bound checks for every module. Project commands require
-    // complete closure checks before identity emission and fail closed otherwise.
+  mut evidence: [SubtractionEvidence] = []
+  if identity_ready {
     for module in loaded.modules {
-      checked_signatures: CheckedModuleSignatures = check_module_signatures(
-        graph,
-        loaded.modules,
-        module
-      )
-      signatures = signatures->concat(checked_signatures.declarations)
-      signatures_valid = signatures_valid && checked_signatures.diagnostics->len() == 0
-      identity_checks_ok = identity_checks_ok && checked_signatures.diagnostics->len() == 0
-      if module_execution_diagnostics(module.parsed)->len() > 0 {
-        diagnostics = diagnostics->concat(checked_signatures.diagnostics)
+      checked: CheckedModuleSignatures = check_module_signatures(graph, loaded.modules, module)
+      signatures = signatures->concat(checked.declarations)
+      diagnostics = diagnostics->concat(checked.diagnostics)
+    }
+    if diagnostics->len() == 0 {
+      for module in loaded.modules {
+        guards: CheckedModuleBodies = check_module_guards(graph, loaded.modules, signatures, module)
+        diagnostics = diagnostics->concat(guards.diagnostics)
+        guard_effects: CheckedModuleEffects = check_module_effects(graph, loaded.modules, signatures, guards.functions, false)
+        diagnostics = diagnostics->concat(guard_effects.diagnostics)
       }
     }
+    identity_ready = diagnostics->len() == 0
+    signatures_valid: Bool = identity_ready
     for module in loaded.modules {
-      checked_bodies: CheckedModuleBodies = check_module_bodies_explained(
-        graph,
-        loaded.modules,
-        signatures,
-        module,
-        retain
-      )
-      if module_execution_diagnostics(module.parsed)->len() > 0 {
-        diagnostics = diagnostics->concat(checked_bodies.diagnostics)
+      checked: CheckedModuleBodies = check_module_bodies_explained(
+        graph, loaded.modules, signatures, module, retain)
+      bodies = bodies->concat(checked.functions)
+      diagnostics = diagnostics->concat(checked.diagnostics)
+      identity_ready = identity_ready && checked.diagnostics->len() == 0
+      for body in checked.functions {
+        if retain { evidence = evidence->concat(body_subtraction_evidence_entries(body.body)) }
+        identity_ready = identity_ready && body.status == BodyIdentityChecked() && body.deferred->len() == 0
       }
-      bodies = bodies->concat(checked_bodies.functions)
-      identity_checks_ok = identity_checks_ok && checked_bodies.diagnostics->len() == 0
-      for body in checked_bodies.functions {
-        identity_checks_ok = identity_checks_ok && body.status == BodyIdentityChecked() && body.deferred->len() == 0
-      }
+      checked_effects: CheckedModuleEffects = check_module_effects(
+        graph, loaded.modules, signatures, checked.functions, retain)
       if signatures_valid {
-        checked_effects: CheckedModuleEffects = check_module_effects(
-          graph,
-          loaded.modules,
-          signatures,
-          checked_bodies.functions,
-          retain
-        )
-        if module_execution_diagnostics(module.parsed)->len() > 0 {
-          diagnostics = diagnostics->concat(checked_effects.diagnostics)
-          if module.bindings.identity != builtin_owner_module() {
-            effects_checked = true
-          }
-        }
-        identity_checks_ok = identity_checks_ok && checked_effects.diagnostics->len() == 0
+        diagnostics = diagnostics->concat(checked_effects.diagnostics)
         effects = effects->concat(checked_effects.evidence)
-        for function in checked_bodies.functions {
-          name: Str = function.signature.binding.identity.name
-          if checked_effects.function_types->has(name) {
-            function_types = function_types->put(name, checked_effects.function_types->get(name))
-          }
+      }
+      identity_ready = identity_ready && checked_effects.diagnostics->len() == 0
+      for function in checked.functions {
+        name: Str = function.signature.binding.identity.name
+        if checked_effects.function_types->has(name) {
+          function_types = function_types->put(name, checked_effects.function_types->get(name))
         }
-      } else {
-        identity_checks_ok = false
       }
     }
     for module in loaded.modules {
       for declaration in module.bindings.declarations {
-        // Intrinsics have typed signatures and primitive lowering, not source bodies.
         if declaration.kind == ModuleFunction() && declaration.intrinsic == None() {
-          mut found_body: Bool = false
-          for body in bodies {
-            found_body = found_body || body.signature.binding.identity == declaration.identity
-          }
-          identity_checks_ok = identity_checks_ok && found_body
+          mut found: Bool = false
+          for body in bodies { found = found || body.signature.binding.identity == declaration.identity }
+          identity_ready = identity_ready && found
         }
       }
     }
-    identity_ready = identity_checks_ok
-    // Core impls must not force legacy user modules past their normal resolver
-    // diagnostics. Replace only core's staging program with checked emission;
-    // retain every user-module gate and every real core diagnostic.
-    mut execution_programs: [Program] = []
-    for module in loaded.modules {
-      if module.bindings.identity == builtin_owner_module() &&
-          module_execution_diagnostics(module.parsed)->len() > 0 {
-        core_emitted: ModuleEmissionResult = module_emission_program(
-          graph, [module], signatures, bodies, module.bindings.identity)
-        if core_emitted.diagnostics->len() == 0 {
-          execution_programs = execution_programs->append(core_emitted.program)
-          mut retained: [Diagnostic] = []
-          for diagnostic in diagnostics {
-            if diagnostic.position.file != module.source_path || diagnostic.message !=
-                "namespace syntax is parsed but execution is not yet supported (language namespace migration pending)" {
-              retained = retained->append(diagnostic)
-            }
-          }
-          diagnostics = retained
-        } else {
-          execution_programs = execution_programs->append(module.execution_program)
-          diagnostics = diagnostics->concat(core_emitted.diagnostics)
-        }
-      } else {
-        execution_programs = execution_programs->append(module.execution_program)
-      }
-    }
-    program = append_program_declarations(execution_programs)
-  }
-  if diagnostics->len() == 0 {
-    diagnostics = diagnostics->concat(
-      resolve_program_at(program, module_declaration_positions(loaded.modules))
-    )
-  } else {}
-  mut evidence: [SubtractionEvidence] = []
-  if diagnostics->len() == 0 {
-    checked: CheckedProgram = check_program_evidence_mode(program, retain, require_main)
-    checked_effects: CheckedEffects = check_frontend_effects(program, checked, retain)
-    diagnostics = checked_effects.diagnostics
-    evidence = checked.evidence
-    effects = checked_effects.evidence
-    function_types = checked.function_types
-    effects_checked = checked.diagnostics->len() == 0 || (retain && checked.declarations_valid)
-  } else {
-    if retain && identity_ready {
+    effects_checked = signatures_valid
+    if identity_ready {
       entry_identity: ModuleIdentity = if package_confined {
-        source_package_module_identity(
-          resolved,
-          project_root,
-          stdlib_root,
-          package_name,
-          package_version
-        )
-      } else {
-        source_module_identity(resolved, project_root, stdlib_root)
-      }
+        source_package_module_identity(resolved, project_root, stdlib_root, package_name, package_version)
+      } else { source_module_identity(resolved, project_root, stdlib_root) }
       emitted: ModuleEmissionResult = module_emission_program(
-        graph,
-        loaded.modules,
-        signatures,
-        bodies,
-        entry_identity
-      )
+        graph, loaded.modules, signatures, bodies, entry_identity)
+      diagnostics = diagnostics->concat(emitted.diagnostics)
       if emitted.diagnostics->len() == 0 {
-        checked: CheckedProgram = check_program_evidence_mode(emitted.program, true, require_main)
-        checked_effects: CheckedEffects = check_frontend_effects(emitted.program, checked, true)
-        diagnostics = diagnostics->concat(checked_effects.diagnostics)
-        evidence = checked.evidence
-        effects = checked_effects.evidence
-        function_types = checked.function_types
-        effects_checked = checked.diagnostics->len() == 0 || checked.declarations_valid
-      } else {
-        diagnostics = diagnostics->concat(emitted.diagnostics)
+        program = emitted.program
       }
     }
   }

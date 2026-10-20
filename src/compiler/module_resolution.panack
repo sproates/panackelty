@@ -1,6 +1,6 @@
 import project/src/compiler/module_bindings::{OwnedMethodIdentity, MethodOwnerIdentity, MethodOwnerIdentity.NominalMethodOwner, MethodOwnerIdentity.BuiltinMethodOwner, builtin_owner_arity, builtin_owner_module, method_owner_name}
-pub import project/src/compiler/module_bindings::{module_reserved_binding, module_import_names, module_binding_diagnostics, ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleImportBinding, ModuleBindings, ModuleDeclarationKind, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant}
-pub import project/src/compiler/parser::{parse_reference_path, lowered_method_name, reference_head, reference_tail, expression_reference_path, type_has_qualification, lex, Expr, TopLevel, Statement, BlockValue, Program, Block, ParsedModule, ParsedTypeRef, ImportSelector, ImportBindingSyntax, DeclarationSyntax, SourcePos, SourceSpan, Diagnostic, Token, TokenKind, TokenKind.Identifier, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue.NoBlockValue, BlockValue.TailBlockValue, ImportBindingSyntax.NoImportBinding, ImportBindingSyntax.NamespaceImportBinding, ImportBindingSyntax.SelectiveImportBinding}
+pub import project/src/compiler/module_bindings::{module_internal_primitive_name, module_reserved_binding, module_import_names, module_binding_diagnostics, ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleImportBinding, ModuleBindings, ModuleDeclarationKind, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant}
+pub import project/src/compiler/parser::{parse_reference_path, reference_head, reference_tail, expression_reference_path, type_has_qualification, lex, Expr, TopLevel, Statement, BlockValue, Program, Block, ParsedModule, ParsedTypeRef, ImportSelector, ImportBindingSyntax, DeclarationSyntax, SourcePos, SourceSpan, Diagnostic, Token, TokenKind, TokenKind.Identifier, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue.NoBlockValue, BlockValue.TailBlockValue, ImportBindingSyntax.NoImportBinding, ImportBindingSyntax.NamespaceImportBinding, ImportBindingSyntax.SelectiveImportBinding}
 
 // Resolve ordered import edges, aliases and re-exports to their original identities.
 // Cycle detection tracks the active path separately from completed modules.
@@ -339,11 +339,10 @@ pub pure module_graph_diagnostics(graph: ModuleBindingGraph): [Diagnostic] {
   diagnostics
 }
 
-// Namespace/value disambiguation is explicit and precedes reserved core method
-// lowering. Value receivers stay raw until checked-identity integration.
+// Dots select namespace declarations only during the arrow migration.
+// Lexical values shadow aliases and must use checked owned-call syntax.
 pub enum ResolvedDotCall {
-  NamespaceCall(ModuleDeclarationBinding, [Expr], [Str]),
-  ValueMethodCall(Expr, Str, [Expr], [Str])
+  NamespaceCall(ModuleDeclarationBinding, [Expr], [Str])
 }
 
 pub pure resolve_module_dot_call_scoped(
@@ -358,17 +357,17 @@ pub pure resolve_module_dot_call_scoped(
   path: Str = expression_reference_path(target)
 
   if path == "" || locals->has(reference_head(path)) {
-    Ok(ValueMethodCall(target, name, arguments, types))
+    Error("receiver dot calls are not supported; use ->" + name + "(...)")
   } else {
     match resolve_module_path(graph, identity, reference_head(path)) {
-      Error(message) => Ok(ValueMethodCall(target, name, arguments, types)),
+      Error(message) => Error("receiver dot calls are not supported; use ->" + name + "(...)"),
       Ok(binding) => {
         namespace_receiver: Bool = match binding {
           NamespaceTarget(owner) => true,
           DeclarationTarget(declaration) => declaration.kind == ModuleEnum()
         }
         if !namespace_receiver {
-          Ok(ValueMethodCall(target, name, arguments, types))
+          Error("receiver dot calls are not supported; use ->" + name + "(...)")
         } else {
           match resolve_module_path(graph, identity, path + "." + name) {
             Error(message) => Error(message),
@@ -554,20 +553,6 @@ pub pure resolve_module_expression_uses(
               origin,
               Ok(DeclarationTarget(declaration))
             )
-          },
-          ValueMethodCall(receiver, method, values, type_arguments) => {
-            result = resolve_module_expression_uses(graph, identity, receiver, origin, locals)
-            if !module_reserved_binding(method) && lowered_method_name(method) == method {
-              method_target: Result[ResolvedModuleTarget, Str] = match resolve_module_function(
-                graph,
-                identity,
-                method
-              ) {
-                Error(message) => Error(message),
-                Ok(binding) => Ok(DeclarationTarget(binding))
-              }
-              result = combine_module_uses(result, module_use_result(method, origin, method_target))
-            }
           }
         }
       }
@@ -624,7 +609,7 @@ pub pure resolve_module_expression_uses(
       }
     },
     CallExpr(name, arguments, types) => {
-      if !module_reserved_binding(name) {
+      if !module_reserved_binding(name) && !module_internal_primitive_name(identity, name) {
         resolved: Result[ResolvedModuleTarget, Str] = match resolve_module_path(
           graph,
           identity,

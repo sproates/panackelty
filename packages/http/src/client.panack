@@ -5,7 +5,6 @@ import project/types::{HttpError.ConnectFailure, HttpError.DnsFailure,
   HttpError.ProtocolError, HttpError.TlsFailure, HttpError.Timeout,
   HttpError.TransportFailure, HttpError.UnsupportedHost}
 import stdlib/bytes as byte_buffer
-import stdlib/text as text
 
 pub import project/types::{Header, HttpError, Response}
 

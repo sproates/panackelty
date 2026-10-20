@@ -1,1 +1,1 @@
-pure bad(callback: Fn[Nat,Nat]): Nat { callback.call(1) } main(): Void {}
+pure bad(callback: Fn[Nat,Nat]): Nat { intrinsic_call(callback, 1) } main(): Void {}

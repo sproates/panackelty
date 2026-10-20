@@ -18,11 +18,6 @@ impl TestWorkspace {
   }
 }
 
-// Compatibility forwarder for P11 callers; removed in P12.
-pub workspace_remove_empty(workspace: TestWorkspace): Result[Unit,HostError] {
-  workspace->remove_empty()
-}
-
 // Discover immediate directory children in fs_list's native-byte sorted order.
 // Symlinks are not followed. A filesystem error aborts discovery without a
 // partial result; fs_list guarantees child names are relative.

@@ -1,1 +1,1 @@
-pure bad(value: Nat): Nat { value.call() } main(): Void {}
+pure bad(value: Nat): Nat { intrinsic_call(value) } main(): Void {}

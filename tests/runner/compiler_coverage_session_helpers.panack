@@ -43,7 +43,7 @@ pub session_command_env(args: [Str], environment: [Str]): ProcessOutput {
   }
 }
 pub session_setup(source: Str, child: Str, artifact: Str, child_bc: Str, inventory: Str, child_inv: Str): [ProcessOutput] {
-  session_write(source, "import stdlib/result as std_result\nimport stdlib/host as std_host\nimport stdlib/filesystem as std_filesystem\nimport stdlib/path as std_path\nimport stdlib/bytes as byte_buffer\nmain(): Void { args = std_host.arguments(); std_host.run(std_filesystem.read(std_path.from_text(args[0])->value_or(std_path.current()), 16777216)->value_or(byte_buffer.empty()), [args[1]]); }\n"->encode_utf8())
+  session_write(source, "import stdlib/host as std_host\nimport stdlib/filesystem as std_filesystem\nimport stdlib/path as std_path\nimport stdlib/bytes as byte_buffer\nmain(): Void { args = std_host.arguments(); std_host.run(std_filesystem.read(std_path.from_text(args[0])->value_or(std_path.current()), 16777216)->value_or(byte_buffer.empty()), [args[1]]); }\n"->encode_utf8())
   session_write(child, "import stdlib/host as std_host\npure choose(x: Bool): Nat { if x { 7 } else { 9 } }\npure unused(): Nat { 0 }\nmain(): Void { std_host.stdout(if choose(std_host.arguments()[0] == \"true\") == 7 { \"7\" } else { \"9\" }); }\n"->encode_utf8())
   mut outputs: [ProcessOutput] = []
   outputs = outputs->append(session_command(["compile", source, "-o", artifact]))

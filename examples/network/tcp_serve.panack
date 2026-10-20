@@ -1,3 +1,4 @@
+import stdlib/tcp as transport_tcp
 // Development toolchain only. Start this server, then run tcp_exchange.panack.
 // Accept one request on 127.0.0.1:9000, echo it and close. Admission stops after
 // 10 seconds; an admitted client gets at most 2 seconds to finish.
@@ -14,7 +15,7 @@ pure expect(value: Bool): Unit {
 
 async main(): Unit {
   limits = TcpServerLimits(1, 1, 4096, 4096, 2000, 10000, 2000)
-  match await tcp_serve("127.0.0.1", 9000, @reply, limits) {
+  match await transport_tcp.serve("127.0.0.1", 9000, @reply, limits) {
     Ok(outcomes) => {
       expect(outcomes->len() == 1)
       match outcomes[0] { Ok(done) => (), Error(problem) => expect(false) }

@@ -1,3 +1,6 @@
-error: <case>/dependency.panack:2:9: unknown name missing
+error: <case>/dependency.panack:2:9: unknown local value missing
   2 |   print(missing)
     |         ^
+<case>/main.panack:4:3: module main.panack has no binding broken
+  4 |   broken()
+    |   ^

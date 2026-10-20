@@ -100,7 +100,7 @@ bytecode_native_legacy_tcp(target: Path, fixture: Str): TestResult {
 }
 main(): Void {
   match std_testing_files.workspace_create(bytecode_native_path("/tmp")) {
-    Error(problem) => { eprint("native bytecode workspace creation failed"); std_host.exit(1) },
+    Error(problem) => { std_host.stderr("native bytecode workspace creation failed"); std_host.exit(1) },
     Ok(workspace) => {
       mut results: [TestResult] = []
       target = workspace.root->join(bytecode_native_path("input.bc"))->value_or(workspace.root)

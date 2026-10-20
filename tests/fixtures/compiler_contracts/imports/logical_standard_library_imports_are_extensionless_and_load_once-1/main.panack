@@ -1,5 +1,5 @@
-import stdlib/option as std_option
-import "stdlib/option.panack" as quoted_option
+import stdlib/core as unquoted_core
+import "stdlib/core.panack" as quoted_core
 pure describe(value: Option[Nat]): Nat {
   match value { Some(number) => number, None() => 0 }
 }

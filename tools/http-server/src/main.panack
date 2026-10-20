@@ -1,7 +1,6 @@
 import static_http/service as service
 import stdlib/async_host as host
 import stdlib/path as path
-import stdlib/text as text
 
 pure port_number(value: Str): Result[Nat, Str] {
   input = value->encode_utf8()

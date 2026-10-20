@@ -1,14 +1,13 @@
+import project/tests/runner/compiler_backend_fixtures::{check_source_frontend, compile_source_disassembly}
 import stdlib/testing as std_testing
 import project/src/compiler/filesystem_support as filesystem_support
 import project/src/compiler/parser::{Program, indexed_program, ParsedModule, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, Expr.BoolExpr, RecordField, EnumVariant, FunctionParameter, Block, BlockValue.NoBlockValue}
 import project/src/compiler/resolver::{collect_symbol_diagnostics, append_program_declarations}
 import project/src/compiler/checker::{GuardedTypeLookup, RecordLookup, EnumLookup, FunctionLookup, VariantLookup, guarded_type, record_type, enum_type, function_type, variant_type}
-import project/src/compiler/purity::{check_source_frontend}
 import project/src/compiler/module_bodies::{BodyContext, body_compatibility}
 import project/src/compiler/module_bindings::{ModulePackageIdentity.StandaloneModulePackage, ModuleIdentity, DeclarationIdentity, ModuleBindings, LoadedModule, loaded_module_declaration_index}
 import project/src/compiler/module_resolution::{ModuleBindingGraph}
 import project/src/compiler/module_signatures::{SignatureType, SignatureTypeIdentity.SignatureCore, SignatureTypeIdentity.SignatureNominal, SignatureTypeIdentity.SignatureHole, SignatureTypeIdentity.SignatureCallable, SignatureEffect.SignaturePure, SignatureEffect.SignatureOrdinary, SignatureEffect.SignatureAsync}
-import project/src/compiler/emitter::{compile_source_disassembly}
 import project/src/compiler/expression_contracts::{decode_string_literal}
 import project/src/compiler/diagnostics::{diagnostic_character, diagnostic_with_source}
 import project/src/compiler/types::{SourcePos, Diagnostic}
@@ -349,9 +348,9 @@ main(): Void {
   results = results->append(contract_check("syntax/legacy_let_and_missing_unit_return_are_rejected-3", "!ok"))
   results = results->append(contract_check("syntax/method_call_receiver_is_checked_as_argument_one-1", "argument 1 to starts_with is Nat, expected Str"))
   results = results->append(contract_check("syntax/non_void_function_requires_a_result-1", "returns Void, expected Nat"))
-  results = results->append(contract_check("syntax/parenthesized_dot_name_is_a_method_not_a_record_field_call-1", "unknown function value"))
+  results = results->append(contract_check("syntax/parenthesized_dot_name_is_a_method_not_a_record_field_call-1", "unresolved dot call requires module binding resolution"))
   results = results->append(contract_check("syntax/same_line_statements_still_require_a_separator-1", "expected line break, semicolon, or closing brace after binding"))
-  results = results->append(contract_check("syntax/short_collection_methods_are_type_directed-1", "has expects a Map or Set, got Array[Nat]"))
+  results = results->append(contract_check("syntax/short_collection_methods_are_type_directed-1", "map_has expects a Map, got Array[Nat]"))
   results = results->append(contract_check("syntax/short_collection_methods_are_type_directed-2", "get expects a Map, got Set[$T]"))
   results = results->append(contract_check("syntax/short_collection_methods_are_type_directed-3", "add expects a Set, got Map[$K,$V]"))
   results = results->append(contract_check("syntax/trailing_semicolon_discards_a_block_value-1", "returns Void, expected Nat"))

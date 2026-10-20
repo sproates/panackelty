@@ -85,9 +85,7 @@ main(): Void {
       denied_name = denied_file->to_text()->value_or("invalid-denied")
       mut results: [TestResult] = []
       support_module = child(workspace.root, "filesystem_support.panack")
-      support_source = "pub read_text(path: Str): Str { read_file(path) }\n" +
-        "pub read_file_bytes(path: Str): Bytes { read_bytes(path) }\n" +
-        "pub write_file_bytes(path: Str, data: Bytes): Void { write_bytes(path, data) }\n"
+      support_source = "pub import stdlib/compiler_files::{read_text, read_file_bytes, write_file_bytes}\n"
       match std_filesystem.write(support_module, support_source->encode_utf8()) {
         Error(error) => { results = results->append(std_testing.expect("support fixture", false,
           "support module write failed")) },
@@ -106,7 +104,7 @@ main(): Void {
       }
 
       program = "import stdlib/bytes as byte_buffer\n" +
-        "import stdlib/text as std_text\n" +
+        "" +
         "import \"filesystem_support.panack\" as filesystem_support\n" +
         "main(): Void { filesystem_support.write_file_bytes(\"${text_name}\", \"λ-data\"->encode_utf8()); " +
         "print(filesystem_support.read_text(\"${text_name}\")); mut data: Bytes = byte_buffer.empty(); " +
@@ -149,7 +147,7 @@ main(): Void {
         Ok(value4) => {}
       }
       source_imports = "import \"filesystem_support.panack\" as filesystem_support\n" +
-        "import stdlib/text as std_text\n"
+        ""
       failures = [
         source_imports + "main(): Void { print(filesystem_support.read_text(\"${missing_text_name}\")); }",
         source_imports + "main(): Void { print(filesystem_support.read_file_bytes(\"${missing_binary_name}\")); }",

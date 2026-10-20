@@ -4,7 +4,6 @@ import project/types::{Header, HttpError, HttpError.InvalidResponse, HttpError.L
   HttpError.InvalidLimits, HttpError.ProtocolError, HttpError.UnsupportedMethod, HttpError.UnsupportedTransferEncoding,
   HttpError.UnsupportedVersion, Request, Response}
 import stdlib/bytes as byte_buffer
-import stdlib/text as text
 
 pure expect(value: Bool): Unit {
   checked = [0][if value { 0 } else { 1 }]

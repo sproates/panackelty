@@ -54,7 +54,7 @@ main(): Void {
     results = results->append(std_testing.equal_str("map missing function/" + file, source_map_location(project, mapped, "unknown", "unknown", 0, root, stdlib), "source-map: unavailable"))
     results = results->append(std_testing.equal_str("map invalid PC/" + file, source_map_location(project, mapped, "main", "main", 4294967295, root, stdlib), "source-map: unavailable"))
     if file->ends_with("generic.panack") {
-      results = results->append(std_testing.equal_str("map Unicode codepoint coordinates", source_map_location(project, mapped, "pick_generic", "pick_generic", 2, root, stdlib), "source-map: expression\nfunction: pick_generic\ninstruction: 2\nfile: project/generic.panack\nrange: 134..146\nstart: 3:3\nend: 3:15\nexpression: items[index]"))
+      results = results->append(std_testing.equal_str("map Unicode codepoint coordinates", source_map_location(project, mapped, "$module1_pick_generic", "pick_generic", 2, root, stdlib), "source-map: expression\nfunction: pick_generic\ninstruction: 2\nfile: project/generic.panack\nrange: 134..146\nstart: 3:3\nend: 3:15\nexpression: items[index]"))
     }
   }
   results = results->append(std_testing.expect("map balanced empty chunks", source_map_join([], 0, 0) == byte_buffer.empty(), "empty join differs"))

@@ -1,6 +1,5 @@
 import stdlib/bytes as buffer
 import stdlib/path as path
-import stdlib/text as text
 
 pub record Target {
   relative: Str,

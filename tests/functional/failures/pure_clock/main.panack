@@ -1,5 +1,6 @@
+import stdlib/time as time
 import stdlib/time::{ClockError}
 pure now(): Result[Instant,ClockError] {
-  instant_now()
+  time.now()
 }
 main(): Void {}

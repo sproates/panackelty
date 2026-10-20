@@ -1,2 +1,2 @@
-import "library.panack"
-main(): Void { value: Nat = broken[Nat]([7]); }
+import "library.panack" as library
+main(): Void { value: Nat = library.broken[Nat]([7]); }

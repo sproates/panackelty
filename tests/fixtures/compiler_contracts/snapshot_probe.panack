@@ -1,4 +1,3 @@
-import stdlib/text as std_text
 import project/src/compiler/filesystem_support as filesystem_support
 import project/src/compiler/loader::{LoadedProject, load_project}
 import project/src/compiler/diagnostics::{diagnostic_with_source}
@@ -15,7 +14,7 @@ main(): Void {
     std_testing.equal_str("snapshot file changed", filesystem_support.read_text(filename), "main(): Void {}"),
     std_testing.equal_str("loader retains original diagnostic source",
       diagnostic_with_source(loaded.diagnostics[0], loaded.sources) + "\n",
-      "${filename}:1:22: unknown name missing\n  1 | main(): Void { print(missing) }\n    |                      ^\n")
+      "${filename}:1:22: unknown local value missing\n  1 | main(): Void { print(missing) }\n    |                      ^\n")
   ]
   if std_testing.report(results) > 0 { std_host.exit(1) }
 }

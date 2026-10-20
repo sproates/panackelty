@@ -1,7 +1,7 @@
 pub import project/src/compiler/owned_intrinsics::{OwnedIntrinsic}
 import project/src/compiler/owned_intrinsics::{owned_intrinsic_declarations}
 pub import project/src/compiler/parser::{Program, ParsedModule, ImportSelector, ImportBindingSyntax, DeclarationSyntax, SourceSpan, SourcePos, Diagnostic, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, ImportBindingSyntax.NoImportBinding, ImportBindingSyntax.NamespaceImportBinding, ImportBindingSyntax.SelectiveImportBinding}
-import project/src/compiler/resolver::{is_builtin}
+import project/src/compiler/resolver::{source_builtin}
 
 // Collect declaration and import identities without lowering them to global names.
 // Source spelling, visibility and semantic identity remain separate.
@@ -205,7 +205,7 @@ pub pure collect_module_bindings(identity: ModuleIdentity, parsed: ParsedModule)
 }
 
 pub pure module_reserved_binding(name: Str): Bool {
-  is_builtin(name) || name == "Nat" || name == "Int" || name == "Dec" ||
+  source_builtin(name) || name == "Nat" || name == "Int" || name == "Dec" ||
     name == "Rat" ||
     name == "Array" ||
     name == "Bool" ||
@@ -385,4 +385,98 @@ pub pure module_declaration_display(binding: ModuleDeclarationBinding): Str {
     None() => binding.identity.name,
     Some(method) => method_owner_name(method.owner) + "->" + method.name
   }
+}
+
+// Closed grants for implementation calls inside designated toolchain declarations.
+// A matching source filename in an application never grants primitive access.
+pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool {
+  owner.module.package == ToolchainModulePackage() && (
+    (owner.module.path == "async_host.panack" && owner.name == "arguments" && (name == "host_arguments_async")) ||
+    (owner.module.path == "async_host.panack" && owner.name == "stdout" && (name == "host_stdout_async")) ||
+    (owner.module.path == "async_host.panack" && owner.name == "stderr" && (name == "host_stderr_async")) ||
+    (owner.module.path == "async_host.panack" && owner.name == "exit" && (name == "host_exit_async")) ||
+    (owner.module.path == "time.panack" && owner.name == "from_nanoseconds" && (name == "duration_nanoseconds")) ||
+    (owner.module.path == "time.panack" && owner.name == "from_seconds" && (name == "duration_from_seconds")) ||
+    (owner.module.path == "time.panack" && owner.name == "now" && (name == "instant_now")) ||
+    (owner.module.path == "time.panack" && owner.name == "seconds" && (name == "duration_nanoseconds")) ||
+    (owner.module.path == "time.panack" && owner.name == "milliseconds" && (name == "duration_nanoseconds")) ||
+    (owner.module.path == "process.panack" && owner.name == "run" && (name == "process_run")) ||
+    (owner.module.path == "http_transport.panack" && owner.name == "exchange" && (name == "http_transport_exchange")) ||
+    (owner.module.path == "async_filesystem.panack" && owner.name == "read_beneath" && (name == "fs_read_beneath_async")) ||
+    (owner.module.path == "async_filesystem.panack" && owner.name == "root_identity" && (name == "fs_root_identity_async")) ||
+    (owner.module.path == "environment.panack" && owner.name == "get" && (name == "environment_get" || name == "environment_has")) ||
+    (owner.module.path == "testing_files.panack" && owner.name == "workspace_create" && (name == "fs_temp_directory")) ||
+    (owner.module.path == "testing_files.panack" && owner.name == "$owned$TestWorkspace$remove_empty" && (name == "fs_remove_directory")) ||
+    (owner.module.path == "testing_files.panack" && owner.name == "discover_fixtures" && (name == "fs_list" || name == "fs_metadata")) ||
+    (owner.module.path == "host.panack" && owner.name == "run" && (name == "run_bytecode_args")) ||
+    (owner.module.path == "host.panack" && owner.name == "arguments" && (name == "command_args")) ||
+    (owner.module.path == "host.panack" && owner.name == "exit" && (name == "process_exit")) ||
+    (owner.module.path == "host.panack" && owner.name == "stderr" && (name == "eprint")) ||
+    (owner.module.path == "host.panack" && owner.name == "sleep" && (name == "host_sleep")) ||
+    (owner.module.path == "host.panack" && owner.name == "decode_utf8" && (name == "host_decode_utf8")) ||
+    (owner.module.path == "tcp.panack" && owner.name == "exchange" && (name == "tcp_exchange")) ||
+    (owner.module.path == "tcp.panack" && owner.name == "serve" && (name == "tcp_serve")) ||
+    (owner.module.path == "tcp.panack" && owner.name == "serve_stream" && (name == "tcp_serve_stream")) ||
+    (owner.module.path == "tcp.panack" && owner.name == "read_chunk" && (name == "tcp_server_read_chunk")) ||
+    (owner.module.path == "path.panack" && owner.name == "from_text" && (name == "path_from_text")) ||
+    (owner.module.path == "path.panack" && owner.name == "from_native" && (name == "path_from_native")) ||
+    (owner.module.path == "path.panack" && owner.name == "current" && (name == "path_current")) ||
+    (owner.module.path == "testing_async.panack" && owner.name == "read" && (name == "async_fake_read")) ||
+    (owner.module.path == "filesystem.panack" && owner.name == "metadata" && (name == "fs_metadata")) ||
+    (owner.module.path == "filesystem.panack" && owner.name == "read" && (name == "fs_read")) ||
+    (owner.module.path == "filesystem.panack" && owner.name == "write" && (name == "fs_write")) ||
+    (owner.module.path == "filesystem.panack" && owner.name == "list_directory" && (name == "fs_list")) ||
+    (owner.module.path == "filesystem.panack" && owner.name == "remove_file" && (name == "fs_remove_file")) ||
+    (owner.module.path == "filesystem.panack" && owner.name == "remove_directory" && (name == "fs_remove_directory")) ||
+    (owner.module.path == "filesystem.panack" && owner.name == "create_directory" && (name == "fs_create_directory")) ||
+    (owner.module.path == "filesystem.panack" && owner.name == "temp_directory" && (name == "fs_temp_directory")) ||
+    (owner.module.path == "filesystem.panack" && owner.name == "temp_file" && (name == "fs_temp_file")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Path$join" && (name == "path_append")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Path$to_text" && (name == "path_to_text")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Path$native_bytes" && (name == "path_native_bytes")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Path$display" && (name == "path_display")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Path$is_absolute" && (name == "path_absolute")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Path$directory" && (name == "path_directory")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Path$filename" && (name == "path_filename")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Duration$add" && (name == "duration_nanoseconds")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Duration$subtract" && (name == "duration_nanoseconds")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Duration$scale" && (name == "duration_nanoseconds")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Duration$divide" && (name == "duration_from_seconds" || name == "duration_nanoseconds")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Duration$ratio" && (name == "duration_nanoseconds")) ||
+    (owner.module.path == "compiler_paths.panack" && owner.name == "join" && (name == "path_join")) ||
+    (owner.module.path == "compiler_paths.panack" && owner.name == "suffix" && (name == "path_suffix")) ||
+    (owner.module.path == "compiler_paths.panack" && owner.name == "parent" && (name == "path_parent")) ||
+    (owner.module.path == "compiler_paths.panack" && owner.name == "is_absolute" && (name == "path_is_absolute")) ||
+    (owner.module.path == "compiler_paths.panack" && owner.name == "with_suffix" && (name == "path_with_suffix")) ||
+    (owner.module.path == "compiler_paths.panack" && owner.name == "resolve" && (name == "path_resolve")) ||
+    (owner.module.path == "package_filesystem.panack" && owner.name == "directories_overlap" && (name == "fs_directories_overlap")) ||
+    (owner.module.path == "package_filesystem.panack" && owner.name == "read_beneath" && (name == "fs_read_beneath")) ||
+    (owner.module.path == "tcp_service.panack" && owner.name == "serve" && (name == "tcp_service")) ||
+    (owner.module.path == "compiler_files.panack" && owner.name == "read_text" && (name == "read_file")) ||
+    (owner.module.path == "compiler_files.panack" && owner.name == "exists" && (name == "file_exists")) ||
+    (owner.module.path == "compiler_files.panack" && owner.name == "read_file_bytes" && (name == "read_bytes")) ||
+    (owner.module.path == "compiler_files.panack" && owner.name == "write_file_bytes" && (name == "write_bytes"))
+  )
+}
+
+pub pure module_internal_primitive_name(identity: ModuleIdentity, name: Str): Bool {
+  identity.package == ToolchainModulePackage() && (
+    (identity.path == "async_host.panack" && (name == "host_arguments_async" || name == "host_exit_async" || name == "host_stderr_async" || name == "host_stdout_async")) ||
+    (identity.path == "time.panack" && (name == "duration_from_seconds" || name == "duration_nanoseconds" || name == "instant_now")) ||
+    (identity.path == "process.panack" && (name == "process_run")) ||
+    (identity.path == "http_transport.panack" && (name == "http_transport_exchange")) ||
+    (identity.path == "async_filesystem.panack" && (name == "fs_read_beneath_async" || name == "fs_root_identity_async")) ||
+    (identity.path == "environment.panack" && (name == "environment_get" || name == "environment_has")) ||
+    (identity.path == "testing_files.panack" && (name == "fs_list" || name == "fs_metadata" || name == "fs_remove_directory" || name == "fs_temp_directory")) ||
+    (identity.path == "host.panack" && (name == "command_args" || name == "eprint" || name == "host_decode_utf8" || name == "host_sleep" || name == "process_exit" || name == "run_bytecode_args")) ||
+    (identity.path == "tcp.panack" && (name == "tcp_exchange" || name == "tcp_serve" || name == "tcp_serve_stream" || name == "tcp_server_read_chunk")) ||
+    (identity.path == "path.panack" && (name == "path_current" || name == "path_from_native" || name == "path_from_text")) ||
+    (identity.path == "testing_async.panack" && (name == "async_fake_read")) ||
+    (identity.path == "filesystem.panack" && (name == "fs_create_directory" || name == "fs_list" || name == "fs_metadata" || name == "fs_read" || name == "fs_remove_directory" || name == "fs_remove_file" || name == "fs_temp_directory" || name == "fs_temp_file" || name == "fs_write")) ||
+    (identity.path == "core.panack" && (name == "duration_from_seconds" || name == "duration_nanoseconds" || name == "path_absolute" || name == "path_append" || name == "path_directory" || name == "path_display" || name == "path_filename" || name == "path_native_bytes" || name == "path_to_text")) ||
+    (identity.path == "compiler_paths.panack" && (name == "path_is_absolute" || name == "path_join" || name == "path_parent" || name == "path_resolve" || name == "path_suffix" || name == "path_with_suffix")) ||
+    (identity.path == "package_filesystem.panack" && (name == "fs_directories_overlap" || name == "fs_read_beneath")) ||
+    (identity.path == "tcp_service.panack" && (name == "tcp_service")) ||
+    (identity.path == "compiler_files.panack" && (name == "file_exists" || name == "read_bytes" || name == "read_file" || name == "write_bytes"))
+  )
 }

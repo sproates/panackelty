@@ -1,1 +1,1 @@
-pure f[T](x: T): T { x.len() } main(): Void {}
+pure f[T](x: T): T { len(x) } main(): Void {}

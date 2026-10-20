@@ -1295,3 +1295,18 @@ point; native oracle goldens remain unchanged. Legacy frontend and exact-diagnos
 inputs remain explicitly listed in the
 [P11 test boundary](../docs/design/type-owned-dispatch/p11-legacy-test-boundary.md)
 for P12 replacement, preserving coverage while compatibility is still supported.
+
+## GI#525 P12 legacy removal
+
+`tests/owned_dispatch_removal.sh` checks removed global primitives and all P10
+compatibility exports, rejection of receiver-dot/global fallback, namespace
+collisions, toolchain grant spoofing and legitimate user functions with former
+primitive names. Owned Map/Str programs run as source and saved bytecode.
+The parser preserves raw namespace dots; internal checker/emitter fixtures use
+explicit operations through `compiler_backend_fixtures`, without source sugar.
+The binding suite additionally checks mutation-sensitive Nat proofs in argument
+order, conditions and loops, including fresh proofs after mutation. Public CLI
+explanations cover Bool/pure guards, duplicate fields, retained child diagnostics
+and arithmetic/effect evidence from checked bodies. Earlier packet sections
+record their historical acceptance boundaries; P12 supersedes compatibility
+coverage with the owned boundary and explicit old-syntax rejection.

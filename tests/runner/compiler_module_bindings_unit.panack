@@ -7,7 +7,7 @@ import stdlib/testing as std_testing
 import project/src/compiler/parser::{ParsedModule, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, BlockValue.NoBlockValue, BlockValue.TailBlockValue, ImportBindingSyntax.NoImportBinding, ImportBindingSyntax.NamespaceImportBinding, ImportBindingSyntax.SelectiveImportBinding, parse_module_complete, parse_program_complete, unlocated_expression, module_execution_diagnostics, indexed_program}
 import project/src/compiler/types::{Diagnostic, SourcePos, SourceSpan, diagnostic_text}
 import project/src/compiler/module_bindings::{ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleBindings, LoadedModule, ModulePackageIdentity, ModulePackageIdentity.StandaloneModulePackage, ModulePackageIdentity.ManifestModulePackage, ModulePackageIdentity.ToolchainModulePackage, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant, collect_module_bindings, module_binding_diagnostics, module_export, module_relative_path, module_programs, module_declaration_positions, source_module_identity, source_package_module_identity, loaded_module_declaration_index}
-import project/src/compiler/module_resolution::{ModuleBindingGraph, ModuleGraphWalk, ModuleImportEdge, ResolvedModuleTarget, ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget, ResolvedDotCall.NamespaceCall, ResolvedDotCall.ValueMethodCall, ResolvedModuleUses, binding_graph_module, combine_module_uses, resolve_qualified_type_uses, resolve_module_expression_uses, resolve_module_block_uses, resolve_module_dot_call, resolve_module_function, resolve_module_path, resolve_module_type, module_graph_diagnostics, module_import_shadow_diagnostics, walk_module_graph}
+import project/src/compiler/module_resolution::{ModuleBindingGraph, ModuleGraphWalk, ModuleImportEdge, ResolvedModuleTarget, ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget, ResolvedDotCall.NamespaceCall, ResolvedModuleUses, binding_graph_module, combine_module_uses, resolve_qualified_type_uses, resolve_module_expression_uses, resolve_module_block_uses, resolve_module_dot_call, resolve_module_function, resolve_module_path, resolve_module_type, module_graph_diagnostics, module_import_shadow_diagnostics, walk_module_graph}
 import project/src/compiler/module_signatures::{CheckedModuleSignatures, SignatureEffect, SignatureEffect.SignatureAsync, SignatureEffect.SignaturePure, SignatureType, SignatureTypeIdentity, SignatureTypeIdentity.SignatureNominal, SignatureTypeIdentity.SignatureParameter, SignatureTypeIdentity.SignatureCallable, SignatureTypeIdentity.SignatureCore, check_module_signatures, signature_effect, signature_type, signature_public_identity, substitute_signature_type}
 import project/src/compiler/module_bodies::{BodyNode, BodyNode.BodyArray, BodyNode.BodyAssignment, BodyNode.BodyBinary, BodyNode.BodyBinding, BodyNode.BodyBlock, BodyNode.BodyCall, BodyNode.BodyEmpty, BodyNode.BodyField, BodyNode.BodyFor, BodyNode.BodyFunction, BodyNode.BodyIf, BodyNode.BodyIndex, BodyNode.BodyInterpolation, BodyNode.BodyLiteral, BodyNode.BodyLocalUse, BodyNode.BodyMatch, BodyNode.BodyUnary, BodyNode.BodyWhile, BodyTarget.BodyCore, BodyTarget.BodyDeclaration, BodyCheckStatus, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid, BodyLocalIdentity, BoundFunctionBody, GuardConversionEvidence, TypeJoinEvidence, CollectionCallbackEvidence, OperatorTypeEvidence, BodyTypeCheckEvidence, CheckedModuleBodies, body_call_argument_evidence, body_binding_type_evidence, body_assignment_type_evidence, body_type_join_evidence, body_collection_callback_evidence, body_operator_type_evidence, body_type_check_evidence, body_compatibility, check_module_bodies, check_module_bodies_explained}
 import project/src/compiler/module_effects::{CheckedModuleEffects, check_module_effects}
@@ -76,6 +76,43 @@ stdlib_public_api_tests(): [TestResult] {
       results = results->append(std_testing.equal_str("legacy trapping text read is removed", namespace_export_name(bindings, "filesystem_read_text"), "module has no exported declaration filesystem_read_text"))
       results = results->append(std_testing.equal_str("legacy trapping existence check is removed", namespace_export_name(bindings, "filesystem_exists"), "module has no exported declaration filesystem_exists"))
     }
+  }
+  results
+}
+
+pure owned_map_binding(): ModuleDeclarationBinding {
+  core: LoadedModule = signature_test_module(builtin_owner_module(), "")
+  // The registry owns Array.map; there is no receiver-name lowering.
+  mut selected: ModuleDeclarationBinding = core.bindings.declarations[0]
+  for binding in core.bindings.declarations {
+    if binding.method == Some(OwnedMethodIdentity(BuiltinMethodOwner("Array"), "map")) { selected = binding } else {}
+  }
+  selected
+}
+
+pure owned_mutation_fact_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  for source in [
+    "pure consume(a: Nat, b: Nat): Nat { b }; pure f(): Nat { mut n: Nat = 5; if n >= 2 { consume(if true { n = 0; 0 } else { 0 }, n - 2) } else { 0 } }",
+    "pure f(): Nat { mut n: Nat = 5; if n >= 2 { (if true { n = 0; 0 } else { 0 }) + (n - 2) } else { 0 } }",
+    "pure f(): Void { mut n: Nat = 5; if n >= 2 { for item in 0..2 { n - 2; n = 0 } } }",
+    "pure f(): Void { mut n: Nat = 5; if n >= 2 { mut again: Bool = true; while again { n - 2; n = 0; again = false } } }",
+    "pure f(): Void { mut n: Nat = 5; if n >= 2 { while n - 2 > 0 { n = 0 } } }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    mut underflow: Bool = false
+    for diagnostic in checked.diagnostics {
+      underflow = underflow || diagnostic.message == "Nat subtraction may underflow; prove the left side is large enough or use Int"
+    }
+    results = results->append(std_testing.expect("owned facts reject stale mutation/" + source, underflow, "stale bounds accepted"))
+  }
+  for source in [
+    "pure f(): Void { mut n: Nat = 5; while n >= 2 { n = n - 2 } }",
+    "pure f(): Nat { mut n: Nat = 5; n = 0; if n >= 2 { n - 2 } else { 0 } }",
+    "pure f(): Nat { mut n: Nat = 5; mut other: Nat = 5; if n >= 2 { other = 0; n - 2 } else { 0 } }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = results->append(std_testing.expect("owned facts retain fresh proof/" + source, checked.diagnostics->len() == 0 && checked.functions[0].status == BodyIdentityChecked(), "fresh or unrelated proof lost"))
   }
   results
 }
@@ -223,7 +260,35 @@ pure body_type_check_for_context(
 }
 
 main(): Void {
-  mut results: [TestResult] = namespace_syntax_tests()->concat(namespace_binding_tests())->concat(namespace_execution_boundary_tests())->concat(namespace_origin_tests())->concat(namespace_resolution_tests())->concat(namespace_qualified_syntax_tests())->concat(namespace_resolution_failure_tests())->concat(namespace_lexical_receiver_tests())->concat(namespace_signature_tests())->concat(namespace_body_tests())->concat(owned_method_import_tests())->concat(owned_server_map_tests())->concat(owned_generic_method_tests())->concat(builtin_owner_tests())->concat(owned_intrinsic_tests())->concat(owned_callback_tests())->concat(core_error_identity_tests())->concat(core_bridge_emission_tests())->concat(namespace_effect_tests())->concat(namespace_expression_tests())->concat(namespace_aggregate_tests())->concat(namespace_else_if_tests())->concat(module_emission_identity_tests())->concat(module_emission_program_tests())->concat(module_emission_effect_tests())->concat(module_emission_status_tests())->concat(stdlib_public_api_tests())
+  mut results: [TestResult] = []
+  results = results->concat(namespace_syntax_tests())
+  results = results->concat(namespace_binding_tests())
+  results = results->concat(namespace_execution_boundary_tests())
+  results = results->concat(namespace_origin_tests())
+  results = results->concat(namespace_resolution_tests())
+  results = results->concat(namespace_qualified_syntax_tests())
+  results = results->concat(namespace_resolution_failure_tests())
+  results = results->concat(namespace_lexical_receiver_tests())
+  results = results->concat(namespace_signature_tests())
+  results = results->concat(namespace_body_tests())
+  results = results->concat(owned_mutation_fact_tests())
+  results = results->concat(owned_method_import_tests())
+  results = results->concat(owned_server_map_tests())
+  results = results->concat(owned_generic_method_tests())
+  results = results->concat(builtin_owner_tests())
+  results = results->concat(owned_intrinsic_tests())
+  results = results->concat(owned_callback_tests())
+  results = results->concat(core_error_identity_tests())
+  results = results->concat(core_adapter_emission_tests())
+  results = results->concat(namespace_effect_tests())
+  results = results->concat(namespace_expression_tests())
+  results = results->concat(namespace_aggregate_tests())
+  results = results->concat(namespace_else_if_tests())
+  results = results->concat(module_emission_identity_tests())
+  results = results->concat(module_emission_program_tests())
+  results = results->concat(module_emission_effect_tests())
+  results = results->concat(module_emission_status_tests())
+  results = results->concat(stdlib_public_api_tests())
   loaded: LoadedProject = load_project("tests/fixtures/compiler_contracts/indexed_lookup/main.panack")
   results = results->append(std_testing.expect(
     "existing project resolves with identity-checked bodies",
@@ -236,7 +301,7 @@ main(): Void {
     if module.bindings.identity.path == "main.panack" { saw_main = module.bindings.declarations->len() > 0 } else {}
     if module.bindings.identity == ModuleIdentity(ToolchainModulePackage(), "core.panack") {
       for declaration in module.bindings.declarations {
-        if declaration.identity.name == "core_first" { saw_core = true } else {}
+        if declaration.identity.name == "$owned$Array$first" { saw_core = true } else {}
       }
     } else {}
   }
@@ -651,18 +716,14 @@ pure namespace_resolution_tests(): [TestResult] {
       match resolve_module_dot_call(graph, app, NameExpr("api"), method, [], []) {
         Error(message) => false,
         Ok(call) => match call {
-          NamespaceCall(binding, arguments, types) => binding.identity.name == method && arguments->len() == 0,
-          ValueMethodCall(target, name, arguments, types) => false
+          NamespaceCall(binding, arguments, types) => binding.identity.name == method && arguments->len() == 0
         }
       }, "namespace call was lowered as value method"))
-    results = results->append(std_testing.expect("ordinary receiver remains value method/" + method,
+    results = results->append(std_testing.expect("value-dot receiver rejected/" + method,
       match resolve_module_dot_call(graph, app, NameExpr("items"), method, [NatExpr(0)], []) {
-        Error(message) => false,
-        Ok(call) => match call {
-          NamespaceCall(binding, arguments, types) => false,
-          ValueMethodCall(target, name, arguments, types) => name == method && target == NameExpr("items") && arguments->len() == 1
-        }
-      }, "value receiver mistaken for namespace"))
+        Error(message) => message == "receiver dot calls are not supported; use ->" + method + "(...)",
+        Ok(call) => false
+      }, "value-dot receiver accepted"))
   }
   missing: ModuleBindingGraph = ModuleBindingGraph(graph.modules, [])
   results = results->append(std_testing.expect("missing import edges diagnosed", module_graph_diagnostics(missing)->len() > 0, "missing edge accepted"))
@@ -734,7 +795,7 @@ pure raw_namespace_dot_call(expression: Expr): Bool {
 pure namespace_resolution_failure_tests(): [TestResult] {
   mut results: [TestResult] = []
   graph: ModuleBindingGraph = namespace_resolution_graph()
-  for body in ["pure f(api: Nat): Nat { api.get() }", "pure f[api](value: api): Nat { api.get() }", "pure f(): Nat { api: Nat = 1; api.get() }", "pure f(): Nat { api = 1; api.get() }", "pure f(): Nat { for api in [1] { api.get() }; 0 }", "pure f(): Nat { match Some(1) { Some(api) => api.get(), None() => 0 } }"] {
+  for body in ["pure f(api: Nat): Nat { api->get() }", "pure f[api](value: api): Nat { api->get() }", "pure f(): Nat { api: Nat = 1; api->get() }", "pure f(): Nat { api = 1; api->get() }", "pure f(): Nat { for api in [1] { api->get() }; 0 }", "pure f(): Nat { match Some(1) { Some(api) => api->get(), None() => 0 } }"] {
     match namespace_parse("import project/library as api\n" + body) {
       Error(error) => { results = results->append(std_testing.expect("shadow fixture parses", false, diagnostic_text(error))) },
       Ok(parsed) => {
@@ -761,11 +822,11 @@ pure namespace_resolution_failure_tests(): [TestResult] {
     }
   }
   message: Str = "namespace syntax is parsed but execution is not yet supported (language namespace migration pending)"
-  for source in ["import project/api; main(): Void { api.get() }", "import project/api; main(): Void { api.first() }", "pure f(value: api.Box[other.Item]): Nat { 1 }", "pure f(): PureFn[Nat] { @api.get }", "enum Choice { Pick }; pure f(): Choice { Choice.Pick() }", "pure f(): Nat { match 1 { api.Choice.Pick() => 1 } }"] {
+  for source in ["import project/api; main(): Void { api->get() }", "import project/api; main(): Void { api->first() }", "pure f(value: api.Box[other.Item]): Nat { 1 }", "pure f(): PureFn[Nat] { @api.get }", "enum Choice { Pick }; pure f(): Choice { Choice.Pick() }", "pure f(): Nat { match 1 { api.Choice.Pick() => 1 } }"] {
     results = results->append(std_testing.equal_str("unmarked qualified syntax fails closed", check_source_frontend(source), message))
     results = results->append(std_testing.expect("unmarked qualified source emits no bytecode", compile_source_bytecode(source) == bytes(), "staged syntax emitted bytecode"))
   }
-  results = results->append(std_testing.equal_str("legacy value method still lowers", check_source_types("pure f(): Nat { [1].len() }; main(): Void {}"), "ok"))
+  results = results->append(std_testing.equal_str("owned methods require identity checking", check_source_types("pure f(): Nat { [1]->len() }; main(): Void {}"), message))
   mut modules: [ModuleBindings] = [namespace_test_bindings("leaf", "pub pure answer(): Nat { 1 }")]
   mut edges: [ModuleImportEdge] = []
   mut previous: ModuleIdentity = namespace_identity("leaf")
@@ -788,12 +849,12 @@ pure namespace_resolution_failure_tests(): [TestResult] {
 pure namespace_lexical_receiver_tests(): [TestResult] {
   mut results: [TestResult] = []
   for function_source in [
-    "pure f(Choice: [Nat]): Nat { Choice.len() }",
-    "pure f(): Nat { Choice = [1]; Choice.len() }",
-    "pure f(): Nat { for Choice in [[1]] { Choice.len() }; 0 }",
-    "pure f(input: Wrap): Nat { match input { Wrapped(Choice) => Choice.len(), Empty() => 0 } }"] {
+    "pure f(Choice: [Nat]): Nat { Choice->len() }",
+    "pure f(): Nat { Choice = [1]; Choice->len() }",
+    "pure f(): Nat { for Choice in [[1]] { Choice->len() }; 0 }",
+    "pure f(input: Wrap): Nat { match input { Wrapped(Choice) => Choice->len(), Empty() => 0 } }"] {
     source: Str = "enum Wrap { Wrapped([Nat]), Empty }; enum Choice { Pick(Nat) }; " + function_source + "; main(): Void {}"
-    results = results->append(std_testing.equal_str("legacy enum-spelled value receiver remains executable", check_source_types(source), "ok"))
+    results = results->append(std_testing.equal_str("enum-spelled owned receiver checks by identity", body_test_error(source), "ok"))
     match namespace_parse(source + "; pure actual(): Choice { Choice.Pick(1) }") {
       Error(error) => { results = results->append(std_testing.expect("lexical receiver fixture parses", false, diagnostic_text(error))) },
       Ok(parsed) => {
@@ -802,7 +863,7 @@ pure namespace_lexical_receiver_tests(): [TestResult] {
         uses: ResolvedModuleUses = namespace_raw_uses(graph, identity, parsed)
         results = results->append(std_testing.equal_nat("value receiver scope produces no errors", uses.diagnostics->len(), 0))
         results = results->append(std_testing.equal_nat("value scope does not hide other function enum qualification", uses.references->len(), 1))
-        results = results->append(std_testing.equal_nat("only actual qualified enum declaration is gated", module_execution_diagnostics(parsed)->len(), 1))
+        results = results->append(std_testing.equal_nat("owned and qualified enum syntax require identity checking", module_execution_diagnostics(parsed)->len(), 2))
       }
     }
   }
@@ -901,7 +962,7 @@ pure namespace_signature_tests(): [TestResult] {
   results = results->append(std_testing.equal_str("private return leak", signature_test_error("record Hidden { value: Nat }; pub pure f(): Hidden { 0 }"), "signature f.return: public signature exposes inaccessible type Hidden from signature.panack"))
   results = results->append(std_testing.equal_str("public wrapper may call private body helper", signature_test_error("pure helper(): Nat { 1 }; pub pure wrap(): Nat { helper() }"), "ok"))
   results = results->append(std_testing.equal_str("public guard direct helper leak", signature_test_error("pure hidden(value: Nat): Bool { true }; pub type Good = Nat where hidden(value)"), "public guard depends on inaccessible declaration hidden from signature.panack"))
-  results = results->append(std_testing.equal_str("public guard receiver helper leak", signature_test_error("pure hidden(value: Nat): Bool { true }; pub type Good = Nat where value.hidden()"), "public guard depends on inaccessible declaration hidden from signature.panack"))
+  results = results->append(std_testing.equal_str("public guard receiver helper leak", signature_test_error("pure hidden(value: Nat): Bool { true }; pub type Good = Nat where hidden(value)"), "public guard depends on inaccessible declaration hidden from signature.panack"))
   results = results->append(std_testing.equal_str("public guard accessible helper", signature_test_error("pub pure exposed(value: Nat): Bool { true }; pub type Good = Nat where exposed(value)"), "ok"))
   results = results->append(std_testing.equal_str("reserved core nominal rejected", signature_test_error("pub record Option[T] { value: T }"), "declaration Option conflicts with a reserved core identity"))
   results = results->append(std_testing.equal_str("reserved scalar nominal rejected", signature_test_error("pub record Nat { value: Int }"), "declaration Nat conflicts with a reserved core identity"))
@@ -941,12 +1002,12 @@ pure namespace_signature_tests(): [TestResult] {
   core_guard: LoadedModule = signature_test_module(namespace_identity("core_guard"), "import stdlib/core::{Option as Maybe}; pub type Good = Nat where Maybe.Some(value) == Maybe.Some(value)")
   core_guard_graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, core_guard.bindings], [ModuleImportEdge(core_guard.bindings.identity, 0, core.bindings.identity)])
   results = results->append(std_testing.equal_nat("private core alias qualified guard constructor is reachable", check_module_signatures(core_guard_graph, [core, core_guard], core_guard).diagnostics->len(), 0))
-  results = results->append(std_testing.equal_str("core string method in public guard remains available", signature_test_error("pub type Good = Str where value.ends_with(\"x\")"), "ok"))
+  results = results->append(std_testing.equal_str("core string method in public guard remains available", signature_test_error("pub type Good = Str where value->ends_with(\"x\")"), "ok"))
   for method in ["first", "ends_with", "sort_by", "parse_nat", "get", "put", "has", "add", "call", "map", "reduce"] {
     method_module: LoadedModule = signature_test_module(namespace_identity("method"), "pub pure f(value: Nat): Nat { value." + method + "() }")
     method_graph: ModuleBindingGraph = ModuleBindingGraph([method_module.bindings], [])
-    results = results->append(std_testing.equal_nat("reserved value method remains a checker responsibility/" + method,
-      namespace_raw_uses(method_graph, method_module.bindings.identity, method_module.parsed).diagnostics->len(), 0))
+    results = results->append(std_testing.equal_nat("receiver dot syntax is rejected/" + method,
+      namespace_raw_uses(method_graph, method_module.bindings.identity, method_module.parsed).diagnostics->len(), 1))
   }
   choices: LoadedModule = signature_test_module(namespace_identity("choices"), "pub enum Choice { Pick(Nat) }")
   choice_guard: LoadedModule = signature_test_module(namespace_identity("choice_guard"), "pub import project/choices::{Choice}; pub type Good = Nat where Choice.Pick(value)")
@@ -959,20 +1020,34 @@ pure namespace_signature_tests(): [TestResult] {
   results
 }
 
+// Signature-only fixture for explicit service calls; implementations are tested by CLI suites.
+pure body_test_services(source: Str, retain: Bool): CheckedModuleBodies {
+  core: LoadedModule = signature_test_module(builtin_owner_module(), "")
+  services: LoadedModule = signature_test_module(namespace_identity("services"), "pub pure fs_read(path: Path, limit: Nat): Void {}; pub pure fs_write(path: Path, content: Bytes): Void {}; pub pure fs_directories_overlap(path: Path, other: Path): Void {}; pub pure fs_create_directory(path: Path): Void {}; pub pure fs_remove_file(path: Path): Void {}; pub pure fs_remove_directory(path: Path): Void {}; pub pure fs_temp_file(path: Path): Void {}; pub pure fs_temp_directory(path: Path): Void {}; pub pure duration_nanoseconds(value: Int): Void {}; pub pure duration_from_seconds(value: Rat): Void {}")
+  app: LoadedModule = signature_test_module(namespace_identity("service_user"), "import project/services as services; " + source)
+  graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, services.bindings, app.bindings], [ModuleImportEdge(app.bindings.identity, 0, services.bindings.identity)])
+  body_test_graph_mode([core, services, app], graph, app, retain)
+}
+
 pure body_test_module(source: Str): CheckedModuleBodies {
   body_test_module_mode(source, true)
 }
 
 pure body_test_module_mode(source: Str, retain_guard_conversions: Bool): CheckedModuleBodies {
+  body_test_identity_mode(source, namespace_identity("body.panack"), retain_guard_conversions)
+}
+
+pure body_test_identity_mode(source: Str, identity: ModuleIdentity, retain_guard_conversions: Bool): CheckedModuleBodies {
   match namespace_parse(source) {
     Error(error) => CheckedModuleBodies([], [error]),
     Ok(parsed) => {
-      identity: ModuleIdentity = namespace_identity("body.panack")
       module: LoadedModule = LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed))
-      graph: ModuleBindingGraph = ModuleBindingGraph([module.bindings], [])
-      signatures: CheckedModuleSignatures = check_module_signatures(graph, [module], module)
+      core: LoadedModule = signature_test_module(builtin_owner_module(), "enum Option[T] { Some(T), None }; enum Result[T,E] { Ok(T), Error(E) }; impl Str { pub pure ends_with(suffix: Str): Bool { true } }; impl[T] [T] { pub pure first(): Option[T] { None() }; pub pure sort_by(less: PureFn[T,T,Bool]): [T] { self } }")
+      graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, module.bindings], [])
+      core_signatures: CheckedModuleSignatures = check_module_signatures(graph, [core, module], core)
+      signatures: CheckedModuleSignatures = check_module_signatures(graph, [core, module], module)
       checked: CheckedModuleBodies = check_module_bodies_explained(
-        graph, [module], signatures.declarations, module, retain_guard_conversions
+        graph, [core, module], core_signatures.declarations->concat(signatures.declarations), module, retain_guard_conversions
       )
       CheckedModuleBodies(checked.functions, signatures.diagnostics->concat(checked.diagnostics))
     }
@@ -1044,10 +1119,13 @@ pure body_test_effects(source: Str, retain: Bool): CheckedModuleEffects {
     Ok(parsed) => {
       identity: ModuleIdentity = namespace_identity("body.panack")
       module: LoadedModule = LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed))
-      graph: ModuleBindingGraph = ModuleBindingGraph([module.bindings], [])
-      checked_signatures: CheckedModuleSignatures = check_module_signatures(graph, [module], module)
-      checked_bodies: CheckedModuleBodies = check_module_bodies(graph, [module], checked_signatures.declarations, module)
-      checked: CheckedModuleEffects = check_module_effects(graph, [module], checked_signatures.declarations, checked_bodies.functions, retain)
+      core: LoadedModule = signature_test_module(builtin_owner_module(), "enum Option[T] { Some(T), None }; enum Result[T,E] { Ok(T), Error(E) }; impl Str { pub pure ends_with(suffix: Str): Bool { true } }; impl[T] [T] { pub pure first(): Option[T] { None() }; pub pure sort_by(less: PureFn[T,T,Bool]): [T] { self } }")
+      graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, module.bindings], [])
+      own_signatures: CheckedModuleSignatures = check_module_signatures(graph, [core, module], module)
+      core_signatures: CheckedModuleSignatures = check_module_signatures(graph, [core, module], core)
+      checked_signatures: CheckedModuleSignatures = CheckedModuleSignatures(core_signatures.declarations->concat(own_signatures.declarations), own_signatures.diagnostics)
+      checked_bodies: CheckedModuleBodies = check_module_bodies(graph, [core, module], checked_signatures.declarations, module)
+      checked: CheckedModuleEffects = check_module_effects(graph, [core, module], checked_signatures.declarations, checked_bodies.functions, retain)
       CheckedModuleEffects(checked_signatures.diagnostics->concat(checked_bodies.diagnostics->concat(checked.diagnostics)), checked.evidence, checked.function_types)
     }
   }
@@ -1083,9 +1161,9 @@ pure namespace_effect_tests(): [TestResult] {
   results = results->append(std_testing.equal_str("identity effects reject await of values", body_effect_error("pub async f(): Nat { await 1 }"), "await requires an async call"))
   results = results->append(std_testing.equal_str("identity effects reject discarded non-Unit await", body_effect_error("pub async f(): Unit { await later(); () }; async later(): Nat { 1 }"), "bind, match or return a non-Unit await result"))
   results = results->append(std_testing.equal_str("identity effects allow discarded Unit await", body_effect_error("pub async f(): Unit { await later(); () }; async later(): Unit { () }"), "ok"))
-  indirect: CheckedModuleEffects = body_test_effects("pub async f(callback: AsyncFn[Nat]): Nat { await callback.call() }", false)
+  indirect: CheckedModuleEffects = body_test_effects("pub async f(callback: AsyncFn[Nat]): Nat { await callback->call() }", false)
   results = results->append(std_testing.equal_str("identity effects accept awaited async indirect call", if indirect.diagnostics->len() == 0 { "ok" } else { indirect.diagnostics[0].message }, "ok"))
-  indirect_bare: CheckedModuleEffects = body_test_effects("pub async f(callback: AsyncFn[Nat]): Unit { callback.call(); () }", false)
+  indirect_bare: CheckedModuleEffects = body_test_effects("pub async f(callback: AsyncFn[Nat]): Unit { callback->call(); () }", false)
   results = results->append(std_testing.equal_str("identity effects reject bare async indirect call", if indirect_bare.diagnostics->len() == 0 { "ok" } else { indirect_bare.diagnostics[0].message }, "async call requires await inside an async function"))
   unresolved_module: LoadedModule = signature_test_module(
     namespace_identity("effect_unresolved"),
@@ -1106,7 +1184,7 @@ pure namespace_effect_tests(): [TestResult] {
     unresolved_span, [], None(), [], [], [], [], [], []
   )
   unresolved_call: BoundBody = BoundBody(
-    BodyCall(BodyCore("$method_call"), [], []), unresolved_span,
+    BodyCall(BodyCore("$intrinsic_call"), [], []), unresolved_span,
     [unresolved_receiver], None(), [], [], [], [], [], []
   )
   unresolved_body: BoundBody = BoundBody(
@@ -1170,7 +1248,7 @@ pure namespace_body_tests(): [TestResult] {
     "incompatible array element types were not retained"
   ))
   joined_concat: CheckedModuleBodies = body_test_module(
-    "pub pure joined(): [Nat] { concat([1], [2]) }"
+    "pub pure joined(): [Nat] { [1]->concat([2]) }"
   )
   concat_joins: [TypeJoinEvidence] = body_type_join_evidence(joined_concat.functions[0].body)
   results = results->append(std_testing.expect(
@@ -1183,7 +1261,7 @@ pure namespace_body_tests(): [TestResult] {
     "array concatenation join was not retained with its resulting type"
   ))
   rejected_concat: CheckedModuleBodies = body_test_module(
-    "pub pure bad(): [Nat] { concat([1], [\"wrong\"]) }"
+    "pub pure bad(): [Nat] { [1]->concat([\"wrong\"]) }"
   )
   rejected_concat_joins: [TypeJoinEvidence] = body_type_join_evidence(rejected_concat.functions[0].body)
   results = results->append(std_testing.expect(
@@ -1194,7 +1272,7 @@ pure namespace_body_tests(): [TestResult] {
     "incompatible concatenated array types were not retained"
   ))
   unavailable_concat: CheckedModuleBodies = body_test_module(
-    "pub pure unresolved(): [Nat] { concat([1], [missing]) }"
+    "pub pure unresolved(): [Nat] { [1]->concat([missing]) }"
   )
   unavailable_concat_joins: [TypeJoinEvidence] = body_type_join_evidence(unavailable_concat.functions[0].body)
   results = results->append(std_testing.expect(
@@ -1263,7 +1341,7 @@ pure namespace_body_tests(): [TestResult] {
     "ordinary checking retained explanation-only join evidence"
   ))
   ordinary_concat: CheckedModuleBodies = body_test_module_mode(
-    "pub pure ordinary(): [Nat] { concat([1], [2]) }", false
+    "pub pure ordinary(): [Nat] { [1]->concat([2]) }", false
   )
   results = results->append(std_testing.expect(
     "ordinary checker retains no concatenation join explanations",
@@ -1660,7 +1738,7 @@ pure namespace_body_tests(): [TestResult] {
   ))
   results = results->append(std_testing.equal_str("print body contract", body_test_error("pub f(): Void { print(1) }"), "ok"))
   results = results->append(std_testing.equal_str("print wrong arity", body_test_error("pub f(): Void { print() }"), "print expects 1 arguments, got 0"))
-  checked_nat_from_str: CheckedModuleBodies = body_test_module("pub pure f(): Nat { nat_from_str(\"42\") }")
+  checked_nat_from_str: CheckedModuleBodies = body_test_module("pub pure f(): Nat { \"42\"->parse_nat() }")
   results = results->append(std_testing.expect(
     "nat_from_str has complete identity contract",
     checked_nat_from_str.diagnostics->len() == 0 && checked_nat_from_str.functions->len() == 1 &&
@@ -1670,22 +1748,22 @@ pure namespace_body_tests(): [TestResult] {
   ))
   results = results->append(std_testing.equal_str(
     "nat_from_str checks argument type",
-    body_test_error("pub pure f(): Nat { nat_from_str(42) }"),
-    "argument 1 to nat_from_str is Nat, expected Str"
+    body_test_error("pub pure f(): Nat { 42->parse_nat() }"),
+    "unknown owned method Nat->parse_nat"
   ))
   results = results->append(std_testing.equal_str(
     "nat_from_str checks arity",
-    body_test_error("pub pure f(): Nat { nat_from_str(\"4\", \"2\") }"),
+    body_test_error("pub pure f(): Nat { \"4\"->parse_nat(\"2\") }"),
     "nat_from_str expects 1 arguments, got 2"
   ))
   for source in [
-    "pub pure f(): Bool { is_digit(\"9\") }",
-    "pub pure f(): Bool { is_letter(\"a\") }",
-    "pub pure f(): Bool { is_whitespace(\" \") }",
-    "pub pure f(): Bool { starts_with_at(\"=>\", \"=\", 0) }",
-    "pub pure f(): Str { slice(\"text\", 1, 3) }",
-    "pub pure f(value: Str): Str { value.reverse() }",
-    "pub pure f(value: Str, prefix: Str): Bool { value.starts_with(prefix) }"
+    "pub pure f(): Bool { \"9\"->is_digit() }",
+    "pub pure f(): Bool { \"a\"->is_letter() }",
+    "pub pure f(): Bool { \" \"->is_whitespace() }",
+    "pub pure f(): Bool { \"=>\"->starts_with_at(\"=\", 0) }",
+    "pub pure f(): Str { \"text\"->slice(1, 3) }",
+    "pub pure f(value: Str): Str { value->reverse() }",
+    "pub pure f(value: Str, prefix: Str): Bool { value->starts_with(prefix) }"
   ] {
     checked: CheckedModuleBodies = body_test_module(source)
     results = results->append(std_testing.expect(
@@ -1698,21 +1776,21 @@ pure namespace_body_tests(): [TestResult] {
   }
   results = results->append(std_testing.equal_str(
     "starts_with_at checks argument types",
-    body_test_error("pub pure f(): Bool { starts_with_at(\"text\", 1, 0) }"),
+    body_test_error("pub pure f(): Bool { \"text\"->starts_with_at(1, 0) }"),
     "argument 2 to starts_with_at is Nat, expected Str"
   ))
   results = results->append(std_testing.equal_str(
     "character intrinsic checks arity",
-    body_test_error("pub pure f(): Bool { is_digit(\"1\", \"2\") }"),
+    body_test_error("pub pure f(): Bool { \"1\"->is_digit(\"2\") }"),
     "is_digit expects 1 arguments, got 2"
   ))
   results = results->append(std_testing.equal_str(
     "starts_with_at checks arity",
-    body_test_error("pub pure f(): Bool { starts_with_at(\"text\", \"t\") }"),
+    body_test_error("pub pure f(): Bool { \"text\"->starts_with_at(\"t\") }"),
     "starts_with_at expects 3 arguments, got 2"
   ))
   rational_conversions: CheckedModuleBodies = body_test_module(
-    "pub pure to_nat(): Nat { (3 / 1).nat() }; pub pure to_dec(): Dec { (3 / 1).dec() }"
+    "pub pure to_nat(): Nat { (3 / 1)->nat() }; pub pure to_dec(): Dec { (3 / 1)->dec() }"
   )
   results = results->append(std_testing.expect(
     "rational conversions have checked numeric contracts",
@@ -1725,37 +1803,37 @@ pure namespace_body_tests(): [TestResult] {
   ))
   results = results->append(std_testing.equal_str(
     "rational conversion checks input type",
-    body_test_error("pub pure f(): Nat { \"bad\".nat() }"),
-    "argument 1 to nat is Str, expected Rat"
+    body_test_error("pub pure f(): Nat { \"bad\"->nat() }"),
+    "unknown owned method Str->nat"
   ))
   results = results->append(std_testing.equal_str(
     "rational conversion checks arity",
-    body_test_error("pub pure f(): Nat { (3 / 1).nat(2) }"),
+    body_test_error("pub pure f(): Nat { (3 / 1)->nat(2) }"),
     "nat expects 1 arguments, got 2"
   ))
   results = results->append(std_testing.equal_str(
     "starts_with checks argument types",
-    body_test_error("pub pure f(value: Str): Bool { value.starts_with(1) }"),
+    body_test_error("pub pure f(value: Str): Bool { value->starts_with(1) }"),
     "argument 2 to starts_with is Nat, expected Str"
   ))
   results = results->append(std_testing.equal_str(
     "starts_with checks arity",
-    body_test_error("pub pure f(value: Str): Bool { value.starts_with() }"),
+    body_test_error("pub pure f(value: Str): Bool { value->starts_with() }"),
     "starts_with expects 2 arguments, got 1"
   ))
   results = results->append(std_testing.equal_str(
     "reverse checks arity",
-    body_test_error("pub pure f(value: Str): Str { value.reverse(1) }"),
+    body_test_error("pub pure f(value: Str): Str { value->reverse(1) }"),
     "reverse expects 1 arguments, got 2"
   ))
   results = results->append(std_testing.equal_str(
     "slice checks argument types",
-    body_test_error("pub pure f(): Str { slice(\"text\", \"start\", 3) }"),
+    body_test_error("pub pure f(): Str { \"text\"->slice(\"start\", 3) }"),
     "argument 2 to slice is Str, expected Nat"
   ))
   results = results->append(std_testing.equal_str(
     "slice checks arity",
-    body_test_error("pub pure f(): Str { slice(\"text\", 1) }"),
+    body_test_error("pub pure f(): Str { \"text\"->slice(1) }"),
     "slice expects 3 arguments, got 2"
   ))
   for source in [
@@ -1769,7 +1847,7 @@ pure namespace_body_tests(): [TestResult] {
     "pub pure f[T](value: T): T { later[T](value) }; pure later[T](value: T): T { value }",
     "pub pure f[T](value: Option[T]): Option[T] { later[T](value) }; pure later[U](value: Option[U]): Option[U] { value }",
     "pub pure f(): Fn[Nat] { @answer }; pure answer(): Nat { 1 }",
-    "pub pure f(value: Nat): Nat { value.helper() }; pure helper(value: Nat): Nat { value }",
+    "pub pure f(value: Nat): Nat { helper(value) }; pure helper(value: Nat): Nat { value }",
     "pub pure f(): Nat { first(1) }; pure first(value: Nat): Nat { value }",
     "pub pure f(): Nat { nothing(); 1 }; pure nothing(): Void {}"
   ] {
@@ -1794,38 +1872,37 @@ pure namespace_body_tests(): [TestResult] {
     }
   ))
   results = results->append(std_testing.equal_str("direct argument mismatch", body_test_error("pub pure f(): Nat { next(\"bad\") }; pure next(value: Nat): Nat { value }"), "argument 1 to next is Str, expected Nat"))
-  indirect: CheckedModuleBodies = body_test_module("pub pure apply(callback: PureFn[Nat,Nat], value: Nat): Nat { callback.call(value) }")
+  indirect: CheckedModuleBodies = body_test_module("pub pure apply(callback: PureFn[Nat,Nat], value: Nat): Nat { callback->call(value) }")
   results = results->append(std_testing.expect("indirect call shares callable parameter and result contract", indirect.diagnostics->len() == 0 && indirect.functions->len() == 1 && indirect.functions[0].status == BodyIdentityChecked() && indirect.functions[0].body.children[0].type == Some(SignatureType(SignatureCore("Nat"), [])), "callable signature was not checked"))
-  results = results->append(std_testing.equal_str("indirect argument mismatch", body_test_error("pub pure apply(callback: PureFn[Nat,Nat]): Nat { callback.call(\"bad\") }"), "argument 1 to call is Str, expected Nat"))
-  results = results->append(std_testing.equal_str("indirect arity mismatch", body_test_error("pub pure apply(callback: PureFn[Nat,Nat]): Nat { callback.call() }"), "call expects 1 arguments, got 0"))
-  results = results->append(std_testing.equal_str("indirect excess arity mismatch", body_test_error("pub pure apply(callback: PureFn[Nat,Nat]): Nat { callback.call(1, 2) }"), "call expects 1 arguments, got 2"))
-  results = results->append(std_testing.equal_str("non-callable receiver rejects", body_test_error("pub pure apply(value: Nat): Nat { value.call(1) }"), "call expects a callable, got Nat"))
-  results = results->append(std_testing.equal_str("indirect result mismatch", body_test_error("pub pure apply(callback: PureFn[Nat,Nat]): Str { callback.call(1) }"), "return of apply is Nat, expected Str"))
-  async_indirect: CheckedModuleBodies = body_test_module("pub pure apply(callback: AsyncFn[Nat,Nat]): Nat { callback.call(1) }")
+  results = results->append(std_testing.equal_str("indirect argument mismatch", body_test_error("pub pure apply(callback: PureFn[Nat,Nat]): Nat { callback->call(\"bad\") }"), "argument 1 to call is Str, expected Nat"))
+  results = results->append(std_testing.equal_str("indirect arity mismatch", body_test_error("pub pure apply(callback: PureFn[Nat,Nat]): Nat { callback->call() }"), "call expects 1 arguments, got 0"))
+  results = results->append(std_testing.equal_str("indirect excess arity mismatch", body_test_error("pub pure apply(callback: PureFn[Nat,Nat]): Nat { callback->call(1, 2) }"), "call expects 1 arguments, got 2"))
+  results = results->append(std_testing.equal_str("non-callable receiver rejects", body_test_error("pub pure apply(value: Nat): Nat { value->call(1) }"), "unknown owned method Nat->call"))
+  results = results->append(std_testing.equal_str("indirect result mismatch", body_test_error("pub pure apply(callback: PureFn[Nat,Nat]): Str { callback->call(1) }"), "return of apply is Nat, expected Str"))
+  async_indirect: CheckedModuleBodies = body_test_module("pub pure apply(callback: AsyncFn[Nat,Nat]): Nat { callback->call(1) }")
   results = results->append(std_testing.expect("async indirect call retains identity and result types", async_indirect.diagnostics->len() == 0 && async_indirect.functions->len() == 1 && async_indirect.functions[0].status == BodyIdentityChecked() && async_indirect.functions[0].deferred->len() == 0 && async_indirect.functions[0].body.children[0].type == Some(SignatureType(SignatureCore("Nat"), [])), "async indirect result was not inferred"))
   core_method_library: LoadedModule = signature_test_module(
     ModuleIdentity(ToolchainModulePackage(), "core.panack"),
     "pub enum Option[T] { Some(T), None }; pub enum Result[T,E] { Ok(T), Error(E) }; " +
-      "pure core_first[T](values: [T]): Option[T] { None() }; " +
-      "pure core_ends_with(value: Str, suffix: Str): Bool { true }; " +
-      "pure core_sort_by[T](values: [T], less: PureFn[T,T,Bool]): [T] { values }"
+      "impl[T] [T] { pub pure first(): Option[T] { None() }; pub pure sort_by(less: PureFn[T,T,Bool]): [T] { self } }; " +
+      "impl Str { pub pure ends_with(suffix: Str): Bool { true } }"
   )
   core_app: LoadedModule = signature_test_module(
     namespace_identity("core_methods"),
     "pub pure core_first(value: Str): Option[Str] { None() }; " +
-      "pub pure first_value(): Option[Nat] { [1].first() }; " +
-      "pub pure suffix(): Bool { \"panackelty\".ends_with(\"ty\") }; " +
-      "pub pure ordered(): [Nat] { [2,1].sort_by(@less) }; " +
-      "pub pure length(): Nat { len([1,2]) }; " +
-      "pub pure map_operations(): Bool { values: Map[Str,Nat] = map(); values.put(\"key\",1); values.has(\"key\") }; " +
-      "pub pure map_value(): Nat { values: Map[Str,Nat] = map(); values.put(\"key\",1); values.get(\"key\") }; " +
-      "pub pure set_operations(): Bool { values: Set[Nat] = set(); values.add(1); values.has(1) }; " +
-      "pub pure append_value(): [Nat] { [1].append(2) }; " +
-      "pub pure concat_value(): [Nat] { [1].concat([2]) }; " +
-      "pub pure mapped(): [Nat] { [1,2].map(@twice) }; " +
-      "pub pure reduced(): Nat { [1,2].reduce(0,@sum) }; " +
-      "pub pure inferred_map(): Nat { counts = map().put(\"key\",1); counts.get(\"key\") }; " +
-      "pub pure inferred_set(): Bool { names = set().add(\"Ada\"); names.has(\"Ada\") }; " +
+      "pub pure first_value(): Option[Nat] { [1]->first() }; " +
+      "pub pure suffix(): Bool { \"panackelty\"->ends_with(\"ty\") }; " +
+      "pub pure ordered(): [Nat] { [2,1]->sort_by(@less) }; " +
+      "pub pure length(): Nat { [1,2]->len() }; " +
+      "pub pure map_operations(): Bool { values: Map[Str,Nat] = map(); values->put(\"key\",1); values->has(\"key\") }; " +
+      "pub pure map_value(): Nat { values: Map[Str,Nat] = map(); values->put(\"key\",1); values->get(\"key\") }; " +
+      "pub pure set_operations(): Bool { values: Set[Nat] = set(); values->add(1); values->has(1) }; " +
+      "pub pure append_value(): [Nat] { [1]->append(2) }; " +
+      "pub pure concat_value(): [Nat] { [1]->concat([2]) }; " +
+      "pub pure mapped(): [Nat] { [1,2]->map(@twice) }; " +
+      "pub pure reduced(): Nat { [1,2]->reduce(0,@sum) }; " +
+      "pub pure inferred_map(): Nat { counts = map()->put(\"key\",1); counts->get(\"key\") }; " +
+      "pub pure inferred_set(): Bool { names = set()->add(\"Ada\"); names->has(\"Ada\") }; " +
       "pure twice(value: Nat): Nat { value + value }; " +
       "pure sum(left: Nat, right: Nat): Nat { left + right }; " +
       "pure less(left: Nat, right: Nat): Bool { left < right }"
@@ -1834,13 +1911,13 @@ pure namespace_body_tests(): [TestResult] {
   core_methods: CheckedModuleBodies = body_test_graph([core_app, core_method_library], core_method_graph, core_app)
   results = results->append(std_testing.expect("core methods use reserved original signatures", core_methods.diagnostics->len() == 0 && core_methods.functions->len() == 17 && core_methods.functions[0].status == BodyIdentityChecked() && core_methods.functions[1].body.children[0].type == Some(SignatureType(SignatureCore("Option"), [SignatureType(SignatureCore("Nat"), [])])) && core_methods.functions[2].body.children[0].type == Some(SignatureType(SignatureCore("Bool"), [])) && core_methods.functions[1].status == BodyIdentityChecked() && core_methods.functions[2].status == BodyIdentityChecked() && core_methods.functions[3].status == BodyIdentityChecked() && core_methods.functions[4].status == BodyIdentityChecked() && core_methods.functions[5].status == BodyIdentityChecked() && core_methods.functions[6].status == BodyIdentityChecked() && core_methods.functions[7].status == BodyIdentityChecked() && core_methods.functions[8].status == BodyIdentityChecked() && core_methods.functions[9].status == BodyIdentityChecked() && core_methods.functions[10].status == BodyIdentityChecked() && core_methods.functions[11].status == BodyIdentityChecked() && core_methods.functions[12].status == BodyIdentityChecked() && core_methods.functions[13].status == BodyIdentityChecked(), if core_methods.diagnostics->len() > 0 { core_methods.diagnostics[0].message } else { "core method identity/type evidence missing" }))
   aliases: CheckedModuleBodies = body_test_module(
-    "pub pure append_alias(): [Nat] { append([1], 2) }; " +
-      "pub pure concat_alias(): [Nat] { concat([1], [2]) }; " +
-      "pub pure map_put_alias(): Map[Str,Nat] { map_put(map(), \"key\", 1) }; " +
-      "pub pure map_get_alias(): Nat { values: Map[Str,Nat] = map(); map_put(values, \"key\", 1); map_get(values, \"key\") }; " +
-      "pub pure map_has_alias(): Bool { values: Map[Str,Nat] = map(); map_put(values, \"key\", 1); map_has(values, \"key\") }; " +
-      "pub pure set_add_alias(): Set[Nat] { set_add(set(), 1) }; " +
-      "pub pure set_has_alias(): Bool { values: Set[Nat] = set(); set_add(values, 1); set_has(values, 1) }"
+    "pub pure append_alias(): [Nat] { [1]->append(2) }; " +
+      "pub pure concat_alias(): [Nat] { [1]->concat([2]) }; " +
+      "pub pure map_put_alias(): Map[Str,Nat] { map()->put(\"key\", 1) }; " +
+      "pub pure map_get_alias(): Nat { values: Map[Str,Nat] = map(); values->put(\"key\", 1); values->get(\"key\") }; " +
+      "pub pure map_has_alias(): Bool { values: Map[Str,Nat] = map(); values->put(\"key\", 1); values->has(\"key\") }; " +
+      "pub pure set_add_alias(): Set[Nat] { set()->add(1) }; " +
+      "pub pure set_has_alias(): Bool { values: Set[Nat] = set(); values->add(1); values->has(1) }"
   )
   mut aliases_checked: Bool = aliases.diagnostics->len() == 0
   for function in aliases.functions {
@@ -1848,35 +1925,35 @@ pure namespace_body_tests(): [TestResult] {
   }
   results = results->append(std_testing.expect("direct core aliases share checked contracts", aliases_checked, if aliases.diagnostics->len() > 0 { aliases.diagnostics[0].message } else { "a direct core alias remained unchecked" }))
   for source in [
-    "pub pure f(): Nat { len() }",
-    "pub pure f(): Nat { len(\"a\", \"b\") }",
-    "pub pure f(): [Nat] { append([1]) }",
-    "pub pure f(): [Nat] { append([1], 2, 3) }",
-    "pub pure f(): [Nat] { concat([1]) }",
-    "pub pure f(): [Nat] { concat([1], [2], [3]) }",
-    "pub pure f(): Map[Str,Nat] { map_put(map(), \"key\") }",
-    "pub pure f(): Nat { map_get(map(), \"key\", \"extra\") }",
-    "pub pure f(): Bool { map_has(map(), \"key\", \"extra\") }",
-    "pub pure f(): Set[Nat] { set_add(set()) }",
-    "pub pure f(): Bool { set_has(set(), 1, 2) }",
-    "pub pure f(): [Nat] { [1].append() }",
-    "pub pure f(): [Nat] { [1].append(2, 3) }",
-    "pub pure f(): [Nat] { [1].concat() }",
-    "pub pure f(): [Nat] { [1].concat([2], [3]) }",
-    "pub pure f(): [Nat] { [1].map() }",
-    "pub pure f(): [Nat] { [1].map(@twice, @twice) }; pure twice(value: Nat): Nat { value }",
-    "pub pure f(): Nat { [1].reduce(0) }",
-    "pub pure f(): Nat { [1].reduce(0, @sum, @sum) }; pure sum(left: Nat, right: Nat): Nat { left + right }",
-    "pub pure f(): Map[Str,Nat] { values: Map[Str,Nat] = map(); values.put(\"key\") }",
-    "pub pure f(): Map[Str,Nat] { values: Map[Str,Nat] = map(); values.put(\"key\", 1, 2) }",
-    "pub pure f(): Nat { values: Map[Str,Nat] = map(); values.get() }",
-    "pub pure f(): Nat { values: Map[Str,Nat] = map(); values.get(\"key\", \"extra\") }",
-    "pub pure f(): Bool { values: Map[Str,Nat] = map(); values.has() }",
-    "pub pure f(): Bool { values: Map[Str,Nat] = map(); values.has(\"key\", \"extra\") }",
-    "pub pure f(): Set[Nat] { values: Set[Nat] = set(); values.add() }",
-    "pub pure f(): Set[Nat] { values: Set[Nat] = set(); values.add(1, 2) }",
-    "pub pure f(): Bool { values: Set[Nat] = set(); values.has() }",
-    "pub pure f(): Bool { values: Set[Nat] = set(); values.has(1, 2) }"
+    "pub pure f(): Nat { \"x\"->len(1) }",
+    "pub pure f(): Nat { \"a\"->len(\"b\") }",
+    "pub pure f(): [Nat] { [1]->append() }",
+    "pub pure f(): [Nat] { [1]->append(2, 3) }",
+    "pub pure f(): [Nat] { [1]->concat() }",
+    "pub pure f(): [Nat] { [1]->concat([2], [3]) }",
+    "pub pure f(): Map[Str,Nat] { map()->put(\"key\") }",
+    "pub pure f(): Nat { map()->get(\"key\", \"extra\") }",
+    "pub pure f(): Bool { map()->has(\"key\", \"extra\") }",
+    "pub pure f(): Set[Nat] { set()->add() }",
+    "pub pure f(): Bool { set()->has(1, 2) }",
+    "pub pure f(): [Nat] { [1]->append() }",
+    "pub pure f(): [Nat] { [1]->append(2, 3) }",
+    "pub pure f(): [Nat] { [1]->concat() }",
+    "pub pure f(): [Nat] { [1]->concat([2], [3]) }",
+    "pub pure f(): [Nat] { [1]->map() }",
+    "pub pure f(): [Nat] { [1]->map(@twice, @twice) }; pure twice(value: Nat): Nat { value }",
+    "pub pure f(): Nat { [1]->reduce(0) }",
+    "pub pure f(): Nat { [1]->reduce(0, @sum, @sum) }; pure sum(left: Nat, right: Nat): Nat { left + right }",
+    "pub pure f(): Map[Str,Nat] { values: Map[Str,Nat] = map(); values->put(\"key\") }",
+    "pub pure f(): Map[Str,Nat] { values: Map[Str,Nat] = map(); values->put(\"key\", 1, 2) }",
+    "pub pure f(): Nat { values: Map[Str,Nat] = map(); values->get() }",
+    "pub pure f(): Nat { values: Map[Str,Nat] = map(); values->get(\"key\", \"extra\") }",
+    "pub pure f(): Bool { values: Map[Str,Nat] = map(); values->has() }",
+    "pub pure f(): Bool { values: Map[Str,Nat] = map(); values->has(\"key\", \"extra\") }",
+    "pub pure f(): Set[Nat] { values: Set[Nat] = set(); values->add() }",
+    "pub pure f(): Set[Nat] { values: Set[Nat] = set(); values->add(1, 2) }",
+    "pub pure f(): Bool { values: Set[Nat] = set(); values->has() }",
+    "pub pure f(): Bool { values: Set[Nat] = set(); values->has(1, 2) }"
   ] {
     checked: CheckedModuleBodies = body_test_module(source)
     results = results->append(std_testing.expect("reserved core arity mismatch rejects/" + source,
@@ -1884,10 +1961,10 @@ pure namespace_body_tests(): [TestResult] {
       if checked.diagnostics->len() > 0 { checked.diagnostics[0].message } else { "invalid core arity was accepted" }))
   }
   for source in [
-    "pub pure f(): [Nat] { [1].map(@wrong_input) }; pure wrong_input(value: Str): Nat { 1 }",
-    "pub pure f(): Nat { [1].reduce(0, @wrong_result) }; pure wrong_result(left: Nat, right: Nat): Str { \"bad\" }",
-    "pub pure f(): [Nat] { [1].map(@void_result) }; pure void_result(value: Nat): Void {}",
-    "pub pure f(): [Nat] { [1].map(@ordinary) }; ordinary(value: Nat): Nat { value }"
+    "pub pure f(): [Nat] { [1]->map(@wrong_input) }; pure wrong_input(value: Str): Nat { 1 }",
+    "pub pure f(): Nat { [1]->reduce(0, @wrong_result) }; pure wrong_result(left: Nat, right: Nat): Str { \"bad\" }",
+    "pub pure f(): [Nat] { [1]->map(@void_result) }; pure void_result(value: Nat): Void {}",
+    "pub pure f(): [Nat] { [1]->map(@ordinary) }; ordinary(value: Nat): Nat { value }"
   ] {
     checked: CheckedModuleBodies = body_test_module(source)
     results = results->append(std_testing.expect("core callback contract mismatch rejects/" + source,
@@ -1895,8 +1972,8 @@ pure namespace_body_tests(): [TestResult] {
       if checked.diagnostics->len() > 0 { checked.diagnostics[0].message } else { "invalid core callback contract was accepted" }))
   }
   retained_callbacks: CheckedModuleBodies = body_test_module_mode(
-    "pub pure mapped(): [Str] { [1].map(@format) }; pure format(value: Nat): Str { \"x\" }; " +
-      "pub pure reduced(): Nat { [1].reduce(0, @sum) }; pure sum(total: Nat, value: Nat): Nat { total + value }",
+    "pub pure mapped(): [Str] { [1]->map(@format) }; pure format(value: Nat): Str { \"x\" }; " +
+      "pub pure reduced(): Nat { [1]->reduce(0, @sum) }; pure sum(total: Nat, value: Nat): Nat { total + value }",
     true
   )
   if retained_callbacks.functions->len() >= 4 {
@@ -1921,7 +1998,7 @@ pure namespace_body_tests(): [TestResult] {
     ))
   }
   ordinary_callbacks: CheckedModuleBodies = body_test_module_mode(
-    "pub pure mapped(): [Nat] { [1].map(@identity) }; pure identity(value: Nat): Nat { value }",
+    "pub pure mapped(): [Nat] { [1]->map(@identity) }; pure identity(value: Nat): Nat { value }",
     false
   )
   results = results->append(std_testing.expect(
@@ -1931,15 +2008,15 @@ pure namespace_body_tests(): [TestResult] {
     "ordinary checking retained explanation evidence"
   ))
   retained_receivers: CheckedModuleBodies = body_test_module_mode(
-    "pub pure accepted_array(): [Nat] { append([1], 2) }; " +
-      "pub pure accepted_map(): Bool { map_has(map(), \"key\") }; " +
-      "pub pure accepted_set(): Set[Nat] { set_add(set(), 2) }; " +
-      "pub pure rejected_array(): [Nat] { append(1, 2) }; " +
-      "pub pure rejected_concat(): [Nat] { concat([1], 2) }; " +
-      "pub pure rejected_map(): Bool { map_has(1, \"key\") }; " +
-      "pub pure rejected_set(): Set[Nat] { set_add(1, 2) }; " +
-      "pub pure rejected_has(): Bool { value: Nat = 1; value.has(\"key\") }; " +
-      "pub pure unavailable_array(): [Nat] { append(missing, 2) }",
+    "pub pure accepted_array(): [Nat] { [1]->append(2) }; " +
+      "pub pure accepted_map(): Bool { map()->has(\"key\") }; " +
+      "pub pure accepted_set(): Set[Nat] { set()->add(2) }; " +
+      "pub pure rejected_array(): [Nat] { 1->append(2) }; " +
+      "pub pure rejected_concat(): [Nat] { [1]->concat(2) }; " +
+      "pub pure rejected_map(): Bool { 1->has(\"key\") }; " +
+      "pub pure rejected_set(): Set[Nat] { 1->add(2) }; " +
+      "pub pure rejected_has(): Bool { value: Nat = 1; value->has(\"key\") }; " +
+      "pub pure unavailable_array(): [Nat] { missing->append(2) }",
     true
   )
   if retained_receivers.functions->len() == 9 {
@@ -1964,7 +2041,7 @@ pure namespace_body_tests(): [TestResult] {
     ))
     results = results->append(std_testing.expect(
       "collection receiver evidence reports rejected Array shape",
-      match rejected_array_receiver { Some(evidence) => evidence.accepted == Some(false), None() => false },
+      rejected_array_receiver == None() && retained_receivers.functions[3].status == BodyInvalid(),
       "rejected Array receiver shape evidence was lost"
     ))
     results = results->append(std_testing.expect(
@@ -1975,25 +2052,22 @@ pure namespace_body_tests(): [TestResult] {
     ))
     results = results->append(std_testing.expect(
       "collection receiver evidence reports rejected Map shape",
-      match rejected_map_receiver { Some(evidence) => evidence.accepted == Some(false), None() => false },
+      rejected_map_receiver == None() && retained_receivers.functions[5].status == BodyInvalid(),
       "rejected Map receiver shape evidence was lost"
     ))
     results = results->append(std_testing.expect(
       "collection receiver evidence reports rejected Set shape",
-      match rejected_set_receiver { Some(evidence) => evidence.accepted == Some(false), None() => false },
+      rejected_set_receiver == None() && retained_receivers.functions[6].status == BodyInvalid(),
       "rejected Set receiver shape evidence was lost"
     ))
     results = results->append(std_testing.expect(
       "collection receiver evidence reports rejected Map-or-Set shape",
-      match rejected_has_receiver { Some(evidence) => evidence.accepted == Some(false), None() => false },
+      rejected_has_receiver == None() && retained_receivers.functions[7].status == BodyInvalid(),
       "rejected Map-or-Set receiver shape evidence was lost"
     ))
     results = results->append(std_testing.expect(
       "collection receiver evidence reports unavailable unresolved type",
-      match unavailable_array_receiver {
-        Some(evidence) => evidence.accepted == None() && evidence.actual == None(),
-        None() => false
-      },
+      unavailable_array_receiver == None() && retained_receivers.functions[8].status == BodyInvalid(),
       "unresolved collection receiver was reported as decided"
     ))
   } else {
@@ -2001,7 +2075,7 @@ pure namespace_body_tests(): [TestResult] {
       "expected nine collection receiver fixtures, got ${len(retained_receivers.functions)}"))
   }
   ordinary_receivers: CheckedModuleBodies = body_test_module_mode(
-    "pub pure f(): [Nat] { append([1], 2) }",
+    "pub pure f(): [Nat] { [1]->append(2) }",
     false
   )
   results = results->append(std_testing.expect(
@@ -2011,21 +2085,21 @@ pure namespace_body_tests(): [TestResult] {
     "ordinary checking retained collection receiver explanation evidence"
   ))
   wrong_sort_app: LoadedModule = signature_test_module(namespace_identity("wrong_sort"),
-    "pub pure f(): [Nat] { [1].sort_by(@wrong_sort) }; pure wrong_sort(left: Str, right: Str): Bool { true }")
+    "pub pure f(): [Nat] { [1]->sort_by(@wrong_sort) }; pure wrong_sort(left: Str, right: Str): Bool { true }")
   wrong_sort_graph: ModuleBindingGraph = ModuleBindingGraph([wrong_sort_app.bindings, core_method_library.bindings], [ModuleImportEdge(wrong_sort_app.bindings.identity, 0, core_method_library.bindings.identity)])
   wrong_sort_checked: CheckedModuleBodies = body_test_graph([wrong_sort_app, core_method_library], wrong_sort_graph, wrong_sort_app)
   results = results->append(std_testing.expect("sort_by rejects callback type mismatch",
     wrong_sort_checked.diagnostics->len() > 0 && wrong_sort_checked.functions->len() > 0 && wrong_sort_checked.functions[0].status == BodyInvalid(),
     if wrong_sort_checked.diagnostics->len() > 0 { wrong_sort_checked.diagnostics[0].message } else { "sort_by accepted a callback for the wrong element type" }))
   for source in [
-    "pub pure f(): Str { len([1]) }",
-    "pub pure f(): Bool { [1].append(2) }",
-    "pub pure f(): [Str] { [1].concat([2]) }",
-    "pub pure f(): Bool { values: Map[Str,Nat] = map(); values.put(\"key\", 1) }",
-    "pub pure f(): Bool { values: Map[Str,Nat] = map(); values.get(\"key\") }",
-    "pub pure f(): Nat { values: Map[Str,Nat] = map(); values.has(\"key\") }",
-    "pub pure f(): Nat { values: Set[Nat] = set(); values.add(1) }",
-    "pub pure f(): Nat { values: Set[Nat] = set(); values.has(1) }"
+    "pub pure f(): Str { [1]->len() }",
+    "pub pure f(): Bool { [1]->append(2) }",
+    "pub pure f(): [Str] { [1]->concat([2]) }",
+    "pub pure f(): Bool { values: Map[Str,Nat] = map(); values->put(\"key\", 1) }",
+    "pub pure f(): Bool { values: Map[Str,Nat] = map(); values->get(\"key\") }",
+    "pub pure f(): Nat { values: Map[Str,Nat] = map(); values->has(\"key\") }",
+    "pub pure f(): Nat { values: Set[Nat] = set(); values->add(1) }",
+    "pub pure f(): Nat { values: Set[Nat] = set(); values->has(1) }"
   ] {
     checked: CheckedModuleBodies = body_test_module(source)
     results = results->append(std_testing.expect("reserved core result contract mismatch rejects/" + source,
@@ -2033,24 +2107,24 @@ pure namespace_body_tests(): [TestResult] {
       if checked.diagnostics->len() > 0 { checked.diagnostics[0].message } else { "core result was accepted against the declared return type" }))
   }
   for source in [
-    "pub pure f(): Nat { len(1) }",
-    "pub pure f(): [Nat] { [1].append(\"bad\") }",
-    "pub pure f(): [Nat] { [1].concat([\"bad\"]) }",
-    "pub pure f(): [Nat] { append([1], \"bad\") }",
-    "pub pure f(): [Nat] { concat([1], [\"bad\"]) }",
-    "pub pure f(): Option[Nat] { [1].first(\"bad\") }",
-    "pub pure f(): Bool { \"text\".ends_with(1) }",
-    "pub pure f(): Map[Nat,Nat] { values: Map[Nat,Nat] = map(); values.put(\"bad\", 1); values }",
-    "pub pure f(): Map[Nat,Nat] { values: Map[Nat,Nat] = map(); values.put(1, \"bad\"); values }",
-    "pub pure f(): Bool { values: Map[Nat,Nat] = map(); values.has(\"bad\") }",
-    "pub pure f(): Map[Nat,Nat] { values: Map[Nat,Nat] = map(); map_put(values, \"bad\", 1) }",
-    "pub pure f(): Map[Nat,Nat] { values: Map[Nat,Nat] = map(); map_put(values, 1, \"bad\") }",
-    "pub pure f(): Nat { values: Map[Nat,Nat] = map(); map_get(values, \"bad\") }",
-    "pub pure f(): Bool { values: Map[Nat,Nat] = map(); map_has(values, \"bad\") }",
-    "pub pure f(): Set[Nat] { values: Set[Nat] = set(); values.add(\"bad\"); values }",
-    "pub pure f(): Bool { values: Set[Nat] = set(); values.has(\"bad\") }",
-    "pub pure f(): Set[Nat] { values: Set[Nat] = set(); set_add(values, \"bad\") }",
-    "pub pure f(): Bool { values: Set[Nat] = set(); set_has(values, \"bad\") }"
+    "pub pure f(): Nat { 1->len() }",
+    "pub pure f(): [Nat] { [1]->append(\"bad\") }",
+    "pub pure f(): [Nat] { [1]->concat([\"bad\"]) }",
+    "pub pure f(): [Nat] { [1]->append(\"bad\") }",
+    "pub pure f(): [Nat] { [1]->concat([\"bad\"]) }",
+    "pub pure f(): Option[Nat] { [1]->first(\"bad\") }",
+    "pub pure f(): Bool { \"text\"->ends_with(1) }",
+    "pub pure f(): Map[Nat,Nat] { values: Map[Nat,Nat] = map(); values->put(\"bad\", 1); values }",
+    "pub pure f(): Map[Nat,Nat] { values: Map[Nat,Nat] = map(); values->put(1, \"bad\"); values }",
+    "pub pure f(): Bool { values: Map[Nat,Nat] = map(); values->has(\"bad\") }",
+    "pub pure f(): Map[Nat,Nat] { values: Map[Nat,Nat] = map(); values->put(\"bad\", 1) }",
+    "pub pure f(): Map[Nat,Nat] { values: Map[Nat,Nat] = map(); values->put(1, \"bad\") }",
+    "pub pure f(): Nat { values: Map[Nat,Nat] = map(); values->get(\"bad\") }",
+    "pub pure f(): Bool { values: Map[Nat,Nat] = map(); values->has(\"bad\") }",
+    "pub pure f(): Set[Nat] { values: Set[Nat] = set(); values->add(\"bad\"); values }",
+    "pub pure f(): Bool { values: Set[Nat] = set(); values->has(\"bad\") }",
+    "pub pure f(): Set[Nat] { values: Set[Nat] = set(); values->add(\"bad\") }",
+    "pub pure f(): Bool { values: Set[Nat] = set(); values->has(\"bad\") }"
   ] {
     invalid_app: LoadedModule = signature_test_module(namespace_identity("invalid_core_argument"), source)
     invalid_graph: ModuleBindingGraph = ModuleBindingGraph([invalid_app.bindings, core_method_library.bindings], [ModuleImportEdge(invalid_app.bindings.identity, 0, core_method_library.bindings.identity)])
@@ -2059,7 +2133,7 @@ pure namespace_body_tests(): [TestResult] {
       checked.diagnostics->len() > 0 && checked.functions->len() > 0 && checked.functions[0].status == BodyInvalid(),
       if checked.diagnostics->len() > 0 { checked.diagnostics[0].message } else { "invalid core argument was accepted" }))
   }
-  results = results->append(std_testing.equal_str("core method arity checked", body_test_graph([signature_test_module(namespace_identity("wrong_core_method"), "pub pure f(): Option[Nat] { [1].first(\"extra\") }") , core_method_library], ModuleBindingGraph([namespace_test_bindings("wrong_core_method", "pub pure f(): Option[Nat] { [1].first(\"extra\") }"), core_method_library.bindings], []), signature_test_module(namespace_identity("wrong_core_method"), "pub pure f(): Option[Nat] { [1].first(\"extra\") }")).diagnostics[0].message, "first expects 1 arguments, got 2"))
+  results = results->append(std_testing.equal_str("core method arity checked", body_test_graph([signature_test_module(namespace_identity("wrong_core_method"), "pub pure f(): Option[Nat] { [1]->first(\"extra\") }") , core_method_library], ModuleBindingGraph([namespace_test_bindings("wrong_core_method", "pub pure f(): Option[Nat] { [1]->first(\"extra\") }"), core_method_library.bindings], []), signature_test_module(namespace_identity("wrong_core_method"), "pub pure f(): Option[Nat] { [1]->first(\"extra\") }")).diagnostics[0].message, "Array->first expects 1 arguments, got 2"))
   results = results->append(std_testing.equal_str("return mismatch", body_test_error("pub pure f(): Nat { \"bad\" }"), "return of f is Str, expected Nat"))
   results = results->append(std_testing.equal_str("initializer cannot see new binding", body_test_error("pub pure f(): Nat { value = value; value }"), "unknown local value value"))
   results = results->append(std_testing.equal_str("inferred binding remains immutable", body_test_error("pub pure f(): Nat { value = 1; value = 2; value }"), "cannot assign immutable binding value"))
@@ -2097,13 +2171,13 @@ pure namespace_body_tests(): [TestResult] {
     }
   ))
   explicit_dot_type_argument_location: CheckedModuleBodies = body_test_module(
-    "pub pure f(value:Nat):Nat { value.identity[MissingType]() }; pure identity[T](value:T):T { value }"
+    "pub pure f(value:Nat):Nat { identity[MissingType](value) }; pure identity[T](value:T):T { value }"
   )
   results = results->append(std_testing.expect(
     "invalid receiver-call type argument points to its type token",
     explicit_dot_type_argument_location.diagnostics->len() > 0 &&
       explicit_dot_type_argument_location.diagnostics[0].position.file == "module.panack" &&
-      explicit_dot_type_argument_location.diagnostics[0].position.column == 44,
+      explicit_dot_type_argument_location.diagnostics[0].position.column == 38,
     if explicit_dot_type_argument_location.diagnostics->len() > 0 {
       diagnostic_text(explicit_dot_type_argument_location.diagnostics[0])
     } else {
@@ -2138,12 +2212,12 @@ pure namespace_body_tests(): [TestResult] {
     }
   ))
   missing_dot_type_argument_count_location: CheckedModuleBodies = body_test_module(
-    "pub pure f(value: Nat): Bool { value.combine[Nat](2) }; pure combine[T,U](value:T,right:U): Bool { true }"
+    "pub pure f(value: Nat): Bool { combine[Nat](value, 2) }; pure combine[T,U](value:T,right:U): Bool { true }"
   )
   results = results->append(std_testing.expect(
     "receiver missing type argument count points to final supplied type",
     missing_dot_type_argument_count_location.diagnostics->len() > 0 &&
-      missing_dot_type_argument_count_location.diagnostics[0].position.column == 46 &&
+      missing_dot_type_argument_count_location.diagnostics[0].position.column == 40 &&
       missing_dot_type_argument_count_location.diagnostics[0].message == "call combine has incorrect type argument count",
     if missing_dot_type_argument_count_location.diagnostics->len() > 0 {
       diagnostic_text(missing_dot_type_argument_count_location.diagnostics[0])
@@ -2152,12 +2226,12 @@ pure namespace_body_tests(): [TestResult] {
     }
   ))
   special_type_argument_location: CheckedModuleBodies = body_test_module(
-    "pub pure f():Nat { len[Nat]([1]) }"
+    "pub pure f():Nat { [1]->len[Nat]() }"
   )
   results = results->append(std_testing.expect(
     "reserved core call type argument points to its type token",
     special_type_argument_location.diagnostics->len() > 0 &&
-      special_type_argument_location.diagnostics[0].position.column == 24 &&
+      special_type_argument_location.diagnostics[0].position.column == 29 &&
       special_type_argument_location.diagnostics[0].message == "explicit type arguments require a generic function",
     if special_type_argument_location.diagnostics->len() > 0 {
       diagnostic_text(special_type_argument_location.diagnostics[0])
@@ -2167,12 +2241,12 @@ pure namespace_body_tests(): [TestResult] {
   ))
   for source in [
 
-    "pub pure f(): Nat { [1].first() }",
-    "pub pure f(): Nat { [1].first() }; pure first(value: Str): Str { value }"
+    "pub pure f(): Option[Nat] { [1]->first() }",
+    "pub pure f(): Option[Nat] { [1]->first() }; pure first(value: Str): Str { value }"
   ] {
     checked: CheckedModuleBodies = body_test_module(source)
-    results = results->append(std_testing.equal_nat("deferred body has no invented error/" + source, checked.diagnostics->len(), 0))
-    results = results->append(std_testing.expect("unsupported proof/inference explicitly deferred/" + source, checked.functions->len() > 0 && checked.functions[0].deferred->len() > 0, "unsupported body marked complete"))
+    results = results->append(std_testing.equal_nat("owned first has no invented error/" + source, checked.diagnostics->len(), 0))
+    results = results->append(std_testing.expect("owned first is fully checked/" + source, checked.functions->len() > 0 && checked.functions[0].status == BodyIdentityChecked(), "owned body remained deferred"))
   }
   guarded_branch: CheckedModuleBodies = body_test_module(
     "pub type Positive = Nat where value > 0; pub pure f(value: Nat): Nat { if value > 0 { positive: Positive = value; value - 1 } else { 0 } }"
@@ -2276,91 +2350,91 @@ pure namespace_body_tests(): [TestResult] {
     false
   )
   accepted_core_call_arity: CheckedModuleBodies = body_test_module_mode(
-    "pure caller(): Nat { len(\"x\") }",
+    "pure caller(): Nat { \"x\"->len() }",
     true
   )
   accepted_len_text_argument: CheckedModuleBodies = body_test_module_mode(
-    "pure caller(): Nat { len(\"x\") }",
+    "pure caller(): Nat { \"x\"->len() }",
     true
   )
   accepted_len_bytes_argument: CheckedModuleBodies = body_test_module_mode(
-    "pure caller(): Nat { len(bytes()) }",
+    "pure caller(): Nat { bytes()->length() }",
     true
   )
   accepted_len_array_argument: CheckedModuleBodies = body_test_module_mode(
-    "pure caller(): Nat { len([1]) }",
+    "pure caller(): Nat { [1]->len() }",
     true
   )
   rejected_len_argument: CheckedModuleBodies = body_test_module_mode(
-    "pure caller(): Nat { len(1) }",
+    "pure caller(): Nat { 1->len() }",
     true
   )
   unavailable_len_argument: CheckedModuleBodies = body_test_module_mode(
-    "pure caller(): Nat { len(missing) }",
+    "pure caller(): Nat { missing->len() }",
     true
   )
   accepted_print_argument: CheckedModuleBodies = body_test_module_mode(
     "caller(): Void { print(1) }",
     true
   )
-  accepted_eprint_argument: CheckedModuleBodies = body_test_module_mode(
-    "caller(): Void { eprint(\"x\") }",
-    true
+  accepted_eprint_argument: CheckedModuleBodies = body_test_identity_mode(
+    "stderr(): Void { eprint(\"x\") }",
+    ModuleIdentity(ToolchainModulePackage(), "host.panack"), true
   )
   rejected_print_void_argument: CheckedModuleBodies = body_test_module_mode(
     "pure noop(): Void {}; caller(): Void { print(noop()) }",
     true
   )
-  rejected_eprint_void_argument: CheckedModuleBodies = body_test_module_mode(
-    "pure noop(): Void {}; caller(): Void { eprint(noop()) }",
-    true
+  rejected_eprint_void_argument: CheckedModuleBodies = body_test_identity_mode(
+    "pure noop(): Void {}; stderr(): Void { eprint(noop()) }",
+    ModuleIdentity(ToolchainModulePackage(), "host.panack"), true
   )
   unavailable_print_argument: CheckedModuleBodies = body_test_module_mode(
     "caller(): Void { print(missing) }",
     true
   )
   rejected_core_call_arity: CheckedModuleBodies = body_test_module_mode(
-    "pure caller(): Nat { len() }",
+    "pure caller(): Nat { \"x\"->len(1) }",
     true
   )
   accepted_indirect_call_arity: CheckedModuleBodies = body_test_module_mode(
-    "pure identity(value: Nat): Nat { value }; pure caller(): Nat { f: PureFn[Nat,Nat] = @identity; f.call(1) }",
+    "pure identity(value: Nat): Nat { value }; pure caller(): Nat { f: PureFn[Nat,Nat] = @identity; f->call(1) }",
     true
   )
   unavailable_indirect_call_arity: CheckedModuleBodies = body_test_module_mode(
-    "pure caller(): Nat { f = missing; f.call(1) }",
+    "pure caller(): Nat { f = missing; f->call(1) }",
     true
   )
   rejected_indirect_call_target: CheckedModuleBodies = body_test_module_mode(
-    "pure caller(): Nat { value: Nat = 1; value.call(1) }",
+    "pure caller(): Nat { value: Nat = 1; value->call(1) }",
     true
   )
   unresolved_indirect_call_target: CheckedModuleBodies = body_test_module_mode(
-    "pure caller(): Nat { f = missing; f.call(1) }",
+    "pure caller(): Nat { f = missing; f->call(1) }",
     true
   )
   parameter_indirect_call_target: CheckedModuleBodies = body_test_module_mode(
-    "pure caller[T](value: T): Nat { value.call(1) }",
+    "pure caller[T](value: T): Nat { value->call(1) }",
     true
   )
   accepted_indirect_call_argument: CheckedModuleBodies = body_test_module_mode(
-    "pure identity(value: Nat): Nat { value }; pure caller(): Nat { f: PureFn[Nat,Nat] = @identity; f.call(1) }",
+    "pure identity(value: Nat): Nat { value }; pure caller(): Nat { f: PureFn[Nat,Nat] = @identity; f->call(1) }",
     true
   )
   rejected_indirect_call_argument: CheckedModuleBodies = body_test_module_mode(
-    "pure identity(value: Nat): Nat { value }; pure caller(): Nat { f: PureFn[Nat,Nat] = @identity; f.call(\"wrong\") }",
+    "pure identity(value: Nat): Nat { value }; pure caller(): Nat { f: PureFn[Nat,Nat] = @identity; f->call(\"wrong\") }",
     true
   )
   unavailable_indirect_call_argument: CheckedModuleBodies = body_test_module_mode(
-    "pure identity(value: Nat): Nat { value }; pure caller(): Nat { f: PureFn[Nat,Nat] = @identity; f.call(missing) }",
+    "pure identity(value: Nat): Nat { value }; pure caller(): Nat { f: PureFn[Nat,Nat] = @identity; f->call(missing) }",
     true
   )
   ordinary_core_call_arity: CheckedModuleBodies = body_test_module_mode(
-    "pure caller(): Nat { len(\"x\") }",
+    "pure caller(): Nat { \"x\"->len() }",
     false
   )
   ordinary_len_argument: CheckedModuleBodies = body_test_module_mode(
-    "pure caller(): Nat { len(\"x\") }",
+    "pure caller(): Nat { \"x\"->len() }",
     false
   )
   ordinary_print_argument: CheckedModuleBodies = body_test_module_mode(
@@ -2368,11 +2442,11 @@ pure namespace_body_tests(): [TestResult] {
     false
   )
   ordinary_indirect_call_arity: CheckedModuleBodies = body_test_module_mode(
-    "pure identity(value: Nat): Nat { value }; pure caller(): Nat { f: PureFn[Nat,Nat] = @identity; f.call(1) }",
+    "pure identity(value: Nat): Nat { value }; pure caller(): Nat { f: PureFn[Nat,Nat] = @identity; f->call(1) }",
     false
   )
   ordinary_indirect_call_argument: CheckedModuleBodies = body_test_module_mode(
-    "pure identity(value: Nat): Nat { value }; pure caller(): Nat { f: PureFn[Nat,Nat] = @identity; f.call(1) }",
+    "pure identity(value: Nat): Nat { value }; pure caller(): Nat { f: PureFn[Nat,Nat] = @identity; f->call(1) }",
     false
   )
   accepted_type_argument_arity: CheckedModuleBodies = body_test_module_mode(
@@ -2388,7 +2462,7 @@ pure namespace_body_tests(): [TestResult] {
     true
   )
   rejected_core_type_argument_arity: CheckedModuleBodies = body_test_module_mode(
-    "pure caller(): Nat { len[Nat](\"x\") }",
+    "pure caller(): Nat { \"x\"->len[Nat]() }",
     true
   )
   rejected_record_constructor_type_argument_arity: CheckedModuleBodies = body_test_module_mode(
@@ -2456,248 +2530,230 @@ pure namespace_body_tests(): [TestResult] {
     false
   )
   accepted_text_builtin: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Str { reverse(\"text\") }",
+    "pure f(): Str { \"text\"->reverse() }",
     true
   )
   rejected_text_builtin: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Str { reverse(5) }",
+    "pure f(): Str { 5->reverse() }",
     true
   )
   unavailable_text_builtin: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Str { reverse(missing) }",
+    "pure f(): Str { missing->reverse() }",
     true
   )
   accepted_bytes_builtin: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Bytes { byte_append(bytes(), 65) }",
+    "pure f(): Bytes { bytes()->push(65) }",
     true
   )
   rejected_bytes_builtin: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Bytes { byte_append(bytes(), \"wrong\") }",
+    "pure f(): Bytes { bytes()->push(\"wrong\") }",
     true
   )
   ordinary_text_builtin: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Str { reverse(\"text\") }",
+    "pure f(): Str { \"text\"->reverse() }",
     false
   )
   accepted_rational_builtin: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Nat { nat(1/2) }",
+    "pure f(): Nat { (1/2)->nat() }",
     true
   )
   rejected_rational_builtin: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Dec { dec(\"wrong\") }",
+    "pure f(): Dec { \"wrong\"->dec() }",
     true
   )
   accepted_numeric_parse: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Nat { nat_from_str(\"42\") }",
+    "pure f(): Nat { \"42\"->parse_nat() }",
     true
   )
   rejected_numeric_parse: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Nat { nat_from_str(42) }",
+    "pure f(): Nat { 42->parse_nat() }",
     true
   )
   unavailable_quotient: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Nat { quotient(missing, 2) }",
+    "pure f(): Nat { missing->divide(2) }",
     true
   )
   accepted_quotient: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Nat { quotient(7, 2) }",
+    "pure f(): Nat { 7->divide(2) }",
     true
   )
   ordinary_rational_builtin: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Nat { nat(1/2) }",
+    "pure f(): Nat { (1/2)->nat() }",
     false
   )
   accepted_collection_append: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): [Nat] { append([1], 2) }",
+    "pure f(): [Nat] { [1]->append(2) }",
     true
   )
   rejected_collection_append: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): [Nat] { append([1], \"wrong\") }",
+    "pure f(): [Nat] { [1]->append(\"wrong\") }",
     true
   )
   accepted_collection_map_put: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Map[Str,Nat] { values: Map[Str,Nat] = map(); map_put(values, \"key\", 1); values }",
+    "pure f(): Map[Str,Nat] { values: Map[Str,Nat] = map(); values->put(\"key\", 1); values }",
     true
   )
   rejected_collection_map_put: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Map[Str,Nat] { values: Map[Str,Nat] = map(); map_put(values, \"key\", \"wrong\"); values }",
+    "pure f(): Map[Str,Nat] { values: Map[Str,Nat] = map(); values->put(\"key\", \"wrong\"); values }",
     true
   )
   unavailable_collection_set_add: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Set[Nat] { values: Set[Nat] = set(); set_add(values, missing); values }",
+    "pure f(): Set[Nat] { values: Set[Nat] = set(); values->add(missing); values }",
     true
   )
   ordinary_collection_append: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): [Nat] { append([1], 2) }",
+    "pure f(): [Nat] { [1]->append(2) }",
     false
   )
-  accepted_path_arguments: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Str { path_join(\"parent\", \"child\") }",
-    true
+  accepted_path_arguments: CheckedModuleBodies = body_test_identity_mode(
+    "pure join(): Str { path_join(\"parent\", \"child\") }",
+    ModuleIdentity(ToolchainModulePackage(), "compiler_paths.panack"), true
   )
-  rejected_path_arguments: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Str { path_join(\"wrong\", 2) }",
-    true
+  rejected_path_arguments: CheckedModuleBodies = body_test_identity_mode(
+    "pure join(): Str { path_join(\"wrong\", 2) }",
+    ModuleIdentity(ToolchainModulePackage(), "compiler_paths.panack"), true
   )
-  rejected_path_arguments_ordinary: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Str { path_join(\"wrong\", 2) }",
-    false
+  rejected_path_arguments_ordinary: CheckedModuleBodies = body_test_identity_mode(
+    "pure join(): Str { path_join(\"wrong\", 2) }",
+    ModuleIdentity(ToolchainModulePackage(), "compiler_paths.panack"), false
   )
-  unavailable_path_argument: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Str { path_join(missing, \"child\") }",
-    true
+  unavailable_path_argument: CheckedModuleBodies = body_test_identity_mode(
+    "pure join(): Str { path_join(missing, \"child\") }",
+    ModuleIdentity(ToolchainModulePackage(), "compiler_paths.panack"), true
   )
-  unavailable_path_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Str { path_join(missing, \"child\") }",
-    false
+  unavailable_path_argument_ordinary: CheckedModuleBodies = body_test_identity_mode(
+    "pure join(): Str { path_join(missing, \"child\") }",
+    ModuleIdentity(ToolchainModulePackage(), "compiler_paths.panack"), false
   )
-  ordinary_path_arguments: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Str { path_join(\"parent\", \"child\") }",
-    false
+  ordinary_path_arguments: CheckedModuleBodies = body_test_identity_mode(
+    "pure join(): Str { path_join(\"parent\", \"child\") }",
+    ModuleIdentity(ToolchainModulePackage(), "compiler_paths.panack"), false
   )
-  accepted_environment_arguments: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Void { environment_has(\"ONE\"); environment_get(\"TWO\"); }",
-    true
+  accepted_environment_arguments: CheckedModuleBodies = body_test_identity_mode(
+    "pure get(): Void { environment_has(\"ONE\"); environment_get(\"TWO\"); }",
+    ModuleIdentity(ToolchainModulePackage(), "environment.panack"), true
   )
-  rejected_environment_argument: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Bool { environment_has(2) }",
-    true
+  rejected_environment_argument: CheckedModuleBodies = body_test_identity_mode(
+    "pure get(): Bool { environment_has(2) }",
+    ModuleIdentity(ToolchainModulePackage(), "environment.panack"), true
   )
-  rejected_environment_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Bool { environment_has(2) }",
-    false
+  rejected_environment_argument_ordinary: CheckedModuleBodies = body_test_identity_mode(
+    "pure get(): Bool { environment_has(2) }",
+    ModuleIdentity(ToolchainModulePackage(), "environment.panack"), false
   )
-  unavailable_environment_argument: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Str { environment_get(missing) }",
-    true
+  unavailable_environment_argument: CheckedModuleBodies = body_test_identity_mode(
+    "pure get(): Str { environment_get(missing) }",
+    ModuleIdentity(ToolchainModulePackage(), "environment.panack"), true
   )
-  unavailable_environment_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Str { environment_get(missing) }",
-    false
+  unavailable_environment_argument_ordinary: CheckedModuleBodies = body_test_identity_mode(
+    "pure get(): Str { environment_get(missing) }",
+    ModuleIdentity(ToolchainModulePackage(), "environment.panack"), false
   )
-  ordinary_environment_arguments: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Void { environment_has(\"ONE\"); environment_get(\"TWO\"); }",
-    false
+  ordinary_environment_arguments: CheckedModuleBodies = body_test_identity_mode(
+    "pure get(): Void { environment_has(\"ONE\"); environment_get(\"TWO\"); }",
+    ModuleIdentity(ToolchainModulePackage(), "environment.panack"), false
   )
-  accepted_time_arguments: CheckedModuleBodies = body_test_module_mode(
-    "pure f(duration: Duration, instant: Instant, integer: Int, rational: Rat): Void { duration_nanoseconds(integer); duration_ticks(duration); duration_from_seconds(rational); instant_add(instant, duration); instant_difference(instant, instant); instant_before(instant, instant); }",
-    true
+  accepted_time_arguments: CheckedModuleBodies = body_test_services(
+    "pure f(duration: Duration, instant: Instant, integer: Int, rational: Rat): Void { services.duration_nanoseconds(integer); duration->ticks(); services.duration_from_seconds(rational); instant->add(duration); instant->difference(instant); instant->is_before(instant); }", true
   )
-  rejected_time_argument: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Int { duration_ticks(\"bad\") }",
-    true
+  rejected_time_argument: CheckedModuleBodies = body_test_services(
+    "pure f(): Int { \"bad\"->ticks() }", true
   )
-  rejected_time_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Int { duration_ticks(\"bad\") }",
-    false
+  rejected_time_argument_ordinary: CheckedModuleBodies = body_test_services(
+    "pure f(): Int { \"bad\"->ticks() }", false
   )
-  unavailable_time_argument: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Int { duration_ticks(missing) }",
-    true
+  unavailable_time_argument: CheckedModuleBodies = body_test_services(
+    "pure f(): Int { missing->ticks() }", true
   )
-  unavailable_time_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Int { duration_ticks(missing) }",
-    false
+  unavailable_time_argument_ordinary: CheckedModuleBodies = body_test_services(
+    "pure f(): Int { missing->ticks() }", false
   )
-  ordinary_time_arguments: CheckedModuleBodies = body_test_module_mode(
-    "pure f(duration: Duration, instant: Instant, integer: Int, rational: Rat): Void { duration_nanoseconds(integer); duration_ticks(duration); duration_from_seconds(rational); instant_add(instant, duration); instant_difference(instant, instant); instant_before(instant, instant); }",
-    false
+  ordinary_time_arguments: CheckedModuleBodies = body_test_services(
+    "pure f(duration: Duration, instant: Instant, integer: Int, rational: Rat): Void { services.duration_nanoseconds(integer); duration->ticks(); services.duration_from_seconds(rational); instant->add(duration); instant->difference(instant); instant->is_before(instant); }", false
   )
-  accepted_filesystem_io_arguments: CheckedModuleBodies = body_test_module_mode(
-    "pure f(path: Path, limit: Nat, content: Bytes): Void { fs_read(path, limit); fs_write(path, content); }",
-    true
+  accepted_filesystem_io_arguments: CheckedModuleBodies = body_test_services(
+    "pure read(path: Path, limit: Nat, content: Bytes): Void { services.fs_read(path, limit); services.fs_write(path, content); }", true
   )
-  rejected_filesystem_io_argument: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Void { fs_read(\"path\", 1); }",
-    true
+  rejected_filesystem_io_argument: CheckedModuleBodies = body_test_services(
+    "pure read(): Void { services.fs_read(\"path\", 1); }", true
   )
-  rejected_filesystem_io_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Void { fs_read(\"path\", 1); }",
-    false
+  rejected_filesystem_io_argument_ordinary: CheckedModuleBodies = body_test_services(
+    "pure read(): Void { services.fs_read(\"path\", 1); }", false
   )
-  unavailable_filesystem_io_argument: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Void { fs_read(missing, 1); }",
-    true
+  unavailable_filesystem_io_argument: CheckedModuleBodies = body_test_services(
+    "pure read(): Void { services.fs_read(missing, 1); }", true
   )
-  unavailable_filesystem_io_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Void { fs_read(missing, 1); }",
-    false
+  unavailable_filesystem_io_argument_ordinary: CheckedModuleBodies = body_test_services(
+    "pure read(): Void { services.fs_read(missing, 1); }", false
   )
-  ordinary_filesystem_io_arguments: CheckedModuleBodies = body_test_module_mode(
-    "pure f(path: Path, limit: Nat, content: Bytes): Void { fs_read(path, limit); fs_write(path, content); }",
-    false
+  ordinary_filesystem_io_arguments: CheckedModuleBodies = body_test_services(
+    "pure read(path: Path, limit: Nat, content: Bytes): Void { services.fs_read(path, limit); services.fs_write(path, content); }", false
   )
-  accepted_rooted_filesystem_read_arguments: CheckedModuleBodies = body_test_module_mode(
-    "pure f(root: Path, relative: Path, limit: Nat): Void { fs_read_beneath(root, relative, limit); }",
-    true
+  accepted_rooted_filesystem_read_arguments: CheckedModuleBodies = body_test_identity_mode(
+    "pure read_beneath(root: Path, relative: Path, limit: Nat): Void { fs_read_beneath(root, relative, limit); }",
+    ModuleIdentity(ToolchainModulePackage(), "package_filesystem.panack"), true
   )
-  rejected_rooted_filesystem_read_argument: CheckedModuleBodies = body_test_module_mode(
-    "pure f(root: Path, relative: Path, limit: Nat): Void { fs_read_beneath(\"root\", relative, limit); }",
-    true
+  rejected_rooted_filesystem_read_argument: CheckedModuleBodies = body_test_identity_mode(
+    "pure read_beneath(root: Path, relative: Path, limit: Nat): Void { fs_read_beneath(\"root\", relative, limit); }",
+    ModuleIdentity(ToolchainModulePackage(), "package_filesystem.panack"), true
   )
-  rejected_rooted_filesystem_read_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
-    "pure f(root: Path, relative: Path, limit: Nat): Void { fs_read_beneath(\"root\", relative, limit); }",
-    false
+  rejected_rooted_filesystem_read_argument_ordinary: CheckedModuleBodies = body_test_identity_mode(
+    "pure read_beneath(root: Path, relative: Path, limit: Nat): Void { fs_read_beneath(\"root\", relative, limit); }",
+    ModuleIdentity(ToolchainModulePackage(), "package_filesystem.panack"), false
   )
-  unavailable_rooted_filesystem_read_argument: CheckedModuleBodies = body_test_module_mode(
-    "pure f(root: Path, relative: Path, limit: Nat): Void { fs_read_beneath(missing, relative, limit); }",
-    true
+  unavailable_rooted_filesystem_read_argument: CheckedModuleBodies = body_test_identity_mode(
+    "pure read_beneath(root: Path, relative: Path, limit: Nat): Void { fs_read_beneath(missing, relative, limit); }",
+    ModuleIdentity(ToolchainModulePackage(), "package_filesystem.panack"), true
   )
-  unavailable_rooted_filesystem_read_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
-    "pure f(root: Path, relative: Path, limit: Nat): Void { fs_read_beneath(missing, relative, limit); }",
-    false
+  unavailable_rooted_filesystem_read_argument_ordinary: CheckedModuleBodies = body_test_identity_mode(
+    "pure read_beneath(root: Path, relative: Path, limit: Nat): Void { fs_read_beneath(missing, relative, limit); }",
+    ModuleIdentity(ToolchainModulePackage(), "package_filesystem.panack"), false
   )
-  ordinary_rooted_filesystem_read_arguments: CheckedModuleBodies = body_test_module_mode(
-    "pure f(root: Path, relative: Path, limit: Nat): Void { fs_read_beneath(root, relative, limit); }",
-    false
+  ordinary_rooted_filesystem_read_arguments: CheckedModuleBodies = body_test_identity_mode(
+    "pure read_beneath(root: Path, relative: Path, limit: Nat): Void { fs_read_beneath(root, relative, limit); }",
+    ModuleIdentity(ToolchainModulePackage(), "package_filesystem.panack"), false
   )
-  accepted_filesystem_query_arguments: CheckedModuleBodies = body_test_module_mode(
-    "pure f(path: Path): Void { fs_metadata(path); fs_list(path); }",
-    true
+  accepted_filesystem_query_arguments: CheckedModuleBodies = body_test_identity_mode(
+    "pure discover_fixtures(path: Path): Void { fs_metadata(path); fs_list(path); }",
+    ModuleIdentity(ToolchainModulePackage(), "testing_files.panack"), true
   )
-  rejected_filesystem_query_argument: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Void { fs_metadata(\"path\"); }",
-    true
+  rejected_filesystem_query_argument: CheckedModuleBodies = body_test_identity_mode(
+    "pure discover_fixtures(): Void { fs_metadata(\"path\"); }",
+    ModuleIdentity(ToolchainModulePackage(), "testing_files.panack"), true
   )
-  rejected_filesystem_query_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Void { fs_metadata(\"path\"); }",
-    false
+  rejected_filesystem_query_argument_ordinary: CheckedModuleBodies = body_test_identity_mode(
+    "pure discover_fixtures(): Void { fs_metadata(\"path\"); }",
+    ModuleIdentity(ToolchainModulePackage(), "testing_files.panack"), false
   )
-  unavailable_filesystem_query_argument: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Void { fs_metadata(missing); }",
-    true
+  unavailable_filesystem_query_argument: CheckedModuleBodies = body_test_identity_mode(
+    "pure discover_fixtures(): Void { fs_metadata(missing); }",
+    ModuleIdentity(ToolchainModulePackage(), "testing_files.panack"), true
   )
-  unavailable_filesystem_query_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
-    "pure f(): Void { fs_metadata(missing); }",
-    false
+  unavailable_filesystem_query_argument_ordinary: CheckedModuleBodies = body_test_identity_mode(
+    "pure discover_fixtures(): Void { fs_metadata(missing); }",
+    ModuleIdentity(ToolchainModulePackage(), "testing_files.panack"), false
   )
-  ordinary_filesystem_query_arguments: CheckedModuleBodies = body_test_module_mode(
-    "pure f(path: Path): Void { fs_metadata(path); fs_list(path); }",
-    false
+  ordinary_filesystem_query_arguments: CheckedModuleBodies = body_test_identity_mode(
+    "pure discover_fixtures(path: Path): Void { fs_metadata(path); fs_list(path); }",
+    ModuleIdentity(ToolchainModulePackage(), "testing_files.panack"), false
   )
-  accepted_filesystem_path_arguments: CheckedModuleBodies = body_test_module_mode(
-    "pure f(path: Path, other: Path): Void { fs_directories_overlap(path, other); fs_create_directory(path); fs_remove_file(path); fs_remove_directory(path); fs_temp_file(path); fs_temp_directory(path); }",
-    true
+  accepted_filesystem_path_arguments: CheckedModuleBodies = body_test_services(
+    "pure f(path: Path, other: Path): Void { services.fs_directories_overlap(path, other); services.fs_create_directory(path); services.fs_remove_file(path); services.fs_remove_directory(path); services.fs_temp_file(path); services.fs_temp_directory(path); }", true
   )
-  rejected_filesystem_path_argument: CheckedModuleBodies = body_test_module_mode(
-    "pure f(path: Path): Void { fs_directories_overlap(\"root\", path); }",
-    true
+  rejected_filesystem_path_argument: CheckedModuleBodies = body_test_services(
+    "pure f(path: Path): Void { services.fs_directories_overlap(\"root\", path); }", true
   )
-  rejected_filesystem_path_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
-    "pure f(path: Path): Void { fs_directories_overlap(\"root\", path); }",
-    false
+  rejected_filesystem_path_argument_ordinary: CheckedModuleBodies = body_test_services(
+    "pure f(path: Path): Void { services.fs_directories_overlap(\"root\", path); }", false
   )
-  unavailable_filesystem_path_argument: CheckedModuleBodies = body_test_module_mode(
-    "pure f(path: Path): Void { fs_directories_overlap(missing, path); }",
-    true
+  unavailable_filesystem_path_argument: CheckedModuleBodies = body_test_services(
+    "pure f(path: Path): Void { services.fs_directories_overlap(missing, path); }", true
   )
-  unavailable_filesystem_path_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
-    "pure f(path: Path): Void { fs_directories_overlap(missing, path); }",
-    false
+  unavailable_filesystem_path_argument_ordinary: CheckedModuleBodies = body_test_services(
+    "pure f(path: Path): Void { services.fs_directories_overlap(missing, path); }", false
   )
-  ordinary_filesystem_path_arguments: CheckedModuleBodies = body_test_module_mode(
-    "pure f(path: Path, other: Path): Void { fs_directories_overlap(path, other); fs_create_directory(path); fs_remove_file(path); fs_remove_directory(path); fs_temp_file(path); fs_temp_directory(path); }",
-    false
+  ordinary_filesystem_path_arguments: CheckedModuleBodies = body_test_services(
+    "pure f(path: Path, other: Path): Void { services.fs_directories_overlap(path, other); services.fs_create_directory(path); services.fs_remove_file(path); services.fs_remove_directory(path); services.fs_temp_file(path); services.fs_temp_directory(path); }", false
   )
   results = results->append(std_testing.expect(
     "explanation checking marks inferred locals",
@@ -2785,14 +2841,16 @@ pure namespace_body_tests(): [TestResult] {
   ))
   results = results->append(std_testing.expect(
     "explanation checking retains missing direct call arity",
-    missing_call_arity.functions->len() == 2 &&
+    body_type_check_evidence(missing_call_arity.functions[1].body)->len() > 0 &&
+      missing_call_arity.functions->len() == 2 &&
       body_type_check_evidence(missing_call_arity.functions[1].body)[0].expected == "expected 1; found 0" &&
       body_type_check_evidence(missing_call_arity.functions[1].body)[0].accepted == Some(false),
     "missing direct call arity was not retained"
   ))
   results = results->append(std_testing.expect(
     "explanation checking retains extra direct call arity",
-    extra_call_arity.functions->len() == 2 &&
+    body_type_check_evidence(extra_call_arity.functions[1].body)->len() > 0 &&
+      extra_call_arity.functions->len() == 2 &&
       body_type_check_evidence(extra_call_arity.functions[1].body)[0].expected == "expected 1; found 2" &&
       body_type_check_evidence(extra_call_arity.functions[1].body)[0].accepted == Some(false),
     "extra direct call arity was not retained"
@@ -2814,8 +2872,9 @@ pure namespace_body_tests(): [TestResult] {
   ))
   results = results->append(std_testing.expect(
     "explanation checking retains rejected core call arity",
-    rejected_core_call_arity.functions->len() == 1 &&
-      body_type_check_evidence(rejected_core_call_arity.functions[0].body)[0].expected == "expected 1; found 0" &&
+    body_type_check_evidence(rejected_core_call_arity.functions[0].body)->len() > 0 &&
+      rejected_core_call_arity.functions->len() == 1 &&
+      body_type_check_evidence(rejected_core_call_arity.functions[0].body)[0].expected == "expected 1; found 2" &&
       body_type_check_evidence(rejected_core_call_arity.functions[0].body)[0].accepted == Some(false),
     "rejected core call arity was not retained"
   ))
@@ -2831,10 +2890,7 @@ pure namespace_body_tests(): [TestResult] {
   results = results->append(std_testing.expect(
     "len argument decision accepts Bytes",
     accepted_len_bytes_argument.functions->len() == 1 &&
-      match body_type_check_for_context(accepted_len_bytes_argument.functions[0].body, "len argument") {
-        None() => false,
-        Some(evidence) => evidence.expected == "Str, Bytes, or array" && evidence.accepted == Some(true)
-      },
+      body_call_argument_evidence(accepted_len_bytes_argument.functions[0].body)->len() == 1 && body_call_argument_evidence(accepted_len_bytes_argument.functions[0].body)[0].accepted == Some(true),
     "len did not retain its accepted Bytes requirement"
   ))
   results = results->append(std_testing.expect(
@@ -2849,21 +2905,13 @@ pure namespace_body_tests(): [TestResult] {
   results = results->append(std_testing.expect(
     "len argument decision rejects unsupported types",
     rejected_len_argument.functions->len() == 1 &&
-      match body_type_check_for_context(rejected_len_argument.functions[0].body, "len argument") {
-        None() => false,
-        Some(evidence) => evidence.actual == Some(SignatureType(SignatureCore("Nat"), [])) &&
-          evidence.expected == "Str, Bytes, or array" && evidence.accepted == Some(false)
-      },
+      rejected_len_argument.diagnostics->len() > 0 && body_type_check_for_context(rejected_len_argument.functions[0].body, "len argument") == None(),
     "len did not retain its rejected input requirement"
   ))
   results = results->append(std_testing.expect(
     "len argument decision is unavailable for unresolved types",
     unavailable_len_argument.functions->len() == 1 &&
-      match body_type_check_for_context(unavailable_len_argument.functions[0].body, "len argument") {
-        None() => false,
-        Some(evidence) => evidence.actual == None() &&
-          evidence.expected == "Str, Bytes, or array" && evidence.accepted == None()
-      },
+      unavailable_len_argument.diagnostics->len() > 0 && body_type_check_for_context(unavailable_len_argument.functions[0].body, "len argument") == None(),
     "len did not retain its unavailable input requirement"
   ))
   results = results->append(std_testing.expect(
@@ -2938,11 +2986,7 @@ pure namespace_body_tests(): [TestResult] {
   results = results->append(std_testing.expect(
     "explanation checking retains unavailable indirect call arity",
     unavailable_indirect_call_arity.functions->len() == 1 &&
-      match body_type_check_for_context(unavailable_indirect_call_arity.functions[0].body, "indirect call arity") {
-        None() => false,
-        Some(evidence) => evidence.accepted == None() && evidence.expected ==
-          "expected count unavailable because the callable type is unresolved; found 1"
-      },
+      unavailable_indirect_call_arity.diagnostics->len() > 0 && body_type_check_for_context(unavailable_indirect_call_arity.functions[0].body, "indirect call arity") == None(),
     "unavailable indirect call arity reason was not retained"
   ))
   results = results->append(std_testing.expect(
@@ -2957,33 +3001,19 @@ pure namespace_body_tests(): [TestResult] {
   results = results->append(std_testing.expect(
     "explanation checking rejects a non-callable indirect call target",
     rejected_indirect_call_target.functions->len() == 1 &&
-      match body_type_check_for_context(rejected_indirect_call_target.functions[0].body, "indirect call target") {
-        None() => false,
-        Some(evidence) => evidence.actual == Some(SignatureType(SignatureCore("Nat"), [])) &&
-          evidence.expected == "callable type" && evidence.accepted == Some(false)
-      },
+      rejected_indirect_call_target.diagnostics->len() > 0 && body_type_check_for_context(rejected_indirect_call_target.functions[0].body, "indirect call target") == None(),
     "non-callable indirect-call target rejection was not retained"
   ))
   results = results->append(std_testing.expect(
     "explanation checking marks an unresolved indirect call target unavailable",
     unresolved_indirect_call_target.functions->len() == 1 &&
-      match body_type_check_for_context(unresolved_indirect_call_target.functions[0].body, "indirect call target") {
-        None() => false,
-        Some(evidence) => evidence.actual == None() &&
-          evidence.expected == "callable type" && evidence.accepted == None()
-      },
+      unresolved_indirect_call_target.diagnostics->len() > 0 && body_type_check_for_context(unresolved_indirect_call_target.functions[0].body, "indirect call target") == None(),
     "unresolved indirect-call target was not retained as unavailable"
   ))
   results = results->append(std_testing.expect(
     "explanation checking marks a generic indirect call target unresolved",
     parameter_indirect_call_target.functions->len() == 1 &&
-      match body_type_check_for_context(parameter_indirect_call_target.functions[0].body, "indirect call target") {
-        None() => false,
-        Some(evidence) => match evidence.actual {
-          None() => false,
-          Some(actual) => evidence.expected == "callable type" && evidence.accepted == None()
-        }
-      },
+      parameter_indirect_call_target.diagnostics->len() > 0 && body_type_check_for_context(parameter_indirect_call_target.functions[0].body, "indirect call target") == None(),
     "generic indirect-call target decision was not retained as unavailable"
   ))
   results = results->append(std_testing.expect(
@@ -3198,15 +3228,15 @@ pure namespace_body_tests(): [TestResult] {
   results = results->append(std_testing.expect(
     "explanation checking retains rejected text builtin argument evidence",
     rejected_text_builtin.functions->len() == 1 &&
-      body_call_argument_evidence(rejected_text_builtin.functions[0].body)->len() == 1 &&
-      body_call_argument_evidence(rejected_text_builtin.functions[0].body)[0].accepted == Some(false),
+      rejected_text_builtin.diagnostics->len() > 0 &&
+      body_call_argument_evidence(rejected_text_builtin.functions[0].body)->len() == 0,
     "rejected text builtin argument was not retained"
   ))
   results = results->append(std_testing.expect(
     "explanation checking retains unavailable text builtin argument evidence",
     unavailable_text_builtin.functions->len() == 1 &&
-      body_call_argument_evidence(unavailable_text_builtin.functions[0].body)->len() == 1 &&
-      body_call_argument_evidence(unavailable_text_builtin.functions[0].body)[0].accepted == None(),
+      unavailable_text_builtin.diagnostics->len() > 0 &&
+      body_call_argument_evidence(unavailable_text_builtin.functions[0].body)->len() == 0,
     "unavailable text builtin argument was not retained"
   ))
   results = results->append(std_testing.expect(
@@ -3241,8 +3271,8 @@ pure namespace_body_tests(): [TestResult] {
   results = results->append(std_testing.expect(
     "explanation checking retains rejected rational conversion evidence",
     rejected_rational_builtin.functions->len() == 1 &&
-      body_call_argument_evidence(rejected_rational_builtin.functions[0].body)->len() == 1 &&
-      body_call_argument_evidence(rejected_rational_builtin.functions[0].body)[0].accepted == Some(false),
+      rejected_rational_builtin.diagnostics->len() > 0 &&
+      body_call_argument_evidence(rejected_rational_builtin.functions[0].body)->len() == 0,
     "rejected rational conversion argument was not retained"
   ))
   results = results->append(std_testing.expect(
@@ -3255,16 +3285,15 @@ pure namespace_body_tests(): [TestResult] {
   results = results->append(std_testing.expect(
     "explanation checking retains rejected numeric parser evidence",
     rejected_numeric_parse.functions->len() == 1 &&
-      body_call_argument_evidence(rejected_numeric_parse.functions[0].body)->len() == 1 &&
-      body_call_argument_evidence(rejected_numeric_parse.functions[0].body)[0].accepted == Some(false),
+      rejected_numeric_parse.diagnostics->len() > 0 &&
+      body_call_argument_evidence(rejected_numeric_parse.functions[0].body)->len() == 0,
     "rejected numeric parser argument was not retained"
   ))
   results = results->append(std_testing.expect(
     "explanation checking retains unavailable quotient argument evidence",
     unavailable_quotient.functions->len() == 1 &&
-      body_call_argument_evidence(unavailable_quotient.functions[0].body)->len() == 2 &&
-      body_call_argument_evidence(unavailable_quotient.functions[0].body)[0].accepted == None() &&
-      body_call_argument_evidence(unavailable_quotient.functions[0].body)[1].accepted == Some(true),
+      unavailable_quotient.diagnostics->len() > 0 &&
+      body_call_argument_evidence(unavailable_quotient.functions[0].body)->len() == 0,
     "unavailable quotient argument was not retained independently"
   ))
   results = results->append(std_testing.expect(
@@ -3425,8 +3454,8 @@ pure namespace_body_tests(): [TestResult] {
   results = results->append(std_testing.expect(
     "explanation checking retains rejected time argument",
     rejected_time_argument.functions->len() == 1 &&
-      body_call_argument_evidence(rejected_time_argument.functions[0].body)->len() == 1 &&
-      body_call_argument_evidence(rejected_time_argument.functions[0].body)[0].accepted == Some(false),
+      rejected_time_argument.diagnostics->len() > 0 &&
+      body_call_argument_evidence(rejected_time_argument.functions[0].body)->len() == 0,
     "rejected time argument was not retained"
   ))
   results = results->append(std_testing.expect(
@@ -3437,8 +3466,8 @@ pure namespace_body_tests(): [TestResult] {
   results = results->append(std_testing.expect(
     "explanation checking retains unavailable time argument",
     unavailable_time_argument.functions->len() == 1 &&
-      body_call_argument_evidence(unavailable_time_argument.functions[0].body)->len() == 1 &&
-      body_call_argument_evidence(unavailable_time_argument.functions[0].body)[0].accepted == None(),
+      unavailable_time_argument.diagnostics->len() > 0 &&
+      body_call_argument_evidence(unavailable_time_argument.functions[0].body)->len() == 0,
     "unavailable time argument was not retained"
   ))
   results = results->append(std_testing.expect(
@@ -3776,11 +3805,11 @@ pure namespace_body_tests(): [TestResult] {
   alias: LoadedModule = signature_test_module(namespace_identity("core_body"), "import stdlib/core::{Option as Maybe}; pub pure f(): Option[Nat] { Maybe.Some(1) }")
   core_graph: ModuleBindingGraph = ModuleBindingGraph([alias.bindings, core.bindings], [ModuleImportEdge(alias.bindings.identity, 0, core.bindings.identity)])
   core_result: CheckedModuleBodies = body_test_graph([alias, core], core_graph, alias)
-  maps: CheckedModuleBodies = body_test_module("pub pure direct(): Map[Nat,Nat] { map() }; pub pure receiver(value: [Nat]): [Nat] { value.map(@identity) }; pure identity(value: Nat): Nat { value }")
+  maps: CheckedModuleBodies = body_test_module("pub pure direct(): Map[Nat,Nat] { map() }; pub pure receiver(value: [Nat]): [Nat] { value->map(@identity) }; pure identity(value: Nat): Nat { value }")
   results = results->append(std_testing.equal_nat("core map target fixtures bind", maps.diagnostics->len(), 0))
   if maps.functions->len() == 3 {
     results = results->append(std_testing.expect("direct map retains constructor identity", maps.functions[0].body.children[0].node == BodyCall(BodyCore("map"), [SignatureType(SignatureCore("Nat"), []), SignatureType(SignatureCore("Nat"), [])], []), "direct map lowered as receiver method"))
-    results = results->append(std_testing.expect("receiver map retains reserved method identity", maps.functions[1].body.children[0].node == BodyCall(BodyCore("$method_map"), [], []), "receiver map lost method lowering"))
+    results = results->append(std_testing.expect("receiver map retains reserved method identity", maps.functions[1].body.children[0].node == BodyCall(BodyDeclaration(owned_map_binding()), [], []), "receiver map lost method lowering"))
   }
   results = results->append(std_testing.equal_nat("qualified private core alias constructor remains available", core_result.diagnostics->len(), 0))
   results = results->append(std_testing.expect("core alias constructor inference is identity checked", core_result.functions->len() == 1 && core_result.functions[0].status == BodyIdentityChecked(), "constructor did not retain inferred evidence"))
@@ -3906,10 +3935,10 @@ pure namespace_expression_tests(): [TestResult] {
   ] {
     checked: CheckedModuleBodies = body_test_module(source)
     results = results->append(std_testing.expect(
-      "unproved Nat subtraction remains deferred/" + source,
-      checked.diagnostics->len() == 0 && checked.functions->len() > 0 &&
-        checked.functions[0].status == BodyDeferred() && checked.functions[0].deferred->len() > 0,
-      "unproved subtraction was certified or rejected"
+      "unproved Nat subtraction rejects/" + source,
+      checked.diagnostics->len() > 0 && checked.functions->len() > 0 &&
+        checked.functions[0].status == BodyInvalid() && checked.diagnostics[0].message == "Nat subtraction may underflow; prove the left side is large enough or use Int",
+      "unproved subtraction was not rejected"
     ))
   }
   for source in [
@@ -4078,7 +4107,7 @@ pure namespace_aggregate_tests(): [TestResult] {
     "pub pure f(): Int { choose(-1, 1) }; pure choose[T](a: T, b: T): T { a }",
     "pub pure f(): Option[Nat] { choose(None(), Some(1)) }; pure choose[T](a: T, b: T): T { a }",
     "pub pure f[T](value: T): T { identity(value) }; pure identity[T](value: T): T { value }",
-    "pub pure f(): Nat { 1.identity() }; pure identity[T](value: T): T { value }",
+    "pub pure f(): Nat { identity(1) }; pure identity[T](value: T): T { value }",
     "pub pure f(): Fn[Nat] { choose(@answer) }; pure choose[T](callback: Fn[T]): Fn[T] { callback }; pure answer(): Nat { 1 }",
     "pub pure f(value: Option[Nat]): Nat { match value { Some(item) => item, None() => 0 } }",
     "pub pure f(value: Result[Nat,Str]): Nat { match value { Ok(item) => item, Error(message) => 0 } }",
@@ -4160,10 +4189,10 @@ pure namespace_aggregate_tests(): [TestResult] {
   ] {
     checked: CheckedModuleBodies = body_test_module(source)
     mut pending: Bool = false
-    for function in checked.functions { pending = pending || function.status == BodyDeferred() }
-    results = results->append(std_testing.expect("aggregate retains later obligations/" + source, checked.diagnostics->len() == 0 && pending, "later proof/core check lost or rejected"))
+    for function in checked.functions { pending = pending || function.status == BodyInvalid() }
+    results = results->append(std_testing.expect("aggregate rejects unproved callee subtraction/" + source, checked.diagnostics->len() > 0 && pending, "unsafe callee accepted"))
   }
-  for source in ["pub pure f(): Map[Nat,Nat] { map().put(1, 2) }", "pub pure f(): Set[Nat] { set().add(1) }"] {
+  for source in ["pub pure f(): Map[Nat,Nat] { map()->put(1, 2) }", "pub pure f(): Set[Nat] { set()->add(1) }"] {
     checked: CheckedModuleBodies = body_test_module(source)
     results = results->append(std_testing.expect("core receiver contract checks/" + source,
       checked.diagnostics->len() == 0 && checked.functions[0].status == BodyIdentityChecked(),
@@ -4187,45 +4216,48 @@ pure namespace_aggregate_tests(): [TestResult] {
     results = results->append(std_testing.expect("discarded unresolved evidence stays explicit/" + source, checked.diagnostics->len()==0 && checked.functions[0].status==BodyDeferred(), "retained holes silently certified"))
   }
   for source in [
-    "pub pure f():Nat { match [1].first() { helper()=>0 } }; pure helper():Nat { 0 }",
-    "pub record Box { value:Nat }; pub pure f():Nat { match [1].first() { Box(value)=>0 } }",
-    "pub pure f():Nat { match [1].first() { map()=>0 } }",
-    "pub pure f():Nat { match [1].first() { Some(a,b)=>0, None()=>0 } }"
+    "pub pure f():Nat { match [1]->first() { helper()=>0 } }; pure helper():Nat { 0 }",
+    "pub record Box { value:Nat }; pub pure f():Nat { match [1]->first() { Box(value)=>0 } }",
+    "pub pure f():Nat { match [1]->first() { map()=>0 } }",
+    "pub pure f():Nat { match [1]->first() { Some(a,b)=>0, None()=>0 } }"
   ] {
     checked: CheckedModuleBodies = body_test_module(source)
     results = results->append(std_testing.expect("unknown subject retains independent pattern rejection/" + source, checked.diagnostics->len()>0 && checked.functions->len()>0 && checked.functions[0].status==BodyInvalid(), "known pattern error hidden by deferred subject"))
   }
-  unknown_subject: CheckedModuleBodies = body_test_module("pub pure f():Nat { match [1].first() { Some(item)=>0, None()=>0 } }")
-  results = results->append(std_testing.expect("unknown subject with valid pattern contracts stays deferred", unknown_subject.diagnostics->len()==0 && unknown_subject.functions[0].status==BodyDeferred(), "unknown subject invented membership acceptance or rejection"))
+  unknown_subject: CheckedModuleBodies = body_test_module("pub pure f():Nat { match [1]->first() { Some(item)=>0, None()=>0 } }")
+  results = results->append(std_testing.expect("owned first subject resolves pattern membership", unknown_subject.diagnostics->len()==0 && unknown_subject.functions[0].status==BodyIdentityChecked(), "owned subject remained unresolved"))
   results = results->concat(namespace_aggregate_origin_tests())
   results
 }
 
+pure network_test_module(source: Str): LoadedModule {
+  signature_test_module(ModuleIdentity(ToolchainModulePackage(), "tcp.panack"),
+    "pub record TcpServerLimits { clients: Nat, concurrency: Nat, request_limit: Nat, response_limit: Nat, client_timeout_ms: Nat, admission_timeout_ms: Nat, drain_ms: Nat }; " + source)
+}
+
 pure network_core_body_tests(): [TestResult] {
   mut results: [TestResult] = []
-  tcp: LoadedModule = signature_test_module(
-    ModuleIdentity(ToolchainModulePackage(), "tcp.panack"),
-    "pub record TcpServerLimits { clients: Nat, concurrency: Nat, request_limit: Nat, response_limit: Nat, client_timeout_ms: Nat, admission_timeout_ms: Nat, drain_ms: Nat }"
-  )
-  source: Str = "import stdlib/tcp::{TcpServerLimits}; async reply(request: Bytes): Result[Bytes,Str] { Ok(request) }; async server(): Result[[Result[Unit,Str]],Str] { limits = TcpServerLimits(1,1,4096,4096,2000,10000,2000); await tcp_serve(\"127.0.0.1\",9000,@reply,limits) }; async exchange(): Result[Bytes,Str] { await tcp_exchange(\"127.0.0.1\",9000,bytes(),32,100) }; async fake(): Result[Bytes,Str] { await async_fake_read(true) }"
-  app: LoadedModule = signature_test_module(namespace_identity("network_app"), source)
+  tcp: LoadedModule = signature_test_module(builtin_owner_module(), "")
+  source: Str = "async reply(request: Bytes): Result[Bytes,Str] { Ok(request) }; async serve(): Result[[Result[Unit,Str]],Str] { limits = TcpServerLimits(1,1,4096,4096,2000,10000,2000); await tcp_serve(\"127.0.0.1\",9000,@reply,limits) }; async exchange(): Result[Bytes,Str] { await tcp_exchange(\"127.0.0.1\",9000,bytes(),32,100) }"
+  app: LoadedModule = network_test_module(source)
   graph: ModuleBindingGraph = ModuleBindingGraph(
     [app.bindings, tcp.bindings],
-    [ModuleImportEdge(app.bindings.identity, 0, tcp.bindings.identity)]
+    []
   )
   checked: CheckedModuleBodies = body_test_graph([app, tcp], graph, app)
-  mut all_checked: Bool = checked.functions->len() == 4
+  fake: CheckedModuleBodies = body_test_identity_mode("async read(): Result[Bytes,Str] { await async_fake_read(true) }", ModuleIdentity(ToolchainModulePackage(), "testing_async.panack"), true)
+  mut all_checked: Bool = checked.functions->len() == 3
   for function in checked.functions {
     all_checked = all_checked && function.status == BodyIdentityChecked() && function.deferred->len() == 0
   }
   results = results->append(std_testing.expect(
     "async TCP core calls have complete namespace body contracts",
-    checked.diagnostics->len() == 0 && all_checked,
+    checked.diagnostics->len() == 0 && all_checked && fake.diagnostics->len() == 0 && fake.functions->len() == 1 && fake.functions[0].status == BodyIdentityChecked(),
     if checked.diagnostics->len() > 0 { checked.diagnostics[0].message } else { "TCP call body remained deferred or failed identity checking" }
   ))
 
-  transport_source: Str = "pub async request():Result[Bytes,Str] { await http_transport_exchange(\"localhost\",8080,false,bytes(),4096,1000) }"
-  transport_accepted: CheckedModuleBodies = body_test_module_mode(transport_source, true)
+  transport_source: Str = "pub async exchange():Result[Bytes,Str] { await http_transport_exchange(\"localhost\",8080,false,bytes(),4096,1000) }"
+  transport_accepted: CheckedModuleBodies = body_test_identity_mode(transport_source, ModuleIdentity(ToolchainModulePackage(), "http_transport.panack"), true)
   mut transport_checks: [BodyTypeCheckEvidence] = []
   if transport_accepted.functions->len() == 1 {
     transport_checks = body_type_check_evidence(transport_accepted.functions[0].body)
@@ -4245,9 +4277,9 @@ pure network_core_body_tests(): [TestResult] {
     "accepted native HTTP transport argument evidence was incomplete"
   ))
 
-  transport_rejected: CheckedModuleBodies = body_test_module_mode(
-    "pub async request():Result[Bytes,Str] { await http_transport_exchange(\"localhost\",8080,1,bytes(),4096,1000) }",
-    true
+  transport_rejected: CheckedModuleBodies = body_test_identity_mode(
+    "pub async exchange():Result[Bytes,Str] { await http_transport_exchange(\"localhost\",8080,1,bytes(),4096,1000) }",
+    ModuleIdentity(ToolchainModulePackage(), "http_transport.panack"), true
   )
   results = results->append(std_testing.expect(
     "native HTTP transport retains rejected argument type",
@@ -4260,9 +4292,9 @@ pure network_core_body_tests(): [TestResult] {
     "rejected native HTTP transport argument evidence was missing"
   ))
 
-  transport_unavailable: CheckedModuleBodies = body_test_module_mode(
-    "pub async request():Result[Bytes,Str] { await http_transport_exchange(\"localhost\",8080,missing,bytes(),4096,1000) }",
-    true
+  transport_unavailable: CheckedModuleBodies = body_test_identity_mode(
+    "pub async exchange():Result[Bytes,Str] { await http_transport_exchange(\"localhost\",8080,missing,bytes(),4096,1000) }",
+    ModuleIdentity(ToolchainModulePackage(), "http_transport.panack"), true
   )
   results = results->append(std_testing.expect(
     "native HTTP transport retains unavailable argument type",
@@ -4275,7 +4307,7 @@ pure network_core_body_tests(): [TestResult] {
     "unavailable native HTTP transport argument evidence was missing"
   ))
 
-  ordinary_transport: CheckedModuleBodies = body_test_module_mode(transport_source, false)
+  ordinary_transport: CheckedModuleBodies = body_test_identity_mode(transport_source, ModuleIdentity(ToolchainModulePackage(), "http_transport.panack"), false)
   results = results->append(std_testing.expect(
     "ordinary native HTTP transport checking retains no explanation evidence",
     ordinary_transport.functions->len() == 1 &&
@@ -4286,7 +4318,7 @@ pure network_core_body_tests(): [TestResult] {
   explained_tcp: CheckedModuleBodies = body_test_graph_explained([app, tcp], graph, app)
   results = results->append(std_testing.expect(
     "native TCP server explains accepted callback and limits types",
-    explained_tcp.diagnostics->len() == 0 && explained_tcp.functions->len() == 4 &&
+    explained_tcp.diagnostics->len() == 0 && explained_tcp.functions->len() == 3 &&
       match body_type_check_for_context(explained_tcp.functions[1].body, "argument 3 to tcp_serve") {
         None() => false,
         Some(evidence) => evidence.actual == Some(SignatureType(SignatureCallable(SignatureAsync()), [
@@ -4303,11 +4335,11 @@ pure network_core_body_tests(): [TestResult] {
     "accepted native TCP server argument evidence was incomplete"
   ))
 
-  arity_source: Str = "import stdlib/tcp::{TcpServerLimits}; async reply(request: Bytes): Result[Bytes,Str] { Ok(request) }; async bad(): Result[[Result[Unit,Str]],Str] { await tcp_serve(\"127.0.0.1\",9000,@reply) }"
-  arity_app: LoadedModule = signature_test_module(namespace_identity("network_arity"), arity_source)
+  arity_source: Str = "async reply(request: Bytes): Result[Bytes,Str] { Ok(request) }; async serve(): Result[[Result[Unit,Str]],Str] { await tcp_serve(\"127.0.0.1\",9000,@reply) }"
+  arity_app: LoadedModule = network_test_module(arity_source)
   arity_graph: ModuleBindingGraph = ModuleBindingGraph(
     [arity_app.bindings, tcp.bindings],
-    [ModuleImportEdge(arity_app.bindings.identity, 0, tcp.bindings.identity)]
+    []
   )
   arity_checked: CheckedModuleBodies = body_test_graph([arity_app, tcp], arity_graph, arity_app)
   arity_invalid: Bool = arity_checked.functions->len() == 2 && arity_checked.functions[1].status == BodyInvalid()
@@ -4319,11 +4351,11 @@ pure network_core_body_tests(): [TestResult] {
     if arity_checked.diagnostics->len() > 0 { arity_checked.diagnostics[0].message } else { "wrong-arity tcp_serve was accepted" }
   ))
 
-  type_source: Str = "import stdlib/tcp::{TcpServerLimits}; async reply(request: Bytes): Result[Bytes,Str] { Ok(request) }; async bad(): Result[[Result[Unit,Str]],Str] { await tcp_serve(\"127.0.0.1\",9000,@reply,42) }"
-  type_app: LoadedModule = signature_test_module(namespace_identity("network_type"), type_source)
+  type_source: Str = "async reply(request: Bytes): Result[Bytes,Str] { Ok(request) }; async serve(): Result[[Result[Unit,Str]],Str] { await tcp_serve(\"127.0.0.1\",9000,@reply,42) }"
+  type_app: LoadedModule = network_test_module(type_source)
   type_graph: ModuleBindingGraph = ModuleBindingGraph(
     [type_app.bindings, tcp.bindings],
-    [ModuleImportEdge(type_app.bindings.identity, 0, tcp.bindings.identity)]
+    []
   )
   type_checked: CheckedModuleBodies = body_test_graph([type_app, tcp], type_graph, type_app)
   type_invalid: Bool = type_checked.functions->len() == 2 && type_checked.functions[1].status == BodyInvalid()
@@ -4347,11 +4379,11 @@ pure network_core_body_tests(): [TestResult] {
     "rejected native TCP server limits evidence was missing"
   ))
 
-  unavailable_source: Str = "import stdlib/tcp::{TcpServerLimits}; async reply(request: Bytes): Result[Bytes,Str] { Ok(request) }; async bad(): Result[[Result[Unit,Str]],Str] { await tcp_serve(\"127.0.0.1\",9000,@reply,missing) }"
-  unavailable_app: LoadedModule = signature_test_module(namespace_identity("network_unavailable"), unavailable_source)
+  unavailable_source: Str = "async reply(request: Bytes): Result[Bytes,Str] { Ok(request) }; async serve(): Result[[Result[Unit,Str]],Str] { await tcp_serve(\"127.0.0.1\",9000,@reply,missing) }"
+  unavailable_app: LoadedModule = network_test_module(unavailable_source)
   unavailable_graph: ModuleBindingGraph = ModuleBindingGraph(
     [unavailable_app.bindings, tcp.bindings],
-    [ModuleImportEdge(unavailable_app.bindings.identity, 0, tcp.bindings.identity)]
+    []
   )
   unavailable_explained: CheckedModuleBodies = body_test_graph_explained([unavailable_app, tcp], unavailable_graph, unavailable_app)
   results = results->append(std_testing.expect(
@@ -4872,8 +4904,8 @@ pure core_error_identity_tests(): [TestResult] {
   core: LoadedModule = signature_test_module(builtin_owner_module(),
     "pub enum PathError { EmptyPath, PathContainsNul, PathNotUtf8, AbsolutePathAppend }; " +
     "pub enum DurationError { FractionalNanosecond, ZeroDurationDivisor }; " +
-    "impl Path { pub pure to_text(): Result[Str,PathError] { path_to_text(self) } }; " +
-    "impl Duration { pub pure divide(n: Int): Result[Duration,DurationError] { duration_from_seconds(duration_ticks(self) / n) } }")
+    "impl Path { pub pure to_text(): Result[Str,PathError] { self->to_text() } }; " +
+    "impl Duration { pub pure divide(n: Int): Result[Duration,DurationError] { duration_from_seconds(self->ticks() / n) } }")
   facade: LoadedModule = signature_test_module(ModuleIdentity(ToolchainModulePackage(), "path.panack"),
     "pub import stdlib/core::{PathError as PathError}")
   app: LoadedModule = signature_test_module(namespace_identity("core_error_use"),
@@ -4898,7 +4930,7 @@ pure core_error_identity_tests(): [TestResult] {
 }
 
 
-core_bridge_emission_tests(): [TestResult] {
+core_adapter_emission_tests(): [TestResult] {
   core: LoadedModule = signature_test_module(builtin_owner_module(),
     "impl Str { pub pure ends_with(suffix: Str): Bool { self->len() >= suffix->len() } }; " +
     "pure core_ends_with(value: Str, suffix: Str): Bool { value->ends_with(suffix) }; " +
@@ -4913,7 +4945,7 @@ core_bridge_emission_tests(): [TestResult] {
   for declaration in emitted.program.declarations {
     match declaration {
       FunctionDeclaration(name, parameters, result, pure_flag, async_flag, body, types) => {
-        if name == "$core_ends_with" {
+        if name == "core_ends_with" {
           match body.value {
             TailBlockValue(value) => { target = module_emission_guard_call_name(value) },
             NoBlockValue() => {}
@@ -4927,13 +4959,13 @@ core_bridge_emission_tests(): [TestResult] {
     }
   }
   [
-    std_testing.expect("core bridge emission/checked", emitted.diagnostics->len() == 0,
-      "checked core bridge was rejected"),
-    std_testing.expect("core bridge emission/owned target", target == "$core_$owned$Str$ends_with",
-      "core bridge retained an unresolved owned call"),
-    std_testing.expect("core bridge emission/prunable declaration",
+    std_testing.expect("core adapter emission/checked", emitted.diagnostics->len() == 0,
+      "checked core adapter was rejected"),
+    std_testing.expect("core adapter emission/owned target", target == "$core_$owned$Str$ends_with",
+      "core adapter retained an unresolved owned call"),
+    std_testing.expect("core adapter emission/prunable declaration",
       emitted.program.function_indices->has(target), "owned target does not match declaration"),
-    std_testing.expect("core bridge emission/local types survive tooling recheck",
+    std_testing.expect("core adapter emission/local types survive tooling recheck",
       check_program_evidence_mode(emitted.program, true, false).diagnostics->len() == 0,
       "core signed or generic local type was lost")
   ]

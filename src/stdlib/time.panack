@@ -1,26 +1,14 @@
 pub import stdlib/core::{DurationError, DurationError.FractionalNanosecond, DurationError.ZeroDurationDivisor}
 pub enum ClockError { ClockUnavailable }
 
-pub pure ticks(value: Duration): Int { value->ticks() }
 pub pure from_nanoseconds(value: Int): Duration { duration_nanoseconds(value) }
 pub pure from_seconds(value: Rat): Result[Duration,DurationError] {
   duration_from_seconds(value)
 }
 pub now(): Result[Instant,ClockError] { instant_now() }
-pub pure add_instant(value: Instant, delta: Duration): Instant { value->add(delta) }
-pub pure is_before_instant(left: Instant, right: Instant): Bool { left->is_before(right) }
-pub pure difference(left: Instant, right: Instant): Duration { left->difference(right) }
-
 pub pure seconds(value: Int): Duration {
   duration_nanoseconds(value * 1000000000)
 }
 pub pure milliseconds(value: Int): Duration {
   duration_nanoseconds(value * 1000000)
 }
-pub pure add(left: Duration, right: Duration): Duration { left->add(right) }
-pub pure subtract(left: Duration, right: Duration): Duration { left->subtract(right) }
-pub pure scale(value: Duration, factor: Int): Duration { value->scale(factor) }
-pub pure is_before(left: Duration, right: Duration): Bool { left->is_before(right) }
-pub pure as_seconds(value: Duration): Rat { value->as_seconds() }
-pub pure divide(value: Duration, divisor: Int): Result[Duration,DurationError] { value->divide(divisor) }
-pub pure ratio(left: Duration, right: Duration): Result[Rat,DurationError] { left->ratio(right) }

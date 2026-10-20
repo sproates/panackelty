@@ -11,7 +11,6 @@ import project/src/compiler/module_bodies::{
   BodyNode.BodyIndex, BodyNode.BodyInterpolation, BodyNode.BodyLiteral,
   BodyNode.BodyLocalUse, BodyNode.BodyMatch, BodyNode.BodyUnary, BodyNode.BodyWhile,
   BoundBody, body_signature, body_type_text,
-  body_core_function_name, body_core_owner,
   ModuleDeclarationKind.ModuleFunction,
   SignatureEffect, SignatureEffect.SignatureAsync, SignatureEffect.SignatureOrdinary,
   SignatureEffect.SignaturePure, SignatureTypeIdentity.SignatureCallable,
@@ -65,7 +64,7 @@ pure module_effect_for_target(
       }
     },
     BodyCore(name) => {
-      if name == "$method_call" {
+      if name == "$intrinsic_call" {
         None()
       } else {
         if module_async_builtin(name) {
@@ -74,15 +73,7 @@ pure module_effect_for_target(
           if is_impure_builtin(name) {
             Some(SignatureOrdinary())
           } else {
-            core_name: Str = body_core_function_name(name)
-            if core_name == "" {
-              Some(SignaturePure())
-            } else {
-              match body_signature(context.signatures, body_core_owner(core_name)) {
-                None() => Some(SignaturePure()),
-                Some(signature) => signature.effect
-              }
-            }
+            Some(SignaturePure())
           }
         }
       }
@@ -96,7 +87,7 @@ pure module_effect_for_call(
   expression: BoundBody
 ): Option[SignatureEffect] {
   match target {
-    BodyCore(name) => if name == "$method_call" {
+    BodyCore(name) => if name == "$intrinsic_call" {
       if expression.children->len() == 0 {
         None()
       } else {
@@ -120,7 +111,7 @@ pure module_effect_for_call(
 
 pure module_call_effect_known(context: BodyContext, target: BodyTarget, expression: BoundBody): Bool {
   match target {
-    BodyCore(name) => if name == "$method_call" {
+    BodyCore(name) => if name == "$intrinsic_call" {
       if expression.children->len() == 0 {
         false
       } else {
@@ -146,14 +137,10 @@ pure module_call_effect_known(context: BodyContext, target: BodyTarget, expressi
 pure module_effect_target_name(target: BodyTarget): Str {
   match target {
     BodyDeclaration(binding) => binding.identity.module.path + ":" + module_declaration_display(binding),
-    BodyCore(name) => if name == "$method_call" {
+    BodyCore(name) => if name == "$intrinsic_call" {
       "call"
     } else {
-      if body_core_function_name(name) != "" {
-        body_core_function_name(name)
-      } else {
-        name
-      }
+      name
     }
   }
 }
@@ -189,7 +176,7 @@ pure module_effect_call(
       }
       mut indirect_call: Bool = false
       match target {
-        BodyCore(name) => { indirect_call = name == "$method_call" },
+        BodyCore(name) => { indirect_call = name == "$intrinsic_call" },
         BodyDeclaration(binding) => {}
       }
       if retain && indirect_call {

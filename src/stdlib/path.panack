@@ -3,11 +3,4 @@ pub import stdlib/core::{PathError, PathError.EmptyPath, PathError.PathContainsN
 // Opaque Path values preserve native POSIX bytes and do not access the host.
 pub pure from_text(value: Str): Result[Path, PathError] { path_from_text(value) }
 pub pure from_native(value: Bytes): Result[Path, PathError] { path_from_native(value) }
-pub pure join(base: Path, child: Path): Result[Path, PathError] { base->join(child) }
-pub pure to_text(value: Path): Result[Str, PathError] { value->to_text() }
-pub pure native_bytes(value: Path): Bytes { value->native_bytes() }
-pub pure display(value: Path): Str { value->display() }
-pub pure is_absolute(value: Path): Bool { value->is_absolute() }
-pub pure directory(value: Path): Path { value->directory() }
-pub pure filename(value: Path): Option[Path] { value->filename() }
 pub pure current(): Path { path_current() }

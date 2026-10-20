@@ -18,7 +18,7 @@ pure package_error[T](result: Result[T,HostError]): Str {
 
 main(): Void {
   match std_testing_files.workspace_create(package_path("/tmp")) {
-    Error(problem) => { eprint("package filesystem workspace failed: ${problem.code}"); std_host.exit(1) },
+    Error(problem) => { std_host.stderr("package filesystem workspace failed: ${problem.code}"); std_host.exit(1) },
     Ok(workspace) => {
       root = workspace.root
       root_text = package_text(root)

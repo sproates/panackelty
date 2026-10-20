@@ -1,3 +1,4 @@
+import project/tests/runner/compiler_backend_fixtures::{backend_tokens}
 import stdlib/testing as std_testing
 import project/src/compiler/filesystem_support as filesystem_support
 import project/src/compiler/parser::{Program, indexed_program, parse_program_complete, Expr, Expr.BinaryExpr, Expr.NatExpr, Expr.CallExpr}
@@ -9,7 +10,7 @@ import stdlib/host as std_host
 pure explanation_program(source: Str): Program {
   match lex_file(source, "sample.panack") {
     Error(errors) => indexed_program([]),
-    Ok(tokens) => match parse_program_complete(tokens) {
+    Ok(tokens) => match parse_program_complete(backend_tokens(tokens)) {
       Error(error) => indexed_program([]), Ok(program) => program
     }
   }
@@ -113,12 +114,12 @@ main(): Void {
     ["pure builtin allowed", "pure probe(): Nat { len(\"abc\") }", "call:pure:len:pure:plain"],
     ["declaration rather than inferred body", "empty(): Void {} pure probe(): Void { empty(); }", "call:pure:empty:ordinary:plain:pure function cannot call impure function empty"],
     ["recursive pure declaration", "pure probe(n: Nat): Nat { if n == 0 { 0 } else { probe(0) } }", "call:pure:probe:pure:plain"],
-    ["pure callable parameter", "pure probe(f: PureFn[Nat]): Nat { f.call() }", "call:pure:call:pure:plain"],
-    ["ordinary callable parameter", "pure probe(f: Fn[Nat]): Nat { f.call() }", "call:pure:call:ordinary:plain:pure function cannot call impure function call"],
-    ["inferred callable", "pure answer(): Nat { 42 } pure probe(): Nat { f = @answer; f.call() }", "call:pure:call:pure:plain"],
-    ["declared widening is respected", "pure answer(): Nat { 42 } pure probe(): Nat { f: Fn[Nat] = @answer; f.call() }", "call:pure:call:ordinary:plain:pure function cannot call impure function call"],
+    ["pure callable parameter", "pure probe(f: PureFn[Nat]): Nat { intrinsic_call(f) }", "call:pure:call:pure:plain"],
+    ["ordinary callable parameter", "pure probe(f: Fn[Nat]): Nat { intrinsic_call(f) }", "call:pure:call:ordinary:plain:pure function cannot call impure function call"],
+    ["inferred callable", "pure answer(): Nat { 42 } pure probe(): Nat { f = @answer; intrinsic_call(f) }", "call:pure:call:pure:plain"],
+    ["declared widening is respected", "pure answer(): Nat { 42 } pure probe(): Nat { f: Fn[Nat] = @answer; intrinsic_call(f) }", "call:pure:call:ordinary:plain:pure function cannot call impure function call"],
     ["async awaited call", "async child(): Nat { 1 } async probe(): Nat { await child() }", "await:async:::plain|call:async:child:async:awaited"],
-    ["async callable", "async probe(f: AsyncFn[Nat]): Nat { await f.call() }", "await:async:::plain|call:async:call:async:awaited"],
+    ["async callable", "async probe(f: AsyncFn[Nat]): Nat { await intrinsic_call(f) }", "await:async:::plain|call:async:call:async:awaited"],
     ["bare async", "async child(): Nat { 1 } async probe(): Nat { child() }", "call:async:child:async:plain:async call requires await inside an async function"],
     ["ordinary await", "async child(): Nat { 1 } probe(): Nat { await child() }", "await:ordinary:::plain:await requires an async function|call:ordinary:child:async:awaited:async call requires await inside an async function"],
     ["async blocking", "probe_block(): Nat { 1 } async probe(): Nat { probe_block() }", "call:async:probe_block:ordinary:plain:async function cannot call blocking function probe_block"],
@@ -129,8 +130,8 @@ main(): Void {
     ["both branches checked", "pure probe(): Void { if true { print(1); } else { eprint(2); } }", "call:pure:print:ordinary:plain:pure function cannot call impure function print|call:pure:eprint:ordinary:plain:pure function cannot call impure function eprint"],
     ["while and for", "probe(): Void { while false { print(1); } for x in [1] { eprint(x); } }", "call:ordinary:print:ordinary:plain|call:ordinary:eprint:ordinary:plain"],
     ["generic definition once", "pure identity[T](n: T): T { n } pure probe[T](n: T): T { identity(n) }", "call:pure:identity:pure:plain"],
-    ["match callable payload", "enum Choice { Has(PureFn[Nat]) } pure probe(c: Choice): Nat { match c { Has(f) => f.call() } }", "call:pure:call:pure:plain"],
-    ["field callable", "record Box { f: Fn[Nat] } pure probe(box: Box): Nat { box.f.call() }", "call:pure:call:ordinary:plain:pure function cannot call impure function call"],
+    ["match callable payload", "enum Choice { Has(PureFn[Nat]) } pure probe(c: Choice): Nat { match c { Has(f) => intrinsic_call(f) } }", "call:pure:call:pure:plain"],
+    ["field callable", "record Box { f: Fn[Nat] } pure probe(box: Box): Nat { intrinsic_call(box.f) }", "call:pure:call:ordinary:plain:pure function cannot call impure function call"],
     ["guard evidence excluded", "type Count = Nat where value > 0; pure probe(): Nat { 1 }", ""]
   ]
   for item in effect_cases {
@@ -146,10 +147,10 @@ main(): Void {
   recovery_cases: [[Str]] = [
     ["body assignment", "bad(): Void { n: Bool = 1; print(n); }", "local"],
     ["return mismatch", "bad(): Bool { print(1); 1 }", "local"],
-    ["invalid callable assignment", "ordinary(): Nat { 1 } pure bad(): Nat { cb: PureFn[Nat] = @ordinary; cb.call() }", "local"],
-    ["invalid callable receiver", "bad(): Void { 42.call(); }", "local"],
+    ["invalid callable assignment", "ordinary(): Nat { 1 } pure bad(): Nat { cb: PureFn[Nat] = @ordinary; intrinsic_call(cb) }", "local"],
+    ["invalid callable receiver", "bad(): Void { intrinsic_call(42); }", "local"],
     ["invalid awaited result", "async child(): Nat { 1 } async bad(): Bool { await child() }", "local"],
-    ["invalid iterable", "bad(): Void { for cb in 42 { cb.call(); } }", "local"],
+    ["invalid iterable", "bad(): Void { for cb in 42 { intrinsic_call(cb); } }", "local"],
     ["invalid signature", "bad(x: Missing): Void {}", "global"],
     ["invalid return signature", "bad(): Missing { 1 }", "global"],
     ["duplicate generic header", "bad[T,T](): Void {}", "global"],
@@ -188,7 +189,7 @@ main(): Void {
   callee_checked: CheckedProgram = check_program_evidence(callee_program, true)
   callee_effects: CheckedEffects = check_frontend_effects(callee_program, callee_checked, true)
   results = results->append(std_testing.expect("invalid callee body keeps declaration boundary", callee_effects.evidence->len() == 1 && callee_effects.evidence[0].function_name == "probe" && callee_effects.evidence[0].target_effect == "pure" && callee_effects.evidence[0].violations->len() == 0 && callee_effects.diagnostics->len() > 0, "body validity confused with local declaration boundary"))
-  source: Str = "// λ🙂\npure probe(): Void { print(1); }"
+  source: Str = "// \u03bb\ud83d\ude42\npure probe(): Void { print(1); }"
   retained: CheckedEffects = check_program_effect_evidence(explanation_program(source), true)
   results = results->append(std_testing.equal_nat("effect source count", retained.evidence->len(), 1))
   if retained.evidence->len() == 1 {

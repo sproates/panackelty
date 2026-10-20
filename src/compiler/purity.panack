@@ -184,7 +184,7 @@ pub pure check_effect_expression(
         (function.found &&
         function.is_async)
       mut impure: Bool = is_impure_builtin(name) || (function.found && !function.is_pure)
-      if name == "$method_call" && arguments->len() > 0 {
+      if name == "$intrinsic_call" && arguments->len() > 0 {
         target: CheckedExpression = check_expression(arguments[0], environment, map(), program)
         effect: Str = type_shape(target.info.name).base
         async_call = effect == "AsyncFn"
@@ -192,12 +192,12 @@ pub pure check_effect_expression(
       }
       if retain {
         kind = "call"
-        target_name = if name == "$method_call" {
+        target_name = if name == "$intrinsic_call" {
           "call"
         } else {
           name
         }
-        basis = if name == "$method_call" {
+        basis = if name == "$intrinsic_call" {
           "callable type"
         } else {
           if function.found {
@@ -216,7 +216,7 @@ pub pure check_effect_expression(
           }
         }
       }
-      display_name: Str = if name == "$method_call" {
+      display_name: Str = if name == "$intrinsic_call" {
         "call"
       } else {
         name

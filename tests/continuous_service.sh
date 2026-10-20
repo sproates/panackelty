@@ -29,7 +29,6 @@ cat > "$work/app/panack.json" <<MANIFEST
 MANIFEST
 cat > "$work/template.panack" <<'SOURCE'
 import stdlib/async_host as host
-import stdlib/text as text
 import http/server as server
 import http/service as service
 

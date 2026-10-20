@@ -33,7 +33,7 @@ import project/src/compiler/parser::{
 pub import project/src/compiler/parser::{Program}
 import project/src/compiler/module_resolution::{
   ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget,
-  ResolvedDotCall.NamespaceCall, ResolvedDotCall.ValueMethodCall,
+  ResolvedDotCall.NamespaceCall,
   resolve_module_dot_call, resolve_module_path
 }
 import project/src/compiler/module_bindings::{
@@ -79,12 +79,7 @@ pub pure module_emission_symbol(
   identity: DeclarationIdentity
 ): Str {
   if identity.module.package == ToolchainModulePackage() {
-    if identity.name == "core_first" || identity.name == "core_ends_with" ||
-      identity.name == "core_sort_by" {
-      "$" + identity.name
-    } else {
-      identity.name
-    }
+    identity.name
   } else {
     if identity.module == entry && identity.name == "main" {
       "main"
@@ -352,12 +347,6 @@ pure module_emission_guard_expression(
           module_emission_callable_symbol(graph, entry, binding),
           module_emission_guard_expressions(graph, entry, owner, values),
           type_arguments
-        ),
-        ValueMethodCall(receiver, method, values, type_arguments) => DotCallExpr(
-          module_emission_guard_expression(graph, entry, owner, receiver),
-          method,
-          module_emission_guard_expressions(graph, entry, owner, values),
-          type_arguments
         )
       }
     },
@@ -529,12 +518,10 @@ pure module_emission_block(
       statement: Option[Statement] = match child.node {
         BodyBinding(identity, type, mutable, inferred, type_evidence) => Some(BindingStatement(
           identity.name,
-          if identity.owner.module == ModuleIdentity(ToolchainModulePackage(), "core.panack") {
-            match type {
-              Some(value) => module_emission_signature_type(graph, entry, identity.owner, parameters, value),
-              None() => ""
-            }
-          } else { "" },
+          match type {
+            Some(value) => module_emission_signature_type(graph, entry, identity.owner, parameters, value),
+            None() => ""
+          },
           None(),
           mutable,
           module_emission_expression_with_parameters(graph, entry, parameters, child.children[0])
@@ -753,8 +740,7 @@ pub pure module_emission_program(
   for module in modules {
     if module.bindings.identity.package == ToolchainModulePackage() &&
       module.bindings.identity.path == "core.panack" {
-      // Every core function uses its checked body, including compatibility
-      // helpers that forward to owned calls. Enums retain their core identities.
+      // Every core function uses its checked body. Enums retain their core identities.
       mut core_index: Nat = 0
       for declaration in module.parsed.program.declarations {
         match declaration {

@@ -673,7 +673,7 @@ pure emit_call(
   mut sources: [InstructionSource] = []
   mut probes: [EmissionProbe] = []
 
-  if name == "$method_call" {
+  if name == "$intrinsic_call" {
     emitted: EmittedCode = emit_expression_list(
       arguments,
       program,
@@ -690,7 +690,7 @@ pure emit_call(
         []
       }, emitted.probes)
   } else {
-    if name == "$method_map" || name == "$method_reduce" {
+    if name == "$intrinsic_map" || name == "$intrinsic_reduce" {
       collection_name: Str = "$collection${next_temporary}"
       callback_name: Str = "$callback${next_temporary}"
       item_name: Str = "$item${next_temporary}"
@@ -717,7 +717,7 @@ pure emit_call(
         StoreInstruction(collection_name)
       )
       mut temporary: Nat = collection.next_temporary
-      if name == "$method_reduce" {
+      if name == "$intrinsic_reduce" {
         initial: EmittedCode = emit_expression(
           arguments[1],
           program,
@@ -771,7 +771,7 @@ pure emit_call(
         sources = add_instruction_source(sources, origin, offset + instructions->len(), true)
       }
       instructions = instructions->append(IterNextInstruction(iterator_name, item_name, 0))
-      if name == "$method_map" {
+      if name == "$intrinsic_map" {
         if retain_sources {
           sources = add_instruction_source(sources, origin, offset + instructions->len(), true)
         }

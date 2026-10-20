@@ -1,1 +1,1 @@
-pure Pick(): Nat { 1 }
+pub pure Pick(): Nat { 1 }

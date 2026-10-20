@@ -64,7 +64,10 @@ reproduces P08's saved seed and conformance artifact before broader caller migra
 and conformance programs using that accepted seed. Its report records regenerated
 fixed points. [P11](../design/type-owned-dispatch/p11-remaining-callers.md) migrates
 compiler and maintained source callers, saving a new verified compiler seed.
-Legacy frontend test inputs remain explicitly registered for P12. The VM and bytecode format are unchanged.
+[P12](../design/type-owned-dispatch/p12-legacy-removal.md) removes compatibility
+lowering and wrappers, retaining focused internal backend fixtures and adding
+public rejection coverage. All project acceptance uses checked identities.
+The VM and bytecode format are unchanged.
 
 ## Historical P2 completion checkpoint — 2026-10-10
 
@@ -386,7 +389,7 @@ breaks while preserving multiline expressions, skips comments, uses half-open
 source offsets, and reports positioned diagnostics for invalid characters and
 unterminated strings. The current parser still handles
 the complete expression precedence hierarchy, scalar and array literals, calls,
-receiver-first method-call lowering, field access, indexing, blocks, bindings,
+owned receiver calls, namespace dots, field access, indexing, blocks, bindings,
 assignments, tail values, and
 conditional expressions with optional `else`, `while` and `for` statements, and
 pattern matching with payload bindings. Program-level parsing accepts quoted

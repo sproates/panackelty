@@ -1,1 +1,1 @@
-pure choose[T](a: [T], b: [T]): [T] { a.concat(b) } main(): Void { x: [Str] = choose(["x"], []) }
+pure choose[T](a: [T], b: [T]): [T] { concat(a, b) } main(): Void { x: [Str] = choose(["x"], []) }

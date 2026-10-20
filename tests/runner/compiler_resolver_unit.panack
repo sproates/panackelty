@@ -25,11 +25,11 @@ pure resolver_unit_enforces_lexical_scope_and_shadowing(): [TestResult] {
   ]
 }
 
-pure resolver_unit_method_calls_use_global_callable_lookup(): [TestResult] {
+pure resolver_unit_raw_dot_calls_require_module_resolution(): [TestResult] {
   [
-    std_testing.equal_str("resolver/method_calls_use_global_callable_lookup/1",
+    std_testing.equal_str("resolver/raw_dot_calls_require_module_resolution/1",
       resolve_source("record Box { value: Nat } main(): Void { Box(1).missing(); }"),
-      "unknown function missing")
+      "unresolved dot call requires module binding resolution")
   ]
 }
 
@@ -156,7 +156,7 @@ pure resolver_unit_resolves_reachable_transitive_modules(): [TestResult] {
 pure resolver_unit_resolves_top_level_callables_builtins_and_local_names(): [TestResult] {
   [
     std_testing.equal_str("resolver/resolves_top_level_callables_builtins_and_local_names/1",
-      resolve_source("\nrecord Pair { left: Nat, right: Nat }\nenum Option[T] { None, Some(T) }\n\npure sum(pair: Pair): Nat { pair.left + pair.right }\n\npure value_or(option: Option[Nat], fallback: Nat): Nat {\n  match option { Some(value) => value, None() => fallback }\n}\n\nmain(): Void {\n  pair: Pair = Pair(20, 22);\n  print(sum(pair));\n  print(pair.sum());\n  mut values: Map[Str,Nat] = map();\n  values = values.put(\"answer\", 42);\n  print(values.has(\"answer\"));\n  print(values.get(\"answer\"));\n  print(set().add(\"seen\").has(\"seen\"));\n  print(value_or(Some(1), 0));\n}\n"),
+      resolve_source("\nrecord Pair { left: Nat, right: Nat }\nenum Option[T] { None, Some(T) }\n\npure sum(pair: Pair): Nat { pair.left + pair.right }\n\npure value_or(option: Option[Nat], fallback: Nat): Nat {\n  match option { Some(value) => value, None() => fallback }\n}\n\nmain(): Void {\n  pair: Pair = Pair(20, 22);\n  print(sum(pair));\n  print(sum(pair));\n  mut values: Map[Str,Nat] = map();\n  values = map_put(values, \"answer\", 42);\n  print(map_has(values, \"answer\"));\n  print(map_get(values, \"answer\"));\n  print(set_has(set_add(set(), \"seen\"), \"seen\"));\n  print(value_or(Some(1), 0));\n}\n"),
       "ok")
   ]
 }
@@ -177,7 +177,7 @@ pure resolver_unit_visits_a_diamond_dependency_only_once(): [TestResult] {
 main(): Void {
   mut results: [TestResult] = []
   results = results->concat(resolver_unit_enforces_lexical_scope_and_shadowing())
-  results = results->concat(resolver_unit_method_calls_use_global_callable_lookup())
+  results = results->concat(resolver_unit_raw_dot_calls_require_module_resolution())
   results = results->concat(resolver_unit_propagates_lexer_and_parser_failures())
   results = results->concat(resolver_unit_reports_duplicate_and_conflicting_top_level_symbols())
   results = results->concat(resolver_unit_reports_module_graph_failures())

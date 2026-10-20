@@ -13,10 +13,10 @@
     "src/compiler/resolver.panack",
     "src/compiler/source_inventory.panack", "src/compiler/source_maps.panack", "src/compiler/types.panack",
     "src/stdlib/bytes.panack", "src/stdlib/core.panack", "src/stdlib/environment.panack", "src/stdlib/filesystem.panack",
-    "src/stdlib/host.panack", "src/stdlib/numeric.panack",
-    "src/stdlib/option.panack", "src/stdlib/path.panack", "src/stdlib/prelude.panack",
-    "src/stdlib/process.panack", "src/stdlib/result.panack", "src/stdlib/tcp.panack", "src/stdlib/testing.panack",
-    "src/stdlib/testing_commands.panack", "src/stdlib/testing_files.panack", "src/stdlib/text.panack",
+    "src/stdlib/host.panack", "src/stdlib/compiler_files.panack",
+    "src/stdlib/compiler_paths.panack", "src/stdlib/path.panack", "src/stdlib/prelude.panack",
+    "src/stdlib/process.panack", "src/stdlib/http_transport.panack", "src/stdlib/tcp.panack", "src/stdlib/testing.panack",
+    "src/stdlib/testing_commands.panack", "src/stdlib/testing_files.panack", "src/stdlib/testing_async.panack",
     "src/stdlib/time.panack"
   ],
   "unmeasured": [

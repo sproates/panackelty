@@ -75,11 +75,11 @@ compiler_workspace="$workspace/compiler-source"
 mkdir -p "$compiler_workspace/src/compiler"
 cp src/compiler/owned_intrinsics.panack src/compiler/types.panack src/compiler/lexer.panack src/compiler/parser.panack src/compiler/expression_contracts.panack src/compiler/resolver.panack src/compiler/checker.panack src/compiler/module_bindings.panack src/compiler/module_resolution.panack src/compiler/module_signatures.panack src/compiler/purity.panack src/compiler/module_bodies.panack src/compiler/module_effects.panack src/compiler/module_emission.panack src/compiler/emitter.panack "$compiler_workspace/src/compiler/"
 cat > "$compiler_workspace/main.panack" <<'EOF'
+import stdlib/host as namespace_host
+import stdlib/tcp as transport_tcp
+import stdlib/testing_async as testing_async
 import stdlib/bytes as byte_buffer
-import stdlib/option as option
-import stdlib/result as result
 import stdlib/environment as environment
-import stdlib/text as text
 import stdlib/path as path
 import stdlib/time as time
 import stdlib/testing as testing
@@ -112,6 +112,19 @@ record BodyAndEffects {
   effects: CheckedModuleEffects
 }
 
+pure namespace_core_module(fallback: LoadedModule, include_paths: Bool): LoadedModule {
+  match lex(if include_paths { "pub enum PathError { EmptyPath, PathContainsNul, PathNotUtf8, AbsolutePathAppend }; impl Path { pub pure is_absolute(): Bool { true }; pub pure display(): Str { \"\" }; pub pure native_bytes(): Bytes { bytes() }; pub pure directory(): Path { self }; pub pure filename(): Option[Path] { None() }; pub pure join(other: Path): Result[Path,PathError] { Ok(self) }; pub pure to_text(): Result[Str,PathError] { Ok(\"\") } }" } else { "" }) {
+    Error(errors) => fallback,
+    Ok(tokens) => match parse_module_complete(tokens) {
+      Error(error) => fallback,
+      Ok(parsed) => {
+        identity: ModuleIdentity = ModuleIdentity(ToolchainModulePackage(), "core.panack")
+        LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed))
+      }
+    }
+  }
+}
+
 pure body_check_result(source: Str): BodyAndEffects {
   body_check_result_at(source, ModuleIdentity(StandaloneModulePackage(), "body-test"))
 }
@@ -124,13 +137,15 @@ pure body_check_result_at(source: Str, identity: ModuleIdentity): BodyAndEffects
       Ok(parsed) => {
         bindings: ModuleBindings = collect_module_bindings(identity, parsed)
         module: LoadedModule = LoadedModule(identity.path, parsed, parsed.program, bindings, loaded_module_declaration_index(parsed))
-        graph: ModuleBindingGraph = ModuleBindingGraph([bindings], [])
-        signatures = check_module_signatures(graph, [module], module)
-        checked: CheckedModuleBodies = check_module_bodies(graph, [module], signatures.declarations, module)
+        core: LoadedModule = namespace_core_module(module, true)
+        graph: ModuleBindingGraph = ModuleBindingGraph([bindings, core.bindings], [ModuleImportEdge(identity, 0, core.bindings.identity)])
+        core_signatures = check_module_signatures(graph, [module, core], core)
+        signatures = check_module_signatures(graph, [module, core], module)
+        checked: CheckedModuleBodies = check_module_bodies(graph, [module, core], core_signatures.declarations->concat(signatures.declarations), module)
         effects: CheckedModuleEffects = check_module_effects(
           graph,
-          [module],
-          signatures.declarations,
+          [module, core],
+          core_signatures.declarations->concat(signatures.declarations),
           checked.functions,
           true
         )
@@ -145,7 +160,7 @@ pure body_check_result_at(source: Str, identity: ModuleIdentity): BodyAndEffects
 
 pure path_body_check_result(source: Str): BodyAndEffects {
   body_check_result_at(
-    "pub enum PathError { EmptyPath, PathContainsNul, PathNotUtf8, AbsolutePathAppend }\n" + source,
+    "pub import stdlib/core::{PathError}\n" + source,
     ModuleIdentity(ToolchainModulePackage(), "path.panack")
   )
 }
@@ -176,7 +191,7 @@ pure namespace_identity_checked(bodies: CheckedModuleBodies, name: Str): Bool {
 
 pure imported_byte_module_identity_ok(): Bool {
   codec: Option[LoadedModule] = namespace_loaded_module(
-    "pub pure encode_u8(value: Nat): Bytes { byte_append(bytes(), value) }",
+    "pub pure encode_u8(value: Nat): Bytes { bytes()->push(value) }",
     "codec.panack"
   )
   application: Option[LoadedModule] = namespace_loaded_module(
@@ -188,9 +203,10 @@ pure imported_byte_module_identity_ok(): Bool {
     Some(codec_module) => match application {
       None() => false,
       Some(application_module) => {
-        modules: [LoadedModule] = [application_module, codec_module]
+        core_module: LoadedModule = namespace_core_module(codec_module, false)
+        modules: [LoadedModule] = [application_module, codec_module, core_module]
         graph: ModuleBindingGraph = ModuleBindingGraph(
-          [application_module.bindings, codec_module.bindings],
+          [application_module.bindings, codec_module.bindings, core_module.bindings],
           [ModuleImportEdge(application_module.bindings.identity, 0, codec_module.bindings.identity)]
         )
         codec_signatures = check_module_signatures(graph, modules, codec_module)
@@ -227,58 +243,58 @@ async namespace_tcp_reply(request: Bytes): Result[Bytes,Str] { Ok(request) }
 
 async namespace_tcp_server_signature(): Result[[Result[Unit,Str]],Str] {
   limits = TcpServerLimits(1, 1, 32, 32, 100, 100, 100)
-  await tcp_serve("127.0.0.1", 9000, @namespace_tcp_reply, limits)
+  await transport_tcp.serve("127.0.0.1", 9000, @namespace_tcp_reply, limits)
 }
 
 async namespace_tcp_exchange_signature(): Result[Bytes,Str] {
-  await tcp_exchange("127.0.0.1", 9000, byte_buffer.empty(), 32, 100)
+  await transport_tcp.exchange("127.0.0.1", 9000, byte_buffer.empty(), 32, 100)
 }
 
 async namespace_async_reader_signature(): Result[Bytes,Str] {
-  await async_fake_read(true)
+  await testing_async.read(true)
 }
 
 main(): Void {
   interpolation: InterpolatedString = split_interpolated_string("\"hello " + "$" + "{name}\"")
   shape: TypeShape = type_shape("Array[Nat]")
   effect: SignatureEffect = signature_effect(true, false)
-  quotient_ok: BodyAndEffects = body_check_result("pub pure f(): Nat { quotient(43, 10) }")
-  quotient_bad_type: BodyAndEffects = body_check_result("pub pure f(): Nat { quotient(43, \"10\") }")
-  quotient_bad_arity: BodyAndEffects = body_check_result("pub pure f(): Nat { quotient(43) }")
-  bytes_ok: BodyAndEffects = body_check_result("pub pure f(): Nat { byte_len(bytes_concat(bytes(), byte_append(bytes(), 42))) }")
-  byte_parameter_ok: BodyAndEffects = body_check_result("pub pure f(value: Nat): Bytes { byte_append(bytes(), value) }")
-  codec_expression_ok: BodyAndEffects = body_check_result("pub pure f(value: Nat): Bytes { byte_append(byte_append(bytes(), quotient(value, 256) % 256), value % 256) }")
-  codec_helpers_ok: BodyAndEffects = body_check_result("pure encode_u8(value: Nat): Bytes { byte_append(bytes(), value) } pure encode_u16(value: Nat): Bytes { byte_append(byte_append(bytes(), quotient(value, 256) % 256), value % 256) } pure encode_nat_body(value: Nat): Bytes { if value < 256 { encode_u8(value) } else { byte_append(encode_nat_body(quotient(value, 256)), value % 256) } }")
-  utf8_ok: BodyAndEffects = body_check_result("pub pure f(): Str { utf8_decode(utf8_encode(\"ok\")) }")
-  byte_get_ok: BodyAndEffects = body_check_result("pub pure f(): Nat { byte_get(bytes(), 0) }")
+  quotient_ok: BodyAndEffects = body_check_result("pub pure f(): Nat { 43->divide(10) }")
+  quotient_bad_type: BodyAndEffects = body_check_result("pub pure f(): Nat { 43->divide(\"10\") }")
+  quotient_bad_arity: BodyAndEffects = body_check_result("pub pure f(): Nat { 43->divide() }")
+  bytes_ok: BodyAndEffects = body_check_result("pub pure f(): Nat { bytes()->join(bytes()->push(42))->length() }")
+  byte_parameter_ok: BodyAndEffects = body_check_result("pub pure f(value: Nat): Bytes { bytes()->push(value) }")
+  codec_expression_ok: BodyAndEffects = body_check_result("pub pure f(value: Nat): Bytes { bytes()->push(value->divide(256) % 256)->push(value % 256) }")
+  codec_helpers_ok: BodyAndEffects = body_check_result("pure encode_u8(value: Nat): Bytes { bytes()->push(value) } pure encode_u16(value: Nat): Bytes { bytes()->push(value->divide(256) % 256)->push(value % 256) } pure encode_nat_body(value: Nat): Bytes { if value < 256 { encode_u8(value) } else { encode_nat_body(value->divide(256))->push(value % 256) } }")
+  utf8_ok: BodyAndEffects = body_check_result("pub pure f(): Str { \"ok\"->encode_utf8()->decode_utf8() }")
+  byte_get_ok: BodyAndEffects = body_check_result("pub pure f(): Nat { bytes()->at(0) }")
   bytes_bad_arity: BodyAndEffects = body_check_result("pub pure f(): Bytes { bytes(1) }")
-  path_absolute_ok: BodyAndEffects = body_check_result("pub pure f(value: Path): Bool { path_absolute(value) }")
-  path_display_ok: BodyAndEffects = body_check_result("pub pure f(value: Path): Str { path_display(value) }")
-  path_current_ok: BodyAndEffects = body_check_result("pub pure f(): Path { path_current() }")
-  path_native_bytes_ok: BodyAndEffects = body_check_result("pub pure f(value: Path): Bytes { path_native_bytes(value) }")
-  path_directory_ok: BodyAndEffects = body_check_result("pub pure f(value: Path): Path { path_directory(value) }")
-  path_filename_ok: BodyAndEffects = body_check_result("pub pure f(value: Path): Option[Path] { path_filename(value) }")
-  path_from_text_ok: BodyAndEffects = path_body_check_result("pub pure f(): Result[Path, PathError] { path_from_text(\"relative\") }")
-  path_from_native_ok: BodyAndEffects = path_body_check_result("pub pure f(): Result[Path, PathError] { path_from_native(bytes()) }")
-  path_append_ok: BodyAndEffects = path_body_check_result("pub pure f(value: Path): Result[Path, PathError] { path_append(value, value) }")
-  path_to_text_ok: BodyAndEffects = path_body_check_result("pub pure f(value: Path): Result[Str, PathError] { path_to_text(value) }")
-  path_from_text_bad_type: BodyAndEffects = path_body_check_result("pub pure f(): Result[Path, PathError] { path_from_text(1) }")
-  path_from_native_bad_type: BodyAndEffects = path_body_check_result("pub pure f(): Result[Path, PathError] { path_from_native(\"relative\") }")
-  path_append_bad_arity: BodyAndEffects = path_body_check_result("pub pure f(value: Path): Result[Path, PathError] { path_append(value) }")
-  path_to_text_bad_type: BodyAndEffects = path_body_check_result("pub pure f(): Result[Str, PathError] { path_to_text(\"relative\") }")
-  path_native_bytes_bad_type: BodyAndEffects = body_check_result("pub pure f(): Bytes { path_native_bytes(\"relative\") }")
-  path_absolute_bad_type: BodyAndEffects = body_check_result("pub pure f(): Bool { path_absolute(\"relative\") }")
-  path_current_bad_arity: BodyAndEffects = body_check_result("pub pure f(): Path { path_current(1) }")
+  path_absolute_ok: BodyAndEffects = body_check_result("pub pure f(value: Path): Bool { value->is_absolute() }")
+  path_display_ok: BodyAndEffects = body_check_result("pub pure f(value: Path): Str { value->display() }")
+  path_current_ok: BodyAndEffects = path_body_check_result("pub pure current(): Path { path_current() }")
+  path_native_bytes_ok: BodyAndEffects = body_check_result("pub pure f(value: Path): Bytes { value->native_bytes() }")
+  path_directory_ok: BodyAndEffects = body_check_result("pub pure f(value: Path): Path { value->directory() }")
+  path_filename_ok: BodyAndEffects = body_check_result("pub pure f(value: Path): Option[Path] { value->filename() }")
+  path_from_text_ok: BodyAndEffects = path_body_check_result("pub pure from_text(): Result[Path, PathError] { path_from_text(\"relative\") }")
+  path_from_native_ok: BodyAndEffects = path_body_check_result("pub pure from_native(): Result[Path, PathError] { path_from_native(bytes()) }")
+  path_append_ok: BodyAndEffects = path_body_check_result("pub pure f(value: Path): Result[Path, PathError] { value->join(value) }")
+  path_to_text_ok: BodyAndEffects = path_body_check_result("pub pure f(value: Path): Result[Str, PathError] { value->to_text() }")
+  path_from_text_bad_type: BodyAndEffects = path_body_check_result("pub pure from_text(): Result[Path, PathError] { path_from_text(1) }")
+  path_from_native_bad_type: BodyAndEffects = path_body_check_result("pub pure from_native(): Result[Path, PathError] { path_from_native(\"relative\") }")
+  path_append_bad_arity: BodyAndEffects = path_body_check_result("pub pure f(value: Path): Result[Path, PathError] { value->join() }")
+  path_to_text_bad_type: BodyAndEffects = path_body_check_result("pub pure f(): Result[Str, PathError] { \"relative\"->to_text() }")
+  path_native_bytes_bad_type: BodyAndEffects = body_check_result("pub pure f(): Bytes { \"relative\"->native_bytes() }")
+  path_absolute_bad_type: BodyAndEffects = body_check_result("pub pure f(): Bool { \"relative\"->is_absolute() }")
+  path_current_bad_arity: BodyAndEffects = path_body_check_result("pub pure current(): Path { path_current(1) }")
   imported_byte_identity: Bool = imported_byte_module_identity_ok()
-  bytes_bad_type: BodyAndEffects = body_check_result("pub pure f(): Bytes { byte_append(bytes(), \"42\") }")
-  byte_append_bad_buffer: BodyAndEffects = body_check_result("pub pure f(): Bytes { byte_append(\"42\", 1) }")
-  bytes_concat_bad_left: BodyAndEffects = body_check_result("pub pure f(): Bytes { bytes_concat(1, bytes()) }")
-  bytes_concat_bad_type: BodyAndEffects = body_check_result("pub pure f(): Bytes { bytes_concat(bytes(), 1) }")
-  byte_len_bad_type: BodyAndEffects = body_check_result("pub pure f(): Nat { byte_len(\"42\") }")
-  byte_get_bad_bytes: BodyAndEffects = body_check_result("pub pure f(): Nat { byte_get(\"42\", 0) }")
-  byte_get_bad_index: BodyAndEffects = body_check_result("pub pure f(): Nat { byte_get(bytes(), \"0\") }")
-  utf8_encode_bad_type: BodyAndEffects = body_check_result("pub pure f(): Bytes { utf8_encode(bytes()) }")
-  utf8_decode_bad_type: BodyAndEffects = body_check_result("pub pure f(): Str { utf8_decode(\"42\") }")
+  bytes_bad_type: BodyAndEffects = body_check_result("pub pure f(): Bytes { bytes()->push(\"42\") }")
+  byte_append_bad_buffer: BodyAndEffects = body_check_result("pub pure f(): Bytes { \"42\"->push(1) }")
+  bytes_concat_bad_left: BodyAndEffects = body_check_result("pub pure f(): Bytes { 1->join(bytes()) }")
+  bytes_concat_bad_type: BodyAndEffects = body_check_result("pub pure f(): Bytes { bytes()->join(1) }")
+  byte_len_bad_type: BodyAndEffects = body_check_result("pub pure f(): Nat { \"42\"->length() }")
+  byte_get_bad_bytes: BodyAndEffects = body_check_result("pub pure f(): Nat { \"42\"->at(0) }")
+  byte_get_bad_index: BodyAndEffects = body_check_result("pub pure f(): Nat { bytes()->at(\"0\") }")
+  utf8_encode_bad_type: BodyAndEffects = body_check_result("pub pure f(): Bytes { bytes()->encode_utf8() }")
+  utf8_decode_bad_type: BodyAndEffects = body_check_result("pub pure f(): Str { \"42\"->decode_utf8() }")
   impure_effect: BodyAndEffects = body_check_result("pub pure f(): Void { print(\"no\") }")
   bytes_value: Bytes = "A"->encode_utf8()->join(byte_buffer.empty()->push(33))
   stdlib_bytes_ok: Bool = bytes_value->length() == 2 && bytes_value->at(1) == 33 && bytes_value->decode_utf8() == "A!"
@@ -365,40 +381,40 @@ main(): Void {
   path_from_native_bad_type.bodies.diagnostics->len() == 1 &&
   path_from_native_bad_type.bodies.diagnostics[0].message == "argument 1 to path_from_native is Str, expected Bytes" &&
   path_append_bad_arity.bodies.diagnostics->len() == 1 &&
-  path_append_bad_arity.bodies.diagnostics[0].message == "path_append expects 2 arguments, got 1" &&
+  path_append_bad_arity.bodies.diagnostics[0].message == "Path->join expects 2 arguments, got 1" &&
   path_to_text_bad_type.bodies.diagnostics->len() == 1 &&
-  path_to_text_bad_type.bodies.diagnostics[0].message == "argument 1 to path_to_text is Str, expected Path" &&
+  path_to_text_bad_type.bodies.diagnostics[0].message == "unknown owned method Str->to_text" &&
   path_native_bytes_bad_type.bodies.diagnostics->len() == 1 &&
-  path_native_bytes_bad_type.bodies.diagnostics[0].message == "argument 1 to path_native_bytes is Str, expected Path" &&
+  path_native_bytes_bad_type.bodies.diagnostics[0].message == "unknown owned method Str->native_bytes" &&
   path_absolute_bad_type.bodies.diagnostics->len() == 1 &&
-  path_absolute_bad_type.bodies.diagnostics[0].message == "argument 1 to path_absolute is Str, expected Path" &&
+  path_absolute_bad_type.bodies.diagnostics[0].message == "unknown owned method Str->is_absolute" &&
   path_current_bad_arity.bodies.diagnostics->len() == 1 &&
   path_current_bad_arity.bodies.diagnostics[0].message == "path_current expects 0 arguments, got 1" &&
   bytes_bad_type.bodies.diagnostics->len() == 1 && bytes_bad_type.bodies.functions[0].status == BodyInvalid() &&
   bytes_bad_type.bodies.diagnostics[0].message == "argument 2 to byte_append is Str, expected Nat" &&
   byte_append_bad_buffer.bodies.diagnostics->len() == 1 &&
-  byte_append_bad_buffer.bodies.diagnostics[0].message == "argument 1 to byte_append is Str, expected Bytes" &&
+  byte_append_bad_buffer.bodies.diagnostics[0].message == "unknown owned method Str->push" &&
   bytes_concat_bad_left.bodies.diagnostics->len() == 1 &&
-  bytes_concat_bad_left.bodies.diagnostics[0].message == "argument 1 to bytes_concat is Nat, expected Bytes" &&
+  bytes_concat_bad_left.bodies.diagnostics[0].message == "unknown owned method Nat->join" &&
   bytes_concat_bad_type.bodies.diagnostics->len() == 1 &&
   bytes_concat_bad_type.bodies.diagnostics[0].message == "argument 2 to bytes_concat is Nat, expected Bytes" &&
   byte_len_bad_type.bodies.diagnostics->len() == 1 &&
-  byte_len_bad_type.bodies.diagnostics[0].message == "argument 1 to byte_len is Str, expected Bytes" &&
+  byte_len_bad_type.bodies.diagnostics[0].message == "unknown owned method Str->length" &&
   byte_get_bad_bytes.bodies.diagnostics->len() == 1 &&
-  byte_get_bad_bytes.bodies.diagnostics[0].message == "argument 1 to byte_get is Str, expected Bytes" &&
+  byte_get_bad_bytes.bodies.diagnostics[0].message == "unknown owned method Str->at" &&
   byte_get_bad_index.bodies.diagnostics->len() == 1 &&
   byte_get_bad_index.bodies.diagnostics[0].message == "argument 2 to byte_get is Str, expected Nat" &&
   utf8_encode_bad_type.bodies.diagnostics->len() == 1 &&
-  utf8_encode_bad_type.bodies.diagnostics[0].message == "argument 1 to utf8_encode is Bytes, expected Str" &&
+  utf8_encode_bad_type.bodies.diagnostics[0].message == "unknown owned method Bytes->encode_utf8" &&
   utf8_decode_bad_type.bodies.diagnostics->len() == 1 &&
-  utf8_decode_bad_type.bodies.diagnostics[0].message == "argument 1 to utf8_decode is Str, expected Bytes" &&
+  utf8_decode_bad_type.bodies.diagnostics[0].message == "unknown owned method Str->decode_utf8" &&
   impure_effect.bodies.diagnostics->len() == 0 && impure_effect.effects.diagnostics->len() == 1 &&
   impure_effect.effects.diagnostics[0].message == "pure function cannot call impure function print"
   match lex("main(): Nat { 42 }") {
     Ok(tokens) => match parse_module_complete(tokens) {
       Ok(parsed) => {
         emitted: BytecodeProgram = compile_program(parsed.program)
-        if check_program_purity(parsed.program)->len() != 0 { eprint("purity namespace failed") }
+        if check_program_purity(parsed.program)->len() != 0 { namespace_host.stderr("purity namespace failed") }
         identity: ModuleIdentity = ModuleIdentity(StandaloneModulePackage(), "test")
         bindings: ModuleBindings = collect_module_bindings(identity, parsed)
         graph: ModuleBindingGraph = ModuleBindingGraph([bindings], [])
@@ -408,17 +424,17 @@ main(): Void {
             if testing.report([test_result, string_test_result, expectation_result, command_output_result, command_result_result]) == 0 {
               print("module graph namespace ok")
             } else {
-              eprint("stdlib testing namespace failed")
+              namespace_host.stderr("stdlib testing namespace failed")
             }
           } else {
-            eprint("expression contracts namespace failed")
+            namespace_host.stderr("expression contracts namespace failed")
           },
-          Error(message) => eprint("module graph failed")
+          Error(message) => namespace_host.stderr("module graph failed")
         }
       },
-      Error(diagnostic) => eprint("parser namespace failed")
+      Error(diagnostic) => namespace_host.stderr("parser namespace failed")
     },
-    Error(diagnostics) => eprint("lexer namespace failed")
+    Error(diagnostics) => namespace_host.stderr("lexer namespace failed")
   }
 }
 EOF

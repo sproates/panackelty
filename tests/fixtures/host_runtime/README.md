@@ -82,3 +82,10 @@ working directory by filesystem identity. Shells may resolve symlinks when
 printing `pwd` (for example `/tmp` to `/private/tmp` on macOS), so path spelling
 is not the cwd contract. A mismatched directory exits with status 8; the
 expected status remains 9, with exact environment output and binary stderr.
+
+P12 migrates source fixtures to explicit host/environment/compiler-file/path
+services. `environment_missing.hex` retains the VM-only missing-variable trap:
+its main loads `PANACK_MISSING`, calls `environment_get`, prints, and returns.
+It was captured with the accepted P11 seed and checked by disassembly; the public
+Option-returning environment API remains covered separately. The NUL text-write
+fixture now calls the retained `write_file` service directly.

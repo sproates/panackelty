@@ -1,2 +1,0 @@
-// Compatibility module function retained until P12.
-pub pure value_or[T,E](value: Result[T,E], fallback: T): T { value->value_or(fallback) }

@@ -1,1 +1,3 @@
-error: function answer returns Void, expected Nat
+error: <case>/main.panack:1:1: return of answer is Void, expected Nat
+  1 | pure answer(a: Bool, b: Bool): Nat {
+    | ^

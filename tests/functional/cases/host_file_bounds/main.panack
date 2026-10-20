@@ -1,7 +1,6 @@
 import stdlib/bytes as buffer
 import stdlib/filesystem as filesystem
 import stdlib/path as path
-import stdlib/result as result
 import stdlib/host::{HostError}
 
 pure outcome[T](value: Result[T,HostError]): Str {

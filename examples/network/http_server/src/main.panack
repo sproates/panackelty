@@ -1,7 +1,6 @@
 // Start this program, then request http://127.0.0.1:8080/ once. The finite
 // server closes after its first client has finished.
 import http/server as http
-import stdlib/text as text
 
 async respond(request: http.Request): Result[http.Response,http.HttpError] {
   Ok(http.Response(200,

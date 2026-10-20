@@ -2,7 +2,7 @@
 pure repeat[T](value: T, count: Nat): T {
  if count >= 1 { repeat[T](value, count - 1) } else { value }
 }
-pure apply[T,U](value: T, operation: PureFn[T,U]): U { operation.call(value) }
+pure apply[T,U](value: T, operation: PureFn[T,U]): U { intrinsic_call(operation, value) }
 pure label(value: Nat): Str { "number" }
 pure forward[A](value: A): A { backward(value) }
 pure backward[B](value: B): B { value }

@@ -91,11 +91,11 @@ pub pure owned_intrinsic_declarations(): [OwnedIntrinsicDeclaration] {
 
 pub pure owned_intrinsic_lowering(id: OwnedIntrinsic): Str {
   match id {
-    ArrayMap() => "$method_map",
-    ArrayReduce() => "$method_reduce",
-    PureCallableCall() => "$method_call",
-    OrdinaryCallableCall() => "$method_call",
-    AsyncCallableCall() => "$method_call",
+    ArrayMap() => "$intrinsic_map",
+    ArrayReduce() => "$intrinsic_reduce",
+    PureCallableCall() => "$intrinsic_call",
+    OrdinaryCallableCall() => "$intrinsic_call",
+    AsyncCallableCall() => "$intrinsic_call",
     MapPut() => "map_put",
     MapGet() => "map_get",
     MapHas() => "map_has",

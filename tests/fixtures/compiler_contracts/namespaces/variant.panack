@@ -1,3 +1,6 @@
-import "constructor.panack"
+import "constructor.panack" as constructor
 enum Choice { Pick }
-main(): Void { print(42) }
+main(): Void {
+  choice: Choice = Pick()
+  match choice { Pick() => print(constructor.Pick() + 41) }
+}

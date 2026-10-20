@@ -22,10 +22,7 @@ module boundary:
 
 | Prelude module | Source module |
 | --- | --- |
-| `prelude.option` | `stdlib/option` |
-| `prelude.result` | `stdlib/result` |
 | `prelude.byte_buffer` | `stdlib/bytes` |
-| `prelude.text` | `stdlib/text` |
 | `prelude.path` | `stdlib/path` |
 | `prelude.environment` | `stdlib/environment` |
 | `prelude.time` | `stdlib/time` |
@@ -33,31 +30,30 @@ module boundary:
 | `prelude.process` | `stdlib/process` |
 
 The byte module is called `byte_buffer` in the prelude so that it does not
-shadow the core `bytes()` constructor. Host, numeric, package-filesystem,
+shadow the core `bytes()` constructor. Host, package-filesystem,
 testing, and TCP modules remain separate imports.
 
 ## Module API
 
 | Module | Public surface |
 | --- | --- |
-| `option` | `value_or[T]` |
-| `result` | `value_or[T,E]` |
-| `bytes` | `empty`, `push`, `join`, `length`, `at` |
-| `text` | `reversed`, `encode_utf8`, `decode_utf8` |
-| `path` | `PathError`, `from_text`, `from_native`, `join`, `to_text`, `native_bytes`, `display`, `is_absolute`, `directory`, `filename`, `current` |
+| `bytes` | `empty`; receiver operations belong to Bytes |
+| `path` | `PathError`, `from_text`, `from_native`, `current`; receiver operations belong to Path |
 | `environment` | `get` |
-| `time` | `Duration`, `Instant`, checked construction, arithmetic, ratios, monotonic clock reads |
+| `time` | `Duration`, `Instant`, checked construction and monotonic clock reads; arithmetic and ratios are owned methods |
 | `filesystem` | `FileKind`, `FileMetadata`, `metadata`, `read`, `write`, `list_directory`, `remove_file`, `remove_directory`, `create_directory`, `temp_directory`, `temp_file` |
 | `async_host` | async invocation arguments, bounded stdout/stderr, and exit |
 | `tcp_service` | continuous native service limits, readiness, summary and configured serving |
 | `async_filesystem` | async `root_identity` and `read_beneath`; shared root identity/read and host error types |
 | `process` | `ProcessOutput`, bounded `run` |
 | `host` | `HostError`, nested bytecode `run`, `arguments`, `exit`, `stderr`, `stdout`, `sleep`, checked `decode_utf8` |
-| `numeric` | `divide` for truncating natural division |
 | `package_filesystem` | `FilesystemRootIdentity`, `FilesystemRootRead`, `directories_overlap`, `read_beneath` |
 | `testing` | `TestOutcome`, `TestResult`, `expect`, `equal_str`, `equal_nat`, `report` |
-| `testing_files` | `TestWorkspace`, `workspace_create`, `workspace_remove_empty`, `discover_fixtures` |
+| `testing_files` | `TestWorkspace`, `workspace_create`, `discover_fixtures`; TestWorkspace owns `remove_empty` |
 | `testing_commands` | `TestCommand`, `command_output`, `command_result`, `harness_command`, `capture_report`, `run_command`, `expect_command_error` |
+| `http_transport` | async raw `exchange` |
+| `testing_async` | deterministic async `read` |
+| `compiler_files` / `compiler_paths` | compiler file and lexical-path services |
 | `tcp` | `TcpServerLimits`, EOF-delimited and bounded streaming native TCP servers |
 
 The function signatures and checked error behavior are documented in the
@@ -66,14 +62,14 @@ The function signatures and checked error behavior are documented in the
 `FileKind` and `FileMetadata` belong to `filesystem`, while
 `ProcessOutput` belongs to `process`.
 
-The module table includes temporary compatibility exports for existing callers.
-Their exact list and P12 removal boundary are recorded in the
+P12 removes the temporary receiver-function exports listed in the
 [P10 migration report](../../docs/design/type-owned-dispatch/p10-stdlib-callers.md).
+The wrapper-only text, numeric, option and result modules are removed.
 New code uses owned methods for receiver operations; constructors and services
 remain module functions. Older
 `path_string_*` and trapping `filesystem_*` wrappers are not exported by the
-stdlib modules or the prelude. Compiler-only Str path and file adapters are in
-`src/compiler` while the compiler's source paths remain strings.
+stdlib modules or the prelude. Compiler Str path and file adapters use the explicit
+`stdlib/compiler_paths` and `stdlib/compiler_files` services while the compiler's source paths remain strings.
 
 ## Core operations and generic helpers
 
@@ -167,11 +163,10 @@ Result.value_or, Path's existing receiver operations, and Duration's existing
 receiver arithmetic/comparisons. Use arrow calls during migration, such as
 `items->first()->value_or(fallback)` and `base->join(child)`.
 PathError and DurationError are defined once in core and re-exported from path
-and time, including their variants. Existing module functions are compatibility
-forwarders until caller migration and P12 removal. Path/time factories and clock
+and time, including their variants. Receiver wrapper functions are removed. Path/time factories and clock
 services remain module functions; ClockError stays in time.
 
 P10 migrates library bodies and conformance callers to owned dispatch.
 `TestWorkspace.remove_empty` is defined in its owning testing_files module.
-Its old module function also forwards until P12; compiler and remaining callers
-migrate in P11.
+Its old module function is removed. Compiler and remaining callers use owned
+methods after P11; P12 removes their compatibility implementation.

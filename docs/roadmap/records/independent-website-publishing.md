@@ -90,7 +90,9 @@ remain unscheduled/deferred in the website backlog.
   [P15 native/browser consumer evidence](../../design/type-owned-dispatch/p15-consumer-acceptance.md)
   to the website maintainer. Browser artifact `0.2.0` is the matched candidate;
   keep the live `v0.1.3` pin until deliberate website promotion. Review method examples, migration guidance
-  and the method-dispatch article against the actual shipped toolchain. The
+  and the method-dispatch article against the actual shipped toolchain. Include
+  the [public owned/generic method examples](../../../examples/README.md#type-owned-methods-alpha14)
+  when promoting alpha.14 learning material. The
   [website roadmap](https://github.com/sproates/panackelty-website/blob/main/ROADMAP.md)
   owns site publication. No intermediate bridge promotion is scheduled.
 

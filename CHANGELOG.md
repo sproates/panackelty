@@ -6,6 +6,10 @@ in `docs/releases/RELEASE_POLICY.md`.
 
 ## Unreleased
 
+- Add runnable owned-method and generic-method examples, with exact-output
+  source and saved-bytecode checks. These demonstrate custom APIs alongside Map
+  methods, persistent updates, chaining and typed callbacks.
+
 - Complete the source syntax cutover to type-owned dot methods on `next` for
   alpha.14. A receiver call selects a method owned by its checked type; globals
   with matching names do not supply methods. Namespace calls and record fields

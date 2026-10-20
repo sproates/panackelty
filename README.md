@@ -49,6 +49,8 @@ The `next` source includes [type-owned methods](docs/reference/SPEC.md#type-owne
 For the unreleased alpha.14 source transition, see the
 [type-owned method migration guide](docs/guides/METHOD_MIGRATION.md) and
 [P15 consumer acceptance](docs/design/type-owned-dispatch/p15-consumer-acceptance.md).
+Runnable [owned and generic method examples](examples/README.md#type-owned-methods-alpha14)
+show custom APIs, Map coexistence and typed callbacks.
 
 ## Explore
 

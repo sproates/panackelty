@@ -1,5 +1,9 @@
 # Specification coverage
 
+User-facing `owned_methods` and `generic_methods` examples assert custom-method
+and Map coexistence, persistent updates, chaining, generic owner/method inference
+and pure callbacks, through source and saved-bytecode functional execution.
+
 P15 consumer acceptance adds all twelve maintained owned-dispatch fixtures to
 relocated-package smoke tests, including project compilation and execution after
 source deletion. The original Fruit output and obsolete-arrow rejection are

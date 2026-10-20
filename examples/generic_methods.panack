@@ -1,0 +1,34 @@
+// Requires the unreleased alpha.14 toolchain on next.
+record Box[T] {
+  item: T
+}
+
+impl[T] Box[T] {
+  pure value(): T {
+    self.item
+  }
+
+  // T comes from the receiver; R comes from the supplied pure function.
+  pure map[R](transform: PureFn[T, R]): Box[R] {
+    Box(transform.call(self.item))
+  }
+}
+
+pure double(value: Nat): Nat {
+  value * 2
+}
+
+pure describe(value: Nat): Str {
+  "Answer: ${value}"
+}
+
+main(): Void {
+  original = Box(21)
+  doubled = original.map(@double)
+  message = doubled.map(@describe)
+
+  print(original.value())
+  print(doubled.value())
+  print(message.value())
+  print(Box(6).map(@double).map(@describe).value())
+}

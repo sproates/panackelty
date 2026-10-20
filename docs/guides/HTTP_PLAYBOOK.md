@@ -5,24 +5,23 @@ The [API reference](../reference/http-server.md) lists signatures, return values
 
 ## Your first server
 
-### Get the matching toolchain
+### Open your alpha.14 release package
 
-Use Linux or macOS with Git, Make, a C compiler and libcurl development headers
-(including `curl-config`). On Ubuntu, install `build-essential`, `git`, `curl`
-and `libcurl4-openssl-dev`. On macOS, install the Xcode command-line tools; check
-that `cc`, `make` and `curl-config` are available in your terminal.
+Use the alpha.14 release package for your operating system and processor. Unpack
+it and open a terminal in the extracted `panackelty` directory. The package
+includes the compiler, runtime, standard library, HTTP package and the examples
+used in this playbook. You do not need Git, Make, a C compiler or Xcode tools.
 
-In a new working directory:
+Check that you are using the supplied compiler:
 
 ```sh
-git clone --branch next https://github.com/sproates/panackelty.git
-cd panackelty
-make
+./bin/panack --version
 ```
 
-All commands below run from this checkout's root. If you already have a matching
-checkout, use that instead. Use `./bin/panack`, so a different installed release
-cannot accidentally run the examples.
+The version should be `0.1.0-alpha.14`. All commands below run from this extracted
+directory, which contains `bin`, `examples` and `packages`. Using `./bin/panack`
+keeps the compiler and bundled packages together, even if another version is
+installed on your machine. Use `curl` in a second terminal to try the requests.
 
 ### Run it before changing anything
 
@@ -115,11 +114,11 @@ listener keeps the process alive after `main` returns.
 The existing file is `examples/network/http_server/panack.json`:
 
 ```json
-{"schema":1,"package":"examples.http_server","version":"0.1.0","language":"modules-v1","toolchain":"0.1.0-alpha.13","source":"src","entry":"main.panack","exports":{},"dependencies":{"http":{"path":"../../../packages/http"}}}
+{"schema":1,"package":"examples.http_server","version":"0.1.0","language":"modules-v1","toolchain":"0.1.0-alpha.14","source":"src","entry":"main.panack","exports":{},"dependencies":{"http":{"path":"../../../packages/http"}}}
 ```
 
 `source` and `entry` locate the program. The `http` dependency resolves relative
-to this manifest to the checkout's `packages/http` directory. If you move the
+to this manifest to the release package's `packages/http` directory. If you move the
 project, update that relative dependency path. Copying just `main.panack` into
 an arbitrary directory is not sufficient to resolve the package import.
 
@@ -247,7 +246,7 @@ async main(): Unit {
 Its manifest, `examples/network/http_contextual_server/panack.json`:
 
 ```json
-{"schema":1,"package":"examples.http_contextual_server","version":"0.1.0","language":"modules-v1","toolchain":"0.1.0-alpha.13","source":"src","entry":"main.panack","exports":{},"dependencies":{"http":{"path":"../../../packages/http"}}}
+{"schema":1,"package":"examples.http_contextual_server","version":"0.1.0","language":"modules-v1","toolchain":"0.1.0-alpha.14","source":"src","entry":"main.panack","exports":{},"dependencies":{"http":{"path":"../../../packages/http"}}}
 ```
 
 Every registered handler receives `AppContext` first, then the request and
@@ -329,7 +328,7 @@ async main(): Unit {
   "package": "examples.http_server_lifecycle",
   "version": "0.1.0",
   "language": "modules-v1",
-  "toolchain": "0.1.0-alpha.13",
+  "toolchain": "0.1.0-alpha.14",
   "source": "src",
   "entry": "main.panack",
   "exports": {},

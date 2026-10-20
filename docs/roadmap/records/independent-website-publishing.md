@@ -86,8 +86,10 @@ remain unscheduled/deferred in the website backlog.
 - **GI#525 alpha.14 method syntax** — Promotion pending. P14 now accepts only
   owned dots on `next`; published alpha.13 examples retain
   their release contract. Before alpha.14 adoption, the core delivery maintainer
-  will hand off the verified P14 dot-only syntax and P15's native/browser consumer
-  evidence to the website maintainer. Review method examples, migration guidance
+  hands off the verified P14 dot-only syntax and
+  [P15 native/browser consumer evidence](../../design/type-owned-dispatch/p15-consumer-acceptance.md)
+  to the website maintainer. Browser artifact `0.2.0` is the matched candidate;
+  keep the live `v0.1.3` pin until deliberate website promotion. Review method examples, migration guidance
   and the method-dispatch article against the actual shipped toolchain. The
   [website roadmap](https://github.com/sproates/panackelty-website/blob/main/ROADMAP.md)
   owns site publication. No intermediate bridge promotion is scheduled.

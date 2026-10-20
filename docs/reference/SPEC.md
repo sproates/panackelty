@@ -70,7 +70,7 @@ value is integral and non-negative; otherwise it traps without truncating.
 other than two and five. Rounded decimal conversion and checked `Result`
 conversion APIs remain deferred. These operations are pure despite being partial.
 
-`quotient(a, b)` accepts two `Nat` values and returns their truncated natural
+`a.divide(b)` accepts two `Nat` values and returns their truncated natural
 quotient; it traps for a zero divisor. This explicit operation replaces former
 uses of integer `/` for byte packing and integer algorithms. `%` remains the
 integer remainder operation (with the divisor's sign for signed operands).

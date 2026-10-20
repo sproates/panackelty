@@ -153,7 +153,7 @@ pure safe_divide(request: DivisionRequest): Result[Nat, Str] {
   if request.denominator == 0 {
     Error("division by zero")
   } else {
-    Ok(quotient(request.numerator, request.denominator))
+    Ok(request.numerator.divide(request.denominator))
   }
 }
 

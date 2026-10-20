@@ -1,5 +1,11 @@
 # Specification coverage
 
+P15 consumer acceptance adds all twelve maintained owned-dispatch fixtures to
+relocated-package smoke tests, including project compilation and execution after
+source deletion. The original Fruit output and obsolete-arrow rejection are
+asserted through the installed CLI. Matching browser acceptance and final audit
+are recorded in [P15](../docs/design/type-owned-dispatch/p15-consumer-acceptance.md).
+
 P05 covers all 14 registered built-in owner families, source-method signatures,
 canonical metadata, body selection, privacy, invalid/empty implementation headers,
 duplicate array spellings, global fallback rejection and guarded-type separation.

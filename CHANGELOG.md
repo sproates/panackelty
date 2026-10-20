@@ -15,8 +15,10 @@ in `docs/releases/RELEASE_POLICY.md`.
   `value.method(...)`; the old spelling now reports a migration diagnostic.
   Use owned methods instead of the removed receiver-global APIs and wrappers.
   Compiler, library, packages, tools, examples and maintained tests use dots.
-  Saved bytecode retains its existing VM contract. Release and browser-consumer
-  acceptance remains pending under GI#525 P15; this is not a published release.
+  Saved bytecode retains its existing VM contract. Native package and browser-consumer acceptance is recorded in
+  [P15](docs/design/type-owned-dispatch/p15-consumer-acceptance.md). This is not a
+  published native release. See the [migration guide](docs/guides/METHOD_MIGRATION.md)
+  for removed globals, namespace wrappers and matching-toolchain requirements.
 
 ## 0.1.0-alpha.13 — 2026-10-15
 

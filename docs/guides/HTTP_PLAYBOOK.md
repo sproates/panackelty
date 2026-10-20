@@ -55,9 +55,11 @@ IP address with your machine's address; don't put `0.0.0.0` in your browser.
 
 ### The complete program
 
-Open `examples/network/http_server/src/main.panack` to see how the server works.
-The full program is shown below. We'll use its routes to explore requests,
-responses and fallbacks in the next two sections.
+Here's the complete server program. The next two sections explain how its routes
+handle requests, responses and fallbacks.
+
+If you'd like to edit and run it, you'll find this example in your extracted
+release package at `examples/network/http_server/src/main.panack`.
 
 ```panack
 import http/server as http

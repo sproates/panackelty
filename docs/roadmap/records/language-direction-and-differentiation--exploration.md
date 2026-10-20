@@ -613,25 +613,70 @@ and release workflows, not a claim that arbitrary program equivalence is decidab
 
 **RM#153: Expand guarded types beyond numeric bounds** · [GI#435: Expand guarded types beyond numeric bounds](https://github.com/sproates/panackelty/issues/435).
 
-Assess how Panackelty could express and prove useful invariants beyond numeric
-bounds. Candidate examples include non-empty or constrained strings,
-identifier-like values, enum alternatives and collection constraints; these
-need evaluation, not automatic inclusion. Define the boundary between static
-proof and explicit runtime validation, sound proof propagation and invalidation,
-diagnostics, and limits on guard expressions. Purity alone does not make
-arbitrary computation terminating, cheap or decidable.
+**Planned for alpha.14; scope broadened by owner direction, 20 October 2026.**
+Develop validated domain types beyond numeric bounds. The selected initial scope
+now includes string constraints, non-empty/bounded collections and relationships
+between fields of a record. This supersedes the non-empty-string-only slice.
+Implementation has not started; semantics and syntax must be settled before code
+is changed, but the outcome is working guards, not only an assessment report.
 
-The first implementation slice is selected for Alpha.14 under
-[RM#151](next-release--agreed-scope-2026-10-06.md#rm-151): a non-empty string guard. Its syntax, proof behavior,
-conversion and validation semantics, failure behavior, and tests remain for
-slice planning. Other non-numeric guards and broader validation semantics
-remain unscheduled.
-Untrusted-input adapters remain coordinated with
-[RM#73: JSON support](#rm-73) and
-[RM#74: Type-driven input handling](#rm-74), avoiding duplicate scope.
-Further guard families may remain candidates for future compiler/correctness
-work under [RM#151: Alpha.14 direction](next-release--agreed-scope-2026-10-06.md#rm-151); this Alpha.13 slice does not
-preselect them.
+| Selected family | Representative outcomes |
+| --- | --- |
+| String constraints | Express non-empty/non-blank text, bounded length and a bounded content rule such as excluding control characters. Define whether length counts bytes or Unicode units and exactly what blank/control means. |
+| Collection size | Express non-empty collections and bounded sizes, with sound construction, transformation and access rules. Do not imply that non-empty alone proves an arbitrary index is valid. |
+| Cross-field record invariants | Express relationships such as start ≤ end or minimum ≤ maximum, so construction and updates preserve a valid record. This is broader than independent guards on each field. |
+
+**Establishing a guarantee.** Retain static proof where the compiler can establish
+an invariant, and add an explicit checked-validation path for runtime values.
+Validation must return a guarded value or a structured failure; it must not
+silently insert checks into existing proof-only conversions. Define the exact
+API, error type and permitted predicates during design. External input should
+be checked at the boundary and the resulting guarantee carried through typed
+code without repeated validation unless an operation can invalidate it.
+
+Acceptance must cover:
+
+- A bounded, documented guard language and sound proof rules. Purity alone does
+  not make arbitrary predicates terminating, inexpensive or statically decidable.
+  Unsupported guards and unavailable proofs need actionable diagnostics.
+- Construction, copying, reassignment, collection transformations and record
+  updates; facts through control flow, calls, generics and module boundaries;
+  and preservation or loss of each invariant. Do not allow an update to retain
+  a guarded type after breaking its guarantee.
+- Explicit runtime validation with useful failures identifying the constraint
+  and affected field/value location. Distinguish an input that fails validation
+  from a predicate or proof form the language does not support.
+- Representative accepted, statically rejected and runtime-rejected programs
+  for all three selected families. Include boundary values, Unicode/content
+  cases, empty/oversized collections and individually valid fields whose
+  relationship is invalid. Test compiler/bootstrap, saved-bytecode/runtime and
+  public CLI behaviour at the appropriate boundaries.
+- Documented public examples demonstrating validated configuration and
+  request-derived data, without depending on unimplemented JSON support. Explain
+  both proof and validation paths, supported operations and runtime costs.
+  Measure representative validation costs rather than assuming guards are free.
+
+Keep guards about stable value properties. A path's textual form can be
+validated; whether its file exists or is readable depends on external state and
+must not become an enduring value guarantee. Likewise, validated text alone
+must not imply context-independent security properties such as injection safety.
+
+Broader candidates remain for subsequent selection, including alpha.18's further
+guard work: identifier/UUID/date formats, sorted or unique collections,
+element-wide predicates, relationships between separate arguments (index and
+collection, equal-length vectors or matrix dimensions), and domain-specific
+checksums or predicates. These are not automatic alpha.14 commitments. No general
+regex engine, dependent-type system or arbitrary user predicate evaluator is
+selected by this scope.
+
+Coordinate JSON adapters and reusable input schemas with
+[RM#73: JSON support](#rm-73) and [RM#74: Type-driven input handling](#rm-74).
+The shared validated-type foundation belongs here; JSON parsing and schema
+export do not. Coordinate explanations with GI#134 and the public reference and
+examples with GI#552. Effort is larger than the original string slice and remains
+unestimated until the bounded semantics are reviewed. If any selected family
+cannot fit safely, bring an explicit scope/release trade-off to the owner rather
+than silently dropping it or claiming the milestone complete.
 
 ### JSON data support — exploration
 

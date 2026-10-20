@@ -440,4 +440,3 @@ Implement the stateful opaque server and response handles and route table withou
 - [GI#237: HTTP server package](https://github.com/sproates/panackelty/issues/237) — completed low-level transport/server foundation.
 - [GI#162: Serve local website previews with a Panackelty-written server](https://github.com/sproates/panackelty/issues/162) — site preview is a consumer/use case, not the general HTTP API definition.
 - This ticket records scope only; it does not select roadmap priority or authorize implementation by itself.
-

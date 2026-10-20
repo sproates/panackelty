@@ -361,7 +361,7 @@ runner_examples(workspace: TestWorkspace, selected: Str): [TestResult] {
           }
         }
       }
-      expected_count: Nat = if selected == "" { 23 } else { 1 }
+      expected_count: Nat = if selected == "" { 25 } else { 1 }
       results.append(std_testing.equal_nat("selected example count", count, expected_count))
     }
   }

@@ -66,6 +66,27 @@ The other programs focus on individual language features:
 - `option_result.panack` — generic tagged unions and exhaustive matching
 - `strings.panack` — Unicode indexing and interpolation
 
+## Type-owned methods (alpha.14)
+
+These examples require the unreleased `next` toolchain; published alpha.13 does
+not support these `impl` declarations. Build from source before running them.
+
+| Program | Demonstrates |
+| --- | --- |
+| [owned_methods.panack](owned_methods.panack) | An Inventory with its own `get`, `put` and `add` methods, Map operations inside those methods, chaining and preservation of previous values |
+| [generic_methods.panack](generic_methods.panack) | A generic Box, receiver and method type inference, pure callbacks through `.call()`, and mapping from a number to text |
+
+```sh
+./bin/panack run examples/owned_methods.panack
+./bin/panack run examples/generic_methods.panack
+```
+
+`Inventory.put` and `Map.put` share a spelling but select different declarations
+from their receiver types. `self` is the current receiver. Generic methods use
+the same dot syntax; `Box.map` infers its result type from the callback.
+See the [migration guide](../docs/guides/METHOD_MIGRATION.md) for the final syntax
+and removed compatibility APIs.
+
 ## Namespaces
 
 These examples use the currently checked namespace subset and are exercised

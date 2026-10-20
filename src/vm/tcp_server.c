@@ -201,6 +201,20 @@ static void http_deadline_response(ServerClient *client)
 #endif
 }
 
+/* Detach the finished execution while retaining its committed response for the
+ * normal bounded socket drain, including an explicit process exit. */
+static void http_finish_execution(VMTcpServer *server, ServerClient *client)
+{
+    VMHttpWriter *writer = client->http_connection->as.http_connection->writer->as.http_writer;
+    http_attach_response(client);
+    writer->ended = true;
+    client->http_connection->as.http_connection->execution = NULL;
+    vm_execution_destroy(client->execution);
+    client->execution = NULL;
+    if (client->sent == client->response->as.bytes.length) finish_client(server, client, NULL);
+    else client->state = CLIENT_WRITE;
+}
+
 static void http_handler_finished(VMTcpServer *server, ServerClient *client, bool trapped)
 {
     VMHttpWriter *writer = client->http_connection->as.http_connection->writer->as.http_writer;
@@ -229,13 +243,7 @@ static void http_handler_finished(VMTcpServer *server, ServerClient *client, boo
         if (!writer->wire) { trap(server, "native VM out of memory"); return; }
         writer->completed = true;
     }
-    http_attach_response(client);
-    writer->ended = true;
-    client->http_connection->as.http_connection->execution = NULL;
-    vm_execution_destroy(client->execution);
-    client->execution = NULL;
-    if (client->sent == client->response->as.bytes.length) finish_client(server, client, NULL);
-    else client->state = CLIENT_WRITE;
+    http_finish_execution(server, client);
 }
 
 static bool clock_ms(uint64_t *now)
@@ -988,7 +996,9 @@ void tcp_server_advance(VMTcpServer *server, size_t budget)
             struct VMHttpRuntime *runtime = client->vm.http_runtime;
             runtime->exit_requested = true;
             runtime->exit_status = vm_execution_exit_status(client->execution);
-            finish_client(server, client, "process exit");
+            VMHttpWriter *writer = client->http_connection->as.http_connection->writer->as.http_writer;
+            if (writer->completed) http_finish_execution(server, client);
+            else finish_client(server, client, "process exit");
             http_runtime_stop(runtime);
         } else if (status == VM_TRAPPED && server->routed && client->vm.fault_kind == VM_FAULT_REQUEST) {
             http_handler_finished(server, client, true);

@@ -6,6 +6,14 @@ in `docs/releases/RELEASE_POLICY.md`.
 
 ## Unreleased
 
+- Add the routed HTTP server framework for alpha.14: ordinary/contextual servers,
+  named handlers, owned route and response methods, fixed request limits,
+  request-local fault recovery and bounded shutdown. Replace the old finite HTTP
+  and `http/service` exports; the HTTP client is unchanged. The static preview
+  tool now uses a contextual fallback, retaining loopback/`--host` and confined
+  file access. Add ordinary/contextual runnable examples and migration guidance.
+  This is implemented on `next`, not a published alpha.14 release.
+
 - Detect stale example inventories and smoke transcript totals before canonical
   validation starts compiler builds; preserve all executable fixture checks.
 

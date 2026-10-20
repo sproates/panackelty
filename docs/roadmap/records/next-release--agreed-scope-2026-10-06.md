@@ -297,8 +297,11 @@ Planning update, 20 October 2026: GI#525 is complete on `next`; the sentence
 above about it remaining open is historical release-scope context. The
 [GI#518 staged plan](../../design/routed-http-server/implementation-plan.md)
 records the separate HTTP implementation baseline, packet dependencies and
-acceptance gates. This delivery saves a plan only; GI#518 implementation has
-not started and the issue remains open.
+acceptance gates. The planning-only status is superseded by the implementation
+and final acceptance delivery: P01–P15 are complete on its merge, with evidence
+in the [acceptance register](../../design/routed-http-server/acceptance-register.md).
+Both GI#518 and GI#525 are implementation-complete for alpha.14; native release
+publication and website promotion remain separate.
 
 Owner clarification, 20 October 2026: the simple constructors retain `0.0.0.0`;
 explicit-address ordinary/contextual constructors allow IPv4 binding without

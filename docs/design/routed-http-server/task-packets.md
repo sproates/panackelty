@@ -1,11 +1,9 @@
 # Ordered task packets
 
-All paths are repository-relative. Implementation is in progress across P01–P15;
-individual exit gates remain pending until their full evidence is recorded. Follow the common
-[runbook](execution-runbook.md); acceptance IDs refer to the
-[register](acceptance-register.md). A packet is complete only after its exit evidence
-and required validation are recorded at the delivered revision. Dependencies mean
-accepted outcomes, not merely a branch containing partial code.
+All paths are repository-relative. P01–P15 are complete on the final acceptance
+PR's merge. Their original work/exit criteria below remain the scope record;
+the [acceptance register](acceptance-register.md) records delivered evidence.
+Alpha.14 publication is separate from implementation acceptance.
 
 P01–P02 are a feasibility gate. Internal prototypes must be labelled and removed
 or integrated before their packet closes. No test stub may stand in for a required

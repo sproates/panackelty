@@ -1363,4 +1363,9 @@ real ten-second deadlines, and lifecycle/port reuse. Public-package fixtures now
 cover corrected contract examples, checked arithmetic recovery and active-request
 shutdown. Static and archive smoke tests exercise ordinary/contextual examples
 from relocated installations. Canonical validation passed in 509 seconds; the
-consolidated GI#518 acceptance audit and exact-head CI remain pending.
+final GI#518 acceptance adds distinct-context dispatch, all supported/unsupported
+method cases, callback arity/effect rejection, response byte boundaries and live
+oversize rejection, active close/destroy/escalation and process-exit response
+preservation. Native allocation sweeps cover the new state/writer ownership.
+Final canonical and exact-head CI provenance is recorded in the
+[acceptance register](../docs/design/routed-http-server/acceptance-register.md).

@@ -48,6 +48,15 @@ for mode in source bytecode; do
     grep -q 'index is out of bounds' "$work/stderr"
     grep -q 'division by zero' "$work/stderr"
 done
+# Exit from an active handler propagates the status and drains its first response.
+port=$("$http_client" port)
+./bin/panack run "$work/routed.bc" "$port" > "$work/stdout" 2> "$work/stderr" &
+server_pid=$!
+"$http_client" "$port" routed-exit
+exit_status=0
+wait "$server_pid" || exit_status=$?
+server_pid=
+test "$exit_status" = 7
 # Compile the exact agreed examples unchanged. Runtime copies change only the
 # fixed demonstration port so tests do not depend on port 8080 being available.
 for example in ordinary contextual; do
@@ -78,6 +87,53 @@ for example in ordinary contextual; do
         test ! -s "$work/stderr"
     done
 done
+# Two independently retained contexts, two named handlers and all four methods.
+cat > "$work/app/src/main.panack" <<'SOURCE'
+import http/server as http
+import stdlib/async_host as host
+record Context { greeting: Str }
+async home(context: Context, request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  response.send(context.greeting)
+  Ok(())
+}
+async health(context: Context, request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  response.send("health " + context.greeting)
+  Ok(())
+}
+async start(port: Nat, greeting: Str): Unit {
+  server = http.create_bound_contextual_server("127.0.0.1", port, Context(greeting))
+  server.get("/", @home)
+  server.post("/", @home)
+  server.put("/", @home)
+  server.delete("/", @home)
+  server.get("/health", @health)
+  match await server.listen() { Ok(done) => (), Error(problem) => { await host.exit(1) } }
+}
+async main(): Unit {
+  arguments = await host.arguments()
+  await start(arguments[0].parse_nat(), "one")
+  await start(arguments[1].parse_nat(), "two")
+}
+SOURCE
+./bin/panack compile --project "$work/app/panack.json" -o "$work/contexts.bc" > /dev/null
+for mode in source bytecode; do
+    first=$("$http_client" port)
+    second=$("$http_client" port)
+    while [ "$second" = "$first" ]; do second=$("$http_client" port); done
+    if [ "$mode" = source ]; then
+        ./bin/panack run --project "$work/app/panack.json" "$first" "$second" > "$work/stdout" 2> "$work/stderr" &
+    else
+        ./bin/panack run "$work/contexts.bc" "$first" "$second" > "$work/stdout" 2> "$work/stderr" &
+    fi
+    server_pid=$!
+    "$http_client" "$first" contexts one
+    "$http_client" "$second" contexts two
+    "$http_client" "$first" contexts one
+    kill -TERM "$server_pid"
+    wait "$server_pid"
+    server_pid=
+    test ! -s "$work/stderr"
+done
 # A second listener controls shutdown of an admitted, body-waiting request.
 # Its response is sent only after the awaited operation releases the first server.
 cat > "$work/app/src/main.panack" <<'SOURCE'
@@ -92,6 +148,11 @@ async close(server: http.Server, request: http.Request, response: http.ResponseW
   response.send("released")
   Ok(())
 }
+async begin_close(server: http.Server, request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  response.send("closing")
+  match await server.close() { Ok(done) => {}, Error(problem) => {} }
+  Ok(())
+}
 async destroy(server: http.Server, request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
   match await server.destroy() { Ok(done) => {}, Error(problem) => {} }
   response.send("released")
@@ -103,15 +164,17 @@ async main(): Unit {
   server.post("/hold", @hold)
   control = http.create_bound_contextual_server("127.0.0.1", arguments[1].parse_nat(), server)
   control.get("/close", @close)
+  control.get("/begin-close", @begin_close)
   control.get("/destroy", @destroy)
   match await server.listen() { Ok(done) => (), Error(problem) => { await host.exit(1) } }
   match await control.listen() { Ok(done) => (), Error(problem) => { await host.exit(1) } }
 }
 SOURCE
 ./bin/panack compile --project "$work/app/panack.json" -o "$work/shutdown.bc" > /dev/null
-for operation in close destroy; do
+for operation in close destroy escalate; do
     port=$("$http_client" port)
     control=$("$http_client" port)
+    while [ "$control" = "$port" ]; do control=$("$http_client" port); done
     ./bin/panack run "$work/shutdown.bc" "$port" "$control" > "$work/stdout" 2> "$work/stderr" &
     server_pid=$!
     "$http_client" "$port" "$operation" "$control"
@@ -148,6 +211,25 @@ if ./bin/panack check --project "$work/app/panack.json" > "$work/rejected.stdout
     echo 'wrong HTTP context type was accepted' >&2; exit 1
 fi
 grep -q 'argument' "$work/rejected.stderr"
+for signature in arity effect closure; do
+    case "$signature" in
+        arity) handler='async wrong(request: http.Request): Result[Unit,Str] { Ok(()) }'; reference='@wrong' ;;
+        effect) handler='wrong(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] { Ok(()) }'; reference='@wrong' ;;
+        closure) handler=''; reference='(request, response) => Ok(())' ;;
+    esac
+    cat > "$work/app/src/main.panack" <<SOURCE
+import http/server as http
+$handler
+async main(): Unit {
+  server = http.create_server(8000)
+  server.get("/", $reference)
+}
+SOURCE
+    if ./bin/panack check --project "$work/app/panack.json" > "$work/rejected.stdout" 2> "$work/rejected.stderr"; then
+        echo "invalid HTTP callback accepted: $signature" >&2; exit 1
+    fi
+    test -s "$work/rejected.stderr"
+done
 for declaration in ServerLimits ConnectionContext ConnectionPolicy serialize_response serve; do
     printf 'import http/server::{%s}\nmain(): Unit {}\n' "$declaration" > "$work/app/src/main.panack"
     if ./bin/panack check --project "$work/app/panack.json" > "$work/rejected.stdout" 2> "$work/rejected.stderr"; then

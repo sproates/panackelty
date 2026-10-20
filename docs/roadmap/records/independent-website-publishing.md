@@ -83,6 +83,20 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
+- **GI#518 / RM#156 alpha.14 routed HTTP framework** — Promotion pending.
+  The core delivery maintainer hands off the
+  [HTTP guide](../../../packages/http/README.md), ordinary/contextual
+  [network examples](../../../examples/network/README.md), and
+  [acceptance evidence](../../design/routed-http-server/acceptance-register.md)
+  to the website maintainer through the existing
+  [website roadmap](https://github.com/sproates/panackelty-website/blob/main/ROADMAP.md).
+  At deliberate alpha.14 promotion, update capabilities, examples, roadmap,
+  learning links and the method-dispatch/HTTP article against the shipped native
+  artifact. Preserve the live alpha.13 version boundary until release assets
+  exist and are verified. The preview CLI keeps loopback/`--host`; HEAD now
+  receives 405 under the routed four-method contract. Recording this handover
+  does not deploy the website or schedule promotion.
+
 - **GI#525 alpha.14 method syntax** — Promotion pending. P14 now accepts only
   owned dots on `next`; published alpha.13 examples retain
   their release contract. Before alpha.14 adoption, the core delivery maintainer

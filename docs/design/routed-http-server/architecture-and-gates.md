@@ -1,5 +1,8 @@
 # Implementation boundaries and decision gates
 
+This retained design/decision record is implemented by the final acceptance
+delivery; see the [evidence](acceptance-register.md).
+
 Read the [contract](contract-snapshot.md) before this document. Internal designs
 here are proposals to verify in P02, not evidence that the runtime already supports
 them. A less experienced implementer should stop at an unmet gate, not substitute

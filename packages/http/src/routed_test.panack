@@ -60,11 +60,16 @@ async main(): Unit {
   for extra in [0, 1, 2] {
     expect(accepted(routed_wire(200, [Header("X", padding.slice(overhead, 16383 + extra))], empty)) == (extra < 2))
   }
-  mut body = padding.slice(0, 16384).encode_utf8()
+  // A multibyte text body reaches the byte cap without confusing character count.
+  mut body = "é".encode_utf8()
   count = 0
-  while count < 6 { body = body.join(body); count = count + 1 }
+  while count < 19 { body = body.join(body); count = count + 1 }
   expect(body.length() == 1048576)
+  near = runtime.bytes_slice(body, 0, 1048574).join("x".encode_utf8())
+  expect(near.length() == 1048575)
+  expect(accepted(routed_wire(200, [], near)))
   expect(accepted(routed_wire(200, [], body)))
   expect(!accepted(routed_wire(200, [], body.push(120))))
+  expect(!accepted(routed_wire(200, [Header("X-Text", "é")], empty)))
   ()
 }

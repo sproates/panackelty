@@ -77,6 +77,13 @@ main(): Unit {
   routes = [RouteKey("DELETE", "/item"), RouteKey("GET", "/item"),
     RouteKey("POST", "/other"), RouteKey("PUT", "/item")]
   expect(dispatch(routes, true, "GET", "/item") == Handler(1))
+  expect(dispatch(routes, true, "POST", "/other") == Handler(2))
+  expect(dispatch(routes, true, "PUT", "/item") == Handler(3))
+  expect(dispatch(routes, true, "DELETE", "/item") == Handler(0))
+  for method in ["HEAD", "PATCH", "OPTIONS", "TRACE", "CONNECT", "EXTENSION"] {
+    expect(dispatch(routes, true, method, "/item") == MethodNotAllowed("GET, PUT, DELETE"))
+    expect(dispatch(routes, true, method, "/missing") == MethodNotAllowed("GET, POST, PUT, DELETE"))
+  }
   expect(dispatch(routes, true, "HEAD", "/item") == MethodNotAllowed("GET, PUT, DELETE"))
   expect(dispatch(routes, true, "POST", "/item") == MethodNotAllowed("GET, PUT, DELETE"))
   expect(dispatch(routes, true, "PATCH", "/missing") ==

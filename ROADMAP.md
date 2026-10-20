@@ -29,21 +29,31 @@ This bounded delivery does not replace full validation or resolve GI#106's broad
 performance reassessment. Website: no impact; this is contributor tooling only.
 No issue was created solely for this task. Acceptance is recorded in the delivery PR.
 
-## Routed HTTP server planning: GI#518 / RM#156
+## Routed HTTP server: GI#518 / RM#156
 
-The [staged implementation plan](docs/design/routed-http-server/implementation-plan.md)
-records fifteen acceptance checkpoints and runtime decision gates. Implementation
-is in progress: foundation PR#548 and typed runtime PR#549 are merged into `next`.
-The public API, static-preview migration, examples and obsolete-export removal
-are under final validation; GI#518 is not yet complete. The owner
-has authorised continuous implementation and exact-head green merges into `next`,
-with no per-PR approval pause.
-The owner-approved explicit-address constructors preserve preview loopback/`--host`
-behaviour while simple constructors retain all-interface binding. GI#518 remains
-open. Alpha.14 publication is separate. Website follow-up: at alpha.14 release, link the routed-server package guide and
-ordinary/contextual examples from capabilities, examples and the HTTP article.
-Release acceptance owns that update; live alpha.13 claims must retain their
-version boundary until publication. No website deployment is included here.
+**Done on the final acceptance PR's merge into `next`.** All P01–P15 outcomes are
+accounted for by the unchanged weighted baseline in the
+[implementation plan](docs/design/routed-http-server/implementation-plan.md) and
+[acceptance register](docs/design/routed-http-server/acceptance-register.md).
+Foundation PR#548, runtime PR#549 and public migration PR#550 deliver typed
+ordinary/contextual servers, named route handlers, request accessors, response
+writers, bounded framing/Expect handling, request-local failure recovery and
+lifecycle ownership. The final acceptance slice preserves committed responses
+when a handler exits the process and verifies allocation-failure cleanup,
+independent contexts, callback rejection, shutdown escalation and byte boundaries.
+
+The static preview uses a contextual fallback; loopback/`--host`, root confinement,
+indexes, redirects, MIME and application limits remain. Obsolete public server
+APIs are removed; HTTP client regressions remain covered. Public source/bytecode
+and relocated installation/archive examples are included. The migration's full
+`make check` passed in 509 seconds; final acceptance evidence and CI are recorded
+in the linked register and delivery PR. P01–P15 completion is 100% on final merge.
+
+Alpha.14 publication is separate. The
+[website handover](docs/roadmap/records/independent-website-publishing.md#website-follow-up-register)
+retains promotion prerequisites and ownership; no website deployment or current
+release-pin change is part of this delivery. Existing GI#106/RM#123 performance
+work remains open; this delivery does not establish a throughput benchmark.
 
 ## Bounded method experiment — 2026-10-17
 

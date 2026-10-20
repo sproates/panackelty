@@ -108,8 +108,8 @@ The public migration is under validation, with these focused results:
   release-archive examples and quick start. The 120-second aggregate and
   15-second release-smoke budget warnings are historical comparisons, not
   newly agreed performance gates (release smoke took 16 seconds).
-- Exact-head public-migration CI and the remaining row-by-row acceptance audit
-  are pending. Do not close GI#518 until those pass.
+- Exact-head public-migration CI passed and PR#550 merged as `c720bc3`.
+  The final row-by-row acceptance audit follows below.
 
 Example errata are recorded in the contract snapshot: constructor patterns use
 `Ok(done)` and record construction uses `AppContext("Hello")`. These are existing
@@ -120,3 +120,43 @@ Performance: runtime memory is bounded by accepted/admitted slots and byte caps;
 body assembly uses a native bounded buffer. Protocol tests exercise maximum-size
 bodies and real deadlines. This is correctness evidence, not a throughput or
 latency benchmark claim. The public-migration canonical run took 509 seconds.
+
+## Final acceptance audit
+
+The final delivery retains the original scope. The mapping below identifies the
+executable evidence for every row; final canonical validation and exact-head CI
+must pass before merge. Repository-relative paths are used in this table.
+
+| Rows | Evidence and audited outcome |
+| --- | --- |
+| A01–A02 | `tests/http_package.sh` compiles the corrected contract examples verbatim and runs port-isolated source/bytecode copies. Two simultaneously active contextual servers dispatch all four methods plus a second named handler with different retained contexts. Wrong context, arity, sync effect and closure substitutions are rejected. |
+| A03 | `tests/unit/vm/http_state.c` covers IPv4 validation and port 0/1/65535/65536 boundaries. `routed_lifecycle_test.panack` covers deferred setup errors, unavailable address, occupied port and no-bind invalid setup. All four constructors are exercised by package and public fixtures. |
+| A04–A05 | `parser_test.panack` verifies raw target splitting, escapes, path case, repeated headers, ASCII-insensitive first/all access and body preservation. Independent socket/size peers cover buffered bytes. |
+| A06–A09 | `parser_test.panack`, `routed_test.panack`, native state contracts and public socket/context fixtures cover four methods, exact raw routing, invalid/duplicate registrations, sticky errors, late-registration faults, all unsupported method classes, canonical Allow and explicit-route/fallback precedence. |
+| A10–A13 | `writer_test.panack` executes real package methods under native writer ownership. Socket cases cover missing send, returned Error, post-send failure, 204/304 empty responses with no Content-Length, and invalid non-empty 204. The peer checks the first status line, so a partial successful response cannot conceal a later 500. |
+| A14 | `routed_test.panack` tests complete response-header N−1/N/N+1 boundaries and multibyte response bodies at 1 MiB−1/1 MiB/1 MiB+1 bytes. Live oversized header/body handlers produce generic 500 before application commitment. Header values retain the existing printable-ASCII/tab policy. |
+| A15–A17 | Parser source/bytecode tests and raw `routed`/`routed-limits` peers cover HTTP/1.1, Host, unframed bytes, CL/chunked framing, conflicting/duplicate framing, unsupported versions/codings and exact request-header/body byte bounds. Chunked overflow is rejected before handler invocation. |
+| A18–A19 | Delayed fixed/chunked bodies require one exact interim response; trimmed mixed-case Expect succeeds. Complete/no-body requests and early 400/404/405/413/503/417 outcomes cannot contain an interim response. Multiple/comma-list expectations fail; a post-interim oversized chunk receives 413. |
+| A20 | `routed-capacity` independently holds four admitted requests and sixteen incomplete-head connections, checks excess 503 and releases held clients. Subsequent healthy requests and the rest of the socket suite verify recovery. Native connection cleanup releases admission ownership exactly once. |
+| A21–A22 | Live returned Error, index and arithmetic faults return 500 then allow healthy requests; valid first responses survive later failure. `routed-deadline` observes accept/head/body/handler deadlines and first-send delivery during a stalled handler. Native TCP cancellation/write/deadline tests exercise the shared owner; the routed write path uses the same deadline check. Fatal operand/forged-handle and allocation failures remain outside request recovery. |
+| A23–A24 | Lifecycle source/bytecode probes, two live contextual listeners, `continuous_service.sh`, and a second-listener close/destroy/escalation barrier cover readiness, main return, signals, idempotence, port reuse and active cancellation. A handler sending then calling `host.exit(7)` preserves its response and exits with 7; this exposed and fixed an eager-clear bug. |
+| A25 | `tests/static_http.sh` and its C peer verify contextual static fallback, confinement/root replacement, indexes, redirects, MIME, file/response bounds, GET-only application policy and loopback/host CLI behavior. Generic routing tests prove explicit matches precede fallback. |
+| A26 | Public-import rejection tests cover removed exports and the deleted service module. Maintained tools/examples/tests and the installed-file inventory are migrated. Generic HTTP imports no static package. Independent HTTP/HTTPS client fixtures remain unchanged. |
+| A27 | `tests/unit/vm/http_state.c`, `resumable.c`, TCP/root-read/console cancellation contracts and `native_faults.c` cover aliases, retained context, forged/expired values, cleanup and allocation failures. Handles retain their backing allocation until release rather than exposing recyclable numeric IDs. Saved-bytecode verification and compiler/stdlib fixed points remain canonical gates. |
+| A28 | Public guide and ordinary/contextual examples are linked; static/install and release-archive smoke run both from source and saved bytecode after relocation. Website promotion prerequisites are recorded in the handover register. Final canonical/CI results below complete delivery acceptance. |
+
+Focused final evidence: the HTTP package suite passed after the exit fix, including
+context isolation, callback rejection, active close/destroy/escalation and process
+exit. Native module contracts passed; the fault suite passed 2,057 allocation
+failure cases in total, including the new routed state/writer sweep. Additional
+version/Host/coding cases and unavailable-address coverage are included in the
+final canonical run.
+
+Final canonical `make check` passed in 635 seconds, including compiler/stdlib
+fixed points, unit/functional suites, HTTP/TLS checks, relocated installation and
+release-archive examples, and quick start. The historical 120-second comparison
+budget emitted a warning; it is not a replacement performance acceptance gate.
+Exact-head CI remains a required merge gate; its result is recorded on the final
+acceptance PR before merge. No native alpha.14 publication, website
+deployment, TLS server, streaming/keep-alive, middleware, closures or new language
+syntax is claimed.

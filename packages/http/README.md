@@ -87,7 +87,8 @@ Header lookup is ASCII case-insensitive.
 `ResponseWriter` provides `.status`, `.header`, `.add_header`, `.send` and
 `.send_bytes`. Status defaults to 200. Header replacement is case-insensitive;
 `add_header` preserves duplicates. Text defaults to UTF-8 plain text and bytes to
-`application/octet-stream`. The framework owns framing headers. The first send
+`application/octet-stream`. Header names are ASCII tokens; values permit printable
+ASCII and tabs under the package policy. The framework owns framing headers. The first send
 commits the response; later mutations cannot replace it. Status 204 and 304 must
 have empty bodies. Returning without sending, returning `Error`, or a recoverable
 request fault produces a bounded 500 unless a response was already committed.

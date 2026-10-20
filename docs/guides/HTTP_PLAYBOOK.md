@@ -128,7 +128,21 @@ find the program and its dependencies. Here's the manifest from
 `examples/network/http_server/panack.json`:
 
 ```json
-{"schema":1,"package":"examples.http_server","version":"0.1.0","language":"modules-v1","toolchain":"0.1.0-alpha.14","source":"src","entry":"main.panack","exports":{},"dependencies":{"http":{"path":"../../../packages/http"}}}
+{
+  "schema": 1,
+  "package": "examples.http_server",
+  "version": "0.1.0",
+  "language": "modules-v1",
+  "toolchain": "0.1.0-alpha.14",
+  "source": "src",
+  "entry": "main.panack",
+  "exports": {},
+  "dependencies": {
+    "http": {
+      "path": "../../../packages/http"
+    }
+  }
+}
 ```
 
 Together, `source` and `entry` point to `src/main.panack`. The `http` dependency
@@ -285,7 +299,21 @@ The accompanying manifest is shown below. It's included at
 `examples/network/http_contextual_server/panack.json`:
 
 ```json
-{"schema":1,"package":"examples.http_contextual_server","version":"0.1.0","language":"modules-v1","toolchain":"0.1.0-alpha.14","source":"src","entry":"main.panack","exports":{},"dependencies":{"http":{"path":"../../../packages/http"}}}
+{
+  "schema": 1,
+  "package": "examples.http_contextual_server",
+  "version": "0.1.0",
+  "language": "modules-v1",
+  "toolchain": "0.1.0-alpha.14",
+  "source": "src",
+  "entry": "main.panack",
+  "exports": {},
+  "dependencies": {
+    "http": {
+      "path": "../../../packages/http"
+    }
+  }
+}
 ```
 
 Every handler on this server takes `AppContext` as its first argument, followed

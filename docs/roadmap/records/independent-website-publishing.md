@@ -83,6 +83,16 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
+- **Alpha.15 validation-speed milestone (20 October 2026):** after the core
+  roadmap PR merges, update the site's alpha.15 roadmap scope and review its
+  homepage release summary and maintenance guidance for consistency. Describe
+  faster validation with preserved/stronger tests as planned work, not a measured
+  improvement already delivered. Core delivery maintainer owns the handover;
+  website maintainer owns publication and live verification. Track alongside the
+  [existing release-direction entry](https://github.com/sproates/panackelty-website/blob/main/ROADMAP.md#alpha14-through-alpha18-release-direction).
+  Publication pending; no release pins or existing availability claims change.
+
+
 - **Alpha.14–alpha.18 direction (20 October 2026):** update homepage summaries,
   roadmap sections and website maintenance guidance to match the
   [agreed release scope](next-release--agreed-scope-2026-10-06.md#agreed-release-direction--20-october-2026).

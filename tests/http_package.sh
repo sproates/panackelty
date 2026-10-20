@@ -87,6 +87,18 @@ for example in ordinary contextual; do
         test ! -s "$work/stderr"
     done
 done
+# Public playbook lifecycle example: start, close and idempotent destroy.
+./bin/panack compile --project examples/network/http_server_lifecycle/panack.json -o "$work/playbook-lifecycle.bc" > /dev/null
+printf 'Server closed\nServer destroyed\n' > "$work/lifecycle.expected"
+for mode in source bytecode; do
+    port=$("$http_client" port)
+    if [ "$mode" = source ]; then
+        ./bin/panack run --project examples/network/http_server_lifecycle/panack.json "$port" > "$work/lifecycle.out"
+    else
+        ./bin/panack run "$work/playbook-lifecycle.bc" "$port" > "$work/lifecycle.out"
+    fi
+    cmp "$work/lifecycle.expected" "$work/lifecycle.out"
+done
 # Two independently retained contexts, two named handlers and all four methods.
 cat > "$work/app/src/main.panack" <<'SOURCE'
 import http/server as http

@@ -22,3 +22,7 @@ See [the source](src/main.panack), [manifest](panack.json), and
 [HTTP package guide](../../../packages/http/README.md).
 The [HTTP server reference](../../../docs/reference/http-server.md) documents
 the contextual constructor, handler type, routes and lifecycle contract.
+
+The [HTTP playbook](../../../docs/guides/HTTP_PLAYBOOK.md#share-application-configuration)
+includes the complete program and manifest. `AppContext` holds both a greeting
+and a service name; `/health` returns `X-Service: preview` as well as `X-Query`.

@@ -394,11 +394,11 @@ int main(int argc, char **argv)
             exchange(port, "POST /messages HTTP/1.1\r\nHost: local\r\n\r\n", "201 Created", "\r\n\r\nCreated", 0) ||
             exchange(port, "GET /about HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "About this service", 0);
     }
-    if (!strcmp(mode, "example-contextual")) {
+    if (!strcmp(mode, "example-contextual") || !strcmp(mode, "installed-contextual")) {
         return exchange(port, "GET / HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\nHello", 0) ||
             exchange(port, "GET /health HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\nOK: Hello", 0) ||
-            exchange_header(port, "GET /health?probe=1 HTTP/1.1\r\nHost: local\r\n\r\n",
-                            "200 OK", "\r\n\r\nOK: Hello", "X-Query: probe=1");
+            (!strcmp(mode, "installed-contextual") && exchange_header(port, "GET /health?probe=1 HTTP/1.1\r\nHost: local\r\n\r\n",
+                            "200 OK", "\r\n\r\nOK: Hello", "X-Query: probe=1"));
     }
     if (!strcmp(mode, "routed-exit"))
         return exchange(port, "GET /exit HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "leaving", 0) ? 1 : 0;
@@ -413,7 +413,12 @@ int main(int argc, char **argv)
         return exchange(port, "GET / HTTP/1.1\r\nHost: example.test\r\n\r\n",
                         "HTTP/1.1 200 OK", "hello from Panackelty HTTP server", 0) ||
             exchange(port, "POST /echo HTTP/1.1\r\nHost: example.test\r\nContent-Length: 5\r\n\r\nhello",
-                     "HTTP/1.1 200 OK", "\r\n\r\nhello", 0) ? 1 : 0;
+                     "HTTP/1.1 200 OK", "\r\n\r\nhello", 0) ||
+            exchange(port, "PUT /echo HTTP/1.1\r\nHost: local\r\nContent-Length: 5\r\n\r\nhello", "200 OK", "\r\n\r\nhello", 0) ||
+            exchange(port, "DELETE /echo HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\n", 0) ||
+            exchange_header(port, "GET /inspect?name=Ada HTTP/1.1\r\nHost: local\r\nX-Caller: guide\r\n\r\n", "200 OK", "Caller: guide", "X-Query: name=Ada") ||
+            exchange(port, "GET /missing HTTP/1.1\r\nHost: local\r\n\r\n", "404 Not Found", "No route for /missing", 0) ||
+            exchange_header(port, "GET /echo HTTP/1.1\r\nHost: local\r\n\r\n", "405 Method Not Allowed", "\r\n\r\n", "Allow: POST, PUT, DELETE") ? 1 : 0;
     if (!strcmp(mode, "head"))
         return exchange(port, "HEAD / HTTP/1.1\r\nHost: example.test\r\n\r\n",
                         "HTTP/1.1 200 OK", "Content-Length: 2\r\n", 0) ? 1 : 0;

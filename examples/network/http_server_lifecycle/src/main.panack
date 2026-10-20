@@ -1,0 +1,41 @@
+import http/server as http
+import stdlib/async_host as host
+
+async home(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  response.send("Hello")
+  Ok(())
+}
+
+async main(): Unit {
+  arguments = await host.arguments()
+  port = if arguments.len() == 0 { 8082 } else { arguments[0].parse_nat() }
+  server = http.create_bound_server("127.0.0.1", port)
+  server.get("/", @home)
+
+  match await server.listen() {
+    Error(problem) => {
+      ignored = await host.stderr(problem.message)
+      await host.exit(1)
+    },
+    Ok(done) => ()
+  }
+
+  // A test or embedding application can do its work here, then stop the listener.
+  // This example stops immediately; it is not a long-running web service.
+  match await server.close() {
+    Error(problem) => {
+      ignored = await host.stderr(problem.message)
+      await host.exit(1)
+    },
+    Ok(done) => { ignored = await host.stdout("Server closed"); () }
+  }
+
+  // Safe after close too: destroy is idempotent and releases any remaining work.
+  match await server.destroy() {
+    Error(problem) => {
+      ignored = await host.stderr(problem.message)
+      await host.exit(1)
+    },
+    Ok(done) => { ignored = await host.stdout("Server destroyed"); () }
+  }
+}

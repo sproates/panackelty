@@ -940,3 +940,10 @@ consumers must pin the corrected source revision rather than replace that asset.
 
 The native header contract also syntax-checks the portable HTTP transport branch
 without curl, catching native-only declarations leaking into that branch.
+
+HTTP playbook coverage: the existing installed-example runs check POST/PUT/DELETE
+byte echo, query/header access, fallback 404 and known-path 405. The contextual
+query-header assertion is restricted to the installed example; the original
+contract fixture uses its unchanged common checks. `tests/http_package.sh` also
+runs the public lifecycle program from source and bytecode and compares shutdown
+output. The playbook embeds the matching example source and manifests.

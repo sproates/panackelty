@@ -243,7 +243,7 @@ test ! -s coverage-aggregate.stderr || fail "coverage aggregation wrote unexpect
 for example in http_server http_contextual_server; do
   http_manifest=$temporary/relocated/toolchain/examples/network/$example/panack.json
   peer_mode=example
-  if [ "$example" = http_contextual_server ]; then peer_mode=example-contextual; fi
+  if [ "$example" = http_contextual_server ]; then peer_mode=installed-contextual; fi
   run_clean check --project "$http_manifest" >http-check.stdout 2>http-check.stderr || \
     fail "installed HTTP example project check failed"
   test ! -s http-check.stderr || fail "installed HTTP example check wrote unexpected stderr"

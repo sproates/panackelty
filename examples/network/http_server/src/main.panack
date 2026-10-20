@@ -5,16 +5,38 @@ async home(request: http.Request, response: http.ResponseWriter): Result[Unit,St
   response.send("hello from Panackelty HTTP server\n")
   Ok(())
 }
+
 async echo(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
   response.send_bytes(request.body)
   Ok(())
 }
+
+async inspect_request(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  caller = match request.header("X-Caller") {
+    Some(value) => value,
+    None() => "anonymous"
+  }
+  response.header("X-Query", request.query)
+  response.send("Caller: " + caller)
+  Ok(())
+}
+
+async not_found(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  response.status(404)
+  response.send("No route for " + request.path)
+  Ok(())
+}
+
 async main(): Unit {
   arguments = await host.arguments()
   port = if arguments.len() == 0 { 8080 } else { arguments[0].parse_nat() }
   server = http.create_bound_server("127.0.0.1", port)
   server.get("/", @home)
   server.post("/echo", @echo)
+  server.put("/echo", @echo)
+  server.delete("/echo", @echo)
+  server.get("/inspect", @inspect_request)
+  server.fallback(@not_found)
   match await server.listen() {
     Ok(done) => { ignored = await host.stdout("Listening on http://127.0.0.1:${port}/"); () },
     Error(problem) => { ignored = await host.stderr(problem.message); await host.exit(1) }

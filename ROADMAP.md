@@ -57,14 +57,20 @@ work remains open; this delivery does not establish a throughput benchmark.
 
 ## HTTP reference review slice: GI#552
 
-This intermediate slice adds the first complete `http/server` reference page,
-links the existing ordinary and contextual runnable examples to it, and runs
-those checked-in examples from source and saved bytecode in the HTTP package
-integration suite. The slice is for review of the Server page and its format;
-further HTTP reference pages and example coverage remain open until that review.
-The wider standard-library reference remains outside this alpha.14 scope. This
-PR references GI#552 and does not complete or close it. Website: no current
-release claim changes; these alpha.14 development APIs remain unreleased.
+This intermediate GI#552 slice adds the HTTP Server reference and a five-part
+HTTP playbook: first server, request/response handling, routing, application
+configuration and listener lifecycle. The guides include complete programs and
+manifests, curl requests and expected results. Ordinary and contextual examples
+run from source and saved bytecode in the existing installed-package checks;
+the lifecycle example runs in the HTTP package suite. The original contract
+example retains its own assertions, separate from the installed query-header check.
+
+The companion website renders exact Markdown snapshots, with a local cross-repository
+comparison and a CI generation check. Both versions describe unreleased alpha.14;
+there is no change to current-release claims. This PR is a review slice and does
+not close GI#552 or extend documentation to the wider standard library.
+Performance: no compiler/runtime changes; additional example assertions reuse
+existing server runs, with one small lifecycle program checked in both modes.
 
 ## Bounded method experiment — 2026-10-17
 

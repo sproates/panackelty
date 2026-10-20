@@ -9,9 +9,14 @@ Use [`http/server`](../../packages/http/README.md) for routed handlers. The
 packaged HTTP client is a separate API. For directory serving, see the
 [static HTTP server tool](../../tools/http-server/README.md).
 
+New to this API? Start with [the HTTP playbook](../guides/HTTP_PLAYBOOK.md).
+It includes complete programs, setup steps, requests to try and expected results.
+
 ## API index
 
 ### Constructors
+
+See the [worked playbook guide](../guides/HTTP_PLAYBOOK.md#your-first-server).
 
 - [`create_server`](#create_server)
 - [`create_bound_server`](#create_bound_server)
@@ -36,9 +41,11 @@ packaged HTTP client is a separate API. For directory serving, see the
 
 ### Lifecycle methods
 
-- [`Server.listen`](#serverlisten) · [`ContextualServer.listen`](#contextuallisten)
-- [`Server.close`](#serverclose) · [`ContextualServer.close`](#contextualclose)
-- [`Server.destroy`](#serverdestroy) · [`ContextualServer.destroy`](#contextualdestroy)
+See the [worked playbook guide](../guides/HTTP_PLAYBOOK.md#own-the-listener-lifecycle).
+
+- [`Server.listen`](#serverlisten) · [`ContextualServer.listen`](#contextualserverlisten)
+- [`Server.close`](#serverclose) · [`ContextualServer.close`](#contextualserverclose)
+- [`Server.destroy`](#serverdestroy) · [`ContextualServer.destroy`](#contextualserverdestroy)
 
 ### Behaviour and examples
 
@@ -168,6 +175,8 @@ Hostnames and IPv6 are unsupported.
 
 ## Ordinary route methods
 
+See the [worked playbook guide](../guides/HTTP_PLAYBOOK.md#handle-requests-and-responses).
+
 Register routes before starting the listener. Each handler is a named async
 function with this signature:
 
@@ -199,8 +208,9 @@ get(
 **Returns / async:** Returns `Unit`; registration is synchronous and the
 handler runs asynchronously for a matching GET request. **Errors:** Invalid
 or duplicate routes are reported by `listen()`; registering after listening
-begins traps. A missing exact route invokes the fallback if registered, or
-returns 404 otherwise. Matching is case-sensitive and performs no decoding or
+begins traps. A supported method on an unknown path invokes the fallback if registered, or
+returns 404 otherwise. A known path registered only for other methods returns
+405 with an `Allow` header, without invoking fallback. Matching is case-sensitive and performs no decoding or
 normalization.
 
 ### `Server.post`
@@ -290,6 +300,8 @@ second fallback is reported by `listen()`; registering after listening begins
 traps. Unsupported methods and 405 cases do not reach the fallback.
 
 ## Contextual route methods
+
+See the [worked playbook guide](../guides/HTTP_PLAYBOOK.md#share-application-configuration).
 
 Contextual routes use the same matching and registration rules as ordinary
 routes. The stored context is passed to the handler first:
@@ -526,6 +538,8 @@ async echo(request: http.Request,
 ```
 
 ## Routing and errors
+
+See the [worked playbook guide](../guides/HTTP_PLAYBOOK.md#routes-and-fallbacks).
 
 Paths must begin with `/` and be valid URI references. Query and fragment
 components are validated but ignored during matching. Matching is

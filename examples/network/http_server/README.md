@@ -23,3 +23,8 @@ Read [the source](src/main.panack) and [manifest](panack.json), or try the
 See the [HTTP server reference](../../../docs/reference/http-server.md) for the
 constructor, route and lifecycle contracts.
 For directory serving, use the [static HTTP tool](../../../tools/http-server/README.md).
+
+The [HTTP playbook](../../../docs/guides/HTTP_PLAYBOOK.md) includes this full
+program and manifest. It also demonstrates GET `/inspect`, PUT/DELETE `/echo`,
+and the 404 fallback. Echo routes demonstrate dispatch only; they do not store
+or delete resources.

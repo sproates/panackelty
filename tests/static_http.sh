@@ -68,7 +68,7 @@ for example in http_server http_contextual_server; do
     manifest=$installation/examples/network/$example/panack.json
     "$installation/bin/panack" compile --project "$manifest" -o "$installation/$example.bc" > /dev/null
     peer_mode=example
-    if [ "$example" = http_contextual_server ]; then peer_mode=example-contextual; fi
+    if [ "$example" = http_contextual_server ]; then peer_mode=installed-contextual; fi
     for mode in source bytecode; do
         port=$("$port_client" port)
         if [ "$mode" = source ]; then

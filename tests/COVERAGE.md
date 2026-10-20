@@ -1371,3 +1371,10 @@ oversize rejection, active close/destroy/escalation and process-exit response
 preservation. Native allocation sweeps cover the new state/writer ownership.
 Final canonical and exact-head CI provenance is recorded in the
 [acceptance register](../docs/design/routed-http-server/acceptance-register.md).
+
+HTTP playbook coverage: the existing installed-example runs check POST/PUT/DELETE
+byte echo, query/header access, fallback 404 and known-path 405. The contextual
+query-header assertion is restricted to the installed example; the original
+contract fixture uses its unchanged common checks. `tests/http_package.sh` also
+runs the public lifecycle program from source and bytecode and compares shutdown
+output. The playbook embeds the matching example source and manifests.

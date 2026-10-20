@@ -1,6 +1,3 @@
-import stdlib/text as std_text
-import stdlib/numeric as std_numeric
-import stdlib/bytes as byte_buffer
 pub import project/src/compiler/types::{Diagnostic}
 import project/src/compiler/types::{SourcePos, diagnostic_text}
 
@@ -23,18 +20,18 @@ pure diagnostic_hex(value: Nat): Str {
   if value < 16 {
     digits[value]
   } else {
-    diagnostic_hex(std_numeric.divide(value, 16)) + digits[value % 16]
+    diagnostic_hex(value->divide(16)) + digits[value % 16]
   }
 }
 
 pub pure diagnostic_character(character: Str): Str {
-  encoded: Bytes = std_text.encode_utf8(character)
-  count: Nat = byte_buffer.length(encoded)
+  encoded: Bytes = character->encode_utf8()
+  count: Nat = encoded->length()
 
   if count == 0 {
     ""
   } else {
-    mut value: Nat = byte_buffer.at(encoded, 0)
+    mut value: Nat = encoded->at(0)
     if count == 1 && value >= 32 && value < 127 {
       if character == "\\" {
         "\\\\"
@@ -54,7 +51,7 @@ pub pure diagnostic_character(character: Str): Str {
         value = value % leading_modulus
         mut index: Nat = 1
         while index < count {
-          value = value * 64 + byte_buffer.at(encoded, index) % 64
+          value = value * 64 + encoded->at(index) % 64
           index = index + 1
         }
       }
@@ -72,7 +69,7 @@ pure diagnostic_excerpt(diagnostic: Diagnostic, source: Str): Str {
     mut line: Nat = 1
     mut start: Nat = 0
     mut cursor: Nat = 0
-    while cursor < len(source) && line < position.line {
+    while cursor < source->len() && line < position.line {
       if source[cursor] == "\n" {
         line = line + 1
         start = cursor + 1
@@ -83,10 +80,10 @@ pure diagnostic_excerpt(diagnostic: Diagnostic, source: Str): Str {
       ""
     } else {
       mut end: Nat = start
-      while end < len(source) && source[end] != "\n" {
+      while end < source->len() && source[end] != "\n" {
         end = end + 1
       }
-      if end < len(source) && end > start {
+      if end < source->len() && end > start {
         if end >= 1 {
           previous: Nat = end - 1
           if source[previous] == "\r" {
@@ -94,15 +91,15 @@ pure diagnostic_excerpt(diagnostic: Diagnostic, source: Str): Str {
           }
         }
       }
-      text: Str = slice(source, start, end)
-      if position.column > len(text) + 1 {
+      text: Str = source->slice(start, end)
+      if position.column > text->len() + 1 {
         ""
       } else {
         mut displayed: Str = ""
         mut width: Nat = 0
         mut caret: Nat = 0
         mut index: Nat = 0
-        while index < len(text) {
+        while index < text->len() {
           if index + 1 == position.column {
             caret = width
           }
@@ -113,15 +110,15 @@ pure diagnostic_excerpt(diagnostic: Diagnostic, source: Str): Str {
             diagnostic_character(character)
           }
           displayed = displayed + cell
-          width = width + len(cell)
+          width = width + cell->len()
           index = index + 1
         }
-        if position.column == len(text) + 1 {
+        if position.column == text->len() + 1 {
           caret = width
         }
         number: Str = "${line}"
         "\n  " + number + " | " + displayed + "\n  " +
-          diagnostic_spaces(len(number)) + " | " + diagnostic_spaces(caret) + "^"
+          diagnostic_spaces(number->len()) + " | " + diagnostic_spaces(caret) + "^"
       }
     }
   }
@@ -131,8 +128,8 @@ pub pure diagnostic_with_source(diagnostic: Diagnostic, sources: Map[Str, Str]):
   header: Str = diagnostic_text(diagnostic)
   file: Str = diagnostic.position.file
 
-  if len(file) > 0 && sources.has(file) {
-    header + diagnostic_excerpt(diagnostic, sources.get(file))
+  if file->len() > 0 && sources->has(file) {
+    header + diagnostic_excerpt(diagnostic, sources->get(file))
   } else {
     header
   }

@@ -108,16 +108,16 @@ pub pure loaded_module_declaration_index(parsed: ParsedModule): Map[Str,TopLevel
     match declaration {
       ImportDeclaration(path) => {},
       TypeDeclaration(name, base, guard) => {
-        declarations = declarations.put(name, declaration)
+        declarations = declarations->put(name, declaration)
       },
       RecordDeclaration(name, parameters, fields) => {
-        declarations = declarations.put(name, declaration)
+        declarations = declarations->put(name, declaration)
       },
       EnumDeclaration(name, parameters, variants) => {
-        declarations = declarations.put(name, declaration)
+        declarations = declarations->put(name, declaration)
       },
       FunctionDeclaration(name, parameters, result, pure_flag, async_flag, body, types) => {
-        declarations = declarations.put(name, declaration)
+        declarations = declarations->put(name, declaration)
       }
     }
   }
@@ -146,38 +146,32 @@ pub pure collect_module_bindings(identity: ModuleIdentity, parsed: ParsedModule)
     syntax: DeclarationSyntax = parsed.syntax[index]
     match declaration {
       ImportDeclaration(path) => {
-        imports = append(
-          imports,
+        imports = imports->append(
           ModuleImportBinding(path, syntax.binding, syntax.is_public, syntax.span)
         )
       },
       TypeDeclaration(name, base, guard) => {
-        declarations = append(
-          declarations,
+        declarations = declarations->append(
           module_declaration_binding(identity, name, ModuleGuardedType(), syntax)
         )
       },
       RecordDeclaration(name, parameters, fields) => {
-        declarations = append(
-          declarations,
+        declarations = declarations->append(
           module_declaration_binding(identity, name, ModuleRecord(), syntax)
         )
       },
       EnumDeclaration(name, parameters, variants) => {
-        declarations = append(
-          declarations,
+        declarations = declarations->append(
           module_declaration_binding(identity, name, ModuleEnum(), syntax)
         )
         for variant in variants {
-          declarations = append(
-            declarations,
+          declarations = declarations->append(
             module_declaration_binding(identity, variant.name, ModuleVariant(name), syntax)
           )
         }
       },
       FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
-        declarations = append(
-          declarations,
+        declarations = declarations->append(
           module_declaration_binding(identity, name, ModuleFunction(), syntax)
         )
       }
@@ -187,7 +181,7 @@ pub pure collect_module_bindings(identity: ModuleIdentity, parsed: ParsedModule)
   if identity == builtin_owner_module() {
     position: SourcePos = SourcePos("<toolchain intrinsic>", 0, 1, 1)
     for intrinsic in owned_intrinsic_declarations() {
-      declarations = append(declarations, ModuleDeclarationBinding(
+      declarations = declarations->append(ModuleDeclarationBinding(
         DeclarationIdentity(identity, "$intrinsic$" + intrinsic.owner + "$" + intrinsic.name),
         ModuleFunction(), true, SourceSpan(position, position),
         Some(OwnedMethodIdentity(BuiltinMethodOwner(intrinsic.owner), intrinsic.name)),
@@ -199,11 +193,11 @@ pub pure collect_module_bindings(identity: ModuleIdentity, parsed: ParsedModule)
     match declaration.method {
       None() => {},
       Some(method) => {
-        mut owner_methods: Map[Str, ModuleDeclarationBinding] = if methods.has(method_owner_name(method.owner)) {
-          methods.get(method_owner_name(method.owner))
+        mut owner_methods: Map[Str, ModuleDeclarationBinding] = if methods->has(method_owner_name(method.owner)) {
+          methods->get(method_owner_name(method.owner))
         } else { map() }
-        owner_methods = owner_methods.put(method.name, declaration)
-        methods = methods.put(method_owner_name(method.owner), owner_methods)
+        owner_methods = owner_methods->put(method.name, declaration)
+        methods = methods->put(method_owner_name(method.owner), owner_methods)
       }
     }
   }
@@ -241,20 +235,18 @@ pub pure module_binding_diagnostics(bindings: ModuleBindings): [Diagnostic] {
       None() => declaration.identity.name,
       Some(method) => method_owner_name(method.owner) + "->" + method.name
     }
-    if names.has(name) {
-      diagnostics = append(
-        diagnostics,
+    if names->has(name) {
+      diagnostics = diagnostics->append(
         Diagnostic("module declaration ${name} is already bound", declaration.span.start)
       )
     } else {}
-    names = names.add(name)
+    names = names->add(name)
   }
   for imported in bindings.imports {
     for selector in module_import_names(imported) {
       name: Str = selector.alias
-      if names.has(name) {
-        diagnostics = append(
-          diagnostics,
+      if names->has(name) {
+        diagnostics = diagnostics->append(
           Diagnostic(
           "import binding ${name} conflicts with an existing module binding",
           selector.span.start
@@ -262,13 +254,12 @@ pub pure module_binding_diagnostics(bindings: ModuleBindings): [Diagnostic] {
         )
       } else {
         if module_reserved_binding(name) {
-          diagnostics = append(
-            diagnostics,
+          diagnostics = diagnostics->append(
             Diagnostic("import binding ${name} conflicts with a built-in", selector.span.start)
           )
         } else {}
       }
-      names = names.add(name)
+      names = names->add(name)
     }
   }
 
@@ -317,32 +308,32 @@ pub pure module_relative_path(path: Str, root: Str): Str {
   mut cursor: Nat = 0
   mut common: Nat = 0
 
-  while cursor < len(path) && cursor < len(root) && path[cursor] == root[cursor] {
+  while cursor < path->len() && cursor < root->len() && path[cursor] == root[cursor] {
     if path[cursor] == "/" {
       common = cursor + 1
     } else {}
     cursor = cursor + 1
   }
-  if cursor == len(root) && cursor < len(path) && path[cursor] == "/" {
-    slice(path, cursor + 1, len(path))
+  if cursor == root->len() && cursor < path->len() && path[cursor] == "/" {
+    path->slice(cursor + 1, path->len())
   } else {
     mut prefix: Str = ""
     mut index: Nat = common
-    while index < len(root) {
+    while index < root->len() {
       if root[index] == "/" {
         prefix = prefix + "../"
       } else {}
       index = index + 1
     }
-    if common < len(root) {
+    if common < root->len() {
       prefix = prefix + "../"
     } else {}
-    prefix + slice(path, common, len(path))
+    prefix + path->slice(common, path->len())
   }
 }
 
 pub pure source_module_identity(path: Str, project_root: Str, stdlib_root: Str): ModuleIdentity {
-  if starts_with_at(path, stdlib_root + "/", 0) {
+  if path->starts_with_at(stdlib_root + "/", 0) {
     ModuleIdentity(ToolchainModulePackage(), module_relative_path(path, stdlib_root))
   } else {
     ModuleIdentity(StandaloneModulePackage(), module_relative_path(path, project_root))
@@ -356,7 +347,7 @@ pub pure source_package_module_identity(
   package_name: Str,
   package_version: Str
 ): ModuleIdentity {
-  if starts_with_at(path, stdlib_root + "/", 0) {
+  if path->starts_with_at(stdlib_root + "/", 0) {
     ModuleIdentity(ToolchainModulePackage(), module_relative_path(path, stdlib_root))
   } else {
     ModuleIdentity(
@@ -370,7 +361,7 @@ pub pure module_programs(modules: [LoadedModule]): [Program] {
   mut programs: [Program] = []
 
   for module in modules {
-    programs = append(programs, module.execution_program)
+    programs = programs->append(module.execution_program)
   }
   programs
 }
@@ -383,7 +374,7 @@ pub pure module_declaration_positions(modules: [LoadedModule]): [SourcePos] {
 
   for module in modules {
     for syntax in module.parsed.syntax {
-      positions = append(positions, syntax.span.start)
+      positions = positions->append(syntax.span.start)
     }
   }
   positions

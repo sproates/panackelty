@@ -5,14 +5,14 @@ pub record Server {
 
 impl Server {
   pub pure get(route: Str, fallback: Nat): Nat {
-    if self.routes.has(route) {
-      self.routes.get(route)
+    if self.routes->has(route) {
+      self.routes->get(route)
     } else {
       self.id + fallback
     }
   }
 
   pub pure put(route: Str, amount: Nat): Server {
-    Server(self.id, self.routes.put(route, self.id + amount))
+    Server(self.id, self.routes->put(route, self.id + amount))
   }
 }

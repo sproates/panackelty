@@ -1284,3 +1284,14 @@ typed Option/Result receivers, sorting, text, paths and duration errors.
 `testing_fixtures` exercises imported `TestWorkspace.remove_empty` on both a
 nonempty workspace and a successfully emptied workspace, preserving exact output.
 Existing compiler/legacy callers continue to exercise the temporary forwarders.
+
+## GI#525 P11 remaining callers
+
+Compiler implementations, harnesses, maintained functional programs and generated
+package/coverage/host fixtures use owned receiver calls. Existing output assertions
+remain intact. Instruction/source-map coverage checks the migrated nested calls
+and imported generic origins. The compiler seed is refreshed at a verified fixed
+point; native oracle goldens remain unchanged. Legacy frontend and exact-diagnostic
+inputs remain explicitly listed in the
+[P11 test boundary](../docs/design/type-owned-dispatch/p11-legacy-test-boundary.md)
+for P12 replacement, preserving coverage while compatibility is still supported.

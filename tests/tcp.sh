@@ -31,23 +31,21 @@ for mode in echo empty example limit stall refuse; do
         stall) timeout=30; expected='Ok(data) => expect(false), Error(problem) => expect(problem == "TCP timed out")' ;;
         refuse) expected='Ok(data) => expect(false), Error(problem) => expect(problem == "TCP connect failed")' ;;
     esac
+    request_source='"hello"->encode_utf8()->push(0)'
+    [ "$mode" != empty ] || request_source='bytes()'
     cat > "$work/main.panack" <<SOURCE
 pure expect(value: Bool): Unit { checked = [0][if value { 0 } else { 1 }]; () }
 async exchange(request: Bytes): Result[Bytes,Str] {
   await tcp_exchange("127.0.0.1", $port, request, $limit, $timeout)
 }
 async main(): Unit {
-  mut request: Bytes = byte_append(utf8_encode("hello"), 0)
-  for i in 0..12 { request = bytes_concat(request, request) }
+  mut request: Bytes = $request_source
+  for i in 0..12 { request = request->join(request) }
   operation: AsyncFn[Bytes,Result[Bytes,Str]] = @exchange
-  match await operation.call(request) { $expected }
+  match await operation->call(request) { $expected }
   ()
 }
 SOURCE
-    if [ "$mode" = empty ]; then
-        sed 's/byte_append(utf8_encode("hello"), 0)/bytes()/' "$work/main.panack" > "$work/empty.panack"
-        mv "$work/empty.panack" "$work/main.panack"
-    fi
     if [ "$mode" = example ]; then
         sed "s/9000/$port/g" examples/network/tcp_exchange.panack > "$work/main.panack"
     fi

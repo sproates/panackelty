@@ -64,7 +64,7 @@ import stdlib/host as host
 main(): Void {
   arguments: [Str] = host.arguments()
   selected: Option[Str] = Some(arguments[0])
-  print(len(arguments))
+  print(arguments->len())
   match selected {
     Some(value) => print(value),
     None() => print("missing")

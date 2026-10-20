@@ -1,10 +1,7 @@
 import stdlib/testing_commands as std_testing_commands
-import stdlib/text as std_text
-import stdlib/option as std_option
 import stdlib/testing as std_testing
 import stdlib/process as std_process
 import project/src/compiler/filesystem_support as filesystem_support
-import stdlib/result as std_result
 import stdlib/testing::{TestResult}
 import stdlib/testing_files as std_testing_files
 import stdlib/testing_commands::{TestCommand, ProcessOutput}
@@ -24,33 +21,33 @@ pure vm_hex(value: Str): Bytes {
   mut output = byte_buffer.empty()
   mut high: Nat = 0
   mut half = false
-  for index in 0..len(value) {
+  for index in 0..value->len() {
     character = value[index]
-    if !is_whitespace(character) {
+    if !character->is_whitespace() {
       digit = vm_nibble(character)
       if !half { high = digit; half = true }
-      else { output = byte_buffer.push(output, high * 16 + digit); half = false }
+      else { output = output->push(high * 16 + digit); half = false }
     }
   }
   output
 }
-pure vm_path(value: Str): Path { std_result.value_or(std_path.from_text(value), std_path.current()) }
-pure vm_text(value: Path): Str { std_result.value_or(std_path.to_text(value), "invalid-path") }
+pure vm_path(value: Str): Path { std_path.from_text(value)->value_or(std_path.current()) }
+pure vm_text(value: Path): Str { value->to_text()->value_or("invalid-path") }
 
 pure vm_contains(actual: Str, expected: Str): Bool {
   mut found = false
-  for offset in 0..len(actual) { if starts_with_at(actual, expected, offset) { found = true } }
+  for offset in 0..actual->len() { if actual->starts_with_at(expected, offset) { found = true } }
   found
 }
 vm_environment(): [Str] {
   mut values: [Str] = []
   for key in ["ASAN_OPTIONS", "UBSAN_OPTIONS", "LLVM_PROFILE_FILE", "PANACKELTY_STDLIB_PATH"] {
-    if (std_environment.get(key) != None()) { values = values.append("${key}=" + std_option.value_or(std_environment.get(key), "")) }
+    if (std_environment.get(key) != None()) { values = values->append("${key}=" + std_environment.get(key)->value_or("")) }
   }
   values
 }
 vm_executable(key: Str, fallback: Str): Path {
-  vm_path(if (std_environment.get(key) != None()) { std_option.value_or(std_environment.get(key), "") } else { fallback })
+  vm_path(if (std_environment.get(key) != None()) { std_environment.get(key)->value_or("") } else { fallback })
 }
 vm_case(name: Str, mode: Str, status: Nat, target: Path): TestResult {
   prefix = "tests/fixtures/vm_contracts/${name}"
@@ -82,7 +79,7 @@ vm_fault(name: Str, file: Str, mode: Str, module: Bool, target: Path): TestResul
         Error(problem) => {},
         Ok(command) => {
           marker = if module { "decoder corpus:" } else { "allocation failures checked" }
-          valid = command.exit_code == 0 && command.signal == 0 && vm_contains(utf8_decode(command.stdout), marker)
+          valid = command.exit_code == 0 && command.signal == 0 && vm_contains(command.stdout->decode_utf8(), marker)
         }
       }
       if mode == "execute" || mode == "trap" {
@@ -92,7 +89,7 @@ vm_fault(name: Str, file: Str, mode: Str, module: Bool, target: Path): TestResul
           Ok(listing) => {
             valid = valid && listing.exit_code == 0 && listing.signal == 0 && listing.stderr == byte_buffer.empty()
             for opcode in ["INTERPOLATE", "UNARY", "CALL_VALUE", "ITER_NEXT", "MAKE_RECORD", "MAKE_VARIANT"] {
-              valid = valid && vm_contains(utf8_decode(listing.stdout), opcode)
+              valid = valid && vm_contains(listing.stdout->decode_utf8(), opcode)
             }
           }
         }
@@ -109,12 +106,12 @@ main(): Void {
     Error(problem) => { eprint("VM workspace creation failed"); std_host.exit(1) },
     Ok(workspace) => {
       mut results: [TestResult] = []
-      target = std_result.value_or(std_path.join(workspace.root, vm_path("input.bc")), workspace.root)
-      progress = std_result.value_or(std_path.join(workspace.root, vm_path("native-module-progress.txt")), workspace.root)
+      target = workspace.root->join(vm_path("input.bc"))->value_or(workspace.root)
+      progress = workspace.root->join(vm_path("native-module-progress.txt"))->value_or(workspace.root)
       progress_text = vm_text(progress)
       module_outcome = std_process.run(
         vm_executable("PANACK_NATIVE_MODULE_TEST", "./build/vm/test_modules"), [], byte_buffer.empty(),
-        std_path.current(), vm_environment().append("PANACK_NATIVE_MODULE_PROGRESS_FILE=${progress_text}"),
+        std_path.current(), vm_environment()->append("PANACK_NATIVE_MODULE_PROGRESS_FILE=${progress_text}"),
         std_time.seconds(60), 1048576)
       mut module_succeeded = false
       module_result = match module_outcome {
@@ -122,7 +119,7 @@ main(): Void {
           code = problem.code
           stage = match std_filesystem.read(progress, 4096) {
             Ok(contents) => {
-              text = std_text.decode_utf8(contents)
+              text = contents->decode_utf8()
               if text == "" { "none recorded" } else { text }
             },
             Error(read_error) => "none recorded"
@@ -133,217 +130,217 @@ main(): Void {
         Ok(output) => {
           module_succeeded = true
           std_testing_commands.command_output("native module contracts", output,
-            ProcessOutput(0, 0, utf8_encode("native module contracts: ok\n"), byte_buffer.empty()))
+            ProcessOutput(0, 0, "native module contracts: ok\n"->encode_utf8(), byte_buffer.empty()))
         }
       }
-      results = results.append(module_result)
+      results = results->append(module_result)
       if module_succeeded {
         stage = match std_filesystem.read(progress, 4096) {
-          Ok(contents) => std_text.decode_utf8(contents),
+          Ok(contents) => contents->decode_utf8(),
           Error(read_error) => "none recorded"
         }
-        results = results.append(std_testing.expect("native module progress checkpoint",
+        results = results->append(std_testing.expect("native module progress checkpoint",
           stage == "builtin_domains\n", "final completed-group marker was missing"))
       }
       match std_filesystem.remove_file(progress) {
         Error(problem) => if problem.code != "not_found" {
           code = problem.code
-          results = results.append(std_testing.expect("native module progress cleanup", false,
+          results = results->append(std_testing.expect("native module progress cleanup", false,
             "cleanup failed: ${code}"))
         },
         Ok(removed) => {}
       }
-      results = results.append(std_testing_commands.run_command("bigint exceeds host word size", TestCommand(
+      results = results->append(std_testing_commands.run_command("bigint exceeds host word size", TestCommand(
         vm_executable("PANACK_NATIVE_BIGINT_TEST", "./build/vm/test_bigint"), [], byte_buffer.empty(),
         std_path.current(), vm_environment(), std_time.seconds(20), 1048576),
-        ProcessOutput(0, 0, utf8_encode("8999999999999999999999999999991\n999999999999999999999999999999\n1\n"), byte_buffer.empty())))
-      results = results.append(std_testing_commands.run_command("decimal division preserves significant zeros", TestCommand(
+        ProcessOutput(0, 0, "8999999999999999999999999999991\n999999999999999999999999999999\n1\n"->encode_utf8(), byte_buffer.empty())))
+      results = results->append(std_testing_commands.run_command("decimal division preserves significant zeros", TestCommand(
         vm_executable("PANACK_NATIVE_MODULE_TEST", "./build/vm/test_modules"), ["arithmetic"],
-        utf8_encode("decimal 3 100000000000000000000 -2 80 -1\ndecimal 3 0 -20 80 -1\ndecimal 3 -1000 -3 20 -1\ndecimal 3 1000 -3 80 -1\ndecimal 2 100 -2 200 -2\n"),
+        "decimal 3 100000000000000000000 -2 80 -1\ndecimal 3 0 -20 80 -1\ndecimal 3 -1000 -3 20 -1\ndecimal 3 1000 -3 80 -1\ndecimal 2 100 -2 200 -2\n"->encode_utf8(),
         std_path.current(), vm_environment(), std_time.seconds(10), 1048576),
-        ProcessOutput(0, 0, utf8_encode("125000000000000000\n0\n-0.5\n0.125\n2.0000\n"), byte_buffer.empty())))
+        ProcessOutput(0, 0, "125000000000000000\n0\n-0.5\n0.125\n2.0000\n"->encode_utf8(), byte_buffer.empty())))
       match std_process.run(vm_executable("PANACK_NATIVE_FAULT_TEST", "./build/fault/test_faults"), [],
         byte_buffer.empty(), std_path.current(), vm_environment(), std_time.seconds(30), 16777216) {
-        Error(problem) => { results = results.append(std_testing.expect("allocation and host failures", false, "command failed")) },
-        Ok(command) => { results = results.append(std_testing.expect("allocation and host failures",
-          command.exit_code == 0 && command.signal == 0 && vm_contains(utf8_decode(command.stdout), "allocation failures checked"),
+        Error(problem) => { results = results->append(std_testing.expect("allocation and host failures", false, "command failed")) },
+        Ok(command) => { results = results->append(std_testing.expect("allocation and host failures",
+          command.exit_code == 0 && command.signal == 0 && vm_contains(command.stdout->decode_utf8(), "allocation failures checked"),
           "native fault contract failed")) }
       }
-      results = results.append(vm_case("ExecutionTests-array_index_is_bounds_checked_by_vm-1", "run", 1, target))
-      results = results.append(vm_case("ExecutionTests-arrays_iteration_indexing_and_len-1", "run", 0, target))
-      results = results.append(vm_case("ExecutionTests-boolean_operators_short_circuit-1", "run", 0, target))
-      results = results.append(vm_case("ExecutionTests-pure_for_loop_with_mutable_accumulator-1", "run", 0, target))
-      results = results.append(vm_case("ExecutionTests-pure_while_loop_with_mutable_locals-1", "run", 0, target))
-      results = results.append(vm_case("ExecutionTests-str_index_is_bounds_checked_by_vm-1", "run", 1, target))
-      results = results.append(vm_case("ExecutionTests-str_interpolation_concatenation_and_numeric_values-1", "run", 0, target))
-      results = results.append(vm_case("ExecutionTests-str_unicode_indexing_and_length-1", "run", 0, target))
-      results = results.append(vm_case("ExecutionTests-string_methods_reverse_unicode_code_points-1", "run", 0, target))
-      results = results.append(vm_case("NumericTests-big_natural_arithmetic-1", "run", 0, target))
-      results = results.append(vm_case("NumericTests-dec_arithmetic_exceeds_host_context_without_rounding-1", "run", 0, target))
-      results = results.append(vm_case("NumericTests-dec_finite_division_is_exact-1", "run", 0, target))
-      results = results.append(vm_case("NumericTests-dec_is_exact-1", "run", 0, target))
-      results = results.append(vm_case("NumericTests-integer_division_produces_rational-1", "run", 0, target))
-      results = results.append(vm_case("NumericTests-rational_conversion_and_zero_failures-1", "run", 1, target))
-      results = results.append(vm_case("NumericTests-rational_conversion_and_zero_failures-2", "run", 1, target))
-      results = results.append(vm_case("NumericTests-rational_conversion_and_zero_failures-3", "run", 1, target))
-      results = results.append(vm_case("NumericTests-rational_conversion_and_zero_failures-4", "run", 1, target))
-      results = results.append(vm_case("NumericTests-rational_conversion_and_zero_failures-5", "run", 1, target))
-      results = results.append(vm_case("NumericTests-rational_conversion_and_zero_failures-6", "run", 1, target))
-      results = results.append(vm_case("NumericTests-rational_unit_program_matches_contract-1", "run", 0, target))
-      results = results.append(vm_case("CollectionTests-byte_buffers_and_utf8-1", "run", 0, target))
-      results = results.append(vm_case("CollectionTests-empty_array_append_and_concat_are_pure-1", "run", 0, target))
-      results = results.append(vm_case("CollectionTests-persistent_maps_and_sets_are_pure-1", "run", 0, target))
-      results = results.append(vm_case("CollectionTests-short_collection_aliases_dispatch_by_receiver_type-1", "run", 0, target))
-      results = results.append(vm_case("BytecodeContractTests-binary_operands_preserve_push_order-1", "run", 0, target))
-      results = results.append(vm_case("BytecodeContractTests-call_frames_have_isolated_locals_and_return_values-1", "run", 0, target))
-      results = results.append(vm_case("BytecodeContractTests-conditional_jump_consumes_its_condition-1", "run", 0, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-1", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-2", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-3", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-4", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-5", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-6", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-7", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-8", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-9", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-10", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-11", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-12", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-13", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-14", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-15", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-16", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-17", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-18", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-19", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-20", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-21", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-22", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-23", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-24", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-25", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-26", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-27", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-indirect_calls_recheck_purity_at_runtime-1", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-indirect_calls_validate_and_deliver_results-1", "run", 0, target))
-      results = results.append(vm_case("BytecodeContractTests-invalid_dynamic_state_becomes_a_vm_trap-1", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-invalid_dynamic_state_becomes_a_vm_trap-2", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-invalid_dynamic_state_becomes_a_vm_trap-3", "run", 1, target))
-      results = results.append(vm_case("BytecodeContractTests-invalid_dynamic_state_becomes_a_vm_trap-4", "run", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-accepts_minimal_version_eight_artifact-1", "check", 0, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-1", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-2", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-3", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-4", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-5", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-6", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-7", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-8", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-9", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-10", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-11", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-12", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-13", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-14", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-15", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-16", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-17", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-18", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-19", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_forged_structural_and_semantic_violations-1", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_forged_structural_and_semantic_violations-2", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_forged_structural_and_semantic_violations-3", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_forged_structural_and_semantic_violations-4", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_forged_structural_and_semantic_violations-5", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_forged_structural_and_semantic_violations-6", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_forged_structural_and_semantic_violations-7", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_forged_structural_and_semantic_violations-8", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_forged_structural_and_semantic_violations-9", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_shared_malformed_artifacts-1", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_shared_malformed_artifacts-2", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_shared_malformed_artifacts-3", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_shared_malformed_artifacts-4", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_shared_malformed_artifacts-5", "check", 1, target))
-      results = results.append(vm_case("NativeLoaderTests-rejects_shared_malformed_artifacts-6", "check", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-string_index_and_slice_boundaries_still_trap-1", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-string_index_and_slice_boundaries_still_trap-2", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-string_index_and_slice_boundaries_still_trap-3", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-string_index_and_slice_boundaries_still_trap-4", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-string_index_and_slice_boundaries_still_trap-5", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-string_index_and_slice_boundaries_still_trap-6", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-string_index_and_slice_boundaries_still_trap-7", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-string_index_and_slice_boundaries_still_trap-8", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_matches_numeric_and_trap_semantics-1", "run", 0, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_matches_numeric_and_trap_semantics-2", "run", 0, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_matches_numeric_and_trap_semantics-3", "run", 0, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_matches_numeric_and_trap_semantics-4", "run", 0, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_matches_numeric_and_trap_semantics-5", "run", 0, target))
-      results = results.append(vm_case("NativeExecutionTests-rational_conversion_and_zero_failures-1", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-rational_conversion_and_zero_failures-2", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-rational_conversion_and_zero_failures-3", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-rational_conversion_and_zero_failures-4", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-rational_conversion_and_zero_failures-5", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-rational_conversion_and_zero_failures-6", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-1", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-2", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-3", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-4", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-5", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-6", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-7", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-8", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-9", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-10", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-11", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-12", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-13", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-14", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-15", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-16", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-17", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-18", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-19", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-20", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-21", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-22", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-23", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-24", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-25", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-26", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-27", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-28", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-29", "run", 1, target))
-      results = results.append(vm_case("NativeExecutionTests-native_vm_rechecks_indirect_call_purity-1", "run", 1, target))
-      results = results.append(vm_case("ExecutionTests-arrays_iteration_indexing_and_len-1", "return-void", 0, target))
-      results = results.append(vm_case("ExecutionTests-boolean_operators_short_circuit-1", "return-void", 0, target))
-      results = results.append(vm_case("ExecutionTests-pure_for_loop_with_mutable_accumulator-1", "return-void", 0, target))
-      results = results.append(vm_case("ExecutionTests-pure_while_loop_with_mutable_locals-1", "return-void", 0, target))
-      results = results.append(vm_case("ExecutionTests-str_interpolation_concatenation_and_numeric_values-1", "return-void", 0, target))
-      results = results.append(vm_case("ExecutionTests-str_unicode_indexing_and_length-1", "return-void", 0, target))
-      results = results.append(vm_case("ExecutionTests-string_methods_reverse_unicode_code_points-1", "return-void", 0, target))
-      results = results.append(vm_case("NumericTests-big_natural_arithmetic-1", "return-void", 0, target))
-      results = results.append(vm_case("NumericTests-dec_arithmetic_exceeds_host_context_without_rounding-1", "return-void", 0, target))
-      results = results.append(vm_case("NumericTests-dec_finite_division_is_exact-1", "return-void", 0, target))
-      results = results.append(vm_case("NumericTests-dec_is_exact-1", "return-void", 0, target))
-      results = results.append(vm_case("NumericTests-integer_division_produces_rational-1", "return-void", 0, target))
-      results = results.append(vm_case("NumericTests-rational_unit_program_matches_contract-1", "return-void", 0, target))
-      results = results.append(vm_case("CollectionTests-byte_buffers_and_utf8-1", "return-void", 0, target))
-      results = results.append(vm_case("CollectionTests-empty_array_append_and_concat_are_pure-1", "return-void", 0, target))
-      results = results.append(vm_case("CollectionTests-persistent_maps_and_sets_are_pure-1", "return-void", 0, target))
-      results = results.append(vm_case("CollectionTests-short_collection_aliases_dispatch_by_receiver_type-1", "return-void", 0, target))
-      results = results.append(vm_case("BytecodeContractTests-binary_operands_preserve_push_order-1", "return-void", 0, target))
-      results = results.append(vm_case("BytecodeContractTests-call_frames_have_isolated_locals_and_return_values-1", "return-void", 0, target))
-      results = results.append(vm_case("BytecodeContractTests-conditional_jump_consumes_its_condition-1", "return-void", 0, target))
-      results = results.append(vm_case("BytecodeContractTests-indirect_calls_validate_and_deliver_results-1", "return-void", 0, target))
-      results = results.append(vm_fault("all operand decode failures", "fault_operands", "decode", false, target))
-      results = results.append(vm_fault("all operand mutations", "fault_operands", "mutate", true, target))
-      results = results.append(vm_fault("ownership allocation failures", "ownership_execute", "execute", false, target))
-      results = results.append(vm_fault("nested trap allocation failures", "ownership_trap", "trap", false, target))
-      results = results.append(vm_case("BytecodeContractTests-call_frames_have_isolated_locals_and_return_values-1", "tasks", 0, target))
-      results = results.append(vm_case("BytecodeContractTests-indirect_calls_validate_and_deliver_results-1", "tasks", 0, target))
-      results = results.append(vm_case("ExecutionTests-arrays_iteration_indexing_and_len-1", "tasks", 0, target))
-      match std_testing_files.workspace_remove_empty(workspace) {
-        Error(problem) => { results = results.append(std_testing.expect("VM workspace cleanup", false, "directory not empty")) },
+      results = results->append(vm_case("ExecutionTests-array_index_is_bounds_checked_by_vm-1", "run", 1, target))
+      results = results->append(vm_case("ExecutionTests-arrays_iteration_indexing_and_len-1", "run", 0, target))
+      results = results->append(vm_case("ExecutionTests-boolean_operators_short_circuit-1", "run", 0, target))
+      results = results->append(vm_case("ExecutionTests-pure_for_loop_with_mutable_accumulator-1", "run", 0, target))
+      results = results->append(vm_case("ExecutionTests-pure_while_loop_with_mutable_locals-1", "run", 0, target))
+      results = results->append(vm_case("ExecutionTests-str_index_is_bounds_checked_by_vm-1", "run", 1, target))
+      results = results->append(vm_case("ExecutionTests-str_interpolation_concatenation_and_numeric_values-1", "run", 0, target))
+      results = results->append(vm_case("ExecutionTests-str_unicode_indexing_and_length-1", "run", 0, target))
+      results = results->append(vm_case("ExecutionTests-string_methods_reverse_unicode_code_points-1", "run", 0, target))
+      results = results->append(vm_case("NumericTests-big_natural_arithmetic-1", "run", 0, target))
+      results = results->append(vm_case("NumericTests-dec_arithmetic_exceeds_host_context_without_rounding-1", "run", 0, target))
+      results = results->append(vm_case("NumericTests-dec_finite_division_is_exact-1", "run", 0, target))
+      results = results->append(vm_case("NumericTests-dec_is_exact-1", "run", 0, target))
+      results = results->append(vm_case("NumericTests-integer_division_produces_rational-1", "run", 0, target))
+      results = results->append(vm_case("NumericTests-rational_conversion_and_zero_failures-1", "run", 1, target))
+      results = results->append(vm_case("NumericTests-rational_conversion_and_zero_failures-2", "run", 1, target))
+      results = results->append(vm_case("NumericTests-rational_conversion_and_zero_failures-3", "run", 1, target))
+      results = results->append(vm_case("NumericTests-rational_conversion_and_zero_failures-4", "run", 1, target))
+      results = results->append(vm_case("NumericTests-rational_conversion_and_zero_failures-5", "run", 1, target))
+      results = results->append(vm_case("NumericTests-rational_conversion_and_zero_failures-6", "run", 1, target))
+      results = results->append(vm_case("NumericTests-rational_unit_program_matches_contract-1", "run", 0, target))
+      results = results->append(vm_case("CollectionTests-byte_buffers_and_utf8-1", "run", 0, target))
+      results = results->append(vm_case("CollectionTests-empty_array_append_and_concat_are_pure-1", "run", 0, target))
+      results = results->append(vm_case("CollectionTests-persistent_maps_and_sets_are_pure-1", "run", 0, target))
+      results = results->append(vm_case("CollectionTests-short_collection_aliases_dispatch_by_receiver_type-1", "run", 0, target))
+      results = results->append(vm_case("BytecodeContractTests-binary_operands_preserve_push_order-1", "run", 0, target))
+      results = results->append(vm_case("BytecodeContractTests-call_frames_have_isolated_locals_and_return_values-1", "run", 0, target))
+      results = results->append(vm_case("BytecodeContractTests-conditional_jump_consumes_its_condition-1", "run", 0, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-1", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-2", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-3", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-4", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-5", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-6", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-7", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-8", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-9", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-10", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-11", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-12", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-13", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-14", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-15", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-16", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-17", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-18", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-19", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-20", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-21", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-22", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-23", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-24", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-25", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-26", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-27", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-indirect_calls_recheck_purity_at_runtime-1", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-indirect_calls_validate_and_deliver_results-1", "run", 0, target))
+      results = results->append(vm_case("BytecodeContractTests-invalid_dynamic_state_becomes_a_vm_trap-1", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-invalid_dynamic_state_becomes_a_vm_trap-2", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-invalid_dynamic_state_becomes_a_vm_trap-3", "run", 1, target))
+      results = results->append(vm_case("BytecodeContractTests-invalid_dynamic_state_becomes_a_vm_trap-4", "run", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-accepts_minimal_version_eight_artifact-1", "check", 0, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-1", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-2", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-3", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-4", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-5", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-6", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-7", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-8", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-9", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-10", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-11", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-12", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-13", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-14", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-15", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-16", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-17", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-18", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-19", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_forged_structural_and_semantic_violations-1", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_forged_structural_and_semantic_violations-2", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_forged_structural_and_semantic_violations-3", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_forged_structural_and_semantic_violations-4", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_forged_structural_and_semantic_violations-5", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_forged_structural_and_semantic_violations-6", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_forged_structural_and_semantic_violations-7", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_forged_structural_and_semantic_violations-8", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_forged_structural_and_semantic_violations-9", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_shared_malformed_artifacts-1", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_shared_malformed_artifacts-2", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_shared_malformed_artifacts-3", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_shared_malformed_artifacts-4", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_shared_malformed_artifacts-5", "check", 1, target))
+      results = results->append(vm_case("NativeLoaderTests-rejects_shared_malformed_artifacts-6", "check", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-string_index_and_slice_boundaries_still_trap-1", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-string_index_and_slice_boundaries_still_trap-2", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-string_index_and_slice_boundaries_still_trap-3", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-string_index_and_slice_boundaries_still_trap-4", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-string_index_and_slice_boundaries_still_trap-5", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-string_index_and_slice_boundaries_still_trap-6", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-string_index_and_slice_boundaries_still_trap-7", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-string_index_and_slice_boundaries_still_trap-8", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_matches_numeric_and_trap_semantics-1", "run", 0, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_matches_numeric_and_trap_semantics-2", "run", 0, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_matches_numeric_and_trap_semantics-3", "run", 0, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_matches_numeric_and_trap_semantics-4", "run", 0, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_matches_numeric_and_trap_semantics-5", "run", 0, target))
+      results = results->append(vm_case("NativeExecutionTests-rational_conversion_and_zero_failures-1", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-rational_conversion_and_zero_failures-2", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-rational_conversion_and_zero_failures-3", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-rational_conversion_and_zero_failures-4", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-rational_conversion_and_zero_failures-5", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-rational_conversion_and_zero_failures-6", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-1", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-2", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-3", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-4", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-5", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-6", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-7", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-8", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-9", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-10", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-11", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-12", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-13", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-14", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-15", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-16", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-17", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-18", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-19", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-20", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-21", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-22", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-23", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-24", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-25", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-26", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-27", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-28", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-29", "run", 1, target))
+      results = results->append(vm_case("NativeExecutionTests-native_vm_rechecks_indirect_call_purity-1", "run", 1, target))
+      results = results->append(vm_case("ExecutionTests-arrays_iteration_indexing_and_len-1", "return-void", 0, target))
+      results = results->append(vm_case("ExecutionTests-boolean_operators_short_circuit-1", "return-void", 0, target))
+      results = results->append(vm_case("ExecutionTests-pure_for_loop_with_mutable_accumulator-1", "return-void", 0, target))
+      results = results->append(vm_case("ExecutionTests-pure_while_loop_with_mutable_locals-1", "return-void", 0, target))
+      results = results->append(vm_case("ExecutionTests-str_interpolation_concatenation_and_numeric_values-1", "return-void", 0, target))
+      results = results->append(vm_case("ExecutionTests-str_unicode_indexing_and_length-1", "return-void", 0, target))
+      results = results->append(vm_case("ExecutionTests-string_methods_reverse_unicode_code_points-1", "return-void", 0, target))
+      results = results->append(vm_case("NumericTests-big_natural_arithmetic-1", "return-void", 0, target))
+      results = results->append(vm_case("NumericTests-dec_arithmetic_exceeds_host_context_without_rounding-1", "return-void", 0, target))
+      results = results->append(vm_case("NumericTests-dec_finite_division_is_exact-1", "return-void", 0, target))
+      results = results->append(vm_case("NumericTests-dec_is_exact-1", "return-void", 0, target))
+      results = results->append(vm_case("NumericTests-integer_division_produces_rational-1", "return-void", 0, target))
+      results = results->append(vm_case("NumericTests-rational_unit_program_matches_contract-1", "return-void", 0, target))
+      results = results->append(vm_case("CollectionTests-byte_buffers_and_utf8-1", "return-void", 0, target))
+      results = results->append(vm_case("CollectionTests-empty_array_append_and_concat_are_pure-1", "return-void", 0, target))
+      results = results->append(vm_case("CollectionTests-persistent_maps_and_sets_are_pure-1", "return-void", 0, target))
+      results = results->append(vm_case("CollectionTests-short_collection_aliases_dispatch_by_receiver_type-1", "return-void", 0, target))
+      results = results->append(vm_case("BytecodeContractTests-binary_operands_preserve_push_order-1", "return-void", 0, target))
+      results = results->append(vm_case("BytecodeContractTests-call_frames_have_isolated_locals_and_return_values-1", "return-void", 0, target))
+      results = results->append(vm_case("BytecodeContractTests-conditional_jump_consumes_its_condition-1", "return-void", 0, target))
+      results = results->append(vm_case("BytecodeContractTests-indirect_calls_validate_and_deliver_results-1", "return-void", 0, target))
+      results = results->append(vm_fault("all operand decode failures", "fault_operands", "decode", false, target))
+      results = results->append(vm_fault("all operand mutations", "fault_operands", "mutate", true, target))
+      results = results->append(vm_fault("ownership allocation failures", "ownership_execute", "execute", false, target))
+      results = results->append(vm_fault("nested trap allocation failures", "ownership_trap", "trap", false, target))
+      results = results->append(vm_case("BytecodeContractTests-call_frames_have_isolated_locals_and_return_values-1", "tasks", 0, target))
+      results = results->append(vm_case("BytecodeContractTests-indirect_calls_validate_and_deliver_results-1", "tasks", 0, target))
+      results = results->append(vm_case("ExecutionTests-arrays_iteration_indexing_and_len-1", "tasks", 0, target))
+      match workspace->remove_empty() {
+        Error(problem) => { results = results->append(std_testing.expect("VM workspace cleanup", false, "directory not empty")) },
         Ok(removed) => {}
       }
       if std_testing.report(results) > 0 { std_host.exit(1) }

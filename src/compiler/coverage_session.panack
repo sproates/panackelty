@@ -1,7 +1,5 @@
 import project/src/compiler/path_support as path_support
-import stdlib/text as std_text
 import stdlib/path as std_path
-import stdlib/option as std_option
 import stdlib/bytes as byte_buffer
 import stdlib/environment as std_environment
 import stdlib/filesystem as std_filesystem
@@ -38,25 +36,25 @@ pure coverage_zero(program: BytecodeProgram): CoverageData {
   for function in sort_functions(program.functions) {
     mut cells: [CoverageCell] = []
     for instruction in function.instructions {
-      cells = append(cells, CoverageCell(0, 0, 0, 0))
+      cells = cells->append(CoverageCell(0, 0, 0, 0))
     }
-    functions = append(functions, CoverageFunction(0, cells))
+    functions = functions->append(CoverageFunction(0, cells))
   }
   CoverageData(true, 1, functions)
 }
 
 pub pure coverage_sum(left: CoverageData, right: CoverageData): CoverageData {
   mut functions: [CoverageFunction] = []
-  mut valid: Bool = left.valid && right.valid && len(left.functions) == len(right.functions)
+  mut valid: Bool = left.valid && right.valid && left.functions->len() == right.functions->len()
 
   if valid {
-    for index in 0..len(left.functions) {
+    for index in 0..left.functions->len() {
       a: CoverageFunction = left.functions[index]
       b: CoverageFunction = right.functions[index]
-      valid = valid && len(a.cells) == len(b.cells) && a.entries + b.entries <= 18446744073709551615
+      valid = valid && a.cells->len() == b.cells->len() && a.entries + b.entries <= 18446744073709551615
       mut cells: [CoverageCell] = []
       if valid {
-        for pc in 0..len(a.cells) {
+        for pc in 0..a.cells->len() {
           x: CoverageCell = a.cells[pc]
           y: CoverageCell = b.cells[pc]
           cell: CoverageCell = CoverageCell(x.attempted + y.attempted, x.completed + y.completed,
@@ -65,10 +63,10 @@ pub pure coverage_sum(left: CoverageData, right: CoverageData): CoverageData {
             cell.attempted <= 18446744073709551615 &&
             cell.completed <= 18446744073709551615 &&
             cell.fallthrough <= 18446744073709551615 && cell.branched <= 18446744073709551615
-          cells = append(cells, cell)
+          cells = cells->append(cell)
         }
       }
-      functions = append(functions, CoverageFunction(a.entries + b.entries, cells))
+      functions = functions->append(CoverageFunction(a.entries + b.entries, cells))
     }
   }
   CoverageData(valid, 1, functions)
@@ -76,14 +74,14 @@ pub pure coverage_sum(left: CoverageData, right: CoverageData): CoverageData {
 
 // Canonical bounded hierarchical IDs, never record-supplied filesystem paths.
 pub pure coverage_execution_id(id: Str): Bool {
-  mut valid: Bool = len(id) > 0 && len(id) < 192 && slice(id, 0, 1) == "0"
+  mut valid: Bool = id->len() > 0 && id->len() < 192 && id->slice(0, 1) == "0"
   mut start: Nat = 2
 
-  if len(id) > 1 {
-    valid = valid && slice(id, 1, 2) == "." && len(id) > 2
+  if id->len() > 1 {
+    valid = valid && id->slice(1, 2) == "." && id->len() > 2
   }
-  for i in 2..len(id) {
-    c: Str = slice(id, i, i + 1)
+  for i in 2..id->len() {
+    c: Str = id->slice(i, i + 1)
     if c == "." {
       valid = valid && i > start
       start = i + 1
@@ -91,18 +89,18 @@ pub pure coverage_execution_id(id: Str): Bool {
       valid = valid && c >= "0" && c <= "9" && (i != start || c != "0")
     }
   }
-  valid && (len(id) == 1 || start < len(id))
+  valid && (id->len() == 1 || start < id->len())
 }
 
 pure coverage_parent(id: Str): Str {
   mut end: Nat = 0
 
-  for i in 0..len(id) {
-    if slice(id, i, i + 1) == "." {
+  for i in 0..id->len() {
+    if id->slice(i, i + 1) == "." {
       end = i
     }
   }
-  slice(id, 0, end)
+  id->slice(0, end)
 }
 
 coverage_session_read(directory: Str, roots: [CoverageRoot]): CoverageSessionResult {
@@ -111,7 +109,7 @@ coverage_session_read(directory: Str, roots: [CoverageRoot]): CoverageSessionRes
   mut totals: [CoverageData] = []
 
   for root in roots {
-    totals = append(totals, coverage_zero(root.mapped.bytecode))
+    totals = totals->append(coverage_zero(root.mapped.bytecode))
   }
   mut executions: Nat = 0
   match source_map_read(directory + "/registry", 33554432) {
@@ -119,21 +117,21 @@ coverage_session_read(directory: Str, roots: [CoverageRoot]): CoverageSessionRes
       valid = false
     },
     Ok(registry) => {
-      valid = byte_buffer.length(registry) >= 35 && coverage_prefix(
+      valid = registry->length() >= 35 && coverage_prefix(
         registry,
-        std_text.encode_utf8("PANACKSESSION1\n"),
+        "PANACKSESSION1\n"->encode_utf8(),
         0
       )
       if valid {
         for i in 15..31 {
-          nonce = byte_buffer.push(nonce, byte_buffer.at(registry, i))
+          nonce = nonce->push(registry->at(i))
         }
-        mut chunks: [Bytes] = [std_text.encode_utf8("PANACKSESSION1\n"), nonce, encode_u32(len(roots))]
+        mut chunks: [Bytes] = ["PANACKSESSION1\n"->encode_utf8(), nonce, encode_u32(roots->len())]
         for root in roots {
-          chunks = append(chunks, source_map_blob(root.artifact))
-          chunks = append(chunks, source_map_blob(root.inventory))
+          chunks = chunks->append(source_map_blob(root.artifact))
+          chunks = chunks->append(source_map_blob(root.inventory))
         }
-        valid = registry == source_map_join(chunks, 0, len(chunks))
+        valid = registry == source_map_join(chunks, 0, chunks->len())
       }
     }
   }
@@ -148,16 +146,16 @@ coverage_session_read(directory: Str, roots: [CoverageRoot]): CoverageSessionRes
         valid = false
       },
       Ok(children) => {
-        valid = valid && len(children) <= 12291
+        valid = valid && children->len() <= 12291
         for child in children {
-          match std_path.to_text(child) {
+          match child->to_text() {
             Error(error) => {
               valid = false
             },
             Ok(name) => {
-              names = names.put(name, true)
-              if len(name) > 7 && slice(name, 0, 7) == "expect-" {
-                ids = append(ids, slice(name, 7, len(name)))
+              names = names->put(name, true)
+              if name->len() > 7 && name->slice(0, 7) == "expect-" {
+                ids = ids->append(name->slice(7, name->len()))
               }
             }
           }
@@ -165,10 +163,10 @@ coverage_session_read(directory: Str, roots: [CoverageRoot]): CoverageSessionRes
       }
     }
   }
-  valid = valid && len(ids) > 0 && len(ids) <= 4096 && names.has("expect-0") &&
-    names.has("registry") && names.has("closed") && source_map_matches(
+  valid = valid && ids->len() > 0 && ids->len() <= 4096 && names->has("expect-0") &&
+    names->has("registry") && names->has("closed") && source_map_matches(
     directory + "/closed",
-    std_text.encode_utf8("closed\n")
+    "closed\n"->encode_utf8()
   )
   // Exact membership prevents surplus/duplicate/renamed records being ignored.
   mut expected_names: Nat = 3
@@ -178,8 +176,8 @@ coverage_session_read(directory: Str, roots: [CoverageRoot]): CoverageSessionRes
     valid = valid &&
       coverage_execution_id(id) &&
       (id == "0" ||
-      names.has("expect-" + coverage_parent(id))) &&
-      names.has("claim-" + id) && names.has("raw-" + id)
+      names->has("expect-" + coverage_parent(id))) &&
+      names->has("claim-" + id) && names->has("raw-" + id)
     expected_names = expected_names + 3
     mut kind: Bytes = byte_buffer.empty()
     match source_map_read(directory + "/expect-" + id, 16) {
@@ -191,36 +189,36 @@ coverage_session_read(directory: Str, roots: [CoverageRoot]): CoverageSessionRes
       }
     }
     valid = valid && (if id == "0" {
-        kind == std_text.encode_utf8("root\n")
+        kind == "root\n"->encode_utf8()
       } else {
-        kind == std_text.encode_utf8("nested\n") ||
-          kind == std_text.encode_utf8("task\n") ||
-          kind == std_text.encode_utf8("server\n") ||
-          kind == std_text.encode_utf8("process\n")
-      }) && source_map_matches(directory + "/claim-" + id, std_text.encode_utf8("claimed\n"))
+        kind == "nested\n"->encode_utf8() ||
+          kind == "task\n"->encode_utf8() ||
+          kind == "server\n"->encode_utf8() ||
+          kind == "process\n"->encode_utf8()
+      }) && source_map_matches(directory + "/claim-" + id, "claimed\n"->encode_utf8())
     if valid {
       match source_map_read(directory + "/raw-" + id, 33554432) {
         Error(error) => {
           valid = false
         },
         Ok(raw) => {
-          total_bytes = total_bytes + byte_buffer.length(raw)
+          total_bytes = total_bytes + raw->length()
           valid = valid && total_bytes <= 268435456
           envelope: Bytes = source_map_join(
-            [std_text.encode_utf8("PANACKEXEC1\n"), nonce, source_map_blob(std_text.encode_utf8(id))],
+            ["PANACKEXEC1\n"->encode_utf8(), nonce, source_map_blob(id->encode_utf8())],
             0,
             3
           )
-          offset: Nat = byte_buffer.length(envelope)
-          valid = valid && byte_buffer.length(raw) >= offset + 8 && coverage_prefix(raw, envelope, 0)
+          offset: Nat = envelope->length()
+          valid = valid && raw->length() >= offset + 8 && coverage_prefix(raw, envelope, 0)
           if valid {
             identity: Nat = coverage_number(raw, offset, 4)
             children: Nat = coverage_number(raw, offset + 4, 4)
             declared_children = declared_children + children
-            valid = identity < len(roots) && children <= 4096
+            valid = identity < roots->len() && children <= 4096
             if valid {
               for child in 1..(children + 1) {
-                valid = valid && names.has("expect-" + id + ".${child}")
+                valid = valid && names->has("expect-" + id + ".${child}")
               }
             }
             if valid {
@@ -234,14 +232,14 @@ coverage_session_read(directory: Str, roots: [CoverageRoot]): CoverageSessionRes
               )
               valid = observed.valid
               mut next: [CoverageData] = []
-              for i in 0..len(totals) {
+              for i in 0..totals->len() {
                 combined: CoverageData = if i == identity {
                   coverage_sum(totals[i], observed)
                 } else {
                   totals[i]
                 }
                 valid = valid && combined.valid
-                next = append(next, combined)
+                next = next->append(combined)
               }
               totals = next
               executions = executions + 1
@@ -261,14 +259,14 @@ coverage_session_read(directory: Str, roots: [CoverageRoot]): CoverageSessionRes
         valid = false
       },
       Ok(children) => {
-        valid = valid && len(children) == expected_names
+        valid = valid && children->len() == expected_names
       }
     }
   }
-  CoverageSessionResult(valid && declared_children + 1 == len(ids) &&
+  CoverageSessionResult(valid && declared_children + 1 == ids->len() &&
     source_map_matches(
     directory + "/budget",
-    byte_buffer.join(encode_u32(len(ids)), encode_u32(total_bytes))
+    encode_u32(ids->len())->join(encode_u32(total_bytes))
   ), nonce, executions, totals)
 }
 
@@ -279,39 +277,39 @@ pub run_coverage_aggregate(values: [Str]): Nat {
   mut valid: Bool = true
   mut cursor: Nat = 1
 
-  while cursor < len(values) {
-    if values[cursor] == "--source" && cursor + 2 < len(values) && len(sessions) == 0 {
-      sources = append(sources, values[cursor + 1])
-      inventories = append(inventories, values[cursor + 2])
+  while cursor < values->len() {
+    if values[cursor] == "--source" && cursor + 2 < values->len() && sessions->len() == 0 {
+      sources = sources->append(values[cursor + 1])
+      inventories = inventories->append(values[cursor + 2])
       cursor = cursor + 3
     } else {
-      if values[cursor] == "--session" && cursor + 1 < len(values) {
-        sessions = append(sessions, values[cursor + 1])
+      if values[cursor] == "--session" && cursor + 1 < values->len() {
+        sessions = sessions->append(values[cursor + 1])
         cursor = cursor + 2
       } else {
         valid = false
-        cursor = len(values)
+        cursor = values->len()
       }
     }
   }
   valid = valid &&
-    len(sources) > 0 &&
-    len(sources) <= 16 &&
-    len(sessions) > 0 &&
-    len(sessions) <= 256
+    sources->len() > 0 &&
+    sources->len() <= 16 &&
+    sessions->len() > 0 &&
+    sessions->len() <= 256
   mut roots: [CoverageRoot] = []
   mut totals: [CoverageData] = []
-  compiler_path: Str = std_option.value_or(std_environment.get("PANACKELTY_COMPILER_PATH"), "")
+  compiler_path: Str = std_environment.get("PANACKELTY_COMPILER_PATH")->value_or("")
   match source_map_read(compiler_path, 16777216) {
     Error(error) => {
       valid = false
     },
     Ok(compiler) => {
       if valid {
-        for index in 0..len(sources) {
+        for index in 0..sources->len() {
           entry: Str = path_support.resolve(sources[index])
           root: Str = path_support.parent(entry)
-          stdlib: Str = path_support.resolve(std_option.value_or(std_environment.get("PANACKELTY_STDLIB_PATH"), ""))
+          stdlib: Str = path_support.resolve(std_environment.get("PANACKELTY_STDLIB_PATH")->value_or(""))
           project: LoadedProject = load_project_for_inventory(entry)
           match coverage_mapped_project(project, entry, root, stdlib) {
             Error(errors) => { valid = false },
@@ -326,17 +324,17 @@ pub run_coverage_aggregate(values: [Str]): Nat {
                 stdlib
               )
               inventory: Bytes = source_map_join(
-                [std_text.encode_utf8("PANACKINVENTORY1\n"), encode_u32(1), source_map_blob(inner)],
+                ["PANACKINVENTORY1\n"->encode_utf8(), encode_u32(1), source_map_blob(inner)],
                 0,
                 3
               )
-              valid = valid && byte_buffer.length(inner) > 0 &&
+              valid = valid && inner->length() > 0 &&
                 source_map_matches(inventories[index], inventory) && source_snapshots_unchanged(project)
               for prior in roots {
                 valid = valid && prior.artifact != artifact
               }
-              roots = append(roots, CoverageRoot(project, mapped, artifact, inventory, root, stdlib))
-              totals = append(totals, coverage_zero(mapped.bytecode))
+              roots = roots->append(CoverageRoot(project, mapped, artifact, inventory, root, stdlib))
+              totals = totals->append(coverage_zero(mapped.bytecode))
             }
           }
         }
@@ -353,13 +351,13 @@ pub run_coverage_aggregate(values: [Str]): Nat {
       for nonce in seen {
         valid = valid && nonce != session.nonce
       }
-      seen = append(seen, session.nonce)
+      seen = seen->append(session.nonce)
       if valid {
         mut next: [CoverageData] = []
-        for i in 0..len(totals) {
+        for i in 0..totals->len() {
           combined: CoverageData = coverage_sum(totals[i], session.totals[i])
           valid = valid && combined.valid
-          next = append(next, combined)
+          next = next->append(combined)
         }
         totals = next
         executions = executions + session.executions
@@ -375,13 +373,13 @@ pub run_coverage_aggregate(values: [Str]): Nat {
     eprint("error: coverage aggregate unavailable: missing, partial, duplicate, incompatible or malformed session; no complete report")
     1
   } else {
-    count: Nat = len(sessions)
+    count: Nat = sessions->len()
     print("coverage: aggregate sessions=${count} executions=${executions}")
-    for i in 0..len(roots) {
+    for i in 0..roots->len() {
       root: CoverageRoot = roots[i]
       print("artifact/${i}")
       report: Str = render_coverage(root.project, root.mapped, totals[i], root.root, root.stdlib)
-      print(slice(report, len("coverage: single-execution terminal=1\n"), len(report)))
+      print(report->slice("coverage: single-execution terminal=1\n"->len(), report->len()))
     }
     0
   }

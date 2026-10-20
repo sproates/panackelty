@@ -176,17 +176,17 @@ pure resolver_unit_visits_a_diamond_dependency_only_once(): [TestResult] {
 
 main(): Void {
   mut results: [TestResult] = []
-  results = results.concat(resolver_unit_enforces_lexical_scope_and_shadowing())
-  results = results.concat(resolver_unit_method_calls_use_global_callable_lookup())
-  results = results.concat(resolver_unit_propagates_lexer_and_parser_failures())
-  results = results.concat(resolver_unit_reports_duplicate_and_conflicting_top_level_symbols())
-  results = results.concat(resolver_unit_reports_module_graph_failures())
-  results = results.concat(resolver_unit_reports_module_parse_and_lex_failures_with_paths())
-  results = results.concat(resolver_unit_reports_name_failure_in_owning_module())
-  results = results.concat(resolver_unit_reports_unknown_names_functions_and_variants())
-  results = results.concat(resolver_unit_resolves_guard_value_and_recursive_calls())
-  results = results.concat(resolver_unit_resolves_reachable_transitive_modules())
-  results = results.concat(resolver_unit_resolves_top_level_callables_builtins_and_local_names())
-  results = results.concat(resolver_unit_visits_a_diamond_dependency_only_once())
+  results = results->concat(resolver_unit_enforces_lexical_scope_and_shadowing())
+  results = results->concat(resolver_unit_method_calls_use_global_callable_lookup())
+  results = results->concat(resolver_unit_propagates_lexer_and_parser_failures())
+  results = results->concat(resolver_unit_reports_duplicate_and_conflicting_top_level_symbols())
+  results = results->concat(resolver_unit_reports_module_graph_failures())
+  results = results->concat(resolver_unit_reports_module_parse_and_lex_failures_with_paths())
+  results = results->concat(resolver_unit_reports_name_failure_in_owning_module())
+  results = results->concat(resolver_unit_reports_unknown_names_functions_and_variants())
+  results = results->concat(resolver_unit_resolves_guard_value_and_recursive_calls())
+  results = results->concat(resolver_unit_resolves_reachable_transitive_modules())
+  results = results->concat(resolver_unit_resolves_top_level_callables_builtins_and_local_names())
+  results = results->concat(resolver_unit_visits_a_diamond_dependency_only_once())
   if std_testing.report(results) > 0 { std_host.exit(1) }
 }

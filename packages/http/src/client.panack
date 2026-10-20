@@ -23,17 +23,17 @@ record ParsedUrl {
   host_header: Str
 }
 
-pure byte_length(data: Bytes): Nat { byte_buffer.length(data) }
-pure byte_at(data: Bytes, index: Nat): Nat { byte_buffer.at(data, index) }
+pure byte_length(data: Bytes): Nat { data->length() }
+pure byte_at(data: Bytes, index: Nat): Nat { data->at(index) }
 
 pure slice_text(data: Bytes, start: Nat, end: Nat): Str {
   mut output: Bytes = byte_buffer.empty()
   mut cursor = start
   while cursor < end {
-    output = byte_buffer.push(output, byte_at(data, cursor))
+    output = output->push(byte_at(data, cursor))
     cursor = cursor + 1
   }
-  text.decode_utf8(output)
+  output->decode_utf8()
 }
 
 pure ascii_host_valid(host: Bytes): Bool {
@@ -55,7 +55,7 @@ pure ascii_host_valid(host: Bytes): Bool {
       if label_length == 0 || label_start_hyphen || previous == 45 {
         valid = false
       } else {
-        ipv4_parts = ipv4_parts.append(part_value)
+        ipv4_parts = ipv4_parts->append(part_value)
         part_value = 0
         part_digits = 0
         label_length = 0
@@ -81,8 +81,8 @@ pure ascii_host_valid(host: Bytes): Bool {
   }
   if label_length == 0 || label_start_hyphen || byte_at(host, size - 1) == 45 { valid = false }
   if only_numeric_ipv4 {
-    ipv4_parts = ipv4_parts.append(part_value)
-    if ipv4_parts.len() != 4 { valid = false }
+    ipv4_parts = ipv4_parts->append(part_value)
+    if ipv4_parts->len() != 4 { valid = false }
   }
   valid
   }
@@ -112,7 +112,7 @@ pure parse_port(data: Bytes, start: Nat, end: Nat): Result[Nat,HttpError] {
 }
 
 pure parse_url(url: Str): Result[ParsedUrl,HttpError] {
-  data: Bytes = text.encode_utf8(url)
+  data: Bytes = url->encode_utf8()
   size: Nat = byte_length(data)
   mut invalid_char = false
   mut fragment = false
@@ -123,8 +123,8 @@ pure parse_url(url: Str): Result[ParsedUrl,HttpError] {
     if byte <= 32 || byte == 127 { invalid_char = true }
     cursor = cursor + 1
   }
-  tls: Bool = starts_with_at(url, "https://", 0)
-  scheme_length: Nat = if tls { 8 } else { if starts_with_at(url, "http://", 0) { 7 } else { 0 } }
+  tls: Bool = url->starts_with_at("https://", 0)
+  scheme_length: Nat = if tls { 8 } else { if url->starts_with_at("http://", 0) { 7 } else { 0 } }
   if invalid_char || fragment || scheme_length == 0 || size > 8192 {
     Error(InvalidUrl("unsupported or malformed HTTP URL"))
   } else {
@@ -154,7 +154,7 @@ pure parse_url(url: Str): Result[ParsedUrl,HttpError] {
       mut host_bytes: Bytes = byte_buffer.empty()
       mut host_cursor = scheme_length
       while host_cursor < host_end {
-        host_bytes = byte_buffer.push(host_bytes, byte_at(data, host_cursor))
+        host_bytes = host_bytes->push(byte_at(data, host_cursor))
         host_cursor = host_cursor + 1
       }
       if !ascii_host_valid(host_bytes) {
@@ -174,7 +174,7 @@ pure parse_url(url: Str): Result[ParsedUrl,HttpError] {
                 slice_text(data, authority_end, size)
               }
             }
-            target_bytes: Bytes = text.encode_utf8(target)
+            target_bytes: Bytes = target->encode_utf8()
             mut target_valid = byte_length(target_bytes) > 0 && byte_at(target_bytes, 0) == 47
             cursor = 0
             while cursor < byte_length(target_bytes) {
@@ -185,7 +185,7 @@ pure parse_url(url: Str): Result[ParsedUrl,HttpError] {
             if !target_valid {
               Error(InvalidUrl("HTTP origin-form path contains unsupported characters"))
             } else {
-              host: Str = text.decode_utf8(host_bytes)
+              host: Str = host_bytes->decode_utf8()
               host_header: Str = if colon != None() { "${host}:${port}" } else { host }
               Ok(ParsedUrl(host, port, tls, target, host_header))
             }
@@ -219,9 +219,8 @@ pub async get_with_limits(url: Str, limits: ClientLimits): Result[Response,HttpE
       Ok(parsed) => {
         target: Str = parsed.target
         host_header: Str = parsed.host_header
-        request: Bytes = text.encode_utf8(
-          "GET ${target} HTTP/1.1\r\nHost: ${host_header}\r\n" +
-          "Accept-Encoding: identity\r\nConnection: close\r\n\r\n")
+        request: Bytes = ("GET ${target} HTTP/1.1\r\nHost: ${host_header}\r\n" +
+          "Accept-Encoding: identity\r\nConnection: close\r\n\r\n")->encode_utf8()
         raw: Result[Bytes,Str] = await exchange(parsed.host, parsed.port, parsed.tls,
           request, 16777216, limits.timeout_ms)
         match raw {

@@ -1,5 +1,4 @@
 import project/src/compiler/module_bindings::{OwnedMethodIdentity, MethodOwnerIdentity, MethodOwnerIdentity.NominalMethodOwner, MethodOwnerIdentity.BuiltinMethodOwner, builtin_owner_arity, builtin_owner_module, method_owner_name}
-import stdlib/path as std_path
 pub import project/src/compiler/module_bindings::{module_reserved_binding, module_import_names, module_binding_diagnostics, ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleImportBinding, ModuleBindings, ModuleDeclarationKind, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant}
 pub import project/src/compiler/parser::{parse_reference_path, lowered_method_name, reference_head, reference_tail, expression_reference_path, type_has_qualification, lex, Expr, TopLevel, Statement, BlockValue, Program, Block, ParsedModule, ParsedTypeRef, ImportSelector, ImportBindingSyntax, DeclarationSyntax, SourcePos, SourceSpan, Diagnostic, Token, TokenKind, TokenKind.Identifier, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue.NoBlockValue, BlockValue.TailBlockValue, ImportBindingSyntax.NoImportBinding, ImportBindingSyntax.NamespaceImportBinding, ImportBindingSyntax.SelectiveImportBinding}
 
@@ -126,7 +125,7 @@ pure binding_graph_visit(
                   current = ModuleGraphWalk(current.completed, Some(message))
                 },
                 Ok(target) => {
-                  current = binding_graph_visit(graph, target, append(stack, identity), current)
+                  current = binding_graph_visit(graph, target, stack->append(identity), current)
                 }
               }
             }
@@ -134,7 +133,7 @@ pure binding_graph_visit(
           }
           match current.error {
             Some(message) => current,
-            None() => ModuleGraphWalk(append(current.completed, identity), None())
+            None() => ModuleGraphWalk(current.completed->append(identity), None())
           }
         }
       }
@@ -216,12 +215,12 @@ pub pure resolve_module_path_inner(
       Error(message) => Error(message),
       Ok(module) => {
         conflicts: [Diagnostic] = module_binding_diagnostics(module)
-        if len(conflicts) > 0 {
+        if conflicts->len() > 0 {
           Error(conflicts[0].message)
         } else {
           head: Str = reference_head(spelling)
           tail: Str = reference_tail(spelling)
-          next_stack: [ModuleIdentity] = append(stack, identity)
+          next_stack: [ModuleIdentity] = stack->append(identity)
           mut found: Bool = false
           mut result: Result[ResolvedModuleTarget, Str] = Error("module " + identity.path + " has no binding " + spelling)
           for declaration in module.declarations {
@@ -302,28 +301,28 @@ pub pure module_graph_diagnostics(graph: ModuleBindingGraph): [Diagnostic] {
   match walked.error {
     None() => {},
     Some(message) => {
-      diagnostics = append(diagnostics, Diagnostic(message, SourcePos("", 0, 1, 1)))
+      diagnostics = diagnostics->append(Diagnostic(message, SourcePos("", 0, 1, 1)))
     }
   }
   for module in graph.modules {
-    diagnostics = concat(diagnostics, module_binding_diagnostics(module))
+    diagnostics = diagnostics->concat(module_binding_diagnostics(module))
     mut index: Nat = 0
     for imported in module.imports {
       match binding_graph_target(graph, module.identity, index) {
         Error(message) => {
-          diagnostics = append(diagnostics, Diagnostic(message, imported.span.start))
+          diagnostics = diagnostics->append(Diagnostic(message, imported.span.start))
         },
         Ok(target) => {
           match binding_graph_module(graph, target) {
             Error(message) => {
-              diagnostics = append(diagnostics, Diagnostic(message, imported.span.start))
+              diagnostics = diagnostics->append(Diagnostic(message, imported.span.start))
             },
             Ok(target_module) => {
               for selector in module_import_names(imported) {
                 if selector.name != "" {
                   match resolve_module_path_inner(graph, target, selector.name, true, []) {
                     Error(message) => {
-                      diagnostics = append(diagnostics, Diagnostic(message, selector.span.start))
+                      diagnostics = diagnostics->append(Diagnostic(message, selector.span.start))
                     },
                     Ok(binding) => {}
                   }
@@ -358,7 +357,7 @@ pub pure resolve_module_dot_call_scoped(
 ): Result[ResolvedDotCall, Str] {
   path: Str = expression_reference_path(target)
 
-  if path == "" || locals.has(reference_head(path)) {
+  if path == "" || locals->has(reference_head(path)) {
     Ok(ValueMethodCall(target, name, arguments, types))
   } else {
     match resolve_module_path(graph, identity, reference_head(path)) {
@@ -437,8 +436,8 @@ pub record ResolvedModuleUses {
 
 pub pure combine_module_uses(left: ResolvedModuleUses, right: ResolvedModuleUses): ResolvedModuleUses {
   ResolvedModuleUses(
-    concat(left.references, right.references),
-    concat(left.diagnostics, right.diagnostics)
+    left.references->concat(right.references),
+    left.diagnostics->concat(right.diagnostics)
   )
 }
 
@@ -469,11 +468,11 @@ pub pure resolve_qualified_type_uses(
     },
     Ok(tokens) => {
       mut index: Nat = 0
-      while index < len(tokens) {
+      while index < tokens->len() {
         if tokens[index].kind == Identifier() {
           match parse_reference_path(tokens, index) {
             Error(error) => {
-              index = len(tokens)
+              index = tokens->len()
               result = combine_module_uses(result, ResolvedModuleUses([], [error]))
             },
             Ok(path) => {
@@ -532,7 +531,7 @@ pub pure resolve_module_expression_uses(
       result = resolve_module_expression_uses(graph, identity, target, origin, locals)
       for argument in arguments {
         checked: ResolvedModuleUses = resolve_module_expression_uses(graph, identity, argument, origin, locals)
-        result = ResolvedModuleUses(concat(result.references, checked.references), concat(result.diagnostics, checked.diagnostics))
+        result = ResolvedModuleUses(result.references->concat(checked.references), result.diagnostics->concat(checked.diagnostics))
       }
     },
     DotCallExpr(target, name, arguments, types) => {
@@ -598,7 +597,7 @@ pub pure resolve_module_expression_uses(
     },
     FieldExpr(target, field) => {
       path: Str = expression_reference_path(expression)
-      if path != "" && !locals.has(reference_head(path)) && module_head_is_namespace(
+      if path != "" && !locals->has(reference_head(path)) && module_head_is_namespace(
         graph,
         identity,
         path
@@ -617,7 +616,7 @@ pub pure resolve_module_expression_uses(
       }
     },
     NameExpr(name) => {
-      if !locals.has(name) && module_head_is_namespace(graph, identity, name) {
+      if !locals->has(name) && module_head_is_namespace(graph, identity, name) {
         result = ResolvedModuleUses(
           [],
           [Diagnostic("namespace or enum type is not a value: " + name, origin.start)]
@@ -721,7 +720,7 @@ pub pure resolve_module_expression_uses(
         }
         mut arm_locals: Set[Str] = locals
         for binding in arm.pattern.bindings {
-          arm_locals = arm_locals.add(binding)
+          arm_locals = arm_locals->add(binding)
         }
         result = combine_module_uses(
           result,
@@ -759,14 +758,14 @@ pub pure resolve_module_block_uses(
           result,
           resolve_module_expression_uses(graph, identity, value, origin, visible)
         )
-        visible = visible.add(name)
+        visible = visible->add(name)
       },
       AssignmentStatement(name, value) => {
         result = combine_module_uses(
           result,
           resolve_module_expression_uses(graph, identity, value, origin, visible)
         )
-        visible = visible.add(name)
+        visible = visible->add(name)
       },
       ExpressionStatement(value) => {
         result = combine_module_uses(
@@ -791,7 +790,7 @@ pub pure resolve_module_block_uses(
         )
         result = combine_module_uses(
           result,
-          resolve_module_block_uses(graph, identity, body, origin, visible.add(name))
+          resolve_module_block_uses(graph, identity, body, origin, visible->add(name))
         )
       }
     }
@@ -814,14 +813,14 @@ pure imported_binding_names(module: ModuleBindings): Set[Str] {
 
   for imported in module.imports {
     for selector in module_import_names(imported) {
-      names = names.add(selector.alias)
+      names = names->add(selector.alias)
     }
   }
   names
 }
 
 pure import_shadow_diagnostic(names: Set[Str], name: Str, origin: SourceSpan): [Diagnostic] {
-  if names.has(name) {
+  if names->has(name) {
     [Diagnostic("local binding " + name + " conflicts with an import binding", origin.start)]
   } else {
     []
@@ -842,31 +841,30 @@ pure expression_import_shadows(
     OwnedCallExpr(target, name, arguments, types) => {
       diagnostics = expression_import_shadows(target, names, origin)
       for argument in arguments {
-        diagnostics = concat(diagnostics, expression_import_shadows(argument, names, origin))
+        diagnostics = diagnostics->concat(expression_import_shadows(argument, names, origin))
       }
     },
     DotCallExpr(target, name, arguments, types) => {
       diagnostics = expression_import_shadows(target, names, origin)
       for argument in arguments {
-        diagnostics = concat(diagnostics, expression_import_shadows(argument, names, origin))
+        diagnostics = diagnostics->concat(expression_import_shadows(argument, names, origin))
       }
     },
     CallExpr(name, arguments, types) => {
       for argument in arguments {
-        diagnostics = concat(diagnostics, expression_import_shadows(argument, names, origin))
+        diagnostics = diagnostics->concat(expression_import_shadows(argument, names, origin))
       }
     },
     ArrayExpr(items) => {
       for item in items {
-        diagnostics = concat(diagnostics, expression_import_shadows(item, names, origin))
+        diagnostics = diagnostics->concat(expression_import_shadows(item, names, origin))
       }
     },
     UnaryExpr(operator, operand) => {
       diagnostics = expression_import_shadows(operand, names, origin)
     },
     BinaryExpr(operator, left, right) => {
-      diagnostics = concat(
-        expression_import_shadows(left, names, origin),
+      diagnostics = expression_import_shadows(left, names, origin)->concat(
         expression_import_shadows(right, names, origin)
       )
     },
@@ -874,15 +872,14 @@ pure expression_import_shadows(
       diagnostics = expression_import_shadows(target, names, origin)
     },
     IndexExpr(target, index) => {
-      diagnostics = concat(
-        expression_import_shadows(target, names, origin),
+      diagnostics = expression_import_shadows(target, names, origin)->concat(
         expression_import_shadows(index, names, origin)
       )
     },
     IfExpr(condition, yes, no, has_else) => {
       diagnostics = expression_import_shadows(condition, names, origin)
-      diagnostics = concat(diagnostics, block_import_shadows(yes, names, origin))
-      diagnostics = concat(diagnostics, block_import_shadows(no, names, origin))
+      diagnostics = diagnostics->concat(block_import_shadows(yes, names, origin))
+      diagnostics = diagnostics->concat(block_import_shadows(no, names, origin))
     },
     BlockExpr(block) => {
       diagnostics = block_import_shadows(block, names, origin)
@@ -891,9 +888,9 @@ pure expression_import_shadows(
       diagnostics = expression_import_shadows(subject, names, origin)
       for arm in arms {
         for name in arm.pattern.bindings {
-          diagnostics = concat(diagnostics, import_shadow_diagnostic(names, name, arm.pattern.span))
+          diagnostics = diagnostics->concat(import_shadow_diagnostic(names, name, arm.pattern.span))
         }
-        diagnostics = concat(diagnostics, expression_import_shadows(arm.body, names, origin))
+        diagnostics = diagnostics->concat(expression_import_shadows(arm.body, names, origin))
       }
     },
     NatExpr(value) => {},
@@ -913,31 +910,31 @@ pure block_import_shadows(block: Block, names: Set[Str], origin: SourceSpan): [D
   for statement in block.statements {
     match statement {
       BindingStatement(name, type_name, annotation_span, mutable, value) => {
-        diagnostics = concat(diagnostics, import_shadow_diagnostic(names, name, origin))
-        diagnostics = concat(diagnostics, expression_import_shadows(value, names, origin))
+        diagnostics = diagnostics->concat(import_shadow_diagnostic(names, name, origin))
+        diagnostics = diagnostics->concat(expression_import_shadows(value, names, origin))
       },
       AssignmentStatement(name, value) => {
-        diagnostics = concat(diagnostics, import_shadow_diagnostic(names, name, origin))
-        diagnostics = concat(diagnostics, expression_import_shadows(value, names, origin))
+        diagnostics = diagnostics->concat(import_shadow_diagnostic(names, name, origin))
+        diagnostics = diagnostics->concat(expression_import_shadows(value, names, origin))
       },
       ExpressionStatement(value) => {
-        diagnostics = concat(diagnostics, expression_import_shadows(value, names, origin))
+        diagnostics = diagnostics->concat(expression_import_shadows(value, names, origin))
       },
       WhileStatement(condition, body) => {
-        diagnostics = concat(diagnostics, expression_import_shadows(condition, names, origin))
-        diagnostics = concat(diagnostics, block_import_shadows(body, names, origin))
+        diagnostics = diagnostics->concat(expression_import_shadows(condition, names, origin))
+        diagnostics = diagnostics->concat(block_import_shadows(body, names, origin))
       },
       ForStatement(name, values, body) => {
-        diagnostics = concat(diagnostics, import_shadow_diagnostic(names, name, origin))
-        diagnostics = concat(diagnostics, expression_import_shadows(values, names, origin))
-        diagnostics = concat(diagnostics, block_import_shadows(body, names, origin))
+        diagnostics = diagnostics->concat(import_shadow_diagnostic(names, name, origin))
+        diagnostics = diagnostics->concat(expression_import_shadows(values, names, origin))
+        diagnostics = diagnostics->concat(block_import_shadows(body, names, origin))
       }
     }
   }
   match block.value {
     NoBlockValue() => {},
     TailBlockValue(value) => {
-      diagnostics = concat(diagnostics, expression_import_shadows(value, names, origin))
+      diagnostics = diagnostics->concat(expression_import_shadows(value, names, origin))
     }
   }
 
@@ -954,27 +951,27 @@ pub pure module_import_shadow_diagnostics(module: ModuleBindings, parsed: Parsed
     match declaration {
       ImportDeclaration(path) => {},
       TypeDeclaration(name, base, guard) => {
-        diagnostics = concat(diagnostics, import_shadow_diagnostic(names, "value", origin))
-        diagnostics = concat(diagnostics, expression_import_shadows(guard, names, origin))
+        diagnostics = diagnostics->concat(import_shadow_diagnostic(names, "value", origin))
+        diagnostics = diagnostics->concat(expression_import_shadows(guard, names, origin))
       },
       RecordDeclaration(name, parameters, fields) => {
         for parameter in parameters {
-          diagnostics = concat(diagnostics, import_shadow_diagnostic(names, parameter, origin))
+          diagnostics = diagnostics->concat(import_shadow_diagnostic(names, parameter, origin))
         }
       },
       EnumDeclaration(name, parameters, variants) => {
         for parameter in parameters {
-          diagnostics = concat(diagnostics, import_shadow_diagnostic(names, parameter, origin))
+          diagnostics = diagnostics->concat(import_shadow_diagnostic(names, parameter, origin))
         }
       },
       FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
         for parameter in parameters {
-          diagnostics = concat(diagnostics, import_shadow_diagnostic(names, parameter.name, origin))
+          diagnostics = diagnostics->concat(import_shadow_diagnostic(names, parameter.name, origin))
         }
         for parameter in type_parameters {
-          diagnostics = concat(diagnostics, import_shadow_diagnostic(names, parameter, origin))
+          diagnostics = diagnostics->concat(import_shadow_diagnostic(names, parameter, origin))
         }
-        diagnostics = concat(diagnostics, block_import_shadows(body, names, origin))
+        diagnostics = diagnostics->concat(block_import_shadows(body, names, origin))
       }
     }
     index = index + 1
@@ -1023,10 +1020,10 @@ pure resolve_method_owner(
     Error(message) => Error(message),
     Ok(module) => {
       mut result: Result[ModuleDeclarationBinding, Str] = Error("unknown owned method " + owner_name + "->" + name)
-      if module.methods.has(owner_name) {
-        methods: Map[Str, ModuleDeclarationBinding] = module.methods.get(owner_name)
-        if methods.has(name) {
-          binding: ModuleDeclarationBinding = methods.get(name)
+      if module.methods->has(owner_name) {
+        methods: Map[Str, ModuleDeclarationBinding] = module.methods->get(owner_name)
+        if methods->has(name) {
+          binding: ModuleDeclarationBinding = methods->get(name)
           if binding.identity.module == module_identity &&
               binding.method == Some(OwnedMethodIdentity(owner, name)) {
             result = Ok(binding)

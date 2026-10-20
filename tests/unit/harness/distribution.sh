@@ -78,9 +78,9 @@ import stdlib/option as option
 import stdlib/time as time
 import stdlib/path as path
 main(): Void {
-  print(option.value_or[Nat](Some(42), 0))
-  print(time.ticks(time.seconds(1)))
-  print(path.display(path.current()))
+  print(Some(42)->value_or(0))
+  print(time.seconds(1)->ticks())
+  print(path.current()->display())
 }
 PROGRAM
 printf '42\n1000000000\n.\n' > "$work/import.stdout"

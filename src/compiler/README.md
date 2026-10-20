@@ -394,3 +394,11 @@ programs so core impls do not suppress their resolver diagnostics or misreport
 user effect-check availability. Private core emission names preserve reachability
 pruning for owned algorithms. See the
 [P08 report](../../docs/design/type-owned-dispatch/p08-core-methods.md).
+
+## Owned caller migration on next
+
+Compiler and bytecode implementation callers use owned arrow methods after
+GI#525 P11. The legacy frontend remains implemented and tested until P12;
+its intrinsic-name strings and VM primitive identities are not caller APIs.
+See the [P11 report](../../docs/design/type-owned-dispatch/p11-remaining-callers.md)
+for seed evidence and the exact retained test-input boundary.

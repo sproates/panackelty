@@ -97,7 +97,7 @@ pure module_effect_for_call(
 ): Option[SignatureEffect] {
   match target {
     BodyCore(name) => if name == "$method_call" {
-      if len(expression.children) == 0 {
+      if expression.children->len() == 0 {
         None()
       } else {
         match expression.children[0].type {
@@ -121,7 +121,7 @@ pure module_effect_for_call(
 pure module_call_effect_known(context: BodyContext, target: BodyTarget, expression: BoundBody): Bool {
   match target {
     BodyCore(name) => if name == "$method_call" {
-      if len(expression.children) == 0 {
+      if expression.children->len() == 0 {
         false
       } else {
         match expression.children[0].type {
@@ -184,8 +184,8 @@ pure module_effect_call(
     None() => {
       if awaited && module_call_effect_known(context.body, target, expression) {
         reason: Str = "await requires an async call"
-        diagnostics = append(diagnostics, Diagnostic(reason, expression.span.start))
-        violations = append(violations, reason)
+        diagnostics = diagnostics->append(Diagnostic(reason, expression.span.start))
+        violations = violations->append(reason)
       }
       mut indirect_call: Bool = false
       match target {
@@ -193,7 +193,7 @@ pure module_effect_call(
         BodyDeclaration(binding) => {}
       }
       if retain && indirect_call {
-        evidence = append(evidence, EffectEvidence(
+        evidence = evidence->append(EffectEvidence(
           context.function_name,
           Some(expression.span),
           "call",
@@ -211,26 +211,26 @@ pure module_effect_call(
       impure: Bool = target_effect != SignaturePure()
       if awaited && !async_call {
         reason: Str = "await requires an async call"
-        diagnostics = append(diagnostics, Diagnostic(reason, expression.span.start))
-        violations = append(violations, reason)
+        diagnostics = diagnostics->append(Diagnostic(reason, expression.span.start))
+        violations = violations->append(reason)
       }
       if async_call && !awaited {
         reason: Str = "async call requires await inside an async function"
-        diagnostics = append(diagnostics, Diagnostic(reason, expression.span.start))
-        violations = append(violations, reason)
+        diagnostics = diagnostics->append(Diagnostic(reason, expression.span.start))
+        violations = violations->append(reason)
       }
       if context.mode == "pure" && impure {
         reason: Str = "pure function cannot call impure function ${display_name}"
-        diagnostics = append(diagnostics, Diagnostic(reason, expression.span.start))
-        violations = append(violations, reason)
+        diagnostics = diagnostics->append(Diagnostic(reason, expression.span.start))
+        violations = violations->append(reason)
       }
       if context.mode == "async" && impure && !async_call {
         reason: Str = "async function cannot call blocking function ${display_name}"
-        diagnostics = append(diagnostics, Diagnostic(reason, expression.span.start))
-        violations = append(violations, reason)
+        diagnostics = diagnostics->append(Diagnostic(reason, expression.span.start))
+        violations = violations->append(reason)
       }
       if retain {
-        evidence = append(evidence, EffectEvidence(
+        evidence = evidence->append(EffectEvidence(
           context.function_name,
           Some(expression.span),
           "call",
@@ -262,11 +262,11 @@ pure module_effect_expression(
         mut diagnostics: [Diagnostic] = []
         if context.mode != "async" {
           reason: Str = "await requires an async function"
-          diagnostics = append(diagnostics, Diagnostic(reason, expression.span.start))
-          violations = append(violations, reason)
+          diagnostics = diagnostics->append(Diagnostic(reason, expression.span.start))
+          violations = violations->append(reason)
         }
-        mut invalid_await_operand: Bool = len(expression.children) == 0
-        if len(expression.children) > 0 {
+        mut invalid_await_operand: Bool = expression.children->len() == 0
+        if expression.children->len() > 0 {
           match expression.children[0].node {
             BodyCall(target, types, call_arguments) => {},
             BodyLiteral(value) => { invalid_await_operand = true },
@@ -290,8 +290,8 @@ pure module_effect_expression(
         }
         if invalid_await_operand {
           reason: Str = "await requires an async call"
-          diagnostics = append(diagnostics, Diagnostic(reason, expression.span.start))
-          violations = append(violations, reason)
+          diagnostics = diagnostics->append(Diagnostic(reason, expression.span.start))
+          violations = violations->append(reason)
         }
         if retain {
           result = CheckedEffects(diagnostics, [EffectEvidence(
@@ -308,12 +308,12 @@ pure module_effect_expression(
         } else {
           result = CheckedEffects(diagnostics, [])
         }
-        if len(expression.children) > 0 {
+        if expression.children->len() > 0 {
           result = combine_effects(result, module_effect_expression(context, expression.children[0], true, retain))
         }
         children_walked = true
       } else {
-        if len(expression.children) > 0 {
+        if expression.children->len() > 0 {
           result = module_effect_expression(context, expression.children[0], false, retain)
         }
         children_walked = true
@@ -327,7 +327,7 @@ pure module_effect_expression(
       children_walked = true
     },
     BodyBlock(has_value) => {
-      mut statement_count: Nat = len(expression.children)
+      mut statement_count: Nat = expression.children->len()
       if has_value {
         if statement_count > 0 {
           statement_count = statement_count - 1
@@ -397,7 +397,7 @@ pub pure check_module_effects(
   mut function_types: Map[Str, Bool] = map()
   for function in functions {
     valid_body: Bool = function.status != BodyInvalid()
-    function_types = function_types.put(function.signature.binding.identity.name,
+    function_types = function_types->put(function.signature.binding.identity.name,
       valid_body && function.status == BodyIdentityChecked())
     if valid_body {
       body_context: BodyContext = BodyContext(
@@ -415,8 +415,8 @@ pub pure check_module_effects(
         module_effect_mode(function.signature.effect)
       )
       checked: CheckedEffects = module_effect_expression(context, function.body, false, retain)
-      diagnostics = concat(diagnostics, checked.diagnostics)
-      evidence = concat(evidence, checked.evidence)
+      diagnostics = diagnostics->concat(checked.diagnostics)
+      evidence = evidence->concat(checked.evidence)
     }
   }
   CheckedModuleEffects(diagnostics, evidence, function_types)

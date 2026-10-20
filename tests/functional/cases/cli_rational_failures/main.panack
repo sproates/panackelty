@@ -1,27 +1,24 @@
 import stdlib/process as std_process
-import stdlib/text as std_text
 import stdlib/testing as std_testing
-import stdlib/result as std_result
 import stdlib/testing::{TestResult}
 import stdlib/testing_files as std_testing_files
 import stdlib/time as std_time
 import stdlib/path as std_path
 import stdlib/filesystem as std_filesystem
-import stdlib/testing_commands as std_testing_commands
 import stdlib/bytes as byte_buffer
 import stdlib/host as std_host
 pure path(text: Str): Path {
-  std_result.value_or(std_path.from_text(text), std_path.current())
+  std_path.from_text(text)->value_or(std_path.current())
 }
 
 pure child(root: Path, name: Str): Path {
-  std_result.value_or(std_path.join(root, path(name)), root)
+  root->join(path(name))->value_or(root)
 }
 
 pure contains(value: Str, fragment: Str): Bool {
   mut found = false
-  for index in 0..value.len() {
-    if value.starts_with_at(fragment, index) { found = true }
+  for index in 0..value->len() {
+    if value->starts_with_at(fragment, index) { found = true }
   }
   found
 }
@@ -32,7 +29,7 @@ trap(name: Str, file: Str, message: Str): TestResult {
     Error(error) => std_testing.expect(name, false, "process failed"),
     Ok(output) => std_testing.expect(name,
       output.exit_code != 0 && output.signal == 0 && output.stdout == byte_buffer.empty() &&
-        contains(std_text.decode_utf8(output.stderr), message), "unexpected runtime trap")
+        contains(output.stderr->decode_utf8(), message), "unexpected runtime trap")
   }
 }
 
@@ -45,29 +42,29 @@ main(): Void {
       messages = ["exact Nat", "exact Nat", "non-terminating", "division by zero",
         "division by zero", "division by zero", "exact Nat", "non-terminating", "division by zero"]
       mut results: [TestResult] = []
-      for index in 0..len(expressions) {
+      for index in 0..expressions->len() {
         source = child(workspace.root, "rational-${index}.panack")
         artifact = child(workspace.root, "rational-${index}.bc")
-        source_text = std_result.value_or(std_path.to_text(source), "invalid-source")
-        artifact_text = std_result.value_or(std_path.to_text(artifact), "invalid-artifact")
+        source_text = source->to_text()->value_or("invalid-source")
+        artifact_text = artifact->to_text()->value_or("invalid-artifact")
         expression = expressions[index]
         content = "main(): Void { z = nat_from_str(\"0\"); print(${expression}) }"
-        match std_filesystem.write(source, std_text.encode_utf8(content)) {
-          Error(error) => { results = results.append(std_testing.expect("rational-${index}/fixture",
+        match std_filesystem.write(source, content->encode_utf8()) {
+          Error(error) => { results = results->append(std_testing.expect("rational-${index}/fixture",
             false, "source write failed")) },
           Ok(written) => {
             match std_process.run(path("./bin/panack"), ["compile", source_text, "-o", artifact_text],
                 byte_buffer.empty(), std_path.current(), [], std_time.seconds(10), 1048576) {
-              Error(error) => { results = results.append(std_testing.expect("rational-${index}/compile",
+              Error(error) => { results = results->append(std_testing.expect("rational-${index}/compile",
                 false, "process failed")) },
               Ok(compiled) => {
-                results = results.append(std_testing.expect("rational-${index}/compile",
+                results = results->append(std_testing.expect("rational-${index}/compile",
                   compiled.exit_code == 0 && compiled.signal == 0 &&
-                    compiled.stdout == std_text.encode_utf8("wrote ${artifact_text}\n") &&
+                    compiled.stdout == "wrote ${artifact_text}\n"->encode_utf8() &&
                     compiled.stderr == byte_buffer.empty(), "compilation failed"))
-                results = results.append(trap("rational-${index}/source", source_text,
+                results = results->append(trap("rational-${index}/source", source_text,
                   messages[index]))
-                results = results.append(trap("rational-${index}/bytecode", artifact_text,
+                results = results->append(trap("rational-${index}/bytecode", artifact_text,
                   messages[index]))
               }
             }
@@ -76,14 +73,14 @@ main(): Void {
         for file in [source, artifact] {
           match std_filesystem.remove_file(file) {
             Ok(removed) => {},
-            Error(error) => { results = results.append(std_testing.expect("rational-${index}/cleanup",
+            Error(error) => { results = results->append(std_testing.expect("rational-${index}/cleanup",
               false, "file removal failed")) }
           }
         }
       }
-      match std_testing_files.workspace_remove_empty(workspace) {
+      match workspace->remove_empty() {
         Ok(removed2) => {},
-        Error(error) => { results = results.append(std_testing.expect("workspace cleanup", false,
+        Error(error) => { results = results->append(std_testing.expect("workspace cleanup", false,
           "directory removal failed")) }
       }
       failures = std_testing.report(results)

@@ -70,7 +70,9 @@ browser-runtime-bundle:
 check:
 	@$(TIMED) check $(CHECK_BUDGET_SECONDS) sh tests/check.sh $(MAKE) --no-print-directory check-phases
 
-check-phases: policy
+check-phases:
+	@sh tests/fixture_inventory.sh
+	@$(MAKE) --no-print-directory policy
 	@$(MAKE) --no-print-directory native native-module-build native-fault-build
 	@VALIDATION_JOBS="$(VALIDATION_JOBS)" sh tests/run_check_phases.sh "$(MAKE)"
 	@$(MAKE) --no-print-directory functional
@@ -494,6 +496,7 @@ ci-check:
 	@bash tests/ci_scope.sh
 
 policy:
+	@sh tests/fixture_inventory_test.sh
 	@sh tests/build_baseline.sh
 	@bash tests/ci_scope.sh
 	@sh tests/no_python.sh

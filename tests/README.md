@@ -1,5 +1,28 @@
 # Tests
 
+## Fixture inventory preflight
+
+`sh tests/fixture_inventory.sh` checks example bookkeeping without building or
+running the compiler. `make check` runs it before policy tests and native builds.
+It compares top-level and namespace examples with their `.stdout` files and the
+ordered example list in `functional/cases/runner_smoke/main.panack`, checks the
+example count in `runner/main.panack`, and verifies the smoke transcript total
+from its case/example/failure lists and failure-mode selection.
+
+When adding or removing an example, update its expected output, the runner's
+example count, and the smoke test's example list and total together. Run this
+preflight before full validation. It reports exact stale entries and does not
+rewrite expectations. Its bounded source reader rejects unsupported declaration
+forms; intentional runner-format changes must update the reader and its tests.
+It does not validate program behavior, arbitrary assertion logic, or all other
+harness summary counts. The independent executable assertions and full
+`make check` remain required.
+
+`sh tests/fixture_inventory_test.sh` exercises additions, removals, namespace
+examples, missing/orphan outputs, duplicate/order errors, stale counts and totals,
+unsupported declarations, and rejection before the Makefile starts later phases.
+All mutations run in a temporary checkout, including a path containing spaces.
+
 The [website repository](https://github.com/sproates/panackelty-website) owns assembly, previews, published-release
 acceptance and deployed-byte checks. [Panackelty Browser](https://github.com/sproates/panackelty-browser)
 owns browser/runtime integration tests. Core retains native and runtime-bundle

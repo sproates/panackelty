@@ -1,5 +1,10 @@
 # Specification coverage
 
+The compiler-free fixture inventory preflight has isolated mutation regressions
+for missing, stale, duplicate and reordered examples, output pairing, runner counts,
+smoke totals and Makefile rejection before build phases. It supplements the
+independent executable fixture assertions without replacing them.
+
 User-facing `owned_methods` and `generic_methods` examples assert custom-method
 and Map coexistence, persistent updates, chaining, generic owner/method inference
 and pure callbacks, through source and saved-bytecode functional execution.

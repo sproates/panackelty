@@ -124,4 +124,3 @@ pub pure error_status(error: HttpError): Nat {
     TransportFailure(message) => 500
   }
 }
-

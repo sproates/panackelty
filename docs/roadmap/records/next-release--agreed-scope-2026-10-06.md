@@ -254,3 +254,54 @@ Tests cover selected and skipped arms, omitted else where legal, rejected
 conditions/results/effects, source spans and source/saved-bytecode parity.
 Preserve source inventory/coverage meaning and compiler/stdlib fixed points.
 Update SPEC.md and coding guidance when the syntax is implemented.
+
+
+<a id="rm-156"></a>
+
+**RM#156: HTTP server framework and type-owned dispatch — Alpha.14.**
+
+**Selected by owner direction, 2026-10-16.** Implement the agreed routed HTTP
+server API in `packages/http`, as specified in [GI#518](https://github.com/sproates/panackelty/issues/518).
+Preserve the HTTP client while making the low-level server/service machinery an
+internal implementation detail. The public server API includes the simple
+`create_server(port)` form and the typed `create_contextual_server(port, context)`
+form, with named handlers, route registration, request/response handling, fixed
+first-version defaults, error isolation and lifecycle behavior as specified in
+GI#518.
+
+Owner clarification, 2026-10-19: Alpha.14 includes the type-owned method dispatch
+migration in [GI#525](https://github.com/sproates/panackelty/issues/525), which
+supports this HTTP server framework. Server methods such as `get` and `put` must
+coexist with Map operations through checked owner identity. The migration includes
+built-in and nominal methods, generic and effect checking, maintained API/caller
+migration, removal of receiver-to-global fallback and collection-name exceptions,
+and final dot-call syntax. Arrow calls are temporary migration syntax. Follow the
+[implementation handoff on next](https://github.com/sproates/panackelty/blob/next/docs/design/type-owned-dispatch/dispatch-implementation-handoff.md)
+for packet acceptance and bootstrap checkpoints. This records release scope;
+GI#525 remains open until the full migration and release/consumer acceptance pass.
+
+Migrate the static preview tool to compose the generic server with its own typed
+static-serving context and fallback handler. Keep all static-file knowledge and
+behavior in the static package/tool; `packages/http` must remain generic. Deliver a
+complete user-facing `packages/http/README.md` with practical examples. Update
+affected API/reference documentation and examples, and test the route API, context
+dispatch, HTTP behavior, lifecycle, preview integration and existing client
+regressions. GI#518 contains the detailed contract and acceptance cases.
+
+This records Alpha.14 release scope and does not itself authorize implementation
+or settle work sequencing, effort, or release timing. If implementation exposes
+an unanticipated gap or inconsistency, stop and ask the issue owner rather than
+guessing; update GI#518 before proceeding.
+
+Planning update, 20 October 2026: GI#525 is complete on `next`; the sentence
+above about it remaining open is historical release-scope context. The
+[GI#518 staged plan](../../design/routed-http-server/implementation-plan.md)
+records the separate HTTP implementation baseline, packet dependencies and
+acceptance gates. This delivery saves a plan only; GI#518 implementation has
+not started and the issue remains open.
+
+Owner clarification, 20 October 2026: the simple constructors retain `0.0.0.0`;
+explicit-address ordinary/contextual constructors allow IPv4 binding without
+resource-tuning options. Preview migration preserves its `127.0.0.1` default
+and `--host` through the explicit contextual constructor. GI#518 records the
+address validation and error contract.

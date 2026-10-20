@@ -14,3 +14,5 @@ and release notes to determine what is available today.
 - [Native HTTP client design (P5)](NATIVE_HTTP_CLIENT_DESIGN.md)
 
 - [PR#524: type-owned dispatch migration plan and implementation handoff](type-owned-dispatch/dispatch-migration-plan.md)
+
+- [GI#518 routed HTTP server staged implementation plan](routed-http-server/implementation-plan.md)

@@ -29,6 +29,17 @@ This bounded delivery does not replace full validation or resolve GI#106's broad
 performance reassessment. Website: no impact; this is contributor tooling only.
 No issue was created solely for this task. Acceptance is recorded in the delivery PR.
 
+## Routed HTTP server planning: GI#518 / RM#156
+
+The [staged implementation plan](docs/design/routed-http-server/implementation-plan.md)
+records fifteen packets, acceptance fixtures, runtime decision gates and a 0%
+implementation baseline. Planning is saved; no HTTP implementation is claimed.
+The owner-approved explicit-address constructors preserve preview loopback/`--host`
+behaviour while simple constructors retain all-interface binding. GI#518 remains
+open. Alpha.14 publication is separate. Website: no live API claim changes from
+this planning-only delivery; update package learning material at implementation
+and release acceptance.
+
 ## Bounded method experiment — 2026-10-17
 
 Owner-selected proof of concept: two `Fruit` instances call owned `apple` and

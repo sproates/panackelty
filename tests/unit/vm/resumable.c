@@ -254,8 +254,57 @@ static void host_policy_and_exit(void)
     release(value);
 }
 
+/* Classification is data, not a match on diagnostic text. No caller here catches
+ * a trap: existing standalone execution still terminates on every failure. */
+static void request_fault_categories(void)
+{
+    char *params[] = {"left", "right"};
+    Instruction code[] = {{.op = OP_LOAD, .name = "left"},
+                          {.op = OP_LOAD, .name = "right"},
+                          {.op = OP_BINARY, .code = 3}, {.op = OP_RETURN}};
+    Function fn = {.name = "main", .params = params, .param_count = 2,
+                   .ins = code, .ins_count = 4};
+    Program program = {.functions = &fn, .count = 1};
+    VM vm = {.program = &program};
+    Value *arguments[] = {value_size(7), value_size(0)};
+    const char *error = NULL;
+    VMExecution *run = vm_execution_create(&vm, &fn, arguments, NULL, NULL, &error);
+    assert(run && vm_execution_advance(run, 8) == VM_TRAPPED);
+    assert(vm.error && vm.fault_kind == VM_FAULT_REQUEST);
+    assert(vm_execution_destroy(run));
+    assert(arguments[0]->refs == 1 && arguments[1]->refs == 1);
+
+    /* Nat underflow is also a checked domain error. */
+    code[2].code = 1;
+    Value *reversed[] = {arguments[1], arguments[0]};
+    run = vm_execution_create(&vm, &fn, reversed, NULL, NULL, &error);
+    assert(run && vm.fault_kind == VM_FAULT_FATAL);
+    assert(vm_execution_advance(run, 8) == VM_TRAPPED);
+    assert(vm.fault_kind == VM_FAULT_REQUEST && vm_execution_destroy(run));
+
+    /* Bad operand types remain fatal even immediately after a recoverable fault. */
+    Value *invalid = value_bool(true);
+    Value *bad[] = {invalid, arguments[0]};
+    run = vm_execution_create(&vm, &fn, bad, NULL, NULL, &error);
+    assert(run && vm_execution_advance(run, 8) == VM_TRAPPED);
+    assert(vm.fault_kind == VM_FAULT_FATAL && vm_execution_destroy(run));
+    release(invalid);
+
+    code[2].op = OP_INDEX_GET;
+    Value *array = value_sequence(V_ARRAY, NULL, 0);
+    Value *indexing[] = {array, arguments[1]};
+    run = vm_execution_create(&vm, &fn, indexing, NULL, NULL, &error);
+    assert(run && vm_execution_advance(run, 8) == VM_TRAPPED);
+    assert(vm.fault_kind == VM_FAULT_REQUEST && vm_execution_destroy(run));
+    assert(array->refs == 1);
+    release(array);
+    release(arguments[0]);
+    release(arguments[1]);
+}
+
 void resumable_contracts(void)
 {
+    request_fault_categories();
     result_and_argument_lifetimes();
     direct_indirect_calls_and_interleaved_sessions();
     iterators_survive_yields();

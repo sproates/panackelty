@@ -38,11 +38,13 @@ Value *builtins_text_call(VM *vm, const char *name, Value **a)
         size_t start, end, bs, be;
         if (!value_index(a[1], &start) || !value_index(a[2], &end) || start > end) {
             vm->error = "VM trap: invalid string slice";
+            vm->fault_kind = VM_FAULT_REQUEST;
             return NULL;
         }
         size_t count = a[0]->as.bytes.characters;
         if (end > count) {
             vm->error = "VM trap: invalid string slice";
+            vm->fault_kind = VM_FAULT_REQUEST;
             return NULL;
         }
         if (start == count) {
@@ -157,6 +159,7 @@ Value *builtins_text_call(VM *vm, const char *name, Value **a)
         size_t i;
         if (!value_index(a[1], &i) || i >= a[0]->as.bytes.length) {
             vm->error = "VM trap: byte index is out of bounds";
+            vm->fault_kind = VM_FAULT_REQUEST;
             return NULL;
         }
         return value_size(a[0]->as.bytes.data[i]);

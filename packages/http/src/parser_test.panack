@@ -1,3 +1,6 @@
+import project/request::{from_transport}
+import project/routing::{RouteKey, route_path, dispatch, RouteDecision.Handler,
+  RouteDecision.Fallback, RouteDecision.NotFound, RouteDecision.MethodNotAllowed}
 import project/parser::{parse_request, parse_request_for_methods, parse_response}
 import project/server::{serialize_response, serialize_head_response}
 import project/types::{Header, HttpError, HttpError.InvalidResponse, HttpError.LimitExceeded,
@@ -63,6 +66,37 @@ pure response_has_error(data: Bytes, expected: HttpError): Bool {
 }
 
 main(): Unit {
+  raw = Request("GET", "/a//../%2F?q=a%20b&q=two", [Header("X-Value", "first"),
+    Header("x-value", "second"), Header("Other", "third")], "body".encode_utf8())
+  view = from_transport(raw)
+  expect(view.method == "GET" && view.path == "/a//../%2F" && view.query == "q=a%20b&q=two")
+  expect(view.headers == raw.headers && view.body == raw.body)
+  expect(view.header("X-VALUE") == Some("first"))
+  expect(view.header_values("x-Value") == ["first", "second"])
+  expect(view.header("missing") == None())
+  expect(view.header_values("missing") == [])
+  expect(from_transport(Request("GET", "?q", [], "".encode_utf8())).path == "/")
+  expect(from_transport(Request("GET", "", [], "".encode_utf8())).path == "/")
+  expect(from_transport(Request("GET", "/", [], "".encode_utf8())).query == "")
+
+  expect(route_path("/search?mode=brief#top") == Some("/search"))
+  expect(route_path("/a//b/../%2f?q=/?#frag/?") == Some("/a//b/../%2f"))
+  expect(route_path("/") == Some("/"))
+  for invalid in ["", "search", "/bad space", "/bad%", "/bad%0", "/bad%GG",
+      "/ok?bad space", "/ok#bad space", "/ok#one#two", "/[bad]", "/é"] {
+    expect(route_path(invalid) == None())
+  }
+  routes = [RouteKey("DELETE", "/item"), RouteKey("GET", "/item"),
+    RouteKey("POST", "/other"), RouteKey("PUT", "/item")]
+  expect(dispatch(routes, true, "GET", "/item") == Handler(1))
+  expect(dispatch(routes, true, "HEAD", "/item") == MethodNotAllowed("GET, PUT, DELETE"))
+  expect(dispatch(routes, true, "POST", "/item") == MethodNotAllowed("GET, PUT, DELETE"))
+  expect(dispatch(routes, true, "PATCH", "/missing") ==
+    MethodNotAllowed("GET, POST, PUT, DELETE"))
+  expect(dispatch(routes, true, "GET", "/missing") == Fallback())
+  expect(dispatch(routes, false, "GET", "/missing") == NotFound())
+  expect(dispatch(routes, false, "GET", "/Item") == NotFound())
+
   get_head: Bytes = "GET /item?q=1 HTTP/1.1\r\nHost: example.test\r\n\r\n".encode_utf8()
   expect(parsed_request_matches(get_head, "GET", "/item?q=1", ""))
 

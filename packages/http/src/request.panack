@@ -1,0 +1,63 @@
+// Routed-server request view. The legacy transport Request is adapted at admission.
+pub import project/types::{Header}
+pub import project/types as transport
+
+pub record Request {
+  method: Str,
+  path: Str,
+  query: Str,
+  headers: [Header],
+  body: Bytes
+}
+
+pure fold(byte: Nat): Nat {
+  if byte >= 65 && byte <= 90 { byte + 32 } else { byte }
+}
+
+pure header_name_matches(left: Str, right: Str): Bool {
+  a = left.encode_utf8()
+  b = right.encode_utf8()
+  mut matches = a.length() == b.length()
+  mut cursor: Nat = 0
+  while matches && cursor < a.length() {
+    matches = fold(a.at(cursor)) == fold(b.at(cursor))
+    cursor = cursor + 1
+  }
+  matches
+}
+
+impl Request {
+  pub pure header(name: Str): Option[Str] {
+    mut found: Option[Str] = None()
+    for field in self.headers {
+      if found == None() && header_name_matches(field.name, name) {
+        found = Some(field.value)
+      }
+    }
+    found
+  }
+
+  pub pure header_values(name: Str): [Str] {
+    mut found: [Str] = []
+    for field in self.headers {
+      if header_name_matches(field.name, name) { found = found.append(field.value) }
+    }
+    found
+  }
+}
+
+pub pure from_transport(value: transport.Request): Request {
+  mut split = value.target.len()
+  mut cursor: Nat = 0
+  while cursor < value.target.len() && split == value.target.len() {
+    if value.target.slice(cursor, cursor + 1) == "?" { split = cursor }
+    cursor = cursor + 1
+  }
+  path = if split == 0 { "/" } else { value.target.slice(0, split) }
+  query = if split < value.target.len() {
+    value.target.slice(split + 1, value.target.len())
+  } else {
+    ""
+  }
+  Request(value.method, path, query, value.headers, value.body)
+}

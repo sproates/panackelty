@@ -79,13 +79,10 @@ bounded-resource evidence and comparison with the unchanged baseline where
 possible. No throughput or credit-saving claim follows from a faster single run.
 
 Open a PR against the authorised integration branch. Do not merge pending/failed
-checks or checks for a different commit. For GI#518, Ian must explicitly approve this specific PR before merge, even
-when it targets `next` and every check is green. This programme-specific rule
-overrides general standing merge permission. Implementation approval, prior PR
-approval and silence do not count. Leave the PR open and request approval after
-presenting the exact head, validation evidence and remaining limitations. Do not
-enable auto-merge. Seek fresh approval after substantive changes to an approved
-PR, and obtain separate approval for every split PR. Each packet report lists what is complete and what remains unsupported.
+checks or checks for a different commit. The owner withdrew the programme-specific per-PR approval requirement on
+20 October 2026. Use standing permission for exact-head green PRs targeting
+`next`, following self-review and required validation. Do not enable auto-merge.
+Each packet report lists what is complete and what remains unsupported.
 Use `Refs #518` for intermediate work; only final accepted delivery closes it.
 Keep alpha.14 release/website publication separate. Run scoped cleanup and verify
 a clean tree; retain needed logs outside the checkout, not generated binaries in
@@ -99,7 +96,7 @@ Copy this into `pNN-acceptance.md` when recording the packet; fill every field.
 Packet and state: PNN / unstarted | implementing | blocked | validation pending | accepted
 Baseline revision:
 Delivered revision and PR:
-Owner merge approval: pending | exact approval reference and approved head
+Merge authority: standing exact-head green next permission, reaffirmed 20 October 2026
 Contract snapshot date / live issue differences:
 Accepted prerequisites:
 Files and declarations changed:

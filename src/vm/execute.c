@@ -683,7 +683,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
                 release(b);
                 break;
             }
-            v = binary_value(instruction->code, a, b, &vm->error);
+            v = binary_value_classified(instruction->code, a, b, &vm->error, &vm->fault_kind);
             release(a);
             release(b);
             if ((!v && !vm->error) || (v && !stack_push(frame, v))) {
@@ -753,21 +753,27 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
             }
             if (!value_index(b, &index)) {
                 vm->error = "VM trap: invalid index";
+                if (b->kind == V_NAT) {
+                    vm->fault_kind = VM_FAULT_REQUEST;
+                }
             } else if (a->kind == V_ARRAY) {
                 if (index >= a->as.sequence.count) {
                     vm->error = "VM trap: index is out of bounds";
+                    vm->fault_kind = VM_FAULT_REQUEST;
                 } else {
                     v = retain(a->as.sequence.items[index]);
                 }
             } else if (a->kind == V_BYTES) {
                 if (index >= a->as.bytes.length) {
                     vm->error = "VM trap: index is out of bounds";
+                    vm->fault_kind = VM_FAULT_REQUEST;
                 } else {
                     v = value_size(a->as.bytes.data[index]);
                 }
             } else if (a->kind == V_STR) {
                 if (!utf8_offset(a, index, &start, &end)) {
                     vm->error = "VM trap: index is out of bounds";
+                    vm->fault_kind = VM_FAULT_REQUEST;
                 } else {
                     v = value_data(V_STR, a->as.bytes.data + start, end - start);
                 }
@@ -1150,6 +1156,7 @@ VMExecution *vm_execution_create(VM *vm, Function *function, Value **arguments,
     *execution = (VMExecution){.vm = vm, .embedded = true, .status = VM_YIELDED,
                                .host_call = host_call, .host_context = host_context};
     vm->error = NULL;
+    vm->fault_kind = VM_FAULT_FATAL;
     vm->execution = execution;
     vm_coverage_start(vm->coverage, vm->program);
     if (!frame_push(execution, function, arguments)) {

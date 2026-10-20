@@ -1342,3 +1342,14 @@ Maintained compiler, library, package, example, test and generated-source caller
 use dots. Diagnostic goldens keep the same errors with dot spellings and source
 columns adjusted for the one-character-shorter separator. Historical plan and
 acceptance reports retain explicitly historical syntax.
+
+## Routed HTTP foundation checks
+
+GI#518's internal request/routing policy is exercised by
+`packages/http/src/parser_test.panack`, run from source and saved bytecode by
+`tests/http_package.sh`: raw targets, repeated case-insensitive headers, malformed
+route references, canonical Allow ordering and fallback precedence. Native
+resumable tests distinguish checked arithmetic/index faults from invalid operand
+faults, check retained-value cleanup, and verify category reset between executions.
+These are foundation checks, not acceptance of the routed server, request recovery,
+readiness, bounded admission or shutdown; those remain under the GI#518 register.

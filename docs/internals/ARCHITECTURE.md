@@ -1694,3 +1694,13 @@ The loader emits every accepted project from checked declaration identities.
 Guard validity, mutation-sensitive arithmetic proofs and effect evidence are
 checked in that same pipeline.
 No VM, opcode or bytecode-version change is introduced.
+
+### Routed HTTP foundations (GI#518, in development)
+
+The HTTP package's internal `request.panack` adapts legacy transport requests to
+raw path/query and owned header-access methods. `routing.panack` validates route
+references and selects handlers, fallback, 404 or path-specific 405 independently
+of sockets. These modules are not exported as a completed routed-server API.
+The VM records structured fault categories separately from error text; recovery
+is not enabled until request ownership and cleanup are implemented. Existing HTTP
+client and low-level service contracts remain unchanged during this foundation.

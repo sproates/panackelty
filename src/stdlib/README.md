@@ -160,8 +160,9 @@ raw TCP is unavailable in the browser.
 
 Core now owns Str.ends_with, Array.first/sort_by, Option.value_or and
 Result.value_or, Path's existing receiver operations, and Duration's existing
-receiver arithmetic/comparisons. Use arrow calls during migration, such as
-`items->first()->value_or(fallback)` and `base->join(child)`.
+receiver arithmetic/comparisons. The P13 bridge accepts owned dots and arrows,
+such as `items.first().value_or(fallback)` and `base->join(child)`. Maintained
+library bodies keep arrows until P14.
 PathError and DurationError are defined once in core and re-exported from path
 and time, including their variants. Receiver wrapper functions are removed. Path/time factories and clock
 services remain module functions; ClockError stays in time.

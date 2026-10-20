@@ -339,10 +339,11 @@ pub pure module_graph_diagnostics(graph: ModuleBindingGraph): [Diagnostic] {
   diagnostics
 }
 
-// Dots select namespace declarations only during the arrow migration.
-// Lexical values shadow aliases and must use checked owned-call syntax.
+// Classify dots before body binding. Value receivers use owned lookup only;
+// namespace lookup failures never fall back to a value or ordinary function.
 pub enum ResolvedDotCall {
-  NamespaceCall(ModuleDeclarationBinding, [Expr], [Str])
+  NamespaceCall(ModuleDeclarationBinding, [Expr], [Str]),
+  OwnedDotCall(Expr, Str, [Expr], [Str])
 }
 
 pub pure resolve_module_dot_call_scoped(
@@ -357,17 +358,17 @@ pub pure resolve_module_dot_call_scoped(
   path: Str = expression_reference_path(target)
 
   if path == "" || locals->has(reference_head(path)) {
-    Error("receiver dot calls are not supported; use ->" + name + "(...)")
+    Ok(OwnedDotCall(target, name, arguments, types))
   } else {
     match resolve_module_path(graph, identity, reference_head(path)) {
-      Error(message) => Error("receiver dot calls are not supported; use ->" + name + "(...)"),
+      Error(message) => Ok(OwnedDotCall(target, name, arguments, types)),
       Ok(binding) => {
         namespace_receiver: Bool = match binding {
           NamespaceTarget(owner) => true,
           DeclarationTarget(declaration) => declaration.kind == ModuleEnum()
         }
         if !namespace_receiver {
-          Error("receiver dot calls are not supported; use ->" + name + "(...)")
+          Ok(OwnedDotCall(target, name, arguments, types))
         } else {
           match resolve_module_path(graph, identity, path + "." + name) {
             Error(message) => Error(message),
@@ -547,6 +548,9 @@ pub pure resolve_module_expression_uses(
           result = ResolvedModuleUses([], [Diagnostic(message, origin.start)])
         },
         Ok(call) => match call {
+          OwnedDotCall(receiver, method, values, type_arguments) => {
+            result = resolve_module_expression_uses(graph, identity, receiver, origin, locals)
+          },
           NamespaceCall(declaration, values, type_arguments) => {
             result = module_use_result(
               expression_reference_path(target) + "." + name,
@@ -793,12 +797,18 @@ pub pure resolve_module_block_uses(
   result
 }
 
-pure imported_binding_names(module: ModuleBindings): Set[Str] {
+pure imported_binding_names(graph: ModuleBindingGraph, module: ModuleBindings): Set[Str] {
   mut names: Set[Str] = set()
 
   for imported in module.imports {
     for selector in module_import_names(imported) {
-      names = names->add(selector.alias)
+      match resolve_module_path(graph, module.identity, selector.alias) {
+        Ok(binding) => match binding {
+          NamespaceTarget(owner) => {},
+          DeclarationTarget(declaration) => { names = names->add(selector.alias) }
+        },
+        Error(message) => { names = names->add(selector.alias) }
+      }
     }
   }
   names
@@ -926,8 +936,15 @@ pure block_import_shadows(block: Block, names: Set[Str], origin: SourceSpan): [D
   diagnostics
 }
 
-pub pure module_import_shadow_diagnostics(module: ModuleBindings, parsed: ParsedModule): [Diagnostic] {
-  names: Set[Str] = imported_binding_names(module)
+pub pure module_import_shadow_diagnostics(graph: ModuleBindingGraph, module: ModuleBindings, parsed: ParsedModule): [Diagnostic] {
+  names: Set[Str] = imported_binding_names(graph, module)
+  // Only lexical values may shadow namespaces; type binders still reserve imports.
+  mut type_names: Set[Str] = names
+  for imported in module.imports {
+    for selector in module_import_names(imported) {
+      type_names = type_names->add(selector.alias)
+    }
+  }
   mut diagnostics: [Diagnostic] = []
   mut index: Nat = 0
 
@@ -941,12 +958,12 @@ pub pure module_import_shadow_diagnostics(module: ModuleBindings, parsed: Parsed
       },
       RecordDeclaration(name, parameters, fields) => {
         for parameter in parameters {
-          diagnostics = diagnostics->concat(import_shadow_diagnostic(names, parameter, origin))
+          diagnostics = diagnostics->concat(import_shadow_diagnostic(type_names, parameter, origin))
         }
       },
       EnumDeclaration(name, parameters, variants) => {
         for parameter in parameters {
-          diagnostics = diagnostics->concat(import_shadow_diagnostic(names, parameter, origin))
+          diagnostics = diagnostics->concat(import_shadow_diagnostic(type_names, parameter, origin))
         }
       },
       FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
@@ -954,7 +971,7 @@ pub pure module_import_shadow_diagnostics(module: ModuleBindings, parsed: Parsed
           diagnostics = diagnostics->concat(import_shadow_diagnostic(names, parameter.name, origin))
         }
         for parameter in type_parameters {
-          diagnostics = diagnostics->concat(import_shadow_diagnostic(names, parameter, origin))
+          diagnostics = diagnostics->concat(import_shadow_diagnostic(type_names, parameter, origin))
         }
         diagnostics = diagnostics->concat(block_import_shadows(body, names, origin))
       }

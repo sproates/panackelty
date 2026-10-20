@@ -83,6 +83,15 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
+- **GI#525 alpha.14 method syntax** — Promotion pending. The P13 bridge accepts
+  owned dots and temporary arrows on `next`; published alpha.13 examples retain
+  their release contract. Before alpha.14 adoption, the core delivery maintainer
+  will hand off P14's final dot-only syntax and P15's native/browser consumer
+  evidence to the website maintainer. Review method examples, migration guidance
+  and the method-dispatch article against the actual shipped toolchain. The
+  [website roadmap](https://github.com/sproates/panackelty-website/blob/main/ROADMAP.md)
+  owns site publication. No intermediate bridge promotion is scheduled.
+
 - **GI#162 preview-tool adoption** — Done, 2026-10-15. Core PR #498 supplies
   the generic tool; website PR #42 adopted it with a pinned source installation.
   All 81 assembled assets matched; readiness, error handling, signals, parent loss,

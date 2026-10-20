@@ -1299,8 +1299,8 @@ for P12 replacement, preserving coverage while compatibility is still supported.
 ## GI#525 P12 legacy removal
 
 `tests/owned_dispatch_removal.sh` checks removed global primitives and all P10
-compatibility exports, rejection of receiver-dot/global fallback, namespace
-collisions, toolchain grant spoofing and legitimate user functions with former
+compatibility exports, rejection of receiver-to-global fallback, namespace
+lookup failures, toolchain grant spoofing and legitimate user functions with former
 primitive names. Owned Map/Str programs run as source and saved bytecode.
 The parser preserves raw namespace dots; internal checker/emitter fixtures use
 explicit operations through `compiler_backend_fixtures`, without source sugar.
@@ -1310,3 +1310,17 @@ explanations cover Bool/pure guards, duplicate fields, retained child diagnostic
 and arithmetic/effect evidence from checked bodies. Earlier packet sections
 record their historical acceptance boundaries; P12 supersedes compatibility
 coverage with the owned boundary and explicit old-syntax rejection.
+
+
+## GI#525 P13 owned-dot bridge
+
+`tests/owned_dot_bridge.sh` runs dot-converted temporary copies of the accepted
+owned dispatch, import, generic, intrinsic, callback, async, core-method and
+Server/Map fixtures through the public CLI as source and saved bytecode. Their
+existing exact outputs remain the oracle, including evaluation order and receiver
+multiplicity. Maintained fixture sources remain arrow-compatible until P14.
+Additional programs cover namespace shadowing, mixed chains, callable fields
+versus methods and no fallback in either direction. Binding tests check both
+spellings with generic method arguments and callable-field rejection. Selective
+imports continue to reserve declaration bindings. Seed refresh verifies stages
+2/3/4 before the source conversion begins.

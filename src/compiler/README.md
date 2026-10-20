@@ -44,7 +44,7 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   loading executes namespace declaration/import forms and qualified types,
   references and patterns through the identity-aware pipeline. The standalone
   raw parser remains available to focused syntax contracts. It preserves dot
-  calls; executable value-dot calls reject until the owned-dot cutover.
+  calls for namespace/value classification; value dots enter owned binding.
   `indexed_program` retains declaration order while
   building separate type/record/enum/function indexes and variant metadata.
   Construct programs through this factory, including synthetic test ASTs.
@@ -89,11 +89,11 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   selective imports, original-identity re-exports, enum selectors and qualified
   functions/types. It validates missing/private/conflicting imports and cycles,
   sharing completed graph nodes across diamonds. Raw use traversal distinguishes
-  namespace receivers before core method lowering and rejects imported aliases
-  colliding with parameters, type parameters, locals, loops or pattern bindings.
-  The raw-use traversal tracks lexical value scopes, including values sharing
-  an enum name or an import basename. The
-  implicit guarded-type `value` also participates in import collision checks.
+  namespace receivers before owned binding. Lexical values, including the implicit
+  guarded-type `value`, may shadow namespace aliases. Selectively imported
+  declarations still reject value collisions; type binders still reject all
+  import collisions. The raw-use traversal tracks lexical value scopes, including
+  values sharing an enum name or an import basename.
   Invalid lexical scopes return no misleading reference identities. Core reserved
   names remain for later checked resolution. Expression use spans are exact;
   Match-arm diagnostics point to the arm pattern. Declaration-signature type
@@ -267,7 +267,9 @@ contexts, including inferred callable targets. AsyncFn never coerces to Fn/PureF
 The project loader loads bundled `core.panack` once, then checks module declarations,
 bodies and effects before emitting executable code. Owned calls carry selected
 declaration identities through emission. The parser never rewrites receiver dots
-to global calls. Only designated toolchain declarations may name implementation
+to global calls. During the P13 bridge, value dots enter the same owned-call
+binder as arrows after namespace/value classification. Lexical values shadow
+namespace aliases, and lookup failures never cross that boundary. Only designated toolchain declarations may name implementation
 primitives. The emitter prunes unreachable owned core algorithms. Raw backend
 test helpers accept explicit AST operations; they do not establish public source
 acceptance.

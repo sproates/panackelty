@@ -67,6 +67,8 @@ compiler and maintained source callers, saving a new verified compiler seed.
 [P12](../design/type-owned-dispatch/p12-legacy-removal.md) removes compatibility
 lowering and wrappers, retaining focused internal backend fixtures and adding
 public rejection coverage. All project acceptance uses checked identities.
+[P13](../design/type-owned-dispatch/p13-owned-dot-bridge.md) saves the bridge seed
+that accepts both owned dots and arrows before maintained callers convert in P14.
 The VM and bytecode format are unchanged.
 
 ## Historical P2 completion checkpoint — 2026-10-10

@@ -4,7 +4,7 @@ import project/src/compiler/module_bindings::{module_declaration_display, builti
 import project/src/compiler/module_resolution::{resolve_owned_method, resolve_builtin_owned_method}
 import project/src/compiler/module_signatures::{signature_effect, signature_declaration, signature_type, substitute_signature_type, check_module_signatures}
 import project/src/compiler/module_bindings::{ModulePackageIdentity, ModulePackageIdentity.ToolchainModulePackage, module_import_names, module_internal_primitive, module_reserved_binding}
-import project/src/compiler/module_resolution::{ResolvedModuleUses, ResolvedModuleTarget, ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget, ResolvedDotCall, ResolvedDotCall.NamespaceCall, binding_graph_module, binding_graph_target, module_identity_in, resolve_module_expression_uses, resolve_module_path_inner, resolve_module_type, module_head_is_namespace, resolve_module_function, resolve_module_path, resolve_module_dot_call_scoped, module_import_shadow_diagnostics}
+import project/src/compiler/module_resolution::{ResolvedModuleUses, ResolvedModuleTarget, ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget, ResolvedDotCall, ResolvedDotCall.NamespaceCall, ResolvedDotCall.OwnedDotCall, binding_graph_module, binding_graph_target, module_identity_in, resolve_module_expression_uses, resolve_module_path_inner, resolve_module_type, module_head_is_namespace, resolve_module_function, resolve_module_path, resolve_module_dot_call_scoped, module_import_shadow_diagnostics}
 import project/src/compiler/parser::{Statement, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue, BlockValue.NoBlockValue, BlockValue.TailBlockValue, Block, Program, MatchArm, MatchPattern, ParsedModule, ParsedTypeRef, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, DeclarationSyntax, RecordField, FunctionParameter, EnumVariant, expression_span, expression_reference_path, reference_head, unlocated_expression, render_expr}
 import project/src/compiler/lexer::{prior_index}
 import project/src/compiler/types::{SourcePos}
@@ -4011,6 +4011,11 @@ pure bind_body_expression_with_type_argument_spans(
           result = body_failure(message, origin)
         },
         Ok(call) => match call {
+          OwnedDotCall(target, method, values, type_arguments) => {
+            result = bind_body_expression_with_type_argument_spans(context,
+              OwnedCallExpr(target, method, values, type_arguments), origin, locals, path,
+              type_argument_spans)
+          },
           NamespaceCall(binding, values, type_arguments) => {
             result = body_call(
               context,
@@ -4607,7 +4612,7 @@ pure check_module_bodies_mode(
   retain_guard_conversions: Bool
 ): CheckedModuleBodies {
   mut functions: [BoundFunctionBody] = []
-  mut diagnostics: [Diagnostic] = module_import_shadow_diagnostics(module.bindings, module.parsed)
+  mut diagnostics: [Diagnostic] = module_import_shadow_diagnostics(graph, module.bindings, module.parsed)
 
   if diagnostics->len() == 0 {
     for declaration in module.parsed.program.declarations {

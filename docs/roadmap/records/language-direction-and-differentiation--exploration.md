@@ -61,13 +61,67 @@ This does not select a foreign language, ABI, syntax, or implementation.
 
 **RM#146: Tracked concurrency.**
 
-**Idea; research and discussion only.** Explore how pure computations and an
-explicit model for effects and shared resources could prevent data races while
-allowing useful multi-core scaling. Define what the compiler and runtime would
-need to track across task creation, communication, cancellation, and resource
-ownership. Test the idea against representative parallel workloads and compare
-its guarantees, determinism, usability, and overhead with simpler alternatives.
-Purity alone is not assumed to solve synchronization or scheduling.
+**Idea; bounded investigation proposed, unscheduled.** Expanded at the owner's
+request on 20 October 2026. Establish how Panackelty could use multiple cores for
+CPU work and HTTP applications while preserving explicit effects, safe ownership
+and understandable failure behaviour. No release allocation or implementation
+commitment is made by this record.
+
+The current execution model interleaves independent VM contexts on one owning
+thread. That supports concurrent progress, but does not make Panackelty code run
+in parallel across cores. VM contexts and values cannot currently be shared
+concurrently across threads. Pure source functions do not make reference counts,
+allocation or resource lifetimes thread-safe.
+
+**First investigation: isolated parallel workers.** Compare workers that own their
+execution state and exchange explicitly permitted inputs/results with the simpler
+deployment option of independent server processes behind a load balancer. Treat
+shared-memory language threads as a later design question. Start with independent
+pure computations; investigate copying, serialisation or safe ownership transfer
+rather than assuming existing values can cross the boundary unchanged.
+
+The investigation should deliver a bounded prototype and decision report:
+
+- Define permitted values, effect restrictions, worker/task lifetimes, bounded
+  admission and queues, result ordering, cancellation, failure propagation and
+  shutdown. Server, socket and other resource handles must not cross workers
+  without an explicit ownership contract. Keep task ownership structured so
+  abandoned work cannot silently outlive its caller.
+- Verify results against sequential execution. Exercise rejected transfers,
+  cancellation during work, worker failure, queue saturation and cleanup. Check
+  runtime memory safety as well as source-level guarantees; do not imply purity
+  guarantees deterministic scheduling or safe shared implementation state.
+- Measure representative CPU workloads across one and multiple available cores,
+  recording throughput, latency, CPU utilisation, memory, startup and transfer
+  overhead. Include workloads too small to benefit, repeat measurements and
+  record hardware, revisions and variability. Do not promise linear speedup or
+  choose numeric acceptance thresholds before establishing a baseline.
+- Evaluate HTTP scaling separately: distributing requests across independent
+  processes, and offloading expensive handler computation to isolated workers.
+  Compare throughput and responsiveness under equivalent loads and preserve
+  request limits, failure isolation and shutdown behaviour. Use
+  [GI#553: HTTP load testing and profiling](https://github.com/sproates/panackelty/issues/553)
+  for the HTTP baseline; do not assume CPU execution is the limiting factor.
+- Recommend whether to proceed, revise or defer, with the smallest useful public
+  API, compiler/verifier/runtime changes, platform constraints and remaining
+  safety questions. Any proposed syntax is illustrative until separately agreed.
+
+Initial effort is medium for a deliberately narrow prototype and report;
+production implementation remains uncertain. The main risks are unsafe value
+sharing, transfer costs outweighing useful work, cancellation/resource leaks and
+an API that obscures effects. The runtime maintainer owns the investigation when
+selected, with measurements coordinated through
+[RM#123: Standing performance engineering](standing-performance-engineering--ongoing.md#rm-123)
+and [GI#141: Performance baselines](https://github.com/sproates/panackelty/issues/141).
+The existing [execution design](../../design/EXECUTION_CONCURRENCY_DESIGN.md)
+provides the cooperative starting point; this proposal does not replace it.
+
+Acceptance is a reproducible prototype, safety evidence, measurements and a
+reviewable decision. A negative result is a valid outcome. A production scheduler,
+shared-memory threads, automatic parallelisation, distributed execution and
+changes to the agreed alpha.14–alpha.18 scope are outside this investigation.
+The website's existing research-only description remains accurate; a selected
+public capability or release would need a separate website follow-up.
 
 <a id="rm-147"></a>
 

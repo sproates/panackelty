@@ -308,6 +308,11 @@ Existing RM links remain valid below and lead to their detailed record.
 <a id="further-language-research--unscheduled"></a> [further-language-research--unscheduled](docs/roadmap/records/language-direction-and-differentiation--exploration.md#further-language-research--unscheduled)
 <a id="rm-145"></a> [rm-145](docs/roadmap/records/language-direction-and-differentiation--exploration.md#rm-145)
 <a id="rm-146"></a> [rm-146](docs/roadmap/records/language-direction-and-differentiation--exploration.md#rm-146)
+
+RM#146 now proposes a bounded investigation into isolated multicore workers and
+HTTP scaling, with sequential correctness comparisons, ownership/cancellation
+evidence and measured scaling costs. It remains unscheduled research, with no
+release allocation; see the linked record for scope and acceptance.
 <a id="rm-147"></a> [rm-147](docs/roadmap/records/language-direction-and-differentiation--exploration.md#rm-147)
 <a id="rm-148"></a> [rm-148](docs/roadmap/records/language-direction-and-differentiation--exploration.md#rm-148)
 <a id="error-propagation-shorthand"></a> [error-propagation-shorthand](docs/roadmap/records/language-direction-and-differentiation--exploration.md#error-propagation-shorthand)

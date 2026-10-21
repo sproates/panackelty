@@ -23,7 +23,41 @@ bool builtin_is_async(const Builtin *entry)
     return entry && entry->call == async_service_only;
 }
 
+bool builtin_is_local_state(const Builtin *entry)
+{
+    return entry && (entry->call == builtins_http_state_call ||
+                     entry->call == builtins_http_writer_call ||
+                     entry->call == builtins_http_connection_call);
+}
+
 static const Builtin BUILTINS[] = {
+    {"http_bytes_slice", 3, true, builtins_http_connection_call},
+    {"http_body", 1, false, builtins_http_connection_call},
+    {"http_body_size", 1, false, builtins_http_connection_call},
+    {"http_body_append", 4, false, builtins_http_connection_call},
+    {"http_connection_continue", 1, false, async_service_only},
+    {"http_listen_ordinary", 2, false, async_service_only},
+    {"http_listen_contextual", 2, false, async_service_only},
+    {"http_close", 1, false, async_service_only},
+    {"http_destroy", 1, false, async_service_only},
+    {"http_connection_invoke", 4, false, async_service_only},
+    {"http_connection_writer", 1, false, builtins_http_connection_call},
+    {"http_connection_routes", 1, false, builtins_http_connection_call},
+    {"http_connection_fallback", 1, false, builtins_http_connection_call},
+    {"http_connection_admit", 1, false, builtins_http_connection_call},
+
+    {"http_writer_get_status", 1, false, builtins_http_writer_call},
+    {"http_writer_get_headers", 1, false, builtins_http_writer_call},
+    {"http_writer_reject", 1, false, builtins_http_writer_call},
+    {"http_writer_status", 2, false, builtins_http_writer_call},
+    {"http_writer_headers", 2, false, builtins_http_writer_call},
+    {"http_writer_commit", 2, false, builtins_http_writer_call},
+
+    {"http_state_create", 3, false, builtins_http_state_call},
+    {"http_state_context", 1, true, builtins_http_state_call},
+    {"http_state_setup_error", 1, false, builtins_http_state_call},
+    {"http_state_fail_setup", 1, false, builtins_http_state_call},
+    {"http_state_register", 4, false, builtins_http_state_call},
     {"tcp_service", 6, false, async_service_only},
     {"host_arguments_async", 0, false, async_service_only},
     {"host_stdout_async", 1, false, async_service_only},

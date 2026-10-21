@@ -1,5 +1,3 @@
-import stdlib/text as std_text
-import stdlib/path as std_path
 import project/src/bytecode/decoder::{valid_utf8}
 import stdlib/bytes as byte_buffer
 
@@ -80,7 +78,7 @@ pure manifest_json_whitespace(value: Nat): Bool {
 
 pure manifest_json_skip_whitespace(data: Bytes, cursor: Nat): Nat {
   mut next = cursor
-  while next < byte_buffer.length(data) && manifest_json_whitespace(byte_buffer.at(data, next)) {
+  while next < data.length() && manifest_json_whitespace(data.at(next)) {
     next = next + 1
   }
   next
@@ -106,10 +104,10 @@ pure manifest_json_hex_quad(data: Bytes, cursor: Nat): Result[ParsedManifestHex,
   mut next = cursor
   mut failure: Option[PackageManifestError] = None()
   while next < cursor + 4 && failure == None() {
-    if next >= byte_buffer.length(data) {
+    if next >= data.length() {
       failure = Some(manifest_error("truncated JSON Unicode escape", next))
     } else {
-      match manifest_json_hex_digit(byte_buffer.at(data, next)) {
+      match manifest_json_hex_digit(data.at(next)) {
         Some(digit) => {
           value = value * 16 + digit
           next = next + 1
@@ -126,20 +124,17 @@ pure manifest_json_hex_quad(data: Bytes, cursor: Nat): Result[ParsedManifestHex,
 
 pure manifest_json_append_code_point(output: Bytes, value: Nat): Bytes {
   if value <= 127 {
-    byte_buffer.push(output, value)
+    output.push(value)
   } else if value <= 2047 {
-    byte_buffer.push(byte_buffer.push(output, 192 + quotient(value, 64)), 128 + value % 64)
+    output.push(192 + value.divide(64)).push(128 + value % 64)
   } else if value <= 65535 {
-    byte_buffer.push(
-      byte_buffer.push(byte_buffer.push(output, 224 + quotient(value, 4096)),
-        128 + quotient(value, 64) % 64),
+    output.push(224 + value.divide(4096)).push(
+        128 + value.divide(64) % 64).push(
       128 + value % 64)
   } else {
-    byte_buffer.push(
-      byte_buffer.push(
-        byte_buffer.push(byte_buffer.push(output, 240 + quotient(value, 262144)),
-          128 + quotient(value, 4096) % 64),
-        128 + quotient(value, 64) % 64),
+    output.push(240 + value.divide(262144)).push(
+          128 + value.divide(4096) % 64).push(
+        128 + value.divide(64) % 64).push(
       128 + value % 64)
   }
 }
@@ -155,31 +150,31 @@ pure manifest_nat_offset(value: Nat, base: Nat): Nat {
 }
 
 pure parse_manifest_json_string(data: Bytes, cursor: Nat): Result[ParsedManifestString, PackageManifestError] {
-  if cursor >= byte_buffer.length(data) || byte_buffer.at(data, cursor) != 34 {
+  if cursor >= data.length() || data.at(cursor) != 34 {
     Error(manifest_error("expected JSON string", cursor))
   } else {
     mut output: Bytes = byte_buffer.empty()
     mut next = cursor + 1
     mut closed = false
     mut failure: Option[PackageManifestError] = None()
-    while next < byte_buffer.length(data) && !closed && failure == None() {
-      value: Nat = byte_buffer.at(data, next)
+    while next < data.length() && !closed && failure == None() {
+      value: Nat = data.at(next)
       if value == 34 {
         next = next + 1
         closed = true
       } else if value < 32 {
         failure = Some(manifest_error("unescaped control byte in JSON string", next))
       } else if value == 92 {
-        if next + 1 >= byte_buffer.length(data) {
+        if next + 1 >= data.length() {
           failure = Some(manifest_error("truncated JSON escape", next))
         } else {
-          escaped: Nat = byte_buffer.at(data, next + 1)
+          escaped: Nat = data.at(next + 1)
           if escaped == 34 || escaped == 92 || escaped == 47 {
-            output = byte_buffer.push(output, escaped)
+            output = output.push(escaped)
             next = next + 2
           } else if escaped == 98 || escaped == 102 || escaped == 110 ||
               escaped == 114 || escaped == 116 {
-            output = byte_buffer.push(output, if escaped == 98 { 8 } else {
+            output = output.push(if escaped == 98 { 8 } else {
               if escaped == 102 { 12 } else { if escaped == 110 { 10 } else {
                 if escaped == 114 { 13 } else { 9 } } } })
             next = next + 2
@@ -188,8 +183,8 @@ pure parse_manifest_json_string(data: Bytes, cursor: Nat): Result[ParsedManifest
               Error(error) => { failure = Some(error) },
               Ok(first) => {
                 if first.value >= 55296 && first.value <= 56319 {
-                  if first.next + 2 > byte_buffer.length(data) ||
-                      byte_buffer.at(data, first.next) != 92 || byte_buffer.at(data, first.next + 1) != 117 {
+                  if first.next + 2 > data.length() ||
+                      data.at(first.next) != 92 || data.at(first.next + 1) != 117 {
                     failure = Some(manifest_error("unpaired high surrogate in JSON string", next))
                   } else {
                     match manifest_json_hex_quad(data, first.next + 2) {
@@ -220,13 +215,13 @@ pure parse_manifest_json_string(data: Bytes, cursor: Nat): Result[ParsedManifest
           }
         }
       } else {
-        output = byte_buffer.push(output, value)
+        output = output.push(value)
         next = next + 1
       }
     }
     if failure != None() { match failure { Some(error) => Error(error), None() => Error(manifest_error("invalid JSON string", next)) } }
     else if !closed { Error(manifest_error("unterminated JSON string", cursor)) }
-    else { Ok(ParsedManifestString(std_text.decode_utf8(output), next)) }
+    else { Ok(ParsedManifestString(output.decode_utf8(), next)) }
   }
 }
 
@@ -244,10 +239,10 @@ pure manifest_json_literal_byte(character: Str): Nat {
 }
 
 pure manifest_json_literal_matches(data: Bytes, cursor: Nat, literal: Str): Bool {
-  mut matches = cursor + len(literal) <= byte_buffer.length(data)
+  mut matches = cursor + literal.len() <= data.length()
   mut index: Nat = 0
-  while index < len(literal) && matches {
-    matches = byte_buffer.at(data, cursor + index) == manifest_json_literal_byte(literal[index])
+  while index < literal.len() && matches {
+    matches = data.at(cursor + index) == manifest_json_literal_byte(literal[index])
     index = index + 1
   }
   matches
@@ -257,57 +252,57 @@ pure parse_manifest_json_number(data: Bytes, cursor: Nat): Result[ParsedManifest
   mut next = cursor
   mut output: Bytes = byte_buffer.empty()
   mut valid = true
-  if next < byte_buffer.length(data) && byte_buffer.at(data, next) == 45 {
-    output = byte_buffer.push(output, 45)
+  if next < data.length() && data.at(next) == 45 {
+    output = output.push(45)
     next = next + 1
   }
-  if next >= byte_buffer.length(data) {
+  if next >= data.length() {
     valid = false
-  } else if byte_buffer.at(data, next) == 48 {
-    output = byte_buffer.push(output, 48)
+  } else if data.at(next) == 48 {
+    output = output.push(48)
     next = next + 1
-    if next < byte_buffer.length(data) && manifest_json_digit(byte_buffer.at(data, next)) {
+    if next < data.length() && manifest_json_digit(data.at(next)) {
       valid = false
     }
-  } else if manifest_json_nonzero_digit(byte_buffer.at(data, next)) {
-    while next < byte_buffer.length(data) && manifest_json_digit(byte_buffer.at(data, next)) {
-      output = byte_buffer.push(output, byte_buffer.at(data, next))
+  } else if manifest_json_nonzero_digit(data.at(next)) {
+    while next < data.length() && manifest_json_digit(data.at(next)) {
+      output = output.push(data.at(next))
       next = next + 1
     }
   } else {
     valid = false
   }
-  if valid && next < byte_buffer.length(data) && byte_buffer.at(data, next) == 46 {
-    output = byte_buffer.push(output, 46)
+  if valid && next < data.length() && data.at(next) == 46 {
+    output = output.push(46)
     next = next + 1
-    if next >= byte_buffer.length(data) || !manifest_json_digit(byte_buffer.at(data, next)) {
+    if next >= data.length() || !manifest_json_digit(data.at(next)) {
       valid = false
     } else {
-      while next < byte_buffer.length(data) && manifest_json_digit(byte_buffer.at(data, next)) {
-        output = byte_buffer.push(output, byte_buffer.at(data, next))
+      while next < data.length() && manifest_json_digit(data.at(next)) {
+        output = output.push(data.at(next))
         next = next + 1
       }
     }
   }
-  if valid && next < byte_buffer.length(data) &&
-      (byte_buffer.at(data, next) == 69 || byte_buffer.at(data, next) == 101) {
-    output = byte_buffer.push(output, byte_buffer.at(data, next))
+  if valid && next < data.length() &&
+      (data.at(next) == 69 || data.at(next) == 101) {
+    output = output.push(data.at(next))
     next = next + 1
-    if next < byte_buffer.length(data) && (byte_buffer.at(data, next) == 43 || byte_buffer.at(data, next) == 45) {
-      output = byte_buffer.push(output, byte_buffer.at(data, next))
+    if next < data.length() && (data.at(next) == 43 || data.at(next) == 45) {
+      output = output.push(data.at(next))
       next = next + 1
     }
-    if next >= byte_buffer.length(data) || !manifest_json_digit(byte_buffer.at(data, next)) {
+    if next >= data.length() || !manifest_json_digit(data.at(next)) {
       valid = false
     } else {
-      while next < byte_buffer.length(data) && manifest_json_digit(byte_buffer.at(data, next)) {
-        output = byte_buffer.push(output, byte_buffer.at(data, next))
+      while next < data.length() && manifest_json_digit(data.at(next)) {
+        output = output.push(data.at(next))
         next = next + 1
       }
     }
   }
   if valid {
-    Ok(ParsedManifestJson(ManifestJsonNumber(std_text.decode_utf8(output)), next))
+    Ok(ParsedManifestJson(ManifestJsonNumber(output.decode_utf8()), next))
   } else {
     Error(manifest_error("invalid JSON number", cursor))
   }
@@ -316,21 +311,21 @@ pure parse_manifest_json_number(data: Bytes, cursor: Nat): Result[ParsedManifest
 pure parse_manifest_json_array(data: Bytes, cursor: Nat, depth: Nat): Result[ParsedManifestJson, PackageManifestError] {
   mut next = manifest_json_skip_whitespace(data, cursor + 1)
   mut values: [ManifestJsonValue] = []
-  mut done = next < byte_buffer.length(data) && byte_buffer.at(data, next) == 93
+  mut done = next < data.length() && data.at(next) == 93
   mut failure: Option[PackageManifestError] = None()
   if done { next = next + 1 }
-  while next < byte_buffer.length(data) && !done && failure == None() {
+  while next < data.length() && !done && failure == None() {
     match parse_manifest_json_value(data, next, depth + 1) {
       Error(error) => { failure = Some(error) },
       Ok(parsed) => {
-        values = append(values, parsed.value)
+        values = values.append(parsed.value)
         next = manifest_json_skip_whitespace(data, parsed.next)
-        if next < byte_buffer.length(data) && byte_buffer.at(data, next) == 44 {
+        if next < data.length() && data.at(next) == 44 {
           next = manifest_json_skip_whitespace(data, next + 1)
-          if next >= byte_buffer.length(data) || byte_buffer.at(data, next) == 93 {
+          if next >= data.length() || data.at(next) == 93 {
             failure = Some(manifest_error("trailing comma in JSON array", next))
           }
-        } else if next < byte_buffer.length(data) && byte_buffer.at(data, next) == 93 {
+        } else if next < data.length() && data.at(next) == 93 {
           next = next + 1
           done = true
         } else {
@@ -350,34 +345,34 @@ pure parse_manifest_json_object(data: Bytes, cursor: Nat, depth: Nat): Result[Pa
   mut next = manifest_json_skip_whitespace(data, cursor + 1)
   mut members: [ManifestJsonMember] = []
   mut seen: Map[Str, Bool] = map()
-  mut done = next < byte_buffer.length(data) && byte_buffer.at(data, next) == 125
+  mut done = next < data.length() && data.at(next) == 125
   mut failure: Option[PackageManifestError] = None()
   if done { next = next + 1 }
-  while next < byte_buffer.length(data) && !done && failure == None() {
+  while next < data.length() && !done && failure == None() {
     key_offset: Nat = next
     match parse_manifest_json_string(data, next) {
       Error(error) => { failure = Some(error) },
       Ok(key) => {
-        if map_has(seen, key.value) {
+        if seen.has(key.value) {
           failure = Some(manifest_error("duplicate JSON object key", key_offset))
         } else {
           next = manifest_json_skip_whitespace(data, key.next)
-          if next >= byte_buffer.length(data) || byte_buffer.at(data, next) != 58 {
+          if next >= data.length() || data.at(next) != 58 {
             failure = Some(manifest_error("expected colon after JSON object key", next))
           } else {
             next = manifest_json_skip_whitespace(data, next + 1)
             match parse_manifest_json_value(data, next, depth + 1) {
               Error(error) => { failure = Some(error) },
               Ok(parsed) => {
-                members = append(members, ManifestJsonMember(key.value, parsed.value, key_offset))
-                seen = map_put(seen, key.value, true)
+                members = members.append(ManifestJsonMember(key.value, parsed.value, key_offset))
+                seen = seen.put(key.value, true)
                 next = manifest_json_skip_whitespace(data, parsed.next)
-                if next < byte_buffer.length(data) && byte_buffer.at(data, next) == 44 {
+                if next < data.length() && data.at(next) == 44 {
                   next = manifest_json_skip_whitespace(data, next + 1)
-                  if next >= byte_buffer.length(data) || byte_buffer.at(data, next) == 125 {
+                  if next >= data.length() || data.at(next) == 125 {
                     failure = Some(manifest_error("trailing comma in JSON object", next))
                   }
-                } else if next < byte_buffer.length(data) && byte_buffer.at(data, next) == 125 {
+                } else if next < data.length() && data.at(next) == 125 {
                   next = next + 1
                   done = true
                 } else {
@@ -401,10 +396,10 @@ pure parse_manifest_json_value(data: Bytes, cursor: Nat, depth: Nat): Result[Par
   next: Nat = manifest_json_skip_whitespace(data, cursor)
   if depth > 32 {
     Error(manifest_error("manifest JSON nesting exceeds 32 levels", next))
-  } else if next >= byte_buffer.length(data) {
+  } else if next >= data.length() {
     Error(manifest_error("expected JSON value", next))
   } else {
-    value: Nat = byte_buffer.at(data, next)
+    value: Nat = data.at(next)
     if value == 34 {
       match parse_manifest_json_string(data, next) {
         Error(error) => Error(error),
@@ -429,7 +424,7 @@ pure parse_manifest_json_value(data: Bytes, cursor: Nat, depth: Nat): Result[Par
 }
 
 pure parse_manifest_json(data: Bytes): Result[ManifestJsonValue, PackageManifestError] {
-  if byte_buffer.length(data) > package_manifest_byte_limit() {
+  if data.length() > package_manifest_byte_limit() {
     Error(manifest_error("manifest exceeds 65536-byte limit", package_manifest_byte_limit()))
   } else if !valid_utf8(data) {
     Error(manifest_error("manifest is not valid UTF-8", 0))
@@ -438,7 +433,7 @@ pure parse_manifest_json(data: Bytes): Result[ManifestJsonValue, PackageManifest
       Error(error) => Error(error),
       Ok(parsed) => {
         next: Nat = manifest_json_skip_whitespace(data, parsed.next)
-        if next == byte_buffer.length(data) { Ok(parsed.value) }
+        if next == data.length() { Ok(parsed.value) }
         else { Error(manifest_error("trailing data after JSON value", next)) }
       }
     }
@@ -513,12 +508,12 @@ pure manifest_ascii_digit(character: Str): Bool {
 }
 
 pure manifest_identifier(value: Str): Bool {
-  if len(value) == 0 { false }
+  if value.len() == 0 { false }
   else {
     first: Str = value[0]
     mut valid = manifest_ascii_letter(first) || first == "_"
     mut cursor: Nat = 1
-    while cursor < len(value) && valid {
+    while cursor < value.len() && valid {
       character: Str = value[cursor]
       valid = manifest_ascii_letter(character) || manifest_ascii_digit(character) || character == "_"
       cursor = cursor + 1
@@ -528,14 +523,14 @@ pure manifest_identifier(value: Str): Bool {
 }
 
 pure manifest_package_name(value: Str): Bool {
-  if len(value) == 0 { false }
+  if value.len() == 0 { false }
   else {
     mut segment_start: Nat = 0
     mut cursor: Nat = 0
     mut valid = true
-    while cursor <= len(value) && valid {
-      if cursor == len(value) || value[cursor] == "." {
-        segment: Str = slice(value, segment_start, cursor)
+    while cursor <= value.len() && valid {
+      if cursor == value.len() || value[cursor] == "." {
+        segment: Str = value.slice(segment_start, cursor)
         valid = manifest_identifier(segment)
         segment_start = cursor + 1
       } else {
@@ -549,14 +544,14 @@ pure manifest_package_name(value: Str): Bool {
 }
 
 pure manifest_logical_path(value: Str): Bool {
-  if len(value) == 0 { false }
+  if value.len() == 0 { false }
   else {
     mut segment_start: Nat = 0
     mut cursor: Nat = 0
     mut valid = true
-    while cursor <= len(value) && valid {
-      if cursor == len(value) || value[cursor] == "/" {
-        valid = manifest_identifier(slice(value, segment_start, cursor))
+    while cursor <= value.len() && valid {
+      if cursor == value.len() || value[cursor] == "/" {
+        valid = manifest_identifier(value.slice(segment_start, cursor))
         segment_start = cursor + 1
       }
       cursor = cursor + 1
@@ -575,29 +570,29 @@ pure manifest_relative_path_error(
   require_source_suffix: Bool,
   offset: Nat
 ): Option[PackageManifestError] {
-  encoded: Bytes = std_text.encode_utf8(value)
+  encoded: Bytes = value.encode_utf8()
   mut failure: Option[PackageManifestError] = None()
   mut byte_index: Nat = 0
-  while byte_index < byte_buffer.length(encoded) && failure == None() {
-    if byte_buffer.at(encoded, byte_index) == 0 {
+  while byte_index < encoded.length() && failure == None() {
+    if encoded.at(byte_index) == 0 {
       failure = Some(manifest_error("manifest paths cannot contain NUL", offset))
     }
     byte_index = byte_index + 1
   }
   if failure != None() { failure }
-  else if len(value) == 0 {
+  else if value.len() == 0 {
     Some(manifest_error("manifest paths cannot be empty", offset))
   } else if value[0] == "/" || value[0] == "\\" ||
-      (len(value) >= 2 && manifest_ascii_letter(value[0]) && value[1] == ":") {
+      (value.len() >= 2 && manifest_ascii_letter(value[0]) && value[1] == ":") {
     Some(manifest_error("manifest paths must be relative", offset))
   } else {
     mut cursor: Nat = 0
     mut segment_start: Nat = 0
     mut valid = true
-    while cursor <= len(value) && valid {
-      if cursor == len(value) || value[cursor] == "/" {
-        segment: Str = slice(value, segment_start, cursor)
-        valid = len(segment) > 0 && (allow_parent || (segment != "." && segment != ".."))
+    while cursor <= value.len() && valid {
+      if cursor == value.len() || value[cursor] == "/" {
+        segment: Str = value.slice(segment_start, cursor)
+        valid = segment.len() > 0 && (allow_parent || (segment != "." && segment != ".."))
         segment_start = cursor + 1
       } else {
         valid = value[cursor] != "\\"
@@ -621,7 +616,7 @@ pure manifest_numeric_version_part(value: Str, start: Nat, end: Nat): Bool {
     part_length = part_length + 1
     cursor = cursor + 1
   }
-  first_character: Str = if start < len(value) { value[start] } else { "" }
+  first_character: Str = if start < value.len() { value[start] } else { "" }
   if start >= end || (part_length > 1 && first_character == "0") { false }
   else {
     mut valid = true
@@ -677,12 +672,12 @@ pure manifest_semver(value: Str): Bool {
   mut dash: Option[Nat] = None()
   mut cursor: Nat = 0
   mut valid = true
-  while cursor < len(value) && dash == None() {
+  while cursor < value.len() && dash == None() {
     if value[cursor] == "+" { valid = false }
     if value[cursor] == "-" { dash = Some(cursor) }
     cursor = cursor + 1
   }
-  core_end: Nat = match dash { Some(index) => index, None() => len(value) }
+  core_end: Nat = match dash { Some(index) => index, None() => value.len() }
   mut segment_start: Nat = 0
   mut components: Nat = 0
   cursor = 0
@@ -696,7 +691,7 @@ pure manifest_semver(value: Str): Bool {
   }
   valid = valid && components == 3
   match dash {
-    Some(index) => valid && manifest_prerelease_part(value, index + 1, len(value)),
+    Some(index) => valid && manifest_prerelease_part(value, index + 1, value.len()),
     None() => valid
   }
 }
@@ -713,7 +708,7 @@ pure manifest_manifest_exports(value: ManifestJsonValue): Result[[PackageManifes
         match member.value {
           ManifestJsonString(path) => match manifest_relative_path_error(path, false, true, member.offset) {
             Some(error) => if failure == None() { failure = Some(error) },
-            None() => { exports = append(exports, PackageManifestExport(member.key, path)) }
+            None() => { exports = exports.append(PackageManifestExport(member.key, path)) }
           },
           ManifestJsonNull() => if failure == None() { failure = Some(manifest_error("export paths must be strings", member.offset)) },
           ManifestJsonBool(flag) => if failure == None() { failure = Some(manifest_error("export paths must be strings", member.offset)) },
@@ -752,7 +747,7 @@ pure manifest_manifest_dependencies(value: ManifestJsonValue): Result[[PackageMa
               Ok(path) => match manifest_json_object_field(member.value, "path") {
                 Some(path_field) => match manifest_relative_path_error(path, true, false, path_field.offset) {
                   Some(error) => { failure = Some(error) },
-                  None() => { dependencies = append(dependencies, PackageManifestDependency(member.key, path)) }
+                  None() => { dependencies = dependencies.append(PackageManifestDependency(member.key, path)) }
                 },
                 None() => { failure = Some(manifest_error("dependency path is required", member.offset)) }
               }

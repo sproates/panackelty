@@ -2,13 +2,13 @@ import stdlib/testing_commands as std_testing_commands
 import stdlib/testing_commands::{ProcessOutput, HostError}
 import stdlib/testing as std_testing
 main(): Void {
-  expected = ProcessOutput(0, 0, utf8_encode("out"), utf8_encode("err"))
+  expected = ProcessOutput(0, 0, "out".encode_utf8(), "err".encode_utf8())
   print(std_testing.report([
     std_testing_commands.command_output("match", expected, expected),
     std_testing_commands.command_output("exit", ProcessOutput(2, 0, bytes(), bytes()), expected),
     std_testing_commands.command_output("signal", ProcessOutput(0, 9, bytes(), bytes()), expected),
-    std_testing_commands.command_output("stdout", ProcessOutput(0, 0, bytes(), utf8_encode("err")), expected),
-    std_testing_commands.command_output("stderr", ProcessOutput(0, 0, utf8_encode("out"), bytes()), expected),
+    std_testing_commands.command_output("stdout", ProcessOutput(0, 0, bytes(), "err".encode_utf8()), expected),
+    std_testing_commands.command_output("stderr", ProcessOutput(0, 0, "out".encode_utf8(), bytes()), expected),
     std_testing_commands.command_result("host", Error(HostError("process", "timeout", 0)), expected)
   ]))
 }

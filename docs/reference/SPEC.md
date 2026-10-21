@@ -63,14 +63,14 @@ x = ten.nat()     // Nat, exactly 10
 half = (1/2).dec() // Dec, exactly 0.5
 ```
 
-`value.nat()` (also `nat(value)`) accepts `Rat` and returns `Nat` only when the
+`value.nat()` accepts `Rat` and returns `Nat` only when the
 value is integral and non-negative; otherwise it traps without truncating.
-`value.dec()` (also `dec(value)`) accepts `Rat` and returns its exact finite
+`value.dec()` accepts `Rat` and returns its exact finite
 `Dec` representation, or traps when the reduced denominator contains factors
 other than two and five. Rounded decimal conversion and checked `Result`
 conversion APIs remain deferred. These operations are pure despite being partial.
 
-`quotient(a, b)` accepts two `Nat` values and returns their truncated natural
+`a.divide(b)` accepts two `Nat` values and returns their truncated natural
 quotient; it traps for a zero divisor. This explicit operation replaces former
 uses of integer `/` for byte packing and integer algorithms. `%` remains the
 integer remainder operation (with the divisor's sign for signed operands).
@@ -110,13 +110,13 @@ or containment within a directory.
 | `path.from_text(Str)` | `Result[Path,PathError]`; checked UTF-8 construction |
 | `path.from_native(Bytes)` | `Result[Path,PathError]`; checked native-byte construction |
 | `path.current()` | `Path` containing `.`; does not capture the working directory |
-| `path.native_bytes(Path)` | Exact native `Bytes` |
-| `path.to_text(Path)` | `Result[Str,PathError]`; `PathNotUtf8` on invalid UTF-8 |
-| `path.display(Path)` | ASCII `Str`; escapes backslash, controls, and non-ASCII bytes as lowercase `\xhh` |
-| `path.is_absolute(Path)` | `Bool`; whether the first byte is `/` |
-| `path.join(Path, Path)` | `Result[Path,PathError]`; rejects an absolute right operand with `AbsolutePathAppend` |
-| `path.directory(Path)` | Lexical parent `Path`; a bare component has parent `.` and a root is its own parent |
-| `path.filename(Path)` | `Option[Path]`; last nonempty component, or `None` for a root |
+| `value.native_bytes()` | Exact native `Bytes` |
+| `value.to_text()` | `Result[Str,PathError]`; `PathNotUtf8` on invalid UTF-8 |
+| `value.display()` | ASCII `Str`; escapes backslash, controls, and non-ASCII bytes as lowercase `\xhh` |
+| `value.is_absolute()` | `Bool`; whether the first byte is `/` |
+| `base.join(child)` | `Result[Path,PathError]`; rejects an absolute right operand with `AbsolutePathAppend` |
+| `value.directory()` | Lexical parent `Path`; a bare component has parent `.` and a root is its own parent |
+| `value.filename()` | `Option[Path]`; last nonempty component, or `None` for a root |
 
 Appending inserts `/` only when the left operand does not already end with it.
 No operation collapses `.` or `..`, resolves symbolic links, changes case, or
@@ -146,14 +146,14 @@ at their boundaries, as specified below.
 | --- | --- |
 | `time.from_nanoseconds(Int)` | Exact `Duration` |
 | `time.milliseconds(Int)` / `time.seconds(Int)` | Exact scaled `Duration` |
-| `time.ticks(Duration)` | Signed `Int` nanoseconds |
+| `duration.ticks()` | Signed `Int` nanoseconds |
 | `time.from_seconds(Rat)` | `Result[Duration,DurationError]`; rejects fractional nanoseconds |
-| `time.as_seconds(Duration)` | Exact `Rat`, without rounding |
-| `time.add(Duration, Duration)` / `time.subtract(Duration, Duration)` | Exact `Duration` |
-| `time.scale(Duration, Int)` | Exact `Duration` |
-| `time.divide(Duration, Int)` | `Result[Duration,DurationError]`; requires an exact integer number of nanoseconds |
-| `time.ratio(Duration, Duration)` | `Result[Rat,DurationError]`; exact dimensionless ratio |
-| `time.is_before(Duration, Duration)` | `Bool`; signed less-than comparison |
+| `duration.as_seconds()` | Exact `Rat`, without rounding |
+| `left.add(right)` / `left.subtract(right)` | Exact `Duration` |
+| `duration.scale(factor)` | Exact `Duration` |
+| `duration.divide(divisor)` | `Result[Duration,DurationError]`; requires an exact integer number of nanoseconds |
+| `left.ratio(right)` | `Result[Rat,DurationError]`; exact dimensionless ratio |
+| `left.is_before(right)` | `Bool`; signed less-than comparison |
 
 `DurationError` is `FractionalNanosecond` or `ZeroDurationDivisor`.
 Construction from seconds accepts an explicitly rational expression such as
@@ -172,9 +172,9 @@ returns `Error(ClockUnavailable())`. All other operations here are pure:
 
 | Function | Result and behavior |
 | --- | --- |
-| `time.add_instant(Instant, Duration)` | A shifted `Instant`, including for negative durations |
-| `time.difference(Instant, Instant)` | Signed `Duration`: first operand minus second |
-| `time.is_before_instant(Instant, Instant)` | `Bool`; strict less-than comparison |
+| `instant.add(duration)` | A shifted `Instant`, including for negative durations |
+| `left.difference(right)` | Signed `Duration`: first operand minus second |
+| `left.is_before(right)` | `Bool`; strict less-than comparison |
 
 All instants obtainable within one program execution share one monotonic clock
 domain. Repeated reads may be equal; later reads do not precede earlier reads.
@@ -209,52 +209,154 @@ main(): Void {
 }
 ```
 
-A call may use receiver-first method syntax. `receiver.name(arguments)` is
-defined as `name(receiver, arguments)`: the receiver becomes argument 1, and
-the remaining arguments retain their order. The callable is resolved in the
-same module-wide namespace as an ordinary call, then the receiver participates
-in the usual argument checking, generic inference, and purity checking.
+<a id="type-owned-methods-next"></a>
 
-```panackelty
-pure increment(value: Nat, amount: Nat): Nat { value + amount }
+### Type-owned methods (alpha.14)
+
+Methods use `receiver.method(arguments)`. Lookup selects a declaration owned by
+the receiver's checked type; an ordinary function with the same name cannot
+capture the call. The receiver and explicit arguments are evaluated once, in
+that order. Namespace calls such as `time.now()` and record field access such as
+`box.value` retain their meanings. A lexical value shadows a namespace alias;
+a failed namespace lookup never becomes a method call, and a failed method lookup
+never becomes a namespace or global call. Selectively imported declarations
+retain their local-binding collision checks.
+
+`value.name(...)` selects a method even when a callable field has that name.
+Invoke that field explicitly with `(value.name).call(...)`. The temporary
+`receiver->method(...)` syntax is rejected. Compiler, library and maintained
+application sources use owned dots.
+
+Core provides owned string, array, collection, byte, numeric, path, duration,
+instant and callable operations. For example, `items.append(42).len()` and
+`values.put("key", 1).get("key")` resolve through owned declarations. The old
+receiver-function globals and module wrappers are removed. Use a typed receiver
+when an empty collection cannot supply its element type: `items: [Str] = []`,
+then `items.first()`. Generic owner arguments belong to the receiver type.
+
+```panack
+record Fruit { value: Nat }
+
+impl Fruit {
+  pure apple(): Nat { self.value }
+  pure banana(): Nat { self.value + 1 }
+}
 
 main(): Void {
-  values: [Nat] = [40.increment(2)].append(43)
-  print(values.len())
+  first: Fruit = Fruit(10)
+  second: Fruit = Fruit(20)
+  print(first.apple())
+  print(first.banana())
+  print(second.apple())
+  print(second.banana())
 }
 ```
 
-Method syntax does not declare members or introduce overloads. A dot-name
-without parentheses remains record-field access, while a dot-name followed by
-parentheses is always a method call: `box.value` reads a field, but
-`box.value()` looks up the global callable `value` and supplies `box` as its
-first argument. Unknown callables and receiver type mismatches are diagnosed
-exactly as for the corresponding ordinary call; receiver mismatches therefore
-refer to argument 1. Postfix field access, indexing, and method calls may be
-chained from left to right. Because constructor calls share the global callable
-namespace, the same lowering applies to them, although normal arity and type
-rules still govern whether such a call is useful.
+This prints `10`, `11`, `20`, `21` on separate lines. Each method belongs to its
+record type; the receiver is supplied as immutable `self`. Arrow lookup uses the
+receiver's checked nominal type and never falls back to an ordinary global
+function. Different record types can own methods with the same name. The receiver
+and explicit arguments are evaluated once, in that order. Ordinary argument,
+return-type and purity checking still applies. Methods may call other methods
+through `self.name()`.
 
-Standard core methods are available without imports. `Str` provides `len`,
-`slice`, `starts_with`, `starts_with_at`, `ends_with`, `reverse`, `is_digit`,
-`is_letter`, `is_whitespace` and `parse_nat`. Arrays provide `len`, `append`,
-`concat`, `map`, `reduce`, `first` and `sort_by`. `first()` returns `Option[T]`;
-use `[].first[Str]()` when an empty receiver provides no element-type evidence.
-`parse_nat()` has the same checked parsing/trap contract as `nat_from_str`.
-Standard method names select their compiler/core operation, with the receiver
-checked against its signature; unrelated global functions named `ends_with`,
-`first`, `sort_by` or `parse_nat` cannot capture those calls. Other names retain
-the ordinary receiver-first rule. These methods do not introduce unqualified
-functions of the same name. Existing globally reserved VM primitives remain
-reserved. Record field access without parentheses is unchanged.
+Methods are private to their defining module unless declared `pub`. Exporting a
+record and importing it is sufficient to call its public methods; no separate
+method import is required. For example, `fruit.panack` can contain:
 
-Four collection names are additional method-only exceptions to global lookup. `put` and
-`get` require a `Map[K,V]` receiver, `add` requires a `Set[T]` receiver, and
-`has` accepts either a map/key pair or a set/element pair. These names are
-resolved from the receiver type and do not reserve the corresponding global
-function names: a program may still declare an unrelated function named
-`add`, but `value.add(item)` always selects the collection method. Their
-internal bytecode call names are not source identifiers.
+```panack
+pub record Fruit { value: Nat }
+
+impl Fruit {
+  pub pure apple(): Nat { self.value }
+  pub pure banana(): Nat { self.next_value() }
+  pure next_value(): Nat { self.value + 1 }
+}
+```
+
+A caller can import and instantiate it with `import "fruit.panack" as fruit` and
+`first = fruit.Fruit(10)`, then call `first.apple()` or `first.banana()`.
+`first.next_value()` is rejected outside the defining module. Public methods
+may use private methods within their implementation. Public methods require a
+public owner type; existing public-signature accessibility checks apply.
+
+Namespace aliases, renamed selective imports and re-exports retain the original
+nominal owner identity. Neither a same-name local type nor a same-name global
+function changes owned-method lookup. Visibility is checked against the original
+method declaration, including when the receiver type is re-exported.
+
+Records and enums may own synchronous methods, including generic owners and
+methods. The owner must be declared in the same module, before or after its impl.
+Implementation binders are explicit and must occur exactly once as the owner's
+type arguments; their names may differ from the type declaration's binders:
+
+```panack
+impl[T] Box[T] {
+  pub pure value(): T { self.item }
+  pub pure replace[U](item: U): Box[U] { Box(item) }
+  pub pure empty[U](): [U] { [] }
+}
+
+pub record Box[T] { item: T }
+```
+
+`Box(42).replace[Str]("hello").value()` returns `"hello"`. The receiver
+supplies implementation parameters; explicit call type arguments supply only
+method parameters. Method parameters can also be inferred from arguments or the
+expected result, as in `values: [Str] = Box(42).empty()`. Known nominal receivers
+may retain argument holes until method arguments or surrounding result constraints
+solve them; an unresolved
+receiver or method type parameter is rejected before emission. Lookup never
+chooses an owner from the method's spelling.
+
+Implementation and method binders must be disjoint and individually unique.
+Specialised impls such as `impl Box[Nat]`, unused implementation binders, explicit
+`self` parameters, assignment to `self`, and duplicate methods across impl blocks
+are rejected. There is no overloading. The canonical core Option and Result enums
+support this declaration mechanism in their defining toolchain module; production
+stdlib receiver API migration is separate work and is not yet delivered.
+
+Only the designated toolchain core module can declare source methods for the
+registered built-in families Nat, Int, Dec, Rat, Bool, Unit, Str, Bytes, Path,
+Duration, Instant, Array, Map and Set. Array implementations use `impl[T] [T]`
+(or `impl[T] Array[T]`); Map and Set use `impl[K,V] Map[K,V]` and `impl[T] Set[T]`.
+These owners are canonical family tags, distinct from nominal declarations.
+The same binder, privacy, purity and duplicate-method rules apply. A user package
+or module named `core.panack` cannot grant itself built-in ownership. The compiler supplies owned intrinsic methods for Map, Set, arrays, text, bytes,
+Nat/Rat and time values; the complete list and acceptance evidence are in the
+[P06 report](../design/type-owned-dispatch/p06-owned-intrinsics.md). These declarations
+have canonical owner identity and typed signatures. Collection and primitive
+operations are pure; callable invocation preserves its receiver effect. Existing
+primitive argument checks, collection behaviour and exact-conversion traps are
+preserved. Source implementations cannot replace registered intrinsics. Arrays
+also provide owned `map` and `reduce`, requiring pure callbacks with the existing
+argument/result contracts. `PureFn`, `Fn` and `AsyncFn` each own `call`; its arity,
+arguments and result are specialised from the receiver's callable signature.
+`await callback.call(args)` retains the existing async boundary. Invoke a callable
+field explicitly as `(value.field).call(args)`.
+
+Core also defines source-owned `Str.ends_with`, `Array[T].first/sort_by`,
+`Option[T].value_or`, `Result[T,E].value_or`, Path's join/text/native-byte/display/
+absolute/directory/filename operations, and Duration's add/subtract/scale/
+is_before/as_seconds/divide/ratio operations. Existing Unicode, stable sorting,
+exact arithmetic, native-byte and error contracts are preserved. Path factories,
+time factories and clock services remain explicit module functions.
+
+`PathError` and `DurationError` have one canonical declaration in core. The path
+and time modules re-export those types and their variants, preserving existing
+imports. `ClockError` remains in time. P12 removes the legacy module wrappers
+and core forwarding helpers; callers use the owned declarations directly.
+See the [P08 report](../design/type-owned-dispatch/p08-core-methods.md).
+
+This does not add implementations for imported nominal types, extension methods,
+traits, inheritance or dynamic dispatch. Async methods use ordinary `async`
+declarations and must be invoked with `await` under the existing effect rules. Guarded nominal types do
+not inherit their underlying built-in family's methods. Method declarations have
+compiler-only identities; they do not introduce ordinary callable names. The project-aware CLI is required, including its regular
+source-file commands or explicit `--project` commands. Standalone parser/backend APIs do not establish executable source validity;
+source acceptance requires module identity checking. Method diagnostics use the source owner and
+method spelling, such as `Fruit.apple`.
+These method rules apply from alpha.14; alpha.13 used the earlier receiver-call contract.
 
 Local type annotations may be omitted. `name = value` declares a new immutable
 local when no local or parameter with that name is visible; otherwise it assigns
@@ -508,26 +610,13 @@ calling a `PureFn` is permitted in pure code. These rules make effect checking
 independent of the eventual runtime target and keep named-reference inference
 deterministic.
 
-Built-ins:
-
-- `print(value): Void` — effectful
-- `read_line(): Str` — effectful
-- `read_file(path: Str): Str` — effectful
-- `write_file(path: Str, contents: Str): Void` — effectful
-- `read_bytes(path: Str): Bytes` — effectful
-- `write_bytes(path: Str, contents: Bytes): Void` — effectful
-- `len(text: Str): Nat` — pure
-- `command_args(): [Str]` — effectful snapshot of program arguments
-- `environment_has(name: Str): Bool` and `environment_get(name: Str): Str` —
-  effectful access to the VM's environment snapshot; `environment_get` traps
-  when the key is absent
-- `eprint(value): Void` and `process_exit(code: Nat): Void` — effectful process boundary
-- `path_resolve`, `file_exists` — effectful filesystem queries
-- `path_parent`, `path_join`, `path_suffix`, `path_with_suffix`, and
-  `path_is_absolute` — pure lexical path operations
-- `run_bytecode(data: Bytes): Void` — effectful verified nested VM execution
-- `run_bytecode_args(data: Bytes, arguments: [Str]): Void` — effectful verified
-  nested execution with an explicit argument snapshot
+Ordinary built-ins are `print(value): Void`, `read_line(): Str`, and
+`write_file(path: Str, contents: Str): Void`, alongside collection/byte constructors.
+Other host operations require explicit service imports: `host.arguments`,
+`host.stderr`, `host.exit`, `host.run`, `environment.get`, and filesystem APIs.
+Compiler-only trapping file/path plumbing uses `compiler_files` and
+`compiler_paths`; these do not restore global aliases. Text, collection and
+conversion operations use owned methods.
 
 The terminal, file, environment, argument, process, and nested-execution calls
 form the stable VM-to-host ABI specified in
@@ -545,18 +634,17 @@ and trap before any filesystem operation rather than being truncated.
 The standard library is an explicit module graph. Core `Option[T]` and
 `Result[T,E]` types, their constructors, and built-in text/collection methods
 are available in every source program. The curated `stdlib/prelude` re-exports
-the `option`, `result`, `byte_buffer`, `text`, `path`, `environment`, `time`,
-`filesystem`, and `process` modules. Host, testing, numeric,
+the `byte_buffer`, `path`, `environment`, `time`,
+`filesystem`, and `process` modules. Host, testing,
 package-filesystem, and TCP APIs remain separate modules. Import domain modules
 and use short names within them, such as `path.from_text` or
-`byte_buffer.join`; the prelude uses `byte_buffer` to preserve the core
+`byte_buffer.empty`; the prelude uses `byte_buffer` to preserve the core
 `bytes()` constructor.
 
 Persistent array, map, and set operations retain their compiler-known
 polymorphic signatures. Storage operations still execute as VM primitives,
-while array `map` and `reduce` retain their compiler lowering. The generic
-`option.value_or[T]` and `result.value_or[T,E]` helpers are ordinary source
-functions; array `first[T]()` remains a core method. Host access remains limited
+while array `map` and `reduce` retain their compiler lowering. Option and Result own generic `value_or` methods; array `first()` is also
+a core method. Host access remains limited
 to the ABI calls identified above.
 
 `len` also accepts arrays and byte buffers.
@@ -599,8 +687,7 @@ types. It is pure string construction, not I/O. Indexing uses a `Nat` and return
 a one-character `Str`. Currently, “character” means a Unicode code point,
 not a user-perceived grapheme cluster; both indexing and `len` use that same
 definition. `text.len()`, `text.slice(start, end)`,
-`text.starts_with(prefix)`, and `text.reverse()` are pure receiver-first
-spellings of their built-ins. `reverse` operates on Unicode code points, so it
+`text.starts_with(prefix)`, and `text.reverse()` are pure owned methods. `reverse` operates on Unicode code points, so it
 preserves each code point while reversing their order; it does not attempt
 grapheme-cluster segmentation. The VM traps on an out-of-bounds string index.
 
@@ -708,12 +795,9 @@ return new collections rather than mutating their receivers. Map keys and set
 elements are currently restricted to scalar types, including `Rat` and `Unit`. `get` traps when a key is
 missing, so callers should use `has` until generic optional lookup is added.
 
-The original `map_put`, `map_has`, `map_get`, `set_add`, and `set_has`
-free-function spellings remain supported as a deliberate bootstrap and source
-compatibility layer. The concise names are available only after a dot, avoiding
-new conflicts in the global function namespace. Array `append` and `concat`
-retain both equivalent free and receiver-first spellings under the uniform
-call-lowering rule.
+Receiver operations use owned dot calls.
+The former global primitive aliases and receiver-to-global sugar remain rejected;
+namespace calls still use dots.
 
 Arrays also provide pure higher-order operations. `values.map(callback)`
 requires `callback: PureFn[T,U]` for `values: Array[T]` and returns a new
@@ -724,16 +808,15 @@ implicit coercion. Both operations traverse from left to right, evaluate the
 receiver, initial value, and callback once, and leave the original array
 unchanged. Effectful callbacks are rejected.
 
-`Bytes` is an immutable byte buffer. Pure operations include `bytes`,
-`byte_append`, `bytes_concat`, `byte_len`, `byte_get`, `utf8_encode`, and
-`utf8_decode`. `read_bytes` and `write_bytes` are effectful. These operations are
-the foundation for moving the bytecode serializer into Panackelty.
+`Bytes` is an immutable byte buffer, constructed with `bytes()` or
+`stdlib/bytes.empty()`. Its pure owned operations include `append`, `concat`,
+`length`, `at`, and `decode_utf8`; `Str.encode_utf8()` produces bytes.
+File reads and writes use explicit filesystem services.
 
-Lexer-oriented pure string operations include `slice`, `starts_with`,
-`starts_with_at`, `is_digit`, `is_letter`, `is_whitespace`, and
-`nat_from_str`. These deliberately recognize the ASCII lexical classes used by
-Panackelty source: digits `0`–`9`, letters `A`–`Z`/`a`–`z`, and space, tab,
-carriage return, and newline. Other Unicode code points remain valid `Str`
+Lexer-oriented pure string methods include `slice`, `starts_with`,
+`starts_with_at`, `is_digit`, `is_letter`, `is_whitespace`, and `parse_nat`.
+The lexical class methods recognize ASCII digits, letters, space, tab,
+carriage return and newline. Other Unicode code points remain valid `Str`
 content but do not belong to these lexer classes.
 
 Boolean `&&` and `||` short-circuit. This is semantically significant for safe
@@ -747,11 +830,9 @@ They are defined once in the bundled `core.panack`; redeclaring their names is
 an error. The loader requires a configured stdlib root containing this core,
 including when `PANACKELTY_STDLIB_PATH` is overridden. The public launcher
 configures the bundled root. No host, testing, or domain-module helper is
-implicitly imported. The explicit
-`stdlib/option` and `stdlib/result` modules provide their generic
-`value_or` helpers within their respective namespaces. Byte and text helpers
-live in `stdlib/bytes` and `stdlib/text`; core string and collection operations
-remain available as methods.
+implicitly imported. Option/Result `value_or`, text operations and numeric
+conversions are owned methods. The former `stdlib/option`, `stdlib/result`,
+`stdlib/text` and `stdlib/numeric` wrapper-only modules have been removed.
 
 Modules support quoted file-relative imports and logical imports:
 
@@ -1074,18 +1155,28 @@ until it returns. Arguments are evaluated once, left to right. There is no dorma
 operation value. Bare async calls, awaiting ordinary calls, awaiting a non-call,
 and await outside an async function are errors. `pure async` is not a declaration.
 
-Async bodies may call pure functions and await async functions; ordinary impure
-functions (including print, files, sleep, process and clock services) are rejected,
-both directly and through callable values or helper bodies. Named async references
+Async bodies may call pure functions, await async functions, and directly call
+checked wrappers around local HTTP resource operations. These local operations
+change an owned server or writer without performing host I/O. The compiler
+recognises the closed native operation set and propagates this permission through
+direct helpers containing only pure calls and those operations. It does not grant
+permission by a method's spelling, and it does not propagate through indirect
+calls. Pure functions still cannot perform these mutations.
+
+Other ordinary impure functions (including print, files, sleep, process and clock
+services) are rejected, both directly and through callable values or helper
+bodies. Adding blocking I/O to a local resource helper removes its permission.
+Bytecode verification independently derives the same direct-call permission;
+there is no producer-supplied trusted flag or new bytecode version. Named async references
 have `AsyncFn[A,...,R]` type and are invoked with `await callback.call(args)`.
 There is no conversion between AsyncFn and Fn/PureFn. Async functions must return
 a value; use Unit for no data. Async main takes no parameters and returns Unit.
 A directly discarded non-Unit await expression must be bound, matched or returned.
 This is a limited result-use check, not proof that every computed value is used.
 
-Use `async_fake_read(fail: Bool): Result[Bytes,Str]`.
+Import `stdlib/testing_async` and use `await testing_async.read(fail)`.
 It is an experimental fixed service, available only via await. The CLI suspends
-then completes it with `Ok(utf8_encode("fake bytes"))` for false or
+then completes it with `Ok("fake bytes".encode_utf8())` for false or
 `Error("fake I/O error")` for true. No file or socket is opened. Hosts may deliver
 other bytes/errors within this exact schema. Wrong completion tags, variant names
 or payload arities trap before source execution resumes. Runtime task cancellation
@@ -1097,8 +1188,8 @@ their behavior when recompiled to v9. See the [executable contract](../../tests/
 
 ### Native TCP exchange (development toolchain)
 
-`tcp_exchange(address: Str, port: Nat, request: Bytes, response_limit: Nat,
-timeout_ms: Nat): Result[Bytes,Str]` is an async builtin. Use `await` inside an
+`tcp.exchange(address: Str, port: Nat, request: Bytes, response_limit: Nat,
+timeout_ms: Nat): Result[Bytes,Str]` is an async service in `stdlib/tcp`. Use `await` inside an
 async function. It opens one native IPv4 TCP connection, sends the request,
 shuts down its write side after all request bytes are sent, reads until peer EOF,
 and closes the connection. Reads may progress while the request is being sent.
@@ -1143,7 +1234,7 @@ The development compiler reserves the new source builtin name.
 Import `stdlib/tcp` for the ordinary `TcpServerLimits` record, then call:
 
 ```panack
-await tcp_serve(address, port, handler, limits)
+await tcp.serve(address, port, handler, limits)
 ```
 
 The async builtin takes `Str`, `Nat`, `AsyncFn[Bytes,Result[Bytes,Str]]` and
@@ -1193,7 +1284,7 @@ and passes that value to it. The operation returns the same ordered finite-serve
 report as `tcp_serve`.
 
 Only an active worker started by `tcp_serve_stream` may await
-`tcp_server_read_chunk(max_bytes)`. The positive `Nat` limit is at most 16,384
+`tcp.read_chunk(max_bytes)`. The positive `Nat` limit is at most 16,384
 bytes. A completion contains up to that many currently available bytes; it may
 contain fewer. `Ok(empty_bytes)` means peer EOF, including on later reads after
 EOF. A socket failure or cumulative per-client `request_limit` breach returns
@@ -1273,50 +1364,68 @@ a time. Embedded services use explicit host stop and do not install signal handl
 Drain is enforced by the existing polling/instruction-budget scheduler, not a hard
 wall-clock guarantee around individual instructions or destructors.
 
-`http/service` composes this transport with the HTTP parser and serializer. Its
-`ServiceLimits` has the same five fields. A `server.ConnectionContext[T]` carries
-configuration, a named `AsyncFn[T,Request,Result[Response,HttpError]]`, and parser/
-serializer limits. Supply a concrete named worker calling
-`server.serve_connection_with_context[T]`; captured closures and generic function
-references are not required. Context and transport limits are independent: either
-can impose a stricter bound. Existing finite `http/server.serve` remains supported.
+The alpha.14 routed HTTP framework is exported by `http/server`; it replaces the
+previous HTTP service/finite-session facades while leaving low-level TCP APIs
+intact. Constructors return `Server` or `ContextualServer[T]`. The bound forms
+accept numeric IPv4; convenience forms bind all interfaces. Registration mutates
+opaque server state through `.get`, `.post`, `.put`, `.delete` and `.fallback`.
+Handlers are named async references, with a typed context parameter for contextual
+servers, and return `Result[Unit,Str]`. Invalid setup is sticky and reported by
+`listen` before binding. Registration after startup is a request/runtime fault.
 
-`server.ConnectionPolicy(methods, error_headers)` and
-`serve_connection_with_policy[T]` allow a caller to select accepted methods and
-headers on connection-generated error responses. The parser's
-`parse_request_for_methods` uses the supplied method list; `parse_request` and
-ordinary connection helpers retain GET/HEAD/POST. A 405 response reports the
-selected methods in Allow. Applications own normal response headers. Header
-serialization validation still applies; callers must supply valid policies.
+`listen` resolves after bind. The runtime retains active listeners after main
+returns. `close` stops admission and drains for at most one second; `destroy`
+cancels immediately. Shutdown is idempotent; a closed server cannot listen again.
+CLI signals and explicit exit perform bounded cleanup. Request children cannot
+forge host handles or resume cancelled host completions.
+
+Requests expose raw path/query, ordered headers and buffered bytes. The four
+supported methods use exact-path routing; unsupported methods never reach a
+handler. A known path with an unsupported or unregistered method returns 405 with
+its registered methods in Allow; an unknown path with an unsupported method lists
+all four. A supported unknown path reaches fallback or receives 404.
+
+Response writers own status, ordered headers and the first committed response.
+Later sends/mutations fault without replacing it. Missing sends, handler Error
+and recoverable request faults produce generic 500 before commitment. The limits
+are sixteen accepted connections, four admitted requests, 16 KiB request/response
+header blocks, 1 MiB request/response bodies and ten seconds from accept to
+completion. Fixed-length and chunked bodies and bounded 100-continue negotiation
+are supported. There is one final response per connection, no keep-alive or TLS.
+See the [HTTP package guide](../../packages/http/README.md#server-alpha14-development-branch)
+and [agreed contract](../design/routed-http-server/contract-snapshot.md) for the
+complete public surface and protocol rules.
 
 ### Static directory service (development toolchain)
 
-`packages/static_http` exports `service.Config(root, address, port, limits, headers)`
+`packages/static_http` exports `service.Config(root, address, port, request_body_limit, response_limit, headers)`
 and asynchronous `serve(config, ready)`. It composes existing HTTP and confined
 filesystem operations without extending the standard library. It validates the
 root and extra headers before binding, pins the root device/inode and rejects
 contents returned from a replacement root. The executable under `tools/http-server`
 is installed as `panack-http-server`; installation compiles its bytecode once.
 
-GET and HEAD serve regular files and `index.html`. A directory with an index and
+GET serves regular files and `index.html`. A directory with an index and
 no trailing slash redirects with 308, preserving the query. Missing indexes and
 inaccessible paths return 404; no directory listing or SPA fallback is supplied.
-Other methods return 405 with Allow: GET, HEAD. Percent decoding occurs once;
+POST, PUT and DELETE return 405 with Allow: GET. The framework rejects other
+methods before the static handler; HEAD error responses omit body bytes.
+Percent decoding occurs once;
 paths must be UTF-8, with no traversal, encoded separators, repeated separators,
 NUL or control bytes. Query strings do not become filenames. Relative symlinks
 are allowed only under the existing confined resolver policy.
 
 Extra headers cannot override framing, Content-Type, Location or Allow, and their
-serialized form must leave 512 bytes of response budget. They apply to errors and
-redirects as well as files. The full serialized GET representation must fit the
+serialized form must leave 512 bytes of response budget. They apply to application errors and
+redirects as well as files, but not framework-generated protocol errors. The full serialized GET representation must fit the
 response limit, including headers; oversize files return 503 with a diagnostic.
-HEAD uses the same bounded read and representation length but emits no body.
 Unexpected read failures return 500; resource exhaustion/root replacement returns
 503. Per-request reads expose edits without a snapshot guarantee. Ranges, TLS,
 compression, watch/rebuild and automatic reload are outside this contract.
 
-Tool defaults are four clients, 16 KiB requests, 1 MiB responses, ten seconds per
-client and one second of signal-driven drain. The [tool guide](../../tools/http-server/README.md)
+Tool application limits are 16 KiB request bodies and 1 MiB serialized responses.
+The framework permits sixteen connections and four admitted requests, with ten
+seconds per connection and one second of signal-driven drain. The [tool guide](../../tools/http-server/README.md)
 defines arguments, readiness and exit codes; the [package guide](../../packages/static_http/README.md)
 defines library configuration and cancellation limits.
 
@@ -1422,3 +1531,20 @@ are explicit. Generic results describe definitions, not specialisations. No user
 code executes and no bytecode or files are emitted. See the
 [command contract](../guides/COMPILER_EXPLANATIONS.md) for exit status, source bounds,
 positions and deliberate limits. Bytecode v9 and numeric semantics are unchanged.
+
+### Standard-library owned caller migration (next)
+
+The standard library and its conformance programs use owned dot calls after
+GI#525 migration. `TestWorkspace` owns the effectful `remove_empty()` method,
+returning `Result[Unit,HostError]` and refusing nonempty directories as before.
+Constructors and host services remain explicit module functions. Generic owner
+arguments belong to a typed receiver binding, not to `value_or` or `sort_by`.
+P12 removes the 32 receiver-function compatibility exports listed in the
+[P10 register](../design/type-owned-dispatch/p10-stdlib-callers.md), along with
+receiver-to-global lowering and special get/put dispatch. Pure
+`Bytes.decode_utf8` still traps on invalid UTF-8; `host.decode_utf8` returns a
+checked result. P11 migrated maintained callers; P12 replaces the retained
+legacy acceptance tests with owned-dispatch and old-syntax rejection coverage.
+Backend fixtures name internal operations explicitly and do not define the
+public language. The [P12 report](../design/type-owned-dispatch/p12-legacy-removal.md)
+records the boundary and validation.

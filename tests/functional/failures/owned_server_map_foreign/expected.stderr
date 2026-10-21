@@ -1,0 +1,3 @@
+error: <case>/main.panack:2:6: impl requires a local nominal owner with uniform type parameters: Server
+  2 | impl Server { pure extra(): Nat { self.id } }
+    |      ^

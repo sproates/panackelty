@@ -1,8 +1,8 @@
 # HTTP package
 
-Native **0.1.0-alpha.13** includes `panackelty.http` version `0.1.0`.
-It supplies an HTTP/HTTPS client and HTTP server primitives with explicit resource
-limits. To serve files, start with the [static HTTP server tool](../../tools/http-server/README.md).
+Native **0.1.0-alpha.14** includes `panackelty.http` version `0.1.0`.
+Alpha.14 replaces the transport-oriented server API with
+a routed HTTP server framework. The HTTP/HTTPS client remains unchanged. To serve files, start with the [static HTTP server tool](../../tools/http-server/README.md).
 
 ## Add the dependency
 
@@ -10,12 +10,12 @@ In your application's `panack.json`, give `dependencies.http.path` the relative
 path from that manifest to this package. In an extracted release the package is
 at `panackelty/packages/http`. Keep the complete package directory; the manifest
 and exported modules are required. The application and package must use the
-matching `0.1.0-alpha.13` toolchain.
+matching `0.1.0-alpha.14` toolchain.
 
 For example, an application beside the extracted `panackelty/` directory uses:
 
 ```json
-{"schema":1,"package":"my.http_app","version":"0.1.0","language":"modules-v1","toolchain":"0.1.0-alpha.13","source":"src","entry":"main.panack","exports":{},"dependencies":{"http":{"path":"../panackelty/packages/http"}}}
+{"schema":1,"package":"my.http_app","version":"0.1.0","language":"modules-v1","toolchain":"0.1.0-alpha.14","source":"src","entry":"main.panack","exports":{},"dependencies":{"http":{"path":"../panackelty/packages/http"}}}
 ```
 
 Run it with `panack run --project path/to/app/panack.json`. There is no package
@@ -27,10 +27,11 @@ registry lookup or implicit dependency download.
 | --- | --- | --- |
 | `http/types` | `Header`, `Request`, `Response`, typed `HttpError` | [Types](src/types.panack) |
 | `http/client` | `get(url)` and `get_with_limits(url, limits)` | [Client](src/client.panack) |
-| `http/server` | Finite sessions and connection handlers | [Server](src/server.panack) |
-| `http/service` | Continuous service with readiness and shutdown callbacks | [Service](src/service.panack) |
+| `http/server` | Routed servers, requests and response writers | [Server](src/server.panack) |
 
 ### Client
+
+See the [HTTP Client reference](../../docs/reference/http-client.md) for every public function, response type, limit and error, with a complete example.
 
 Import `http/client` with an alias and call `await client.get(url)` inside an
 async function. It returns `Result[Response,HttpError]`; handle both cases.
@@ -45,21 +46,70 @@ redirect, framing and size restrictions.
 
 ### Server
 
-`http/server.serve` is a **finite session**, with a client count, concurrency,
-request/response byte limits, client/admission deadlines and shutdown grace.
-It supports GET, HEAD and POST; HEAD omits body bytes while retaining
-representation headers. The [finite-session fixture](../../examples/network/http_server/README.md)
-accepts one client and stops. Its assertion-style failure handling is intended
-for regression evidence, not as an application template.
+See the complete [HTTP server reference](../../docs/reference/http-server.md)
+for constructor and method signatures, routing, handler errors, lifecycle and
+fixed limits. The runnable ordinary and contextual programs link back to that
+reference.
 
-`http/service.serve` remains available until stopped. It requires a named worker,
-a typed `ConnectionContext`, `ServiceLimits`, and a post-bind readiness callback.
-The caller currently supplies the connection wrapper and error handling; this is
-an explicit low-level interface rather than a one-call web application API.
-The [static service implementation](../static_http/src/service.panack) is a real
-consumer. The [service contract](../../docs/reference/SPEC.md#continuous-native-services-development-toolchain)
-documents lifecycle, cancellation and resource ownership.
+Import `http/server as http`. Create a server, register named async handlers, then
+`await server.listen()`. Successful listening means the socket is bound; the
+listener keeps the native process alive after `main` returns.
 
-The server is plain HTTP on numeric IPv4, with bounded request handling. Do not
-infer TLS termination, arbitrary streaming protocols or a production web framework
-from client HTTPS support.
+```panackelty
+import http/server as http
+async home(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  response.send("Hello")
+  Ok(())
+}
+async main(): Unit {
+  server = http.create_bound_server("127.0.0.1", 8080)
+  server.get("/", @home)
+  match await server.listen() {
+    Ok(done) => (),
+    Error(problem) => ()
+  }
+}
+```
+
+The [runnable example](../../examples/network/http_server/README.md) also reports
+startup errors and accepts a port argument. For shared typed configuration, use
+`create_bound_contextual_server(address, port, context)` and handlers shaped as
+`AsyncFn[T,Request,ResponseWriter,Result[Unit,Str]]`; see the
+[contextual example](../../examples/network/http_contextual_server/README.md).
+`create_server(port)` and `create_contextual_server(port, context)` bind
+`0.0.0.0`, accepting traffic on every IPv4 interface. Use the bound constructors
+with `127.0.0.1` for local-only services.
+
+Register exact paths with `.get`, `.post`, `.put`, `.delete`, or set `.fallback`.
+There are no route parameters, middleware or captured closures. Registration is
+completed before listening; invalid or duplicate registrations make setup fail.
+GET, POST, PUT and DELETE are supported. HEAD and other methods receive 405 and
+do not invoke handlers. HEAD errors carry no body. Missing routes receive 404.
+
+`Request` contains `method`, raw `path`, raw `query` (without `?`), ordered
+`headers` and buffered body bytes. Paths are not URL-decoded. `.header(name)`
+returns the first matching value; `.header_values(name)` preserves duplicates.
+Header lookup is ASCII case-insensitive.
+
+`ResponseWriter` provides `.status`, `.header`, `.add_header`, `.send` and
+`.send_bytes`. Status defaults to 200. Header replacement is case-insensitive;
+`add_header` preserves duplicates. Text defaults to UTF-8 plain text and bytes to
+`application/octet-stream`. Header names are ASCII tokens; values permit printable
+ASCII and tabs under the package policy. The framework owns framing headers. The first send
+commits the response; later mutations cannot replace it. Status 204 and 304 must
+have empty bodies. Returning without sending, returning `Error`, or a recoverable
+request fault produces a bounded 500 unless a response was already committed.
+A failed request does not terminate healthy requests.
+
+The fixed bounds are 16 accepted connections, four admitted requests, 16 KiB of
+request headers, 1 MiB request and response bodies, 16 KiB response headers, and a
+10-second accept-to-completion deadline. Content-Length and chunked bodies are
+buffered before the handler runs; valid `Expect: 100-continue` is handled by the
+framework. Each connection carries one response and closes. There is no keep-alive,
+TLS server, WebSocket, streaming response or HTTP/2 support.
+
+`await server.close()` stops admission and drains existing requests for up to one
+second; `await server.destroy()` cancels immediately. Native SIGINT/SIGTERM and
+explicit process exit perform bounded cleanup. A closed server cannot be restarted.
+The old `http/service` export, finite HTTP sessions, connection contexts and public
+serializer helpers have been removed. Low-level TCP APIs remain separate.

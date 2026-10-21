@@ -28,6 +28,9 @@ Value *builtins_vm_call(VM *vm, const char *name, Value **a)
             a[0]->as.bytes.data, a[0]->as.bytes.length, "nested\n");
         child.coverage = vm_coverage_run_collector(child.coverage_run);
         child.execution = NULL;
+        /* Nested programs own their listeners and must drain them before their
+         * decoded functions are released. The blocked parent cannot pump them. */
+        child.http_runtime = NULL;
         child.program = &nested;
         child.error = NULL;
         Value *result = execute(&child, program_function(&nested, "main"), NULL);
@@ -74,6 +77,9 @@ Value *builtins_vm_call(VM *vm, const char *name, Value **a)
             a[0]->as.bytes.data, a[0]->as.bytes.length, "nested\n");
         child.coverage = vm_coverage_run_collector(child.coverage_run);
         child.execution = NULL;
+        /* Nested programs own their listeners and must drain them before their
+         * decoded functions are released. The blocked parent cannot pump them. */
+        child.http_runtime = NULL;
         child.program = &nested;
         child.argc = (int)a[1]->as.sequence.count;
         child.argv = arguments;

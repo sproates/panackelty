@@ -1,3 +1,3 @@
-error: <case>/main.panack:2:17: cannot assign Str to Path; guard is not proven
+error: <case>/main.panack:2:17: binding value is Str, expected Path
   2 |   value: Path = "unsafe"
     |                 ^

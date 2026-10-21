@@ -1,0 +1,2 @@
+pure use(value: Set[Nat]): Set[Nat] { value.add("x") }
+main(): Void { print(0) }

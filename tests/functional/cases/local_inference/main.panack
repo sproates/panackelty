@@ -32,8 +32,8 @@ main(): Void {
   mut state = "waiting"
   if person.active { state = "ready" }
   print(state)
-  data = utf8_encode(name)
-  print(utf8_decode(data))
+  data = name.encode_utf8()
+  print(data.decode_utf8())
   mut total = 0
   range = 0..3
   for index in range { value = index; total = total + value }

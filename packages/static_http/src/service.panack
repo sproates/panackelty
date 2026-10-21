@@ -1,21 +1,22 @@
 import http/server as http
-import http/service as service
+import http/types::{Response}
+import project/policy::{header_name_valid, header_value_valid, wire_size}
 import project/paths as paths
 import project/mime as mime
 import stdlib/async_filesystem as filesystem
 import stdlib/async_host as host
 import stdlib/bytes as buffer
 import stdlib/path as path
-import stdlib/text as text
 
-pub import http/server::{Header}
-pub import http/service::{ServiceLimits, TcpServiceReady, TcpServiceSummary}
+pub import http/types::{Header}
+pub record Endpoint { address: Str, port: Nat }
 
 pub record Config {
   root: Path,
   address: Str,
   port: Nat,
-  limits: ServiceLimits,
+  request_body_limit: Nat,
+  response_limit: Nat,
   headers: [Header]
 }
 
@@ -26,98 +27,94 @@ record Context {
 
 pure lower(input_text: Str): Str {
   mut output = buffer.empty()
-  input = text.encode_utf8(input_text)
-  for index in 0..buffer.length(input) {
-    value = buffer.at(input, index)
-    output = buffer.push(output, if value >= 65 && value <= 90 { value + 32 } else { value })
+  input = input_text.encode_utf8()
+  for index in 0..input.length() {
+    value = input.at(index)
+    output = output.push(if value >= 65 && value <= 90 { value + 32 } else { value })
   }
-  text.decode_utf8(output)
+  output.decode_utf8()
 }
 
 pure headers_valid(configuration: Config): Bool {
-  mut valid = true
+  mut valid = configuration.request_body_limit <= 1048576 &&
+    configuration.response_limit > 512 && configuration.response_limit <= 1048576
+  mut header_bytes: Nat = 0
   for header in configuration.headers {
     name = lower(header.name)
     if name == "content-length" || name == "transfer-encoding" || name == "connection" ||
-      name == "content-type" || name == "location" || name == "allow" {
-      valid = false
-    }
+      name == "content-type" || name == "location" || name == "allow" ||
+      !header_name_valid(header.name) || !header_value_valid(header.value) { valid = false }
+    header_bytes = header_bytes + header.name.encode_utf8().length() + header.value.encode_utf8().length() + 4
   }
-  if !valid { false }
-  else {
-    match http.serialize_response(http.Response(200, configuration.headers, buffer.empty())) {
-      Error(problem) => false,
-      Ok(wire) => buffer.length(wire) + 512 <= configuration.limits.response_limit
-    }
-  }
+  valid && header_bytes + 512 < configuration.response_limit && header_bytes + 512 <= 16384
 }
 
-pure error_response(configuration: Config, status: Nat, message: Str): http.Response {
+pure error_response(configuration: Config, status: Nat, message: Str): Response {
   headers = configuration.headers.append(Header("Content-Type", "text/plain; charset=utf-8"))
-  http.Response(status, headers, text.encode_utf8(message + "\n"))
+  Response(status, headers, (message + "\n").encode_utf8())
 }
 
-async diagnostic(configuration: Config, status: Nat, message: Str): http.Response {
+async diagnostic(configuration: Config, status: Nat, message: Str): Response {
   ignored = await host.stderr("http-server: " + message)
   error_response(configuration, status, message)
 }
 
-async read_failure(configuration: Config, problem: filesystem.HostError): http.Response {
+async read_failure(configuration: Config, problem: filesystem.HostError): Response {
   code = problem.code
   if code == "not_found" || code == "permission_denied" || code == "not_directory" ||
     code == "not_regular_file" || code == "is_directory" || code == "symlink_loop" ||
     code == "invalid_argument" || code == "out_of_range" {
     error_response(configuration, 404, "Not found")
   } else if code == "output_limit" || code == "resource_limit" {
-    limit = configuration.limits.response_limit
+    limit = configuration.response_limit
     await diagnostic(configuration, 503, "resource limit exceeded (response limit ${limit} bytes)")
   } else {
     await diagnostic(configuration, 500, "file read failed: " + code)
   }
 }
 
-async file_response(context: Context, filename: Str, file: filesystem.FilesystemRootRead): http.Response {
+async file_response(context: Context, filename: Str, file: filesystem.FilesystemRootRead): Response {
   configuration = context.configuration
   if file.identity != context.identity {
     await diagnostic(configuration, 503, "configured root was replaced")
   } else {
-    response = http.Response(200,
+    response = Response(200,
       configuration.headers.append(Header("Content-Type", mime.content_type(lower(filename)))),
       file.contents)
-    match http.serialize_response(response) {
-      Error(problem) => await diagnostic(configuration, 503, "file exceeds serialized response limit"),
-      Ok(wire) => if buffer.length(wire) > configuration.limits.response_limit {
-        await diagnostic(configuration, 503, "file exceeds serialized response limit")
-      } else { response }
-    }
+    if wire_size(response) > configuration.response_limit {
+      await diagnostic(configuration, 503, "file exceeds serialized response limit")
+    } else { response }
   }
 }
 
-async index_response(context: Context, target: paths.Target): http.Response {
+async index_response(context: Context, target: paths.Target): Response {
   configuration = context.configuration
   filename = target.relative + (if target.slash { "" } else { "/" }) + "index.html"
   match path.from_text(filename) {
     Error(problem) => error_response(configuration, 400, "Invalid path"),
     Ok(relative) => match await filesystem.read_beneath(configuration.root, relative,
-      configuration.limits.response_limit) {
+      configuration.response_limit) {
       Error(problem) => await read_failure(configuration, problem),
       Ok(file) => if file.identity != context.identity {
         await diagnostic(configuration, 503, "configured root was replaced")
       } else if !target.slash {
-        http.Response(308, configuration.headers.append(Header("Location", target.redirect)),
+        Response(308, configuration.headers.append(Header("Location", target.redirect)),
           buffer.empty())
       } else { await file_response(context, filename, file) }
     }
   }
 }
 
-async respond(context: Context, request: http.Request): Result[http.Response, http.HttpError] {
+async prepare(context: Context, request: http.Request): Response {
   configuration = context.configuration
-  response = if request.method != "GET" && request.method != "HEAD" {
-    http.Response(405, configuration.headers.append(Header("Allow", "GET, HEAD")),
-      text.encode_utf8("Method not allowed\n"))
+  response = if request.body.length() > configuration.request_body_limit {
+    error_response(configuration, 413, "Content Too Large")
+  } else if request.method != "GET" {
+    Response(405, configuration.headers.append(Header("Allow", "GET")),
+      "Method not allowed\n".encode_utf8())
   } else {
-    match paths.parse(request.target) {
+    raw_target = request.path + (if request.query == "" { "" } else { "?" + request.query })
+    match paths.parse(raw_target) {
       Error(problem) => error_response(configuration, 400, "Invalid URL path"),
       Ok(target) => if target.slash {
         await index_response(context, target)
@@ -125,7 +122,7 @@ async respond(context: Context, request: http.Request): Result[http.Response, ht
         match path.from_text(target.relative) {
           Error(problem) => error_response(configuration, 400, "Invalid path"),
           Ok(relative) => match await filesystem.read_beneath(configuration.root, relative,
-            configuration.limits.response_limit) {
+            configuration.response_limit) {
             Ok(file) => await file_response(context, target.relative, file),
             Error(problem) => if problem.code == "not_regular_file" || problem.code == "is_directory" {
               await index_response(context, target)
@@ -135,50 +132,37 @@ async respond(context: Context, request: http.Request): Result[http.Response, ht
       }
     }
   }
-  Ok(response)
+  response
 }
 
-async worker(context: http.ConnectionContext[Context]): Result[Bytes, Str] {
-  policy = http.ConnectionPolicy(["GET", "HEAD"], context.configuration.configuration.headers)
-  await http.serve_connection_with_policy[Context](context, policy)
-}
-
-pure service_error(problem: http.HttpError): Str {
-  match problem {
-    http.HttpError.InvalidUrl(message) => message,
-    http.HttpError.InvalidLimits() => "InvalidLimits",
-    http.HttpError.DnsFailure() => "DnsFailure",
-    http.HttpError.ConnectFailure() => "ConnectFailure",
-    http.HttpError.TlsFailure() => "TlsFailure",
-    http.HttpError.Timeout() => "Timeout",
-    http.HttpError.ProtocolError(message) => message,
-    http.HttpError.LimitExceeded(message) => message,
-    http.HttpError.Cancelled() => "Cancelled",
-    http.HttpError.UnsupportedHost() => "UnsupportedHost",
-    http.HttpError.UnsupportedMethod(message) => message,
-    http.HttpError.UnsupportedVersion(message) => message,
-    http.HttpError.UnsupportedTransferEncoding() => "UnsupportedTransferEncoding",
-    http.HttpError.InvalidRequest() => "InvalidRequest",
-    http.HttpError.InvalidResponse() => "InvalidResponse",
-    http.HttpError.TransportFailure(message) => message
-  }
+async respond(context: Context, request: http.Request, writer: http.ResponseWriter): Result[Unit,Str] {
+  response = await prepare(context, request)
+  writer.status(response.status)
+  for header in response.headers { writer.add_header(header.name, header.value) }
+  writer.send_bytes(response.body)
+  Ok(())
 }
 
 // Root validation precedes bind/readiness, including roots with no index file.
 pub async serve(configuration: Config,
-  ready: AsyncFn[TcpServiceReady,Result[Unit, Str]]): Result[TcpServiceSummary, Str] {
+  ready: AsyncFn[Endpoint,Result[Unit, Str]]): Result[Unit, Str] {
   if !headers_valid(configuration) { Error("invalid headers or response budget") }
   else {
     match await filesystem.root_identity(configuration.root) {
       Error(problem) => Error("invalid document root: " + problem.code),
       Ok(identity) => {
-        context = Context(configuration, identity)
-        connection: http.ConnectionContext[Context] = http.ConnectionContext(context, @respond,
-          configuration.limits.request_limit, configuration.limits.response_limit)
-        match await service.serve[Context](configuration.address, configuration.port, @worker,
-          connection, configuration.limits, ready) {
-          Ok(summary) => Ok(summary),
-          Error(problem) => Error("HTTP service failed: " + service_error(problem))
+        server = http.create_bound_contextual_server(configuration.address, configuration.port,
+          Context(configuration, identity))
+        server.fallback(@respond)
+        match await server.listen() {
+          Error(problem) => Error("HTTP service failed: " + problem.message),
+          Ok(done) => match await ready.call(Endpoint(configuration.address, configuration.port)) {
+            Ok(ready_done) => Ok(()),
+            Error(problem) => {
+              ignored = await server.destroy()
+              Error(problem)
+            }
+          }
         }
       }
     }

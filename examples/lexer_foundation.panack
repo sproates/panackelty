@@ -26,7 +26,7 @@ record Diagnostic {
 
 pure scan_number(source: Str, start: Nat): Nat {
   mut cursor: Nat = start
-  while cursor < len(source) && is_digit(source[cursor]) {
+  while cursor < source.len() && source[cursor].is_digit() {
     cursor = cursor + 1
   }
   cursor
@@ -34,7 +34,7 @@ pure scan_number(source: Str, start: Nat): Nat {
 
 pure scan_identifier(source: Str, start: Nat): Nat {
   mut cursor: Nat = start
-  while cursor < len(source) && (is_letter(source[cursor]) || is_digit(source[cursor]) || source[cursor] == "_") {
+  while cursor < source.len() && (source[cursor].is_letter() || source[cursor].is_digit() || source[cursor] == "_") {
     cursor = cursor + 1
   }
   cursor
@@ -44,24 +44,24 @@ pure lex(source: Str): Result[[Token],[Diagnostic]] {
   mut tokens: [Token] = []
   mut cursor: Nat = 0
 
-  while cursor < len(source) {
+  while cursor < source.len() {
     character: Str = source[cursor]
 
-    if is_whitespace(character) {
+    if character.is_whitespace() {
       cursor = cursor + 1
-    } else if is_digit(character) {
+    } else if character.is_digit() {
       end: Nat = scan_number(source, cursor)
-      text: Str = slice(source, cursor, end)
-      tokens = append(tokens, Token(Number(), text, cursor, end))
+      text: Str = source.slice(cursor, end)
+      tokens = tokens.append(Token(Number(), text, cursor, end))
       cursor = end
-    } else if is_letter(character) || character == "_" {
+    } else if character.is_letter() || character == "_" {
       end: Nat = scan_identifier(source, cursor)
-      text: Str = slice(source, cursor, end)
-      tokens = append(tokens, Token(Identifier(), text, cursor, end))
+      text: Str = source.slice(cursor, end)
+      tokens = tokens.append(Token(Identifier(), text, cursor, end))
       cursor = end
     } else {
       end: Nat = cursor + 1
-      tokens = append(tokens, Token(Punctuation(), character, cursor, end))
+      tokens = tokens.append(Token(Punctuation(), character, cursor, end))
       cursor = end
     }
   }

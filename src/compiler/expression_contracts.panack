@@ -33,9 +33,9 @@ pub pure decode_string_literal(text: Str): Str {
   mut output: Str = ""
   mut cursor: Nat = 1
 
-  while cursor + 1 < len(text) {
+  while cursor + 1 < text.len() {
     character: Str = text[cursor]
-    if character == "\\" && cursor + 2 < len(text) {
+    if character == "\\" && cursor + 2 < text.len() {
       escape: Str = text[cursor + 1]
       output = output + decoded_escape(escape)
       cursor = cursor + 2
@@ -49,11 +49,11 @@ pub pure decode_string_literal(text: Str): Str {
 }
 
 pub pure interpolation_name_start(character: Str): Bool {
-  is_letter(character) || character == "_"
+  character.is_letter() || character == "_"
 }
 
 pub pure interpolation_name_part(character: Str): Bool {
-  interpolation_name_start(character) || is_digit(character)
+  interpolation_name_start(character) || character.is_digit()
 }
 
 pub pure split_interpolated_string(text: Str): InterpolatedString {
@@ -62,16 +62,16 @@ pub pure split_interpolated_string(text: Str): InterpolatedString {
   mut part_start: Nat = 0
   mut cursor: Nat = 0
 
-  while cursor + 3 < len(text) {
+  while cursor + 3 < text.len() {
     if text[cursor] == "$" && text[cursor + 1] == "{" &&
       interpolation_name_start(text[cursor + 2]) {
       mut end: Nat = cursor + 3
-      while end < len(text) && interpolation_name_part(text[end]) {
+      while end < text.len() && interpolation_name_part(text[end]) {
         end = end + 1
       }
-      if end < len(text) && text[end] == "}" {
-        parts = append(parts, slice(text, part_start, cursor))
-        variables = append(variables, slice(text, cursor + 2, end))
+      if end < text.len() && text[end] == "}" {
+        parts = parts.append(text.slice(part_start, cursor))
+        variables = variables.append(text.slice(cursor + 2, end))
         cursor = end + 1
         part_start = cursor
       } else {
@@ -81,10 +81,10 @@ pub pure split_interpolated_string(text: Str): InterpolatedString {
       cursor = cursor + 1
     }
   }
-  if len(variables) == 0 {
+  if variables.len() == 0 {
     InterpolatedString([], [])
   } else {
-    parts = append(parts, slice(text, part_start, len(text)))
+    parts = parts.append(text.slice(part_start, text.len()))
     InterpolatedString(parts, variables)
   }
 }

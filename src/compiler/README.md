@@ -29,8 +29,8 @@ entries. Production sidecar serialization and validated public CLI lookup are
 documented in `../../docs/guides/SOURCE_MAPS.md`.
 
 - `parser.panack` contains the recursive expression AST and parser for literals,
-  operators, calls, explicit named function references, receiver-first
-  retained dot calls, field access, indexing,
+  operators, calls, explicit named function references, owned receiver calls,
+  retained namespace dot calls, field access, indexing,
   blocks, bindings, assignments, and
   optional local type annotations, including exhaustive value conditionals, optional
   `else` for `Void` conditionals, repeated `else if` arms with an optional final
@@ -40,11 +40,11 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   with complete nested generic and
   array type references. Generic record fields and enum variant payloads are
   parsed alongside pure and impure functions with scoped type parameters and
-  optional explicit type arguments at direct and receiver-first calls. Project
+  optional explicit type arguments at direct and owned receiver calls. Project
   loading executes namespace declaration/import forms and qualified types,
   references and patterns through the identity-aware pipeline. The standalone
-  legacy parser remains available to focused frontend contracts. Dot calls
-  lower to receiver-first calls.
+  raw parser remains available to focused syntax contracts. It preserves dot
+  calls for namespace/value classification; value dots enter owned binding.
   `indexed_program` retains declaration order while
   building separate type/record/enum/function indexes and variant metadata.
   Construct programs through this factory, including synthetic test ASTs.
@@ -89,11 +89,11 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   selective imports, original-identity re-exports, enum selectors and qualified
   functions/types. It validates missing/private/conflicting imports and cycles,
   sharing completed graph nodes across diamonds. Raw use traversal distinguishes
-  namespace receivers before core method lowering and rejects imported aliases
-  colliding with parameters, type parameters, locals, loops or pattern bindings.
-  The raw-use traversal and legacy gate track value scopes independently, preserving
-  value receivers sharing an enum name or legacy default import basename. The
-  implicit guarded-type `value` also participates in import collision checks.
+  namespace receivers before owned binding. Lexical values, including the implicit
+  guarded-type `value`, may shadow namespace aliases. Selectively imported
+  declarations still reject value collisions; type binders still reject all
+  import collisions. The raw-use traversal tracks lexical value scopes, including
+  values sharing an enum name or an import basename.
   Invalid lexical scopes return no misleading reference identities. Core reserved
   names remain for later checked resolution. Expression use spans are exact;
   Match-arm diagnostics point to the arm pattern. Declaration-signature type
@@ -102,8 +102,8 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   Body-local type annotations and explicit call type arguments retain parser
   spans; invalid types, unsupported explicit arguments, and argument-count
   errors point to the corresponding type token, including receiver calls.
-  Receiver-first nonbuiltin helper uses retain their declaration identity too,
-  so public guards cannot hide private helpers behind method spelling.
+  Guard helper calls retain their declaration identity, so public guards cannot
+  expose inaccessible declarations.
   The guard resolver does not itself integrate checked body/effect/emission identities. `parse_program_complete` retains the legacy single-program boundary;
   project commands use the complete checked identity pipeline.
 - `module_signatures.panack` resolves staged declaration signatures to tagged core,
@@ -111,9 +111,9 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   public reachability validates nested fields/payloads/parameters/returns and
   guard dependencies; generic substitution cannot capture another declaration's
   parameters. `LoadedProject.module_signatures` retains the valid contracts for
-  body/effect/emission/tooling migration. When any module is staged, the loader
-  prepares contracts across the graph before binding staged function bodies;
-  ordinary legacy projects skip both passes. Graph scans are not yet indexed.
+  body/effect/emission/tooling migration. The loader
+  prepares contracts across the graph before binding function bodies;
+  all project programs use both passes. Graph scans are not yet indexed.
 - `module_bodies.panack` retains structural bodies with original declaration/core
   targets, lexical binder paths, source spans and tagged local/callable types. The
   explicit explanation load can also retain proof-bearing guarded conversions;
@@ -132,8 +132,7 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   Inferred locals cannot borrow later return evidence or hide behind unrelated
   deferred proofs. Even zero deferred spans does not certify
   effects or executable code. `LoadedProject.module_bodies` supplies the new
-  consumer boundary; the legacy checker/emitter and namespace execution gate
-  remain until coordinated migration. The obsolete full-module raw walk is
+  consumer boundary; project emission consumes these checked identities. The obsolete full-module raw walk is
   removed from production; its low-level contracts use a test-only adapter.
 - The staged body checker validates identity-bound contracts for indirect
   callable invocation, `len`, array `first`/`ends_with`/`sort_by`, `map` and
@@ -236,7 +235,7 @@ pure compile_program(program: Program): BytecodeProgram
 
 Both frontends infer `Rat` from integer division and `Unit` from `()`. Empty
 parentheses lower to the pure internal `$unit` call, so no new AST variant or
-constant tag is needed. Rational conversions use ordinary receiver-first calls.
+constant tag is needed. Rational conversions use owned methods.
 Compiler byte packing uses `quotient` explicitly under bytecode 8.
 
 The checker reserves opaque `Path`, `Duration`, and `Instant` types and checks
@@ -265,7 +264,15 @@ contexts, including inferred callable targets. AsyncFn never coerces to Fn/PureF
 
 ## Implicit core loading
 
-The project loader requires the bundled `core.panack` and loads it once before entry/import traversal. Core function tokens receive internal identities while preserving locations. Standard `ends_with`, `first`, `sort_by` and `parse_nat` dot calls select fixed implementations; signatures enforce receiver types and existing generic/purity rules. Ordinary user receiver-first calls remain supported outside that method set. The emitter omits unreachable core algorithms only; it does not remove user functions. Pure parser/checker test helpers still accept explicit AST/module inputs and do not perform filesystem-based implicit loading.
+The project loader loads bundled `core.panack` once, then checks module declarations,
+bodies and effects before emitting executable code. Owned calls carry selected
+declaration identities through emission. The parser never rewrites receiver dots
+to global calls. Value dots enter the owned-call binder after namespace/value classification.
+The parser rejects the former arrow syntax. Lexical values shadow
+namespace aliases, and lookup failures never cross that boundary. Only designated toolchain declarations may name implementation
+primitives. The emitter prunes unreachable owned core algorithms. Raw backend
+test helpers accept explicit AST operations; they do not establish public source
+acceptance.
 
 ## Mutable guard facts
 
@@ -307,3 +314,99 @@ status, declared callable effects and unsupported transitive/runtime questions.
 source eligibility independently of emitted instructions. `inventory` and
 `inventory-check` use explicit roots, exact compiler/artifact/source identities
 and local replay. See [the contract](../../docs/reference/SOURCE_INVENTORY.md).
+
+## Type-owned methods
+
+The parser retains `DotCallExpr` until namespace/value classification. Value calls
+normalize to the internal `OwnedCallExpr` binder node; that node has no separate
+source spelling. The lexer recognizes the former arrow token only so the parser
+can issue an explicit rejection diagnostic. Receiver, argument and explicit type
+argument spans remain attached to the call. Each method has
+`OwnedMethodSyntax` metadata alongside its source declaration. The implementation still uses `$owned$Owner$method` function identities
+as an internal signature/emission bridge, never to select a method.
+
+Declaration collection attaches `OwnedMethodIdentity` (canonical owner identity
+and source method name) to the binding. Each module has a separate owner/method
+index. Lookup first selects the original package/module identity, then the owner
+and method; aliases and re-exports cannot change that identity. Ordinary function
+and import lookup excludes methods. Checked signatures and call targets retain
+that same binding, including visibility and effects.
+
+`module_resolution` visits the receiver and arguments without global lookup for
+the method name. `module_bodies` binds the receiver once, selects its method,
+checks visibility, and passes the bound receiver into the shared argument checker.
+Emission uses the selected declaration and ordinary VM calls. It performs no
+second method lookup and adds no opcode or runtime dispatch table. Diagnostics
+use source names such as `Fruit.apple` rather than internal bridge names.
+
+The parser's project-route gate uses explicit method metadata and owned-call
+nodes. Legacy visitors reject an unresolved owned call; ordinary dot lookup and
+field access are unchanged. Scope and limitations are in the
+[specification](../../docs/reference/SPEC.md#type-owned-methods-bounded-proof-of-concept).
+
+The P03 `owned_server_map` functional project verifies that Server-owned `get`
+and `put` coexist with the existing Map dot-call path, including inside Server
+methods. Import aliases, facade re-exports and an unrelated same-named Server
+retain separate owner identities. This is a numeric dispatch regression, not an
+HTTP server implementation. Collection arity diagnostics render the actual
+argument count, including the receiver, rather than an interpolation placeholder.
+
+P04 adds explicit implementation binders to `OwnedMethodSyntax` and retains every
+`OwnedImplementationSyntax` header on `ParsedModule`, including empty blocks. Flattened
+function signatures retain implementation binders before method binders for the
+existing signature/emission bridge; source explicit arguments address only the
+method suffix. Signature checking validates local record/enum ownership after
+all declarations have been collected, uniform owner arguments, binder uniqueness
+and implicit self. The body binder obtains implementation substitutions from the
+checked receiver and fixes them before inferring method parameters. Expected
+result constraints can solve remaining holes; unresolved owned-call substitutions
+fail the existing identity-emission gate.
+
+Option and Result use their canonical toolchain declarations for method lookup,
+while retaining their existing `SignatureCore` representation. Core namespace
+staging no longer prevents loading the entry module. Core owned methods use
+checked identity emission; the unmigrated core helpers retain their bootstrap
+lowering. The isolated `owned_generic_core` compiler-driver fixture exercises
+this route without migrating production stdlib methods ahead of P08.
+
+P05 introduces `MethodOwnerIdentity`: nominal declaration identities and
+registered built-in family tags are separate variants. `builtin_owner_arity`
+is the closed registry; `builtin_owner_module` identifies the toolchain package's
+exact `core.panack`. Signature checking requires that identity even for empty
+built-in impls. The loader already assigns toolchain identity from its configured
+stdlib root, independently of user package names. Built-in lookup checks both the
+selected module and retained method metadata, with no ordinary-function fallback.
+Array source spelling retains its syntax span while `[T]` and `Array[T]` share the
+Array family key. Option/Result remain nominal core declarations. Intrinsic tags,
+production core migration and callable ownership are later packets.
+
+P06 adds `owned_intrinsics.panack`, the closed operation-ID and signature registry.
+Only designated core binding collection injects these declarations. Checked owned
+calls retain the selected declaration through specialised primitive checks and
+emission; emission selects a primitive from the typed ID, never from the receiver
+method spelling. P12 removes the legacy dot/global dispatch paths.
+
+P07 adds owned array `map`/`reduce` and effect-specific callable `call` identities.
+Callable registry signatures are family schemas; the checked receiver supplies
+arity and concrete argument/result types. Intrinsic IDs select existing lowering
+only after owned lookup, and synthetic signatures carry pure, ordinary or async
+effects. Source impl methods preserve their async declaration flag. The
+[P07 report](../../docs/design/type-owned-dispatch/p07-callable-effects.md) records
+callback/effect rejection tests and exact HTTP-shaped handler execution.
+
+P08 moves source core operations into impl blocks and canonical PathError and
+DurationError declarations into core. Their old modules re-export the same types.
+Path intrinsic checking shares canonical error lookup with duration checking.
+All source modules use checked identity emission. Ordinary source functions
+cannot reach internal primitives; designated toolchain declarations have closed
+identity-based grants. Private core emission names preserve reachability
+pruning for owned algorithms. See the
+[P08 report](../../docs/design/type-owned-dispatch/p08-core-methods.md).
+
+## Owned caller migration on next
+
+Compiler and bytecode implementation callers use owned dot methods after
+GI#525 P14. P12 removes the compatibility frontend and receiver wrappers.
+Internal operation strings and VM primitive identities are not caller APIs.
+See the [P11 report](../../docs/design/type-owned-dispatch/p11-remaining-callers.md)
+for seed evidence and the exact retained test-input boundary.

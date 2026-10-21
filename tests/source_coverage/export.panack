@@ -1,12 +1,7 @@
 import project/src/compiler/path_support as path_support
-import stdlib/text as std_text
-import stdlib/option as std_option
 import project/src/compiler/filesystem_support as filesystem_support
 import stdlib/environment as std_environment
 import stdlib/host as std_host
-import stdlib/path as std_path
-import stdlib/filesystem as std_filesystem
-import stdlib/bytes as byte_buffer
 import project/src/compiler/coverage::{coverage_mapped_project, CoverageEdge, coverage_edge, coverage_probe_key, coverage_source_function_name, EmissionProbe, Instruction, Instruction.ReturnInstruction, Instruction.ConstInstruction, Instruction.LoadInstruction, Instruction.StoreInstruction, Instruction.PopInstruction, Instruction.UnaryInstruction, Instruction.BinaryInstruction, Instruction.MakeRangeInstruction, Instruction.MakeArrayInstruction, Instruction.IndexGetInstruction, Instruction.InterpolateInstruction, Instruction.IterInitInstruction, Instruction.IterNextInstruction, Instruction.MakeRecordInstruction, Instruction.FieldGetInstruction, Instruction.MakeVariantInstruction, Instruction.MatchVariantInstruction, Instruction.MatchFailInstruction, Instruction.CallInstruction, Instruction.CallValueInstruction, Instruction.AwaitCallInstruction, Instruction.AwaitValueInstruction, Instruction.JumpFalseInstruction, Instruction.JumpInstruction, Instruction.PendingEndJumpInstruction, LoadedProject}
 import project/src/compiler/loader::{load_project_for_inventory, loaded_binding_graph}
 import project/src/compiler/module_bindings::{DeclarationIdentity, source_module_identity}
@@ -19,8 +14,8 @@ import project/src/bytecode/codec::{encode_text, encode_u8, encode_u32, serializ
 
 pure plan_parent_id(id: Str): Str {
   mut end: Nat = 0
-  for index in 0..len(id) { if slice(id, index, index + 1) == "/" { end = index; } }
-  slice(id, 0, end)
+  for index in 0..id.len() { if id.slice(index, index + 1) == "/" { end = index; } }
+  id.slice(0, end)
 }
 
 pure plan_returns(instruction: Instruction): Nat {
@@ -48,9 +43,9 @@ main(): Void {
   args = std_host.arguments()
   entry = path_support.resolve(args[0])
   source_root = path_support.parent(entry)
-  project_root = path_support.resolve(std_option.value_or(std_environment.get("PANACKELTY_BOOTSTRAP_ROOT"), ""))
-  stdlib = path_support.resolve(std_option.value_or(std_environment.get("PANACKELTY_STDLIB_PATH"), ""))
-  compiler = filesystem_support.read_file_bytes(std_option.value_or(std_environment.get("PANACKELTY_COMPILER_PATH"), ""))
+  project_root = path_support.resolve(std_environment.get("PANACKELTY_BOOTSTRAP_ROOT").value_or(""))
+  stdlib = path_support.resolve(std_environment.get("PANACKELTY_STDLIB_PATH").value_or(""))
+  compiler = filesystem_support.read_file_bytes(std_environment.get("PANACKELTY_COMPILER_PATH").value_or(""))
   project = load_project_for_inventory(entry)
   match coverage_mapped_project(project, entry, project_root, stdlib) {
     Error(diagnostics) => {
@@ -74,16 +69,16 @@ coverage_plan(
 ): Void {
   artifact = serialize_bytecode(mapped.bytecode)
   inner = serialize_source_inventory(project, artifact, compiler, entry, source_root, stdlib)
-  inventory = source_map_join([std_text.encode_utf8("PANACKINVENTORY1\n"), encode_u32(1), source_map_blob(inner)], 0, 3)
+  inventory = source_map_join(["PANACKINVENTORY1\n".encode_utf8(), encode_u32(1), source_map_blob(inner)], 0, 3)
   codes = sort_functions(mapped.bytecode.functions)
   mut indices: Map[Str,Nat] = map()
   mut probes: Map[Str,Map[Str,[EmissionProbe]]] = map()
-  mut chunks: [Bytes] = [std_text.encode_utf8("PANACKPLAN1\n"), source_map_blob(compiler), source_map_blob(artifact), source_map_blob(inventory), encode_u32(len(codes))]
-  for i in 0..len(codes) {
+  mut chunks: [Bytes] = ["PANACKPLAN1\n".encode_utf8(), source_map_blob(compiler), source_map_blob(artifact), source_map_blob(inventory), encode_u32(codes.len())]
+  for i in 0..codes.len() {
     code = codes[i]
     indices = indices.put(code.name, i)
-    chunks = chunks.append(encode_text(code.name)).append(encode_u32(len(code.instructions)))
-    for pc in 0..len(code.instructions) {
+    chunks = chunks.append(encode_text(code.name)).append(encode_u32(code.instructions.len()))
+    for pc in 0..code.instructions.len() {
       edge: CoverageEdge = coverage_edge(code.instructions[pc], pc)
       chunks = chunks.append(source_map_join([
         encode_u8(if edge.conditional { 1 } else { 0 }),
@@ -104,10 +99,10 @@ coverage_plan(
   snapshots = source_snapshots(project, source_root, stdlib)
   graph = loaded_binding_graph(project.modules, project_root, stdlib)
   entry_identity = source_module_identity(entry, project_root, stdlib)
-  chunks = chunks.append(encode_u32(len(snapshots)))
-  header = source_map_join(chunks, 0, len(chunks))
+  chunks = chunks.append(encode_u32(snapshots.len()))
+  header = source_map_join(chunks, 0, chunks.len())
   if !source_map_write(args[1] + ".plan", header) {
-    size = byte_buffer.length(header)
+    size = header.length()
     eprint("coverage plan: header output failure (${size} bytes)")
     std_host.exit(1)
   }
@@ -118,13 +113,13 @@ coverage_plan(
         items = inventory_module(module)
         mut decisions: Map[Str,Str] = map()
         for item in items { if item.kind == "decision" { decisions = decisions.put(item.id, item.detail); } }
-        chunks = [encode_text(snapshot.name), encode_text(snapshot.text), encode_u32(len(items))]
+        chunks = [encode_text(snapshot.name), encode_text(snapshot.text), encode_u32(items.len())]
         mut name: Str = ""
         mut declaration: Nat = 0
         for item in items {
           if item.kind == "function" || item.kind == "excluded" {
-            while declaration < len(module.parsed.program.declarations) && item.id != "declaration/${declaration}" { declaration = declaration + 1; }
-            if declaration < len(module.execution_program.declarations) {
+            while declaration < module.parsed.program.declarations.len() && item.id != "declaration/${declaration}" { declaration = declaration + 1; }
+            if declaration < module.execution_program.declarations.len() {
               name = coverage_source_function_name(graph, entry_identity, module.bindings.identity,
                 module.execution_program.declarations[declaration])
             }
@@ -139,7 +134,7 @@ coverage_plan(
               else { if item.kind == "decision" { if item.detail == "match" { "expression" } else { item.detail } }
               else { if decisions.has(parent) && item.id == parent + "/" + item.detail { decisions.get(parent) } else { "arm:" + item.detail } } }
             mut probe_kind: Str = kind
-            if item.kind == "outcome" && len(kind) > 4 && slice(kind, 0, 4) == "arm:" {
+            if item.kind == "outcome" && kind.len() > 4 && kind.slice(0, 4) == "arm:" {
               variant: DeclarationIdentity = match resolve_module_path(graph, module.bindings.identity, item.detail) {
                 Error(message) => DeclarationIdentity(module.bindings.identity, item.detail),
                 Ok(target) => match target {
@@ -155,7 +150,7 @@ coverage_plan(
               }
             }
             key = coverage_probe_key(probe_kind, item.span)
-            if probes.has(name) && probes.get(name).has(key) && len(probes.get(name).get(key)) == 1 {
+            if probes.has(name) && probes.get(name).has(key) && probes.get(name).get(key).len() == 1 {
               probe = probes.get(name).get(key)[0]
               start = probe.start
               end = probe.end
@@ -168,12 +163,12 @@ coverage_plan(
           }
           chunks = chunks.append(source_map_join([encode_text(item.id), encode_text(item.kind), encode_text(item.detail), source_map_position(item.span.start), source_map_position(item.span.end), encode_u32(function), encode_u32(start), encode_u32(end), encode_u8(mode)], 0, 9))
         }
-        if !source_map_write(args[1] + ".source-${source_number}.plan", source_map_join(chunks, 0, len(chunks))) { eprint("coverage plan: source output failure"); std_host.exit(1); }
+        if !source_map_write(args[1] + ".source-${source_number}.plan", source_map_join(chunks, 0, chunks.len())) { eprint("coverage plan: source output failure"); std_host.exit(1); }
         source_number = source_number + 1
       }
     }
   }
-  if !source_snapshots_unchanged(project) || byte_buffer.length(inner) == 0 { eprint("coverage plan: source changed"); std_host.exit(1); }
-  if source_number != len(snapshots) || !source_map_write(args[1] + ".bc", artifact) || !source_map_write(args[1] + ".inv", inventory) { eprint("coverage plan: output failure"); std_host.exit(1); }
+  if !source_snapshots_unchanged(project) || inner.length() == 0 { eprint("coverage plan: source changed"); std_host.exit(1); }
+  if source_number != snapshots.len() || !source_map_write(args[1] + ".bc", artifact) || !source_map_write(args[1] + ".inv", inventory) { eprint("coverage plan: output failure"); std_host.exit(1); }
   print("plan: wrote")
 }

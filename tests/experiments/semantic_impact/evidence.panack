@@ -1,3 +1,4 @@
+import stdlib/host as host
 import project/src/compiler/loader::{LoadedProject, SubtractionEvidence, EffectEvidence, load_project_explained}
 import project/src/compiler/checker::{SubtractionDecision}
 import project/src/compiler/types::{SourceSpan}
@@ -7,15 +8,15 @@ import project/src/compiler/types::{SourceSpan}
 pure excerpt(project: LoadedProject, origin: Option[SourceSpan]): Str {
   match origin {
     None() => "unavailable",
-    Some(span) => slice(project.sources.get(span.start.file), span.start.offset, span.end.offset)
+    Some(span) => project.sources.get(span.start.file).slice(span.start.offset, span.end.offset)
   }
 }
 
 main(): Void {
-  args: [Str] = command_args()
-  if len(args) != 1 { process_exit(2); }
+  args: [Str] = host.arguments()
+  if args.len() != 1 { host.exit(2); }
   project: LoadedProject = load_project_explained(args[0])
-  diagnostics: Nat = len(project.diagnostics)
+  diagnostics: Nat = project.diagnostics.len()
   effects_checked: Bool = project.effects_checked
   print("project\t${diagnostics}\t${effects_checked}")
   for entry in project.evidence {
@@ -38,7 +39,7 @@ main(): Void {
       "\t" + entry.left.name + "\t" + entry.right.name + "\t${has_left}\t${left}")
   }
   for entry in project.effects {
-    violations: Nat = len(entry.violations)
+    violations: Nat = entry.violations.len()
     awaited: Bool = entry.awaited
     print("effect\t" + entry.function_name + "\t" + entry.kind + "\t" + entry.mode +
       "\t" + entry.target + "\t" + entry.basis + "\t" + entry.target_effect +

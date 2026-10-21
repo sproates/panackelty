@@ -1,12 +1,15 @@
+import stdlib/filesystem as fixture_files
+import stdlib/path as fixture_path
+import project/tests/runner/compiler_backend_fixtures::{check_source_types}
+import project/src/compiler/loader::{LoadedProject, load_project}
 import stdlib/testing as std_testing
 import project/src/compiler/filesystem_support as filesystem_support
 import project/src/bytecode/codec::{serialize_bytecode}
 import project/src/compiler/lexer::{lex}
-import project/src/compiler/parser::{parse_program_complete,indexed_program,core_tokens}
-import project/src/compiler/checker::{check_source_types,check_loaded_source_types,check_program_types}
+import project/src/compiler/parser::{parse_program_complete,indexed_program}
+import project/src/compiler/checker::{check_loaded_source_types,check_program_types}
 import project/src/compiler/resolver::{LoadedSource,render_resolver_diagnostics}
 import project/src/compiler/emitter::{compile_program}
-import stdlib/filesystem as std_filesystem
 import stdlib/host as std_host
 import stdlib/testing::{TestResult}
 // Shared source fixtures preserve independently recorded acceptance expectations.
@@ -14,8 +17,8 @@ import stdlib/testing::{TestResult}
 // explicitly return ok, rather than merely agree with the other implementation.
 pure checker_unit_contains(actual: Str, expected: Str): Bool {
   mut found = false
-  for offset in 0..len(actual) {
-    if starts_with_at(actual, expected, offset) { found = true }
+  for offset in 0..actual.len() {
+    if actual.starts_with_at(expected, offset) { found = true }
   }
   found
 }
@@ -33,20 +36,24 @@ checker_unit_source(name: Str, expected: Str): TestResult {
   checker_unit_compare(name, check_source_types(filesystem_support.read_text(filename)), expected)
 }
 
+// These source-method contracts use the real checked project pipeline.
 checker_sort_contract(source: Str): Str {
-  match lex(filesystem_support.read_text("src/stdlib/core.panack")) {
-    Error(errors) => "core lexing failed",
-    Ok(tokens) => { match parse_program_complete(core_tokens(tokens)) {
-      Error(error) => error.message,
-      Ok(core) => { match lex(source) {
-        Error(errors) => "test lexing failed",
-        Ok(input) => { match parse_program_complete(input) {
-          Error(error) => error.message,
-          Ok(program) => render_resolver_diagnostics(check_program_types(
-            indexed_program(concat(core.declarations, program.declarations))))
-        } }
-      } }
-    } }
+  match fixture_files.temp_directory(fixture_path.current()) {
+    Error(error) => "fixture creation failed",
+    Ok(root) => {
+      path = root.join(fixture_path.from_text("main.panack").value_or(root)).value_or(root)
+      text: Str = path.to_text().value_or("")
+      match fixture_files.write(path, source.encode_utf8()) {
+        Error(error) => { removed = fixture_files.remove_directory(root); "fixture write failed" },
+        Ok(done) => {
+          loaded: LoadedProject = load_project(text)
+          result = render_resolver_diagnostics(loaded.diagnostics)
+          removed = fixture_files.remove_file(path)
+          empty = fixture_files.remove_directory(root)
+          result
+        }
+      }
+    }
   }
 }
 
@@ -99,13 +106,13 @@ checker_mutation_matrix(): [TestResult] {
 main(): Void {
   mut results: [TestResult] = []
   results = results.append(checker_unit_compare("core/wrong-text-receiver",
-    checker_sort_contract("main(): Void { print(42.ends_with(\"x\")); }"), "expected Str"))
+    checker_sort_contract("main(): Void { print(42.ends_with(\"x\")); }"), "owned method"))
   results = results.append(checker_unit_compare("core/wrong-array-receiver",
-    checker_sort_contract("main(): Void { print(42.first()); }"), "argument 1"))
+    checker_sort_contract("main(): Void { print(42.first()); }"), "owned method"))
   results = results.append(checker_unit_compare("core/empty-first-needs-type",
-    checker_sort_contract("main(): Void { print([].first()); }"), "cannot infer type parameter T"))
+    checker_sort_contract("main(): Void { result = [].first(); print(result); }"), "cannot infer complete type for local result"))
   results = results.append(checker_unit_compare("core/empty-first-explicit-type",
-    checker_sort_contract("main(): Void { print([].first[Str]()); }"), "ok"))
+    checker_sort_contract("main(): Void { values: [Str] = []; print(values.first()); }"), "ok"))
 
   // Former test_accepts_core_types_records_enums_and_control_flow
   results = results.append(checker_unit_source("accepts_core_types_records_enums_and_control_flow-1", "ok"))
@@ -132,7 +139,7 @@ main(): Void {
   results = results.append(checker_unit_source("checks_method_calls_as_receiver_first_calls-1", "ok"))
   results = results.append(checker_unit_source("checks_method_calls_as_receiver_first_calls-2", "argument 1 to starts_with is Nat, expected Str"))
   results = results.append(checker_unit_source("checks_method_calls_as_receiver_first_calls-3", "unknown function value"))
-  results = results.append(checker_unit_source("checks_method_calls_as_receiver_first_calls-4", "has expects a Map or Set, got Array[Nat]"))
+  results = results.append(checker_unit_source("checks_method_calls_as_receiver_first_calls-4", "map_has expects a Map, got Array[Nat]"))
   // Former test_checks_mutability_and_entry_point
   results = results.append(checker_unit_source("checks_mutability_and_entry_point-1", "cannot assign to immutable local value"))
   results = results.append(checker_unit_source("checks_mutability_and_entry_point-2", "program has no main function"))

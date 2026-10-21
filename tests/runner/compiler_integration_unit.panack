@@ -1,10 +1,8 @@
 import stdlib/testing_commands as std_testing_commands
-import stdlib/text as std_text
 import stdlib/environment as std_environment
 import stdlib/testing as std_testing
 import stdlib/process as std_process
 import project/src/compiler/filesystem_support as filesystem_support
-import stdlib/result as std_result
 import stdlib/bytes as byte_buffer
 import stdlib/path as std_path
 import stdlib/filesystem as std_filesystem
@@ -13,13 +11,13 @@ import stdlib/testing_commands::{TestCommand, ProcessOutput}
 import stdlib/testing_files as std_testing_files
 import stdlib/testing::{TestResult}
 import stdlib/time as std_time
-pure contract_path(text: Str): Path { std_result.value_or(std_path.from_text(text), std_path.current()) }
-pure contract_child(root: Path, text: Str): Path { std_result.value_or(std_path.join(root, contract_path(text)), root) }
-pure contract_text(path: Path): Str { std_result.value_or(std_path.to_text(path), "invalid-path") }
+pure contract_path(text: Str): Path { std_path.from_text(text).value_or(std_path.current()) }
+pure contract_child(root: Path, text: Str): Path { root.join(contract_path(text)).value_or(root) }
+pure contract_text(path: Path): Str { path.to_text().value_or("invalid-path") }
 pure integration_contains(actual: Str, expected: Str): Bool {
   mut found = false
-  for offset in 0..len(actual) {
-    if starts_with_at(actual, expected, offset) { found = true }
+  for offset in 0..actual.len() {
+    if actual.starts_with_at(expected, offset) { found = true }
   }
   found
 }
@@ -32,9 +30,9 @@ integration_output(name: Str, args: [Str], expected: Str): TestResult {
       command.environment, command.timeout, command.output_limit) {
     Error(error) => std_testing.expect(name, false, "process command failed"),
     Ok(actual) => std_testing.expect(name, actual.exit_code == 0 && actual.signal == 0 &&
-      actual.stdout == std_text.encode_utf8(expected) && actual.stderr == byte_buffer.empty(),
-      "arguments: " + args[0] + " / " + args[1] + "; stdout: " + std_text.decode_utf8(actual.stdout) +
-      "; stderr: " + std_text.decode_utf8(actual.stderr))
+      actual.stdout == expected.encode_utf8() && actual.stderr == byte_buffer.empty(),
+      "arguments: " + args[0] + " / " + args[1] + "; stdout: " + actual.stdout.decode_utf8() +
+      "; stderr: " + actual.stderr.decode_utf8())
   }
 }
 integration_probe(name: Str, args: [Str], expected: Str): TestResult {
@@ -43,13 +41,13 @@ integration_probe(name: Str, args: [Str], expected: Str): TestResult {
     // These probes compile compiler modules on a cold cache. The hosted driver
     // build alone reached 90 seconds before its enclosing command timed out.
     std_time.seconds(300), 1048576)
-  std_testing_commands.run_command(name, command, ProcessOutput(0, 0, std_text.encode_utf8(expected), byte_buffer.empty()))
+  std_testing_commands.run_command(name, command, ProcessOutput(0, 0, expected.encode_utf8(), byte_buffer.empty()))
 }
 integration_error(name: Str, args: [Str], status: Nat, output: Str, expected: Str): TestResult {
   match std_process.run(contract_path("./bin/panack"), args, byte_buffer.empty(), std_path.current(), [], std_time.seconds(90), 1048576) {
     Error(error) => std_testing.expect(name, false, "command failed"),
     Ok(actual) => std_testing.expect(name, actual.exit_code == status && actual.signal == 0 &&
-      actual.stdout == std_text.encode_utf8(output) && integration_contains(std_text.decode_utf8(actual.stderr), expected),
+      actual.stdout == output.encode_utf8() && integration_contains(actual.stderr.decode_utf8(), expected),
       "unexpected status/output or missing diagnostic ${expected}; exit ${actual.exit_code}, signal ${actual.signal}, stdout: ${std_text.decode_utf8(actual.stdout)}, stderr: ${std_text.decode_utf8(actual.stderr)}")
   }
 }
@@ -62,7 +60,7 @@ integration_candidate_error(name: Str, args: [Str], expected: Str): TestResult {
       std_path.current(), [], std_time.seconds(90), 1048576) {
     Error(error) => std_testing.expect(name, false, "compiler process failed"),
     Ok(actual) => std_testing.expect(name, actual.exit_code == 1 && actual.signal == 0 &&
-      actual.stdout == byte_buffer.empty() && integration_contains(std_text.decode_utf8(actual.stderr), expected),
+      actual.stdout == byte_buffer.empty() && integration_contains(actual.stderr.decode_utf8(), expected),
       "candidate compiler did not report ${expected}")
   }
 }
@@ -131,7 +129,7 @@ main(): Void {
             args, 1, "", "spans/binary.panack:2:16: operator + does not accept Nat and Bool\n  2 |   value: Nat = 1 + true\n    |                ^"))
           results = results.append(integration_error("source spans/imported/" + operation,
             [operation, "tests/fixtures/compiler_contracts/spans/imported.panack"], 1, "",
-            "spans/library.panack:2:3: index must be Nat, got Bool\n  2 |   items[true]\n    |   ^"))
+            "spans/library.panack:2:9: index is Bool, expected Nat\n  2 |   items[true]\n    |         ^"))
         }
       }
       if integration_group == "all" || integration_group == "namespaces" {
@@ -186,9 +184,8 @@ main(): Void {
         }
         results = results.append(integration_output("three same-name modules keep identity",
           ["run", "tests/fixtures/compiler_contracts/namespaces/triple.panack"], "58\n"))
-        results = results.append(integration_error("function and variant origins stay distinct",
-          ["check", "tests/fixtures/compiler_contracts/namespaces/variant.panack"], 1, "",
-          "namespaces/constructor.panack:1:1: top-level name Pick conflicts with a constructor or built-in"))
+        results = results.append(integration_output("function and variant origins stay distinct",
+          ["run", "tests/fixtures/compiler_contracts/namespaces/variant.panack"], "42\n"))
       }
       if integration_group == "all" || integration_group == "driver" {
         basic = "tests/fixtures/compiler_contracts/driver/basic.panack"
@@ -207,7 +204,7 @@ main(): Void {
               std_path.current(), [], std_time.seconds(90), 1048576) {
             Error(error) => { results = results.append(std_testing.expect("driver disassembly", false, "command failed")) },
             Ok(output) => {
-              text = std_text.decode_utf8(output.stdout)
+              text = output.stdout.decode_utf8()
               results = results.append(std_testing.expect("driver disassembly shape ${source}",
                 output.exit_code == 0 && output.signal == 0 && output.stderr == byte_buffer.empty() &&
                 integration_contains(text, "FUNCTION|main|impure|") && integration_contains(text, "CALL|print|1"), "invalid disassembly"))
@@ -255,7 +252,7 @@ main(): Void {
           }
         }
       }
-      match std_testing_files.workspace_remove_empty(workspace) {
+      match workspace.remove_empty() {
         Ok(done) => {},
         Error(error) => { results = results.append(std_testing.expect("compiler workspace cleanup", false, "workspace removal failed")) }
       }

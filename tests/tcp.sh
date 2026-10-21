@@ -31,23 +31,22 @@ for mode in echo empty example limit stall refuse; do
         stall) timeout=30; expected='Ok(data) => expect(false), Error(problem) => expect(problem == "TCP timed out")' ;;
         refuse) expected='Ok(data) => expect(false), Error(problem) => expect(problem == "TCP connect failed")' ;;
     esac
+    request_source='"hello".encode_utf8().push(0)'
+    [ "$mode" != empty ] || request_source='bytes()'
     cat > "$work/main.panack" <<SOURCE
+import stdlib/tcp as transport_tcp
 pure expect(value: Bool): Unit { checked = [0][if value { 0 } else { 1 }]; () }
 async exchange(request: Bytes): Result[Bytes,Str] {
-  await tcp_exchange("127.0.0.1", $port, request, $limit, $timeout)
+  await transport_tcp.exchange("127.0.0.1", $port, request, $limit, $timeout)
 }
 async main(): Unit {
-  mut request: Bytes = byte_append(utf8_encode("hello"), 0)
-  for i in 0..12 { request = bytes_concat(request, request) }
+  mut request: Bytes = $request_source
+  for i in 0..12 { request = request.join(request) }
   operation: AsyncFn[Bytes,Result[Bytes,Str]] = @exchange
   match await operation.call(request) { $expected }
   ()
 }
 SOURCE
-    if [ "$mode" = empty ]; then
-        sed 's/byte_append(utf8_encode("hello"), 0)/bytes()/' "$work/main.panack" > "$work/empty.panack"
-        mv "$work/empty.panack" "$work/main.panack"
-    fi
     if [ "$mode" = example ]; then
         sed "s/9000/$port/g" examples/network/tcp_exchange.panack > "$work/main.panack"
     fi
@@ -68,12 +67,12 @@ printf 'async TCP source and bytecode: ok\n'
 # Invalid calls must be rejected without any network side effect.
 for mode in bare ordinary pure type; do
     case "$mode" in
-        bare) source='async main(): Unit { result = tcp_exchange("127.0.0.1", 80, bytes(), 10, 10); () }'; diagnostic='async call requires await' ;;
-        ordinary) source='main(): Void { result = await tcp_exchange("127.0.0.1", 80, bytes(), 10, 10) }'; diagnostic='await requires an async function' ;;
-        pure) source='pure main(): Unit { result = tcp_exchange("127.0.0.1", 80, bytes(), 10, 10); () }'; diagnostic='pure function cannot call impure function' ;;
-        type) source='async main(): Unit { result = await tcp_exchange(42, 80, bytes(), 10, 10); () }'; diagnostic='expected Str' ;;
+        bare) source='async main(): Unit { result = transport_tcp.exchange("127.0.0.1", 80, bytes(), 10, 10); () }'; diagnostic='async call requires await' ;;
+        ordinary) source='main(): Void { result = await transport_tcp.exchange("127.0.0.1", 80, bytes(), 10, 10) }'; diagnostic='await requires an async function' ;;
+        pure) source='pure main(): Unit { result = transport_tcp.exchange("127.0.0.1", 80, bytes(), 10, 10); () }'; diagnostic='pure function cannot call impure function' ;;
+        type) source='async main(): Unit { result = await transport_tcp.exchange(42, 80, bytes(), 10, 10); () }'; diagnostic='expected Str' ;;
     esac
-    printf '%s\n' "$source" > "$work/invalid.panack"
+    printf 'import stdlib/tcp as transport_tcp\n%s\n' "$source" > "$work/invalid.panack"
     if ./bin/panack check "$work/invalid.panack" > "$work/stdout" 2> "$work/stderr"; then
         echo "TCP negative case unexpectedly passed: $mode" >&2; exit 1
     fi

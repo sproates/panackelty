@@ -10,7 +10,7 @@ pure safe_divide(numerator: Nat, denominator: Nat): Result[Nat,Str] {
   if denominator == 0 {
     Error("division by zero")
   } else {
-    Ok(quotient(numerator, denominator))
+    Ok(numerator.divide(denominator))
   }
 }
 

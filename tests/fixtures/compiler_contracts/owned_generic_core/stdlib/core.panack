@@ -1,0 +1,42 @@
+// Isolated toolchain fixture; production core migration belongs to P08.
+pub enum Option[T] { Some(T), None }
+pub enum Result[T, E] { Ok(T), Error(E) }
+
+impl[T] Option[T] {
+  pub pure value_or(fallback: T): T {
+    self.choose(fallback)
+  }
+
+  pure choose(fallback: T): T {
+    match self { Some(value) => value, None() => fallback }
+  }
+}
+
+impl[T, E] Result[T, E] {
+  pub pure value_or(fallback: T): T {
+    match self { Ok(value) => value, Error(error) => fallback }
+  }
+}
+
+// P05 registry fixtures use source bodies; P06 adds intrinsic declarations.
+impl[K,V] Map[K,V] {
+  pub pure echo(): Map[K,V] { self }
+  pub pure choose[U](fallback: U): U { fallback }
+}
+
+impl[T] Set[T] {
+  pub pure echo(): Set[T] { self }
+}
+
+impl[T] [T] {
+  pub pure echo(): [T] { self }
+}
+
+impl Str {
+  pub pure echo(): Str { self.hidden() }
+  pure hidden(): Str { self }
+}
+
+impl Bytes {
+  pub pure echo(): Bytes { self }
+}

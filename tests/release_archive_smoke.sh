@@ -64,7 +64,7 @@ import stdlib/host as host
 main(): Void {
   arguments: [Str] = host.arguments()
   selected: Option[Str] = Some(arguments[0])
-  print(len(arguments))
+  print(arguments.len())
   match selected {
     Some(value) => print(value),
     None() => print("missing")
@@ -83,6 +83,71 @@ run_clean run hello.panack alpha beta >source.stdout 2>source.stderr || \
   fail "source execution failed"
 cmp source.expected source.stdout || fail "source output differs"
 test ! -s source.stderr || fail "source execution wrote unexpected stderr"
+
+cat >fruit.panack <<'EOF'
+record Fruit { value: Nat }
+impl Fruit {
+  pure apple(): Nat { self.value }
+  pure banana(): Nat { self.value + 1 }
+}
+main(): Void {
+  first = Fruit(10)
+  second = Fruit(20)
+  print(first.apple())
+  print(first.banana())
+  print(second.apple())
+  print(second.banana())
+}
+EOF
+printf '10\n11\n20\n21\n' >fruit.expected
+run_clean run fruit.panack >fruit.stdout
+cmp fruit.expected fruit.stdout || fail "original Fruit output differs"
+run_clean compile fruit.panack -o fruit.bc >/dev/null
+rm fruit.panack
+run_clean run fruit.bc >fruit.stdout
+cmp fruit.expected fruit.stdout || fail "original Fruit saved-bytecode output differs"
+
+# Exercise owned dispatch through the relocated installed toolchain, including
+# project manifests and saved bytecode after the copied sources are removed.
+for fixture in owned_method_dispatch owned_imports owned_generic_methods owned_intrinsics \
+    owned_callbacks owned_async_handlers owned_core_methods owned_server_map \
+    owned_server_map_alias owned_server_map_facade owned_server_map_identity owned_server_map_namespace; do
+  cp -R "$root/tests/functional/cases/$fixture" "$workspace/$fixture"
+done
+for fixture in owned_method_dispatch owned_imports owned_generic_methods owned_intrinsics \
+    owned_callbacks owned_async_handlers owned_core_methods owned_server_map \
+    owned_server_map_alias owned_server_map_facade owned_server_map_identity owned_server_map_namespace; do
+  directory="$workspace/$fixture"
+  if [ -f "$directory/panack.json" ]; then
+    run_clean run --project "$directory/panack.json" >owned.stdout
+    run_clean compile --project "$directory/panack.json" -o "$workspace/$fixture.bc" >/dev/null
+  else
+    source="$directory/main.panack"
+    if [ -f "$directory/source.path" ]; then
+      original=$(cat "$directory/source.path")
+      source="$workspace/${original#tests/functional/cases/}"
+    fi
+    run_clean run "$source" >owned.stdout
+    run_clean compile "$source" -o "$workspace/$fixture.bc" >/dev/null
+  fi
+  cmp "$directory/expected.stdout" owned.stdout || fail "$fixture source output differs"
+  cp "$directory/expected.stdout" "$workspace/$fixture.expected"
+done
+for fixture in owned_method_dispatch owned_imports owned_generic_methods owned_intrinsics \
+    owned_callbacks owned_async_handlers owned_core_methods owned_server_map \
+    owned_server_map_alias owned_server_map_facade owned_server_map_identity owned_server_map_namespace; do
+  rm -rf "$workspace/$fixture"
+done
+for expected in "$workspace"/owned_*.expected; do
+  run_clean run "${expected%.expected}.bc" >owned.stdout
+  cmp "$expected" owned.stdout || fail "owned saved-bytecode output differs"
+done
+printf 'main(): Void { print("abc"->len()) }\n' >obsolete-arrow.panack
+if run_clean check obsolete-arrow.panack >owned.stdout 2>owned.stderr; then
+  fail "obsolete arrow accepted"
+fi
+grep -F 'arrow receiver calls are not supported' owned.stderr >/dev/null || \
+  fail "arrow migration diagnostic missing"
 
 printf 'wrote hello.bc\n' >compile.expected
 run_clean compile hello.panack -o hello.bc >compile.stdout 2>compile.stderr || \
@@ -117,7 +182,7 @@ main(): Void {
   print(missing)
 }
 EOF
-printf 'error: %s/broken.panack:2:9: unknown name missing\n' "$(pwd -P)" >broken.expected
+printf 'error: %s/broken.panack:2:9: unknown local value missing\n' "$(pwd -P)" >broken.expected
 cat >>broken.expected <<'EOF'
   2 |   print(missing)
     |         ^
@@ -175,14 +240,10 @@ grep -F 'aggregate sessions=1 executions=1' coverage-aggregate.stdout >/dev/null
   fail "coverage aggregation is missing its session summary"
 test ! -s coverage-aggregate.stderr || fail "coverage aggregation wrote unexpected stderr"
 
-http_example=$temporary/relocated/toolchain/examples/network/http_server
-http_manifest=$http_example/panack.json
-http_source=$http_example/src/main.panack
-cp "$http_source" "$temporary/http_example.main.panack"
-for mode in source bytecode; do
-  http_port=$("$http_client" port)
-  sed "s/8080/$http_port/g" "$temporary/http_example.main.panack" >"$http_source.next"
-  mv "$http_source.next" "$http_source"
+for example in http_server http_contextual_server; do
+  http_manifest=$temporary/relocated/toolchain/examples/network/$example/panack.json
+  peer_mode=example
+  if [ "$example" = http_contextual_server ]; then peer_mode=installed-contextual; fi
   run_clean check --project "$http_manifest" >http-check.stdout 2>http-check.stderr || \
     fail "installed HTTP example project check failed"
   test ! -s http-check.stderr || fail "installed HTTP example check wrote unexpected stderr"
@@ -190,21 +251,33 @@ for mode in source bytecode; do
     >http-compile.stdout 2>http-compile.stderr || fail "installed HTTP example compile failed"
   test -s http-server.bc || fail "installed HTTP example produced no bytecode"
   test ! -s http-compile.stderr || fail "installed HTTP example compile wrote unexpected stderr"
-  if [ "$mode" = source ]; then
-    run_clean run --project "$http_manifest" >http-run.stdout 2>http-run.stderr &
-  else
-    run_clean run http-server.bc >http-run.stdout 2>http-run.stderr &
-  fi
-  server_pid=$!
-  if ! "$http_client" "$http_port" example; then
-    echo "installed HTTP example mode=$mode port=$http_port pid=$server_pid" >&2
-    cat http-run.stdout http-run.stderr >&2
-    fail "independent HTTP client rejected installed example"
-  fi
-  wait "$server_pid" || fail "installed HTTP example execution failed"
-  server_pid=
-  test ! -s http-run.stdout || fail "installed HTTP example wrote unexpected stdout"
-  test ! -s http-run.stderr || fail "installed HTTP example wrote unexpected stderr"
+  for mode in source bytecode; do
+    http_port=$("$http_client" port)
+    if [ "$mode" = source ]; then
+      env PATH="$runtime_path" PANACKELTY_STDLIB_PATH=/unavailable \
+        "$panack" run --project "$http_manifest" "$http_port" >http-run.stdout 2>http-run.stderr &
+    else
+      env PATH="$runtime_path" PANACKELTY_STDLIB_PATH=/unavailable \
+        "$panack" run http-server.bc "$http_port" >http-run.stdout 2>http-run.stderr &
+    fi
+    server_pid=$!
+    if ! "$http_client" "$http_port" "$peer_mode"; then
+      cat http-run.stdout http-run.stderr >&2
+      fail "independent HTTP client rejected installed example $example/$mode"
+    fi
+    kill -TERM "$server_pid"
+    remaining=100
+    while kill -0 "$server_pid" 2>/dev/null; do
+      test "$remaining" != 0 || fail "installed HTTP example shutdown timed out"
+      remaining=$((remaining - 1))
+      sleep 0.05
+    done
+    wait "$server_pid" || fail "installed HTTP example execution failed"
+    server_pid=
+    printf 'Listening on http://127.0.0.1:%s/\n' "$http_port" >http-run.expected
+    cmp http-run.stdout http-run.expected || fail "installed HTTP example readiness changed"
+    test ! -s http-run.stderr || fail "installed HTTP example wrote unexpected stderr"
+  done
 done
 
 sh "$root/tests/functional/cases/cli_commands/package_relocation.sh" \

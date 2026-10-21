@@ -8,3 +8,23 @@ pub record TcpServerLimits {
   admission_timeout_ms: Nat,
   drain_ms: Nat
 }
+
+// Explicit transport services; implementations are bound to this toolchain identity.
+pub async exchange(address: Str, port: Nat, request: Bytes, response_limit: Nat,
+  timeout_ms: Nat): Result[Bytes,Str] {
+  await tcp_exchange(address, port, request, response_limit, timeout_ms)
+}
+
+pub async serve(address: Str, port: Nat, handler: AsyncFn[Bytes,Result[Bytes,Str]],
+  limits: TcpServerLimits): Result[[Result[Unit,Str]],Str] {
+  await tcp_serve(address, port, handler, limits)
+}
+
+pub async serve_stream[T](address: Str, port: Nat, worker: AsyncFn[T,Result[Bytes,Str]],
+  context: T, limits: TcpServerLimits): Result[[Result[Unit,Str]],Str] {
+  await tcp_serve_stream(address, port, worker, context, limits)
+}
+
+pub async read_chunk(limit: Nat): Result[Bytes,Str] {
+  await tcp_server_read_chunk(limit)
+}

@@ -1,13 +1,9 @@
 import stdlib/testing as std_testing
-import stdlib/option as std_option
-import stdlib/result as std_result
 import stdlib/time::{DurationError.ZeroDurationDivisor}
 import stdlib/time as std_time
 import stdlib/host as std_host
-import stdlib/numeric as std_numeric
 import stdlib/path as std_path
 import stdlib/bytes as byte_buffer
-import stdlib/text as std_text
 
 record SortEntry { key: Nat, label: Str }
 pure nat_less(left: Nat, right: Nat): Bool { left < right }
@@ -17,6 +13,7 @@ pure never_less(left: Nat, right: Nat): Bool { false }
 pure str_less(left: Str, right: Str): Bool { left < right }
 
 main(): Void {
+  empty_nats: [Nat] = []
   original = [3, 1, 2, 1, 0]
   entries = [SortEntry(2, "first"), SortEntry(1, "a"), SortEntry(2, "second"),
     SortEntry(1, "b"), SortEntry(2, "third")]
@@ -30,8 +27,14 @@ main(): Void {
     remaining = remaining - 1
     descending = descending.append(remaining)
   }
+  some_zero: Option[Nat] = Some(0)
+  none_nat: Option[Nat] = None()
+  some_empty: Option[Str] = Some("")
+  ok_zero: Result[Nat,Str] = Ok(0)
+  error_nat: Result[Nat,Str] = Error("failure")
+  ok_empty: Result[Str,Nat] = Ok("")
   results = [
-    std_testing.expect("empty sort", [].sort_by[Nat](@nat_less) == [], "expected empty"),
+    std_testing.expect("empty sort", empty_nats.sort_by(@nat_less) == [], "expected empty"),
     std_testing.expect("singleton sort", [7].sort_by(@nat_less) == [7], "expected singleton"),
     std_testing.expect("duplicates and zero", original.sort_by(@nat_less) == [0, 1, 1, 2, 3], "wrong order"),
     std_testing.expect("input unchanged", original == [3, 1, 2, 1, 0], "input mutated"),
@@ -58,24 +61,24 @@ main(): Void {
     std_testing.expect("Unicode mismatch", !"aλ🙂".ends_with("a🙂"), "unexpected match"),
     std_testing.expect("combining code point", "é".ends_with("́"), "expected code-point match"),
     std_testing.expect("no normalization", !"é".ends_with("é"), "unexpected normalization"),
-    std_testing.expect("Some keeps zero", std_option.value_or[Nat](Some(0), 99) == 0, "used fallback for Some"),
-    std_testing.expect("None uses fallback", std_option.value_or[Nat](None(), 99) == 99, "lost fallback"),
-    std_testing.expect("Some keeps empty text", std_option.value_or[Str](Some(""), "fallback") == "", "treated empty as absent"),
-    std_testing.expect("Ok keeps zero", std_result.value_or[Nat,Str](Ok(0), 99) == 0, "used fallback for Ok"),
-    std_testing.expect("Error uses fallback", std_result.value_or[Nat,Str](Error("failure"), 99) == 99, "lost error fallback"),
-    std_testing.expect("Ok keeps empty text", std_result.value_or[Str,Nat](Ok(""), "fallback") == "", "treated empty as failure"),
-    std_testing.expect("bytes.join stays in its module", std_text.decode_utf8(byte_buffer.join(std_text.encode_utf8("module"), byte_buffer.empty())) == "module", "byte buffer join mismatch"),
-    std_testing.expect("path.join stays in its module", std_path.display(std_result.value_or(std_path.join(std_result.value_or(std_path.from_text("dir"), std_path.current()), std_result.value_or(std_path.from_text("file"), std_path.current())), std_path.current())) == "dir/file", "typed path join mismatch"),
-    std_testing.expect("text.decode_utf8 selects text API", std_text.decode_utf8(std_text.encode_utf8("λ")) == "λ", "portable decode mismatch"),
-    std_testing.expect("host.decode_utf8 selects checked API", std_host.decode_utf8(std_text.encode_utf8("λ")) == Ok("λ"), "checked decode mismatch"),
-    std_testing.expect("numeric.divide selects integer API", std_numeric.divide(7, 2) == 3, "wrong integer quotient"),
-    std_testing.expect("time.divide selects duration API", std_time.divide(std_time.seconds(10), 2) == Ok(std_time.seconds(5)), "wrong duration quotient"),
-    std_testing.expect("duration ratio exact", std_time.ratio(std_time.from_nanoseconds(3), std_time.from_nanoseconds(2)) == Ok(3/2), "rounded ratio"),
-    std_testing.expect("duration ratio negative denominator", std_time.ratio(std_time.from_nanoseconds(3), std_time.from_nanoseconds(-2)) == Ok(-3/2), "lost sign"),
-    std_testing.expect("duration ratio zero denominator", std_time.ratio(std_time.from_nanoseconds(3), std_time.from_nanoseconds(0)) == Error(ZeroDurationDivisor()), "accepted zero denominator"),
-    std_testing.expect("duration ratio zero numerator", std_time.ratio(std_time.from_nanoseconds(0), std_time.from_nanoseconds(2)) == Ok(0/1), "wrong zero ratio"),
-    std_testing.expect("duration divide natural zero", std_time.divide(std_time.from_nanoseconds(3), 0) == Error(ZeroDurationDivisor()), "accepted natural zero"),
-    std_testing.expect("duration divide signed zero", std_time.divide(std_time.from_nanoseconds(3), std_time.ticks(std_time.from_nanoseconds(0))) == Error(ZeroDurationDivisor()), "accepted signed zero")
+    std_testing.expect("Some keeps zero", some_zero.value_or(99) == 0, "used fallback for Some"),
+    std_testing.expect("None uses fallback", none_nat.value_or(99) == 99, "lost fallback"),
+    std_testing.expect("Some keeps empty text", some_empty.value_or("fallback") == "", "treated empty as absent"),
+    std_testing.expect("Ok keeps zero", ok_zero.value_or(99) == 0, "used fallback for Ok"),
+    std_testing.expect("Error uses fallback", error_nat.value_or(99) == 99, "lost error fallback"),
+    std_testing.expect("Ok keeps empty text", ok_empty.value_or("fallback") == "", "treated empty as failure"),
+    std_testing.expect("Bytes.join selects its owner", "module".encode_utf8().join(byte_buffer.empty()).decode_utf8() == "module", "byte buffer join mismatch"),
+    std_testing.expect("Path.join selects its owner", std_path.from_text("dir").value_or(std_path.current()).join(std_path.from_text("file").value_or(std_path.current())).value_or(std_path.current()).display() == "dir/file", "typed path join mismatch"),
+    std_testing.expect("Bytes.decode_utf8 selects pure API", "λ".encode_utf8().decode_utf8() == "λ", "portable decode mismatch"),
+    std_testing.expect("host.decode_utf8 selects checked API", std_host.decode_utf8("λ".encode_utf8()) == Ok("λ"), "checked decode mismatch"),
+    std_testing.expect("Nat.divide selects integer API", 7.divide(2) == 3, "wrong integer quotient"),
+    std_testing.expect("Duration.divide selects duration API", std_time.seconds(10).divide(2) == Ok(std_time.seconds(5)), "wrong duration quotient"),
+    std_testing.expect("duration ratio exact", std_time.from_nanoseconds(3).ratio(std_time.from_nanoseconds(2)) == Ok(3/2), "rounded ratio"),
+    std_testing.expect("duration ratio negative denominator", std_time.from_nanoseconds(3).ratio(std_time.from_nanoseconds(-2)) == Ok(-3/2), "lost sign"),
+    std_testing.expect("duration ratio zero denominator", std_time.from_nanoseconds(3).ratio(std_time.from_nanoseconds(0)) == Error(ZeroDurationDivisor()), "accepted zero denominator"),
+    std_testing.expect("duration ratio zero numerator", std_time.from_nanoseconds(0).ratio(std_time.from_nanoseconds(2)) == Ok(0/1), "wrong zero ratio"),
+    std_testing.expect("duration divide natural zero", std_time.from_nanoseconds(3).divide(0) == Error(ZeroDurationDivisor()), "accepted natural zero"),
+    std_testing.expect("duration divide signed zero", std_time.from_nanoseconds(3).divide(std_time.from_nanoseconds(0).ticks()) == Error(ZeroDurationDivisor()), "accepted signed zero")
   ]
   if std_testing.report(results) > 0 { std_host.exit(1) }
 }

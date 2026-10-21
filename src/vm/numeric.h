@@ -2,6 +2,7 @@
 #define PANACKELTY_NUMERIC_H
 
 #include "value.h"
+#include "fault.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -11,6 +12,14 @@
 
 Value *binary_value(uint8_t op, Value *a, Value *b, const char **error);
 Value *decimal_binary(uint8_t op, const Decimal *a, const Decimal *b, const char **error);
+/* Classified variants preserve diagnostic text while separating safe domain
+ * failures from allocation/integrity failures. fault is reset on every call. */
+Value *binary_value_classified(uint8_t op, Value *a, Value *b, const char **error,
+                               VMFaultKind *fault);
+Value *decimal_binary_classified(uint8_t op, const Decimal *a, const Decimal *b,
+                                 const char **error, VMFaultKind *fault);
+Value *value_rat_classified(const PnBigInt *n, const PnBigInt *d, const char **error,
+                            VMFaultKind *fault);
 /* Moves coefficient storage on success and resets it; failure leaves it caller-owned. */
 Value *value_decimal(PnBigInt *coefficient, int exponent);
 Value *value_rat(const PnBigInt *n, const PnBigInt *d, const char **error);

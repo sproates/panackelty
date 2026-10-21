@@ -37,7 +37,7 @@ main(): Void {
         "unexpected diagnostics"))
     },
     Ok(tokens) => {
-      if len(tokens) == 2 {
+      if tokens.len() == 2 {
         first = tokens[0]
         second = tokens[1]
         results = results.append(std_testing.expect("half-open token offsets",

@@ -1,0 +1,2 @@
+// Deterministic asynchronous completion and failure for language tests.
+pub async read(fail: Bool): Result[Bytes,Str] { await async_fake_read(fail) }

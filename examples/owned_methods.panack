@@ -1,0 +1,48 @@
+// Requires the unreleased alpha.14 toolchain on next.
+// An inventory owns its API even though its implementation uses a Map.
+record Inventory {
+  quantities: Map[Str, Nat]
+}
+
+impl Inventory {
+  pure get(item: Str): Nat {
+    if self.quantities.has(item) {
+      self.quantities.get(item)
+    } else {
+      0
+    }
+  }
+
+  pure put(item: Str, quantity: Nat): Inventory {
+    Inventory(self.quantities.put(item, quantity))
+  }
+
+  pure add(item: Str, quantity: Nat): Inventory {
+    self.put(item, self.get(item) + quantity)
+  }
+}
+
+main(): Void {
+  empty = Inventory(map())
+  stocked = empty.put("tea", 5).put("coffee", 3)
+  delivery = stocked.add("tea", 2)
+
+  // Each call returns a new inventory; previous values remain unchanged.
+  empty_tea = empty.get("tea")
+  stocked_tea = stocked.get("tea")
+  delivered_tea = delivery.get("tea")
+  coffee = delivery.get("coffee")
+  cocoa = delivery.get("cocoa")
+  print("Empty inventory: ${empty_tea}")
+  print("Before delivery: ${stocked_tea}")
+  print("After delivery: ${delivered_tea}")
+  print("Coffee: ${coffee}")
+  print("Missing item: ${cocoa}")
+
+  // The receiver chooses the method. Map.put returns a Map, while
+  // Inventory.put returns an Inventory with its own missing-item policy.
+  prices: Map[Str, Nat] = map()
+  updated_prices = prices.put("tea", 4)
+  tea_price = updated_prices.get("tea")
+  print("Tea price: ${tea_price}")
+}

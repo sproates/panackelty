@@ -29,5 +29,8 @@ Value *builtins_collections_call(VM *vm, const char *name, Value **a);
 Value *builtins_numeric_call(VM *vm, const char *name, Value **a);
 Value *builtins_text_call(VM *vm, const char *name, Value **a);
 Value *builtins_vm_call(VM *vm, const char *name, Value **a);
+Value *builtins_http_connection_call(VM *vm, const char *name, Value **a);
+Value *builtins_http_writer_call(VM *vm, const char *name, Value **a);
+Value *builtins_http_state_call(VM *vm, const char *name, Value **a);
 
 #endif

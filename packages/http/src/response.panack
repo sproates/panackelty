@@ -1,0 +1,50 @@
+import stdlib/http_runtime as runtime
+import project/response_policy::{header_name_valid, header_value_valid, lower, routed_wire}
+import project/types::{Header}
+
+pub record ResponseWriter { state: HttpResponseState }
+
+send_body(state: HttpResponseState, body: Bytes, content_type: Str): Unit {
+  pairs = runtime.writer_get_headers(state)
+  mut headers: [Header] = []
+  mut content_type_present = false
+  for pair in pairs {
+    headers = headers.append(Header(pair[0], pair[1]))
+    if lower(pair[0]) == "content-type" { content_type_present = true }
+  }
+  if !content_type_present { headers = headers.append(Header("Content-Type", content_type)) }
+  match routed_wire(runtime.writer_get_status(state), headers, body) {
+    Error(problem) => runtime.writer_reject(state),
+    Ok(wire) => runtime.writer_commit(state, wire)
+  }
+}
+
+set_header(state: HttpResponseState, name: Str, value: Str, replace: Bool): Unit {
+  folded = lower(name)
+  if !header_name_valid(name) || !header_value_valid(value) ||
+      folded == "content-length" || folded == "transfer-encoding" || folded == "connection" {
+    runtime.writer_reject(state)
+  } else {
+    mut pairs: [[Str]] = []
+    mut headers: [Header] = []
+    for pair in runtime.writer_get_headers(state) {
+      if !replace || lower(pair[0]) != folded {
+        pairs = pairs.append(pair)
+        headers = headers.append(Header(pair[0], pair[1]))
+      }
+    }
+    headers = headers.append(Header(name, value))
+    match routed_wire(runtime.writer_get_status(state), headers, "".encode_utf8()) {
+      Error(problem) => runtime.writer_reject(state),
+      Ok(wire) => runtime.writer_headers(state, pairs.append([name, value]))
+    }
+  }
+}
+
+impl ResponseWriter {
+  pub status(code: Nat): Unit { runtime.writer_status(self.state, code) }
+  pub header(name: Str, value: Str): Unit { set_header(self.state, name, value, true) }
+  pub add_header(name: Str, value: Str): Unit { set_header(self.state, name, value, false) }
+  pub send(text: Str): Unit { send_body(self.state, text.encode_utf8(), "text/plain; charset=utf-8") }
+  pub send_bytes(body: Bytes): Unit { send_body(self.state, body, "application/octet-stream") }
+}

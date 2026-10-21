@@ -1,10 +1,11 @@
+import project/request::{from_transport}
+import project/routing::{RouteKey, route_path, dispatch, RouteDecision.Handler,
+  RouteDecision.Fallback, RouteDecision.NotFound, RouteDecision.MethodNotAllowed}
 import project/parser::{parse_request, parse_request_for_methods, parse_response}
-import project/server::{serialize_response, serialize_head_response}
 import project/types::{Header, HttpError, HttpError.InvalidResponse, HttpError.LimitExceeded,
   HttpError.InvalidLimits, HttpError.ProtocolError, HttpError.UnsupportedMethod, HttpError.UnsupportedTransferEncoding,
   HttpError.UnsupportedVersion, Request, Response}
 import stdlib/bytes as byte_buffer
-import stdlib/text as text
 
 pure expect(value: Bool): Unit {
   checked = [0][if value { 0 } else { 1 }]
@@ -26,7 +27,7 @@ pure parsed_request_matches(data: Bytes, expected_method: Str, expected_target: 
       None() => false,
       Some(request) => request.method == expected_method && request.target == expected_target &&
         request.headers.len() >= 1 && request.headers[0].name == "Host" &&
-        request.body == text.encode_utf8(expected_body)
+        request.body == expected_body.encode_utf8()
     }
   }
 }
@@ -38,21 +39,10 @@ pure parse_has_error(data: Bytes, expected: HttpError): Bool {
   }
 }
 
-pure serialized_response_matches(): Bool {
-  response: Response = Response(201,
-    [Header("X-First", "one"), Header("Content-Length", "2"), Header("Connection", "close")],
-    text.encode_utf8("ok"))
-  match serialize_response(response) {
-    Error(error) => false,
-    Ok(wire) => text.decode_utf8(wire) ==
-      "HTTP/1.1 201 Created\r\nX-First: one\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
-  }
-}
-
 pure response_matches(data: Bytes, status: Nat, body: Str): Bool {
   match parse_response(data, 65536, 1048576) {
     Error(error) => false,
-    Ok(response) => response.status == status && response.body == text.encode_utf8(body)
+    Ok(response) => response.status == status && response.body == body.encode_utf8()
   }
 }
 
@@ -64,143 +54,129 @@ pure response_has_error(data: Bytes, expected: HttpError): Bool {
 }
 
 main(): Unit {
-  get_head: Bytes = text.encode_utf8("GET /item?q=1 HTTP/1.1\r\nHost: example.test\r\n\r\n")
+  raw = Request("GET", "/a//../%2F?q=a%20b&q=two", [Header("X-Value", "first"),
+    Header("x-value", "second"), Header("Other", "third")], "body".encode_utf8())
+  view = from_transport(raw)
+  expect(view.method == "GET" && view.path == "/a//../%2F" && view.query == "q=a%20b&q=two")
+  expect(view.headers == raw.headers && view.body == raw.body)
+  expect(view.header("X-VALUE") == Some("first"))
+  expect(view.header_values("x-Value") == ["first", "second"])
+  expect(view.header("missing") == None())
+  expect(view.header_values("missing") == [])
+  expect(from_transport(Request("GET", "?q", [], "".encode_utf8())).path == "/")
+  expect(from_transport(Request("GET", "", [], "".encode_utf8())).path == "/")
+  expect(from_transport(Request("GET", "/", [], "".encode_utf8())).query == "")
+
+  expect(route_path("/search?mode=brief#top") == Some("/search"))
+  expect(route_path("/a//b/../%2f?q=/?#frag/?") == Some("/a//b/../%2f"))
+  expect(route_path("/") == Some("/"))
+  for invalid in ["", "search", "/bad space", "/bad%", "/bad%0", "/bad%GG",
+      "/ok?bad space", "/ok#bad space", "/ok#one#two", "/[bad]", "/é"] {
+    expect(route_path(invalid) == None())
+  }
+  routes = [RouteKey("DELETE", "/item"), RouteKey("GET", "/item"),
+    RouteKey("POST", "/other"), RouteKey("PUT", "/item")]
+  expect(dispatch(routes, true, "GET", "/item") == Handler(1))
+  expect(dispatch(routes, true, "POST", "/other") == Handler(2))
+  expect(dispatch(routes, true, "PUT", "/item") == Handler(3))
+  expect(dispatch(routes, true, "DELETE", "/item") == Handler(0))
+  for method in ["HEAD", "PATCH", "OPTIONS", "TRACE", "CONNECT", "EXTENSION"] {
+    expect(dispatch(routes, true, method, "/item") == MethodNotAllowed("GET, PUT, DELETE"))
+    expect(dispatch(routes, true, method, "/missing") == MethodNotAllowed("GET, POST, PUT, DELETE"))
+  }
+  expect(dispatch(routes, true, "HEAD", "/item") == MethodNotAllowed("GET, PUT, DELETE"))
+  expect(dispatch(routes, true, "POST", "/item") == MethodNotAllowed("GET, PUT, DELETE"))
+  expect(dispatch(routes, true, "PATCH", "/missing") ==
+    MethodNotAllowed("GET, POST, PUT, DELETE"))
+  expect(dispatch(routes, true, "GET", "/missing") == Fallback())
+  expect(dispatch(routes, false, "GET", "/missing") == NotFound())
+  expect(dispatch(routes, false, "GET", "/Item") == NotFound())
+
+  get_head: Bytes = "GET /item?q=1 HTTP/1.1\r\nHost: example.test\r\n\r\n".encode_utf8()
   expect(parsed_request_matches(get_head, "GET", "/item?q=1", ""))
 
-  post_header: Bytes = text.encode_utf8(
-    "POST /echo HTTP/1.1\r\nHost: example.test\r\nContent-Length: 4\r\n\r\n")
-  post_partial: Bytes = byte_buffer.join(post_header, text.encode_utf8("wi"))
+  post_header: Bytes = "POST /echo HTTP/1.1\r\nHost: example.test\r\nContent-Length: 4\r\n\r\n".encode_utf8()
+  post_partial: Bytes = post_header.join("wi".encode_utf8())
   expect(parse_is_incomplete(post_partial))
-  post_full: Bytes = byte_buffer.join(post_partial, text.encode_utf8("ki"))
+  post_full: Bytes = post_partial.join("ki".encode_utf8())
   expect(parsed_request_matches(post_full, "POST", "/echo", "wiki"))
 
-  chunked: Bytes = text.encode_utf8(
-    "POST /chunks HTTP/1.1\r\nHost: example.test\r\nTransfer-Encoding: chunked\r\n\r\n" +
-    "4\r\nWiki\r\n5;name=value\r\npedia\r\n0\r\nX-Trace: yes\r\n\r\n")
+  chunked: Bytes = ("POST /chunks HTTP/1.1\r\nHost: example.test\r\nTransfer-Encoding: chunked\r\n\r\n" +
+    "4\r\nWiki\r\n5;name=value\r\npedia\r\n0\r\nX-Trace: yes\r\n\r\n").encode_utf8()
   expect(parsed_request_matches(chunked, "POST", "/chunks", "Wikipedia"))
-  bad_chunk_extension: Bytes = text.encode_utf8(
-    "POST /chunks HTTP/1.1\r\nHost: example.test\r\nTransfer-Encoding: chunked\r\n\r\n" +
-    "4;\r\nWiki\r\n0\r\n\r\n")
+  bad_chunk_extension: Bytes = ("POST /chunks HTTP/1.1\r\nHost: example.test\r\nTransfer-Encoding: chunked\r\n\r\n" +
+    "4;\r\nWiki\r\n0\r\n\r\n").encode_utf8()
   expect(parse_has_error(bad_chunk_extension, ProtocolError("invalid chunk size")))
 
-  unknown_method: Bytes = text.encode_utf8("PUT / HTTP/1.1\r\nHost: example.test\r\n\r\n")
+  unknown_method: Bytes = "PUT / HTTP/1.1\r\nHost: example.test\r\n\r\n".encode_utf8()
   expect(parse_has_error(unknown_method, UnsupportedMethod("PUT")))
-  old_version: Bytes = text.encode_utf8("GET / HTTP/1.0\r\nHost: example.test\r\n\r\n")
+  old_version: Bytes = "GET / HTTP/1.0\r\nHost: example.test\r\n\r\n".encode_utf8()
   expect(parse_has_error(old_version, UnsupportedVersion("HTTP/1.0")))
-  malformed_version: Bytes = text.encode_utf8("GET / nonsense\r\nHost: example.test\r\n\r\n")
+  malformed_version: Bytes = "GET / nonsense\r\nHost: example.test\r\n\r\n".encode_utf8()
   expect(parse_has_error(malformed_version, ProtocolError("invalid HTTP request line")))
-  bad_length: Bytes = text.encode_utf8(
-    "POST / HTTP/1.1\r\nHost: example.test\r\nContent-Length: nope\r\n\r\n")
+  bad_length: Bytes = "POST / HTTP/1.1\r\nHost: example.test\r\nContent-Length: nope\r\n\r\n".encode_utf8()
   expect(parse_has_error(bad_length, ProtocolError("invalid Content-Length")))
-  ambiguous: Bytes = text.encode_utf8(
-    "POST / HTTP/1.1\r\nHost: example.test\r\nContent-Length: 0\r\n" +
-    "Transfer-Encoding: chunked\r\n\r\n0\r\n\r\n")
+  ambiguous: Bytes = ("POST / HTTP/1.1\r\nHost: example.test\r\nContent-Length: 0\r\n" +
+    "Transfer-Encoding: chunked\r\n\r\n0\r\n\r\n").encode_utf8()
   expect(parse_has_error(ambiguous, ProtocolError("Transfer-Encoding conflicts with Content-Length")))
-  duplicate_length: Bytes = text.encode_utf8(
-    "POST / HTTP/1.1\r\nHost: example.test\r\nContent-Length: 0\r\n" +
-    "Content-Length: 0\r\n\r\n")
+  duplicate_length: Bytes = ("POST / HTTP/1.1\r\nHost: example.test\r\nContent-Length: 0\r\n" +
+    "Content-Length: 0\r\n\r\n").encode_utf8()
   expect(parse_has_error(duplicate_length, ProtocolError("duplicate Content-Length")))
-  unsupported_coding: Bytes = text.encode_utf8(
-    "POST / HTTP/1.1\r\nHost: example.test\r\nTransfer-Encoding: gzip\r\n\r\n")
+  unsupported_coding: Bytes = "POST / HTTP/1.1\r\nHost: example.test\r\nTransfer-Encoding: gzip\r\n\r\n".encode_utf8()
   expect(parse_has_error(unsupported_coding, UnsupportedTransferEncoding()))
-  extra: Bytes = byte_buffer.join(get_head, text.encode_utf8("x"))
+  extra: Bytes = get_head.join("x".encode_utf8())
   expect(parse_has_error(extra, ProtocolError("request body has no framing")))
-  partial_body: Bytes = byte_buffer.join(post_header, text.encode_utf8("w"))
+  partial_body: Bytes = post_header.join("w".encode_utf8())
   expect(match parse_request(partial_body, true, 64) {
     Error(error) => error == ProtocolError("truncated HTTP request body"),
     Ok(value) => false
   })
 
   mut large_headers: Bytes = byte_buffer.empty()
-  for index in 0..65537 { large_headers = byte_buffer.push(large_headers, 65) }
+  for index in 0..65537 { large_headers = large_headers.push(65) }
   expect(match parse_request(large_headers, false, 65536) {
     Error(error) => error == LimitExceeded("request headers"),
     Ok(value) => false
   })
 
-  expect(serialized_response_matches())
 
-  expect(parsed_request_matches(text.encode_utf8(
-    "HEAD / HTTP/1.1\r\nHost: example.test\r\n\r\n"), "HEAD", "/", ""))
-  expect(parsed_request_matches(text.encode_utf8(
-    "HEAD / HTTP/1.1\r\nHost: example.test\r\nContent-Length: 2\r\n\r\nhi"), "HEAD", "/", "hi"))
-  expect(parsed_request_matches(text.encode_utf8(
-    "HEAD / HTTP/1.1\r\nHost: example.test\r\nTransfer-Encoding: chunked\r\n\r\n2\r\nhi\r\n0\r\n\r\n"),
+  expect(parsed_request_matches("HEAD / HTTP/1.1\r\nHost: example.test\r\n\r\n".encode_utf8(), "HEAD", "/", ""))
+  expect(parsed_request_matches("HEAD / HTTP/1.1\r\nHost: example.test\r\nContent-Length: 2\r\n\r\nhi".encode_utf8(), "HEAD", "/", "hi"))
+  expect(parsed_request_matches("HEAD / HTTP/1.1\r\nHost: example.test\r\nTransfer-Encoding: chunked\r\n\r\n2\r\nhi\r\n0\r\n\r\n".encode_utf8(),
     "HEAD", "/", "hi"))
-  expect(parse_has_error(text.encode_utf8(
-    "HEADERS / HTTP/1.1\r\nHost: example.test\r\n\r\n"), UnsupportedMethod("HEADERS")))
-  expect(match serialize_head_response(Response(200,
-      [Header("Content-Type", "text/plain"), Header("Content-Length", "2")], text.encode_utf8("ok"))) {
-    Error(error) => false,
-    Ok(wire) => text.decode_utf8(wire) ==
-      "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\nConnection: close\r\n\r\n"
-  })
-  expect(match serialize_head_response(Response(404, [], text.encode_utf8("missing"))) {
-    Error(error) => false,
-    Ok(wire) => text.decode_utf8(wire) ==
-      "HTTP/1.1 404 Not Found\r\nContent-Length: 7\r\nConnection: close\r\n\r\n"
-  })
-  expect(match serialize_head_response(Response(204, [], byte_buffer.empty())) {
-    Error(error) => false,
-    Ok(wire) => text.decode_utf8(wire) == "HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n"
-  })
-  expect(match serialize_head_response(Response(200, [Header("Content-Length", "3")], text.encode_utf8("ok"))) {
-    Error(error) => error == InvalidResponse(),
-    Ok(wire) => false
-  })
+  expect(parse_has_error("HEADERS / HTTP/1.1\r\nHost: example.test\r\n\r\n".encode_utf8(), UnsupportedMethod("HEADERS")))
 
 
-  expect(response_matches(text.encode_utf8(
-    "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nX-Repeat: a\r\nX-Repeat: b\r\n\r\nok"), 200, "ok"))
-  expect(response_matches(text.encode_utf8(
-    "HTTP/1.0 200 OK\r\nContent-Length: 2\r\n\r\nok"), 200, "ok"))
-  expect(response_matches(text.encode_utf8(
-    "HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 404 Missing\r\nContent-Length: 3\r\n\r\n404"), 404, "404"))
-  expect(response_matches(text.encode_utf8(
-    "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" +
-    "4\r\nWiki\r\n5;name=value\r\npedia\r\n0\r\nX-Trace: yes\r\n\r\n"), 200, "Wikipedia"))
-  expect(response_matches(text.encode_utf8("HTTP/1.1 200 OK\r\n\r\nclose body"), 200, "close body"))
-  expect(response_matches(text.encode_utf8("HTTP/1.1 204 No Content\r\n\r\n"), 204, ""))
-  expect(response_has_error(text.encode_utf8("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nx"),
+
+
+
+
+  expect(response_matches("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nX-Repeat: a\r\nX-Repeat: b\r\n\r\nok".encode_utf8(), 200, "ok"))
+  expect(response_matches("HTTP/1.0 200 OK\r\nContent-Length: 2\r\n\r\nok".encode_utf8(), 200, "ok"))
+  expect(response_matches("HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 404 Missing\r\nContent-Length: 3\r\n\r\n404".encode_utf8(), 404, "404"))
+  expect(response_matches(("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" +
+    "4\r\nWiki\r\n5;name=value\r\npedia\r\n0\r\nX-Trace: yes\r\n\r\n").encode_utf8(), 200, "Wikipedia"))
+  expect(response_matches("HTTP/1.1 200 OK\r\n\r\nclose body".encode_utf8(), 200, "close body"))
+  expect(response_matches("HTTP/1.1 204 No Content\r\n\r\n".encode_utf8(), 204, ""))
+  expect(response_has_error("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nx".encode_utf8(),
     ProtocolError("truncated HTTP response body")))
-  expect(response_has_error(text.encode_utf8(
-    "HTTP/1.1 200 OK\r\nContent-Length: 1\r\nContent-Length: 1\r\n\r\nx"),
+  expect(response_has_error("HTTP/1.1 200 OK\r\nContent-Length: 1\r\nContent-Length: 1\r\n\r\nx".encode_utf8(),
     ProtocolError("duplicate Content-Length")))
-  expect(response_has_error(text.encode_utf8(
-    "HTTP/1.1 200 OK\r\nContent-Length: 1\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n"),
+  expect(response_has_error("HTTP/1.1 200 OK\r\nContent-Length: 1\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n".encode_utf8(),
     ProtocolError("Transfer-Encoding conflicts with Content-Length")))
-  expect(response_has_error(text.encode_utf8("HTTP/2.0 200 OK\r\n\r\n"),
+  expect(response_has_error("HTTP/2.0 200 OK\r\n\r\n".encode_utf8(),
     ProtocolError("invalid HTTP response status line")))
-  expect(match parse_response(text.encode_utf8("HTTP/1.1 200 OK\r\n\r\nbody"), 0, 1024) {
+  expect(match parse_response("HTTP/1.1 200 OK\r\n\r\nbody".encode_utf8(), 0, 1024) {
     Error(error) => error == InvalidLimits(),
     Ok(response) => false
   })
-  expect(match serialize_response(Response(200, [Header("X-Bad", "ok\r\nInjected: yes")],
-      text.encode_utf8(""))) {
-    Error(error) => error == InvalidResponse(),
-    Ok(wire) => false
-  })
-  expect(match serialize_response(Response(200, [Header("Content-Length", "3")],
-      text.encode_utf8("ok"))) {
-    Error(error) => error == InvalidResponse(),
-    Ok(wire) => false
-  })
-  expect(match serialize_response(Response(200, [Header("Transfer-Encoding", "chunked")],
-      byte_buffer.empty())) {
-    Error(error) => error == InvalidResponse(),
-    Ok(wire) => false
-  })
-  expect(match serialize_response(Response(204, [], byte_buffer.empty())) {
-    Error(error) => false,
-    Ok(wire) => text.decode_utf8(wire) ==
-      "HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n"
-  })
-  expect(match serialize_response(Response(204, [], text.encode_utf8("body"))) {
-    Error(error) => error == InvalidResponse(),
-    Ok(wire) => false
-  })
+
+
+
+
+
   expect(match parse_request_for_methods(
-    text.encode_utf8("PUT /item HTTP/1.1\r\nHost: local\r\n\r\n"), false, 64, ["PUT"]
+    "PUT /item HTTP/1.1\r\nHost: local\r\n\r\n".encode_utf8(), false, 64, ["PUT"]
   ) {
     Error(error) => false,
     Ok(parsed) => match parsed {
@@ -209,7 +185,7 @@ main(): Unit {
     }
   })
   expect(match parse_request_for_methods(
-    text.encode_utf8("POST / HTTP/1.1\r\nHost: local\r\n\r\n"), false, 64, ["GET", "HEAD"]
+    "POST / HTTP/1.1\r\nHost: local\r\n\r\n".encode_utf8(), false, 64, ["GET", "HEAD"]
   ) {
     Error(error) => error == UnsupportedMethod("POST"),
     Ok(parsed) => false

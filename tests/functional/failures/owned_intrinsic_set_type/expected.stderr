@@ -1,0 +1,3 @@
+error: <case>/main.panack:1:49: set_add is Str, expected Nat
+  1 | pure use(value: Set[Nat]): Set[Nat] { value.add("x") }
+    |                                                 ^

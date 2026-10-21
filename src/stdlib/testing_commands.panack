@@ -2,13 +2,10 @@ pub import stdlib/testing::{TestResult}
 import stdlib/testing::{TestOutcome.TestPassed, TestOutcome.TestFailed}
 pub import stdlib/process::{ProcessOutput}
 pub import stdlib/host::{HostError}
-import stdlib/result as std_result
 import stdlib/path as std_path
 import stdlib/time as std_time
 import stdlib/host as std_host
 import stdlib/filesystem as std_filesystem
-import stdlib/bytes as byte_buffer
-import stdlib/text as std_text
 import stdlib/testing as std_testing
 import stdlib/process as std_process
 
@@ -61,7 +58,7 @@ pub pure command_result(name: Str, actual: Result[ProcessOutput,HostError],
 }
 
 pure harness_path(text: Str): Path {
-  std_result.value_or(std_path.from_text(text), std_path.current())
+  std_path.from_text(text).value_or(std_path.current())
 }
 
 harness_write(destination: Str, contents: Bytes): Bool {
@@ -78,18 +75,18 @@ harness_write(destination: Str, contents: Bytes): Bool {
 // command, path, and host result identities are checked together.
 pub harness_command(): Void {
   args = std_host.arguments()
-  if len(args) < 6 {
+  if args.len() < 6 {
     std_host.stderr("harness command requires six arguments")
     std_host.exit(1)
   }
   mut command: [Str] = []
-  for index in 6..len(args) { command = command.append(args[index]) }
+  for index in 6..args.len() { command = command.append(args[index]) }
   match std_process.run(harness_path(args[5]), command, bytes(),
-      harness_path(args[4]), [], std_time.seconds(nat_from_str(args[1])), 16777216) {
+      harness_path(args[4]), [], std_time.seconds(args[1].parse_nat()), 16777216) {
     Error(problem) => {
       code = problem.code
       if !harness_write(args[2], bytes()) ||
-          !harness_write(args[3], std_text.encode_utf8("harness host error: ${code}\n")) {
+          !harness_write(args[3], "harness host error: ${code}\n".encode_utf8()) {
         std_host.stderr("harness output write failed")
       } else {}
       std_host.exit(1)
@@ -100,7 +97,7 @@ pub harness_command(): Void {
         std_host.exit(1)
       } else {
         accepted = if args[0] == "failure" { output.exit_code != 0 } else {
-          output.exit_code == nat_from_str(args[0])
+          output.exit_code == args[0].parse_nat()
         }
         if !accepted || output.signal != 0 {
           std_host.stderr("harness command returned unexpected exit status or signal")
@@ -123,7 +120,7 @@ pub capture_report(name: Str, command: TestCommand, expected: ProcessOutput,
       Error(error) => result,
       Ok(output) => if output.exit_code != expected.exit_code ||
           output.signal != expected.signal || output.stdout != expected.stdout {
-        actual_stdout: Str = std_text.decode_utf8(output.stdout)
+        actual_stdout: Str = output.stdout.decode_utf8()
         std_testing.expect(name, false, "${reason}; actual stdout: ${actual_stdout}")
       } else { result }
     },

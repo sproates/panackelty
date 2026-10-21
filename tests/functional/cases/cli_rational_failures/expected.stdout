@@ -16,4 +16,13 @@ PASS rational-4/bytecode
 PASS rational-5/compile
 PASS rational-5/source
 PASS rational-5/bytecode
-tests: 18, failures: 0
+PASS rational-6/compile
+PASS rational-6/source
+PASS rational-6/bytecode
+PASS rational-7/compile
+PASS rational-7/source
+PASS rational-7/bytecode
+PASS rational-8/compile
+PASS rational-8/source
+PASS rational-8/bytecode
+tests: 27, failures: 0

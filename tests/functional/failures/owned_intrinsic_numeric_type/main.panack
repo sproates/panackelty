@@ -1,0 +1,2 @@
+pure use(value: Nat): Nat { value.divide("x") }
+main(): Void { print(0) }

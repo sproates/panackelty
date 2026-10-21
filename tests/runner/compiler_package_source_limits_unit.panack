@@ -1,4 +1,3 @@
-import stdlib/text as std_text
 import stdlib/testing as std_testing
 import stdlib/process as std_process
 import project/src/compiler/loader::{read_package_source}
@@ -19,14 +18,14 @@ package_limit_path(text: Str): Path {
 }
 
 package_limit_child(root: Path, name: Str): Path {
-  match std_path.join(root, package_limit_path(name)) {
+  match root.join(package_limit_path(name)) {
     Ok(value) => value,
     Error(error) => root
   }
 }
 
 package_limit_text(path: Path): Str {
-  match std_path.to_text(path) {
+  match path.to_text() {
     Ok(value) => value,
     Error(error) => ""
   }
@@ -60,7 +59,7 @@ main(): Void {
       small_file: Path = package_limit_child(root, "small.panack")
       exact_written: Bool = package_limit_write_source(one_megabyte_file, 1048576)
       oversized_written: Bool = package_limit_write_source(oversized_file, 1048577)
-      std_filesystem.write(small_file, std_text.encode_utf8(" "))
+      std_filesystem.write(small_file, " ".encode_utf8())
       mut results: [TestResult] = []
       results = results.append(std_testing.expect(
         "package source limit fixture setup",
@@ -74,7 +73,7 @@ main(): Void {
         package_limit_text(one_megabyte_file), root_text, None(), true, empty_paths, empty_sources
       ) {
         Error(error) => false,
-        Ok(source) => byte_buffer.length(std_text.encode_utf8(source)) == 1048576
+        Ok(source) => source.encode_utf8().length() == 1048576
       }
       results = results.append(std_testing.expect(
         "1 MiB package source is accepted",
@@ -107,7 +106,7 @@ main(): Void {
         source_count_paths, source_count_values
       ) {
         Error(error) => false,
-        Ok(source) => byte_buffer.length(std_text.encode_utf8(source)) == 1
+        Ok(source) => source.encode_utf8().length() == 1
       }
       results = results.append(std_testing.expect(
         "256 loaded sources are accepted",
@@ -146,7 +145,7 @@ main(): Void {
         exact_total_paths, exact_total_sources
       ) {
         Error(error) => false,
-        Ok(source) => byte_buffer.length(std_text.encode_utf8(source)) == 1048576
+        Ok(source) => source.encode_utf8().length() == 1048576
       }
       results = results.append(std_testing.expect(
         "8 MiB package source closure is accepted",
@@ -172,7 +171,7 @@ main(): Void {
       std_filesystem.remove_file(oversized_file)
       std_filesystem.remove_file(small_file)
       std_filesystem.remove_directory(root)
-      match std_testing_files.workspace_remove_empty(workspace) {
+      match workspace.remove_empty() {
         Error(error) => { results = results.append(std_testing.expect("workspace cleanup", false, "temporary files remain")) },
         Ok(removed) => {}
       }

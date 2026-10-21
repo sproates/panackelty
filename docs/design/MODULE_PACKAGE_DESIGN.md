@@ -437,6 +437,10 @@ termination is deliberately excluded; reverse proxies are an optional deployment
 choice, not acceptance evidence for native server TLS. This differs from the
 mandatory verified HTTPS client. Each connection accepts one bounded request and
 returns one response with `Connection: close`; no pipelining or keepalive.
+> Historical alpha.13 design below: the alpha.14 development branch replaces
+> these HTTP server facades with the [routed framework](../../packages/http/README.md#server-alpha14-development-branch).
+> The finite server snippet is retained as design history, not a current example.
+
 Support GET, HEAD and POST, headers and bounded bodies with strict Content-Length or
 chunked framing. Parse incrementally without requiring EOF; reject ambiguous
 framing, unsupported transfer codings and oversize input before handler activation.

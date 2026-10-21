@@ -1,0 +1,5 @@
+import "facade.panack"::{RoutedServer as Server}
+
+main(): Void {
+  print(Server(10, map()).put("/fruit", 1))
+}

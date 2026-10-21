@@ -1,0 +1,32 @@
+import "facade.panack"::{Crate as Box}
+import "box.panack" as boxes
+
+enum Choice[T, E] { Chosen(T), Failed(E) }
+
+impl[E, T] Choice[T, E] {
+  pure value_or(fallback: T): T {
+    match self {
+      Chosen(value) => value,
+      Failed(error) => fallback
+    }
+  }
+}
+
+main(): Void {
+  box = Box(42)
+  print(box.value())
+  empty: [Str] = box.empty()
+  print(empty.len())
+  inferred_receiver: [Str] = Box([]).value()
+  print(inferred_receiver.len())
+  print(Box([]).keep([1]).len())
+  print(Box([]).choose[Str]([1], "chosen"))
+  text_box = boxes.Box("text")
+  print(text_box.value())
+  print(box.replace("hello").value())
+  print(box.replace[Str]("explicit").value())
+  choice: Choice[Nat, Str] = Chosen(7)
+  failure: Choice[Nat, Str] = Failed("no")
+  print(choice.value_or(9))
+  print(failure.value_or(9))
+}

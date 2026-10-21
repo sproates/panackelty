@@ -1,5 +1,5 @@
 import stdlib/testing as std_testing
-import project/src/compiler/parser::{Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, Block, Statement, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue.NoBlockValue, BlockValue.TailBlockValue, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, expression_span, unlocated_expression, parse_complete, parse_program_complete}
+import project/src/compiler/parser::{Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, Block, Statement, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue.NoBlockValue, BlockValue.TailBlockValue, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, expression_span, unlocated_expression, parse_complete, parse_program_complete}
 import project/src/compiler/lexer::{lex_file}
 import project/src/compiler/types::{SourcePos, SourceSpan}
 import stdlib/host as std_host
@@ -56,6 +56,7 @@ pure trace_children(expression: Expr): Str {
     ArrayExpr(items) => { mut output: Str = ""; for item in items { output = output + trace_span(item); } output },
     UnaryExpr(operator, operand) => trace_span(operand),
     BinaryExpr(operator, left, right) => trace_span(left) + trace_span(right),
+    OwnedCallExpr(target, name, arguments, types) => { mut output: Str = trace_span(target); for argument in arguments { output = output + trace_span(argument); } output },
     DotCallExpr(target, name, arguments, types) => { mut output: Str = trace_span(target); for argument in arguments { output = output + trace_span(argument); } output },
     CallExpr(name, arguments, types) => { mut output: Str = ""; for argument in arguments { output = output + trace_span(argument); } output },
     FieldExpr(target, field) => trace_span(target),
@@ -134,7 +135,7 @@ main(): Void {
   results = results.append(std_testing.equal_str("spans/precedence", expression_trace("1 + 2 * 3"), "0..9;0..1;4..9;4..5;8..9;"))
   results = results.append(std_testing.equal_str("spans/left-associative", expression_trace("10 - 3 - 2"), "0..10;0..6;0..2;5..6;9..10;"))
   results = results.append(std_testing.equal_str("spans/parenthesised-receiver", expression_trace("(items)[index]"), "0..14;0..7;8..13;"))
-  results = results.append(std_testing.equal_str("spans/lowered-method", expression_trace("values.map[Nat](@worker)"), "0..24;0..6;16..23;"))
+  results = results.append(std_testing.equal_str("spans/dot-receiver", expression_trace("values.map[Nat](@worker)"), "0..24;0..6;16..23;"))
   results = results.append(std_testing.equal_str("spans/conditional-children", expression_trace("if flag { 1 } else { 2 }"), "0..24;3..7;10..11;21..22;"))
   results = results.append(std_testing.equal_str("spans/match-block", expression_trace("match value { Some(x) => { x }, None() => 0 }"), "0..45;6..11;25..30;27..28;42..43;"))
   results = results.append(std_testing.equal_str("spans/synthetic-unavailable", trace_span(BinaryExpr("+", NatExpr(1), NatExpr(2))), "missing;"))

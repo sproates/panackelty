@@ -1,4 +1,0 @@
-// Explicit library entry point for integer-truncating natural division.
-pub pure divide(dividend: Nat, divisor: Nat): Nat {
-  quotient(dividend, divisor)
-}

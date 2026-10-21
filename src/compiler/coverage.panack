@@ -1,10 +1,6 @@
+import stdlib/host as std_host
 import project/src/compiler/path_support as path_support
-import stdlib/text as std_text
-import stdlib/option as std_option
-import stdlib/numeric as std_numeric
-import stdlib/path as std_path
 import stdlib/environment as std_environment
-import stdlib/bytes as byte_buffer
 pub import project/src/compiler/loader::{LoadedProject, LoadedModule, ModuleBindingGraph}
 import project/src/compiler/loader::{load_project_for_inventory, loaded_binding_graph}
 import project/src/compiler/project_frontend::{prepare_project_program}
@@ -58,17 +54,17 @@ pub pure coverage_number(data: Bytes, offset: Nat, width: Nat): Nat {
   mut value: Nat = 0
 
   for index in 0..width {
-    value = value * 256 + byte_buffer.at(data, offset + index)
+    value = value * 256 + data.at(offset + index)
   }
   value
 }
 
 pub pure coverage_prefix(data: Bytes, expected: Bytes, offset: Nat): Bool {
-  mut valid: Bool = offset + byte_buffer.length(expected) <= byte_buffer.length(data)
+  mut valid: Bool = offset + expected.length() <= data.length()
 
   if valid {
-    for index in 0..byte_buffer.length(expected) {
-      valid = valid && byte_buffer.at(data, offset + index) == byte_buffer.at(expected, index)
+    for index in 0..expected.length() {
+      valid = valid && data.at(offset + index) == expected.at(index)
     }
   }
 
@@ -93,14 +89,14 @@ pub pure decode_coverage_at(
   program: BytecodeProgram,
   offset: Nat
 ): CoverageData {
-  prefix: Bytes = source_map_join([std_text.encode_utf8("PANACKCOV1\n"), source_map_blob(artifact),
-    source_map_blob(inventory), encode_u32(len(program.functions))], 0, 4)
-  mut size: Nat = byte_buffer.length(prefix) + 6
+  prefix: Bytes = source_map_join(["PANACKCOV1\n".encode_utf8(), source_map_blob(artifact),
+    source_map_blob(inventory), encode_u32(program.functions.len())], 0, 4)
+  mut size: Nat = prefix.length() + 6
 
   for function in sort_functions(program.functions) {
-    size = size + 12 + len(function.instructions) * 32
+    size = size + 12 + function.instructions.len() * 32
   }
-  mut valid: Bool = size <= 33554432 && byte_buffer.length(data) == size + offset && coverage_prefix(
+  mut valid: Bool = size <= 33554432 && data.length() == size + offset && coverage_prefix(
     data,
     prefix,
     offset
@@ -108,10 +104,10 @@ pub pure decode_coverage_at(
   mut functions: [CoverageFunction] = []
   mut terminal: Nat = 0
   if valid {
-    mut cursor: Nat = offset + byte_buffer.length(prefix)
+    mut cursor: Nat = offset + prefix.length()
     for function in sort_functions(program.functions) {
       entries: Nat = coverage_number(data, cursor, 8)
-      valid = valid && coverage_number(data, cursor + 8, 4) == len(function.instructions)
+      valid = valid && coverage_number(data, cursor + 8, 4) == function.instructions.len()
       cursor = cursor + 12
       mut cells: [CoverageCell] = []
       for instruction in function.instructions {
@@ -126,14 +122,14 @@ pub pure decode_coverage_at(
         } else {
           valid = valid && cell.fallthrough == 0 && cell.branched == 0
         }
-        cells = append(cells, cell)
+        cells = cells.append(cell)
         cursor = cursor + 32
       }
-      functions = append(functions, CoverageFunction(entries, cells))
+      functions = functions.append(CoverageFunction(entries, cells))
     }
-    terminal = byte_buffer.at(data, cursor + 4)
-    valid = valid && coverage_prefix(data, std_text.encode_utf8("END\n"), cursor) &&
-      (terminal == 1 || terminal == 2 || terminal == 3) && byte_buffer.at(data, cursor + 5) == 0
+    terminal = data.at(cursor + 4)
+    valid = valid && coverage_prefix(data, "END\n".encode_utf8(), cursor) &&
+      (terminal == 1 || terminal == 2 || terminal == 3) && data.at(cursor + 5) == 0
   }
   CoverageData(valid, terminal, functions)
 }
@@ -202,14 +198,14 @@ pure coverage_add_incoming(
     } else {
       []
     }
-    index.put(target, append(prior, CoverageIncoming(source, count)))
+    index.put(target, prior.append(CoverageIncoming(source, count)))
   }
 }
 
 pub pure coverage_incoming(code: FunctionCode, data: CoverageFunction): Map[Nat, [CoverageIncoming]] {
   mut index: Map[Nat, [CoverageIncoming]] = map()
 
-  for pc in 0..len(code.instructions) {
+  for pc in 0..code.instructions.len() {
     edge: CoverageEdge = coverage_edge(code.instructions[pc], pc)
     cell: CoverageCell = data.cells[pc]
     if edge.conditional {
@@ -263,7 +259,7 @@ pub pure coverage_attempted(probe: EmissionProbe, code: FunctionCode, data: Cove
   } else {
     0
   }
-  for pc in 0..len(code.instructions) {
+  for pc in 0..code.instructions.len() {
     if pc < probe.start || pc >= probe.end {
       cell: CoverageCell = data.cells[pc]
       edge: CoverageEdge = coverage_edge(code.instructions[pc], pc)
@@ -337,7 +333,7 @@ pure coverage_text_join(chunks: [Str], start: Nat, end: Nat): Str {
     if end == start + 1 {
       chunks[start]
     } else {
-      middle: Nat = std_numeric.divide(start + end, 2)
+      middle: Nat = (start + end).divide(2)
       coverage_text_join(chunks, start, middle) + coverage_text_join(chunks, middle, end)
     }
   }
@@ -377,11 +373,11 @@ pub pure render_coverage(
   codes: [FunctionCode] = sort_functions(mapped.bytecode.functions)
   mut incoming: [Map[Nat, [CoverageIncoming]]] = []
 
-  for i in 0..len(codes) {
-    incoming = append(incoming, coverage_incoming(codes[i], data.functions[i]))
+  for i in 0..codes.len() {
+    incoming = incoming.append(coverage_incoming(codes[i], data.functions[i]))
   }
   mut code_indices: Map[Str, Nat] = map()
-  for i in 0..len(codes) {
+  for i in 0..codes.len() {
     code_indices = code_indices.put(codes[i].name, i)
   }
   graph: ModuleBindingGraph = loaded_binding_graph(
@@ -417,7 +413,7 @@ pub pure render_coverage(
       } else {
         []
       }
-      probes = probes.put(key, append(prior, probe))
+      probes = probes.put(key, prior.append(probe))
     }
     probe_index = probe_index.put(mapping.name, probes)
   }
@@ -432,11 +428,11 @@ pub pure render_coverage(
         mut line_states: Map[Nat, Str] = map()
         for item in items {
           if item.kind == "function" || item.kind == "excluded" {
-            while declaration_index < len(module.parsed.program.declarations) &&
+            while declaration_index < module.parsed.program.declarations.len() &&
               item.id != "declaration/${declaration_index}" {
               declaration_index = declaration_index + 1
             }
-            if declaration_index < len(module.execution_program.declarations) {
+            if declaration_index < module.execution_program.declarations.len() {
               function_name = coverage_source_function_name(
                 graph,
                 entry,
@@ -459,7 +455,7 @@ pub pure render_coverage(
             if item.kind == "function" {
               state = "observed"
               attempted = observed.entries
-              for pc in 0..len(code.instructions) {
+              for pc in 0..code.instructions.len() {
                 match code.instructions[pc] {
                   ReturnInstruction() => {
                     completed = completed + observed.cells[pc].completed
@@ -497,7 +493,7 @@ pub pure render_coverage(
               if probe_index.has(code.name) {
                 probes: Map[Str, [EmissionProbe]] = probe_index.get(code.name)
                 mut probe_kind: Str = kind
-                if item.kind == "outcome" && len(kind) > 4 && slice(kind, 0, 4) == "arm:" {
+                if item.kind == "outcome" && kind.len() > 4 && kind.slice(0, 4) == "arm:" {
                   emitted_variant: Str = module_emission_symbol(
                     graph,
                     entry,
@@ -511,7 +507,7 @@ pub pure render_coverage(
                 key: Str = coverage_probe_key(probe_kind, item.span)
                 if probes.has(key) {
                   candidates: [EmissionProbe] = probes.get(key)
-                  matches = len(candidates)
+                  matches = candidates.len()
                   if matches == 1 {
                     probe: EmissionProbe = candidates[0]
                     cell: CoverageCell = observed.cells[probe.start]
@@ -550,8 +546,7 @@ pub pure render_coverage(
             }
           }
           file: Str = source_map_escape(snapshot.name)
-          rows = append(
-            rows,
+          rows = rows.append(
             file + "\t" + item.id + "\t" + item.kind + "\t" + item.detail + "\t${state}\t${attempted}\t${completed}\n"
           )
           if item.kind == "expression" || item.kind == "statement" {
@@ -571,14 +566,13 @@ pub pure render_coverage(
                 "unavailable"
               })
             if !lines.has(line) {
-              line_order = append(line_order, line)
+              line_order = line_order.append(line)
             }
             lines = lines.put(line, reached)
           }
         }
         for line in line_order {
-          rows = append(
-            rows,
+          rows = rows.append(
             source_map_escape(snapshot.name) + "\tline/${line}\tline\tanchor\t" + (if lines.get(line) {
               "observed"
             } else {
@@ -593,54 +587,54 @@ pub pure render_coverage(
       }
     }
   }
-  coverage_text_join(rows, 0, len(rows))
+  coverage_text_join(rows, 0, rows.len())
 }
 
 pub run_coverage_report(values: [Str]): Nat {
-  if len(values) != 6 || values[2] != "--inventory" || values[4] != "--coverage" {
-    eprint("error: coverage-report SOURCE.panack --inventory FILE --coverage RAW")
+  if values.len() != 6 || values[2] != "--inventory" || values[4] != "--coverage" {
+    std_host.stderr("error: coverage-report SOURCE.panack --inventory FILE --coverage RAW")
     1
   } else {
     entry: Str = path_support.resolve(values[1])
     root: Str = path_support.parent(entry)
-    stdlib: Str = path_support.resolve(std_option.value_or(std_environment.get("PANACKELTY_STDLIB_PATH"), ""))
-    compiler_path: Str = std_option.value_or(std_environment.get("PANACKELTY_COMPILER_PATH"), "")
+    stdlib: Str = path_support.resolve(std_environment.get("PANACKELTY_STDLIB_PATH").value_or(""))
+    compiler_path: Str = std_environment.get("PANACKELTY_COMPILER_PATH").value_or("")
     project: LoadedProject = load_project_for_inventory(entry)
     match source_map_read(compiler_path, 16777216) {
       Error(error) => {
-        eprint("error: coverage compiler unavailable")
+        std_host.stderr("error: coverage compiler unavailable")
         1
       },
       Ok(compiler) => match coverage_mapped_project(project, entry, root, stdlib) {
         Error(errors) => {
-          eprint("error: coverage unavailable: invalid, changed or incompatible local inventory")
+          std_host.stderr("error: coverage unavailable: invalid, changed or incompatible local inventory")
           1
         },
         Ok(mapped) => {
         artifact: Bytes = serialize_bytecode(mapped.bytecode)
         inner: Bytes = serialize_source_inventory(project, artifact, compiler, entry, root, stdlib)
         inventory: Bytes = source_map_join(
-          [std_text.encode_utf8("PANACKINVENTORY1\n"), encode_u32(1), source_map_blob(inner)],
+          ["PANACKINVENTORY1\n".encode_utf8(), encode_u32(1), source_map_blob(inner)],
           0,
           3
         )
-        if byte_buffer.length(inner) == 0 || !source_map_matches(
+        if inner.length() == 0 || !source_map_matches(
           values[3],
           inventory
         ) ||
           !source_snapshots_unchanged(project) || !source_map_matches(compiler_path, compiler) {
-          eprint("error: coverage unavailable: invalid, changed or incompatible local inventory")
+          std_host.stderr("error: coverage unavailable: invalid, changed or incompatible local inventory")
           1
         } else {
           match source_map_read(values[5], 33554432) {
             Error(error) => {
-              eprint("error: coverage raw record unavailable")
+              std_host.stderr("error: coverage raw record unavailable")
               1
             },
             Ok(raw) => {
               data: CoverageData = decode_coverage(raw, artifact, inventory, mapped.bytecode)
               if !data.valid {
-                eprint("error: coverage unavailable: malformed, incomplete, stale, overflowed or uncollected execution")
+                std_host.stderr("error: coverage unavailable: malformed, incomplete, stale, overflowed or uncollected execution")
                 1
               } else {
                 print(render_coverage(project, mapped, data, root, stdlib))

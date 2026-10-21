@@ -3,6 +3,21 @@
 The [website repository](https://github.com/sproates/panackelty-website) owns website source, previews, release promotion
 and publication independently of native validation.
 
+Type-owned method dispatch uses checked receiver identity
+and an explicit owner/method index to select compiler-private method functions. Existing identity emission and VM
+calls supply `self`; no bytecode or runtime extension is required. Public methods
+remain owned by the original type across imports and re-exports; cross-module
+calls check declaration visibility during binding. Owned-call syntax and method
+metadata remain distinct from globals; the receiver is bound once and its checked
+method identity is retained through emission. Generic record/enum methods retain
+implementation and method binder boundaries; receiver substitutions precede method
+inference and expected-result constraint solving. Local ownership is checked
+after declaration collection, so impl order is unrestricted. Core Option/Result
+methods use the same checked emission path. Dots select namespace calls or owned
+methods using lexical scope and checked identity, with no receiver-to-global
+fallback. Receiver arrows are rejected. See the
+[compiler notes](../../src/compiler/README.md#type-owned-methods).
+
 ## Overview
 
 Panackelty is a compiled language whose execution contract is its bytecode virtual
@@ -81,7 +96,7 @@ The major components are:
 panackelty/
 ├── CONTRIBUTING.md          contributor conventions and validation
 ├── Makefile                 canonical validation command
-├── bin/panack                stable command-line entry point
+├── panack                    stable command-line entry point
 ├── bootstrap/               audited stage-1 compiler seed
 ├── src/
 │   ├── compiler/            self-hosted Panackelty compiler
@@ -100,13 +115,10 @@ panackelty/
 │   ├── runner/             Panackelty component and functional probes
 │   └── functional/         complete Panackelty program and CLI tests
 ├── .github/workflows/       continuous validation and releases
-├── docs/
-│   ├── guides/               user-facing setup and language guides
-│   ├── reference/            language and runtime contracts
-│   ├── internals/            architecture and bootstrap documentation
-│   ├── releases/             release acceptance and policy
-│   └── roadmap/               process and historical records
-└── ROADMAP.md                language and engineering initiatives
+├── ARCHITECTURE.md          this implementation description
+├── ROADMAP.md               language and engineering initiatives
+├── SPEC.md                  language semantics
+└── SELF_HOSTING.md          bootstrap roadmap
 ```
 
 The [website repository](https://github.com/sproates/panackelty-website) assembles static pages with a checksummed browser
@@ -118,6 +130,15 @@ Core owns native validation, the runtime bundle contract and coverage generation
 reports independently. The website owns compatibility coverage landing pages.
 
 ## Compiler pipeline
+
+P05's method owner metadata distinguishes nominal declaration identities from
+closed built-in family tags. Built-in declarations are accepted only in the
+loader-assigned toolchain package's designated `core.panack`; a user package name
+or matching filename is insufficient. Body lookup uses that owner registry and
+checks the selected binding's retained owner metadata. Source methods emit
+ordinary checked direct calls. The registry adds no runtime table or opcode;
+the registry now supplies intrinsic declarations and source-owned core methods.
+Broader caller migration remains follow-on work.
 
 The effectful loader obtains source modules and assigns their canonical module
 identifiers. Quoted file imports are rooted at their importer, `project/`
@@ -131,17 +152,11 @@ rejects missing units, duplicate identifiers, cycles, and declarations that
 collide across modules. The name resolver then checks top-level and lexical
 references. Before parsing, each lexer normalizes only terminating physical line
 breaks into statement separators; breaks inside continued expressions remain
-soft, so the AST and bytecode do not depend on source layout. Both parsers lower
-`receiver.name(arguments)` to a receiver-first call AST. Ordinary method
-spelling reuses global name
-resolution, argument and generic checking, purity analysis, and bytecode
-emission; dot access without parentheses remains a record-field AST node.
-Method-only collection names lower to internal, unspellable built-in targets so
-they cannot collide with global source functions. The checker resolves
-`put/get/add` to their single collection family and accepts `has` only for Map
-or Set receivers. Because the emitter deliberately consumes the existing
-untyped AST, the VM safely dispatch the erased internal `has` call from the
-runtime value tag after the static check. Explicit `@name` expressions create
+soft, so the AST and bytecode do not depend on source layout. The parser preserves dot calls for namespace resolution and owned `->` calls
+for canonical receiver-type lookup. Receiver dots and receiver-to-global fallback
+are rejected. Map/Set methods select typed intrinsic identities before emission;
+there is no overloaded source-name `has` dispatcher. Record fields retain dots.
+Explicit `@name` expressions create
 non-capturing callable values whose `PureFn[...]` or `Fn[...]` type retains the
 declared effect. `.call(...)` emits `CALL_VALUE`; array `map` and `reduce` lower
 to ordinary iterator, persistent-array, and indirect-call instructions. The VM
@@ -227,7 +242,7 @@ array/generic/callable types, origin arity and guard helper accessibility; publi
 function bodies may still call private helpers. Substitution follows the owning
 binder rather than source spelling. The loader first collects contracts across the loaded graph, then binds staged
 function bodies, so recursion and declaration/import order cannot hide a callee.
-Ordinary legacy programs do not traverse either pass. Nominal declaration lookup and export reachability still
+All project programs traverse these passes. Nominal declaration lookup and export reachability still
 scan the small loaded graph; this is not a scaling or indexing claim.
 
 `module_bodies.panack` retains a structural body tree with original declaration
@@ -1032,7 +1047,7 @@ Value *host_capability_call(VM *vm, const char *name, Value **arguments)
 {
     (void)name;
     (void)arguments;
-    vm->error = "VM trap: host capability unavailable in browser experiment";
+    vm.error = "VM trap: host capability unavailable in browser experiment";
     return NULL;
 }
 ```
@@ -1174,11 +1189,13 @@ previous dispositions when the service ends. Embedded executions retain explicit
 stop and separate listening, outbound, filesystem and console grants. Request
 children inherit the granted filesystem and console services, never listening.
 
-`packages/http/src/service.panack` supplies the protocol composition over the
-isolated `stdlib/tcp_service` module. A generic `ConnectionContext` passes typed
-configuration and a named request callback through a concrete connection worker.
-HTTP parsing and serialization stay in the package; existing finite entry points
-use the same configured connection path.
+`packages/http/src/server.panack` exposes typed routed server handles and named
+async handlers. `http_runtime.c` retains listeners and drives request children;
+`http_state.c` owns opaque server, connection and response state. The package owns
+routing, framing, request construction and response policy. The internal
+`stdlib/http_runtime` bridge carries typed handles rather than public transport
+configuration. Source-launcher child executions own and drain their own runtime
+before releasing the compiled program. Low-level TCP services remain separate.
 
 `console_write.c` owns bounded asynchronous stdout/stderr workers for
 `stdlib/async_host`. Four retained operations, each at most 16 KiB plus newline,
@@ -1193,8 +1210,9 @@ boundary. Filesystem and console capacities are separate.
 `packages/static_http` owns URL decoding, MIME selection, directory indexes,
 redirects, configured headers and file-to-response policy. Its only package
 dependency is `packages/http`; async file and console operations use the existing
-isolated adapters. `http/server.ConnectionPolicy` selects allowed methods and
-error headers without changing existing connection-context records or callers.
+isolated adapters. A contextual routed-server fallback carries root identity and
+application policy. Generic protocol errors belong to the framework; static file
+responses retain configured application headers and stricter byte limits.
 
 ```mermaid
 flowchart LR
@@ -1246,7 +1264,7 @@ framing and typed errors. The backend is replaceable after alpha.13 evidence.
 
 ## Implicit core and standard methods
 
-The loader loads the toolchain-owned `src/stdlib/core.panack` before the entry module, using the same canonical visited set. It internalises only the core algorithm tokens (`$core_ends_with`, `$core_first`, `$core_sort_by`), retaining source positions. The parser selects these identities for standard dot calls; generic checking and purity use their ordinary source signatures. Core enums are shared with the compiler, replacing its duplicate Result definition. Reachable core algorithms are emitted through existing calls; unused core algorithms are omitted. No VM, opcode or bytecode-v9 contract changes are required. Other stdlib modules remain explicit. Native packages and browser assets must carry the matching core source and compiler seed.
+The loader loads the toolchain-owned `src/stdlib/core.panack` before the entry module, using the same canonical visited set. Value-dot calls select checked owned declarations; the temporary arrow-call syntax is rejected. Namespace/value classification happens before body binding; lexical values shadow namespace aliases, and neither path falls back to globals. The old core compatibility helpers are removed. All core functions use checked emission; local types and source positions survive tooling rechecks. Generic checking and purity use their source signatures. Core enums are shared with the compiler, replacing its duplicate Result definition. Reachable core algorithms are emitted through existing calls; unused core algorithms are omitted. No VM, opcode or bytecode-v9 contract changes are required. Other stdlib modules remain explicit. Native packages and browser assets must carry the matching core source and compiler seed.
 
 ## Compiler and runtime understanding: initial investigation, 2026-10-01
 
@@ -1644,3 +1662,48 @@ instruction-cell, execution-count and total-session budgets are unchanged.
 Synchronous filesystem reads/writes allow 32 MiB so the exporter and self-hosted
 reporter can exchange these bounded containers. Rooted/async filesystem, directory
 listing, process-output and HTTP limits retain their separate contracts.
+
+### Owned intrinsic declarations
+
+The compiler supplies built-in method declarations from `owned_intrinsics.panack`
+only in the designated toolchain core. A declaration carries a closed intrinsic ID
+alongside its owner/name, visibility and canonical typed signature. Body checking
+reuses existing primitive constraints after owner selection and retains the
+selected declaration in the bound call. Emission lowers its ID to existing VM
+operations. No runtime lookup, opcode or bytecode-format change is involved.
+
+### Owned callable dispatch (P07)
+
+The intrinsic registry supplies distinct PureFn/Fn/AsyncFn call identities and
+Array map/reduce declarations. Owned resolution selects these before the existing
+callable/collection checker specialises receiver signatures. Bound calls retain
+the declaration ID through emission. Synthetic callable effects match their
+family; async source methods retain their parser flag and use the ordinary effect
+pass. No VM instruction or scheduling semantics change.
+
+### Core source ownership and error identities (P08)
+
+Core owns 19 source-defined methods in addition to the intrinsic registry.
+PathError and DurationError move to core, with public re-exports from their former
+modules. Intrinsic result checking selects the canonical core declaration when
+present and retains the old-module identity for pre-conversion/custom toolchains.
+Core has no imports, so the re-exports introduce no cycle.
+
+All core functions emit from checked bodies; compatibility forwarders are removed.
+Owned core methods receive private `$core_` emission names so the existing
+reachability pass omits unused core algorithms while following their calls.
+Source method selection still uses canonical owner metadata, not these names.
+The loader emits every accepted project from checked declaration identities.
+Guard validity, mutation-sensitive arithmetic proofs and effect evidence are
+checked in that same pipeline.
+No VM, opcode or bytecode-version change is introduced.
+
+### Routed HTTP foundations (GI#518, in development)
+
+The HTTP package's internal `request.panack` adapts legacy transport requests to
+raw path/query and owned header-access methods. `routing.panack` validates route
+references and selects handlers, fallback, 404 or path-specific 405 independently
+of sockets. These modules are not exported as a completed routed-server API.
+The VM records structured fault categories separately from error text; recovery
+is not enabled until request ownership and cleanup are implemented. Existing HTTP
+client and low-level service contracts remain unchanged during this foundation.

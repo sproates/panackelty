@@ -1,0 +1,2 @@
+impl[K,V] Map[K,V] {}
+pub pure value(): Nat { 1 }

@@ -1,0 +1,6 @@
+pub record Server { id: Nat }
+
+impl Server {
+  pub pure get(): Nat { self.id + 1000 }
+  pub pure put(amount: Nat): Server { Server(self.id + amount) }
+}

@@ -1,6 +1,7 @@
 #include "value.h"
 
 #include "numeric.h"
+#include "http_state.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -40,6 +41,15 @@ void release(Value *v)
         return;
     }
     switch (v->kind) {
+    case V_HTTP_CONNECTION:
+        http_connection_free(v->as.http_connection);
+        break;
+    case V_HTTP_STATE:
+        http_state_free(v->as.http_state);
+        break;
+    case V_HTTP_WRITER:
+        http_writer_free(v->as.http_writer);
+        break;
     case V_NAT:
     case V_INT:
     case V_DURATION:
@@ -202,6 +212,12 @@ static bool append_independent(const Value *item, const ArrayStorage *target, si
     }
     --*budget;
     switch (item->kind) {
+    case V_HTTP_CONNECTION:
+    case V_HTTP_STATE:
+    case V_HTTP_WRITER:
+        /* Opaque resources can retain container values; do not share append
+         * storage across an ownership boundary we cannot inspect here. */
+        return false;
     case V_ARRAY:
     case V_MAP:
     case V_SET: {

@@ -1,30 +1,28 @@
 import stdlib/process::{ProcessOutput}
-import stdlib/text as std_text
 import stdlib/host as std_host
 import stdlib/process as std_process
-import stdlib/result as std_result
 import stdlib/time as std_time
 import stdlib/path as std_path
 import stdlib/host::{HostError}
 import stdlib/bytes as byte_buffer
-pure path(text: Str): Path { std_result.value_or(std_path.from_text(text), std_path.current()) }
+pure path(text: Str): Path { std_path.from_text(text).value_or(std_path.current()) }
 pure code(value: Result[ProcessOutput,HostError]): Str {
   match value { Ok(output) => "ok", Error(error) => error.code }
 }
 main(): Void {
-  mut input = std_text.encode_utf8("x")
+  mut input = "x".encode_utf8()
   mut count: Nat = 0
-  while count < 17 { input = byte_buffer.join(input, input); count = count + 1 }
+  while count < 17 { input = input.join(input); count = count + 1 }
   match std_process.run(path("/bin/sh"), ["-c", "dd if=/dev/zero bs=1024 count=128 2>/dev/null; dd if=/dev/zero bs=1024 count=128 >&2 2>/dev/null; cat"], input, std_path.current(), [], std_time.seconds(5), 400000) {
     Error(error) => { print(error.code) },
-    Ok(output) => { print(byte_buffer.length(output.stdout)); print(byte_buffer.length(output.stderr)); print(output.exit_code) }
+    Ok(output) => { print(output.stdout.length()); print(output.stderr.length()); print(output.exit_code) }
   }
   print(code(std_process.run(path("/bin/sh"), ["-c", "exit 0"], input, std_path.current(), [], std_time.seconds(3), 0)))
   match std_process.run(path("/bin/sh"), ["-c", "printf \"$PANACK_HOST_TEST\"; printf '\\377' >&2; kill -TERM $$"], byte_buffer.empty(), std_path.current(), ["PANACK_HOST_TEST=value"], std_time.seconds(3), 100) {
     Error(error) => { print(error.code) },
     Ok(output) => {
-      print(std_result.value_or(std_host.decode_utf8(output.stdout), "bad"))
-      print(byte_buffer.at(output.stderr, 0))
+      print(std_host.decode_utf8(output.stdout).value_or("bad"))
+      print(output.stderr.at(0))
       print(output.signal)
     }
   }

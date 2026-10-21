@@ -1,24 +1,22 @@
+import project/tests/runner/compiler_backend_fixtures::{check_source_frontend, compile_source_disassembly}
 import stdlib/testing as std_testing
 import project/src/compiler/filesystem_support as filesystem_support
 import project/src/compiler/parser::{Program, indexed_program, ParsedModule, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, Expr.BoolExpr, RecordField, EnumVariant, FunctionParameter, Block, BlockValue.NoBlockValue}
 import project/src/compiler/resolver::{collect_symbol_diagnostics, append_program_declarations}
 import project/src/compiler/checker::{GuardedTypeLookup, RecordLookup, EnumLookup, FunctionLookup, VariantLookup, guarded_type, record_type, enum_type, function_type, variant_type}
-import project/src/compiler/purity::{check_source_frontend}
 import project/src/compiler/module_bodies::{BodyContext, body_compatibility}
 import project/src/compiler/module_bindings::{ModulePackageIdentity.StandaloneModulePackage, ModuleIdentity, DeclarationIdentity, ModuleBindings, LoadedModule, loaded_module_declaration_index}
 import project/src/compiler/module_resolution::{ModuleBindingGraph}
 import project/src/compiler/module_signatures::{SignatureType, SignatureTypeIdentity.SignatureCore, SignatureTypeIdentity.SignatureNominal, SignatureTypeIdentity.SignatureHole, SignatureTypeIdentity.SignatureCallable, SignatureEffect.SignaturePure, SignatureEffect.SignatureOrdinary, SignatureEffect.SignatureAsync}
-import project/src/compiler/emitter::{compile_source_disassembly}
 import project/src/compiler/expression_contracts::{decode_string_literal}
 import project/src/compiler/diagnostics::{diagnostic_character, diagnostic_with_source}
 import project/src/compiler/types::{SourcePos, Diagnostic}
-import stdlib/filesystem as std_filesystem
 import stdlib/host as std_host
 import stdlib/testing::{TestResult}
 pure contract_contains(actual: Str, expected: Str): Bool {
   mut found = false
-  for offset in 0..len(actual) {
-    if starts_with_at(actual, expected, offset) { found = true }
+  for offset in 0..actual.len() {
+    if actual.starts_with_at(expected, offset) { found = true }
   }
   found
 }
@@ -60,23 +58,23 @@ pure indexed_lookup_contracts(): [TestResult] {
     std_testing.expect("indexed function retains signature and effects", function.found && function.parameters == [FunctionParameter("arg", "Str")] && function.return_type == "Bool" && !function.is_pure && function.is_async && function.type_parameters == ["F"], "wrong function"),
     std_testing.expect("indexed variant keeps last duplicate payload", variant.found && variant.enum_name == "Shared" && variant.parameters == ["T"] && variant.payload == ["Str"], "wrong variant"),
     std_testing.expect("indexed variants retain earlier enum-only names", kept.found && kept.parameters == ["E"] && kept.payload == [], "lost earlier variant"),
-    std_testing.expect("indexed duplicates still reach resolver", len(collect_symbol_diagnostics(program)) > 0, "index hid duplicate declarations")
+    std_testing.expect("indexed duplicates still reach resolver", collect_symbol_diagnostics(program).len() > 0, "index hid duplicate declarations")
   ]
   for name in ["", "Missing", "shared", "Repeated"] {
-    results = append(results, std_testing.expect("indexed missing declaration/" + name,
+    results = results.append(std_testing.expect("indexed missing declaration/" + name,
       !guarded_type(program, name).found && !record_type(program, name).found &&
       !enum_type(program, name).found && !function_type(program, name).found, "false lookup hit"))
   }
   for name in ["", "Missing", "shared", "Shared"] {
-    results = append(results, std_testing.expect("indexed missing variant/" + name, !variant_type(program, name).found, "false variant hit"))
+    results = results.append(std_testing.expect("indexed missing variant/" + name, !variant_type(program, name).found, "false variant hit"))
   }
   earlier: Program = indexed_program([EnumDeclaration("Earlier", [], [EnumVariant("V", ["Nat"])])])
   later: Program = indexed_program([EnumDeclaration("Later", ["X"], [EnumVariant("V", ["X"])])])
   merged: Program = append_program_declarations([earlier, indexed_program([]), later])
   merged_variant: VariantLookup = variant_type(merged, "V")
-  results = append(results, std_testing.expect("merged module indexes rebuilt", merged_variant.found && merged_variant.enum_name == "Later" && merged_variant.parameters == ["X"] && merged_variant.payload == ["X"] && enum_type(merged, "Earlier").found, "stale module index"))
-  results = append(results, std_testing.expect("input module index unchanged", variant_type(earlier, "V").enum_name == "Earlier", "merge mutated input"))
-  results = append(results, std_testing.expect("empty indexed program has no match", !record_type(indexed_program([]), "Shared").found && !variant_type(indexed_program([]), "V").found, "empty index matched"))
+  results = results.append(std_testing.expect("merged module indexes rebuilt", merged_variant.found && merged_variant.enum_name == "Later" && merged_variant.parameters == ["X"] && merged_variant.payload == ["X"] && enum_type(merged, "Earlier").found, "stale module index"))
+  results = results.append(std_testing.expect("input module index unchanged", variant_type(earlier, "V").enum_name == "Earlier", "merge mutated input"))
+  results = results.append(std_testing.expect("empty indexed program has no match", !record_type(indexed_program([]), "Shared").found && !variant_type(indexed_program([]), "V").found, "empty index matched"))
   results
 }
 
@@ -84,25 +82,25 @@ pure indexed_lookup_contracts(): [TestResult] {
 // are stated directly, including deferral versus a known contradiction.
 pure readable_compiler_contracts(): [TestResult] {
   mut results: [TestResult] = []
-  results = append(results, std_testing.equal_str("literal escape decoding",
+  results = results.append(std_testing.equal_str("literal escape decoding",
     decode_string_literal("\"a\\n\\r\\t\\b\\f\\q\\\"\\\\z\""), "a\n\r\t\b\fq\"\\z"))
-  results = append(results, std_testing.equal_str("literal without escapes",
+  results = results.append(std_testing.equal_str("literal without escapes",
     decode_string_literal("\"plain\""), "plain"))
-  results = append(results, std_testing.equal_str("empty literal",
+  results = results.append(std_testing.equal_str("empty literal",
     decode_string_literal("\"\""), ""))
-  results = append(results, std_testing.equal_str("two-byte diagnostic character",
+  results = results.append(std_testing.equal_str("two-byte diagnostic character",
     diagnostic_character("é"), "\\u{e9}"))
-  results = append(results, std_testing.equal_str("three-byte diagnostic character",
+  results = results.append(std_testing.equal_str("three-byte diagnostic character",
     diagnostic_character("€"), "\\u{20ac}"))
-  results = append(results, std_testing.equal_str("four-byte diagnostic character",
+  results = results.append(std_testing.equal_str("four-byte diagnostic character",
     diagnostic_character("😀"), "\\u{1f600}"))
 
   module_identity: ModuleIdentity = ModuleIdentity(StandaloneModulePackage(), "readability.panack")
   owner: DeclarationIdentity = DeclarationIdentity(module_identity, "example")
   guarded_identity: DeclarationIdentity = DeclarationIdentity(module_identity, "Positive")
   program: Program = indexed_program([TypeDeclaration("Positive", "Nat", BoolExpr(true))])
-  parsed: ParsedModule = ParsedModule(program, [])
-  bindings: ModuleBindings = ModuleBindings(module_identity, [], [])
+  parsed: ParsedModule = ParsedModule(program, [], [])
+  bindings: ModuleBindings = ModuleBindings(module_identity, [], [], map())
   module: LoadedModule = LoadedModule("readability.panack", parsed, program, bindings, loaded_module_declaration_index(parsed))
   context: BodyContext = BodyContext(ModuleBindingGraph([bindings], []), [module], [], owner, [], map(), false)
   natural: SignatureType = SignatureType(SignatureCore("Nat"), [])
@@ -115,40 +113,40 @@ pure readable_compiler_contracts(): [TestResult] {
   ordinary_callable: SignatureType = SignatureType(SignatureCallable(SignatureOrdinary()), [natural])
   async_callable: SignatureType = SignatureType(SignatureCallable(SignatureAsync()), [natural])
 
-  results = append(results, std_testing.expect("identical types accepted",
+  results = results.append(std_testing.expect("identical types accepted",
     body_compatibility(context, natural, natural) == Some(true), "wrong identity decision"))
-  results = append(results, std_testing.expect("Nat widens to Int",
+  results = results.append(std_testing.expect("Nat widens to Int",
     body_compatibility(context, natural, integer) == Some(true), "widening rejected"))
-  results = append(results, std_testing.expect("Int does not narrow to Nat",
+  results = results.append(std_testing.expect("Int does not narrow to Nat",
     body_compatibility(context, integer, natural) == Some(false), "narrowing accepted"))
-  results = append(results, std_testing.expect("hole never stores Void",
+  results = results.append(std_testing.expect("hole never stores Void",
     body_compatibility(context, hole, void_type) == Some(false) &&
     body_compatibility(context, void_type, hole) == Some(false), "Void escaped its boundary"))
-  results = append(results, std_testing.expect("hole keeps value constraints",
+  results = results.append(std_testing.expect("hole keeps value constraints",
     body_compatibility(context, hole, natural) == Some(true), "value hole rejected"))
-  results = append(results, std_testing.expect("guard conversion remains deferred",
+  results = results.append(std_testing.expect("guard conversion remains deferred",
     body_compatibility(context, natural, positive) == None() &&
     body_compatibility(context, positive, natural) == None(), "guard proof fabricated"))
-  results = append(results, std_testing.expect("pure callable widens to ordinary",
+  results = results.append(std_testing.expect("pure callable widens to ordinary",
     body_compatibility(context, pure_callable, ordinary_callable) == Some(true), "effect widening rejected"))
-  results = append(results, std_testing.expect("ordinary and async do not become pure",
+  results = results.append(std_testing.expect("ordinary and async do not become pure",
     body_compatibility(context, ordinary_callable, pure_callable) == Some(false) &&
     body_compatibility(context, async_callable, ordinary_callable) == Some(false), "effect coercion accepted"))
-  results = append(results, std_testing.expect("callable slots remain exact",
+  results = results.append(std_testing.expect("callable slots remain exact",
     body_compatibility(context, pure_callable,
       SignatureType(SignatureCallable(SignatureOrdinary()), [integer])) == Some(false), "slot coercion accepted"))
-  results = append(results, std_testing.expect("generic arity remains exact",
+  results = results.append(std_testing.expect("generic arity remains exact",
     body_compatibility(context, SignatureType(SignatureCore("Array"), [natural]),
       SignatureType(SignatureCore("Array"), [])) == Some(false), "arity mismatch accepted"))
-  results = append(results, std_testing.expect("nested generic arguments widen",
+  results = results.append(std_testing.expect("nested generic arguments widen",
     body_compatibility(context, SignatureType(SignatureCore("Array"), [natural]),
       SignatureType(SignatureCore("Array"), [integer])) == Some(true), "nested widening rejected"))
-  results = append(results, std_testing.expect("known contradiction dominates deferral in either order",
+  results = results.append(std_testing.expect("known contradiction dominates deferral in either order",
     body_compatibility(context, SignatureType(SignatureCore("Pair"), [natural, natural]),
       SignatureType(SignatureCore("Pair"), [positive, text])) == Some(false) &&
     body_compatibility(context, SignatureType(SignatureCore("Pair"), [natural, natural]),
       SignatureType(SignatureCore("Pair"), [text, positive])) == Some(false), "contradiction hidden"))
-  results = append(results, std_testing.expect("deferred generic argument remains deferred",
+  results = results.append(std_testing.expect("deferred generic argument remains deferred",
     body_compatibility(context, SignatureType(SignatureCore("Array"), [natural]),
       SignatureType(SignatureCore("Array"), [positive])) == None(), "deferred proof resolved"))
   results
@@ -162,7 +160,7 @@ pure else_if_contracts(): [TestResult] {
     "pure f(n:Nat):Nat { if n >= 3 { n - 3 } else if n >= 2 { n - 2 } else { n } }",
     "async f(a:Bool,b:Bool):Nat { if a { await number() } else if b { await number() } else { await number() } }"
   ] {
-    results = append(results, std_testing.equal_str("else-if accepts/" + source,
+    results = results.append(std_testing.equal_str("else-if accepts/" + source,
       check_source_frontend(source + " async number():Nat { 1 } main():Void {}"), "ok"))
   }
   for case in [
@@ -175,14 +173,14 @@ pure else_if_contracts(): [TestResult] {
     ["pure f(a:Bool,b:Bool):Nat { if a { 1 } else { if b { 2 } } }", "branches have incompatible types"]
   ] {
     actual: Str = check_source_frontend(case[0] + " async number():Nat { 1 } main():Void {}")
-    results = append(results, std_testing.expect("else-if rejects/" + case[0],
+    results = results.append(std_testing.expect("else-if rejects/" + case[0],
       actual != "ok" && contract_contains(actual, case[1]), "wrong rejection: " + actual))
   }
   results
 }
 
 main(): Void {
-  mut results: [TestResult] = concat(indexed_lookup_contracts(), readable_compiler_contracts()).concat(else_if_contracts())
+  mut results: [TestResult] = indexed_lookup_contracts().concat(readable_compiler_contracts()).concat(else_if_contracts())
   results = results.append(contract_check("generic_functions/bodies_are_checked_even_when_unused-1", "operator +"))
   results = results.append(contract_check("generic_functions/bodies_are_checked_even_when_unused-2", "len expects"))
   results = results.append(contract_check("generic_functions/bodies_are_checked_even_when_unused-3", "returns Nat, expected T"))
@@ -350,9 +348,9 @@ main(): Void {
   results = results.append(contract_check("syntax/legacy_let_and_missing_unit_return_are_rejected-3", "!ok"))
   results = results.append(contract_check("syntax/method_call_receiver_is_checked_as_argument_one-1", "argument 1 to starts_with is Nat, expected Str"))
   results = results.append(contract_check("syntax/non_void_function_requires_a_result-1", "returns Void, expected Nat"))
-  results = results.append(contract_check("syntax/parenthesized_dot_name_is_a_method_not_a_record_field_call-1", "unknown function value"))
+  results = results.append(contract_check("syntax/parenthesized_dot_name_is_a_method_not_a_record_field_call-1", "unresolved dot call requires module binding resolution"))
   results = results.append(contract_check("syntax/same_line_statements_still_require_a_separator-1", "expected line break, semicolon, or closing brace after binding"))
-  results = results.append(contract_check("syntax/short_collection_methods_are_type_directed-1", "has expects a Map or Set, got Array[Nat]"))
+  results = results.append(contract_check("syntax/short_collection_methods_are_type_directed-1", "map_has expects a Map, got Array[Nat]"))
   results = results.append(contract_check("syntax/short_collection_methods_are_type_directed-2", "get expects a Map, got Set[$T]"))
   results = results.append(contract_check("syntax/short_collection_methods_are_type_directed-3", "add expects a Set, got Map[$K,$V]"))
   results = results.append(contract_check("syntax/trailing_semicolon_discards_a_block_value-1", "returns Void, expected Nat"))

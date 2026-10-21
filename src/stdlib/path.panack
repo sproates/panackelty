@@ -1,13 +1,6 @@
-pub enum PathError { EmptyPath, PathContainsNul, PathNotUtf8, AbsolutePathAppend }
+pub import stdlib/core::{PathError, PathError.EmptyPath, PathError.PathContainsNul, PathError.PathNotUtf8, PathError.AbsolutePathAppend}
 
 // Opaque Path values preserve native POSIX bytes and do not access the host.
 pub pure from_text(value: Str): Result[Path, PathError] { path_from_text(value) }
 pub pure from_native(value: Bytes): Result[Path, PathError] { path_from_native(value) }
-pub pure join(base: Path, child: Path): Result[Path, PathError] { path_append(base, child) }
-pub pure to_text(value: Path): Result[Str, PathError] { path_to_text(value) }
-pub pure native_bytes(value: Path): Bytes { path_native_bytes(value) }
-pub pure display(value: Path): Str { path_display(value) }
-pub pure is_absolute(value: Path): Bool { path_absolute(value) }
-pub pure directory(value: Path): Path { path_directory(value) }
-pub pure filename(value: Path): Option[Path] { path_filename(value) }
 pub pure current(): Path { path_current() }

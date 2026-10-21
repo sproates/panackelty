@@ -1,2 +1,6 @@
-error: unknown type String
-unknown type String
+error: <case>/main.panack:1:17: signature identity.value: module main.panack has no binding String
+  1 | identity(value: String): String { value }
+    |                 ^
+<case>/main.panack:1:26: signature identity.return: module main.panack has no binding String
+  1 | identity(value: String): String { value }
+    |                          ^

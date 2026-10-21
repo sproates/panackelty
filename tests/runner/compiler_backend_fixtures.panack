@@ -1,0 +1,62 @@
+pub import project/src/compiler/lexer::{Token}
+import project/src/compiler/lexer::{lex, TokenKind.Identifier}
+import project/src/compiler/parser::{Program, parse_program_complete}
+import project/src/compiler/checker::{check_program_types}
+import project/src/compiler/purity::{check_program_frontend}
+import project/src/compiler/resolver::{render_resolver_diagnostics}
+import project/src/compiler/emitter::{compile_program, render_bytecode}
+
+// Backend fixtures name operations explicitly. Only these three compiler-only
+// IDs need token encoding; no receiver syntax, resolution or fallback is added.
+// Public source acceptance is exercised separately through the CLI.
+pure backend_program(source: Str): Result[Program,Str] {
+  match lex(source) {
+    Error(errors) => Error("lexing failed"),
+    Ok(tokens) => {
+      internal = backend_tokens(tokens)
+      match parse_program_complete(internal) {
+        Error(error) => Error(error.message),
+        Ok(program) => Ok(program)
+      }
+    }
+  }
+}
+
+pub pure check_source_types(source: Str): Str {
+  match backend_program(source) {
+    Error(message) => message,
+    Ok(program) => render_resolver_diagnostics(check_program_types(program))
+  }
+}
+
+pub pure check_source_frontend(source: Str): Str {
+  match backend_program(source) {
+    Error(message) => message,
+    Ok(program) => render_resolver_diagnostics(check_program_frontend(program))
+  }
+}
+
+pub pure compile_source_disassembly(source: Str): Str {
+  match backend_program(source) {
+    Error(message) => message,
+    Ok(program) => {
+      diagnostics = check_program_frontend(program)
+      if diagnostics.len() > 0 { render_resolver_diagnostics(diagnostics) }
+      else { render_bytecode(compile_program(program)) }
+    }
+  }
+}
+
+pub pure backend_tokens(tokens: [Token]): [Token] {
+  mut internal: [Token] = []
+  for token in tokens {
+    text: Str = if token.kind == Identifier() &&
+      (token.text == "intrinsic_call" || token.text == "intrinsic_map" ||
+       token.text == "intrinsic_reduce") {
+      "$" + token.text
+    } else { token.text }
+    internal = internal.append(Token(token.kind, text, token.start, token.end,
+      token.position, token.end_line, token.end_column))
+  }
+  internal
+}

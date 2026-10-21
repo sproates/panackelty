@@ -1,0 +1,69 @@
+pub import http/types::{Response}
+
+pub pure reason_phrase(status: Nat): Str {
+  if status == 200 { "OK" }
+  else if status == 201 { "Created" }
+  else if status == 202 { "Accepted" }
+  else if status == 204 { "No Content" }
+  else if status == 301 { "Moved Permanently" }
+  else if status == 302 { "Found" }
+  else if status == 304 { "Not Modified" }
+  else if status == 308 { "Permanent Redirect" }
+  else if status == 400 { "Bad Request" }
+  else if status == 401 { "Unauthorized" }
+  else if status == 403 { "Forbidden" }
+  else if status == 404 { "Not Found" }
+  else if status == 405 { "Method Not Allowed" }
+  else if status == 408 { "Request Timeout" }
+  else if status == 413 { "Content Too Large" }
+  else if status == 415 { "Unsupported Media Type" }
+  else if status == 417 { "Expectation Failed" }
+  else if status == 431 { "Request Header Fields Too Large" }
+  else if status == 500 { "Internal Server Error" }
+  else if status == 501 { "Not Implemented" }
+  else if status == 503 { "Service Unavailable" }
+  else if status == 504 { "Gateway Timeout" }
+  else if status == 505 { "HTTP Version Not Supported" }
+  else { "Response" }
+}
+
+pub pure header_name_valid(value: Str): Bool {
+  encoded: Bytes = value.encode_utf8()
+  mut valid = encoded.length() > 0
+  mut cursor: Nat = 0
+  while cursor < encoded.length() {
+    byte: Nat = encoded.at(cursor)
+    token: Bool = (byte >= 48 && byte <= 57) || (byte >= 65 && byte <= 90) ||
+      (byte >= 97 && byte <= 122) || byte == 33 || byte == 35 || byte == 36 ||
+      byte == 37 || byte == 38 || byte == 39 || byte == 42 || byte == 43 ||
+      byte == 45 || byte == 46 || byte == 94 || byte == 95 || byte == 96 ||
+      byte == 124 || byte == 126
+    if !token { valid = false }
+    cursor = cursor + 1
+  }
+  valid
+}
+
+pub pure header_value_valid(value: Str): Bool {
+  encoded: Bytes = value.encode_utf8()
+  mut valid = true
+  mut cursor: Nat = 0
+  while cursor < encoded.length() {
+    byte: Nat = encoded.at(cursor)
+    if byte != 9 && (byte < 32 || byte > 126) { valid = false }
+    cursor = cursor + 1
+  }
+  valid
+}
+
+// Static preview keeps a stricter complete-response budget beneath HTTP's limits.
+pub pure wire_size(response: Response): Nat {
+  status = response.status
+  phrase = reason_phrase(status)
+  length = response.body.length()
+  mut size = "HTTP/1.1 ${status} ${phrase}\r\n".encode_utf8().length()
+  for header in response.headers {
+    size = size + header.name.encode_utf8().length() + header.value.encode_utf8().length() + 4
+  }
+  size + "Content-Length: ${length}\r\nConnection: close\r\n\r\n".encode_utf8().length() + length
+}

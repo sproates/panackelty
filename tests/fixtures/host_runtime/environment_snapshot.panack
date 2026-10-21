@@ -1,5 +1,6 @@
+import stdlib/environment as environment
 main(): Void {
-  print(environment_has("PANACK_PRESENT"))
-  print(environment_get("PANACK_PRESENT"))
-  print(environment_has("PANACK_MISSING"))
+  print(environment.get("PANACK_PRESENT") != None())
+  print(environment.get("PANACK_PRESENT").value_or("missing"))
+  print(environment.get("PANACK_MISSING") != None())
 }

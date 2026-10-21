@@ -1,0 +1,2 @@
+pure use(value: Map[Str,Nat]): Nat { value.get(1) }
+main(): Void { print(0) }

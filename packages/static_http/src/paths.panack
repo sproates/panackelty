@@ -1,6 +1,5 @@
 import stdlib/bytes as buffer
 import stdlib/path as path
-import stdlib/text as text
 
 pub record Target {
   relative: Str,
@@ -18,7 +17,7 @@ pure hex(value: Nat): Option[Nat] {
 pure copy(input: Bytes, start: Nat, end: Nat): Bytes {
   mut output = buffer.empty()
   for index in start..end {
-    output = buffer.push(output, buffer.at(input, index))
+    output = output.push(input.at(index))
   }
   output
 }
@@ -29,21 +28,21 @@ pure decode(input: Bytes, end: Nat): Result[Str, Str] {
   mut cursor: Nat = 1
   mut valid = true
   while cursor < end && valid {
-    value = buffer.at(input, cursor)
+    value = input.at(cursor)
     if value == 37 {
       if cursor + 2 >= end {
         valid = false
       } else {
-        match hex(buffer.at(input, cursor + 1)) {
+        match hex(input.at(cursor + 1)) {
           None() => { valid = false },
-          Some(high) => match hex(buffer.at(input, cursor + 2)) {
+          Some(high) => match hex(input.at(cursor + 2)) {
             None() => { valid = false },
             Some(low) => {
               decoded = high * 16 + low
               if decoded < 32 || decoded == 47 || decoded == 92 || decoded == 127 {
                 valid = false
               } else {
-                output = buffer.push(output, decoded)
+                output = output.push(decoded)
               }
             }
           }
@@ -54,17 +53,17 @@ pure decode(input: Bytes, end: Nat): Result[Str, Str] {
       if value < 33 || value == 92 || value == 127 {
         valid = false
       } else {
-        output = buffer.push(output, value)
+        output = output.push(value)
       }
       cursor = cursor + 1
     }
   }
   if !valid { Error("malformed URL path") }
-  else if buffer.length(output) == 0 { Ok("") }
+  else if output.length() == 0 { Ok("") }
   else {
     match path.from_native(output) {
       Error(problem) => Error("invalid path bytes"),
-      Ok(native) => match path.to_text(native) {
+      Ok(native) => match native.to_text() {
         Error(problem) => Error("path is not UTF-8"),
         Ok(value) => Ok(value)
       }
@@ -73,34 +72,34 @@ pure decode(input: Bytes, end: Nat): Result[Str, Str] {
 }
 
 pure segments_valid(relative: Str): Bool {
-  input = text.encode_utf8(relative)
+  input = relative.encode_utf8()
   mut segment = buffer.empty()
   mut valid = true
-  for cursor in 0..buffer.length(input) {
-    value = buffer.at(input, cursor)
+  for cursor in 0..input.length() {
+    value = input.at(cursor)
     if value == 47 {
-      name = text.decode_utf8(segment)
+      name = segment.decode_utf8()
       if name == "" || name == "." || name == ".." { valid = false }
       segment = buffer.empty()
     } else {
-      segment = buffer.push(segment, value)
+      segment = segment.push(value)
     }
   }
-  last = text.decode_utf8(segment)
+  last = segment.decode_utf8()
   valid && last != "." && last != ".."
 }
 
 pub pure parse(target: Str): Result[Target, Str] {
-  input = text.encode_utf8(target)
-  length = buffer.length(input)
+  input = target.encode_utf8()
+  length = input.length()
   if length == 0 || length > 4096 { Error("invalid URL length") }
-  else if buffer.at(input, 0) != 47 { Error("expected an origin-form URL") }
+  else if input.at(0) != 47 { Error("expected an origin-form URL") }
   else {
     mut end = length
     mut cursor: Nat = 0
     mut valid = true
     while cursor < length {
-      value = buffer.at(input, cursor)
+      value = input.at(cursor)
       if value < 33 || value > 126 || value == 35 { valid = false }
       if value == 63 && end == length { end = cursor }
       cursor = cursor + 1
@@ -114,10 +113,10 @@ pub pure parse(target: Str): Result[Target, Str] {
         } else {
           signed_end: Int = end
           last = ((signed_end - 1) / 1).nat()
-          slash = buffer.at(input, last) == 47
+          slash = input.at(last) == 47
           location = if slash { target } else {
-            text.decode_utf8(copy(input, 0, end)) + "/" +
-              text.decode_utf8(copy(input, end, length))
+            copy(input, 0, end).decode_utf8() + "/" +
+              copy(input, end, length).decode_utf8()
           }
           Ok(Target(relative, slash, location))
         }

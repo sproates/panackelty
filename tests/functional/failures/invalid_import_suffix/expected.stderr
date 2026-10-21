@@ -1,1 +1,5 @@
 error: relative import must reference a .panack file: dependency.txt
+missing module dependency.txt
+<case>/main.panack:1:1: missing module dependency.txt
+  1 | import "dependency.txt"
+    | ^

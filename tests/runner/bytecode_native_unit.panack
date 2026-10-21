@@ -1,7 +1,6 @@
 import stdlib/testing as std_testing
 import stdlib/process as std_process
 import project/src/compiler/filesystem_support as filesystem_support
-import stdlib/result as std_result
 import stdlib/testing::{TestResult}
 import stdlib/testing_files as std_testing_files
 import stdlib/process::{ProcessOutput}
@@ -20,18 +19,18 @@ pure bytecode_native_hex(value: Str): Bytes {
   mut output = byte_buffer.empty()
   mut high: Nat = 0
   mut half = false
-  for index in 0..len(value) {
+  for index in 0..value.len() {
     character = value[index]
-    if !is_whitespace(character) {
+    if !character.is_whitespace() {
       digit = bytecode_native_nibble(character)
       if !half { high = digit; half = true }
-      else { output = byte_buffer.push(output, high * 16 + digit); half = false }
+      else { output = output.push(high * 16 + digit); half = false }
     }
   }
   output
 }
-pure bytecode_native_path(value: Str): Path { std_result.value_or(std_path.from_text(value), std_path.current()) }
-pure bytecode_native_text(value: Path): Str { std_result.value_or(std_path.to_text(value), "invalid-path") }
+pure bytecode_native_path(value: Str): Path { std_path.from_text(value).value_or(std_path.current()) }
+pure bytecode_native_text(value: Path): Str { value.to_text().value_or("invalid-path") }
 bytecode_native_case(name: Str, file: Str, expected: Str, target: Path): TestResult {
   data = bytecode_native_hex(filesystem_support.read_text(file))
   match std_filesystem.write(target, data) {
@@ -44,7 +43,7 @@ bytecode_native_case(name: Str, file: Str, expected: Str, target: Path): TestRes
         Error(problem) => {},
         Ok(command) => {
           valid = command.exit_code == 1 && command.signal == 0 && command.stdout == byte_buffer.empty() &&
-            utf8_decode(command.stderr) == "error: ${expected}\n"
+            command.stderr.decode_utf8() == "error: ${expected}\n"
         }
       }
       match std_filesystem.remove_file(target) {
@@ -66,7 +65,7 @@ bytecode_native_disasm(name: Str, file: Str, expected: Str, target: Path): TestR
         Error(problem) => {},
         Ok(command) => {
           valid = command.exit_code == 0 && command.signal == 0 && command.stderr == byte_buffer.empty() &&
-            utf8_decode(command.stdout) == expected
+            command.stdout.decode_utf8() == expected
         }
       }
       match std_filesystem.remove_file(target) {
@@ -88,7 +87,7 @@ bytecode_native_legacy_tcp(target: Path, fixture: Str): TestResult {
           Error(problem) => { valid = false },
           Ok(command) => {
             valid = valid && command.exit_code == 0 && command.signal == 0 && command.stderr == byte_buffer.empty()
-            if operation == "run" { valid = valid && utf8_decode(command.stdout) == "7\n" }
+            if operation == "run" { valid = valid && command.stdout.decode_utf8() == "7\n" }
           }
         }
       }
@@ -101,10 +100,10 @@ bytecode_native_legacy_tcp(target: Path, fixture: Str): TestResult {
 }
 main(): Void {
   match std_testing_files.workspace_create(bytecode_native_path("/tmp")) {
-    Error(problem) => { eprint("native bytecode workspace creation failed"); std_host.exit(1) },
+    Error(problem) => { std_host.stderr("native bytecode workspace creation failed"); std_host.exit(1) },
     Ok(workspace) => {
       mut results: [TestResult] = []
-      target = std_result.value_or(std_path.join(workspace.root, bytecode_native_path("input.bc")), workspace.root)
+      target = workspace.root.join(bytecode_native_path("input.bc")).value_or(workspace.root)
       results = results.append(bytecode_native_case("TCP server arity", "tests/fixtures/tcp/server-arity.hex", "call arity mismatch", target))
       results = results.append(bytecode_native_case("TCP server ordinary call", "tests/fixtures/tcp/server-ordinary.hex", "invalid async call effect", target))
       results = results.append(bytecode_native_case("TCP server pure await", "tests/fixtures/tcp/server-pure-await.hex", "pure function calls impure function", target))
@@ -194,7 +193,7 @@ main(): Void {
               byte_buffer.empty(), std_path.current(), [], std_time.seconds(30), 1048576) {
             Error(problem) => { results = results.append(std_testing.expect("native minimal fixture", false, "command failed")) },
             Ok(command) => { results = results.append(std_testing.expect("native minimal fixture",
-              command.exit_code == 0 && command.signal == 0 && command.stdout == utf8_encode("ok\n") &&
+              command.exit_code == 0 && command.signal == 0 && command.stdout == "ok\n".encode_utf8() &&
               command.stderr == byte_buffer.empty(), "valid minimal vector was rejected")) }
           }
           match std_filesystem.remove_file(target) {
@@ -203,7 +202,7 @@ main(): Void {
           }
         }
       }
-      match std_testing_files.workspace_remove_empty(workspace) {
+      match workspace.remove_empty() {
         Error(problem) => { results = results.append(std_testing.expect("native bytecode workspace cleanup", false, "directory not empty")) },
         Ok(removed) => {}
       }

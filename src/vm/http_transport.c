@@ -61,6 +61,8 @@ static bool monotonic_ms(uint64_t *result)
     return true;
 }
 
+#endif
+
 static bool valid_host(const Value *host)
 {
     if (!host || host->kind != V_STR || !host->as.bytes.length ||
@@ -86,6 +88,7 @@ static bool valid_host(const Value *host)
     return label_length && !label_starts_hyphen && host->as.bytes.data[host->as.bytes.length - 1] != '-';
 }
 
+#ifndef __wasi__
 static void cleanup_curl(VMHttpTransport *transport)
 {
     if (transport->easy && transport->multi) curl_multi_remove_handle(transport->multi, transport->easy);
@@ -116,6 +119,7 @@ static void finish(VMHttpTransport *transport, const char *error)
     }
 }
 
+#ifndef __wasi__
 static const char *connect_error(CURLcode result)
 {
     if (result == CURLE_OPERATION_TIMEDOUT) return "HTTP transport timed out";
@@ -126,6 +130,8 @@ static const char *connect_error(CURLcode result)
         result == CURLE_SSL_CERTPROBLEM) return "HTTP TLS failed";
     return "HTTP connection failed";
 }
+
+#endif
 
 VMHttpTransport *http_transport_start(Value **arguments)
 {

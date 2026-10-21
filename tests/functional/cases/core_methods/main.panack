@@ -15,9 +15,10 @@ main(): Void {
   print(helpers.describe(Ok(7)))
   print(helpers.describe(Error("failed")))
   print("hello.panack".ends_with(".panack"))
-  print("42".parse_nat().twice())
+  print(twice("42".parse_nat()))
   print([3, 1, 2].sort_by(@less).first())
-  print([].first[Str]())
+  empty_texts: [Str] = []
+  print(empty_texts.first())
   print(ends_with(1))
   print(first(1))
   print(sort_by(1))

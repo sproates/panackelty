@@ -1,5 +1,73 @@
 # Specification coverage
 
+The compiler-free fixture inventory preflight has isolated mutation regressions
+for missing, stale, duplicate and reordered examples, output pairing, runner counts,
+smoke totals and Makefile rejection before build phases. It supplements the
+independent executable fixture assertions without replacing them.
+
+User-facing `owned_methods` and `generic_methods` examples assert custom-method
+and Map coexistence, persistent updates, chaining, generic owner/method inference
+and pure callbacks, through source and saved-bytecode functional execution.
+
+P15 consumer acceptance adds all twelve maintained owned-dispatch fixtures to
+relocated-package smoke tests, including project compilation and execution after
+source deletion. The original Fruit output and obsolete-arrow rejection are
+asserted through the installed CLI. Matching browser acceptance and final audit
+are recorded in [P15](../docs/design/type-owned-dispatch/p15-consumer-acceptance.md).
+
+P05 covers all 14 registered built-in owner families, source-method signatures,
+canonical metadata, body selection, privacy, invalid/empty implementation headers,
+duplicate array spellings, global fallback rejection and guarded-type separation.
+Each family rejects standalone, manifest-package and wrong-toolchain-module
+spoofs. Six `owned_builtin_*` CLI fixtures assert rejection and no artifact,
+including a package named `toolchain` containing `core.panack`. The isolated
+compiler-driver core executes Map/Set/array/Str/Bytes source methods through source
+and saved bytecode. Production intrinsic dispatch is unchanged.
+See [P05 evidence](../docs/design/type-owned-dispatch/p05-builtin-owners.md).
+
+P04 generic owned-method coverage: `owned_generic_methods` runs imported Box
+methods, facade/selective aliases, namespace construction, inferred and explicit
+method binders, expected-result inference, empty receiver argument inference and
+reordered enum implementation binders through source and saved bytecode.
+`compiler_driver.panack` executes an isolated toolchain core containing Option
+and Result methods, including a private helper and imported aliases, through both
+CLI paths. Production core sources remain unchanged. Binding tests retain
+canonical identity and checked status, privacy, uniform owners and disjoint
+binders. Eleven `owned_generic_*` rejection fixtures cover specialisation, unused
+and duplicate binders, shadowing, explicit/assigned self, owner-versus-method
+argument lists, mismatched values and unresolved receiver/method arguments.
+The existing foreign-owner fixture now fails during signature checking.
+See [P04 evidence](../docs/design/type-owned-dispatch/p04-generic-owners.md).
+
+
+P03 Server/Map coverage: `owned_server_map` and its namespace, alias and facade
+variants share one Server implementation and identical expected stdout. They
+cover persistent updates, two instances, global get/put separation, nested Map
+operations and one-time receiver evaluation. `owned_server_map_identity` checks
+another module's same-named Server with different method contracts. Eight
+`owned_server_map_*` failure fixtures cover Server/Map arity, argument types,
+missing methods, private re-exports, duplicate impl methods, foreign impls and
+purity. Binding tests assert distinct owned and core targets and return types.
+Map methods still use existing dot syntax; no HTTP networking is covered here.
+
+P02 unit coverage checks explicit method syntax metadata, a separate canonical
+owner/method index, exclusion from ordinary lookup, and retained imported method
+identity. Method diagnostics display source owner/name spellings.
+
+Type-owned method proof-of-concept coverage: `owned_methods` asserts the exact
+10/11/20/21 example; `owned_method_dispatch` checks two nominal owners, same-name
+global/dot coexistence, explicit arguments, nested self calls, indexed receivers
+and single receiver evaluation. Failure fixtures cover absent owned methods even
+when a global exists, wrong argument types, duplicate methods and purity.
+Parser unit tests cover owned dot representation, ownership and rejected arrow
+syntax. Source and saved-bytecode workflows run through the native conformance
+harness. `owned_imports` adds a manifest-backed application with namespace and
+selective aliases, re-exports, same-name types from three modules and caller
+globals. Imported private methods, absent methods despite caller candidates and
+public methods exposing private owner types are rejected. Body-binding unit
+checks assert the original method identity and local/private visibility rules.
+Generic and async methods remain outside this experiment.
+
 Guard-fact mutation regression coverage (#182) adds 25 checker fixtures: 20
 rejections previously accepted by the old compiler, two review regressions for
 writes during while-condition and for-iterable evaluation, plus three positive workflows
@@ -148,7 +216,7 @@ Status meanings:
 | Testing library assertions and reporting | `runner/host_runtime_unit.panack`; `functional/cases/testing_library` | **Partial** — empty, mixed, and failed assertions cover structured results, caller order, summary, and returned failure count in direct native probes and public source/bytecode CLI tests. Expand malformed-report presentation cases as needed. |
 | Testing fixture discovery and isolation | `runner/host_runtime_unit.panack`; `functional/cases/testing_fixtures` | **Partial** — missing-root errors, sorted directory filtering, explicitly owned temporary creation, nonempty cleanup failure, and successful explicit cleanup run through native direct checks and public source/bytecode CLI. Add metadata-race and non-UTF-8 fixture conformance cases. |
 | Testing command assertions | `runner/host_runtime_unit.panack`; `functional/cases/testing_commands` | **Covered** for exit/signal and byte-stream comparison failures, host-error conversion, successful nonzero exit, expected launch and output-limit failures, and unexpected completion through direct native and public source/bytecode CLI tests. Expand timeout and invalid-UTF-8 cases with the wider host conformance backlog. |
-| Panackelty-hosted fixture orchestration | `runner/main.panack`; `functional/cases/runner_smoke`; `functional/cases/stdlib_module_api`; `functional/failures/stdlib_legacy_api_removed`; `functional/cases/cli_check_disasm`; `functional/cases/cli_commands`; `functional/cases/cli_environment_files`; `functional/cases/cli_diagnostic_display`; `functional/cases/cli_rational_failures`; `runner/compiler_driver.panack`; `unit/harness/runner.sh` | **Covered** — thirty selected success fixtures and twenty-three example programs run source, compile, and bytecode with byte-exact streams/status; sixty failure fixtures check exact normalized diagnostics for check/compile and absent artifacts; fourteen also check run/disasm. The new module API fixture covers `prelude.path.from_text`, the `prelude.byte_buffer` alias alongside the `bytes()` constructor, and distinct `numeric.divide` and `prelude.time.divide` calls; its failure companion requires legacy `path_string_*` and Str-based trapping filesystem imports to be rejected. Source and bytecode checks, matching disassembly, malformed bytecode and legacy extension rejection, bare-path execution, default compile output, arguments, stderr/exit status, help and version, environment override, text and binary file round trips, missing paths, invalid UTF-8, and permission denial on unprivileged POSIX hosts, paired example discovery, explicit artifact and workspace cleanup, deterministic reports, injected output/diagnostic mismatches, missing fixture expectations, nonempty-workspace recovery, isolated inherited environment for `stdlib`, and checkout-bound compiler `source.path` are covered. The canonical check captures one complete runner report during the native oracle smoke execution and checks its exact bytes in both functional smoke modes; standalone targets still run the full runner. |
+| Panackelty-hosted fixture orchestration | `runner/main.panack`; `functional/cases/runner_smoke`; `functional/cases/stdlib_module_api`; `functional/failures/stdlib_legacy_api_removed`; `functional/cases/cli_check_disasm`; `functional/cases/cli_commands`; `functional/cases/cli_environment_files`; `functional/cases/cli_diagnostic_display`; `functional/cases/cli_rational_failures`; `runner/compiler_driver.panack`; `unit/harness/runner.sh` | **Covered** — thirty selected success fixtures and twenty-five example programs run source, compile, and bytecode with byte-exact streams/status; sixty failure fixtures check exact normalized diagnostics for check/compile and absent artifacts; fourteen also check run/disasm. The new module API fixture covers `prelude.path.from_text`, the `prelude.byte_buffer` alias alongside the `bytes()` constructor, and distinct `numeric.divide` and `prelude.time.divide` calls; its failure companion requires legacy `path_string_*` and Str-based trapping filesystem imports to be rejected. Source and bytecode checks, matching disassembly, malformed bytecode and legacy extension rejection, bare-path execution, default compile output, arguments, stderr/exit status, help and version, environment override, text and binary file round trips, missing paths, invalid UTF-8, and permission denial on unprivileged POSIX hosts, paired example discovery, explicit artifact and workspace cleanup, deterministic reports, injected output/diagnostic mismatches, missing fixture expectations, nonempty-workspace recovery, isolated inherited environment for `stdlib`, and checkout-bound compiler `source.path` are covered. The canonical check captures one complete runner report during the native oracle smoke execution and checks its exact bytes in both functional smoke modes; standalone targets still run the full runner. |
 | Native C11 seed VM | `runner/vm_unit.panack`; `native_oracle_contracts.sh`; portable vectors | **Covered** for strict C11 compilation, bounded decoding and verification, exhaustive truncations, shared and forged malformed artifacts, differential program output, large integers, exact decimals, collections, UTF-8, host arguments/environment/status, nested execution, forged dynamic traps, byte-identical self-hosted compilation, and running the complete compiler. |
 | Verified self-hosted seed refresh | `seed_refresh.sh`; `make bootstrap-check` | **Covered** for recorded input digest verification before execution, fresh verified compiler stages 2–4, compiler/library byte identity, exact conformance output, failure preservation, locks/signals/concurrent edits, publication and idempotence. A real refresh uses a restricted `PATH`; failure injection uses a shell fake VM. |
 | Reproducible native distribution | `unit/harness/bootstrap.sh`; `make bootstrap-check`; `unit/harness/distribution.sh`; `unit/harness/layout.sh`; `native_conformance.sh`; `release_archive_smoke.sh`; `quick_start.sh`; `make package` | **Covered** for seed verification, corrupt-seed rejection in an isolated checkout with shared VM inode/byte preservation, stage-2/stage-3 compiler and standard-library identity, installed layout with bundled logical standard-library imports, canonical release and bytecode version reporting, native conformance, and a friendly single-root archive containing the launcher, native VM, compiler seed, standard-library sources, license, user-facing release documents, and the complete tested example set. Distribution regressions also exercise functional compiler handoff, packaging, checksums, and the documented quick start from a checkout path containing spaces and parentheses, plus an installation destination with those characters. The archive structure test rejects unsafe or unexpected paths, files, ownership metadata, and platform sidecars; checksum coverage recomputes and compares the published SHA-256 digest, and a relocated packaged tour example executes with its exact expected output. The exact-artifact release gate relocates the final archive, removes development tools from `PATH`, creates its inputs outside the checkout, and verifies help, version, source checking and execution, compilation, bytecode execution, argument forwarding, standard-library discovery, and malformed-bytecode rejection. Alpha.12 extended that relocated archive gate to exercise inventory, inventory-check, coverage-run, coverage-session, coverage-aggregate and coverage-report using the namespace trip-planner example. The current SP1 first-gate acceptance adds the two-application shared-library and package-tree relocation fixture against the packaged, relocated compiler, VM and standard library, including source and saved-bytecode execution from an unrelated working directory. The final package gate extracts its source and expected transcript from the packaged installation guide, then verifies checksum, install, version, check, source execution, compilation, bytecode execution, upgrade, and removal from a clean home and runtime-only `PATH`. Workflow contract coverage verifies PR and main-only push triggers, cancellation of superseded PR runs, and shared canonical suites across the validation matrix plus isolated full coverage on each packaging platform. Native build-flag coverage checks the optimisation default, user overrides, and retained strict C11 warnings. Workflow contract coverage fixes the independent packaging matrix at Ubuntu 22.04 x86-64 and macOS 14 arm64, retains checksums and build provenance beside both archives, and rejects premature publication. The tag workflow additionally requires an exact canonical version tag, complete validation, both successful package jobs, downloaded checksum and provenance verification, and write permission isolated to final prerelease publication. |
@@ -631,7 +699,11 @@ or protected coverage threshold and does not collect a new baseline.
 independent C peer across source and saved-bytecode server runs. It covers GET,
 HEAD, POST, handler failures, unsupported methods, malformed/partial and oversized
 requests, concurrent clients, disconnect recovery, orderly shutdown and bind
-conflicts. HEAD checks cover empty, Content-Length and chunked request framing,
+conflicts. The HTTP 431 assertion retains the full oversized-header input, with
+a ten-second connection allowance and a twelve-second peer receive timeout to
+avoid racing the former three-second fixture deadline on hosted macOS workers.
+Native TCP deadline assertions remain separate and unchanged.
+HEAD checks cover empty, Content-Length and chunked request framing,
 representation lengths, handler failures, invalid handler responses and parser
 errors, asserting that no response body is sent. The package parser suite also
 checks HEAD serialization, 404/204 responses and framing validation.
@@ -1169,3 +1241,140 @@ Native host contracts cover accepted/rejected read limits and reject an oversize
 write before touching its data. Rooted/async file and process limits are unchanged.
 The previously failing module-bindings coverage reproduction executes all 846
 assertions and validates its 20,810,250-byte wrapped record with unchanged identities.
+
+### P06 owned intrinsics
+
+The module-binding suite checks every registered intrinsic's signature, owner,
+operation ID and retained checked target, including generic collection receivers.
+The P03 Server/Map fixtures now use owned Map calls inside and outside Server.
+`owned_intrinsics` covers complete source/bytecode execution and receiver-once
+behaviour; seven `owned_intrinsic_*` failure fixtures cover typed arguments and
+no global fallback. `cli_rational_failures` adds owned conversion/division traps
+without removing earlier cases. Callable methods and Path error identity are
+later packet acceptance. See the [P06 report](../docs/design/type-owned-dispatch/p06-owned-intrinsics.md).
+
+P06 source-coverage accounting: `owned_intrinsics.panack` is explicitly unmeasured
+in the bounded source-execution baseline. Its behavioral coverage above does not
+claim a source-execution percentage. The existing 45 measured files and execution
+roots are preserved.
+
+
+Nightly conformance isolation: `tests/ci_conformance.sh` checks that the nested
+`runner_smoke` corpus follows completion of ordinary observations, preserves the
+source/bytecode partition union at one and two workers, and propagates nested
+source, compile and bytecode failures. The compiler-source deadline stays 90 seconds.
+
+### P07 callable and effect contracts
+
+Binding tests cover owned call arity, parameter/result checking, pure array
+callbacks, callable-family effects, async methods and invalid HTTP handler effects.
+`owned_callbacks` checks zero/multiple arguments, callable fields, receiver/argument
+evaluation order and array map/reduce through source and saved bytecode.
+`owned_async_handlers` executes ordinary/contextual HTTP-shaped handler signatures,
+including suspension and resumed result checks, without networking. Actual HTTP
+server integration remains GI#518. Source coverage baseline scope is unchanged.
+
+### P08 source core methods and error identity
+
+The binding suite checks canonical error types through core and wrapper re-exports,
+and verifies that core compatibility helpers emit calls to checked owned targets.
+`owned_core_methods` covers Unicode suffixes, empty/nonempty first, Option/Result
+fallbacks, stable generic sorting, native-byte paths, checked path errors and
+Duration arithmetic including fractional/zero-divisor rejection. Two CLI failure
+fixtures reject same-spelled foreign error types and ordinary sort callbacks.
+Existing core_methods and host_types fixtures retain legacy compatibility coverage.
+Legacy failure fixtures and cli_explanations verify that implicit core impls do
+not replace user resolution diagnostics or misreport effect-check availability.
+The driver-logical and stdlib bytecode goldens include the reviewed forwarding calls.
+The legacy checker adapter prepares real core through module binding/emission.
+The runner count/transcript and harness totals include the added cases; source-coverage scope is
+unchanged. See the [P08 report](../docs/design/type-owned-dispatch/p08-core-methods.md).
+
+## GI#525 P10 standard-library callers
+
+The stdlib bootstrap conformance program and `stdlib_module_api` use owned
+receiver calls while retaining explicit constructors and host services.
+`stdlib_unit` exercises all 42 existing assertions through owned calls, including
+typed Option/Result receivers, sorting, text, paths and duration errors.
+`testing_fixtures` exercises imported `TestWorkspace.remove_empty` on both a
+nonempty workspace and a successfully emptied workspace, preserving exact output.
+Existing compiler/legacy callers continue to exercise the temporary forwarders.
+
+## GI#525 P11 remaining callers
+
+Compiler implementations, harnesses, maintained functional programs and generated
+package/coverage/host fixtures use owned receiver calls. Existing output assertions
+remain intact. Instruction/source-map coverage checks the migrated nested calls
+and imported generic origins. The compiler seed is refreshed at a verified fixed
+point; native oracle goldens remain unchanged. Legacy frontend and exact-diagnostic
+inputs remain explicitly listed in the
+[P11 test boundary](../docs/design/type-owned-dispatch/p11-legacy-test-boundary.md)
+for P12 replacement, preserving coverage while compatibility is still supported.
+
+## GI#525 P12 legacy removal
+
+`tests/owned_dispatch_removal.sh` checks removed global primitives and all P10
+compatibility exports, rejection of receiver-to-global fallback, namespace
+lookup failures, toolchain grant spoofing and legitimate user functions with former
+primitive names. Owned Map/Str programs run as source and saved bytecode.
+The parser preserves raw namespace dots; internal checker/emitter fixtures use
+explicit operations through `compiler_backend_fixtures`, without source sugar.
+The binding suite additionally checks mutation-sensitive Nat proofs in argument
+order, conditions and loops, including fresh proofs after mutation. Public CLI
+explanations cover Bool/pure guards, duplicate fields, retained child diagnostics
+and arithmetic/effect evidence from checked bodies. Earlier packet sections
+record their historical acceptance boundaries; P12 supersedes compatibility
+coverage with the owned boundary and explicit old-syntax rejection.
+
+
+## GI#525 P14 dot-only dispatch
+
+`tests/owned_dot_dispatch.sh` runs the maintained dot fixtures for dispatch,
+imports, generics, intrinsics, callbacks, async methods, core methods and
+Server/Map coexistence as source and saved bytecode. Existing exact outputs
+remain unchanged, including receiver multiplicity and evaluation order. The
+P13 temporary conversion machinery is removed. Dedicated programs preserve
+namespace shadowing, re-exported namespace aliases, callable-field distinctions,
+privacy, guard scope, collision and no-fallback checks. Old arrow syntax is
+rejected for direct calls and either position in a mixed chain.
+
+Maintained compiler, library, package, example, test and generated-source callers
+use dots. Diagnostic goldens keep the same errors with dot spellings and source
+columns adjusted for the one-character-shorter separator. Historical plan and
+acceptance reports retain explicitly historical syntax.
+
+## Routed HTTP foundation checks
+
+GI#518's internal request/routing policy is exercised by
+`packages/http/src/parser_test.panack`, run from source and saved bytecode by
+`tests/http_package.sh`: raw targets, repeated case-insensitive headers, malformed
+route references, canonical Allow ordering and fallback precedence. Native
+resumable tests distinguish checked arithmetic/index faults from invalid operand
+faults, check retained-value cleanup, and verify category reset between executions.
+These are foundation checks, not acceptance of the routed server, request recovery,
+readiness, bounded admission or shutdown; those remain under the GI#518 register.
+
+GI#518 internal routed-server coverage: `tests/unit/vm/http_state.c` checks shell
+ownership, aliasing, duplicate registration, expired writers, typed invocation and
+independent bytecode local-effect validation. `tests/http_package.sh` exercises the
+internal package source/bytecode fixtures and raw C peer modes for framing, Expect,
+handler errors/traps, first-send preservation, four-request/sixteen-connection caps,
+real ten-second deadlines, and lifecycle/port reuse. Public-package fixtures now
+cover corrected contract examples, checked arithmetic recovery and active-request
+shutdown. Static and archive smoke tests exercise both examples from relocated
+installations; the static installed-example test also checks the ordinary POST
+echo body and the contextual query value in `X-Query`.
+Canonical validation passed in 509 seconds; the
+final GI#518 acceptance adds distinct-context dispatch, all supported/unsupported
+method cases, callback arity/effect rejection, response byte boundaries and live
+oversize rejection, active close/destroy/escalation and process-exit response
+preservation. Native allocation sweeps cover the new state/writer ownership.
+Final canonical and exact-head CI provenance is recorded in the
+[acceptance register](../docs/design/routed-http-server/acceptance-register.md).
+
+HTTP playbook coverage: the existing installed-example runs check POST/PUT/DELETE
+byte echo, query/header access, fallback 404 and known-path 405. The contextual
+query-header assertion is restricted to the installed example; the original
+contract fixture uses its unchanged common checks. `tests/http_package.sh` also
+runs the public lifecycle program from source and bytecode and compares shutdown
+output. The playbook embeds the matching example source and manifests.

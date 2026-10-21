@@ -1,4 +1,3 @@
-import stdlib/numeric as numeric
 import stdlib/prelude as prelude
 
 main(): Void {
@@ -6,18 +5,17 @@ main(): Void {
     Ok(_) => true,
     Error(_) => false
   }
-  left = prelude.byte_buffer.push(bytes(), 65)
-  right = prelude.byte_buffer.push(bytes(), 66)
-  joined = prelude.byte_buffer.join(left, right)
-  expected = prelude.byte_buffer.push(
-    prelude.byte_buffer.push(bytes(), 65), 66)
-  divided_duration = prelude.time.divide(prelude.time.seconds(8), 2)
+  left = bytes().push(65)
+  right = bytes().push(66)
+  joined = left.join(right)
+  expected = bytes().push(65).push(66)
+  divided_duration = prelude.time.seconds(8).divide(2)
   print(if path_ok { "PASS path.from_text" } else { "FAIL path.from_text" })
   print(if bytes() == prelude.byte_buffer.empty() {
     "PASS bytes constructor"
   } else { "FAIL bytes constructor" })
   print(if joined == expected { "PASS byte_buffer.join" } else { "FAIL byte_buffer.join" })
-  print(if numeric.divide(9, 2) == 4 { "PASS numeric.divide" } else { "FAIL numeric.divide" })
+  print(if 9.divide(2) == 4 { "PASS numeric.divide" } else { "FAIL numeric.divide" })
   print(if divided_duration == Ok(prelude.time.seconds(4)) {
     "PASS time.divide"
   } else { "FAIL time.divide" })

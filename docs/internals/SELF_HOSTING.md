@@ -11,6 +11,70 @@ The dated records below preserve milestone evidence and their original timings.
 Their former pending-release statements and performance budgets are historical,
 not outstanding alpha.13 gates.
 
+The unreleased type-owned method proof of concept remains implemented in
+Panackelty. Its compiler changes use syntax accepted by the prior seed; seed
+refresh and the existing fixed-point checks validate bootstrap compatibility.
+P02 replaces marker-based lookup with explicit syntax and ownership metadata,
+using syntax accepted by the existing seed. The refreshed P02 seed is
+`6a9eba9e4610bc11b02a1229df20f89b6ba745be2b867ca0c95138311e7ded21`;
+stages 2/3/4 reproduce it and retain the previous stdlib artifact. The public CLI
+therefore uses the same owned-call metadata and diagnostics as the sources.
+It adds no VM opcode or bytecode version.
+
+P03 refreshes the seed to
+`41456b74fb7535d0521e90d64ac1d562668aa8ad9632d5000497b2008bc186ed`
+for the collection-arity diagnostic correction discovered by the Server/Map
+fixture. Stages 2/3/4 reproduce that hash; stdlib bytecode and output are unchanged.
+No new syntax capability or later migration seed checkpoint is claimed.
+
+P04 refreshes the seed to
+`b97ffe6165ef9037b1aa27a3d6225f958afa21129aadb06eebcd9dd4e5798b6d`
+for generic nominal owners, implementation/method binders and expected-result
+inference. Compiler stages 2/3/4 reproduce that hash. Standard-library bytecode
+remains `eea94d9ea68fcafaa4a68d1eabb926add89f1fc8f3e2d9b6b5877353609c052b`,
+with unchanged output. The isolated core-enum test uses a test stdlib; production
+core/compiler sources retain seed-compatible declaration syntax. This does not
+complete P09's later expanded-arrow checkpoint. See [P04 acceptance](../design/type-owned-dispatch/p04-generic-owners.md).
+
+P05 refreshes the seed to
+`2f64ce0ad979ec07080fe263ddf546aa53dc454ff3e47e807eac128687158e12`
+for canonical built-in owner metadata, designated-core signature checks and array
+implementation syntax. Stages 2/3/4 reproduce this hash; standard-library bytecode
+and output remain unchanged. Production core methods are not migrated and the P09
+checkpoint is still pending. See [P05 acceptance](../design/type-owned-dispatch/p05-builtin-owners.md).
+
+P06 adds compiler-owned intrinsic declarations and preserves their typed identities
+through checking and emission. Stages 2/3/4 reproduce seed
+`99f7b745472e5361c7cca72cb8bb9afdc1591e82431dd1934d1b3506af484670`.
+Standard-library bytecode and output remain unchanged. Validation is recorded in
+[P06 acceptance](../design/type-owned-dispatch/p06-owned-intrinsics.md).
+P07 extends the owned registry with callable and array callback identities and
+preserves async method flags. Compiler stages 2/3/4 reproduce seed
+`57ee20ce5916b59e85fb23db0a286c3e372124617489e09e342d8b0d50a1152c`;
+standard-library bytecode remains unchanged. See
+[P07 acceptance](../design/type-owned-dispatch/p07-callable-effects.md).
+P08 moves 19 source methods and canonical PathError/DurationError declarations
+into core, retaining forwarding functions for existing callers. Compiler support
+and a validated seed were saved before library conversion. Core emission retains
+local type information for tooling rechecks. Final seed and conformance evidence
+are in the [P08 report](../design/type-owned-dispatch/p08-core-methods.md).
+[P09's audited arrow-capable seed checkpoint](../design/type-owned-dispatch/p09-arrow-seed-checkpoint.md)
+reproduces P08's saved seed and conformance artifact before broader caller migration.
+[P10](../design/type-owned-dispatch/p10-stdlib-callers.md) migrates stdlib callers
+and conformance programs using that accepted seed. Its report records regenerated
+fixed points. [P11](../design/type-owned-dispatch/p11-remaining-callers.md) migrates
+compiler and maintained source callers, saving a new verified compiler seed.
+[P12](../design/type-owned-dispatch/p12-legacy-removal.md) removes compatibility
+lowering and wrappers, retaining focused internal backend fixtures and adding
+public rejection coverage. All project acceptance uses checked identities.
+[P13](../design/type-owned-dispatch/p13-owned-dot-bridge.md) saves the bridge seed
+that accepts both owned dots and arrows before maintained callers convert in P14.
+[P14](../design/type-owned-dispatch/p14-dot-cutover.md) converts maintained sources
+and generators to dots, removes arrow-call parsing, and verifies the dot-only seed.
+[P15](../design/type-owned-dispatch/p15-consumer-acceptance.md) verifies that same
+compiler/library in relocated native archives and the matched browser consumer.
+The VM, saved seed and bytecode format are unchanged by P15.
+
 ## Historical P2 completion checkpoint — 2026-10-10
 
 PR#358 merged on 2026-10-10 as `bfb34a44107d345eb9f4784e5b8ca02e64c7124d`.
@@ -331,7 +395,7 @@ breaks while preserving multiline expressions, skips comments, uses half-open
 source offsets, and reports positioned diagnostics for invalid characters and
 unterminated strings. The current parser still handles
 the complete expression precedence hierarchy, scalar and array literals, calls,
-receiver-first method-call lowering, field access, indexing, blocks, bindings,
+owned receiver calls, namespace dots, field access, indexing, blocks, bindings,
 assignments, tail values, and
 conditional expressions with optional `else`, `while` and `for` statements, and
 pattern matching with payload bindings. Program-level parsing accepts quoted

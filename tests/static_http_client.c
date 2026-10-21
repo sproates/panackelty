@@ -87,9 +87,10 @@ static int exchange(unsigned port, const char *method, const char *target, unsig
     char expected[64];
     snprintf(expected, sizeof(expected), "HTTP/1.1 %u ", status);
     char *separator = strstr(response, "\r\n\r\n");
+    int application_response = strcmp(method, "HEAD") && strcmp(method, "OPTIONS");
     failed |= strncmp(response, expected, strlen(expected)) != 0 || !separator ||
-              !strstr(response, "\r\nCache-Control: no-store\r\n") ||
-              !strstr(response, "\r\nX-Robots-Tag: noindex\r\n") ||
+              (application_response && (!strstr(response, "\r\nCache-Control: no-store\r\n") ||
+               !strstr(response, "\r\nX-Robots-Tag: noindex\r\n"))) ||
               (header && !strstr(response, header));
     if (separator) {
         size_t actual = received - (size_t)(separator + 4 - response);
@@ -141,10 +142,10 @@ int main(int argc, char **argv)
     int failed = 0;
     failed |= exchange(port, "GET", "/", 200, "Content-Type: text/html; charset=utf-8\r\n", "root page", 9);
     failed |= exchange(port, "GET", "/sub?x=1", 308, "Location: /sub/?x=1\r\n", "", 0);
-    failed |= exchange(port, "HEAD", "/sub?x=1", 308, "Location: /sub/?x=1\r\n", NULL, 0);
+    failed |= exchange(port, "HEAD", "/sub?x=1", 405, "Allow: GET, POST, PUT, DELETE\r\n", NULL, 0);
     failed |= exchange(port, "GET", "/sub/?x=1", 200, NULL, "sub page", 8);
     failed |= exchange(port, "GET", "/hello.txt?ignored=yes", 200, NULL, "hello\0world", 11);
-    failed |= exchange(port, "HEAD", "/hello.txt", 200, "Content-Length: 11\r\n", NULL, 0);
+    failed |= exchange(port, "HEAD", "/hello.txt", 405, "Allow: GET, POST, PUT, DELETE\r\n", NULL, 0);
     failed |= exchange(port, "GET", "/inside", 200, NULL, "hello\0world", 11);
     failed |= exchange(port, "GET", "/a%20b.txt", 200, NULL, "space", 5);
     failed |= exchange(port, "GET", "/%C3%A9.txt", 200, NULL, "unicode", 7);
@@ -152,7 +153,7 @@ int main(int argc, char **argv)
     failed |= exchange(port, "GET", "/asset.bin", 200, "Content-Length: 700000\r\n", NULL, 700000);
     failed |= exchange(port, "GET", "/style.CSS", 200, "Content-Type: text/css; charset=utf-8\r\n", "css", 3);
     failed |= exchange(port, "GET", "/large.bin", 503, NULL, NULL, 0);
-    failed |= exchange(port, "HEAD", "/large.bin", 503, NULL, NULL, 0);
+    failed |= exchange(port, "HEAD", "/large.bin", 405, "Allow: GET, POST, PUT, DELETE\r\n", NULL, 0);
     failed |= exchange(port, "GET", "/framing.bin", 503, NULL, NULL, 0);
     const char *missing[] = {"/missing", "/empty/", "/outside", "/absolute", "/loop", "/pipe", "/hello.txt/"};
     for (size_t i = 0; i < sizeof(missing) / sizeof(*missing); i++) {
@@ -162,12 +163,13 @@ int main(int argc, char **argv)
     for (size_t i = 0; i < sizeof(invalid) / sizeof(*invalid); i++) {
         failed |= exchange(port, "GET", invalid[i], 400, NULL, NULL, 0);
     }
-    const char *methods[] = {"POST", "PUT", "DELETE", "OPTIONS"};
+    const char *methods[] = {"POST", "PUT", "DELETE"};
     for (size_t i = 0; i < sizeof(methods) / sizeof(*methods); i++) {
-        failed |= exchange(port, methods[i], "/", 405, "Allow: GET, HEAD\r\n", NULL, 0);
+        failed |= exchange(port, methods[i], "/", 405, "Allow: GET\r\n", NULL, 0);
     }
-    failed |= exchange(port, "HEAD", "/missing", 404, NULL, NULL, 0);
-    failed |= exchange(port, "HEAD", "/%FF", 400, NULL, NULL, 0);
+    failed |= exchange(port, "HEAD", "/missing", 405, "Allow: GET, POST, PUT, DELETE\r\n", NULL, 0);
+    failed |= exchange(port, "HEAD", "/%FF", 405, "Allow: GET, POST, PUT, DELETE\r\n", NULL, 0);
+    failed |= exchange(port, "OPTIONS", "/", 405, "Allow: GET, POST, PUT, DELETE\r\n", NULL, 0);
     /* An idle admitted client must not prevent another complete request. */
     int idle = connect_to(port);
     if (idle < 0) {

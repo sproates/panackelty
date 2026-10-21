@@ -12,7 +12,7 @@ pure symbols(): Map[Str,Nat] {
 }
 
 pure encoded(): Bytes {
-  utf8_encode("λ").byte_append(33)
+  "λ".encode_utf8().push(33)
 }
 
 record Snapshot {
@@ -33,10 +33,10 @@ pure persistent_append(): Bool {
   boxes: [Snapshot] = [snapshot]
   nested_more = nested.append(values)
   boxes_more = boxes.append(Snapshot(branch))
-  len(values) == 128 && len(snapshot.values) == 64 && len(branch) == 65 &&
+  values.len() == 128 && snapshot.values.len() == 64 && branch.len() == 65 &&
     branch[64] == 99 && snapshot.values[63] == 63 && visited == 64 &&
-    len(nested) == 1 && len(nested_more[0]) == 64 && len(nested_more[1]) == 128 &&
-    len(boxes) == 1 && len(boxes_more[1].values) == 65
+    nested.len() == 1 && nested_more[0].len() == 64 && nested_more[1].len() == 128 &&
+    boxes.len() == 1 && boxes_more[1].values.len() == 65
 }
 
 main(): Void {
@@ -45,7 +45,7 @@ main(): Void {
   print(numbers())
   print(symbols().get("answer"))
   print(names.has("Panackelty"))
-  print(encoded().utf8_decode())
+  print(encoded().decode_utf8())
   print(persistent_append())
   print([3, 1, 2, 1].sort_by(@number_before))
   print("café.panack".ends_with(".panack"))

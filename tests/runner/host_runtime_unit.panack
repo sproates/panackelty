@@ -5,7 +5,6 @@ import stdlib/path as std_path
 import stdlib/testing as std_testing
 import stdlib/process as std_process
 import project/src/compiler/filesystem_support as filesystem_support
-import stdlib/result as std_result
 import stdlib/testing::{TestResult}
 import stdlib/testing_files::{TestWorkspace, HostError}
 import stdlib/testing_commands::{TestCommand, ProcessOutput}
@@ -15,21 +14,21 @@ import stdlib/bytes as byte_buffer
 import stdlib/environment as std_environment
 import stdlib/filesystem as std_filesystem
 import stdlib/host as std_host
-pure host_path(value: Str): Path { std_result.value_or(std_path.from_text(value), std_path.current()) }
-pure host_text(value: Path): Str { std_result.value_or(std_path.to_text(value), "invalid path") }
+pure host_path(value: Str): Path { std_path.from_text(value).value_or(std_path.current()) }
+pure host_text(value: Path): Str { value.to_text().value_or("invalid path") }
 pure host_error[T](result: Result[T,HostError]): Str {
   match result { Ok(value) => "ok", Error(problem) => problem.code }
 }
 pure host_contains(actual: Str, expected: Str): Bool {
   mut found = false
-  for index in 0..len(actual) {
-    if starts_with_at(actual, expected, index) { found = true }
+  for index in 0..actual.len() {
+    if actual.starts_with_at(expected, index) { found = true }
   }
   found
 }
 pure host_repeat(input: Bytes, count: Nat): Bytes {
   mut result = input
-  for unused in 0..count { result = byte_buffer.join(result, result) }
+  for unused in 0..count { result = result.join(result) }
   result
 }
 pure host_digit(character: Str): Nat {
@@ -42,12 +41,12 @@ pure host_hex(value: Str): Bytes {
   mut output = byte_buffer.empty()
   mut high: Nat = 0
   mut half = false
-  for index in 0..len(value) {
+  for index in 0..value.len() {
     character = value[index]
-    if !is_whitespace(character) {
+    if !character.is_whitespace() {
       digit = host_digit(character)
       if !half { high = digit; half = true }
-      else { output = byte_buffer.push(output, high * 16 + digit); half = false }
+      else { output = output.push(high * 16 + digit); half = false }
     }
   }
   output
@@ -63,7 +62,7 @@ host_impure(name: Str, workspace: TestWorkspace): TestResult {
       result = std_testing_commands.run_command("pure ${name}", TestCommand(host_path("./bin/panack"),
         ["check", host_text(target)], byte_buffer.empty(), std_path.current(), [],
         std_time.seconds(10), 1048576),
-        ProcessOutput(1, 0, byte_buffer.empty(), utf8_encode("error: pure function calls impure function\n")))
+        ProcessOutput(1, 0, byte_buffer.empty(), "error: pure function calls impure function\n".encode_utf8()))
       match std_filesystem.remove_file(target) {
         Error(problem) => std_testing.expect("pure ${name}", false, "bytecode cleanup failed"),
         Ok(removed) => result
@@ -86,7 +85,7 @@ host_fixture_error(name: Str, filename: Str, expected: Str): TestResult {
     Error(problem) => std_testing.expect(name, false, problem.code),
     Ok(command) => std_testing.expect(name,
       command.exit_code == 1 && command.signal == 0 && command.stdout == byte_buffer.empty() &&
-      host_contains(utf8_decode(command.stderr), expected), "unexpected trap or exit")
+      host_contains(command.stderr.decode_utf8(), expected), "unexpected trap or exit")
   }
 }
 
@@ -100,28 +99,27 @@ host_nested(workspace: TestWorkspace, source: Str, args: Bool): [TestResult] {
   results = results.append(std_testing_commands.run_command("compile nested ${source}",
     TestCommand(host_path("./bin/panack"), ["compile", source_file, "-o", artifact_file],
       byte_buffer.empty(), std_path.current(), [], std_time.seconds(20), 1048576),
-    ProcessOutput(0, 0, utf8_encode("wrote ${artifact_file}\n"), byte_buffer.empty())))
+    ProcessOutput(0, 0, "wrote ${artifact_file}\n".encode_utf8(), byte_buffer.empty())))
   script = if args {
     "import stdlib/host as std_host\n" +
-      "fixture_read(path: Str): Bytes { read_bytes(path) }\n" +
+      "pub import stdlib/compiler_files::{read_file_bytes as fixture_read}\n" +
       "main(): Void { std_host.run(fixture_read(\"${artifact_file}\"), [\"child\"]) }\n"
   } else {
     "import stdlib/host as std_host\n" +
-      "fixture_suffix(path: Str): Str { path_suffix(path) }\n" +
-      "fixture_resolve(path: Str): Str { path_resolve(path) }\n" +
-      "fixture_exists(path: Str): Bool { file_exists(path) }\n" +
-      "fixture_read(path: Str): Bytes { read_bytes(path) }\n" +
+      "pub import stdlib/compiler_paths::{suffix as fixture_suffix, resolve as fixture_resolve}\n" +
+      "pub import stdlib/compiler_files::{exists as fixture_exists}\n" +
+      "pub import stdlib/compiler_files::{read_file_bytes as fixture_read}\n" +
       "main(): Void { print(fixture_suffix(\"${artifact_file}\")); " +
       "print(fixture_exists(fixture_resolve(\"${artifact_file}\"))); " +
       "std_host.run(fixture_read(\"${artifact_file}\"), []); }\n"
   }
   results = results.append(std_testing.equal_str("write nested ${source}",
-    host_error(std_filesystem.write(program, utf8_encode(script))), "ok"))
+    host_error(std_filesystem.write(program, script.encode_utf8())), "ok"))
   expected = if args { "1\nchild\n" } else { ".bc\ntrue\nnested\n" }
   results = results.append(std_testing_commands.run_command("execute nested ${source}",
     TestCommand(host_path("./bin/panack"), ["run", host_text(program)], byte_buffer.empty(),
       std_path.current(), [], std_time.seconds(20), 1048576),
-    ProcessOutput(0, 0, utf8_encode(expected), byte_buffer.empty())))
+    ProcessOutput(0, 0, expected.encode_utf8(), byte_buffer.empty())))
   results = results.append(std_testing.equal_str("remove nested wrapper ${source}",
     host_error(std_filesystem.remove_file(program)), "ok"))
   results = results.append(std_testing.equal_str("remove nested bytecode ${source}",
@@ -136,11 +134,11 @@ host_direct(workspace: TestWorkspace): [TestResult] {
   sh = host_path("/bin/sh")
   empty = byte_buffer.empty()
   results = results.append(std_testing.expect("character classes stay ASCII",
-    is_letter("A") && !is_letter("λ") && is_digit("7") && !is_digit("٧") &&
-      is_whitespace("\t"), "unexpected character classification"))
+    "A".is_letter() && !"λ".is_letter() && "7".is_digit() && !"٧".is_digit() &&
+      "\t".is_whitespace(), "unexpected character classification"))
 
-  zeros = host_repeat(byte_buffer.push(empty, 0), 17)
-  payload = host_repeat(byte_buffer.push(empty, 120), 17)
+  zeros = host_repeat(empty.push(0), 17)
+  payload = host_repeat(empty.push(120), 17)
   large = std_process.run(sh, ["-c", "dd if=/dev/zero bs=1024 count=128 2>/dev/null; " +
     "dd if=/dev/zero bs=1024 count=128 >&2 2>/dev/null; cat"], payload,
     root, [], std_time.seconds(3), 1000000)
@@ -149,7 +147,7 @@ host_direct(workspace: TestWorkspace): [TestResult] {
     Ok(command) => {
       results = results.append(std_testing.expect("large duplex streams",
         command.exit_code == 0 && command.signal == 0 &&
-        command.stdout == byte_buffer.join(zeros, payload) && command.stderr == zeros,
+        command.stdout == zeros.join(payload) && command.stderr == zeros,
         "binary streams or process status differed"))
     }
   }
@@ -165,10 +163,10 @@ host_direct(workspace: TestWorkspace): [TestResult] {
       empty, root, ["PANACK_HOST_TEST=value"], std_time.seconds(3), 1000) {
     Error(problem) => { results = results.append(std_testing.expect("environment cwd and binary stderr", false, problem.code)) },
     Ok(command) => {
-      mut invalid = byte_buffer.push(empty, 255)
+      mut invalid = empty.push(255)
       results = results.append(std_testing.expect("environment cwd and binary stderr",
         command.exit_code == 9 && command.signal == 0 &&
-        command.stdout == utf8_encode("value\n") && command.stderr == invalid,
+        command.stdout == "value\n".encode_utf8() && command.stderr == invalid,
         "process output differed"))
       results = results.append(std_testing.equal_str("invalid UTF-8 process output",
         host_error(std_host.decode_utf8(command.stderr)), "invalid_utf8"))
@@ -198,7 +196,7 @@ host_direct(workspace: TestWorkspace): [TestResult] {
         Error(problem) => { results = results.append(std_testing.expect("bounded timeout elapsed", false, "clock unavailable")) },
         Ok(after) => {
           results = results.append(std_testing.expect("bounded timeout elapsed",
-            std_time.ticks(std_time.difference(after, before)) < 2000000000,
+            after.difference(before).ticks() < 2000000000,
             "timeout took two seconds or more"))
         }
       }
@@ -227,7 +225,7 @@ host_direct(workspace: TestWorkspace): [TestResult] {
     Ok(started) => match after_sleep {
       Error(problem) => { results = results.append(std_testing.expect("sleep elapsed", false, "clock unavailable")) },
       Ok(ended) => { results = results.append(std_testing.expect("sleep elapsed",
-        std_time.ticks(std_time.difference(ended, started)) >= 1000000,
+        ended.difference(started).ticks() >= 1000000,
         "returned before requested duration")) }
     }
   }
@@ -239,7 +237,7 @@ host_direct(workspace: TestWorkspace): [TestResult] {
   file = host_path("${root_text}/file")
   link = host_path("${root_text}/link")
   fifo = host_path("${root_text}/fifo")
-  results = results.append(std_testing.equal_str("write file", host_error(std_filesystem.write(file, utf8_encode("ab"))), "ok"))
+  results = results.append(std_testing.equal_str("write file", host_error(std_filesystem.write(file, "ab".encode_utf8())), "ok"))
   results = results.append(std_testing.equal_str("file size limit", host_error(std_filesystem.read(file, 1)), "output_limit"))
   results = results.append(std_testing.equal_str("directory is not regular file", host_error(std_filesystem.read(root, 0)), "not_regular_file"))
   match std_process.run(sh, ["-c", "ln -s \"$1\" \"$2\"; mkfifo \"$3\"", "file-setup",
@@ -254,10 +252,10 @@ host_direct(workspace: TestWorkspace): [TestResult] {
     Ok(info) => { results = results.append(std_testing.expect("symlink metadata",
       info.kind == SymbolicLink(), "final link was followed")) }
   }
-  results = results.append(std_testing.expect("symlink reads target", std_result.value_or(std_filesystem.read(link, 2), empty) == utf8_encode("ab"), "link read failed"))
+  results = results.append(std_testing.expect("symlink reads target", std_filesystem.read(link, 2).value_or(empty) == "ab".encode_utf8(), "link read failed"))
   results = results.append(std_testing.equal_str("fifo is not regular file", host_error(std_filesystem.read(fifo, 0)), "not_regular_file"))
   results = results.append(std_testing.equal_str("remove symlink", host_error(std_filesystem.remove_file(link)), "ok"))
-  results = results.append(std_testing.expect("target remains after removing link", std_result.value_or(std_filesystem.read(file, 2), empty) == utf8_encode("ab"), "target lost"))
+  results = results.append(std_testing.expect("target remains after removing link", std_filesystem.read(file, 2).value_or(empty) == "ab".encode_utf8(), "target lost"))
 
   match std_filesystem.temp_file(root) {
     Error(problem) => { results = results.append(std_testing.expect("first private temporary", false, problem.code)) },
@@ -269,18 +267,18 @@ host_direct(workspace: TestWorkspace): [TestResult] {
           script = "if stat -c %a \"$1\" >/dev/null 2>&1; then stat -c %a \"$1\"; else stat -f %Lp \"$1\"; fi"
           results = results.append(std_testing_commands.run_command("private temporary mode", TestCommand(sh,
             ["-c", script, "mode", host_text(first)], empty, root, [], std_time.seconds(5), 100),
-            ProcessOutput(0, 0, utf8_encode("600\n"), empty)))
+            ProcessOutput(0, 0, "600\n".encode_utf8(), empty)))
           results = results.append(std_testing.equal_str("remove second temporary", host_error(std_filesystem.remove_file(second)), "ok"))
         }
       }
       results = results.append(std_testing.equal_str("remove first temporary", host_error(std_filesystem.remove_file(first)), "ok"))
     }
   }
-  raw_name = byte_buffer.push(utf8_encode("${root_text}/"), 255)
+  raw_name = "${root_text}/".encode_utf8().push(255)
   match std_path.from_native(raw_name) {
     Error(problem) => { results = results.append(std_testing.expect("non UTF-8 path setup", false, "path rejected")) },
     Ok(raw) => {
-      match std_filesystem.write(raw, utf8_encode("raw")) {
+      match std_filesystem.write(raw, "raw".encode_utf8()) {
         Error(problem) => { results = results.append(std_testing.expect("non UTF-8 filesystem name", true, "host filesystem rejected raw name")) },
         Ok(written) => {
           mut found = false
@@ -288,12 +286,12 @@ host_direct(workspace: TestWorkspace): [TestResult] {
             Error(problem) => { results = results.append(std_testing.expect("non UTF-8 directory listing", false, problem.code)) },
             Ok(names) => {
               for entry in names {
-                if std_path.native_bytes(entry) == byte_buffer.push(empty, 255) { found = true }
+                if entry.native_bytes() == empty.push(255) { found = true }
               }
               results = results.append(std_testing.expect("non UTF-8 directory listing", found, "raw name absent"))
             }
           }
-          results = results.append(std_testing.expect("non UTF-8 file data", std_result.value_or(std_filesystem.read(raw, 3), empty) == utf8_encode("raw"), "raw file unreadable"))
+          results = results.append(std_testing.expect("non UTF-8 file data", std_filesystem.read(raw, 3).value_or(empty) == "raw".encode_utf8(), "raw file unreadable"))
           results = results.append(std_testing.equal_str("remove non UTF-8 name", host_error(std_filesystem.remove_file(raw)), "ok"))
         }
       }
@@ -311,12 +309,12 @@ host_paths(): [TestResult] {
   names = ["a", "a//b", "/", "//", "///", "//host/a", "./", "a/../b/"]
   directories = [".", "a/", "/", "//", "///", "//host", ".", "a/.."]
   filenames = ["a", "b", "none", "none", "none", "a", ".", "b"]
-  for index in 0..len(names) {
+  for index in 0..names.len() {
     current_name = names[index]
     input = host_path(current_name)
     results = results.append(std_testing.expect("directory ${current_name}",
-      std_path.native_bytes(std_path.directory(input)) == utf8_encode(directories[index]), "parent path changed"))
-    actual = match std_path.filename(input) { None() => "none", Some(value) => host_text(value) }
+      input.directory().native_bytes() == directories[index].encode_utf8(), "parent path changed"))
+    actual = match input.filename() { None() => "none", Some(value) => host_text(value) }
     results = results.append(std_testing.equal_str("filename ${current_name}", actual, filenames[index]))
   }
   results = results.append(std_testing.equal_str("lexical path join", path_support.join("project/src", "../tests"), "project/tests"))
@@ -325,36 +323,42 @@ host_paths(): [TestResult] {
 
 main(): Void {
   match std_testing_files.workspace_create(host_path("/tmp")) {
-    Error(problem) => { eprint("host test workspace failed: ${problem.code}"); std_host.exit(1) },
+    Error(problem) => { std_host.stderr("host test workspace failed: ${problem.code}"); std_host.exit(1) },
     Ok(workspace) => {
       mut results = host_direct(workspace).concat(host_paths())
       results = results.append(host_fixture("testing report order and empty case", "library_reports", [], [],
-        ProcessOutput(0, 0, utf8_encode("tests: 0, failures: 0\n0\nFAIL first: reason\nPASS second\ntests: 2, failures: 1\n1\n"), byte_buffer.empty())))
+        ProcessOutput(0, 0, "tests: 0, failures: 0\n0\nFAIL first: reason\nPASS second\ntests: 2, failures: 1\n1\n".encode_utf8(), byte_buffer.empty())))
       results = results.append(host_fixture("testing command comparison", "library_commands", [], [],
-        ProcessOutput(0, 0, utf8_encode("PASS match\nFAIL exit: expected exit 0, got 2\nFAIL signal: expected signal 0, got 9\nFAIL stdout: stdout differed\nFAIL stderr: stderr differed\nFAIL host: command failed: timeout\ntests: 6, failures: 5\n5\n"), byte_buffer.empty())))
+        ProcessOutput(0, 0, "PASS match\nFAIL exit: expected exit 0, got 2\nFAIL signal: expected signal 0, got 9\nFAIL stdout: stdout differed\nFAIL stderr: stderr differed\nFAIL host: command failed: timeout\ntests: 6, failures: 5\n5\n".encode_utf8(), byte_buffer.empty())))
       results = results.append(host_fixture("stdlib environment option", "environment_option", [], ["PRESENT=configured"],
-        ProcessOutput(0, 0, utf8_encode("configured\nnone\n"), byte_buffer.empty())))
+        ProcessOutput(0, 0, "configured\nnone\n".encode_utf8(), byte_buffer.empty())))
       results = results.append(host_fixture("command argument snapshot", "arguments", ["alpha", "beta"], [],
-        ProcessOutput(0, 0, utf8_encode("2\nalpha\n"), byte_buffer.empty())))
+        ProcessOutput(0, 0, "2\nalpha\n".encode_utf8(), byte_buffer.empty())))
       results = results.append(host_fixture("environment snapshot", "environment_snapshot", [], ["PANACK_PRESENT=configured"],
-        ProcessOutput(0, 0, utf8_encode("true\nconfigured\nfalse\n"), byte_buffer.empty())))
+        ProcessOutput(0, 0, "true\nconfigured\nfalse\n".encode_utf8(), byte_buffer.empty())))
+      missing_artifact = host_path(host_text(workspace.root) + "/environment-missing.bc")
+      results = results.append(std_testing.equal_str("write missing environment bytecode",
+        host_error(std_filesystem.write(missing_artifact, host_hex(filesystem_support.read_text(
+          "tests/fixtures/host_runtime/environment_missing.hex")))), "ok"))
       missing = std_process.run(host_path("/bin/sh"), ["-c", "unset PANACK_MISSING; exec ./bin/panack \"$@\"",
-        "host-missing", "run", "tests/fixtures/host_runtime/environment_missing.panack"], byte_buffer.empty(),
+        "host-missing", "run", host_text(missing_artifact)], byte_buffer.empty(),
         std_path.current(), [], std_time.seconds(20), 1048576)
       match missing {
         Error(problem) => { results = results.append(std_testing.expect("missing environment traps", false, problem.code)) },
         Ok(command) => { results = results.append(std_testing.expect("missing environment traps",
           command.exit_code == 1 && command.signal == 0 && command.stdout == byte_buffer.empty() &&
-          host_contains(utf8_decode(command.stderr), "environment variable was not found"),
+          host_contains(command.stderr.decode_utf8(), "environment variable was not found"),
           "missing variable did not trap")) }
       }
+      results = results.append(std_testing.equal_str("remove missing environment bytecode",
+        host_error(std_filesystem.remove_file(missing_artifact)), "ok"))
       results = results.append(host_fixture("stderr and exit status", "process_exit", [], [],
-        ProcessOutput(7, 0, byte_buffer.empty(), utf8_encode("failure\n"))))
+        ProcessOutput(7, 0, byte_buffer.empty(), "failure\n".encode_utf8())))
       results = results.append(host_fixture("native arguments, environment and status", "native_boundary",
         ["argument"], ["PANACK_NATIVE_TEST=snapshot"],
-        ProcessOutput(7, 0, utf8_encode("argument\nsnapshot\n"), utf8_encode("native stderr\n"))))
+        ProcessOutput(7, 0, "argument\nsnapshot\n".encode_utf8(), "native stderr\n".encode_utf8())))
       results = results.append(host_fixture("lexical path join source", "path_join", [], [],
-        ProcessOutput(0, 0, utf8_encode("project/tests\n/project/tests\n"), byte_buffer.empty())))
+        ProcessOutput(0, 0, "project/tests\n/project/tests\n".encode_utf8(), byte_buffer.empty())))
       results = results.concat(host_nested(workspace, "nested", false))
       results = results.concat(host_nested(workspace, "nested_arguments", true))
       for service in ["read_file", "read_bytes", "write_file", "write_bytes"] {
@@ -375,10 +379,10 @@ main(): Void {
       missing_root = host_path("${workspace_name}/missing")
       results = results.append(std_testing.equal_str("missing fixture root", host_error(std_testing_files.discover_fixtures(missing_root)), "not_found"))
       regular = host_path("${workspace_name}/regular")
-      results = results.append(std_testing.equal_str("fixture file setup", host_error(std_filesystem.write(regular, utf8_encode("data"))), "ok"))
+      results = results.append(std_testing.equal_str("fixture file setup", host_error(std_filesystem.write(regular, "data".encode_utf8())), "ok"))
       results = results.append(std_testing.equal_str("regular file fixture root", host_error(std_testing_files.discover_fixtures(regular)), "not_directory"))
       results = results.append(std_testing.equal_str("fixture file cleanup", host_error(std_filesystem.remove_file(regular)), "ok"))
-      match std_testing_files.workspace_remove_empty(workspace) {
+      match workspace.remove_empty() {
         Error(problem) => { results = results.append(std_testing.expect("host workspace cleanup", false, problem.code)) },
         Ok(removed) => {}
       }

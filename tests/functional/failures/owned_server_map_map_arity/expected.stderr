@@ -1,0 +1,3 @@
+error: <case>/main.panack:7:9: map_get expects 2 arguments, got 3
+  7 |   print(routes.get("/fruit", 99))
+    |         ^

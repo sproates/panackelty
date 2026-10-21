@@ -1,0 +1,3 @@
+error: <case>/main.panack:1:44: argument 3 to slice is Str, expected Nat
+  1 | pure use(value: Str): Str { value.slice(0, "x") }
+    |                                            ^

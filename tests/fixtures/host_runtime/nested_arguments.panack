@@ -1,5 +1,6 @@
+import stdlib/host as std_host
 main(): Void {
-  values: [Str] = command_args()
-  print(len(values))
+  values: [Str] = std_host.arguments()
+  print(values.len())
   print(values[0])
 }

@@ -13,17 +13,19 @@
     "src/compiler/resolver.panack",
     "src/compiler/source_inventory.panack", "src/compiler/source_maps.panack", "src/compiler/types.panack",
     "src/stdlib/bytes.panack", "src/stdlib/core.panack", "src/stdlib/environment.panack", "src/stdlib/filesystem.panack",
-    "src/stdlib/host.panack", "src/stdlib/numeric.panack",
-    "src/stdlib/option.panack", "src/stdlib/path.panack", "src/stdlib/prelude.panack",
-    "src/stdlib/process.panack", "src/stdlib/result.panack", "src/stdlib/tcp.panack", "src/stdlib/testing.panack",
-    "src/stdlib/testing_commands.panack", "src/stdlib/testing_files.panack", "src/stdlib/text.panack",
+    "src/stdlib/host.panack", "src/stdlib/compiler_files.panack",
+    "src/stdlib/compiler_paths.panack", "src/stdlib/path.panack", "src/stdlib/prelude.panack",
+    "src/stdlib/process.panack", "src/stdlib/http_transport.panack", "src/stdlib/tcp.panack", "src/stdlib/testing.panack",
+    "src/stdlib/testing_commands.panack", "src/stdlib/testing_files.panack", "src/stdlib/testing_async.panack",
     "src/stdlib/time.panack"
   ],
   "unmeasured": [
+    {"path": "src/compiler/owned_intrinsics.panack", "reason": "P06 intrinsic registration and lowering are exercised by binding and CLI tests; source-execution percentages for this new module are not yet included in the bounded 45-file baseline."},
     {"path": "src/compiler/package_manifest.panack", "reason": "Package manifest support is not included in the bounded native source-execution corpus."},
     {"path": "src/compiler/package_project.panack", "reason": "Package project support is not included in the bounded native source-execution corpus."},
     {"path": "src/stdlib/async_filesystem.panack", "reason": "Asynchronous filesystem support is tested by native and source/bytecode HTTP fixtures outside the bounded source-coverage corpus."},
     {"path": "src/stdlib/async_host.panack", "reason": "Async CLI adapters are tested by native and source/bytecode service fixtures outside the bounded source-coverage corpus."},
+    {"path": "src/stdlib/http_runtime.panack", "reason": "GI518 typed HTTP runtime adapters are exercised by native writer/handle tests and source/bytecode socket fixtures outside the bounded source-coverage corpus."},
     {"path": "src/stdlib/tcp_service.panack", "reason": "Continuous service lifecycle is tested by native and source/bytecode HTTP fixtures outside the bounded source-coverage corpus."},
     {"path": "src/stdlib/package_filesystem.panack", "reason": "Package filesystem support is not included in the bounded native source-execution corpus."}
   ],

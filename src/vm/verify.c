@@ -9,19 +9,54 @@
 /* Semantic verification is independent of source compilation and runtime checks. */
 
 bool verify_call_edge(const Function *caller, const Function *callee,
-                      bool builtin_pure, bool builtin_async, bool awaited)
+                      bool builtin_pure, bool builtin_async, bool builtin_local, bool awaited)
 {
     bool async = callee ? callee->is_async : builtin_async;
     bool pure = callee ? callee->pure : builtin_pure;
     if (awaited) {
         return caller->is_async && !caller->pure && async;
     }
-    return !async && (!(caller->pure || caller->is_async) || pure);
+    bool local = callee ? callee->local_effect : builtin_local;
+    if (caller->pure) return !async && pure;
+    return !async && (!(caller->is_async || caller->local_effect) || pure || local);
+}
+
+static void infer_local_effects(Program *program)
+{
+    for (size_t i = 0; i < program->count; i++) program->functions[i].local_effect = false;
+    bool changed;
+    do {
+        changed = false;
+        for (size_t i = 0; i < program->count; i++) {
+            Function *function = &program->functions[i];
+            if (function->pure || function->is_async || function->local_effect) continue;
+            bool safe = true, local = false;
+            for (size_t j = 0; j < function->ins_count && safe; j++) {
+                Instruction *instruction = &function->ins[j];
+                if (instruction->op == OP_CALL_VALUE || instruction->op == OP_AWAIT_VALUE ||
+                    instruction->op == OP_AWAIT_CALL) {
+                    safe = false;
+                } else if (instruction->op == OP_CALL) {
+                    const Builtin *entry = builtin(instruction->name);
+                    Function *callee = entry ? NULL : program_function(program, instruction->name);
+                    bool pure = entry ? entry->pure : callee && callee->pure;
+                    bool resource = entry ? builtin_is_local_state(entry) : callee && callee->local_effect;
+                    safe = pure || resource;
+                    local = local || resource;
+                }
+            }
+            if (safe && local) {
+                function->local_effect = true;
+                changed = true;
+            }
+        }
+    } while (changed);
 }
 
 bool verify(Program *p, const char **error)
 {
     p->verified_function_order = false;
+    infer_local_effects(p);
     Function *main = program_function(p, "main");
     if (!main) {
         *error = "bytecode has no main function";
@@ -87,7 +122,7 @@ bool verify(Program *p, const char **error)
                     return false;
                 }
                 if (!verify_call_edge(function, b ? NULL : called, b && b->pure,
-                                      builtin_is_async(b),
+                                      builtin_is_async(b), builtin_is_local_state(b),
                                       instruction->op == OP_AWAIT_CALL)) {
                     *error = function->pure ? "pure function calls impure function" : "invalid async call effect";
                     return false;

@@ -1,6 +1,5 @@
 import project/src/compiler/path_support as path_support
 import stdlib/path as std_path
-import stdlib/option as std_option
 import stdlib/package_filesystem as std_package_filesystem
 import stdlib/environment as std_environment
 pub import stdlib/package_filesystem::{FilesystemRootIdentity}
@@ -104,7 +103,7 @@ manifest_project_from_read(
   if !valid_utf8(read.contents) {
     Error("project manifest is not valid UTF-8")
   } else {
-    toolchain: Str = std_option.value_or(std_environment.get("PANACKELTY_VERSION"), "")
+    toolchain: Str = std_environment.get("PANACKELTY_VERSION").value_or("")
     if toolchain == "" {
       Error("running toolchain version is unavailable")
     } else {
@@ -130,7 +129,7 @@ manifest_project_from_manifest(
 ): Result[ManifestProject, Str] {
   source_root: Str = path_support.resolve(path_support.join(package_root, manifest.source))
   match manifest.entry {
-    None() => if len(manifest.exports) == 0 {
+    None() => if manifest.exports.len() == 0 {
       Error("library manifest must export at least one module")
     } else {
       mut exports: [Str] = []
@@ -211,7 +210,7 @@ resolve_package_dependency_graph(
             match package.entry {
               Some(entry) => { failure = Some("dependency ${alias} must be a library package") },
               None() => {
-                if len(package.exported_modules) == 0 {
+                if package.exported_modules.len() == 0 {
                   failure = Some("dependency ${alias} must export at least one module")
                 } else {
                   mut cycle: Bool = false
@@ -224,9 +223,9 @@ resolve_package_dependency_graph(
                     } else {
                       failure = Some("dependency ${alias}: package dependency cycle detected")
                     }
-                  } else if len(current.edges) >= package_dependency_graph_max_edges() {
+                  } else if current.edges.len() >= package_dependency_graph_max_edges() {
                     failure = Some("package dependency graph exceeds 256 edges")
-                  } else if len(ancestry) >= package_dependency_graph_max_depth() {
+                  } else if ancestry.len() >= package_dependency_graph_max_depth() {
                     failure = Some("package dependency graph exceeds 32 package levels")
                   } else {
                     mut conflict: Option[Str] = None()
@@ -285,7 +284,7 @@ resolve_package_dependency_graph(
                         match known {
                           Some(previous) => {},
                           None() => {
-                            if len(current.packages) >= package_dependency_graph_max_packages() {
+                            if current.packages.len() >= package_dependency_graph_max_packages() {
                               failure = Some("package dependency graph exceeds 64 packages")
                             } else {
                               current = PackageDependencyGraph(

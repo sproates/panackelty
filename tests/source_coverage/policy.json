@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Alpha.13 retains the 45-file measured corpus and records all six explicitly unmeasured sources. Coverage amounts remain informational.",
+    "reason": "GI518 adds the typed HTTP runtime adapter to the explicit unmeasured inventory; the bounded measured corpus is unchanged.",
     "basis": "All 31 fresh local sessions completed for a914d81 with the hashing repair. Reviewed all 410 exclusions against source declarations: 255 imports, 130 records and 25 enums; no executable declaration is excluded.",
-    "scopeChange": "Keep measured files and execution roots unchanged. Bind the existing async_filesystem, async_host and tcp_service unmeasured entries added during GI#162, alongside the three package sources. Refresh exclusion identities and line positions for accepted namespace/compiler changes; no percentage thresholds or new exclusions are introduced by this repair."
+    "scopeChange": "Account for src/stdlib/http_runtime.panack with its native and source/bytecode fixture evidence. No existing eligible file, execution root, exclusion or threshold changes; no fresh percentage measurement is claimed."
   },
-  "manifestHash": "a09ccf645a4769bb7c6aea09c8f89d2725d35a233cee8cb784d1e875d3c96d26",
+  "manifestHash": "fca63aa0f41107a8d11d5000f824909a19ed98475e49c75aace706daf72d7506",
   "exclusionHash": "773435167944b7750a18a232c06a2697356e8fb853efda5dfcf1a3acd8f10a7e"
 }

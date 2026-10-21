@@ -12,8 +12,10 @@ pub workspace_create(parent: Path): Result[TestWorkspace,HostError] {
 }
 
 // Refuse to discard a workspace that still contains fixtures or output.
-pub workspace_remove_empty(workspace: TestWorkspace): Result[Unit,HostError] {
-  fs_remove_directory(workspace.root)
+impl TestWorkspace {
+  pub remove_empty(): Result[Unit,HostError] {
+    fs_remove_directory(self.root)
+  }
 }
 
 // Discover immediate directory children in fs_list's native-byte sorted order.
@@ -29,7 +31,7 @@ pub discover_fixtures(root: Path): Result[[Path],HostError] {
         match failure {
           Some(problem) => {},
           None() => {
-            match path_append(root, name) {
+            match root.join(name) {
               Error(path_error) => {
                 failure = Some(HostError("discover_fixtures", "invalid_argument", 0))
               },

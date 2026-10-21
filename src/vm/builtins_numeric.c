@@ -35,7 +35,7 @@ Value *builtins_numeric_call(VM *vm, const char *name, Value **a)
             return value_big(V_NAT, n);
         }
         Decimal numerator = {.coefficient = *n}, denominator = {.coefficient = *d};
-        return decimal_binary(3, &numerator, &denominator, &vm->error);
+        return decimal_binary_classified(3, &numerator, &denominator, &vm->error, &vm->fault_kind);
     }
     vm->error = "VM trap: unknown builtin";
     return NULL;

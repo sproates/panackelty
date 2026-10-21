@@ -1,0 +1,3 @@
+error: <case>/main.panack:2:1: return of wrong is Result[Str,core.panack:PathError], expected Result[Str,main.panack:PathError]
+  2 | pure wrong(path: Path): Result[Str,PathError] { path.to_text() }
+    | ^

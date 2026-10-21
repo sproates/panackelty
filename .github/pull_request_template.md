@@ -4,7 +4,7 @@ Describe the problem, resulting behaviour and relevant validation evidence.
 
 ## Performance impact
 
-<!-- Follow docs/roadmap/ROADMAP_PROCESS.md#performance-impact-and-regression-decisions.
+<!-- Follow docs/ROADMAP_PROCESS.md#performance-impact-and-regression-decisions.
 Keep evidence proportionate; do not rerun the whole suite just for this section.
 A warning or issue link alone does not dispose of a known regression. -->
 
@@ -14,7 +14,7 @@ A warning or issue link alone does not dispose of a known regression. -->
 
 ## Task completion
 
-<!-- Follow docs/roadmap/ROADMAP_PROCESS.md#completion-handover. Choose the actual
+<!-- Follow docs/ROADMAP_PROCESS.md#completion-handover. Choose the actual
 outcome: final delivery, intermediate slice, or post-merge verification pending.
 For final delivery, include the roadmap's Done summary in this PR and use
 Closes #... below. Otherwise use Refs #... and state the exact remaining work.
@@ -27,7 +27,7 @@ Merging still requires explicit user approval. -->
 
 ## Website impact
 
-<!-- Follow docs/roadmap/ROADMAP_PROCESS.md#website-impact-and-follow-ups. Assess core
+<!-- Follow docs/ROADMAP_PROCESS.md#website-impact-and-follow-ups. Assess core
 changes and releases against the versions the site actually offers. Record a
 concrete follow-up in ROADMAP.md in this PR when needed; recording it does not
 start or schedule the website update. -->

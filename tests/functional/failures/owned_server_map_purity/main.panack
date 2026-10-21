@@ -1,0 +1,6 @@
+record Server { id: Nat }
+impl Server {
+  put(): Nat { self.id }
+  pure get(): Nat { self.put() }
+}
+main(): Void { print(Server(10).get()) }

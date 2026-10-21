@@ -1,0 +1,6 @@
+error: <case>/main.panack:3:15: module declaration Server.get is already bound
+  3 | impl Server { pure get(route: Str): Nat { self.id + 1 } }
+    |               ^
+<case>/main.panack:3:15: module declaration Server.get is already bound
+  3 | impl Server { pure get(route: Str): Nat { self.id + 1 } }
+    |               ^

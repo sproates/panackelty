@@ -5,14 +5,10 @@ and [acceptance evidence](docs/releases/ALPHA13_RELEASE_ACCEPTANCE.md).
 
 ## Next: alpha.14
 
-Selected work includes compiler understanding, package management and compilation
-provenance, faster coverage collection with validated exact-input plan caching and
-fresh execution, prioritised authoring-friction improvements, type-owned method
-dispatch in [GI#525](https://github.com/sproates/panackelty/issues/525), and the HTTP
-server framework (routed API) in [GI#518](https://github.com/sproates/panackelty/issues/518). It also includes a holistic performance review and selected
-quick wins, with particular attention to HTTP server performance and source
-coverage instrumentation time. The detailed records retain the agreed scope,
-dependencies and acceptance criteria.
+Alpha.14 delivers type-owned methods and dot notation (GI#525), the routed HTTP
+server framework (GI#518), and the HTTP reference and runnable examples slice of
+GI#552. Implementation is complete; release validation and publication are in
+progress. Remaining foundation work belongs to alpha.15 under the agreed rebalance.
 
 - [Release plans](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md)
 - [All roadmap records](docs/roadmap/README.md)
@@ -48,6 +44,105 @@ P7 retains its deferred 10-point allocation. Alpha.13 release acceptance is comp
 No existing identifier or item scope changed; RM#156 records the GI#518 selection
 and RM#157 records the performance outcome.
 **Next available roadmap identifier: RM#158.**
+
+## Example inventory preflight — 2026-10-20
+
+The selected authoring-friction improvement adds a compiler-free preflight before
+canonical validation builds. It detects stale example counts, ordered smoke lists,
+output pairs and transcript totals while retaining independent runtime assertions.
+Isolated mutations verify both rejection and correctly maintained additions.
+This bounded delivery does not replace full validation or resolve GI#106's broader
+performance reassessment. Website: no impact; this is contributor tooling only.
+No issue was created solely for this task. Acceptance is recorded in the delivery PR.
+
+## Routed HTTP server: GI#518 / RM#156
+
+**Done on the final acceptance PR's merge into `next`.** All P01–P15 outcomes are
+accounted for by the unchanged weighted baseline in the
+[implementation plan](docs/design/routed-http-server/implementation-plan.md) and
+[acceptance register](docs/design/routed-http-server/acceptance-register.md).
+Foundation PR#548, runtime PR#549 and public migration PR#550 deliver typed
+ordinary/contextual servers, named route handlers, request accessors, response
+writers, bounded framing/Expect handling, request-local failure recovery and
+lifecycle ownership. The final acceptance slice preserves committed responses
+when a handler exits the process and verifies allocation-failure cleanup,
+independent contexts, callback rejection, shutdown escalation and byte boundaries.
+
+The static preview uses a contextual fallback; loopback/`--host`, root confinement,
+indexes, redirects, MIME and application limits remain. Obsolete public server
+APIs are removed; HTTP client regressions remain covered. Public source/bytecode
+and relocated installation/archive examples are included. The migration's full
+`make check` passed in 509 seconds; final acceptance evidence and CI are recorded
+in the linked register and delivery PR. P01–P15 completion is 100% on final merge.
+
+Alpha.14 publication is separate. The
+[website handover](docs/roadmap/records/independent-website-publishing.md#website-follow-up-register)
+retains promotion prerequisites and ownership; no website deployment or current
+release-pin change is part of this delivery. Existing GI#106/RM#123 performance
+work remains open; this delivery does not establish a throughput benchmark.
+
+## HTTP reference review slice: GI#552
+
+The alpha.14 GI#552 slice adds HTTP Server and Client references and an HTTP
+playbook: first server, request/response handling, routing, application
+configuration, listener lifecycle and static serving. The guides include complete programs and
+manifests, curl requests and expected results. Ordinary and contextual examples
+run from source and saved bytecode in the existing installed-package checks;
+the lifecycle example runs in the HTTP package suite. The original contract
+example retains its own assertions, separate from the installed query-header check.
+
+The companion website renders exact Markdown snapshots, with a local cross-repository
+comparison and a CI generation check. Both versions target alpha.14 and publish with that release. The client reference
+covers GET, custom limits, response/error types and a runnable example; the
+playbook includes the bundled static tool and its package integration. This
+completes the selected HTTP slice, not the wider standard-library work in GI#552.
+Performance: no compiler/runtime changes; additional example assertions reuse
+existing server runs, with one small lifecycle program checked in both modes.
+
+## Bounded method experiment — 2026-10-17
+
+Owner-selected proof of concept: two `Fruit` instances call owned `apple` and
+`banana` methods using `->`, yielding 10/11/20/21 while existing dot notation is
+preserved. The initial local-record slice passed `make check` (432 seconds).
+The owner-selected extension adds explicitly public methods callable through
+imported records, preserving original type identity through aliases and
+re-exports. Private methods remain module-local. Focused import and visibility
+checks pass, and the extension passes `make check` (578 seconds), including
+400 functional assertions, unit suites, bootstrap and release smoke. The
+extended PoC is complete locally. Draft
+[PR#524: Type-owned method proof of concept](https://github.com/sproates/panackelty/pull/524)
+provides the bounded starting point for [GI#525: Type-owned dispatch migration](https://github.com/sproates/panackelty/issues/525), with the [implementation plan](docs/design/type-owned-dispatch/dispatch-migration-plan.md) included in the PR. The owner approved integrating the PoC into `next`; the migration remains follow-on work. [GI#525 P01 inventory](docs/design/type-owned-dispatch/p01-inventory.md) accounts for all 615 tracked Panack sources and records migration actions for 24,125 call/reference sites. [P02 explicit ownership metadata](docs/design/type-owned-dispatch/p02-owned-metadata.md) replaces spelling-based method lookup with a separate canonical method index and binds each receiver once. [P03 Server/Map coexistence](docs/design/type-owned-dispatch/p03-server-map.md) adds exact-output import/identity fixtures and rejection tests. [P04 generic nominal owners](docs/design/type-owned-dispatch/p04-generic-owners.md) adds record/enum implementation binders, method parameters and receiver/result inference. [P05 built-in ownership registry](docs/design/type-owned-dispatch/p05-builtin-owners.md) restricts built-in source methods to designated toolchain core identity, with canonical family metadata and spoof rejection. [P06 owned intrinsic dispatch](docs/design/type-owned-dispatch/p06-owned-intrinsics.md) adds 30 compiler-provided methods with typed operation identities and upgrades the Server/Map fixtures. [P07 callable and effect contracts](docs/design/type-owned-dispatch/p07-callable-effects.md) adds owned map/reduce/call operations, async methods and HTTP-shaped handler acceptance. [P08 source core methods](docs/design/type-owned-dispatch/p08-core-methods.md) adds 19 source-owned methods and canonical PathError/DurationError re-exports, preserving compatibility wrappers. [P09 audited seed checkpoint](docs/design/type-owned-dispatch/p09-arrow-seed-checkpoint.md) verifies the unchanged saved compiler and library fixed points before caller migration. [P10 stdlib callers](docs/design/type-owned-dispatch/p10-stdlib-callers.md) migrates library receivers and conformance programs, adds TestWorkspace.remove_empty, and records all 32 temporary source wrappers. [P11 remaining callers](docs/design/type-owned-dispatch/p11-remaining-callers.md) migrates compiler, package, tool and executable test callers with a verified new seed and an explicit legacy-test boundary for P12. [P12 legacy removal](docs/design/type-owned-dispatch/p12-legacy-removal.md) deletes receiver-to-global fallback, special collection dispatch and compatibility exports; checked identities own source acceptance and explanation evidence. [P13 owned-dot bridge](docs/design/type-owned-dispatch/p13-owned-dot-bridge.md) routes dots and arrows through the same owned resolver and saves the bridge seed before caller conversion. [P14 dot cutover](docs/design/type-owned-dispatch/p14-dot-cutover.md) converts maintained sources and generated fixtures, rejects receiver arrows and saves the dot-only seed. [P15 consumer acceptance](docs/design/type-owned-dispatch/p15-consumer-acceptance.md) verifies relocated packages and the matched browser distribution, records the final deletion audit and migration guide, and completes P01–P15 on integration. Programme completion is 100% under unchanged stage weights; GI#525 is Done. Native alpha.14 publication and website promotion remain separate release work. The [public method examples](examples/README.md#type-owned-methods-alpha14) now demonstrate custom ownership and generic callbacks alongside built-in dot methods. No HTTP API work is included, and no issue was created solely for this experiment.
+The [specification](docs/reference/SPEC.md#type-owned-methods-next)
+records its limits. Runtime performance uses existing direct calls; extra work is
+confined to parsing and checking arrow calls. Website: no current-release claim
+changes are needed for this unreleased experiment; reassess at release selection.
+
+## Nightly HTTP fixture repair — 2026-10-19
+
+The 18 October macOS runtime nightly failed its oversized-header HTTP 431
+assertion with an empty response while testing `next`. A focused local probe
+took 1.21 seconds; lowering its server deadline to one second reproduced the
+same empty response and reported `TCP client timed out`. The framing fixture
+now allows ten seconds per connection, thirty seconds for admission and twelve
+seconds for the oversized-header peer's receive, retaining its twenty-second
+outer alarm. The request and response assertions and native deadline tests are
+unchanged. This is a test allowance repair, not a runtime performance improvement
+or a new latency target. Local acceptance passed the focused source/bytecode
+HTTP suite and full `make check` in 640 seconds, including bootstrap, functional
+and release smoke. Hosted acceptance is recorded in the delivery PR against the
+exact integrated revision. No issue was created solely for
+this repair. Website: no impact; production APIs and released claims are unchanged.
+
+## Nightly conformance isolation — 2026-10-19
+
+The macOS ARM64 bytecode-conformance failure in nightly run `39226029349`
+was a nested compiler-source timeout. The conformance scheduler now runs the
+complete nested fixture corpus after ordinary workers finish, retaining all
+assertions and the existing 90-second compiler-source bound. Acceptance and
+performance evidence are recorded in [validation profiling](tests/VALIDATION_PROFILE.md#nightly-nested-corpus-isolation--2026-10-19).
+The repair completes on integration and verification of the failed hosted lane.
+No compiler/VM/seed change or new timing policy is included. No issue was created
+solely for this repair. Website: no impact; product behavior is unchanged.
 
 ## Existing links
 

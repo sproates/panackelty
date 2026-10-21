@@ -1,17 +1,13 @@
 import stdlib/testing_files as std_testing_files
-import stdlib/text as std_text
-import stdlib/result as std_result
 import stdlib/testing_files::{HostError}
 import stdlib/path as std_path
 import stdlib/filesystem as std_filesystem
-import stdlib/bytes as byte_buffer
-import stdlib/host as std_host
 pure path(text: Str): Path {
-  std_result.value_or(std_path.from_text(text), std_path.current())
+  std_path.from_text(text).value_or(std_path.current())
 }
 
 pure child(parent: Path, name: Str): Path {
-  std_result.value_or(std_path.join(parent, path(name)), parent)
+  parent.join(path(name)).value_or(parent)
 }
 
 pure outcome(result: Result[Unit,HostError]): Str {
@@ -28,29 +24,29 @@ main(): Void {
       file = child(root, "readme")
       print(outcome(std_filesystem.create_directory(last)))
       print(outcome(std_filesystem.create_directory(first)))
-      print(outcome(std_filesystem.write(file, std_text.encode_utf8("fixture data"))))
+      print(outcome(std_filesystem.write(file, "fixture data".encode_utf8())))
       match std_testing_files.discover_fixtures(root) {
         Error(error) => { code = error.code; print("discover: ${code}") },
         Ok(fixtures) => {
           for fixture in fixtures {
-            name = match std_path.filename(fixture) {
+            name = match fixture.filename() {
               Some(value) => value,
               None() => fixture
             }
-            print(std_path.display(name))
+            print(name.display())
           }
-          count = len(fixtures)
+          count = fixtures.len()
           print("found ${count}")
         }
       }
-      match std_testing_files.workspace_remove_empty(workspace) {
+      match workspace.remove_empty() {
         Error(error) => { code = error.code; print("nonempty: ${code}") },
         Ok(value) => { print("unexpected empty") }
       }
       print(outcome(std_filesystem.remove_file(file)))
       print(outcome(std_filesystem.remove_directory(first)))
       print(outcome(std_filesystem.remove_directory(last)))
-      print(outcome(std_testing_files.workspace_remove_empty(workspace)))
+      print(outcome(workspace.remove_empty()))
     }
   }
 }

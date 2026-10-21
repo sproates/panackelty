@@ -17,6 +17,19 @@ reports under the [performance review process](../ROADMAP_PROCESS.md#performance
 The standing programme has no lifetime completion percentage. The finite core
 establishment tranche below has its own stable denominator.
 
+GI#518 delivery observation (20 October 2026): the public API migration passed
+canonical `make check` in 509 seconds on the macOS developer checkout, with warm
+build artifacts and the configured three unit workers/one bootstrap worker.
+The earlier runtime slice took 629 seconds, but these are different workloads,
+not a paired speedup measurement. New acceptance exercises 1 MiB byte boundaries,
+16 connections/four requests and real ten-second/one-second deadlines. The final
+acceptance timing is retained in its
+[register](../../design/routed-http-server/acceptance-register.md). These checks
+establish bounded behavior, not throughput, resident-memory or latency baselines.
+No new numeric performance gate is introduced. GI#106 reassessment and RM#56
+representative runtime measurements retain their existing ownership and next
+actions; this feature delivery does not close them.
+
 The modules programme remains the principal feature initiative;
 its checked declaration/signature identity slice merged in PR#275 as `0bcf092`;
 bounded body identities merged in PR#284 as `9f8f8a0`. Ordinary expressions and

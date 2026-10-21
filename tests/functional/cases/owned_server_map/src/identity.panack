@@ -1,0 +1,12 @@
+import "server.panack" as routing
+import "other.panack" as other
+
+main(): Void {
+  first = routing.Server(10, map()).put("/fruit", 1)
+  second = other.Server(40)
+  changed = second.put(2)
+  print(first.get("/fruit", 99))
+  print(changed.get())
+  print(first.get("/fruit", 99))
+  print(second.get())
+}

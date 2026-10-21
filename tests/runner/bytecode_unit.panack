@@ -4,7 +4,6 @@ import project/src/bytecode/decoder::{valid_utf8, validate_bytecode, round_trip_
 import project/src/bytecode/codec::{compile_source_bytecode}
 import stdlib/testing::{TestResult}
 import stdlib/bytes as byte_buffer
-import stdlib/filesystem as std_filesystem
 import stdlib/host as std_host
 
 record Utf8Case { name: Str, hex: Str, accepted: Bool }
@@ -19,19 +18,19 @@ pure bytecode_from_hex(value: Str): Bytes {
   mut output = byte_buffer.empty()
   mut high: Nat = 0
   mut half = false
-  for index in 0..len(value) {
+  for index in 0..value.len() {
     character = value[index]
-    if !is_whitespace(character) {
+    if !character.is_whitespace() {
       digit = bytecode_nibble(character)
       if !half { high = digit; half = true }
-      else { output = byte_buffer.push(output, high * 16 + digit); half = false }
+      else { output = output.push(high * 16 + digit); half = false }
     }
   }
   output
 }
 pure bytecode_contains(actual: Str, expected: Str): Bool {
   mut found = false
-  for index in 0..len(actual) { if starts_with_at(actual, expected, index) { found = true } }
+  for index in 0..actual.len() { if actual.starts_with_at(expected, index) { found = true } }
   found
 }
 bytecode_case(name: Str, file: Str, expected: Str): TestResult {

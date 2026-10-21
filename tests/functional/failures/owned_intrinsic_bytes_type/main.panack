@@ -1,0 +1,2 @@
+pure use(value: Bytes): Bytes { value.push("x") }
+main(): Void { print(0) }

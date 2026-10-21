@@ -74,13 +74,12 @@ mv "$work/extracted/panackelty" "$work/relocated/toolchain"
 version=$(cat "$root/VERSION")
 printf 'panack %s (bytecode 9)\n' "$version" > "$work/version"
 cat > "$work/logical-import.panack" <<'PROGRAM'
-import stdlib/option as option
 import stdlib/time as time
 import stdlib/path as path
 main(): Void {
-  print(option.value_or[Nat](Some(42), 0))
-  print(time.ticks(time.seconds(1)))
-  print(path.display(path.current()))
+  print(Some(42).value_or(0))
+  print(time.seconds(1).ticks())
+  print(path.current().display())
 }
 PROGRAM
 printf '42\n1000000000\n.\n' > "$work/import.stdout"
@@ -129,7 +128,7 @@ done
 cd "$checkout"
 capture 0 30 env PANACK_TEST_COMPILER="$checkout/build/bootstrap/stage2/compiler.bc" PANACK_TEST_NAMESPACE_EMISSION=1 ./bin/panack run tests/runner/compiler_driver.panack
 contains "$work/stdout" 'PASS byte-identical compiler output'
-test "$(tail -n 1 "$work/stdout")" = 'tests: 37, failures: 0' || fail 'compiler driver summary'
+test "$(tail -n 1 "$work/stdout")" = 'tests: 41, failures: 0' || fail 'compiler driver summary'
 pass
 case_name=archive-rejects-invalid-metadata-and-links
 cd "$work"

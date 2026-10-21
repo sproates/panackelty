@@ -1,0 +1,3 @@
+error: <case>/main.panack:4:21: pure function cannot call impure function main.panack:Server.put
+  4 |   pure get(): Nat { self.put() }
+    |                     ^

@@ -1,0 +1,3 @@
+error: <case>/main.panack:1:46: append item is Str, expected Nat
+  1 | pure use(value: [Nat]): [Nat] { value.append("x") }
+    |                                              ^

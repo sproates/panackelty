@@ -1,6 +1,6 @@
-import stdlib/path as std_path
-pub import project/src/compiler/module_bindings::{module_reserved_binding, module_import_names, module_binding_diagnostics, ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleImportBinding, ModuleBindings, ModuleDeclarationKind, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant}
-pub import project/src/compiler/parser::{parse_reference_path, lowered_method_name, reference_head, reference_tail, expression_reference_path, type_has_qualification, lex, Expr, TopLevel, Statement, BlockValue, Program, Block, ParsedModule, ParsedTypeRef, ImportSelector, ImportBindingSyntax, DeclarationSyntax, SourcePos, SourceSpan, Diagnostic, Token, TokenKind, TokenKind.Identifier, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue.NoBlockValue, BlockValue.TailBlockValue, ImportBindingSyntax.NoImportBinding, ImportBindingSyntax.NamespaceImportBinding, ImportBindingSyntax.SelectiveImportBinding}
+import project/src/compiler/module_bindings::{OwnedMethodIdentity, MethodOwnerIdentity, MethodOwnerIdentity.NominalMethodOwner, MethodOwnerIdentity.BuiltinMethodOwner, builtin_owner_arity, builtin_owner_module, method_owner_name}
+pub import project/src/compiler/module_bindings::{module_internal_primitive_name, module_reserved_binding, module_import_names, module_binding_diagnostics, ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleImportBinding, ModuleBindings, ModuleDeclarationKind, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant}
+pub import project/src/compiler/parser::{parse_reference_path, reference_head, reference_tail, expression_reference_path, type_has_qualification, lex, Expr, TopLevel, Statement, BlockValue, Program, Block, ParsedModule, ParsedTypeRef, ImportSelector, ImportBindingSyntax, DeclarationSyntax, SourcePos, SourceSpan, Diagnostic, Token, TokenKind, TokenKind.Identifier, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue.NoBlockValue, BlockValue.TailBlockValue, ImportBindingSyntax.NoImportBinding, ImportBindingSyntax.NamespaceImportBinding, ImportBindingSyntax.SelectiveImportBinding}
 
 // Resolve ordered import edges, aliases and re-exports to their original identities.
 // Cycle detection tracks the active path separately from completed modules.
@@ -125,7 +125,7 @@ pure binding_graph_visit(
                   current = ModuleGraphWalk(current.completed, Some(message))
                 },
                 Ok(target) => {
-                  current = binding_graph_visit(graph, target, append(stack, identity), current)
+                  current = binding_graph_visit(graph, target, stack.append(identity), current)
                 }
               }
             }
@@ -133,7 +133,7 @@ pure binding_graph_visit(
           }
           match current.error {
             Some(message) => current,
-            None() => ModuleGraphWalk(append(current.completed, identity), None())
+            None() => ModuleGraphWalk(current.completed.append(identity), None())
           }
         }
       }
@@ -215,16 +215,16 @@ pub pure resolve_module_path_inner(
       Error(message) => Error(message),
       Ok(module) => {
         conflicts: [Diagnostic] = module_binding_diagnostics(module)
-        if len(conflicts) > 0 {
+        if conflicts.len() > 0 {
           Error(conflicts[0].message)
         } else {
           head: Str = reference_head(spelling)
           tail: Str = reference_tail(spelling)
-          next_stack: [ModuleIdentity] = append(stack, identity)
+          next_stack: [ModuleIdentity] = stack.append(identity)
           mut found: Bool = false
           mut result: Result[ResolvedModuleTarget, Str] = Error("module " + identity.path + " has no binding " + spelling)
           for declaration in module.declarations {
-            if declaration.identity.name == head {
+            if declaration.identity.name == head && declaration.method == None() {
               // A variant has a bare name only inside its declaring module.
               selectable: Bool = match declaration.kind {
                 ModuleVariant(parent) => !exported,
@@ -301,28 +301,28 @@ pub pure module_graph_diagnostics(graph: ModuleBindingGraph): [Diagnostic] {
   match walked.error {
     None() => {},
     Some(message) => {
-      diagnostics = append(diagnostics, Diagnostic(message, SourcePos("", 0, 1, 1)))
+      diagnostics = diagnostics.append(Diagnostic(message, SourcePos("", 0, 1, 1)))
     }
   }
   for module in graph.modules {
-    diagnostics = concat(diagnostics, module_binding_diagnostics(module))
+    diagnostics = diagnostics.concat(module_binding_diagnostics(module))
     mut index: Nat = 0
     for imported in module.imports {
       match binding_graph_target(graph, module.identity, index) {
         Error(message) => {
-          diagnostics = append(diagnostics, Diagnostic(message, imported.span.start))
+          diagnostics = diagnostics.append(Diagnostic(message, imported.span.start))
         },
         Ok(target) => {
           match binding_graph_module(graph, target) {
             Error(message) => {
-              diagnostics = append(diagnostics, Diagnostic(message, imported.span.start))
+              diagnostics = diagnostics.append(Diagnostic(message, imported.span.start))
             },
             Ok(target_module) => {
               for selector in module_import_names(imported) {
                 if selector.name != "" {
                   match resolve_module_path_inner(graph, target, selector.name, true, []) {
                     Error(message) => {
-                      diagnostics = append(diagnostics, Diagnostic(message, selector.span.start))
+                      diagnostics = diagnostics.append(Diagnostic(message, selector.span.start))
                     },
                     Ok(binding) => {}
                   }
@@ -339,11 +339,11 @@ pub pure module_graph_diagnostics(graph: ModuleBindingGraph): [Diagnostic] {
   diagnostics
 }
 
-// Namespace/value disambiguation is explicit and precedes reserved core method
-// lowering. Value receivers stay raw until checked-identity integration.
+// Classify dots before body binding. Value receivers use owned lookup only;
+// namespace lookup failures never fall back to a value or ordinary function.
 pub enum ResolvedDotCall {
   NamespaceCall(ModuleDeclarationBinding, [Expr], [Str]),
-  ValueMethodCall(Expr, Str, [Expr], [Str])
+  OwnedDotCall(Expr, Str, [Expr], [Str])
 }
 
 pub pure resolve_module_dot_call_scoped(
@@ -358,17 +358,17 @@ pub pure resolve_module_dot_call_scoped(
   path: Str = expression_reference_path(target)
 
   if path == "" || locals.has(reference_head(path)) {
-    Ok(ValueMethodCall(target, name, arguments, types))
+    Ok(OwnedDotCall(target, name, arguments, types))
   } else {
     match resolve_module_path(graph, identity, reference_head(path)) {
-      Error(message) => Ok(ValueMethodCall(target, name, arguments, types)),
+      Error(message) => Ok(OwnedDotCall(target, name, arguments, types)),
       Ok(binding) => {
         namespace_receiver: Bool = match binding {
           NamespaceTarget(owner) => true,
           DeclarationTarget(declaration) => declaration.kind == ModuleEnum()
         }
         if !namespace_receiver {
-          Ok(ValueMethodCall(target, name, arguments, types))
+          Ok(OwnedDotCall(target, name, arguments, types))
         } else {
           match resolve_module_path(graph, identity, path + "." + name) {
             Error(message) => Error(message),
@@ -436,8 +436,8 @@ pub record ResolvedModuleUses {
 
 pub pure combine_module_uses(left: ResolvedModuleUses, right: ResolvedModuleUses): ResolvedModuleUses {
   ResolvedModuleUses(
-    concat(left.references, right.references),
-    concat(left.diagnostics, right.diagnostics)
+    left.references.concat(right.references),
+    left.diagnostics.concat(right.diagnostics)
   )
 }
 
@@ -468,11 +468,11 @@ pub pure resolve_qualified_type_uses(
     },
     Ok(tokens) => {
       mut index: Nat = 0
-      while index < len(tokens) {
+      while index < tokens.len() {
         if tokens[index].kind == Identifier() {
           match parse_reference_path(tokens, index) {
             Error(error) => {
-              index = len(tokens)
+              index = tokens.len()
               result = combine_module_uses(result, ResolvedModuleUses([], [error]))
             },
             Ok(path) => {
@@ -527,6 +527,13 @@ pub pure resolve_module_expression_uses(
     LocatedExpr(span, value, located_type_argument_spans) => {
       result = resolve_module_expression_uses(graph, identity, value, span, locals)
     },
+    OwnedCallExpr(target, name, arguments, types) => {
+      result = resolve_module_expression_uses(graph, identity, target, origin, locals)
+      for argument in arguments {
+        checked: ResolvedModuleUses = resolve_module_expression_uses(graph, identity, argument, origin, locals)
+        result = ResolvedModuleUses(result.references.concat(checked.references), result.diagnostics.concat(checked.diagnostics))
+      }
+    },
     DotCallExpr(target, name, arguments, types) => {
       match resolve_module_dot_call_scoped(
         graph,
@@ -541,26 +548,15 @@ pub pure resolve_module_expression_uses(
           result = ResolvedModuleUses([], [Diagnostic(message, origin.start)])
         },
         Ok(call) => match call {
+          OwnedDotCall(receiver, method, values, type_arguments) => {
+            result = resolve_module_expression_uses(graph, identity, receiver, origin, locals)
+          },
           NamespaceCall(declaration, values, type_arguments) => {
             result = module_use_result(
               expression_reference_path(target) + "." + name,
               origin,
               Ok(DeclarationTarget(declaration))
             )
-          },
-          ValueMethodCall(receiver, method, values, type_arguments) => {
-            result = resolve_module_expression_uses(graph, identity, receiver, origin, locals)
-            if !module_reserved_binding(method) && lowered_method_name(method) == method {
-              method_target: Result[ResolvedModuleTarget, Str] = match resolve_module_function(
-                graph,
-                identity,
-                method
-              ) {
-                Error(message) => Error(message),
-                Ok(binding) => Ok(DeclarationTarget(binding))
-              }
-              result = combine_module_uses(result, module_use_result(method, origin, method_target))
-            }
           }
         }
       }
@@ -617,7 +613,7 @@ pub pure resolve_module_expression_uses(
       }
     },
     CallExpr(name, arguments, types) => {
-      if !module_reserved_binding(name) {
+      if !module_reserved_binding(name) && !module_internal_primitive_name(identity, name) {
         resolved: Result[ResolvedModuleTarget, Str] = match resolve_module_path(
           graph,
           identity,
@@ -801,12 +797,18 @@ pub pure resolve_module_block_uses(
   result
 }
 
-pure imported_binding_names(module: ModuleBindings): Set[Str] {
+pure imported_binding_names(graph: ModuleBindingGraph, module: ModuleBindings): Set[Str] {
   mut names: Set[Str] = set()
 
   for imported in module.imports {
     for selector in module_import_names(imported) {
-      names = names.add(selector.alias)
+      match resolve_module_path(graph, module.identity, selector.alias) {
+        Ok(binding) => match binding {
+          NamespaceTarget(owner) => {},
+          DeclarationTarget(declaration) => { names = names.add(selector.alias) }
+        },
+        Error(message) => { names = names.add(selector.alias) }
+      }
     }
   }
   names
@@ -831,28 +833,33 @@ pure expression_import_shadows(
     LocatedExpr(span, value, located_type_argument_spans) => {
       diagnostics = expression_import_shadows(value, names, span)
     },
+    OwnedCallExpr(target, name, arguments, types) => {
+      diagnostics = expression_import_shadows(target, names, origin)
+      for argument in arguments {
+        diagnostics = diagnostics.concat(expression_import_shadows(argument, names, origin))
+      }
+    },
     DotCallExpr(target, name, arguments, types) => {
       diagnostics = expression_import_shadows(target, names, origin)
       for argument in arguments {
-        diagnostics = concat(diagnostics, expression_import_shadows(argument, names, origin))
+        diagnostics = diagnostics.concat(expression_import_shadows(argument, names, origin))
       }
     },
     CallExpr(name, arguments, types) => {
       for argument in arguments {
-        diagnostics = concat(diagnostics, expression_import_shadows(argument, names, origin))
+        diagnostics = diagnostics.concat(expression_import_shadows(argument, names, origin))
       }
     },
     ArrayExpr(items) => {
       for item in items {
-        diagnostics = concat(diagnostics, expression_import_shadows(item, names, origin))
+        diagnostics = diagnostics.concat(expression_import_shadows(item, names, origin))
       }
     },
     UnaryExpr(operator, operand) => {
       diagnostics = expression_import_shadows(operand, names, origin)
     },
     BinaryExpr(operator, left, right) => {
-      diagnostics = concat(
-        expression_import_shadows(left, names, origin),
+      diagnostics = expression_import_shadows(left, names, origin).concat(
         expression_import_shadows(right, names, origin)
       )
     },
@@ -860,15 +867,14 @@ pure expression_import_shadows(
       diagnostics = expression_import_shadows(target, names, origin)
     },
     IndexExpr(target, index) => {
-      diagnostics = concat(
-        expression_import_shadows(target, names, origin),
+      diagnostics = expression_import_shadows(target, names, origin).concat(
         expression_import_shadows(index, names, origin)
       )
     },
     IfExpr(condition, yes, no, has_else) => {
       diagnostics = expression_import_shadows(condition, names, origin)
-      diagnostics = concat(diagnostics, block_import_shadows(yes, names, origin))
-      diagnostics = concat(diagnostics, block_import_shadows(no, names, origin))
+      diagnostics = diagnostics.concat(block_import_shadows(yes, names, origin))
+      diagnostics = diagnostics.concat(block_import_shadows(no, names, origin))
     },
     BlockExpr(block) => {
       diagnostics = block_import_shadows(block, names, origin)
@@ -877,9 +883,9 @@ pure expression_import_shadows(
       diagnostics = expression_import_shadows(subject, names, origin)
       for arm in arms {
         for name in arm.pattern.bindings {
-          diagnostics = concat(diagnostics, import_shadow_diagnostic(names, name, arm.pattern.span))
+          diagnostics = diagnostics.concat(import_shadow_diagnostic(names, name, arm.pattern.span))
         }
-        diagnostics = concat(diagnostics, expression_import_shadows(arm.body, names, origin))
+        diagnostics = diagnostics.concat(expression_import_shadows(arm.body, names, origin))
       }
     },
     NatExpr(value) => {},
@@ -899,39 +905,46 @@ pure block_import_shadows(block: Block, names: Set[Str], origin: SourceSpan): [D
   for statement in block.statements {
     match statement {
       BindingStatement(name, type_name, annotation_span, mutable, value) => {
-        diagnostics = concat(diagnostics, import_shadow_diagnostic(names, name, origin))
-        diagnostics = concat(diagnostics, expression_import_shadows(value, names, origin))
+        diagnostics = diagnostics.concat(import_shadow_diagnostic(names, name, origin))
+        diagnostics = diagnostics.concat(expression_import_shadows(value, names, origin))
       },
       AssignmentStatement(name, value) => {
-        diagnostics = concat(diagnostics, import_shadow_diagnostic(names, name, origin))
-        diagnostics = concat(diagnostics, expression_import_shadows(value, names, origin))
+        diagnostics = diagnostics.concat(import_shadow_diagnostic(names, name, origin))
+        diagnostics = diagnostics.concat(expression_import_shadows(value, names, origin))
       },
       ExpressionStatement(value) => {
-        diagnostics = concat(diagnostics, expression_import_shadows(value, names, origin))
+        diagnostics = diagnostics.concat(expression_import_shadows(value, names, origin))
       },
       WhileStatement(condition, body) => {
-        diagnostics = concat(diagnostics, expression_import_shadows(condition, names, origin))
-        diagnostics = concat(diagnostics, block_import_shadows(body, names, origin))
+        diagnostics = diagnostics.concat(expression_import_shadows(condition, names, origin))
+        diagnostics = diagnostics.concat(block_import_shadows(body, names, origin))
       },
       ForStatement(name, values, body) => {
-        diagnostics = concat(diagnostics, import_shadow_diagnostic(names, name, origin))
-        diagnostics = concat(diagnostics, expression_import_shadows(values, names, origin))
-        diagnostics = concat(diagnostics, block_import_shadows(body, names, origin))
+        diagnostics = diagnostics.concat(import_shadow_diagnostic(names, name, origin))
+        diagnostics = diagnostics.concat(expression_import_shadows(values, names, origin))
+        diagnostics = diagnostics.concat(block_import_shadows(body, names, origin))
       }
     }
   }
   match block.value {
     NoBlockValue() => {},
     TailBlockValue(value) => {
-      diagnostics = concat(diagnostics, expression_import_shadows(value, names, origin))
+      diagnostics = diagnostics.concat(expression_import_shadows(value, names, origin))
     }
   }
 
   diagnostics
 }
 
-pub pure module_import_shadow_diagnostics(module: ModuleBindings, parsed: ParsedModule): [Diagnostic] {
-  names: Set[Str] = imported_binding_names(module)
+pub pure module_import_shadow_diagnostics(graph: ModuleBindingGraph, module: ModuleBindings, parsed: ParsedModule): [Diagnostic] {
+  names: Set[Str] = imported_binding_names(graph, module)
+  // Only lexical values may shadow namespaces; type binders still reserve imports.
+  mut type_names: Set[Str] = names
+  for imported in module.imports {
+    for selector in module_import_names(imported) {
+      type_names = type_names.add(selector.alias)
+    }
+  }
   mut diagnostics: [Diagnostic] = []
   mut index: Nat = 0
 
@@ -940,27 +953,27 @@ pub pure module_import_shadow_diagnostics(module: ModuleBindings, parsed: Parsed
     match declaration {
       ImportDeclaration(path) => {},
       TypeDeclaration(name, base, guard) => {
-        diagnostics = concat(diagnostics, import_shadow_diagnostic(names, "value", origin))
-        diagnostics = concat(diagnostics, expression_import_shadows(guard, names, origin))
+        diagnostics = diagnostics.concat(import_shadow_diagnostic(names, "value", origin))
+        diagnostics = diagnostics.concat(expression_import_shadows(guard, names, origin))
       },
       RecordDeclaration(name, parameters, fields) => {
         for parameter in parameters {
-          diagnostics = concat(diagnostics, import_shadow_diagnostic(names, parameter, origin))
+          diagnostics = diagnostics.concat(import_shadow_diagnostic(type_names, parameter, origin))
         }
       },
       EnumDeclaration(name, parameters, variants) => {
         for parameter in parameters {
-          diagnostics = concat(diagnostics, import_shadow_diagnostic(names, parameter, origin))
+          diagnostics = diagnostics.concat(import_shadow_diagnostic(type_names, parameter, origin))
         }
       },
       FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
         for parameter in parameters {
-          diagnostics = concat(diagnostics, import_shadow_diagnostic(names, parameter.name, origin))
+          diagnostics = diagnostics.concat(import_shadow_diagnostic(names, parameter.name, origin))
         }
         for parameter in type_parameters {
-          diagnostics = concat(diagnostics, import_shadow_diagnostic(names, parameter, origin))
+          diagnostics = diagnostics.concat(import_shadow_diagnostic(type_names, parameter, origin))
         }
-        diagnostics = concat(diagnostics, block_import_shadows(body, names, origin))
+        diagnostics = diagnostics.concat(block_import_shadows(body, names, origin))
       }
     }
     index = index + 1
@@ -978,4 +991,48 @@ pub pure resolve_module_dot_call(
   types: [Str]
 ): Result[ResolvedDotCall, Str] {
   resolve_module_dot_call_scoped(graph, identity, target, name, arguments, types, set())
+}
+
+// The enclosing module identity includes package identity; owner and method
+// indexes are separate from the ordinary function/import namespace.
+pub pure resolve_owned_method(
+  graph: ModuleBindingGraph, owner: DeclarationIdentity, name: Str
+): Result[ModuleDeclarationBinding, Str] {
+  resolve_method_owner(graph, NominalMethodOwner(owner), owner.module, name)
+}
+
+pub pure resolve_builtin_owned_method(
+  graph: ModuleBindingGraph, family: Str, name: Str
+): Result[ModuleDeclarationBinding, Str] {
+  if family == "PureFn" || family == "Fn" || family == "AsyncFn" {
+    resolve_method_owner(graph, BuiltinMethodOwner(family), builtin_owner_module(), name)
+  } else {
+    match builtin_owner_arity(family) {
+      None() => Error("unknown built-in method owner " + family),
+      Some(arity) => resolve_method_owner(graph, BuiltinMethodOwner(family), builtin_owner_module(), name)
+    }
+  }
+}
+
+pure resolve_method_owner(
+  graph: ModuleBindingGraph, owner: MethodOwnerIdentity, module_identity: ModuleIdentity, name: Str
+): Result[ModuleDeclarationBinding, Str] {
+  owner_name: Str = method_owner_name(owner)
+  match binding_graph_module(graph, module_identity) {
+    Error(message) => Error(message),
+    Ok(module) => {
+      mut result: Result[ModuleDeclarationBinding, Str] = Error("unknown owned method " + owner_name + "." + name)
+      if module.methods.has(owner_name) {
+        methods: Map[Str, ModuleDeclarationBinding] = module.methods.get(owner_name)
+        if methods.has(name) {
+          binding: ModuleDeclarationBinding = methods.get(name)
+          if binding.identity.module == module_identity &&
+              binding.method == Some(OwnedMethodIdentity(owner, name)) {
+            result = Ok(binding)
+          }
+        }
+      }
+      result
+    }
+  }
 }

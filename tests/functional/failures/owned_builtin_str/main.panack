@@ -1,0 +1,2 @@
+impl Str {}
+main(): Void { print(0) }

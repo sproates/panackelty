@@ -1,6 +1,10 @@
 #include "platform.h"
 
 #include "numeric.h"
+#include "http_state.h"
+#include "http_runtime.h"
+#include "builtins.h"
+#include "console_write.h"
 #include "tcp_server.h"
 
 #include <stdlib.h>
@@ -23,7 +27,7 @@
 #define SERVER_READ_CHUNK 16384
 #define SERVER_TIMEOUT 60000
 
-typedef enum { CLIENT_FREE, CLIENT_READ, CLIENT_START, CLIENT_RUN, CLIENT_STREAM_READ, CLIENT_WRITE } ClientState;
+typedef enum { CLIENT_FREE, CLIENT_READ, CLIENT_START, CLIENT_RUN, CLIENT_STREAM_READ, CLIENT_INTERIM_WRITE, CLIENT_WRITE } ClientState;
 
 typedef struct {
     ClientState state;
@@ -31,7 +35,8 @@ typedef struct {
     size_t outcome, received, sent;
     uint64_t deadline;
     uint8_t *request;
-    Value *response;
+    Value *response, *http_connection;
+    size_t interim_sent;
     VM vm;
     VMExecution *execution;
     bool fake_pending, fake_fail;
@@ -40,7 +45,7 @@ typedef struct {
 } ServerClient;
 
 struct VMTcpServer {
-    bool filesystem_enabled, console_enabled, continuous;
+    bool filesystem_enabled, console_enabled, continuous, routed;
     bool ready_pending, ready_console;
     Function *ready_handler;
     Value *ready_context;
@@ -73,10 +78,12 @@ static void close_fd(int *fd)
 static void client_clear(ServerClient *client)
 {
     close_fd(&client->fd);
+    if (client->http_connection) http_connection_end(client->http_connection->as.http_connection);
     vm_execution_destroy(client->execution);
     vm_coverage_run_close(client->vm.coverage_run);
     free(client->request);
     release(client->response);
+    release(client->http_connection);
     *client = (ServerClient){.fd = -1};
 }
 
@@ -153,6 +160,92 @@ static void finish_client(VMTcpServer *server, ServerClient *client, const char 
     server->active--;
 }
 
+static const char http_internal_error[] = "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 22\r\nConnection: close\r\n\r\nInternal Server Error\n";
+static const char http_timeout_error[] = "HTTP/1.1 504 Gateway Timeout\r\nContent-Length: 16\r\nConnection: close\r\n\r\nGateway Timeout\n";
+
+static void http_log(const uint8_t *message, size_t length)
+{
+    /* Reuse bounded detached host writes: a blocked stderr must never stall
+     * the listener or extend a request deadline. Logging is best effort. */
+    if (length > 512) length = 512;
+    Value *text = value_data(V_STR, message, length);
+    if (!text) return;
+    VM logging = {0};
+    VMConsoleWrite *operation = console_write_start(&logging, text, true);
+    release(text);
+    if (operation) console_write_destroy(operation);
+}
+
+static void http_attach_response(ServerClient *client)
+{
+    if (!client->response && client->http_connection) {
+        VMHttpWriter *writer = client->http_connection->as.http_connection->writer->as.http_writer;
+        if (writer->completed) client->response = retain(writer->wire);
+    }
+}
+
+static void http_deadline_response(ServerClient *client)
+{
+    if (client->fd < 0) return;
+    http_attach_response(client);
+    const uint8_t *data = (const uint8_t *)http_timeout_error;
+    size_t length = sizeof(http_timeout_error) - 1;
+    if (client->response) {
+        data = client->response->as.bytes.data + client->sent;
+        length = client->response->as.bytes.length - client->sent;
+    }
+#ifdef MSG_NOSIGNAL
+    (void)send(client->fd, data, length, MSG_NOSIGNAL);
+#else
+    (void)send(client->fd, data, length, 0);
+#endif
+}
+
+/* Detach the finished execution while retaining its committed response for the
+ * normal bounded socket drain, including an explicit process exit. */
+static void http_finish_execution(VMTcpServer *server, ServerClient *client)
+{
+    VMHttpWriter *writer = client->http_connection->as.http_connection->writer->as.http_writer;
+    http_attach_response(client);
+    writer->ended = true;
+    client->http_connection->as.http_connection->execution = NULL;
+    vm_execution_destroy(client->execution);
+    client->execution = NULL;
+    if (client->sent == client->response->as.bytes.length) finish_client(server, client, NULL);
+    else client->state = CLIENT_WRITE;
+}
+
+static void http_handler_finished(VMTcpServer *server, ServerClient *client, bool trapped)
+{
+    VMHttpWriter *writer = client->http_connection->as.http_connection->writer->as.http_writer;
+    if (trapped) {
+        const char *message = client->vm.error ? client->vm.error : "HTTP request failed";
+        http_log((const uint8_t *)message, strlen(message));
+    } else {
+        Value *result = vm_execution_result(client->execution);
+        if (!result || result->kind != V_VARIANT || result->as.named.count != 1) {
+            trap(server, "VM trap: invalid HTTP worker result");
+            return;
+        }
+        Value *payload = result->as.named.values[0];
+        if (!strcmp(result->as.named.name, "Error") && payload->kind == V_STR) {
+            http_log(payload->as.bytes.data, payload->as.bytes.length);
+        } else if (strcmp(result->as.named.name, "Ok") || payload->kind != V_UNIT) {
+            trap(server, "VM trap: invalid HTTP worker result");
+            return;
+        } else if (!writer->completed) {
+            static const char missing[] = "HTTP handler returned without sending a response";
+            http_log((const uint8_t *)missing, sizeof(missing) - 1);
+        }
+    }
+    if (!writer->completed) {
+        writer->wire = value_data(V_BYTES, (const uint8_t *)http_internal_error, sizeof(http_internal_error) - 1);
+        if (!writer->wire) { trap(server, "native VM out of memory"); return; }
+        writer->completed = true;
+    }
+    http_finish_execution(server, client);
+}
+
 static bool clock_ms(uint64_t *now)
 {
     struct timespec time;
@@ -205,6 +298,7 @@ static bool deadlines(VMTcpServer *server, uint64_t *now)
             continue;
         }
         if (*now >= client->deadline) {
+            if (server->routed) http_deadline_response(client);
             finish_client(server, client, "TCP client timed out");
         } else if (server->stopping && *now >= server->drain_deadline) {
             finish_client(server, client, "TCP server drain cancelled client");
@@ -356,10 +450,27 @@ VMTcpServer *tcp_server_start_service(const VM *vm, Function *handler, const Val
                                  true);
 }
 
+VMTcpServer *tcp_server_start_http(const VM *vm, Function *worker, Value *handle, bool outbound)
+{
+    if (!handle || handle->kind != V_HTTP_STATE || !handle->as.http_state) return NULL;
+    VMHttpState *state = handle->as.http_state;
+    size_t port;
+    if (state->phase != HTTP_CREATED || state->setup_error || !value_index(state->port, &port)) return NULL;
+    VMTcpServerLimits limits = {16, 16, SERVER_BYTES, SERVER_BYTES, 10000, 10000, 1000};
+    VMTcpServer *server = tcp_server_start_mode(vm, worker, handle, state->address, port,
+                                               limits, outbound, true, true);
+    if (server && !server->done) {
+        server->routed = true;
+        state->phase = HTTP_LISTENING;
+        state->resource = server;
+    }
+    return server;
+}
+
 #ifndef __wasi__
 static void accept_client(VMTcpServer *server, uint64_t now)
 {
-    if (server->stopping || server->active == server->limits.concurrency) {
+    if (server->stopping || (!server->routed && server->active == server->limits.concurrency)) {
         return;
     }
     /* Admission sequence also identifies poll snapshots. Never wrap and risk
@@ -369,14 +480,24 @@ static void accept_client(VMTcpServer *server, uint64_t now)
         return;
     }
     size_t slot = 0;
-    while (server->clients[slot].state != CLIENT_FREE) {
-        slot++;
-    }
+    while (slot < server->limits.concurrency && server->clients[slot].state != CLIENT_FREE) slot++;
     int fd = accept(server->listener, NULL, NULL);
     if (fd < 0) {
         if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && errno != ECONNABORTED) {
             fail(server, "TCP server accept failed");
         }
+        return;
+    }
+    if (slot == server->limits.concurrency) {
+        static const char busy[] = "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 20\r\nConnection: close\r\n\r\nService Unavailable\n";
+        if (configure(fd)) {
+#ifdef MSG_NOSIGNAL
+            (void)send(fd, busy, sizeof(busy) - 1, MSG_NOSIGNAL);
+#else
+            (void)send(fd, busy, sizeof(busy) - 1, 0);
+#endif
+        }
+        close(fd);
         return;
     }
     ServerClient *client = &server->clients[slot];
@@ -439,13 +560,13 @@ static void read_stream_chunk(VMTcpServer *server, ServerClient *client)
         uint8_t bytes[SERVER_READ_CHUNK];
         ssize_t count = recv(client->fd, bytes, client->read_limit, 0);
         if (count > 0) {
-            if ((size_t)count > server->limits.request_limit - client->received) {
+            if (!server->routed && (size_t)count > server->limits.request_limit - client->received) {
                 client->stream_eof = true;
                 complete_stream_read(server, client,
                                      error_value("TCP request limit exceeded"));
                 return;
             }
-            client->received += (size_t)count;
+            if (!server->routed) client->received += (size_t)count;
             payload = value_data(V_BYTES, bytes, (size_t)count);
         } else if (!count) {
             client->stream_eof = true;
@@ -463,6 +584,26 @@ static void read_stream_chunk(VMTcpServer *server, ServerClient *client)
         return;
     }
     complete_stream_read(server, client, result);
+}
+
+static void write_interim(VMTcpServer *server, ServerClient *client)
+{
+    static const char response[] = "HTTP/1.1 100 Continue\r\n\r\n";
+#ifdef MSG_NOSIGNAL
+    int flags = MSG_NOSIGNAL;
+#else
+    int flags = 0;
+#endif
+    ssize_t count = send(client->fd, response + client->interim_sent,
+                         sizeof(response) - 1 - client->interim_sent, flags);
+    if (count > 0) client->interim_sent += (size_t)count;
+    else if (!count || (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)) {
+        finish_client(server, client, "HTTP interim write failed");
+        return;
+    }
+    if (client->interim_sent == sizeof(response) - 1) {
+        complete_stream_read(server, client, result_value(true, value_data(V_BYTES, NULL, 0)));
+    }
 }
 
 static void write_client(VMTcpServer *server, ServerClient *client)
@@ -487,7 +628,8 @@ static void write_client(VMTcpServer *server, ServerClient *client)
         }
     }
     if (client->sent == client->response->as.bytes.length) {
-        finish_client(server, client, NULL);
+        if (server->routed && client->execution) close_fd(&client->fd);
+        else finish_client(server, client, NULL);
     }
 }
 #endif
@@ -515,7 +657,7 @@ void tcp_server_poll(VMTcpServer *server, unsigned max_wait_ms)
                      : server->continuous ? UINT64_MAX
                                           : server->admission_deadline;
     unsigned wait = max_wait_ms > INT_MAX ? INT_MAX : max_wait_ms;
-    if (!server->stopping && server->active < server->limits.concurrency) {
+    if (!server->stopping && (server->routed || server->active < server->limits.concurrency)) {
         fds[count] = (struct pollfd){.fd = server->listener, .events = POLLIN};
         slots[count++] = SERVER_CONCURRENCY;
     }
@@ -528,6 +670,7 @@ void tcp_server_poll(VMTcpServer *server, unsigned max_wait_ms)
         if (client->deadline < until) {
             until = client->deadline;
         }
+        if (server->routed) http_attach_response(client);
         if (client->state == CLIENT_START) {
             wait = 0;
         } else if (client->state == CLIENT_RUN) {
@@ -536,9 +679,14 @@ void tcp_server_poll(VMTcpServer *server, unsigned max_wait_ms)
             if (status != VM_WAITING || client->fake_pending) {
                 wait = 0;
             }
+            if (server->routed && client->fd >= 0) {
+                fds[count] = (struct pollfd){.fd = client->fd, .events = client->response ? POLLOUT : 0};
+                identities[count] = client->outcome;
+                slots[count++] = i;
+            }
             /* Outbound exchange descriptors belong to the child execution.
              * Recheck at 1ms while pending instead of blocking another client. */
-            else if (wait > 1) {
+            if (status == VM_WAITING && wait > 1) {
                 wait = 1;
             }
         } else {
@@ -547,6 +695,7 @@ void tcp_server_poll(VMTcpServer *server, unsigned max_wait_ms)
                                                     client->state == CLIENT_STREAM_READ)
                                                        ? POLLIN
                                                        : POLLOUT};
+            if (server->routed && client->response) fds[count].events |= POLLOUT;
             identities[count] = client->outcome;
             slots[count++] = i;
         }
@@ -590,13 +739,21 @@ void tcp_server_poll(VMTcpServer *server, unsigned max_wait_ms)
                 client->state == CLIENT_FREE) {
                 continue;
             }
-            if (fds[i].revents & POLLNVAL) {
+            if (server->routed && client->response && (fds[i].revents & POLLOUT)) {
+                write_client(server, client);
+                if (client->state == CLIENT_FREE || client->fd < 0) continue;
+            }
+            if ((fds[i].revents & POLLNVAL) ||
+                (server->routed && (fds[i].revents & POLLERR)) ||
+                (server->routed && client->state == CLIENT_RUN && (fds[i].revents & POLLHUP))) {
                 finish_client(server, client, "TCP client socket failed");
             } else if (client->state == CLIENT_READ) {
                 read_client(server, client);
             } else if (client->state == CLIENT_STREAM_READ) {
                 read_stream_chunk(server, client);
-            } else if (client->state == CLIENT_WRITE) {
+            } else if (client->state == CLIENT_INTERIM_WRITE) {
+                write_interim(server, client);
+            } else if (!server->routed && client->state == CLIENT_WRITE) {
                 write_client(server, client);
             }
         }
@@ -634,6 +791,27 @@ static void start_handler(VMTcpServer *server, ServerClient *client)
     Value *request = server->streaming
                          ? retain(server->context)
                          : value_data(V_BYTES, client->request, client->received);
+    if (server->routed && request) {
+        release(request);
+        request = value_new(V_HTTP_CONNECTION);
+        if (request) {
+            request->as.http_connection = calloc(1, sizeof(VMHttpConnection));
+            if (request->as.http_connection) {
+                request->as.http_connection->server = server->context->as.http_state;
+                request->as.http_connection->client = client;
+                request->as.http_connection->writer = value_new(V_HTTP_WRITER);
+                if (request->as.http_connection->writer) {
+                    request->as.http_connection->writer->as.http_writer = http_writer_create();
+                }
+            }
+            if (!request->as.http_connection || !request->as.http_connection->writer ||
+                !request->as.http_connection->writer->as.http_writer) {
+                release(request);
+                request = NULL;
+            }
+        }
+        client->http_connection = retain(request);
+    }
     if (!request) {
         trap(server, "native VM out of memory");
         return;
@@ -647,6 +825,7 @@ static void start_handler(VMTcpServer *server, ServerClient *client)
     const char *error;
     client->execution = vm_execution_create_async(&client->vm, server->handler, &request, server_read_wait,
                                                   client, &error);
+    if (client->http_connection) client->http_connection->as.http_connection->execution = client->execution;
     release(request);
     free(client->request);
     client->request = NULL;
@@ -672,6 +851,7 @@ static void start_handler(VMTcpServer *server, ServerClient *client)
 
 static void handler_result(VMTcpServer *server, ServerClient *client)
 {
+    if (server->routed) { http_handler_finished(server, client, false); return; }
     Value *result = vm_execution_result(client->execution);
     if (!vm_fake_read_result_valid(result)) {
         trap(server, "VM trap: invalid TCP server handler result");
@@ -812,6 +992,16 @@ void tcp_server_advance(VMTcpServer *server, size_t budget)
             idle = 0;
         } else if (status == VM_COMPLETED) {
             handler_result(server, client);
+        } else if (status == VM_EXITED && server->routed && client->vm.http_runtime) {
+            struct VMHttpRuntime *runtime = client->vm.http_runtime;
+            runtime->exit_requested = true;
+            runtime->exit_status = vm_execution_exit_status(client->execution);
+            VMHttpWriter *writer = client->http_connection->as.http_connection->writer->as.http_writer;
+            if (writer->completed) http_finish_execution(server, client);
+            else finish_client(server, client, "process exit");
+            http_runtime_stop(runtime);
+        } else if (status == VM_TRAPPED && server->routed && client->vm.fault_kind == VM_FAULT_REQUEST) {
+            http_handler_finished(server, client, true);
         } else if (status != VM_WAITING) {
             trap(server, client->vm.error ? client->vm.error : "VM trap: TCP handler failed");
         }
@@ -845,6 +1035,20 @@ void tcp_server_stop(VMTcpServer *server)
 #endif
 }
 
+bool tcp_server_http_continue(VM *vm, Value *token)
+{
+    VMHttpConnection *connection = http_live_connection(vm, token);
+    if (!connection) return false;
+    ServerClient *client = connection->client;
+    if (!connection->admitted || !client || client->execution != vm->execution ||
+        client->state != CLIENT_RUN || client->interim_sent) {
+        vm->error = "VM trap: invalid HTTP interim response state";
+        return false;
+    }
+    client->state = CLIENT_INTERIM_WRITE;
+    return true;
+}
+
 bool tcp_server_done(const VMTcpServer *server)
 {
     return server->done;
@@ -870,6 +1074,11 @@ void tcp_server_destroy(VMTcpServer *server)
         release(server->outcomes[i]);
     }
     release(server->result);
+    if (server->routed && server->context) {
+        VMHttpState *state = server->context->as.http_state;
+        state->resource = NULL;
+        if (state->phase != HTTP_DESTROYED) state->phase = HTTP_CLOSED;
+    }
     release(server->context);
     release(server->ready_context);
     free(server);

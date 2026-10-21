@@ -7,6 +7,9 @@ trap 'exit 1' HUP INT TERM
 tree="$work/tree with spaces"
 mkdir -p "$tree/tests/functional/cases/one" "$tree/examples" \
     "$tree/tests/functional/expected/examples" "$tree/tests/functional/failures/bad"
+mkdir -p "$tree/tests/functional/cases/runner_smoke"
+printf 'source\n' > "$tree/tests/functional/cases/runner_smoke/main.panack"
+printf 'hello\n' > "$tree/tests/functional/cases/runner_smoke/expected.stdout"
 cp tests/native_conformance.sh tests/native_conformance_program.sh tests/profile_command.sh "$tree/tests/"
 printf 'source\n' > "$tree/tests/functional/cases/one/main.panack"
 printf 'source\n' > "$tree/examples/one.panack"
@@ -23,6 +26,20 @@ operation=$1
 if [ "$operation" = run ]; then
     case "$2" in *.bc) operation=bytecode ;; *) operation=source ;; esac
 fi
+case "${2:-}" in
+    */runner_smoke/main.panack|*/case-runner_smoke.bc)
+        # Both ordinary programs must finish all observations before this corpus.
+        case "$CI_CONFORMANCE_MODE" in source) expected=2 ;; bytecode) expected=4 ;; all) expected=6 ;; esac
+        [ "$(wc -l < "$CI_CONFORMANCE_ORDINARY")" -eq "$expected" ] || {
+            echo 'nested corpus overlapped ordinary work' >&2; exit 8;
+        }
+        if [ "runner-$operation" = "${CI_CONFORMANCE_FAIL:-}" ]; then exit 7; fi
+        ;;
+    *)
+        case "$operation" in source|compile|bytecode)
+            printf '%s\n' "$operation" >> "$CI_CONFORMANCE_ORDINARY" ;;
+        esac ;;
+esac
 printf '%s\n' "$operation" >> "$CI_CONFORMANCE_CALLS"
 if [ "$operation" = "${CI_CONFORMANCE_FAIL:-}" ]; then exit 7; fi
 if [ "$operation-stderr" = "${CI_CONFORMANCE_FAIL:-}" ]; then printf 'unexpected\n' >&2; fi
@@ -46,10 +63,13 @@ exit 1
 VM
 chmod +x "$tree/bin/panack" "$tree/panack-vm"
 export CI_CONFORMANCE_CALLS="$work/calls"
+export CI_CONFORMANCE_ORDINARY="$work/ordinary"
 unset VALIDATION_PROFILE_FILE CI_CONFORMANCE_FAIL
 fail() { echo "conformance partition: $*" >&2; exit 1; }
 run() {
     : > "$CI_CONFORMANCE_CALLS"
+    : > "$CI_CONFORMANCE_ORDINARY"
+    CI_CONFORMANCE_MODE=${1:-all}; export CI_CONFORMANCE_MODE
     result=0
     VALIDATION_JOBS=${CI_CONFORMANCE_WORKERS:-1} sh "$tree/tests/native_conformance.sh" "$@" > "$work/output" 2>&1 || result=$?
 }
@@ -83,6 +103,11 @@ for fault in compile compile-stderr accepted; do
     CI_CONFORMANCE_FAIL=$fault; export CI_CONFORMANCE_FAIL
     run bytecode
     [ "$result" != 0 ] || fail "accepted $fault"
+done
+for fault in runner-source runner-bytecode runner-compile; do
+    CI_CONFORMANCE_FAIL=$fault; export CI_CONFORMANCE_FAIL
+    run all
+    [ "$result" != 0 ] || fail "accepted nested corpus failure $fault"
 done
 unset CI_CONFORMANCE_FAIL
 run invalid

@@ -119,7 +119,9 @@ contains docs/guides/INSTALLATION.md '<!-- quick-start-program-begin -->'
 contains docs/guides/INSTALLATION.md '<!-- quick-start-program-end -->'
 contains docs/guides/INSTALLATION.md '<!-- quick-start-output-begin -->'
 contains docs/guides/INSTALLATION.md '<!-- quick-start-output-end -->'
-contains Makefile 'check-phases: policy'
+contains Makefile 'check-phases:
+	@sh tests/fixture_inventory.sh
+	@$(MAKE) --no-print-directory policy'
 contains Makefile 'sh tests/run_check_phases.sh'
 contains Makefile '@$(MAKE) --no-print-directory functional'
 contains Makefile '@$(MAKE) --no-print-directory quick-start'

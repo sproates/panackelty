@@ -66,6 +66,27 @@ The other programs focus on individual language features:
 - `option_result.panack` — generic tagged unions and exhaustive matching
 - `strings.panack` — Unicode indexing and interpolation
 
+## Type-owned methods (alpha.14)
+
+Use the alpha.14 compiler, VM and standard library to run these examples.
+Earlier releases do not support these `impl` declarations.
+
+| Program | Demonstrates |
+| --- | --- |
+| [owned_methods.panack](owned_methods.panack) | An Inventory with its own `get`, `put` and `add` methods, Map operations inside those methods, chaining and preservation of previous values |
+| [generic_methods.panack](generic_methods.panack) | A generic Box, receiver and method type inference, pure callbacks through `.call()`, and mapping from a number to text |
+
+```sh
+./bin/panack run examples/owned_methods.panack
+./bin/panack run examples/generic_methods.panack
+```
+
+`Inventory.put` and `Map.put` share a spelling but select different declarations
+from their receiver types. `self` is the current receiver. Generic methods use
+the same dot syntax; `Box.map` infers its result type from the callback.
+See the [migration guide](../docs/guides/METHOD_MIGRATION.md) for the final syntax
+and removed compatibility APIs.
+
 ## Namespaces
 
 These examples use the currently checked namespace subset and are exercised
@@ -84,5 +105,15 @@ use the corresponding `main.panack` path for the other examples.
 ## Networking
 
 See the [network examples guide](network/README.md) for TCP exchanges and finite
-HTTP sessions. For serving a directory, use the [static HTTP server](../tools/http-server/README.md).
+HTTP applications, including ordinary and contextual routed servers in alpha.14. For serving a directory, use the [static HTTP server](../tools/http-server/README.md).
 The one-client HTTP example is a regression fixture, not a long-running application template.
+
+## Adding an example
+
+Add a matching `.stdout` file under `tests/functional/expected/examples/`, then
+update the example count in `tests/runner/main.panack` and the ordered example
+list and transcript total in `tests/functional/cases/runner_smoke/main.panack`.
+Run `sh tests/fixture_inventory.sh` for immediate bookkeeping feedback before
+`make check`. See the [preflight contract](../tests/README.md#fixture-inventory-preflight).
+
+The [HTTP playbook](../docs/guides/HTTP_PLAYBOOK.md) walks through the routed server examples, including [explicit listener shutdown](network/http_server_lifecycle/README.md).

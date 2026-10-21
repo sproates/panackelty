@@ -1,7 +1,9 @@
+import stdlib/environment as environment
+import stdlib/host as std_host
 main(): Void {
-  args: [Str] = command_args()
+  args: [Str] = std_host.arguments()
   print(args[0])
-  print(environment_get("PANACK_NATIVE_TEST"))
-  eprint("native stderr")
-  process_exit(7)
+  print(environment.get("PANACK_NATIVE_TEST").value_or("missing"))
+  std_host.stderr("native stderr")
+  std_host.exit(7)
 }

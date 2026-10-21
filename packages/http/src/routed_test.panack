@@ -1,0 +1,75 @@
+import project/server as http
+import project/response_policy::{routed_wire}
+import project/types::{Header}
+import stdlib/http_runtime as runtime
+
+pure expect(value: Bool): Unit { checked = [0][if value { 0 } else { 1 }]; () }
+async ordinary(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] { Ok(()) }
+async number(context: Nat, request: http.Request, response: http.ResponseWriter): Result[Unit,Str] { Ok(()) }
+async word(context: Str, request: http.Request, response: http.ResponseWriter): Result[Unit,Str] { Ok(()) }
+pure accepted(value: Result[Bytes,Str]): Bool { match value { Ok(wire) => true, Error(problem) => false } }
+
+async main(): Unit {
+  server = http.create_server(8000)
+  alias = server
+  server.get("/one?ignored#fragment", @ordinary)
+  server.post("/one", @ordinary)
+  server.put("/two", @ordinary)
+  server.delete("/two", @ordinary)
+  server.fallback(@ordinary)
+  expect(runtime.setup_error(alias.state) == None())
+  alias.get("/one?different", @ordinary)
+  expect(runtime.setup_error(server.state) == Some("duplicate method and path"))
+  a = http.create_contextual_server(8001, 42)
+  b = http.create_bound_contextual_server("127.0.0.1", 8002, "separate")
+  a.get("/number", @number)
+  b.get("/word", @word)
+  expect(runtime.context(a.state) == 42 && runtime.context(b.state) == "separate")
+  expect(runtime.setup_error(a.state) == None() && runtime.setup_error(b.state) == None())
+  invalid = http.create_bound_server("127.0.0.01", 8000)
+  expect(runtime.setup_error(invalid.state) == Some("invalid IPv4 bind address"))
+  bad_route = http.create_server(8000)
+  bad_route.get("/bad%", @ordinary)
+  expect(runtime.setup_error(bad_route.state) == Some("invalid route URI reference"))
+  fallback = http.create_server(8000)
+  fallback.fallback(@ordinary)
+  fallback.fallback(@ordinary)
+  expect(runtime.setup_error(fallback.state) == Some("duplicate fallback"))
+  values: Map[Str,Nat] = map()
+  expect(values.put("answer", 42).get("answer") == 42)
+
+  empty = "".encode_utf8()
+  expect(accepted(routed_wire(200, [], empty)))
+  expect(accepted(routed_wire(599, [], empty)))
+  expect(!accepted(routed_wire(199, [], empty)))
+  expect(!accepted(routed_wire(600, [], empty)))
+  for name in ["Content-Length", "TRANSFER-ENCODING", "connection", "Bad Name"] {
+    expect(!accepted(routed_wire(200, [Header(name, "value")], empty)))
+  }
+  expect(!accepted(routed_wire(200, [Header("X", "bad\r\nInjected: yes")], empty)))
+  expect(accepted(routed_wire(200, [Header("Set-Cookie", "a=1"), Header("Set-Cookie", "b=2")], empty)))
+  for status in [204, 304] {
+    expect(accepted(routed_wire(status, [], empty)))
+    expect(!accepted(routed_wire(status, [], "x".encode_utf8())))
+  }
+  mut padding = "x"
+  mut count: Nat = 0
+  while count < 14 { padding = padding + padding; count = count + 1 }
+  overhead = "HTTP/1.1 200 OK\r\nX: \r\nContent-Length: 0\r\nConnection: close\r\n\r\n".len()
+  padding = padding + "xx"
+  for extra in [0, 1, 2] {
+    expect(accepted(routed_wire(200, [Header("X", padding.slice(overhead, 16383 + extra))], empty)) == (extra < 2))
+  }
+  // A multibyte text body reaches the byte cap without confusing character count.
+  mut body = "é".encode_utf8()
+  count = 0
+  while count < 19 { body = body.join(body); count = count + 1 }
+  expect(body.length() == 1048576)
+  near = runtime.bytes_slice(body, 0, 1048574).join("x".encode_utf8())
+  expect(near.length() == 1048575)
+  expect(accepted(routed_wire(200, [], near)))
+  expect(accepted(routed_wire(200, [], body)))
+  expect(!accepted(routed_wire(200, [], body.push(120))))
+  expect(!accepted(routed_wire(200, [Header("X-Text", "é")], empty)))
+  ()
+}

@@ -2,6 +2,7 @@
 #define PANACKELTY_VM_H
 
 #include "program.h"
+#include "fault.h"
 #include "coverage.h"
 #include "coverage_session.h"
 #include "value.h"
@@ -23,7 +24,9 @@ typedef struct {
     size_t env_count;
     char **environment;
     const char *error;
+    VMFaultKind fault_kind;
     VMExecution *execution;
+    struct VMHttpRuntime *http_runtime; /* Borrowed from the root invocation. */
     VMCoverageRun *coverage_run; /* Optional registered execution; owned by caller. */
     VMCoverage *coverage; /* Optional, borrowed, single-execution collector. */
 } VM;

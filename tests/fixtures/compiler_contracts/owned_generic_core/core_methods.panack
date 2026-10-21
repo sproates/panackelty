@@ -1,0 +1,22 @@
+import stdlib/core::{Option as Maybe, Result as Outcome}
+
+main(): Void {
+  present: Maybe[Nat] = Some(7)
+  absent: Maybe[Nat] = None()
+  success: Outcome[Str, Nat] = Ok("yes")
+  failure: Outcome[Str, Nat] = Error(1)
+  print(present.value_or(9))
+  print(absent.value_or(9))
+  print(success.value_or("no"))
+  print(failure.value_or("no"))
+  print(None().value_or(9))
+  print(Error("failed").value_or(7))
+  values: Map[Str,Nat] = map().put("key", 42)
+  members: Set[Nat] = set().add(7)
+  print(values.echo().get("key"))
+  print(values.choose[Str]("selected"))
+  print(members.echo().has(7))
+  print([8, 9].echo()[1])
+  print("text".echo())
+  print("bytes".encode_utf8().echo().length())
+}

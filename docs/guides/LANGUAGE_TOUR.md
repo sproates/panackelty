@@ -14,7 +14,7 @@ main(): Void {
 ```
 
 Integer `/` returns `Rat`;
-`quotient(a, b)` retains truncating natural division. Exact conversions trap if
+`a.divide(b)` retains truncating natural division. Exact conversions trap if
 the value cannot be represented: `(1/3).nat()` and `(1/3).dec()` fail rather than
 round. `Unit` is a first-class value for APIs such as `Result[Unit,Str]`.
 See [the specification](../reference/SPEC.md#rational-arithmetic-and-exact-conversions).
@@ -218,7 +218,7 @@ pure safe_divide(numerator: Nat, denominator: Nat): Result[Nat,Str] {
   if denominator == 0 {
     Error("division by zero")
   } else {
-    Ok(quotient(numerator, denominator))
+    Ok(numerator.divide(denominator))
   }
 }
 

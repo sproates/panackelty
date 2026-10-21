@@ -1,5 +1,28 @@
 # Tests
 
+## Fixture inventory preflight
+
+`sh tests/fixture_inventory.sh` checks example bookkeeping without building or
+running the compiler. `make check` runs it before policy tests and native builds.
+It compares top-level and namespace examples with their `.stdout` files and the
+ordered example list in `functional/cases/runner_smoke/main.panack`, checks the
+example count in `runner/main.panack`, and verifies the smoke transcript total
+from its case/example/failure lists and failure-mode selection.
+
+When adding or removing an example, update its expected output, the runner's
+example count, and the smoke test's example list and total together. Run this
+preflight before full validation. It reports exact stale entries and does not
+rewrite expectations. Its bounded source reader rejects unsupported declaration
+forms; intentional runner-format changes must update the reader and its tests.
+It does not validate program behavior, arbitrary assertion logic, or all other
+harness summary counts. The independent executable assertions and full
+`make check` remain required.
+
+`sh tests/fixture_inventory_test.sh` exercises additions, removals, namespace
+examples, missing/orphan outputs, duplicate/order errors, stale counts and totals,
+unsupported declarations, and rejection before the Makefile starts later phases.
+All mutations run in a temporary checkout, including a path containing spaces.
+
 The [website repository](https://github.com/sproates/panackelty-website) owns assembly, previews, published-release
 acceptance and deployed-byte checks. [Panackelty Browser](https://github.com/sproates/panackelty-browser)
 owns browser/runtime integration tests. Core retains native and runtime-bundle
@@ -7,7 +30,7 @@ contracts; `make check` requires neither Node, Playwright nor WASI.
 
 The suites combine Panackelty probes, native C tests, shell harness checks,
 and public CLI tests. The runner (`runner/main.panack`) checks twenty-five
-selected success cases, twenty-three examples, and forty-one expected failures.
+selected success cases, twenty-five examples, and forty-one expected failures.
 `make functional` also checks the self-hosted compiler driver and exercises
 `runner_smoke` from source and saved bytecode.
 
@@ -209,7 +232,10 @@ workers explicitly: one for the harness and two for compiler probes. The macOS
 matrix retains five jobs to avoid a sixth job waiting for a runner.
 Native conformance also uses bounded workers (four by default). Each program
 keeps its source/compile/bytecode assertions together in an isolated temporary
-directory; NUL-delimited arguments preserve paths containing spaces. Negative
+directory; NUL-delimited arguments preserve paths containing spaces. The nested
+`runner_smoke` corpus runs after the ordinary worker pool has drained, so its
+bounded compiler build does not compete with another conformance program.
+Its complete source/compile/bytecode observations and deadlines are unchanged. Negative
 fixtures and CLI/archive checks still run after every program succeeds.
 Bootstrap overlaps the ordinary fixed-point check with the isolated native
 seed-refresh proof. They read the same immutable sources and seed but build
@@ -678,19 +704,24 @@ client that deliberately leaves its write side open while waiting for the
 response. The native owner unit tests also cover the cumulative request bound and
 reject the read service outside a server-owned streaming child.
 
-`http_package.sh` runs Panackelty-owned HTTP parser and serializer cases from both
-source and saved bytecode, then checks and compiles an application importing the
-packaged `http/server` facade. Its independent C peer exercises the runnable
-`examples/network/http_server` package source and saved bytecode, then drives one
-finite server through GET/POST, handler errors, method and framing errors,
-partial and oversized requests, concurrent clients, disconnect recovery and
-orderly shutdown. The Panackelty HTTP client also requests the example response
-from source and saved-bytecode server runs, using both client source and saved
-bytecode. A held loopback port verifies bind-conflict reporting.
-Parser/serializer cases remain independent of the native TCP server and cover
-incremental input, Content-Length, chunked framing, malformed and ambiguous
-requests, method/version errors, header/body bounds and response framing/header
-injection.
+`http_package.sh` runs parser and routed-policy cases from source and saved
+bytecode, then exercises the public `http/server` facade with an independent C
+peer. It covers framing, Expect negotiation, handler errors/index/arithmetic
+faults, first-send preservation, request/connection capacity, byte limits and the
+real ten-second deadline. Corrected contract examples compile verbatim; socket
+copies change only their fixed demonstration port. Active-request close and
+destroy are controlled by a second listener, with bounded observations of the
+one-second drain and immediate cancellation. Old exports and wrong callback
+context types are compile-time rejection cases.
+
+`continuous_service.sh` checks process lifetime, readiness failure and signals.
+`static_http.sh` checks confinement and file policy plus source/bytecode runs of
+both public examples against a relocated installation; its independent peer
+checks the ordinary POST echo and contextual query-header responses.
+`release_archive_smoke.sh` repeats both examples through the extracted archive
+from an unrelated directory.
+HTTP client tests remain independent. Native tests cover opaque ownership,
+invalid handles, request fault classification and cancellation safety.
 
 ## Website validation ownership
 
@@ -896,3 +927,23 @@ The compiler/unit routes include `runner/compiler_source_inventory_unit.panack`
 and `runner/compiler_source_inventory_cli.panack`: literal original-syntax
 expectations plus public command, identity, failure and bytecode-equivalence tests.
 See [source inventory](../docs/reference/SOURCE_INVENTORY.md).
+
+### Portable dependency bundle completeness
+
+The browser-runtime bundle includes `http_transport.c` and `http_transport.h`
+because the VM execution layer references the transport owner even on portable
+hosts. Its `__wasi__` branch retains explicit capability rejection; it does not
+link native libcurl into that target. Bundle generation checks both files, and
+the independent browser consumer compiles the complete bundle as its integration
+check. The immutable alpha.13 dependency archive predates this packaging repair;
+consumers must pin the corrected source revision rather than replace that asset.
+
+The native header contract also syntax-checks the portable HTTP transport branch
+without curl, catching native-only declarations leaking into that branch.
+
+HTTP playbook coverage: the existing installed-example runs check POST/PUT/DELETE
+byte echo, query/header access, fallback 404 and known-path 405. The contextual
+query-header assertion is restricted to the installed example; the original
+contract fixture uses its unchanged common checks. `tests/http_package.sh` also
+runs the public lifecycle program from source and bytecode and compares shutdown
+output. The playbook embeds the matching example source and manifests.

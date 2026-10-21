@@ -1,1 +1,5 @@
 error: invalid logical import path: stdlib/foo.bar/baz
+missing module foo.bar/baz.panack
+<case>/main.panack:1:1: missing module foo.bar/baz.panack
+  1 | import "stdlib/foo.bar/baz"
+    | ^

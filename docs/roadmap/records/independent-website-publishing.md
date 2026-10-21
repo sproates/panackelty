@@ -83,6 +83,32 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
+- **GI#518 / RM#156 alpha.14 routed HTTP framework** — Promotion pending.
+  The core delivery maintainer hands off the
+  [HTTP guide](../../../packages/http/README.md), ordinary/contextual
+  [network examples](../../../examples/network/README.md), and
+  [acceptance evidence](../../design/routed-http-server/acceptance-register.md)
+  to the website maintainer through the existing
+  [website roadmap](https://github.com/sproates/panackelty-website/blob/main/ROADMAP.md).
+  At deliberate alpha.14 promotion, update capabilities, examples, roadmap,
+  learning links and the method-dispatch/HTTP article against the shipped native
+  artifact. Preserve the live alpha.13 version boundary until release assets
+  exist and are verified. The preview CLI keeps loopback/`--host`; HEAD now
+  receives 405 under the routed four-method contract. Recording this handover
+  does not deploy the website or schedule promotion.
+
+- **GI#525 alpha.14 method syntax** — Promotion pending. P14 now accepts only
+  owned dots on `next`; published alpha.13 examples retain
+  their release contract. Before alpha.14 adoption, the core delivery maintainer
+  hands off the verified P14 dot-only syntax and
+  [P15 native/browser consumer evidence](../../design/type-owned-dispatch/p15-consumer-acceptance.md)
+  to the website maintainer. Browser artifact `0.2.0` is the matched candidate;
+  keep the live `v0.1.3` pin until deliberate website promotion. Review method examples, migration guidance
+  and the method-dispatch article against the actual shipped toolchain. Include
+  the [public owned/generic method examples](../../../examples/README.md#type-owned-methods-alpha14)
+  when promoting alpha.14 learning material. The
+  [website roadmap](https://github.com/sproates/panackelty-website/blob/main/ROADMAP.md)
+  owns site publication. No intermediate bridge promotion is scheduled.
 - **Release rebalance, alpha.14–alpha.19 (20 October 2026):** this supersedes
   the earlier release-direction and GI#435 presentation assignments below.
   Update homepage, roadmap and maintenance guidance to the canonical scope;

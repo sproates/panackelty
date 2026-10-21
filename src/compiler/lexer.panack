@@ -11,7 +11,7 @@ pub record StringScan {
 pure scan_digits(source: Str, start: Nat): Nat {
   mut cursor: Nat = start
 
-  while cursor < len(source) && is_digit(source[cursor]) {
+  while cursor < source.len() && source[cursor].is_digit() {
     cursor = cursor + 1
   }
 
@@ -21,9 +21,9 @@ pure scan_digits(source: Str, start: Nat): Nat {
 pure scan_identifier(source: Str, start: Nat): Nat {
   mut cursor: Nat = start
 
-  while cursor < len(source) &&
-    (is_letter(source[cursor]) ||
-    is_digit(source[cursor]) ||
+  while cursor < source.len() &&
+    (source[cursor].is_letter() ||
+    source[cursor].is_digit() ||
     source[cursor] == "_") {
     cursor = cursor + 1
   }
@@ -34,7 +34,7 @@ pure scan_identifier(source: Str, start: Nat): Nat {
 pure scan_comment(source: Str, start: Nat): Nat {
   mut cursor: Nat = start
 
-  while cursor < len(source) && source[cursor] != "\n" {
+  while cursor < source.len() && source[cursor] != "\n" {
     cursor = cursor + 1
   }
 
@@ -48,7 +48,7 @@ pub pure scan_string(source: Str, start: Nat): StringScan {
 
   // An escape consumes exactly one character. Only an unescaped quote closes
   // the token; the cursor returned to the lexer includes that closing quote.
-  while cursor < len(source) && !terminated {
+  while cursor < source.len() && !terminated {
     if escaped {
       escaped = false
     } else {
@@ -91,14 +91,15 @@ pure source_token(
 }
 
 pure is_two_character_symbol(source: Str, cursor: Nat): Bool {
-  starts_with_at(source, "=>", cursor) ||
-    starts_with_at(source, "..", cursor) ||
-    starts_with_at(source, "==", cursor) ||
-    starts_with_at(source, "!=", cursor) ||
-    starts_with_at(source, "<=", cursor) ||
-    starts_with_at(source, ">=", cursor) ||
-    starts_with_at(source, "&&", cursor) ||
-    starts_with_at(source, "||", cursor)
+  source.starts_with_at("=>", cursor) ||
+    source.starts_with_at("->", cursor) ||
+    source.starts_with_at("..", cursor) ||
+    source.starts_with_at("==", cursor) ||
+    source.starts_with_at("!=", cursor) ||
+    source.starts_with_at("<=", cursor) ||
+    source.starts_with_at(">=", cursor) ||
+    source.starts_with_at("&&", cursor) ||
+    source.starts_with_at("||", cursor)
 }
 
 pure is_single_character_symbol(character: Str): Bool {
@@ -153,11 +154,11 @@ pure normalize_line_breaks(tokens: [Token]): [Token] {
   mut brace_soft_depths: Map[Nat, Nat] = map()
   mut index: Nat = 0
 
-  while index < len(tokens) {
+  while index < tokens.len() {
     token: Token = tokens[index]
     if token.text == "\n" {
       mut next_index: Nat = index + 1
-      while next_index < len(tokens) && tokens[next_index].text == "\n" {
+      while next_index < tokens.len() && tokens[next_index].text == "\n" {
         next_index = next_index + 1
       }
       baseline: Nat = if brace_depth > 0 && brace_soft_depths.has(brace_depth) {
@@ -165,11 +166,10 @@ pure normalize_line_breaks(tokens: [Token]): [Token] {
       } else {
         0
       }
-      if soft_depth <= baseline && len(result) > 0 && next_index < len(tokens) &&
-        token_can_end_statement(result[prior_index(len(result))]) &&
+      if soft_depth <= baseline && result.len() > 0 && next_index < tokens.len() &&
+        token_can_end_statement(result[prior_index(result.len())]) &&
         token_can_start_statement(tokens[next_index]) {
-        result = append(
-          result,
+        result = result.append(
           Token(
           Punctuation(),
           ";",
@@ -182,7 +182,7 @@ pure normalize_line_breaks(tokens: [Token]): [Token] {
         )
       }
     } else {
-      result = append(result, token)
+      result = result.append(token)
       if token.text == "(" || token.text == "[" {
         soft_depth = soft_depth + 1
       } else {
@@ -212,36 +212,34 @@ pub pure lex_file(source: Str, file: Str): Result[[Token], [Diagnostic]] {
   mut cursor: Nat = 0
   mut current_position: SourcePos = SourcePos(file, 0, 1, 1)
 
-  while cursor < len(source) {
+  while cursor < source.len() {
     iteration_start: Nat = cursor
     character: Str = source[cursor]
     if character == "\n" {
       end: Nat = cursor + 1
-      tokens = append(
-        tokens,
+      tokens = tokens.append(
         source_token(source, Punctuation(), "\n", cursor, end, current_position)
       )
       cursor = end
     } else {
-      if is_whitespace(character) {
+      if character.is_whitespace() {
         cursor = cursor + 1
       } else {
-        if starts_with_at(source, "//", cursor) {
+        if source.starts_with_at("//", cursor) {
           cursor = scan_comment(source, cursor + 2)
         } else {
-          if is_digit(character) {
+          if character.is_digit() {
             integer_end: Nat = scan_digits(source, cursor)
-            if integer_end < len(source) &&
+            if integer_end < source.len() &&
               source[integer_end] == "." &&
-              integer_end + 1 < len(source) &&
-              is_digit(source[integer_end + 1]) {
+              integer_end + 1 < source.len() &&
+              source[integer_end + 1].is_digit() {
               end: Nat = scan_digits(source, integer_end + 1)
-              tokens = append(
-                tokens,
+              tokens = tokens.append(
                 source_token(
                 source,
                 DecimalNumber(),
-                slice(source, cursor, end),
+                source.slice(cursor, end),
                 cursor,
                 end,
                 current_position
@@ -249,12 +247,11 @@ pub pure lex_file(source: Str, file: Str): Result[[Token], [Diagnostic]] {
               )
               cursor = end
             } else {
-              tokens = append(
-                tokens,
+              tokens = tokens.append(
                 source_token(
                 source,
                 Number(),
-                slice(source, cursor, integer_end),
+                source.slice(cursor, integer_end),
                 cursor,
                 integer_end,
                 current_position
@@ -263,14 +260,13 @@ pub pure lex_file(source: Str, file: Str): Result[[Token], [Diagnostic]] {
               cursor = integer_end
             }
           } else {
-            if is_letter(character) || character == "_" {
+            if character.is_letter() || character == "_" {
               end: Nat = scan_identifier(source, cursor)
-              tokens = append(
-                tokens,
+              tokens = tokens.append(
                 source_token(
                 source,
                 Identifier(),
-                slice(source, cursor, end),
+                source.slice(cursor, end),
                 cursor,
                 end,
                 current_position
@@ -282,17 +278,15 @@ pub pure lex_file(source: Str, file: Str): Result[[Token], [Diagnostic]] {
                 scanned: StringScan = scan_string(source, cursor)
                 end: Nat = scanned.end
                 if !scanned.terminated {
-                  diagnostics = append(
-                    diagnostics,
+                  diagnostics = diagnostics.append(
                     Diagnostic("unterminated string", current_position)
                   )
                 }
-                tokens = append(
-                  tokens,
+                tokens = tokens.append(
                   source_token(
                   source,
                   StringLiteral(),
-                  slice(source, cursor, end),
+                  source.slice(cursor, end),
                   cursor,
                   end,
                   current_position
@@ -302,12 +296,11 @@ pub pure lex_file(source: Str, file: Str): Result[[Token], [Diagnostic]] {
               } else {
                 if is_two_character_symbol(source, cursor) {
                   end: Nat = cursor + 2
-                  tokens = append(
-                    tokens,
+                  tokens = tokens.append(
                     source_token(
                     source,
                     Punctuation(),
-                    slice(source, cursor, end),
+                    source.slice(cursor, end),
                     cursor,
                     end,
                     current_position
@@ -317,14 +310,12 @@ pub pure lex_file(source: Str, file: Str): Result[[Token], [Diagnostic]] {
                 } else {
                   if is_single_character_symbol(character) {
                     end: Nat = cursor + 1
-                    tokens = append(
-                      tokens,
+                    tokens = tokens.append(
                       source_token(source, Punctuation(), character, cursor, end, current_position)
                     )
                     cursor = end
                   } else {
-                    diagnostics = append(
-                      diagnostics,
+                    diagnostics = diagnostics.append(
                       Diagnostic("unexpected character ${character}", current_position)
                     )
                     cursor = cursor + 1
@@ -339,7 +330,7 @@ pub pure lex_file(source: Str, file: Str): Result[[Token], [Diagnostic]] {
     current_position = advance_position(source, iteration_start, cursor, current_position)
   }
 
-  if len(diagnostics) == 0 {
+  if diagnostics.len() == 0 {
     Ok(normalize_line_breaks(tokens))
   } else {
     Error(diagnostics)

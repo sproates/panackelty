@@ -1,8 +1,5 @@
-import stdlib/option as std_option
-import stdlib/result as std_result
 import stdlib/testing as std_testing
-import stdlib/time as std_time
-import project/src/compiler/parser::{parse_source,parse_program_source,parse_block_source,parse_type_source}
+import project/src/compiler/parser::{parse_source,parse_program_source,parse_block_source,parse_type_source,lex,parse_module_complete, OwnedMethodSyntax}
 import stdlib/host as std_host
 import stdlib/testing::{TestResult}
 // Direct parser contracts, grouped by the former Python test method.
@@ -33,7 +30,7 @@ pure parser_unit_generic_function_syntax_and_explicit_calls_round_trip(): [TestR
       "values[0]"),
     std_testing.equal_str("parser/generic_function_syntax_and_explicit_calls_round_trip/5",
       parse_source("value.identity[Nat]()"),
-      "identity[Nat](value)")
+      "value.identity[Nat]()")
   ]
 }
 
@@ -45,32 +42,32 @@ pure parser_unit_match_expressions_participate_in_precedence_and_blocks(): [Test
   ]
 }
 
-pure parser_unit_method_calls_lower_to_receiver_first_calls(): [TestResult] {
+pure parser_unit_dot_calls_retain_receiver_until_namespace_resolution(): [TestResult] {
   [
-    std_testing.equal_str("parser/method_calls_lower_to_receiver_first_calls/1",
+    std_testing.equal_str("parser/dot_calls_retain_receiver_until_namespace_resolution/1",
       parse_source("value.transform()"),
-      "transform(value)"),
-    std_testing.equal_str("parser/method_calls_lower_to_receiver_first_calls/2",
+      "value.transform()"),
+    std_testing.equal_str("parser/dot_calls_retain_receiver_until_namespace_resolution/2",
       parse_source("values.append(1)"),
-      "append(values, 1)"),
-    std_testing.equal_str("parser/method_calls_lower_to_receiver_first_calls/3",
+      "values.append(1)"),
+    std_testing.equal_str("parser/dot_calls_retain_receiver_until_namespace_resolution/3",
       parse_source("values.append(1).len()"),
-      "len(append(values, 1))"),
-    std_testing.equal_str("parser/method_calls_lower_to_receiver_first_calls/4",
+      "values.append(1).len()"),
+    std_testing.equal_str("parser/dot_calls_retain_receiver_until_namespace_resolution/4",
       parse_source("make().field.transform(2)"),
-      "transform(make().field, 2)"),
-    std_testing.equal_str("parser/method_calls_lower_to_receiver_first_calls/5",
+      "make().field.transform(2)"),
+    std_testing.equal_str("parser/dot_calls_retain_receiver_until_namespace_resolution/5",
       parse_source("values.put(\"key\", 1)"),
-      "$method_put(values, \"key\", 1)"),
-    std_testing.equal_str("parser/method_calls_lower_to_receiver_first_calls/6",
+      "values.put(\"key\", 1)"),
+    std_testing.equal_str("parser/dot_calls_retain_receiver_until_namespace_resolution/6",
       parse_source("values.has(\"key\")"),
-      "$method_has(values, \"key\")"),
-    std_testing.equal_str("parser/method_calls_lower_to_receiver_first_calls/7",
+      "values.has(\"key\")"),
+    std_testing.equal_str("parser/dot_calls_retain_receiver_until_namespace_resolution/7",
       parse_source("values.get(\"key\")"),
-      "$method_get(values, \"key\")"),
-    std_testing.equal_str("parser/method_calls_lower_to_receiver_first_calls/8",
+      "values.get(\"key\")"),
+    std_testing.equal_str("parser/dot_calls_retain_receiver_until_namespace_resolution/8",
       parse_source("values.add(1)"),
-      "$method_add(values, 1)")
+      "values.add(1)")
   ]
 }
 
@@ -324,7 +321,7 @@ pure parser_unit_parses_named_function_references_and_functional_methods(): [Tes
       "@twice"),
     std_testing.equal_str("parser/parses_named_function_references_and_functional_methods/2",
       parse_source("values.map(@twice).reduce(0, @total)"),
-      "$method_reduce($method_map(values, @twice), 0, @total)")
+      "values.map(@twice).reduce(0, @total)")
   ]
 }
 
@@ -804,16 +801,69 @@ pure parser_unit_else_if_chains(): [TestResult] {
 }
 
 
+pure parser_unit_owned_methods(): [TestResult] {
+  source: Str = "record Fruit { value: Nat } impl Fruit { pure apple(): Nat { self.value } pure banana(): Nat { self.value + 1 } }"
+  parsed_ok: Bool = match lex(source) {
+    Error(error) => false,
+    Ok(tokens) => match parse_module_complete(tokens) {
+      Error(error) => false,
+      Ok(module) => module.syntax.len() == 3 &&
+        module.syntax[1].method == Some(OwnedMethodSyntax("Fruit", [], "apple")) &&
+        module.syntax[2].method == Some(OwnedMethodSyntax("Fruit", [], "banana")) &&
+        !module.program.function_indices.has("apple")
+    }
+  }
+  public_source: Str = "pub record Fruit { value: Nat } impl Fruit { pub pure apple(): Nat { self.value } pure banana(): Nat { self.value + 1 } }"
+  visibility_ok: Bool = match lex(public_source) {
+    Error(error) => false,
+    Ok(tokens) => match parse_module_complete(tokens) {
+      Error(error) => false,
+      Ok(module) => module.syntax.len() == 3 && module.syntax[0].is_public &&
+        module.syntax[1].is_public && !module.syntax[2].is_public
+    }
+  }
+  generic_ok: Bool = match lex("impl[T] Box[T] { pub pure replace[U](item: U): Box[U] { Box(item) } } record Box[T] { item: T }") {
+    Error(error) => false,
+    Ok(tokens) => match parse_module_complete(tokens) {
+      Error(error) => false,
+      Ok(module) => module.syntax[0].method == Some(OwnedMethodSyntax("Box", ["T"], "replace")) &&
+        module.syntax[0].type_spans[0].start.column == 9 &&
+        module.implementations.len() == 1 && module.implementations[0].owner == "Box[T]"
+    }
+  }
+  array_ok: Bool = match lex("impl[T] [T] { pub pure echo(): [T] { self } }") {
+    Error(error) => false,
+    Ok(tokens) => match parse_module_complete(tokens) {
+      Error(error) => false,
+      Ok(module) => module.syntax.len() == 1 &&
+        module.syntax[0].method == Some(OwnedMethodSyntax("Array", ["T"], "echo")) &&
+        module.syntax[0].type_spans[0].start.column == 9 &&
+        module.implementations.len() == 1 && module.implementations[0].owner == "[T]"
+    }
+  }
+  [
+    std_testing.expect("parser/owned/array-metadata", array_ok, "array owner or binder metadata lost"),
+    std_testing.expect("parser/owned/generic-metadata", generic_ok, "implementation binders or owner span lost"),
+    std_testing.expect("parser/owned/declarations", parsed_ok, "methods must have distinct owner identities"),
+    std_testing.expect("parser/owned/visibility", visibility_ok, "pub applies to its method only"),
+    std_testing.equal_str("parser/owned/arrow-rejected", parse_source("fruit->apple()"), "arrow receiver calls are not supported; use dot syntax"),
+    std_testing.equal_str("parser/owned/dot-unchanged", parse_source("fruit.apple()"), "fruit.apple()"),
+    std_testing.equal_str("parser/owned/arrow-field-rejected", parse_source("fruit->apple"), "arrow receiver calls are not supported; use dot syntax"),
+    std_testing.expect("parser/owned/deferred-owner", match lex("impl Fruit {} record Fruit { value: Nat }") { Error(error) => false, Ok(tokens) => match parse_module_complete(tokens) { Ok(module) => true, Error(error) => false } }, "owner checking belongs to signatures")
+  ]
+}
+
+
 main(): Void {
-  mut results: [TestResult] = []
-  results = results.append(std_testing.equal_str("parser/core-method-private-identity",
-    parse_source("items.sort_by(@less).first()"), "$core_first($core_sort_by(items, @less))"))
+  mut results: [TestResult] = parser_unit_owned_methods()
+  results = results.append(std_testing.equal_str("parser/dot-method-spelling-retained",
+    parse_source("items.sort_by(@less).first()"), "items.sort_by(@less).first()"))
 
   results = results.concat(parser_unit_else_if_chains())
   results = results.concat(parser_unit_binary_operators_are_left_associative())
   results = results.concat(parser_unit_generic_function_syntax_and_explicit_calls_round_trip())
   results = results.concat(parser_unit_match_expressions_participate_in_precedence_and_blocks())
-  results = results.concat(parser_unit_method_calls_lower_to_receiver_first_calls())
+  results = results.concat(parser_unit_dot_calls_retain_receiver_until_namespace_resolution())
   results = results.concat(parser_unit_parentheses_override_precedence())
   results = results.concat(parser_unit_parses_bindings_assignments_and_nested_type_references())
   results = results.concat(parser_unit_parses_complete_mixed_program())

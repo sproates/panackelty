@@ -1,8 +1,6 @@
+import stdlib/host as std_host
 import project/src/compiler/path_support as path_support
-import stdlib/text as std_text
-import stdlib/option as std_option
 import stdlib/bytes as byte_buffer
-import stdlib/path as std_path
 import stdlib/environment as std_environment
 pub import project/src/compiler/loader::{LoadedProject}
 import project/src/compiler/loader::{load_project_for_inventory}
@@ -12,7 +10,7 @@ pub import project/src/compiler/module_bindings::{LoadedModule}
 import project/src/compiler/parser::{
   Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr,
   Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr,
-  Expr.CallExpr, Expr.DotCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr,
+  Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr,
   Expr.BlockExpr, Expr.MatchExpr,
   Statement, Statement.BindingStatement, Statement.AssignmentStatement,
   Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement,
@@ -53,7 +51,7 @@ pure inventory_decision(id: Str, kind: Str, expression: Expr, outcomes: [Str]): 
   mut items: [InventoryItem] = inventory_item(id, "decision", kind, expression)
 
   for outcome in outcomes {
-    items = concat(items, inventory_item(id + "/" + outcome, "outcome", outcome, expression))
+    items = items.concat(inventory_item(id + "/" + outcome, "outcome", outcome, expression))
   }
 
   items
@@ -64,7 +62,7 @@ pure inventory_expressions(values: [Expr], id: Str): [InventoryItem] {
   mut index: Nat = 0
 
   for value in values {
-    items = concat(items, inventory_expression(value, id + "/${index}"))
+    items = items.concat(inventory_expression(value, id + "/${index}"))
     index = index + 1
   }
 
@@ -83,55 +81,57 @@ pure inventory_expression(expression: Expr, id: Str): [InventoryItem] {
     NameExpr(value) => {},
     FunctionExpr(value) => {},
     ArrayExpr(values) => {
-      items = concat(items, inventory_expressions(values, id))
+      items = items.concat(inventory_expressions(values, id))
     },
     UnaryExpr(operator, value) => {
-      items = concat(items, inventory_expression(value, id + "/operand"))
+      items = items.concat(inventory_expression(value, id + "/operand"))
     },
     BinaryExpr(operator, left, right) => {
       if operator == "&&" || operator == "||" {
-        items = concat(
-          items,
+        items = items.concat(
           inventory_decision(id + "/decision", operator, left, ["evaluate-right", "skip-right"])
         )
       }
-      items = concat(items, inventory_expression(left, id + "/left"))
-      items = concat(items, inventory_expression(right, id + "/right"))
+      items = items.concat(inventory_expression(left, id + "/left"))
+      items = items.concat(inventory_expression(right, id + "/right"))
     },
     CallExpr(name, arguments, types) => {
-      items = concat(items, inventory_expressions(arguments, id + "/args"))
+      items = items.concat(inventory_expressions(arguments, id + "/args"))
+    },
+    OwnedCallExpr(target, name, arguments, types) => {
+      items = items.concat(inventory_expression(target, id + "/receiver"))
+      items = items.concat(inventory_expressions(arguments, id + "/args"))
     },
     DotCallExpr(target, name, arguments, types) => {
-      items = concat(items, inventory_expression(target, id + "/receiver"))
-      items = concat(items, inventory_expressions(arguments, id + "/args"))
+      items = items.concat(inventory_expression(target, id + "/receiver"))
+      items = items.concat(inventory_expressions(arguments, id + "/args"))
     },
     FieldExpr(target, name) => {
-      items = concat(items, inventory_expression(target, id + "/receiver"))
+      items = items.concat(inventory_expression(target, id + "/receiver"))
     },
     IndexExpr(target, index) => {
-      items = concat(items, inventory_expression(target, id + "/receiver"))
-      items = concat(items, inventory_expression(index, id + "/index"))
+      items = items.concat(inventory_expression(target, id + "/receiver"))
+      items = items.concat(inventory_expression(index, id + "/index"))
     },
     IfExpr(condition, yes, no, has_else) => {
-      items = concat(
-        items,
+      items = items.concat(
         inventory_decision(id + "/decision", "if", condition, ["true", "false"])
       )
-      items = concat(items, inventory_expression(condition, id + "/condition"))
-      items = concat(items, inventory_block(yes, id + "/true"))
-      items = concat(items, inventory_block(no, id + "/false"))
+      items = items.concat(inventory_expression(condition, id + "/condition"))
+      items = items.concat(inventory_block(yes, id + "/true"))
+      items = items.concat(inventory_block(no, id + "/false"))
     },
     BlockExpr(block) => {
-      items = concat(items, inventory_block(block, id + "/block"))
+      items = items.concat(inventory_block(block, id + "/block"))
     },
     MatchExpr(subject, arms) => {
-      items = concat(items, inventory_item(id + "/decision", "decision", "match", subject))
-      items = concat(items, inventory_expression(subject, id + "/subject"))
+      items = items.concat(inventory_item(id + "/decision", "decision", "match", subject))
+      items = items.concat(inventory_expression(subject, id + "/subject"))
       mut index: Nat = 0
       for arm in arms {
         arm_id: Str = id + "/arm/${index}"
-        items = concat(items, inventory_item(arm_id, "outcome", arm.pattern.variant, arm.body))
-        items = concat(items, inventory_expression(arm.body, arm_id + "/body"))
+        items = items.concat(inventory_item(arm_id, "outcome", arm.pattern.variant, arm.body))
+        items = items.concat(inventory_expression(arm.body, arm_id + "/body"))
         index = index + 1
       }
     }
@@ -150,37 +150,34 @@ pure inventory_block(block: Block, id: Str): [InventoryItem] {
     key: Str = id + "/statement/${index}"
     match statement {
       BindingStatement(name, annotation, annotation_span, mutable, value) => {
-        items = concat(items, inventory_item(key, "statement", "binding", value))
-        items = concat(items, inventory_expression(value, key + "/value"))
+        items = items.concat(inventory_item(key, "statement", "binding", value))
+        items = items.concat(inventory_expression(value, key + "/value"))
       },
       AssignmentStatement(name, value) => {
-        items = concat(
-          items,
+        items = items.concat(
           inventory_item(key, "statement", "assignment-or-inferred-binding", value)
         )
-        items = concat(items, inventory_expression(value, key + "/value"))
+        items = items.concat(inventory_expression(value, key + "/value"))
       },
       ExpressionStatement(value) => {
-        items = concat(items, inventory_item(key, "statement", "expression", value))
-        items = concat(items, inventory_expression(value, key + "/value"))
+        items = items.concat(inventory_item(key, "statement", "expression", value))
+        items = items.concat(inventory_expression(value, key + "/value"))
       },
       WhileStatement(condition, body) => {
-        items = concat(items, inventory_item(key, "statement", "while", condition))
-        items = concat(
-          items,
+        items = items.concat(inventory_item(key, "statement", "while", condition))
+        items = items.concat(
           inventory_decision(key + "/decision", "while", condition, ["body", "exit"])
         )
-        items = concat(items, inventory_expression(condition, key + "/condition"))
-        items = concat(items, inventory_block(body, key + "/body"))
+        items = items.concat(inventory_expression(condition, key + "/condition"))
+        items = items.concat(inventory_block(body, key + "/body"))
       },
       ForStatement(name, values, body) => {
-        items = concat(items, inventory_item(key, "statement", "for", values))
-        items = concat(
-          items,
+        items = items.concat(inventory_item(key, "statement", "for", values))
+        items = items.concat(
           inventory_decision(key + "/decision", "for", values, ["body", "exit"])
         )
-        items = concat(items, inventory_expression(values, key + "/iterable"))
-        items = concat(items, inventory_block(body, key + "/body"))
+        items = items.concat(inventory_expression(values, key + "/iterable"))
+        items = items.concat(inventory_block(body, key + "/body"))
       }
     }
     index = index + 1
@@ -188,7 +185,7 @@ pure inventory_block(block: Block, id: Str): [InventoryItem] {
   match block.value {
     NoBlockValue() => {},
     TailBlockValue(value) => {
-      items = concat(items, inventory_expression(value, id + "/tail"))
+      items = items.concat(inventory_expression(value, id + "/tail"))
     }
   }
 
@@ -205,7 +202,7 @@ pub pure inventory_module(module: LoadedModule): [InventoryItem] {
     match declaration {
       FunctionDeclaration(name, parameters, result, pure_effect, async_effect, body, types) => {
         items = items.append(InventoryItem(id, "function", name, span))
-        items = concat(items, inventory_block(body, id))
+        items = items.concat(inventory_block(body, id))
       },
       ImportDeclaration(path) => {
         items = items.append(InventoryItem(id, "excluded", "import", span))
@@ -237,18 +234,18 @@ pub pure serialize_source_inventory(
   stdlib: Str
 ): Bytes {
   snapshots: [SourceSnapshot] = source_snapshots(project, root, stdlib)
-  mut chunks: [Bytes] = [std_text.encode_utf8("PANACKINV1\nlocal-replay-v9\n"), source_map_blob(compiler),
+  mut chunks: [Bytes] = ["PANACKINV1\nlocal-replay-v9\n".encode_utf8(), source_map_blob(compiler),
     encode_text(source_identifier(
     entry,
     root,
     stdlib
-  )), source_map_blob(artifact), encode_u32(len(snapshots))]
+  )), source_map_blob(artifact), encode_u32(snapshots.len())]
   mut size: Nat = 0
-  mut valid: Bool = byte_buffer.length(compiler) > 0 && byte_buffer.length(compiler) <= 16777216 &&
-    byte_buffer.length(artifact) <= 16777216 && len(snapshots) <= 256
+  mut valid: Bool = compiler.length() > 0 && compiler.length() <= 16777216 &&
+    artifact.length() <= 16777216 && snapshots.len() <= 256
 
   for chunk in chunks {
-    size = size + byte_buffer.length(chunk)
+    size = size + chunk.length()
   }
   for snapshot in snapshots {
     mut items: [InventoryItem] = []
@@ -257,22 +254,22 @@ pub pure serialize_source_inventory(
         items = inventory_module(module)
       }
     }
-    chunks = chunks.append(encode_text(snapshot.name)).append(encode_text(snapshot.text)).append(encode_u32(len(items)))
-    size = size + 12 + byte_buffer.length(std_text.encode_utf8(snapshot.name)) + byte_buffer.length(std_text.encode_utf8(snapshot.text))
-    valid = valid && len(items) <= 100000
+    chunks = chunks.append(encode_text(snapshot.name)).append(encode_text(snapshot.text)).append(encode_u32(items.len()))
+    size = size + 12 + snapshot.name.encode_utf8().length() + snapshot.text.encode_utf8().length()
+    valid = valid && items.len() <= 100000
     for item in items {
       if valid && size <= 16777216 {
         chunk: Bytes = source_map_join([encode_text(item.id), encode_text(item.kind), encode_text(item.detail),
           source_map_position(item.span.start), source_map_position(item.span.end)], 0, 5)
         chunks = chunks.append(chunk)
-        size = size + byte_buffer.length(chunk)
+        size = size + chunk.length()
       } else {
         valid = false
       }
     }
   }
   if valid && size <= 16777216 {
-    source_map_join(chunks, 0, len(chunks))
+    source_map_join(chunks, 0, chunks.len())
   } else {
     byte_buffer.empty()
   }
@@ -287,13 +284,13 @@ pub record InventoryArguments {
 pub pure inventory_arguments(values: [Str], checking: Bool): InventoryArguments {
   mut roots: [Str] = []
   mut output: Str = ""
-  mut valid: Bool = len(values) >= 4
+  mut valid: Bool = values.len() >= 4
 
   if valid {
     roots = roots.append(values[1])
   }
   mut index: Nat = 2
-  while index + 1 < len(values) {
+  while index + 1 < values.len() {
     flag: Str = values[index]
     value: Str = values[index + 1]
     if flag == (if checking {
@@ -315,7 +312,7 @@ pub pure inventory_arguments(values: [Str], checking: Bool): InventoryArguments 
     valid = valid && path_support.suffix(root) == ".panack"
   }
   InventoryArguments(
-    valid && index == len(values) && output != "" && len(roots) <= 16,
+    valid && index == values.len() && output != "" && roots.len() <= 16,
     roots,
     output
   )
@@ -328,25 +325,25 @@ pub run_inventory_command(values: [Str], checking: Bool): Nat {
   args: InventoryArguments = inventory_arguments(values, checking)
 
   if !args.valid {
-    eprint("error: inventory usage: inventory SOURCE.panack -o FILE [--include SOURCE.panack] | inventory-check SOURCE.panack --inventory FILE [--include SOURCE.panack]")
+    std_host.stderr("error: inventory usage: inventory SOURCE.panack -o FILE [--include SOURCE.panack] | inventory-check SOURCE.panack --inventory FILE [--include SOURCE.panack]")
     1
   } else {
-    compiler_path: Str = std_option.value_or(std_environment.get("PANACKELTY_COMPILER_PATH"), "")
+    compiler_path: Str = std_environment.get("PANACKELTY_COMPILER_PATH").value_or("")
     match source_map_read(compiler_path, 16777216) {
       Error(error) => {
-        eprint("error: inventory compiler identity unavailable")
+        std_host.stderr("error: inventory compiler identity unavailable")
         1
       },
       Ok(compiler) => {
         // The running compiler was verified by the VM. This trusted identity
         // input is compared exactly, not decoded again in the hosted compiler.
-        mut valid: Bool = byte_buffer.length(compiler) > 0
+        mut valid: Bool = compiler.length() > 0
         mut projects: [LoadedProject] = []
         mut paths: Set[Str] = set()
-        mut chunks: [Bytes] = [std_text.encode_utf8("PANACKINVENTORY1\n"), encode_u32(len(args.roots))]
-        mut size: Nat = byte_buffer.length(chunks[0]) + 4
+        mut chunks: [Bytes] = ["PANACKINVENTORY1\n".encode_utf8(), encode_u32(args.roots.len())]
+        mut size: Nat = chunks[0].length() + 4
         root: Str = path_support.parent(path_support.resolve(args.roots[0]))
-        stdlib: Str = path_support.resolve(std_option.value_or(std_environment.get("PANACKELTY_STDLIB_PATH"), ""))
+        stdlib: Str = path_support.resolve(std_environment.get("PANACKELTY_STDLIB_PATH").value_or(""))
         output: Str = path_support.resolve(args.output)
         if !checking && !source_map_destination_available(output) {
           valid = false
@@ -376,8 +373,8 @@ pub run_inventory_command(values: [Str], checking: Bool): Nat {
                   root,
                   stdlib
                 )
-                size = size + 4 + byte_buffer.length(inventory)
-                valid = valid && byte_buffer.length(inventory) > 0 && size <= 16777216
+                size = size + 4 + inventory.length()
+                valid = valid && inventory.length() > 0 && size <= 16777216
                 if valid {
                   chunks = chunks.append(source_map_blob(inventory))
                 }
@@ -390,16 +387,16 @@ pub run_inventory_command(values: [Str], checking: Bool): Nat {
         }
         valid = valid && source_map_matches(compiler_path, compiler)
         if !valid {
-          eprint("error: inventory unavailable: invalid, changed, duplicate or excessive inputs, or existing output")
+          std_host.stderr("error: inventory unavailable: invalid, changed, duplicate or excessive inputs, or existing output")
           1
         } else {
-          expected: Bytes = source_map_join(chunks, 0, len(chunks))
+          expected: Bytes = source_map_join(chunks, 0, chunks.len())
           if checking {
             if source_map_matches(output, expected) {
               print("inventory: valid")
               0
             } else {
-              eprint("error: inventory unavailable: missing, malformed, stale or incompatible inventory")
+              std_host.stderr("error: inventory unavailable: missing, malformed, stale or incompatible inventory")
               1
             }
           } else {
@@ -410,7 +407,7 @@ pub run_inventory_command(values: [Str], checking: Bool): Nat {
               print("wrote inventory " + args.output)
               0
             } else {
-              eprint("error: could not write inventory; discard any partial output")
+              std_host.stderr("error: could not write inventory; discard any partial output")
               1
             }
           }

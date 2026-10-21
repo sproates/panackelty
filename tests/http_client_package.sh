@@ -137,7 +137,6 @@ cat > "$app/src/main.panack" <<SOURCE
 import http/client as http
 import http/client::{HttpError.ConnectFailure, HttpError.DnsFailure, HttpError.InvalidUrl, HttpError.LimitExceeded, HttpError.ProtocolError,
   HttpError.TlsFailure, HttpError.Timeout, HttpError.UnsupportedHost}
-import stdlib/text as text
 
 pure expect(value: Bool): Unit {
   checked = [0][if value { 0 } else { 1 }]
@@ -149,7 +148,7 @@ async main(): Unit {
   if selected == "ok" || selected == "installed" {
     result = await http.get("http://127.0.0.1:$http_port/ok")
     expect(match result {
-      Ok(response) => response.status == 200 && response.body == text.encode_utf8("ok") &&
+      Ok(response) => response.status == 200 && response.body == "ok".encode_utf8() &&
         response.headers.len() == 4 && response.headers[1].name == "X-Repeat" &&
         response.headers[1].value == "one" && response.headers[2].value == "two",
       Error(error) => false
@@ -161,13 +160,13 @@ async main(): Unit {
       Error(error) => false
     })
     expect(match result {
-      Ok(response) => response.body == text.encode_utf8("missing"),
+      Ok(response) => response.body == "missing".encode_utf8(),
       Error(error) => false
     })
   } else if selected == "chunked" {
     result = await http.get("http://127.0.0.1:$http_port/chunked")
     expect(match result {
-      Ok(response) => response.status == 200 && response.body == text.encode_utf8("hello") &&
+      Ok(response) => response.status == 200 && response.body == "hello".encode_utf8() &&
         response.headers[0].name == "Transfer-Encoding" && response.headers[1].value == "one" &&
         response.headers[2].value == "two",
       Error(error) => false
@@ -175,7 +174,7 @@ async main(): Unit {
   } else if selected == "close" {
     result = await http.get("http://127.0.0.1:$http_port/close")
     expect(match result {
-      Ok(response) => response.body == text.encode_utf8("close body"),
+      Ok(response) => response.body == "close body".encode_utf8(),
       Error(error) => false
     })
   } else if selected == "truncated" {
@@ -219,7 +218,7 @@ async main(): Unit {
   } else if selected == "tls-ok" {
     result = await http.get("https://localhost:$tls_port/ok")
     expect(match result {
-      Ok(response) => response.status == 200 && response.body == text.encode_utf8("ok"),
+      Ok(response) => response.status == 200 && response.body == "ok".encode_utf8(),
       Error(error) => false
     })
   } else if selected == "tls-wrong-host" {
@@ -250,7 +249,7 @@ async main(): Unit {
     })
     late = await http.get("http://127.0.0.1:$http_port/delay")
     expect(match late {
-      Ok(response) => response.status == 200 && response.body == text.encode_utf8("ok"),
+      Ok(response) => response.status == 200 && response.body == "ok".encode_utf8(),
       Error(error) => false
     })
   } else if selected == "dns-failure" {

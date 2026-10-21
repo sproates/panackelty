@@ -1,5 +1,7 @@
+pub import project/src/compiler/owned_intrinsics::{OwnedIntrinsic}
+import project/src/compiler/owned_intrinsics::{owned_intrinsic_declarations}
 pub import project/src/compiler/parser::{Program, ParsedModule, ImportSelector, ImportBindingSyntax, DeclarationSyntax, SourceSpan, SourcePos, Diagnostic, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, ImportBindingSyntax.NoImportBinding, ImportBindingSyntax.NamespaceImportBinding, ImportBindingSyntax.SelectiveImportBinding}
-import project/src/compiler/resolver::{is_builtin}
+import project/src/compiler/resolver::{source_builtin}
 
 // Collect declaration and import identities without lowering them to global names.
 // Source spelling, visibility and semantic identity remain separate.
@@ -30,11 +32,52 @@ pub enum ModuleDeclarationKind {
   ModuleVariant(Str)
 }
 
+// Core tags are the canonical SignatureCore family names, never rendered types.
+// Only this closed registry can introduce a built-in implementation owner.
+pub pure builtin_owner_arity(name: Str): Option[Nat] {
+  if name == "Array" || name == "Set" { Some(1) }
+  else if name == "Map" || name == "HttpServerState" || name == "HttpConnectionState" { Some(2) }
+  else if name == "Nat" || name == "Int" || name == "Dec" || name == "Rat" ||
+      name == "Bool" || name == "Unit" || name == "Str" || name == "Bytes" ||
+      name == "Path" || name == "Duration" || name == "Instant" || name == "HttpResponseState" { Some(0) }
+  else { None() }
+}
+
+pub pure builtin_owner_module(): ModuleIdentity {
+  ModuleIdentity(ToolchainModulePackage(), "core.panack")
+}
+
+pub enum MethodOwnerIdentity {
+  NominalMethodOwner(DeclarationIdentity),
+  BuiltinMethodOwner(Str)
+}
+
+pub pure method_owner_name(owner: MethodOwnerIdentity): Str {
+  match owner {
+    NominalMethodOwner(identity) => identity.name,
+    BuiltinMethodOwner(family) => family
+  }
+}
+
+pub pure method_owner_identity(module: ModuleIdentity, name: Str): MethodOwnerIdentity {
+  match builtin_owner_arity(name) {
+    None() => NominalMethodOwner(DeclarationIdentity(module, name)),
+    Some(arity) => BuiltinMethodOwner(name)
+  }
+}
+
+pub record OwnedMethodIdentity {
+  owner: MethodOwnerIdentity,
+  name: Str
+}
+
 pub record ModuleDeclarationBinding {
   identity: DeclarationIdentity,
   kind: ModuleDeclarationKind,
   is_public: Bool,
-  span: SourceSpan
+  span: SourceSpan,
+  method: Option[OwnedMethodIdentity],
+  intrinsic: Option[OwnedIntrinsic]
 }
 
 pub record ModuleImportBinding {
@@ -47,7 +90,8 @@ pub record ModuleImportBinding {
 pub record ModuleBindings {
   identity: ModuleIdentity,
   declarations: [ModuleDeclarationBinding],
-  imports: [ModuleImportBinding]
+  imports: [ModuleImportBinding],
+  methods: Map[Str, Map[Str, ModuleDeclarationBinding]]
 }
 
 pub record LoadedModule {
@@ -86,7 +130,11 @@ pure module_declaration_binding(
   kind: ModuleDeclarationKind,
   syntax: DeclarationSyntax
 ): ModuleDeclarationBinding {
-  ModuleDeclarationBinding(DeclarationIdentity(identity, name), kind, syntax.is_public, syntax.span)
+  method: Option[OwnedMethodIdentity] = match syntax.method {
+    None() => None(),
+    Some(value) => Some(OwnedMethodIdentity(method_owner_identity(identity, value.owner), value.name))
+  }
+  ModuleDeclarationBinding(DeclarationIdentity(identity, name), kind, syntax.is_public, syntax.span, method, None())
 }
 
 pub pure collect_module_bindings(identity: ModuleIdentity, parsed: ParsedModule): ModuleBindings {
@@ -98,55 +146,73 @@ pub pure collect_module_bindings(identity: ModuleIdentity, parsed: ParsedModule)
     syntax: DeclarationSyntax = parsed.syntax[index]
     match declaration {
       ImportDeclaration(path) => {
-        imports = append(
-          imports,
+        imports = imports.append(
           ModuleImportBinding(path, syntax.binding, syntax.is_public, syntax.span)
         )
       },
       TypeDeclaration(name, base, guard) => {
-        declarations = append(
-          declarations,
+        declarations = declarations.append(
           module_declaration_binding(identity, name, ModuleGuardedType(), syntax)
         )
       },
       RecordDeclaration(name, parameters, fields) => {
-        declarations = append(
-          declarations,
+        declarations = declarations.append(
           module_declaration_binding(identity, name, ModuleRecord(), syntax)
         )
       },
       EnumDeclaration(name, parameters, variants) => {
-        declarations = append(
-          declarations,
+        declarations = declarations.append(
           module_declaration_binding(identity, name, ModuleEnum(), syntax)
         )
         for variant in variants {
-          declarations = append(
-            declarations,
+          declarations = declarations.append(
             module_declaration_binding(identity, variant.name, ModuleVariant(name), syntax)
           )
         }
       },
       FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
-        declarations = append(
-          declarations,
+        declarations = declarations.append(
           module_declaration_binding(identity, name, ModuleFunction(), syntax)
         )
       }
     }
     index = index + 1
   }
-  ModuleBindings(identity, declarations, imports)
+  if identity == builtin_owner_module() {
+    position: SourcePos = SourcePos("<toolchain intrinsic>", 0, 1, 1)
+    for intrinsic in owned_intrinsic_declarations() {
+      declarations = declarations.append(ModuleDeclarationBinding(
+        DeclarationIdentity(identity, "$intrinsic$" + intrinsic.owner + "$" + intrinsic.name),
+        ModuleFunction(), true, SourceSpan(position, position),
+        Some(OwnedMethodIdentity(BuiltinMethodOwner(intrinsic.owner), intrinsic.name)),
+        Some(intrinsic.id)))
+    }
+  }
+  mut methods: Map[Str, Map[Str, ModuleDeclarationBinding]] = map()
+  for declaration in declarations {
+    match declaration.method {
+      None() => {},
+      Some(method) => {
+        mut owner_methods: Map[Str, ModuleDeclarationBinding] = if methods.has(method_owner_name(method.owner)) {
+          methods.get(method_owner_name(method.owner))
+        } else { map() }
+        owner_methods = owner_methods.put(method.name, declaration)
+        methods = methods.put(method_owner_name(method.owner), owner_methods)
+      }
+    }
+  }
+  ModuleBindings(identity, declarations, imports, methods)
 }
 
 pub pure module_reserved_binding(name: Str): Bool {
-  is_builtin(name) || name == "Nat" || name == "Int" || name == "Dec" ||
+  source_builtin(name) || name == "Nat" || name == "Int" || name == "Dec" ||
     name == "Rat" ||
     name == "Array" ||
     name == "Bool" ||
     name == "Str" ||
     name == "Bytes" ||
     name == "Unit" ||
+    name == "HttpServerState" || name == "HttpConnectionState" || name == "HttpResponseState" ||
     name == "Void" || name == "Path" || name == "Duration" || name == "Instant" ||
     name == "Option" || name == "Result" || name == "Map" || name == "Set" ||
     name == "PureFn" || name == "Fn" || name == "AsyncFn" ||
@@ -166,10 +232,12 @@ pub pure module_binding_diagnostics(bindings: ModuleBindings): [Diagnostic] {
   mut diagnostics: [Diagnostic] = []
 
   for declaration in bindings.declarations {
-    name: Str = declaration.identity.name
+    name: Str = match declaration.method {
+      None() => declaration.identity.name,
+      Some(method) => method_owner_name(method.owner) + "." + method.name
+    }
     if names.has(name) {
-      diagnostics = append(
-        diagnostics,
+      diagnostics = diagnostics.append(
         Diagnostic("module declaration ${name} is already bound", declaration.span.start)
       )
     } else {}
@@ -179,8 +247,7 @@ pub pure module_binding_diagnostics(bindings: ModuleBindings): [Diagnostic] {
     for selector in module_import_names(imported) {
       name: Str = selector.alias
       if names.has(name) {
-        diagnostics = append(
-          diagnostics,
+        diagnostics = diagnostics.append(
           Diagnostic(
           "import binding ${name} conflicts with an existing module binding",
           selector.span.start
@@ -188,8 +255,7 @@ pub pure module_binding_diagnostics(bindings: ModuleBindings): [Diagnostic] {
         )
       } else {
         if module_reserved_binding(name) {
-          diagnostics = append(
-            diagnostics,
+          diagnostics = diagnostics.append(
             Diagnostic("import binding ${name} conflicts with a built-in", selector.span.start)
           )
         } else {}
@@ -243,32 +309,32 @@ pub pure module_relative_path(path: Str, root: Str): Str {
   mut cursor: Nat = 0
   mut common: Nat = 0
 
-  while cursor < len(path) && cursor < len(root) && path[cursor] == root[cursor] {
+  while cursor < path.len() && cursor < root.len() && path[cursor] == root[cursor] {
     if path[cursor] == "/" {
       common = cursor + 1
     } else {}
     cursor = cursor + 1
   }
-  if cursor == len(root) && cursor < len(path) && path[cursor] == "/" {
-    slice(path, cursor + 1, len(path))
+  if cursor == root.len() && cursor < path.len() && path[cursor] == "/" {
+    path.slice(cursor + 1, path.len())
   } else {
     mut prefix: Str = ""
     mut index: Nat = common
-    while index < len(root) {
+    while index < root.len() {
       if root[index] == "/" {
         prefix = prefix + "../"
       } else {}
       index = index + 1
     }
-    if common < len(root) {
+    if common < root.len() {
       prefix = prefix + "../"
     } else {}
-    prefix + slice(path, common, len(path))
+    prefix + path.slice(common, path.len())
   }
 }
 
 pub pure source_module_identity(path: Str, project_root: Str, stdlib_root: Str): ModuleIdentity {
-  if starts_with_at(path, stdlib_root + "/", 0) {
+  if path.starts_with_at(stdlib_root + "/", 0) {
     ModuleIdentity(ToolchainModulePackage(), module_relative_path(path, stdlib_root))
   } else {
     ModuleIdentity(StandaloneModulePackage(), module_relative_path(path, project_root))
@@ -282,7 +348,7 @@ pub pure source_package_module_identity(
   package_name: Str,
   package_version: Str
 ): ModuleIdentity {
-  if starts_with_at(path, stdlib_root + "/", 0) {
+  if path.starts_with_at(stdlib_root + "/", 0) {
     ModuleIdentity(ToolchainModulePackage(), module_relative_path(path, stdlib_root))
   } else {
     ModuleIdentity(
@@ -296,7 +362,7 @@ pub pure module_programs(modules: [LoadedModule]): [Program] {
   mut programs: [Program] = []
 
   for module in modules {
-    programs = append(programs, module.execution_program)
+    programs = programs.append(module.execution_program)
   }
   programs
 }
@@ -309,8 +375,124 @@ pub pure module_declaration_positions(modules: [LoadedModule]): [SourcePos] {
 
   for module in modules {
     for syntax in module.parsed.syntax {
-      positions = append(positions, syntax.span.start)
+      positions = positions.append(syntax.span.start)
     }
   }
   positions
+}
+
+pub pure module_declaration_display(binding: ModuleDeclarationBinding): Str {
+  match binding.method {
+    None() => binding.identity.name,
+    Some(method) => method_owner_name(method.owner) + "." + method.name
+  }
+}
+
+// Closed grants for implementation calls inside designated toolchain declarations.
+// A matching source filename in an application never grants primitive access.
+pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool {
+  owner.module.package == ToolchainModulePackage() && (
+    (owner.module.path == "http_runtime.panack" && ((owner.name == "bytes_slice" && name == "http_bytes_slice") || (owner.name == "body" && name == "http_body") || (owner.name == "body_size" && name == "http_body_size") || (owner.name == "body_append" && name == "http_body_append") || (owner.name == "connection_continue" && name == "http_connection_continue"))) ||
+    (owner.module.path == "http_runtime.panack" && ((owner.name == "listen_ordinary" && name == "http_listen_ordinary") || (owner.name == "listen_contextual" && name == "http_listen_contextual") || (owner.name == "close" && name == "http_close") || (owner.name == "destroy" && name == "http_destroy"))) ||
+    (owner.module.path == "http_runtime.panack" && ((owner.name == "connection_writer" && name == "http_connection_writer") || (owner.name == "connection_routes" && name == "http_connection_routes") || (owner.name == "connection_fallback" && name == "http_connection_fallback") || (owner.name == "connection_admit" && name == "http_connection_admit") || (owner.name == "connection_invoke" && name == "http_connection_invoke"))) ||
+    (owner.module.path == "http_runtime.panack" && ((owner.name == "writer_get_status" && name == "http_writer_get_status") || (owner.name == "writer_get_headers" && name == "http_writer_get_headers") || (owner.name == "writer_reject" && name == "http_writer_reject") || (owner.name == "writer_status" && name == "http_writer_status") || (owner.name == "writer_headers" && name == "http_writer_headers") || (owner.name == "writer_commit" && name == "http_writer_commit"))) ||
+    (owner.module.path == "http_runtime.panack" && (
+      (owner.name == "create" && name == "http_state_create") ||
+      (owner.name == "context" && name == "http_state_context") ||
+      (owner.name == "setup_error" && name == "http_state_setup_error") ||
+      (owner.name == "invalid_route" && name == "http_state_fail_setup") ||
+      (owner.name == "register" && name == "http_state_register"))) ||
+    (owner.module.path == "async_host.panack" && owner.name == "arguments" && (name == "host_arguments_async")) ||
+    (owner.module.path == "async_host.panack" && owner.name == "stdout" && (name == "host_stdout_async")) ||
+    (owner.module.path == "async_host.panack" && owner.name == "stderr" && (name == "host_stderr_async")) ||
+    (owner.module.path == "async_host.panack" && owner.name == "exit" && (name == "host_exit_async")) ||
+    (owner.module.path == "time.panack" && owner.name == "from_nanoseconds" && (name == "duration_nanoseconds")) ||
+    (owner.module.path == "time.panack" && owner.name == "from_seconds" && (name == "duration_from_seconds")) ||
+    (owner.module.path == "time.panack" && owner.name == "now" && (name == "instant_now")) ||
+    (owner.module.path == "time.panack" && owner.name == "seconds" && (name == "duration_nanoseconds")) ||
+    (owner.module.path == "time.panack" && owner.name == "milliseconds" && (name == "duration_nanoseconds")) ||
+    (owner.module.path == "process.panack" && owner.name == "run" && (name == "process_run")) ||
+    (owner.module.path == "http_transport.panack" && owner.name == "exchange" && (name == "http_transport_exchange")) ||
+    (owner.module.path == "async_filesystem.panack" && owner.name == "read_beneath" && (name == "fs_read_beneath_async")) ||
+    (owner.module.path == "async_filesystem.panack" && owner.name == "root_identity" && (name == "fs_root_identity_async")) ||
+    (owner.module.path == "environment.panack" && owner.name == "get" && (name == "environment_get" || name == "environment_has")) ||
+    (owner.module.path == "testing_files.panack" && owner.name == "workspace_create" && (name == "fs_temp_directory")) ||
+    (owner.module.path == "testing_files.panack" && owner.name == "$owned$TestWorkspace$remove_empty" && (name == "fs_remove_directory")) ||
+    (owner.module.path == "testing_files.panack" && owner.name == "discover_fixtures" && (name == "fs_list" || name == "fs_metadata")) ||
+    (owner.module.path == "host.panack" && owner.name == "run" && (name == "run_bytecode_args")) ||
+    (owner.module.path == "host.panack" && owner.name == "arguments" && (name == "command_args")) ||
+    (owner.module.path == "host.panack" && owner.name == "exit" && (name == "process_exit")) ||
+    (owner.module.path == "host.panack" && owner.name == "stderr" && (name == "eprint")) ||
+    (owner.module.path == "host.panack" && owner.name == "sleep" && (name == "host_sleep")) ||
+    (owner.module.path == "host.panack" && owner.name == "decode_utf8" && (name == "host_decode_utf8")) ||
+    (owner.module.path == "tcp.panack" && owner.name == "exchange" && (name == "tcp_exchange")) ||
+    (owner.module.path == "tcp.panack" && owner.name == "serve" && (name == "tcp_serve")) ||
+    (owner.module.path == "tcp.panack" && owner.name == "serve_stream" && (name == "tcp_serve_stream")) ||
+    (owner.module.path == "tcp.panack" && owner.name == "read_chunk" && (name == "tcp_server_read_chunk")) ||
+    (owner.module.path == "path.panack" && owner.name == "from_text" && (name == "path_from_text")) ||
+    (owner.module.path == "path.panack" && owner.name == "from_native" && (name == "path_from_native")) ||
+    (owner.module.path == "path.panack" && owner.name == "current" && (name == "path_current")) ||
+    (owner.module.path == "testing_async.panack" && owner.name == "read" && (name == "async_fake_read")) ||
+    (owner.module.path == "filesystem.panack" && owner.name == "metadata" && (name == "fs_metadata")) ||
+    (owner.module.path == "filesystem.panack" && owner.name == "read" && (name == "fs_read")) ||
+    (owner.module.path == "filesystem.panack" && owner.name == "write" && (name == "fs_write")) ||
+    (owner.module.path == "filesystem.panack" && owner.name == "list_directory" && (name == "fs_list")) ||
+    (owner.module.path == "filesystem.panack" && owner.name == "remove_file" && (name == "fs_remove_file")) ||
+    (owner.module.path == "filesystem.panack" && owner.name == "remove_directory" && (name == "fs_remove_directory")) ||
+    (owner.module.path == "filesystem.panack" && owner.name == "create_directory" && (name == "fs_create_directory")) ||
+    (owner.module.path == "filesystem.panack" && owner.name == "temp_directory" && (name == "fs_temp_directory")) ||
+    (owner.module.path == "filesystem.panack" && owner.name == "temp_file" && (name == "fs_temp_file")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Path$join" && (name == "path_append")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Path$to_text" && (name == "path_to_text")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Path$native_bytes" && (name == "path_native_bytes")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Path$display" && (name == "path_display")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Path$is_absolute" && (name == "path_absolute")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Path$directory" && (name == "path_directory")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Path$filename" && (name == "path_filename")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Duration$add" && (name == "duration_nanoseconds")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Duration$subtract" && (name == "duration_nanoseconds")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Duration$scale" && (name == "duration_nanoseconds")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Duration$divide" && (name == "duration_from_seconds" || name == "duration_nanoseconds")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Duration$ratio" && (name == "duration_nanoseconds")) ||
+    (owner.module.path == "compiler_paths.panack" && owner.name == "join" && (name == "path_join")) ||
+    (owner.module.path == "compiler_paths.panack" && owner.name == "suffix" && (name == "path_suffix")) ||
+    (owner.module.path == "compiler_paths.panack" && owner.name == "parent" && (name == "path_parent")) ||
+    (owner.module.path == "compiler_paths.panack" && owner.name == "is_absolute" && (name == "path_is_absolute")) ||
+    (owner.module.path == "compiler_paths.panack" && owner.name == "with_suffix" && (name == "path_with_suffix")) ||
+    (owner.module.path == "compiler_paths.panack" && owner.name == "resolve" && (name == "path_resolve")) ||
+    (owner.module.path == "package_filesystem.panack" && owner.name == "directories_overlap" && (name == "fs_directories_overlap")) ||
+    (owner.module.path == "package_filesystem.panack" && owner.name == "read_beneath" && (name == "fs_read_beneath")) ||
+    (owner.module.path == "tcp_service.panack" && owner.name == "serve" && (name == "tcp_service")) ||
+    (owner.module.path == "compiler_files.panack" && owner.name == "read_text" && (name == "read_file")) ||
+    (owner.module.path == "compiler_files.panack" && owner.name == "exists" && (name == "file_exists")) ||
+    (owner.module.path == "compiler_files.panack" && owner.name == "read_file_bytes" && (name == "read_bytes")) ||
+    (owner.module.path == "compiler_files.panack" && owner.name == "write_file_bytes" && (name == "write_bytes"))
+  )
+}
+
+pub pure module_internal_primitive_name(identity: ModuleIdentity, name: Str): Bool {
+  identity.package == ToolchainModulePackage() && (
+    (identity.path == "http_runtime.panack" && (name == "http_bytes_slice" || name == "http_body" || name == "http_body_size" || name == "http_body_append" || name == "http_connection_continue")) ||
+    (identity.path == "http_runtime.panack" && (name == "http_listen_ordinary" || name == "http_listen_contextual" || name == "http_close" || name == "http_destroy")) ||
+    (identity.path == "http_runtime.panack" && (name == "http_connection_writer" || name == "http_connection_routes" || name == "http_connection_fallback" || name == "http_connection_admit" || name == "http_connection_invoke")) ||
+    (identity.path == "http_runtime.panack" && (name == "http_writer_get_status" || name == "http_writer_get_headers" || name == "http_writer_reject" || name == "http_writer_status" || name == "http_writer_headers" || name == "http_writer_commit")) ||
+    (identity.path == "http_runtime.panack" && (name == "http_state_create" || name == "http_state_context" || name == "http_state_setup_error" || name == "http_state_fail_setup" || name == "http_state_register")) ||
+    (identity.path == "async_host.panack" && (name == "host_arguments_async" || name == "host_exit_async" || name == "host_stderr_async" || name == "host_stdout_async")) ||
+    (identity.path == "time.panack" && (name == "duration_from_seconds" || name == "duration_nanoseconds" || name == "instant_now")) ||
+    (identity.path == "process.panack" && (name == "process_run")) ||
+    (identity.path == "http_transport.panack" && (name == "http_transport_exchange")) ||
+    (identity.path == "async_filesystem.panack" && (name == "fs_read_beneath_async" || name == "fs_root_identity_async")) ||
+    (identity.path == "environment.panack" && (name == "environment_get" || name == "environment_has")) ||
+    (identity.path == "testing_files.panack" && (name == "fs_list" || name == "fs_metadata" || name == "fs_remove_directory" || name == "fs_temp_directory")) ||
+    (identity.path == "host.panack" && (name == "command_args" || name == "eprint" || name == "host_decode_utf8" || name == "host_sleep" || name == "process_exit" || name == "run_bytecode_args")) ||
+    (identity.path == "tcp.panack" && (name == "tcp_exchange" || name == "tcp_serve" || name == "tcp_serve_stream" || name == "tcp_server_read_chunk")) ||
+    (identity.path == "path.panack" && (name == "path_current" || name == "path_from_native" || name == "path_from_text")) ||
+    (identity.path == "testing_async.panack" && (name == "async_fake_read")) ||
+    (identity.path == "filesystem.panack" && (name == "fs_create_directory" || name == "fs_list" || name == "fs_metadata" || name == "fs_read" || name == "fs_remove_directory" || name == "fs_remove_file" || name == "fs_temp_directory" || name == "fs_temp_file" || name == "fs_write")) ||
+    (identity.path == "core.panack" && (name == "duration_from_seconds" || name == "duration_nanoseconds" || name == "path_absolute" || name == "path_append" || name == "path_directory" || name == "path_display" || name == "path_filename" || name == "path_native_bytes" || name == "path_to_text")) ||
+    (identity.path == "compiler_paths.panack" && (name == "path_is_absolute" || name == "path_join" || name == "path_parent" || name == "path_resolve" || name == "path_suffix" || name == "path_with_suffix")) ||
+    (identity.path == "package_filesystem.panack" && (name == "fs_directories_overlap" || name == "fs_read_beneath")) ||
+    (identity.path == "tcp_service.panack" && (name == "tcp_service")) ||
+    (identity.path == "compiler_files.panack" && (name == "file_exists" || name == "read_bytes" || name == "read_file" || name == "write_bytes"))
+  )
 }

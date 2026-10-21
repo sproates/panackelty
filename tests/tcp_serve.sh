@@ -18,20 +18,21 @@ for mode in echo empty request-limit response-limit handler-error busy nested; d
     first=true
     second=true
     case "$mode" in
-        nested) handler='nested = await tcp_serve("127.0.0.1", 9000, @reply, TcpServerLimits(1, 1, 8, 8, 100, 100, 100)); Ok(request)' ;;
+        nested) handler='nested = await transport_tcp.serve("127.0.0.1", 9000, @reply, TcpServerLimits(1, 1, 8, 8, 100, 100, 100)); Ok(request)' ;;
         empty) request_limit=0; response_limit=0 ;;
-        busy) handler='if byte_len(request) > 0 { while true {} }; Ok(request)'; client_timeout=100; first=false ;;
+        busy) handler='if request.length() > 0 { while true {} }; Ok(request)'; client_timeout=100; first=false ;;
         request-limit) request_limit=0; second=false ;;
         response-limit) response_limit=0; second=false ;;
         handler-error) handler='Error("expected handler error")'; first=false; second=false ;;
     esac
     cat > "$work/main.panack" <<SOURCE
+import stdlib/tcp as transport_tcp
 import stdlib/tcp::{TcpServerLimits}
 pure expect(value: Bool): Unit { checked = [0][if value { 0 } else { 1 }]; () }
 async reply(request: Bytes): Result[Bytes,Str] { $handler }
 async main(): Unit {
   limits = TcpServerLimits(2, 2, $request_limit, $response_limit, $client_timeout, 10000, 3000)
-  result = await tcp_serve("127.0.0.1", $port, @reply, limits)
+  result = await transport_tcp.serve("127.0.0.1", $port, @reply, limits)
   match result {
     Ok(reports) => {
       expect(reports.len() == 2)
@@ -75,12 +76,13 @@ test ! -s "$work/stdout" && test ! -s "$work/stderr"
 for extension in panack bc; do
     port=$("$client" port)
     cat > "$work/stream.panack" <<SOURCE
+import stdlib/tcp as transport_tcp
 import stdlib/tcp::{TcpServerLimits}
 async receive(max_bytes: Nat): Result[Bytes,Str] {
-  await tcp_server_read_chunk(max_bytes)
+  await transport_tcp.read_chunk(max_bytes)
 }
 async main(): Unit {
-  result = await tcp_serve_stream(
+  result = await transport_tcp.serve_stream(
     "127.0.0.1",
     $port,
     @receive,
@@ -106,8 +108,9 @@ SOURCE
 done
 # The incremental read service is not available to ordinary async execution.
 cat > "$work/outside.panack" <<'SOURCE'
+import stdlib/tcp as transport_tcp
 async main(): Unit {
-  result = await tcp_server_read_chunk(64)
+  result = await transport_tcp.read_chunk(64)
   ()
 }
 SOURCE
@@ -117,12 +120,13 @@ fi
 grep -F 'TCP server read is unavailable in this execution' "$work/stderr" > /dev/null
 # Source checking ties the streaming worker parameter to its context value.
 cat > "$work/stream-mismatch.panack" <<'SOURCE'
+import stdlib/tcp as transport_tcp
 import stdlib/tcp::{TcpServerLimits}
 async receive(max_bytes: Bytes): Result[Bytes,Str] {
-  await tcp_server_read_chunk(64)
+  await transport_tcp.read_chunk(64)
 }
 async main(): Unit {
-  result = await tcp_serve_stream("127.0.0.1", 12345, @receive, 64,
+  result = await transport_tcp.serve_stream("127.0.0.1", 12345, @receive, 64,
     TcpServerLimits(1, 1, 256, 256, 3000, 10000, 1000))
   ()
 }
@@ -130,19 +134,19 @@ SOURCE
 if ./bin/panack check "$work/stream-mismatch.panack" > "$work/stdout" 2> "$work/stderr"; then
     echo 'mismatched streaming context unexpectedly passed' >&2; exit 1
 fi
-grep -F 'expected AsyncFn[Nat,Result[Bytes,Str]]' "$work/stderr" > /dev/null
+grep -F 'inference for serve_stream: incompatible types Bytes and Nat' "$work/stderr" > /dev/null
 # Source-level effect and handler typing failures, before any network operation.
 for mode in bare ordinary handler limits; do
-    call='await tcp_serve("127.0.0.1", 9000, @reply, TcpServerLimits(1, 1, 8, 8, 100, 100, 100))'
+    call='await transport_tcp.serve("127.0.0.1", 9000, @reply, TcpServerLimits(1, 1, 8, 8, 100, 100, 100))'
     main='async main(): Unit'
     handler='async reply(request: Bytes): Result[Bytes,Str] { Ok(request) }'
     case "$mode" in
-        bare) call='tcp_serve("127.0.0.1", 9000, @reply, TcpServerLimits(1, 1, 8, 8, 100, 100, 100))'; diagnostic='async call requires await' ;;
+        bare) call='transport_tcp.serve("127.0.0.1", 9000, @reply, TcpServerLimits(1, 1, 8, 8, 100, 100, 100))'; diagnostic='async call requires await' ;;
         ordinary) main='main(): Unit'; diagnostic='await requires an async function' ;;
         handler) handler='pure reply(request: Bytes): Result[Bytes,Str] { Ok(request) }'; diagnostic='AsyncFn' ;;
-        limits) call='await tcp_serve("127.0.0.1", 9000, @reply, 42)'; diagnostic='TcpServerLimits' ;;
+        limits) call='await transport_tcp.serve("127.0.0.1", 9000, @reply, 42)'; diagnostic='TcpServerLimits' ;;
     esac
-    printf 'import stdlib/tcp::{TcpServerLimits}\n%s\n%s { result = %s; () }\n' "$handler" "$main" "$call" > "$work/invalid.panack"
+    printf 'import stdlib/tcp as transport_tcp\nimport stdlib/tcp::{TcpServerLimits}\n%s\n%s { result = %s; () }\n' "$handler" "$main" "$call" > "$work/invalid.panack"
     if ./bin/panack check "$work/invalid.panack" > "$work/stdout" 2> "$work/stderr"; then
         echo "TCP server negative unexpectedly passed: $mode" >&2; exit 1
     fi

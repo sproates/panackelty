@@ -1,0 +1,30 @@
+import "server.panack" as routing
+
+pure get(server: routing.Server): Nat { 901 }
+pure put(server: routing.Server): Nat { 902 }
+
+make_server(): routing.Server {
+  print("receiver evaluated once")
+  routing.Server(30, map())
+}
+
+main(): Void {
+  first = routing.Server(10, map())
+  second = routing.Server(20, map())
+  first_updated = first.put("/fruit", 1)
+  second_updated = second.put("/fruit", 1)
+  print(first_updated.get("/fruit", 99))
+  print(second_updated.get("/fruit", 99))
+  print(first.get("/fruit", 5))
+  print(second.get("/fruit", 5))
+
+  initial: Map[Str, Nat] = map()
+  routes = initial.put("/fruit", 7)
+  changed = routes.put("/fruit", 9)
+  print(routes.get("/fruit"))
+  print(routes.get("/fruit"))
+  print(changed.get("/fruit"))
+  print(make_server().put("/fruit", 1).get("/fruit", 99))
+  print(get(first))
+  print(put(second))
+}

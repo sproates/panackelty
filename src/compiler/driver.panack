@@ -1,10 +1,6 @@
 import project/src/compiler/path_support as path_support
 import stdlib/environment as std_environment
-import stdlib/option as std_option
 import project/src/compiler/filesystem_support as filesystem_support
-import stdlib/bytes as byte_buffer
-import stdlib/path as std_path
-import stdlib/filesystem as std_filesystem
 import stdlib/host as std_host
 import project/src/compiler/explanations::{explanation_function_selector, render_function_explanations, render_expression_type_explanation}
 import project/src/compiler/coverage_session::{run_coverage_aggregate}
@@ -109,7 +105,7 @@ prepare_loaded_project(path: Str, loaded: LoadedProject): PreparedProject {
 }
 
 report_driver_error(message: Str): Nat {
-  eprint("error: ${message}")
+  std_host.stderr("error: ${message}")
   1
 }
 
@@ -118,7 +114,7 @@ pure driver_usage(): Str {
 }
 
 run_manifest_command(arguments: [Str]): Nat {
-  if len(arguments) < 3 {
+  if arguments.len() < 3 {
     report_driver_error("usage: check --project panack.json; compile --project panack.json [-o FILE]; run --project panack.json [arguments]")
   } else {
     command: Str = arguments[0]
@@ -130,20 +126,20 @@ run_manifest_command(arguments: [Str]): Nat {
       mut program_arguments: [Str] = []
       mut valid_options: Bool = true
       if command == "compile" {
-        if len(arguments) == 5 && arguments[3] == "-o" && arguments[4] != "" {
+        if arguments.len() == 5 && arguments[3] == "-o" && arguments[4] != "" {
           output = arguments[4]
         } else {
-          if len(arguments) != 3 {
+          if arguments.len() != 3 {
             valid_options = false
           }
         }
       } else {
         if command == "check" {
-          valid_options = len(arguments) == 3
+          valid_options = arguments.len() == 3
         } else {
           mut index: Nat = 3
-          while index < len(arguments) {
-            program_arguments = append(program_arguments, arguments[index])
+          while index < arguments.len() {
+            program_arguments = program_arguments.append(arguments[index])
             index = index + 1
           }
         }
@@ -158,12 +154,12 @@ run_manifest_command(arguments: [Str]): Nat {
 }
 
 pure without_final_newline(text: Str): Str {
-  end: Nat = len(text)
+  end: Nat = text.len()
 
   if end > 0 {
     last: Nat = end - 1
     if text[last] == "\n" {
-      slice(text, 0, last)
+      text.slice(0, last)
     } else {
       text
     }
@@ -184,7 +180,7 @@ run_source_command(command: Str, path: Str, output: Str, program_arguments: [Str
       0
     } else {
       if command == "compile" {
-        destination: Str = if len(output) > 0 {
+        destination: Str = if output.len() > 0 {
           output
         } else {
           path_support.with_suffix(path, ".bc")
@@ -273,7 +269,7 @@ run_manifest_source_command(
             0
           } else {
             if command == "compile" {
-              destination: Str = if len(output) > 0 {
+              destination: Str = if output.len() > 0 {
                 output
               } else {
                 path_support.with_suffix(entry, ".bc")
@@ -313,14 +309,14 @@ run_manifest_library_check(project: ManifestProject): Nat {
       )
       prepared: PreparedProject = prepare_manifest_project(project, exported, loaded)
       if !prepared.valid {
-        if len(failures) > 0 {
+        if failures.len() > 0 {
           failures = failures + "\n"
         }
         failures = failures + prepared.message
       }
     }
   }
-  if len(failures) == 0 {
+  if failures.len() == 0 {
     print("ok")
     0
   } else {
@@ -329,14 +325,14 @@ run_manifest_library_check(project: ManifestProject): Nat {
 }
 
 pure explanation_coordinate(text: Str): Option[Nat] {
-  mut valid: Bool = len(text) > 0 && len(text) <= 10
-  for index in 0..len(text) {
+  mut valid: Bool = text.len() > 0 && text.len() <= 10
+  for index in 0..text.len() {
     if text[index] < "0" || text[index] > "9" {
       valid = false
     }
   }
   if valid {
-    value: Nat = nat_from_str(text)
+    value: Nat = text.parse_nat()
     if value > 0 && value <= 4294967295 {
       Some(value)
     } else {
@@ -349,8 +345,8 @@ pure explanation_coordinate(text: Str): Option[Nat] {
 
 run_explain_command(values: [Str]): Nat {
   usage: Str = "explain usage: explain SOURCE.panack --function NAME [--type-at LINE COLUMN]"
-  has_type_position: Bool = len(values) == 7
-  if len(values) != 4 && !has_type_position {
+  has_type_position: Bool = values.len() == 7
+  if values.len() != 4 && !has_type_position {
     report_driver_error(usage)
   } else {
     if path_support.suffix(values[1]) != ".panack" || values[2] != "--function" || values[3] == "" ||
@@ -385,7 +381,7 @@ run_explain_command(values: [Str]): Nat {
           stdlib_root
         )
         match selected {
-          Error(message) => if starts_with_at(message, "unknown function selector ", 0) {
+          Error(message) => if message.starts_with_at("unknown function selector ", 0) {
             report_driver_error("explain: unknown function " + source_map_escape(values[3]))
           } else {
             report_driver_error("explain: " + message)
@@ -393,7 +389,7 @@ run_explain_command(values: [Str]): Nat {
           Ok(function) => {
             prepared: PreparedProject = prepare_loaded_project(entry, loaded)
             diagnostics: [Diagnostic] = tooling_diagnostics(loaded)
-            valid: Bool = prepared.valid && len(diagnostics) == 0
+            valid: Bool = prepared.valid && diagnostics.len() == 0
             mut report: Str = render_function_explanations(
               loaded,
               function,
@@ -415,7 +411,7 @@ run_explain_command(values: [Str]): Nat {
             if valid {
               0
             } else {
-              if len(diagnostics) > 0 {
+              if diagnostics.len() > 0 {
                 report_driver_error(diagnostic_messages(diagnostics, loaded.sources))
               } else {
                 report_driver_error(prepared.message)
@@ -471,15 +467,15 @@ pub record SourceMapArguments {
 }
 
 pub pure source_map_instruction(text: Str): Option[Nat] {
-  mut valid: Bool = len(text) > 0 && len(text) <= 10
+  mut valid: Bool = text.len() > 0 && text.len() <= 10
 
-  for index in 0..len(text) {
+  for index in 0..text.len() {
     if text[index] < "0" || text[index] > "9" {
       valid = false
     }
   }
   if valid {
-    value: Nat = nat_from_str(text)
+    value: Nat = text.parse_nat()
     if value <= 4294967295 {
       Some(value)
     } else {
@@ -496,7 +492,7 @@ pub pure source_map_arguments(values: [Str], locating: Bool): SourceMapArguments
   mut sidecar: Str = ""
   mut function_name: Str = ""
   mut instruction: Option[Nat] = None()
-  mut valid: Bool = len(values) >= 2
+  mut valid: Bool = values.len() >= 2
 
   if valid {
     if locating {
@@ -506,8 +502,8 @@ pub pure source_map_arguments(values: [Str], locating: Bool): SourceMapArguments
     }
   }
   mut index: Nat = 2
-  while index < len(values) && valid {
-    if index + 1 >= len(values) {
+  while index < values.len() && valid {
+    if index + 1 >= values.len() {
       valid = false
     } else {
       option: Str = values[index]
@@ -594,11 +590,11 @@ run_source_map_command(values: [Str], locating: Bool): Nat {
         }
       } else {
         root: Str = driver_project_root(entry)
-        stdlib_root: Str = path_support.resolve(std_option.value_or(std_environment.get("PANACKELTY_STDLIB_PATH"), ""))
+        stdlib_root: Str = path_support.resolve(std_environment.get("PANACKELTY_STDLIB_PATH").value_or(""))
         mapped: SourceMappedProgram = compile_program_with_sources(prepared.program)
         artifact: Bytes = serialize_bytecode(mapped.bytecode)
         sidecar: Bytes = serialize_source_map(loaded, mapped, artifact, entry, root, stdlib_root)
-        valid: Bool = byte_buffer.length(sidecar) > 0 &&
+        valid: Bool = sidecar.length() > 0 &&
           validate_bytecode(artifact) == "ok" &&
           source_snapshots_unchanged(loaded)
         if locating {
@@ -610,7 +606,7 @@ run_source_map_command(values: [Str], locating: Bool): Nat {
             stdlib_root
           )
           match selected {
-            Error(message) => if starts_with_at(message, "unknown function selector ", 0) {
+            Error(message) => if message.starts_with_at("unknown function selector ", 0) {
               print("source-map: unavailable")
               0
             } else {
@@ -670,20 +666,20 @@ run_source_map_command(values: [Str], locating: Bool): Nat {
 run_compiler_command(arguments: [Str]): Nat {
   mut values: [Str] = arguments
 
-  if len(values) > 0 && values[0] == "--" {
+  if values.len() > 0 && values[0] == "--" {
     mut trimmed: [Str] = []
     mut cursor: Nat = 1
-    while cursor < len(values) {
-      trimmed = append(trimmed, values[cursor])
+    while cursor < values.len() {
+      trimmed = trimmed.append(values[cursor])
       cursor = cursor + 1
     }
     values = trimmed
   } else {}
-  if len(values) == 0 || values[0] == "--help" {
+  if values.len() == 0 || values[0] == "--help" {
     print(driver_usage())
     0
   } else {
-    if len(values) > 1 && values[1] == "--project" {
+    if values.len() > 1 && values[1] == "--project" {
       run_manifest_command(values)
     } else {
     if values[0] == "coverage-report" || values[0] == "coverage-aggregate" {
@@ -714,7 +710,7 @@ run_compiler_command(arguments: [Str]): Nat {
                 command = "run"
                 file_index = 0
               } else {}
-              if file_index >= len(values) {
+              if file_index >= values.len() {
                 report_driver_error("missing input file")
               } else {
                 path: Str = values[file_index]
@@ -722,12 +718,12 @@ run_compiler_command(arguments: [Str]): Nat {
                 mut output: Str = ""
                 mut program_arguments: [Str] = []
                 mut argument_index: Nat = file_index + 1
-                while argument_index < len(values) {
-                  program_arguments = append(program_arguments, values[argument_index])
+                while argument_index < values.len() {
+                  program_arguments = program_arguments.append(values[argument_index])
                   argument_index = argument_index + 1
                 }
                 if command == "compile" &&
-                  file_index + 2 < len(values) &&
+                  file_index + 2 < values.len() &&
                   values[file_index + 1] == "-o" {
                   output = values[file_index + 2]
                 } else {}

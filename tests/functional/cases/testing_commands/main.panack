@@ -1,25 +1,23 @@
 import stdlib/testing_commands as std_testing_commands
-import stdlib/text as std_text
 import stdlib/testing as std_testing
-import stdlib/result as std_result
 import stdlib/testing_commands::{TestCommand, ProcessOutput}
 import stdlib/testing::{TestResult}
 import stdlib/time as std_time
 import stdlib/path as std_path
 import stdlib/bytes as byte_buffer
 pure path(text: Str): Path {
-  std_result.value_or(std_path.from_text(text), std_path.current())
+  std_path.from_text(text).value_or(std_path.current())
 }
 
 main(): Void {
   shell = path("/bin/sh")
   missing = path("/does-not-exist")
   command = TestCommand(shell, ["-c", "cat; printf err >&2; exit 7"],
-    std_text.encode_utf8("input"), std_path.current(), [], std_time.seconds(3), 100)
+    "input".encode_utf8(), std_path.current(), [], std_time.seconds(3), 100)
   absent = TestCommand(missing, [], byte_buffer.empty(), std_path.current(), [], std_time.seconds(3), 100)
   limited = TestCommand(shell, ["-c", "printf too-long"], byte_buffer.empty(),
     std_path.current(), [], std_time.seconds(3), 1)
-  expected = ProcessOutput(7, 0, std_text.encode_utf8("input"), std_text.encode_utf8("err"))
+  expected = ProcessOutput(7, 0, "input".encode_utf8(), "err".encode_utf8())
   results: [TestResult] = [
     std_testing_commands.run_command("nonzero exit and streams", command, expected),
     std_testing_commands.expect_command_error("missing executable", absent, "launch_failed"),

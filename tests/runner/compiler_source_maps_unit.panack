@@ -1,6 +1,4 @@
 import project/src/compiler/path_support as path_support
-import stdlib/text as std_text
-import stdlib/option as std_option
 import stdlib/testing as std_testing
 import project/src/compiler/driver::{source_map_instruction, source_map_arguments}
 import project/src/compiler/source_maps::{source_relative_path, source_identifier, source_snapshots_unchanged, source_map_location, source_map_join, source_snapshots, serialize_source_map}
@@ -8,7 +6,6 @@ import project/src/compiler/loader::{LoadedProject, load_project_for_source_map,
 import project/src/compiler/emitter::{SourceMappedProgram, compile_program_with_sources, compile_program}
 import project/src/bytecode/codec::{serialize_bytecode}
 import stdlib/bytes as byte_buffer
-import stdlib/path as std_path
 import stdlib/environment as std_environment
 import stdlib/host as std_host
 import stdlib/testing::{TestResult}
@@ -40,31 +37,31 @@ main(): Void {
   for file in ["tests/experiments/source_mapping/fixtures/local.panack", "tests/experiments/source_mapping/fixtures/generic.panack", "tests/fixtures/compiler_contracts/instruction_sources/main.panack"] {
     entry: Str = path_support.resolve(file)
     root: Str = path_support.parent(entry)
-    stdlib: Str = path_support.resolve(std_option.value_or(std_environment.get("PANACKELTY_STDLIB_PATH"), ""))
+    stdlib: Str = path_support.resolve(std_environment.get("PANACKELTY_STDLIB_PATH").value_or(""))
     project: LoadedProject = load_project_for_source_map(entry)
     mapped: SourceMappedProgram = compile_program_with_sources(project.program)
     artifact: Bytes = serialize_bytecode(mapped.bytecode)
     sidecar: Bytes = serialize_source_map(project, mapped, artifact, entry, root, stdlib)
     results = results.append(std_testing.expect(
       "map bounded loader diagnostics/" + file,
-      len(project.diagnostics) == 0 || project.identity_ready,
+      project.diagnostics.len() == 0 || project.identity_ready,
       "failed to load a project with identity-checked bodies"
     ))
     results = results.append(std_testing.expect("map bounded source snapshot/" + file, source_snapshots_unchanged(project), "source closure changed after loading"))
     results = results.append(std_testing.expect("map ordinary byte identity/" + file, artifact == serialize_bytecode(compile_program(project.program)), "mapping changed execution"))
-    results = results.append(std_testing.expect("map deterministic serialization/" + file, byte_buffer.length(sidecar) > 0 && sidecar == serialize_source_map(project, mapped, artifact, entry, root, stdlib), "serialization differs"))
-    results = results.append(std_testing.expect("map entire loaded closure/" + file, len(source_snapshots(project, root, stdlib)) == len(project.source_paths) && len(project.source_paths) >= 2, "source closure lost core/entry"))
+    results = results.append(std_testing.expect("map deterministic serialization/" + file, sidecar.length() > 0 && sidecar == serialize_source_map(project, mapped, artifact, entry, root, stdlib), "serialization differs"))
+    results = results.append(std_testing.expect("map entire loaded closure/" + file, source_snapshots(project, root, stdlib).len() == project.source_paths.len() && project.source_paths.len() >= 2, "source closure lost core/entry"))
     results = results.append(std_testing.equal_str("map missing function/" + file, source_map_location(project, mapped, "unknown", "unknown", 0, root, stdlib), "source-map: unavailable"))
     results = results.append(std_testing.equal_str("map invalid PC/" + file, source_map_location(project, mapped, "main", "main", 4294967295, root, stdlib), "source-map: unavailable"))
     if file.ends_with("generic.panack") {
-      results = results.append(std_testing.equal_str("map Unicode codepoint coordinates", source_map_location(project, mapped, "pick_generic", "pick_generic", 2, root, stdlib), "source-map: expression\nfunction: pick_generic\ninstruction: 2\nfile: project/generic.panack\nrange: 134..146\nstart: 3:3\nend: 3:15\nexpression: items[index]"))
+      results = results.append(std_testing.equal_str("map Unicode codepoint coordinates", source_map_location(project, mapped, "$module1_pick_generic", "pick_generic", 2, root, stdlib), "source-map: expression\nfunction: pick_generic\ninstruction: 2\nfile: project/generic.panack\nrange: 134..146\nstart: 3:3\nend: 3:15\nexpression: items[index]"))
     }
   }
   results = results.append(std_testing.expect("map balanced empty chunks", source_map_join([], 0, 0) == byte_buffer.empty(), "empty join differs"))
-  results = results.append(std_testing.expect("map balanced odd chunks", source_map_join([std_text.encode_utf8("a"), std_text.encode_utf8("bc"), std_text.encode_utf8("d")], 0, 3) == std_text.encode_utf8("abcd"), "join changed byte order"))
+  results = results.append(std_testing.expect("map balanced odd chunks", source_map_join(["a".encode_utf8(), "bc".encode_utf8(), "d".encode_utf8()], 0, 3) == "abcd".encode_utf8(), "join changed byte order"))
   mut paths: [Str] = []
   for index in 0..256 { paths = paths.append("fixture"); }
-  sources: Map[Str,Str] = map_put(map(), "fixture", "")
+  sources: Map[Str,Str] = map().put("fixture", "")
   match read_project_source("does-not-exist.panack", true, paths, sources) {
     Ok(text) => { results = results.append(std_testing.expect("map file count bound", false, "accepted oversized closure")); },
     Error(error) => { results = results.append(std_testing.equal_str("map file count bound", error, "source-map source closure limit exceeded")); }
@@ -73,7 +70,7 @@ main(): Void {
   for index in 0..20 { large = large + large; }
   // Closure checking rejects excessive total bytes before opening another file.
   match read_project_source("does-not-exist.panack", true,
-      ["fixture", "fixture", "fixture", "fixture", "fixture", "fixture", "fixture", "fixture", "fixture"], map_put(map(), "fixture", large)) {
+      ["fixture", "fixture", "fixture", "fixture", "fixture", "fixture", "fixture", "fixture", "fixture"], map().put("fixture", large)) {
     Ok(text) => { results = results.append(std_testing.expect("map total source bound", false, "accepted oversized closure")); },
     Error(error) => { results = results.append(std_testing.equal_str("map total source bound", error, "source-map source closure limit exceeded")); }
   }

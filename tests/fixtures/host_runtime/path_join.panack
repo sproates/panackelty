@@ -1,4 +1,5 @@
+import stdlib/compiler_paths as paths
 main(): Void {
-  print(path_join("project/src", "../tests"))
-  print(path_join("/project/src", "../tests"))
+  print(paths.join("project/src", "../tests"))
+  print(paths.join("/project/src", "../tests"))
 }

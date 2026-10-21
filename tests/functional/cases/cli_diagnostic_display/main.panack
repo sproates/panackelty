@@ -1,7 +1,5 @@
 import stdlib/process as std_process
-import stdlib/text as std_text
 import stdlib/testing as std_testing
-import stdlib/result as std_result
 import stdlib/testing::{TestResult}
 import stdlib/testing_files as std_testing_files
 import stdlib/testing_commands::{ProcessOutput}
@@ -12,23 +10,23 @@ import stdlib/testing_commands as std_testing_commands
 import stdlib/bytes as byte_buffer
 import stdlib/host as std_host
 pure path(text: Str): Path {
-  std_result.value_or(std_path.from_text(text), std_path.current())
+  std_path.from_text(text).value_or(std_path.current())
 }
 
 pure child(root: Path, name: Str): Path {
-  std_result.value_or(std_path.join(root, path(name)), root)
+  root.join(path(name)).value_or(root)
 }
 
 check_diagnostic(name: Str, source: Path, content: Str, expected: Str): TestResult {
-  match std_filesystem.write(source, std_text.encode_utf8(content)) {
+  match std_filesystem.write(source, content.encode_utf8()) {
     Error(error) => std_testing.expect(name, false, "fixture write failed"),
     Ok(written) => {
-      source_text = std_result.value_or(std_path.to_text(source), "invalid-source")
+      source_text = source.to_text().value_or("invalid-source")
       match std_process.run(path("./bin/panack"), ["check", source_text], byte_buffer.empty(), std_path.current(), [],
           std_time.seconds(10), 1048576) {
         Error(error) => std_testing.expect(name, false, "process failed"),
         Ok(output) => std_testing_commands.command_output(name, output,
-          ProcessOutput(1, 0, byte_buffer.empty(), std_text.encode_utf8(expected)))
+          ProcessOutput(1, 0, byte_buffer.empty(), expected.encode_utf8()))
       }
     }
   }
@@ -36,19 +34,19 @@ check_diagnostic(name: Str, source: Path, content: Str, expected: Str): TestResu
 
 check_namespace_execution(source: Path, artifact: Path, content: Str, operation: Str): TestResult {
   name: Str = "namespace execution/" + operation
-  source_text: Str = std_result.value_or(std_path.to_text(source), "invalid-source")
-  artifact_text: Str = std_result.value_or(std_path.to_text(artifact), "invalid-artifact")
+  source_text: Str = source.to_text().value_or("invalid-source")
+  artifact_text: Str = artifact.to_text().value_or("invalid-artifact")
   arguments: [Str] = if operation == "check" {
     ["check", source_text]
   } else {
     if operation == "compile" { ["compile", source_text, "-o", artifact_text] } else { ["run", source_text] }
   }
   expected: Bytes = if operation == "compile" {
-    std_text.encode_utf8("wrote ${artifact_text}\n")
+    "wrote ${artifact_text}\n".encode_utf8()
   } else {
-    if operation == "run" { std_text.encode_utf8("41\n") } else { std_text.encode_utf8("ok\n") }
+    if operation == "run" { "41\n".encode_utf8() } else { "ok\n".encode_utf8() }
   }
-  match std_filesystem.write(source, std_text.encode_utf8(content)) {
+  match std_filesystem.write(source, content.encode_utf8()) {
     Error(error) => std_testing.expect(name, false, "fixture write failed"),
     Ok(written) => {
       match std_process.run(path("./bin/panack"), arguments, byte_buffer.empty(), std_path.current(), [], std_time.seconds(10), 1048576) {
@@ -64,7 +62,7 @@ main(): Void {
     Error(error) => { print("workspace creation failed"); std_host.exit(1) },
     Ok(workspace) => {
       source = child(workspace.root, "main.panack")
-      source_text = std_result.value_or(std_path.to_text(source), "invalid-source")
+      source_text = source.to_text().value_or("invalid-source")
       mut results: [TestResult] = []
       unicode_expected = "error: ${source_text}:2:13: unexpected character #\n" +
         "  2 |     print(\"\\u{3bb}\") #\n    |                      ^\n"
@@ -75,31 +73,31 @@ main(): Void {
       results = results.append(check_diagnostic("EOF closing brace", source,
         "main(): Void {", eof_expected))
       dependency: Path = child(workspace.root, "api.panack")
-      match std_filesystem.write(dependency, std_text.encode_utf8("pub pure get(): Nat { 41 }\n")) {
-        Error(error) => { results = append(results, std_testing.expect("namespace fixture", false, "write failed")) },
+      match std_filesystem.write(dependency, "pub pure get(): Nat { 41 }\n".encode_utf8()) {
+        Error(error) => { results = results.append(std_testing.expect("namespace fixture", false, "write failed")) },
         Ok(written) => {}
       }
       content: Str = "import \"api.panack\" as api\nmain(): Void { print(api.get()) }"
       artifact: Path = child(workspace.root, "main.bc")
       for operation in ["check", "compile", "run"] {
-        results = append(results, check_namespace_execution(source, artifact, content, operation))
+        results = results.append(check_namespace_execution(source, artifact, content, operation))
       }
-      artifact_text: Str = std_result.value_or(std_path.to_text(artifact), "invalid-artifact")
+      artifact_text: Str = artifact.to_text().value_or("invalid-artifact")
       match std_process.run(path("./bin/panack"), ["run", artifact_text], byte_buffer.empty(), std_path.current(), [], std_time.seconds(10), 1048576) {
-        Error(error) => { results = append(results, std_testing.expect("namespace saved bytecode", false, "process failed")) },
-        Ok(output) => { results = append(results, std_testing_commands.command_output("namespace saved bytecode", output, ProcessOutput(0, 0, std_text.encode_utf8("41\n"), byte_buffer.empty()))) }
+        Error(error) => { results = results.append(std_testing.expect("namespace saved bytecode", false, "process failed")) },
+        Ok(output) => { results = results.append(std_testing_commands.command_output("namespace saved bytecode", output, ProcessOutput(0, 0, "41\n".encode_utf8(), byte_buffer.empty()))) }
       }
-      match std_filesystem.remove_file(artifact) { Ok(removed) => {}, Error(error) => { results = append(results, std_testing.expect("artifact cleanup", false, error.code)) } }
+      match std_filesystem.remove_file(artifact) { Ok(removed) => {}, Error(error) => { results = results.append(std_testing.expect("artifact cleanup", false, error.code)) } }
       match std_filesystem.remove_file(dependency) {
         Ok(removed) => {},
-        Error(error) => { results = append(results, std_testing.expect("dependency cleanup", false, "file removal failed")) }
+        Error(error) => { results = results.append(std_testing.expect("dependency cleanup", false, "file removal failed")) }
       }
       match std_filesystem.remove_file(source) {
         Ok(removed) => {},
         Error(error) => { results = results.append(std_testing.expect("source cleanup", false,
           "file removal failed")) }
       }
-      match std_testing_files.workspace_remove_empty(workspace) {
+      match workspace.remove_empty() {
         Ok(removed2) => {},
         Error(error) => { results = results.append(std_testing.expect("workspace cleanup", false,
           "directory removal failed")) }

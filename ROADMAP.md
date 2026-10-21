@@ -1,14 +1,14 @@
 # Roadmap
 
-Panackelty **0.1.0-alpha.13 is published**. See the [release notes](CHANGELOG.md)
-and [acceptance evidence](docs/releases/ALPHA13_RELEASE_ACCEPTANCE.md).
+Panackelty **0.1.0-alpha.14 is published**. See the [release notes](CHANGELOG.md)
+and [acceptance evidence](docs/releases/ALPHA14_RELEASE_ACCEPTANCE.md).
 
-## Next: alpha.14
+## Next: alpha.15
 
 Alpha.14 delivers type-owned methods and dot notation (GI#525), the routed HTTP
 server framework (GI#518), and the HTTP reference and runnable examples slice of
-GI#552. Implementation is complete; release validation and publication are in
-progress. Remaining foundation work belongs to alpha.15 under the agreed rebalance.
+GI#552. Alpha.15 takes forward the remaining foundation work under the agreed
+release rebalance, including the GI#106 test-speed milestone.
 
 - [Release plans](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md)
 - [All roadmap records](docs/roadmap/README.md)
@@ -16,12 +16,13 @@ progress. Remaining foundation work belongs to alpha.15 under the agreed rebalan
 
 ## Planned direction: alpha.14 through alpha.19
 
-Owner-approved release rebalance, 20 October 2026. All remain unreleased; see the
+Owner-approved release rebalance, 20 October 2026. Alpha.14 is released; alpha.15
+through alpha.19 remain planned. See the
 [scope and boundaries](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#agreed-release-direction--20-october-2026).
 
 - **alpha.14:** completed type-owned methods and HTTP framework, finished with
   the HTTP API reference and runnable examples slice of GI#552. Colours (GI#555)
-  are optional, not a release gate.
+  were not included.
 - **alpha.15:** remaining foundation work: package-management design, compiler
   understanding, validated domain types, inference/stdlib assessments, faster
   coverage, selected friction/performance work, and the GI#106 test-speed milestone.

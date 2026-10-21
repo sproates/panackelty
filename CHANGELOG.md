@@ -100,7 +100,7 @@ in `docs/releases/RELEASE_POLICY.md`.
   on every invocation. Focused `next` checks retain separate full integration and
   release validation. Historical timing-warning values are not release gates.
 
-## 0.1.0-alpha.12
+## 0.1.0-alpha.12 — 2026-10-11
 
 ### Features and fixes
 

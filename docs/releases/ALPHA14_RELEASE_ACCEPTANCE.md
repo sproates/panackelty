@@ -1,49 +1,78 @@
 # Alpha.14 release acceptance
 
-Status: candidate preparation in progress. Publication and public-archive
-verification are still pending. The website must publish after the native release.
+Native and browser releases are published and verified on 21 October 2026.
+Website publication is verified. The installer-default update takes effect when
+this follow-up merges after its Linux and macOS acceptance checks.
 
-## Selected scope
+## Delivered scope
 
-- Type-owned method dispatch and dot notation: GI#525, P01–P15 accepted on `next`.
-- Routed HTTP server framework: GI#518, P01–P15 accepted on `next`.
-- HTTP documentation slice of GI#552: Server and Client references, runnable
-  examples, request/response handling, configuration, lifecycle and static serving.
-  The wider standard-library reference remains separate work.
-- Example inventory preflight and the validation repairs already integrated on `next`.
+- GI#525: type-owned methods and dot notation, with P01–P15 accepted.
+- GI#518: the routed HTTP server framework, with P01–P15 accepted.
+- The HTTP slice of GI#552: Server and Client references, the playbook,
+  complete examples, request/response transcripts, configuration, lifecycle
+  and static serving. The wider standard-library reference remains open.
 
-Coloured diagnostics are not a release gate. Remaining compiler-understanding,
-package-management design, provenance and validation-speed work follows the
-agreed release-scope rebalance; it is not silently included in alpha.14.
+Coloured diagnostics were not included. Remaining foundation work, including
+GI#106's validation-speed milestone, belongs to alpha.15 under the agreed
+release rebalance.
 
-## Release sequence
+## Native publication
 
-1. Complete the HTTP documentation and version preparation on `next`.
-2. Pass required validation and promote the reviewed source to `main` through a PR.
-3. Run the Release workflow for the exact main commit and version `0.1.0-alpha.14`.
-4. Verify both public native archives, checksums and provenance against the
-   retained CI artifacts and supported-platform smoke results.
-5. Promote installer/download guidance and the website's reviewed release pins.
-   Publish the HTTP documentation only after the native release is verified.
-6. Verify deployed website bytes, release links and examples, then record final
-   acceptance here.
+[Release 0.1.0-alpha.14](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.14)
+uses core commit `3432513b979f1fe1bc57d2bb70ccaa9a62649fd6`.
+[Release run 39531324593](https://github.com/sproates/panackelty/actions/runs/39531324593)
+passed complete validation, both platform package checks and publication.
+All eight public assets match their retained CI artifacts and GitHub digests;
+native provenance records identify the release commit. The public macOS archive
+also passed local release smoke, including installed source and bytecode examples.
+Linux public bytes are identical to the archive executed successfully in CI.
 
-## Evidence so far
+| Artifact | SHA-256 |
+| --- | --- |
+| Linux x86-64 archive | `20dfee7a88aa99475f25a6a2396a3c5666c4eabb439e8dc78603bcb52afc1aac` |
+| macOS arm64 archive | `267fba1b67bcc084e7acb91d01376746da092f814fd5e10141996ef809041964` |
+| Browser runtime dependency bundle | `f427fb6c3cbdead8504621ff3ba766d3d37c15f45baf757302762c347c894120` |
 
-Website CI PR #52 merged independently of the alpha.14 content. Main run
-39520213084 reused its successful PR candidate, skipped duplicate assembly,
-release-integrity and browser jobs, and passed publication. The website still
-serves alpha.13. PR #51 remains the separate alpha.14 documentation/publication PR.
+Core PR #560 promoted the release source. PR #561 completed the portable runtime
+bundle and synchronised installed HTTP smoke checks with the server's readiness
+message. The earlier publication run was cancelled before publishing assets.
+A deliberately delayed six-second startup passed the corrected smoke test;
+the HTTP connection timeout and protocol assertions were unchanged.
 
-The HTTP client documentation example was executed locally with both `get` and
-`get_with_limits`, against the ordinary HTTP server example. Both returned
-status 200 and the expected body. These checks used the current native compiler;
-public alpha.14 package verification remains pending.
+Final local validation of those repairs passed in 518 seconds. Release validation
+on Linux took 1,533 seconds. Historical timing budgets remain comparisons, not
+release gates; these measurements do not complete GI#106 or imply owner acceptance
+of validation speed. Runtime behaviour and performance were unchanged by the
+packaging and test-synchronisation repairs.
 
-Full local `make check` passed in 519 seconds, including bootstrap fixed-point
-verification and release smoke tests. The historical timing budget produced a
-warning, not a test failure. Documentation checks passed. Website examples passed
-in source and saved-bytecode form against the alpha.14 compiler.
+## Browser publication
 
-Promotion, release IDs and public asset checksums will be recorded once each
-step completes. No publication is claimed here.
+[Browser v0.2.1](https://github.com/sproates/panackelty-browser/releases/tag/v0.2.1)
+uses the same released core commit. Browser PR #13 merged at
+`92a55e2e96807eae2e8102c3497c5c0136e3d2ff`.
+[Run 39535980282](https://github.com/sproates/panackelty-browser/actions/runs/39535980282)
+passed deterministic build, runtime and Chromium/Firefox/WebKit checks before
+publishing. Public archive bytes match the retained CI artifact and SHA-256
+`2ae810a0d31875581e82a57bfc380db6f79dbc3a1d424ef8aa6bebbd03dcfd06`.
+Asset identity is `af1d63da51c3df514a733a0e4aca20b7bab917b40db9bd220fe836f7ee172a3f`.
+Local verification also passed all 23 runtime and 27 browser tests.
+HTTP networking remains unavailable in this browser profile.
+
+## Website and installer follow-up
+
+Website PR #51 published the verified releases, HTTP documentation and agreed
+alpha.15–19 direction. It makes alpha.14 current and moves alpha.13 into Previous
+releases. Core and website HTTP Markdown match. Publication followed native and
+browser verification. Website commit `4331330b1a43728a71ad5c708242d69d8d4950c6`
+passed deployed-byte verification in run 39537834581. Live browser checks
+confirmed alpha.14 on the homepage and alpha.13 under Previous releases.
+
+Website CI PR #52 already proved reuse of a green PR artifact on main in run
+39520213084. Alpha.14 publication run 39537834581 reused validation run
+39537462276, skipping duplicate assembly, release-integrity and browser jobs.
+Final local website checks passed all 43 tests and nine cross-browser navigation
+checks. Hosted release-integrity and full browser integration passed.
+
+The installer-default follow-up selects alpha.14 only after public verification.
+Its local full check passed in 521 seconds. Public macOS installer acceptance
+passed installation, the documented example, rollback and uninstall. The follow-up PR requires hosted Linux/macOS installer acceptance before merge.

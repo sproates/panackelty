@@ -1,6 +1,6 @@
 # Contextual routed HTTP server
 
-This alpha.14 development example shares one typed `AppContext` between named
+This alpha.14 example shares one typed `AppContext` between named
 handlers. No closure capture or untyped configuration is needed.
 
 It requires the matching Panackelty `0.1.0-alpha.13` development toolchain and

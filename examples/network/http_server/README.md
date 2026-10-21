@@ -1,6 +1,6 @@
 # Routed HTTP server
 
-This alpha.14 development example serves GET `/` and echoes POST `/echo` using
+This alpha.14 example serves GET `/` and echoes POST `/echo` using
 named async handlers and response writers.
 
 It requires the matching Panackelty `0.1.0-alpha.13` development toolchain and

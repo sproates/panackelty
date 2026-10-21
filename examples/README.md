@@ -68,8 +68,8 @@ The other programs focus on individual language features:
 
 ## Type-owned methods (alpha.14)
 
-These examples require the unreleased `next` toolchain; published alpha.13 does
-not support these `impl` declarations. Build from source before running them.
+Use the alpha.14 compiler, VM and standard library to run these examples.
+Earlier releases do not support these `impl` declarations.
 
 | Program | Demonstrates |
 | --- | --- |
@@ -105,7 +105,7 @@ use the corresponding `main.panack` path for the other examples.
 ## Networking
 
 See the [network examples guide](network/README.md) for TCP exchanges and finite
-HTTP applications, including ordinary and contextual routed servers on the alpha.14 development branch. For serving a directory, use the [static HTTP server](../tools/http-server/README.md).
+HTTP applications, including ordinary and contextual routed servers in alpha.14. For serving a directory, use the [static HTTP server](../tools/http-server/README.md).
 The one-client HTTP example is a regression fixture, not a long-running application template.
 
 ## Adding an example

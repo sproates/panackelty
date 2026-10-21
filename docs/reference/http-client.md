@@ -63,11 +63,12 @@ record ClientLimits {
 }
 ```
 
-| Field | Unit | Default used by get | Maximum |
-| --- | --- | --- | --- |
-| `timeout_ms` | Milliseconds | 10000 | 60000 |
-| `header_limit` | Bytes | 65536 | 65536 |
-| `body_limit` | Bytes | 1048576 | 1048576 |
+- `timeout_ms`: Timeout in milliseconds. The default is 10000 (10 seconds),
+  and the maximum is 60000 (60 seconds).
+- `header_limit`: Maximum response header size in bytes. The default and maximum
+  are both 65536 (64 KiB).
+- `body_limit`: Maximum response body size in bytes. The default and maximum
+  are both 1048576 (1 MiB).
 
 ## Response and Header
 
@@ -136,24 +137,22 @@ use an extracted release package.
 The shared `HttpError` enum is available through `http/client` and `http/types`.
 Its string payloads explain the failure; don't depend on their exact wording.
 
-| Variant | Meaning |
-| --- | --- |
-| `InvalidUrl(Str)` | The URL is malformed or uses an unsupported form. |
-| `InvalidLimits` | A supplied limit is zero or exceeds the supported maximum. |
-| `UnsupportedHost` | The hostname or address isn't supported, including IPv6. |
-| `DnsFailure` | The hostname couldn't be resolved. |
-| `ConnectFailure` | A connection couldn't be established. |
-| `TlsFailure` | TLS negotiation or certificate verification failed. |
-| `Timeout` | The operation exceeded its deadline. |
-| `ProtocolError(Str)` | The response is malformed, incomplete or ambiguously framed. |
-| `LimitExceeded(Str)` | A response exceeded a size limit. |
-| `UnsupportedVersion(Str)` | The HTTP version isn't supported. |
-| `UnsupportedTransferEncoding` | The response uses an unsupported transfer encoding. |
-| `InvalidResponse` | The response couldn't be represented as a valid result. |
-| `TransportFailure(Str)` | Another transport failure occurred. |
-| `Cancelled` | Shared enum variant; the GET facade doesn't expose a cancellation method. |
-| `UnsupportedMethod(Str)` | Shared protocol variant; the GET facade doesn't accept a method argument. |
-| `InvalidRequest` | Shared protocol variant; the GET facade constructs the request itself. |
+- `InvalidUrl(Str)`: The URL is malformed or uses an unsupported form.
+- `InvalidLimits`: A supplied limit is zero or exceeds the supported maximum.
+- `UnsupportedHost`: The hostname or address isn't supported, including IPv6.
+- `DnsFailure`: The hostname couldn't be resolved.
+- `ConnectFailure`: A connection couldn't be established.
+- `TlsFailure`: TLS negotiation or certificate verification failed.
+- `Timeout`: The operation exceeded its deadline.
+- `ProtocolError(Str)`: The response is malformed, incomplete or ambiguously framed.
+- `LimitExceeded(Str)`: A response exceeded a size limit.
+- `UnsupportedVersion(Str)`: The HTTP version isn't supported.
+- `UnsupportedTransferEncoding`: The response uses an unsupported transfer encoding.
+- `InvalidResponse`: The response couldn't be represented as a valid result.
+- `TransportFailure(Str)`: Another transport failure occurred.
+- `Cancelled`: Shared enum variant; the GET facade doesn't expose a cancellation method.
+- `UnsupportedMethod(Str)`: Shared protocol variant; the GET facade doesn't accept a method argument.
+- `InvalidRequest`: Shared protocol variant; the GET facade constructs the request itself.
 
 Import variants explicitly when matching a particular failure, for example
 `import http/client::{HttpError.Timeout}`. Handle other failures too. Task

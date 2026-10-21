@@ -3,11 +3,27 @@ set -eu
 work=$(mktemp -d tests/http-package.XXXXXX)
 server_pid=
 cleanup() {
+    status=$?
+    if [ "$status" -ne 0 ]; then
+        echo "HTTP package check failed (status $status)" >&2
+        for log in stdout stderr; do
+            if [ -f "$work/$log" ]; then
+                echo "Server $log:" >&2
+                tail -80 "$work/$log" >&2
+            fi
+        done
+    fi
     if [ -n "$server_pid" ]; then kill -KILL "$server_pid" 2>/dev/null || :; wait "$server_pid" 2>/dev/null || :; fi
     rm -rf "$work"
 }
 trap cleanup EXIT HUP INT TERM
 http_client=${PANACK_HTTP_CLIENT:?}
+check_http() {
+    "$http_client" "$@" || {
+        echo "HTTP peer check failed: $*" >&2
+        return 1
+    }
+}
 mkdir -p "$work/app/src"
 version=$(sed -n '1p' VERSION)
 cat > "$work/app/panack.json" <<MANIFEST
@@ -35,12 +51,14 @@ for mode in source bytecode; do
         ./panack-vm run "$work/routed.bc" "$port" > "$work/stdout" 2> "$work/stderr" &
     fi
     server_pid=$!
-    "$http_client" "$port" routed
-    "$http_client" "$port" routed-capacity
+    check_http "$port" routed
     if [ "$mode" = bytecode ]; then
-        "$http_client" "$port" routed-limits
-        "$http_client" "$port" routed-deadline
+        check_http "$port" routed-limits
+        check_http "$port" routed-deadline
     fi
+    # Capacity deliberately fills every connection slot. Run it last so the
+    # next contract cannot race the server draining those closed test peers.
+    check_http "$port" routed-capacity
     kill -TERM "$server_pid"
     wait "$server_pid"
     server_pid=
@@ -80,7 +98,7 @@ for example in ordinary contextual; do
             ./bin/panack run "$work/example.bc" > "$work/stdout" 2> "$work/stderr" &
         fi
         server_pid=$!
-        "$http_client" "$port" "example-$example"
+        check_http "$port" "example-$example"
         kill -TERM "$server_pid"
         wait "$server_pid"
         server_pid=
@@ -189,7 +207,7 @@ for operation in close destroy escalate; do
     while [ "$control" = "$port" ]; do control=$("$http_client" port); done
     ./bin/panack run "$work/shutdown.bc" "$port" "$control" > "$work/stdout" 2> "$work/stderr" &
     server_pid=$!
-    "$http_client" "$port" "$operation" "$control"
+    check_http "$port" "$operation" "$control"
     kill -TERM "$server_pid"
     wait "$server_pid"
     server_pid=

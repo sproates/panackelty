@@ -238,7 +238,10 @@ static int routed_limits(const char *port)
             if (!result) result = response_contains(fd, "200 OK", expected, 0);
         } else if (!result) result = response_contains(fd, "413 Content Too Large", "Content Too Large", 0);
         close(fd);
-        if (result) return -1;
+        if (result) {
+            fprintf(stderr, "HTTP body limit exchange failed at %zu bytes: %s\n", length, strerror(errno));
+            return -1;
+        }
     }
     for (size_t length = 16383; length <= 16385; length++) {
         const char *prefix = "GET /hello HTTP/1.1\r\nHost: local\r\nX-Large: ";
@@ -251,7 +254,10 @@ static int routed_limits(const char *port)
         int result = exchange(port, head, length <= 16384 ? "200 OK" : "431 Request Header Fields Too Large",
                               length <= 16384 ? "hello" : "Request Header Fields Too Large", 0);
         free(head);
-        if (result) return -1;
+        if (result) {
+            fprintf(stderr, "HTTP header limit exchange failed at %zu bytes: %s\n", length, strerror(errno));
+            return -1;
+        }
     }
     return 0;
 }

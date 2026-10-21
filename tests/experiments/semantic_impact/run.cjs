@@ -17,6 +17,14 @@ function run(command, args, status = 0) {
 function evidence(file) {
   const result = run('./panack-vm', ['run', probe, file]);
   const rows = result.text.trim().split('\n').map(line => line.split('\t'));
+  // Counterfactual snapshots have different filenames. Compare the same local
+  // declaration across snapshots, retaining identities from other modules.
+  const localPrefix = path.basename(file) + ':';
+  for (const row of rows) {
+    if (row[0] === 'effect' && row[4].startsWith(localPrefix)) {
+      row[4] = row[4].slice(localPrefix.length);
+    }
+  }
   return {...result, rows, sub: rows.filter(r => r[0] === 'sub'), effects: rows.filter(r => r[0] === 'effect')};
 }
 function one(rows, name) {
@@ -42,7 +50,7 @@ function weakenedGuard(record, oldGuard, newLower) {
   return newLower >= Number(record[7]) ? 'proved' : 'unproved';
 }
 function widenedCall(record) {
-  if (record[2] !== 'call' || record[5] !== 'function declaration' ||
+  if (record[2] !== 'call' || record[5] !== 'checked declaration identity' ||
       record[6] !== 'pure' || record[7] !== 'false' || record[8] !== '0') return 'unknown';
   if (record[3] === 'pure') return 'rejected';
   if (record[3] === 'ordinary') return 'allowed';

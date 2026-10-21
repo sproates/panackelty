@@ -4,11 +4,56 @@
 
 ## Release plans and decisions
 
-**Current status (16 October 2026): alpha.12 and alpha.13 are released.**
-Alpha.14 is the next planned release; its scope is recorded below under RM#152,
-RM#154 and RM#155. The alpha.12/13 planning text below is retained to explain
-original decisions, not to assert that their release gates are still pending.
-See [alpha.13 acceptance](../../releases/ALPHA13_RELEASE_ACCEPTANCE.md).
+**Current status (21 October 2026): alpha.14 is released.**
+Alpha.15 is the next planned release. The allocation table below supersedes
+older release assignments in the retained decision history. Earlier planning
+text explains the original decisions, rather than reopening completed gates.
+See [alpha.14 acceptance](../../releases/ALPHA14_RELEASE_ACCEPTANCE.md).
+
+## Agreed release direction — 20 October 2026
+
+The owner rebalanced the releases on 20 October 2026: alpha.14 delivers completed
+methods/HTTP work with a bounded documentation finish; incomplete alpha.14 work
+moves to alpha.15, and the previous alpha.15–alpha.18 themes move to alpha.16–alpha.19.
+The GI#106 validation-speed milestone stays in alpha.15 as an explicit exception.
+No dates are set. This allocation supersedes earlier version assignments below
+and in historical issue discussions; existing scope boundaries still apply.
+Implementation and release publication remain separate decisions.
+
+| Release | General scope | Boundaries |
+| --- | --- | --- |
+| alpha.14: methods and HTTP | Released: GI#525 type-owned methods/dot notation, GI#518 routed HTTP framework, and the HTTP reference and runnable examples slice of [GI#552](https://github.com/sproates/panackelty/issues/552). | Release validation passed and native artifacts are published. [GI#555](https://github.com/sproates/panackelty/issues/555) coloured diagnostics was not included. The wider GI#552 standard-library reference remains separate. |
+| alpha.15: strengthen the foundations | Remaining compiler understanding GI#180 (GI#173 provenance and GI#134 explanations); GI#435 validated domain types; GI#170 inference assessment; GI#409 compiler-facing stdlib assessment; GI#200 package-management design; RM#154 faster coverage, RM#155 selected friction improvements, RM#157 performance review/quick wins; GI#106 validation-speed milestone. | All previously agreed bounded outcomes remain. Package management is a design outcome, not an assumed implementation. Test-speed acceptance stays here rather than moving with the old alpha.15 theme. |
+| alpha.16: build useful programs | GI#166 typed HTTP exchanges, GI#167 recursive file discovery, GI#168 subprocess examples, GI#169 tiny build tool, GI#138 tested guides coordinated with GI#310. | Prove installed success/failure workflows; no general RPC framework or production build system. Full GI#552 API-reference completion and GI#553 load profiling were only proposed for old alpha.15; their corresponding candidate slot is now alpha.16, not an automatic commitment. |
+| alpha.17: improve everyday development | GI#139 one-editor support, GI#136 source-aware runtime errors, GI#147 Homebrew installation. | No full language server/debugger commitment. GI#555's proposed fallback slot moves here if not selected for alpha.14. |
+| alpha.18: interactive and connected applications | GI#165 browser event handlers; GI#142 bounded service/library contract testing. | Contract design follows concrete use cases; no general DOM/UI framework. Docker toolchain images (GI#146) and Linux ARM64 releases (GI#145) remain optional. |
+| alpha.19: improve language ergonomics | GI#274 error propagation and further GI#435 guard families, subject to design/evidence. | Beyond alpha.15's strings, collection sizes and cross-field records. Targeted inference and remaining stdlib discoverability may support the release; they are not automatic gates. |
+
+### Alpha.14 finishing scope
+
+The HTTP slice of GI#552 must provide browsable reference pages for server types,
+constructors and every public method, request/response types and callback/lifecycle
+contracts, with signatures, errors, limits and version applicability. Include the
+HTTP client/types reference and complete runnable examples for ordinary/contextual
+servers, routing, request access, responses, errors, shutdown and static integration.
+Cross-link reference entries and repository examples; execute examples against the
+matching toolchain and verify site links and presentation. A reader must be able
+to find and use the API without opening implementation source.
+
+This finishes the HTTP slice, not the entire stdlib reference initiative.
+Alpha.14 API documentation now applies to the published release. Methods and HTTP delivery evidence
+remain in their existing acceptance records; no completed work is reopened.
+
+For alpha.15, retain each selected workstream's acceptance, including implemented
+validation-speed improvements and owner acceptance. For alpha.16, require runnable
+service/developer-tool examples and checked guides. For alpha.17, require usable
+editing, installation and source-aware failures. Alpha.18/19 designs remain bounded
+by their existing records. Do not silently shift an optional candidate into a gate.
+
+The homepage, roadmap and maintenance guidance must use the same release mapping.
+The methods article still promises exactly methods and HTTP in alpha.14; add a dated
+completion note while retaining its historical migration explanation. The owner subsequently authorised alpha.14 publication; the acceptance record
+tracks the native, browser and website promotion evidence.
 
 ## Historical alpha.12 plan — 2026-10-06
 
@@ -66,7 +111,7 @@ or completion of the first non-alpha milestone.
 | Native HTTP server | P6 / RM#111 / [GI#237](https://github.com/sproates/panackelty/issues/237), implementation complete on `next` through PR #467; GI#237 closed; P8 release acceptance complete in alpha.13 | Typed handlers/responses, framing/limits, disconnect/shutdown/concurrency tests and independent interoperability; server TLS remains outside the initial contract |
 | Panackelty-written local website preview server | [GI#162](https://github.com/sproates/panackelty/issues/162), generic package and tool merged into `next` in PR #498 after prerequisites #495–#497; website adoption is [website PR #42](https://github.com/sproates/panackelty-website/pull/42). All 81 assembled files match and 33 desktop/phone browser checks pass; owner inspected the local preview positively. Website PR #42 merged as `18b4cd5` after owner approval; its post-merge checks passed | Serve the built site over loopback with correct HTML/JavaScript/Wasm MIME types; support GET/HEAD, directory indexes, missing files, clear startup and port-conflict errors, clean shutdown, and reject traversal/symlink escapes. Exercise assembled-site browser tests against it and document launch/rebuild/stop |
 | Expanded checker explanations | U3 / RM#48 / [GI#134](https://github.com/sproates/panackelty/issues/134): Alpha.13 outcome accepted complete by owner on 2026-10-15; implementation slices through PR #492 are on `next`; GI#134 remains open with its broader complete-decision target moved to Alpha.14 | Alpha.13's selected explanation outcome is complete. Remaining issue scope continues in Alpha.14; no further GI#134 implementation is required for Alpha.13 |
-| Developer build and validation workflow — Alpha.13 gate accepted | RM#28 / [GI#106](https://github.com/sproates/panackelty/issues/106). On 2026-10-15, the user accepted the current workflow for Alpha.13 and said no further work is needed unless raised again. | **Accepted by the user.** GI#106 remains open as a broader tracker; do not resume it unless the user explicitly raises it. Former timing values are historical, not current gates. |
+| Developer build and validation workflow — Alpha.13 gate accepted | RM#28 / [GI#106](https://github.com/sproates/panackelty/issues/106). On 2026-10-15, the user accepted the current workflow for Alpha.13 and said no further work is needed unless raised again. | **Accepted by the user.** GI#106 remains open as a broader tracker; the owner explicitly reopened validation-speed work on 2026-10-20 for the alpha.15 milestone below. The alpha.13 acceptance remains valid. Former timing values are historical, not current gates. |
 
 Owner decision, 2026-10-15: GI#200 package management has been moved out of
 Alpha.13 and into Alpha.14. It is no longer an Alpha.13 release outcome or a
@@ -85,6 +130,59 @@ relocated language/local-package checks remain final P8 acceptance evidence; no
 intermediate release or promotion is required before HTTP.
 Do not fold packages/HTTP into alpha.12's three gates. The planned alpha.13 HTTP
 scope does not complete reproducible dependencies or the whole GI#233 programme.
+
+<a id="alpha15-validation-speed"></a>
+
+### Alpha.15: faster validation without weakening tests
+
+**RM#28 / GI#106: Planned release milestone; implementation not started.** On
+20 October 2026 the owner requested a concrete upcoming-release outcome because
+validation takes too long, while explicitly wanting to harden and expand tests.
+Alpha.15 carries this bounded milestone. This reopens the work after alpha.13's
+accepted outcome; it does not reopen that release or replace the separate coverage-speed work now also allocated to alpha.15.
+
+The delivery must improve the time from an edit to trustworthy feedback, rather
+than only producing another timing report. The implementation owner will:
+
+- Establish a repeatable baseline for representative compiler, stdlib, runtime
+  and package edits: first failing test, focused green rerun, warm full validation,
+  clean full validation and hosted PR feedback. Separate compilation, fixture
+  setup, assertion execution, queueing and repeated work; record cache state,
+  host/resources, revisions, repetitions and variability.
+- Identify and remove measured avoidable costs, evaluating dependency-correct
+  build/probe reuse, fixture setup, bounded parallel execution and duplicate
+  validation. Cached build artifacts must invalidate correctly; cached passing
+  test outcomes are not evidence that assertions ran.
+- Define and demonstrate a documented focused red/green workflow with deliberate
+  representative faults. Show that dependency changes select the necessary
+  tests and that restored code passes; changes spanning components and unknown
+  impact must retain a full-validation fallback.
+- Preserve existing assertions and required safety, failure, compiler/bootstrap,
+  package and release coverage. Add meaningful regression tests for changed
+  validation machinery and identified gaps. No speedup may depend on deleting
+  difficult cases, weakening checks, reducing test scope or increasing timeouts.
+  Any change to validation cadence requires an explicit coverage/risk map and
+  owner agreement; it cannot silently move necessary checks out of PR acceptance.
+- Demonstrate materially faster representative local and hosted feedback with
+  comparable before/after measurements. Report all measured paths, including
+  unchanged or slower ones, and explain how adding tests affects the critical
+  path. Use the baseline to propose concrete latency targets for owner agreement;
+  neither historical timings nor an arbitrary new target establish success.
+
+Acceptance requires implemented improvements, executed regression evidence,
+replayable before/after results and the owner's explicit acceptance of the
+resulting workflow. A report alone does not complete the milestone. Keep GI#106
+open until its owner acceptance is recorded; distinguish this release outcome
+from other work still tracked by the broad issue. The delivery maintainer owns
+measurement and implementation, with unresolved costs and next actions recorded
+under [RM#123](standing-performance-engineering--ongoing.md#rm-123).
+
+Scope is the developer build/test and CI feedback cycle. Application throughput,
+HTTP load testing (GI#553), a testing-framework rewrite and numerical release
+performance claims are separate. Effort is provisionally medium to large;
+profile first and select bounded changes rather than promising a scheduler or
+build architecture before evidence. No implementation begins through this
+planning update.
 
 For GI#106, inspect which builds and tests run during local red/green work,
 focused and full checks, pull requests, post-merge pushes and releases; what each
@@ -123,11 +221,14 @@ SP1 baseline remains 90/100 earned, with P7's 10% deferred to alpha.14.
 Installer/default and website promotion remain separate; their public-artifact
 prerequisite is satisfied. No alpha.14 implementation is included.
 
-### Alpha 14 — compiler understanding and correctness
+### Compiler understanding and correctness: now alpha.15
 
 <a id="rm-151"></a>
 
-**RM#151: Alpha.14 — compiler understanding and correctness focus.**
+**RM#151: Compiler understanding and correctness focus (alpha.15).**
+
+The 20 October release rebalance moves the incomplete outcomes below to alpha.15.
+The dated alpha.14 selections are retained as history, not current allocation.
 
 Owner direction, 2026-10-13: Alpha.14 should include some work on compiler
 understanding and correctness, Panackelty's strongest novel area. On 2026-10-14
@@ -137,7 +238,10 @@ owner has now moved two bounded outcomes from Alpha.13 into this release:
 [RM#91: Compilation provenance](current-status-and-grooming-2026-10-01.md#rm-91) / [GI#173](https://github.com/sproates/panackelty/issues/173),
 and [RM#153: Expand guarded types beyond numeric bounds](language-direction-and-differentiation--exploration.md#rm-153) /
 [GI#435](https://github.com/sproates/panackelty/issues/435), initially scoped
-to a non-empty string guard. GI#173 is one selected workstream within GI#180;
+to a non-empty string guard and broadened on 2026-10-20 to string constraints,
+non-empty/bounded collections and cross-field record invariants, with static
+proof and explicit runtime validation. The updated [RM#153 scope](language-direction-and-differentiation--exploration.md#rm-153)
+is authoritative; broader families remain for later selection. GI#173 is one selected workstream within GI#180;
 on 2026-10-15, the owner also moved the remaining broad completion scope of
 [RM#48: Compiler explanations](groomed-development-and-engineering-work.md#rm-48) / [GI#134](https://github.com/sproates/panackelty/issues/134)
 to Alpha.14; its selected Alpha.13 outcome is complete, while GI#134 remains
@@ -160,14 +264,18 @@ implementation. Alpha.13's plan and gates remain separate. On 2026-10-15, the
 owner also required faster code coverage in Alpha.14;
 [RM#154: Incremental coverage collection](#rm-154) records that outcome. The
 owner also selected [RM#155: Authoring-friction improvements](#rm-155) for
-Alpha.14: address prioritised items from recorded development experience.
+Alpha.14: address prioritised items from recorded development experience. On
+2026-10-16, the owner also selected [RM#156: Routed HTTP server API](#rm-156) /
+[GI#518](https://github.com/sproates/panackelty/issues/518) for Alpha.14.
+The owner also selected [RM#157: Performance](#rm-157), with particular
+attention to HTTP server performance and source coverage instrumentation time.
 
 <a id="rm-152"></a>
 
 **RM#152: Assess the compiler-facing standard-library boundary** ·
 [GI#409: Assess the compiler-facing standard-library boundary](https://github.com/sproates/panackelty/issues/409).
 
-For Alpha.14, document the compiler's direct and transitive standard-library
+For Alpha.15, document the compiler's direct and transitive standard-library
 dependencies and distinguish source dependencies, compiler-seed/bootstrap
 rebuilds, VM/runtime ABI coupling, and package versioning. Recommend whether an
 explicit compiler-facing library boundary would help app-facing standard-library
@@ -177,7 +285,9 @@ reorganization requires a later scope decision based on the findings.
 
 <a id="rm-154"></a>
 
-**RM#154: Incremental coverage collection — Alpha.14 requirement.**
+**RM#154: Incremental coverage collection: alpha.15 requirement.**
+
+Current allocation: alpha.15 after the 20 October rebalance.
 
 **Planned for Alpha.14 by owner direction, 2026-10-15.** Improve code-coverage
 collection speed, particularly repeated release checks after changes that do not
@@ -214,13 +324,15 @@ addition, and it does not add a new gate to the ongoing Alpha.13 release.
 
 <a id="rm-155"></a>
 
-**RM#155: Authoring-friction improvements — Alpha.14.**
+**RM#155: Review the friction log and implement selected improvements: alpha.15.**
 
-**Planned by owner direction, 2026-10-15.** Address selected items from the
-recorded authoring-friction log during Alpha.14. Review the evidence, identify
-recurring or costly obstacles, and prioritise a bounded set of improvements to
-language/compiler behaviour, diagnostics, API discoverability, documentation,
-examples or development tooling as appropriate. Distinguish confirmed defects
+Current allocation: alpha.15 after the 20 October rebalance.
+
+**Planned by owner direction, 2026-10-15; clarified 2026-10-16.** Review the
+recorded authoring-friction log, identify concrete improvements, and select a
+bounded, prioritised set to implement during Alpha.14. Candidate improvements may
+address language/compiler behaviour, diagnostics, API discoverability,
+documentation, examples or development tooling. Distinguish confirmed defects
 from confusing intended behaviour and unverified suggestions; reproduce each
 selected case before choosing its remedy.
 
@@ -232,12 +344,84 @@ Coordinate overlapping work with [RM#64: Inference and diagnostics](language-dir
 [RM#48: Compiler explanations](groomed-development-and-engineering-work.md#rm-48) and [RM#154: Incremental coverage
 collection](#rm-154) rather than counting the same delivery twice.
 
-The release commitment is to address prioritised friction, not automatically
-implement every logged suggestion. Select the concrete items and estimate their
-combined effort during Alpha.14 planning; scope and effort remain provisional
-until that review. Preserve existing correctness and compatibility contracts,
+The release commitment is to review the log, identify concrete improvements,
+and implement the selected prioritised items; it is not to implement every logged
+suggestion. Confirm the selected items and estimate their combined effort during
+Alpha.14 planning; scope and effort remain provisional until that review. Preserve
+existing correctness and compatibility contracts,
 and document any deliberately selected changes. This roadmap addition starts no
 implementation and adds no gate to the ongoing Alpha.13 release.
+
+<a id="rm-156"></a>
+
+**RM#156: HTTP server framework and type-owned dispatch — Alpha.14.**
+
+**Selected by owner direction, 2026-10-16.** Implement the agreed routed HTTP
+server API in `packages/http`, as specified in [GI#518](https://github.com/sproates/panackelty/issues/518).
+Preserve the HTTP client while making the low-level server/service machinery an
+internal implementation detail. The public server API includes the simple
+`create_server(port)` form and the typed `create_contextual_server(port, context)`
+form, with named handlers, route registration, request/response handling, fixed
+first-version defaults, error isolation and lifecycle behavior as specified in
+GI#518.
+
+Owner clarification, 2026-10-19: Alpha.14 includes the type-owned method dispatch
+migration in [GI#525](https://github.com/sproates/panackelty/issues/525), which
+supports this HTTP server framework. Server methods such as `get` and `put` must
+coexist with Map operations through checked owner identity. The migration includes
+built-in and nominal methods, generic and effect checking, maintained API/caller
+migration, removal of receiver-to-global fallback and collection-name exceptions,
+and final dot-call syntax. Arrow calls are temporary migration syntax. Follow the
+[implementation handoff on next](https://github.com/sproates/panackelty/blob/next/docs/design/type-owned-dispatch/dispatch-implementation-handoff.md)
+for packet acceptance and bootstrap checkpoints. This records release scope;
+GI#525 remains open until the full migration and release/consumer acceptance pass.
+
+Migrate the static preview tool to compose the generic server with its own typed
+static-serving context and fallback handler. Keep all static-file knowledge and
+behavior in the static package/tool; `packages/http` must remain generic. Deliver a
+complete user-facing `packages/http/README.md` with practical examples. Update
+affected API/reference documentation and examples, and test the route API, context
+dispatch, HTTP behavior, lifecycle, preview integration and existing client
+regressions. GI#518 contains the detailed contract and acceptance cases.
+
+This records Alpha.14 release scope and does not itself authorize implementation
+or settle work sequencing, effort, or release timing. If implementation exposes
+an unanticipated gap or inconsistency, stop and ask the issue owner rather than
+guessing; update GI#518 before proceeding.
+
+
+<a id="rm-157"></a>
+
+**RM#157: Performance: alpha.15.**
+
+Current allocation: alpha.15 after the 20 October rebalance.
+
+**Selected by owner direction, 2026-10-16.** Review Panackelty holistically to
+identify material performance problems, areas that need closer investigation, and
+well-supported quick improvements. The review should look across compilation,
+runtime execution, libraries and packages, and development and test workflows,
+then distinguish measured bottlenecks from hypotheses and areas where evidence is
+still missing.
+
+Give particular attention to the reported HTTP server performance relative to
+Node.js and the time required to instrument Panackelty source for code coverage.
+Use comparable, correctness-checked workloads and record the environment and
+limitations; establish measurements before setting improvement targets. For
+coverage, separate instrumentation and plan-generation time from test execution,
+aggregation and publication, and coordinate with [RM#154: Incremental coverage
+collection](#rm-154) so its validated plan-caching work is not duplicated or
+counted twice.
+
+Prioritise concrete findings. Implement a bounded set of safe, evidence-backed
+quick wins during Alpha.14 where they fit the release; record larger or
+uncertain opportunities with evidence and a recommendation for later selection.
+Preserve correctness, fresh required test execution and existing validation
+coverage. This review does not set a universal performance target or commit to
+implementing every identified optimisation. Agree specific workloads, targets
+and any larger implementation scope during planning, after the initial evidence
+is available. Coordinate baseline work with [RM#56: Performance baselines](current-status-and-grooming-2026-10-01.md#rm-56)
+and ongoing policy under [RM#123: Standing performance engineering](standing-performance-engineering--ongoing.md#rm-123).
+
 
 ### Else-if chains
 

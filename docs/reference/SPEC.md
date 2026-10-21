@@ -209,7 +209,9 @@ main(): Void {
 }
 ```
 
-### Type-owned methods (next)
+<a id="type-owned-methods-next"></a>
+
+### Type-owned methods (alpha.14)
 
 Methods use `receiver.method(arguments)`. Lookup selects a declaration owned by
 the receiver's checked type; an ordinary function with the same name cannot
@@ -354,7 +356,7 @@ compiler-only identities; they do not introduce ordinary callable names. The pro
 source-file commands or explicit `--project` commands. Standalone parser/backend APIs do not establish executable source validity;
 source acceptance requires module identity checking. Method diagnostics use the source owner and
 method spelling, such as `Fruit.apple`.
-This is unreleased compiler behavior, separate from the alpha.13 contract.
+These method rules apply from alpha.14; alpha.13 used the earlier receiver-call contract.
 
 Local type annotations may be omitted. `name = value` declares a new immutable
 local when no local or parameter with that name is visible; otherwise it assigns

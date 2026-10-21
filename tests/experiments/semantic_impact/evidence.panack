@@ -1,3 +1,4 @@
+import stdlib/host as host
 import project/src/compiler/loader::{LoadedProject, SubtractionEvidence, EffectEvidence, load_project_explained}
 import project/src/compiler/checker::{SubtractionDecision}
 import project/src/compiler/types::{SourceSpan}
@@ -12,8 +13,8 @@ pure excerpt(project: LoadedProject, origin: Option[SourceSpan]): Str {
 }
 
 main(): Void {
-  args: [Str] = command_args()
-  if args.len() != 1 { process_exit(2); }
+  args: [Str] = host.arguments()
+  if args.len() != 1 { host.exit(2); }
   project: LoadedProject = load_project_explained(args[0])
   diagnostics: Nat = project.diagnostics.len()
   effects_checked: Bool = project.effects_checked

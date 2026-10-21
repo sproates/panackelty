@@ -933,9 +933,10 @@ See [source inventory](../docs/reference/SOURCE_INVENTORY.md).
 The browser-runtime bundle includes `http_transport.c` and `http_transport.h`
 because the VM execution layer references the transport owner even on portable
 hosts. Its `__wasi__` branch retains explicit capability rejection; it does not
-link native libcurl into that target. Bundle generation checks both files, and
-the independent browser consumer compiles the complete bundle as its integration
-check. The immutable alpha.13 dependency archive predates this packaging repair;
+link native libcurl into that target. Bundle generation includes the HTTP state, runtime and built-in implementation
+files, plus the VM fault header. It rejects any missing locally included header
+before writing the manifest. The independent browser consumer compiles and links
+the complete bundle as its integration check. The immutable alpha.13 dependency archive predates this packaging repair;
 consumers must pin the corrected source revision rather than replace that asset.
 
 The native header contract also syntax-checks the portable HTTP transport branch

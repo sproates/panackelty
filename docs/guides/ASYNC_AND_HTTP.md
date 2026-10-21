@@ -1,6 +1,6 @@
 # Async and HTTP
 
-Native alpha.13 supports `async` functions, explicit `await` and `AsyncFn`
+Native alpha.14 supports `async` functions, explicit `await` and `AsyncFn`
 references. Async operations suspend through the VM's bounded scheduler. General
 source-level task spawning and resource scopes remain future work.
 
@@ -20,7 +20,7 @@ need `libcurl4`; source builds additionally need `libcurl4-openssl-dev` and
 
 ## Service lifecycle
 
-The alpha.14 development branch exposes `http/server`: create a bound server,
+Alpha.14 exposes `http/server`: create a bound server,
 register named handlers and await `.listen()`. Successful listening returns after
 binding; the native runtime keeps the process alive. `.close()` drains for up to
 one second, `.destroy()` cancels immediately, and SIGINT/SIGTERM perform bounded
@@ -34,7 +34,7 @@ default. The unbound convenience constructors listen on all IPv4 interfaces;
 choose a bound constructor when access should remain local.
 
 Finite TCP examples retain their existing transport contracts. The previous
-finite HTTP and `http/service` APIs have been replaced on the development branch.
+finite HTTP and `http/service` APIs were replaced in alpha.14.
 
 Native networking and filesystem services are host capabilities. Do not assume
 that another host provides them simply because it runs the same language.

@@ -14,9 +14,8 @@ iteration and field access type checks, Boolean condition requirements for
 conversions, natural-number subtraction and effect-boundary evidence, and
 array/conditional/match/generic parameter type joins for one function. It reads
 source; it does not
-execute the program, emit bytecode, write files, or consume a source-map sidecar. The
-command is implemented in unreleased core; existing published/browser versions
-do not acquire it automatically.
+execute the program, emit bytecode, write files, or consume a source-map sidecar. This guide describes the native alpha.14 command. Use the matching compiler;
+older installations retain their release-specific explanation support.
 
 ## Completion target for GI #134
 

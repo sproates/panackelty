@@ -83,32 +83,27 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
-- **GI#518 / RM#156 alpha.14 routed HTTP framework** — Promotion pending.
-  The core delivery maintainer hands off the
-  [HTTP guide](../../../packages/http/README.md), ordinary/contextual
-  [network examples](../../../examples/network/README.md), and
-  [acceptance evidence](../../design/routed-http-server/acceptance-register.md)
-  to the website maintainer through the existing
-  [website roadmap](https://github.com/sproates/panackelty-website/blob/main/ROADMAP.md).
-  At deliberate alpha.14 promotion, update capabilities, examples, roadmap,
-  learning links and the method-dispatch/HTTP article against the shipped native
-  artifact. Preserve the live alpha.13 version boundary until release assets
-  exist and are verified. The preview CLI keeps loopback/`--host`; HEAD now
-  receives 405 under the routed four-method contract. Recording this handover
-  does not deploy the website or schedule promotion.
+- **Alpha.14 methods, HTTP and documentation: Done, 21 October 2026.**
+  Website PR #51 published GI#518/GI#525 learning material and the HTTP slice of
+  GI#552 after verifying the native alpha.14 and browser 0.2.1 releases. The
+  homepage, capabilities, examples, downloads, API Docs, roadmap and methods
+  article match the released toolchain. Alpha.13 now appears in Previous releases.
+  The core and website HTTP Markdown are aligned. The static server retains
+  loopback/`--host`; HEAD receives 405 under the routed four-method contract.
 
-- **GI#525 alpha.14 method syntax** — Promotion pending. P14 now accepts only
-  owned dots on `next`; published alpha.13 examples retain
-  their release contract. Before alpha.14 adoption, the core delivery maintainer
-  hands off the verified P14 dot-only syntax and
-  [P15 native/browser consumer evidence](../../design/type-owned-dispatch/p15-consumer-acceptance.md)
-  to the website maintainer. Browser artifact `0.2.0` is the matched candidate;
-  keep the live `v0.1.3` pin until deliberate website promotion. Review method examples, migration guidance
-  and the method-dispatch article against the actual shipped toolchain. Include
-  the [public owned/generic method examples](../../../examples/README.md#type-owned-methods-alpha14)
-  when promoting alpha.14 learning material. The
-  [website roadmap](https://github.com/sproates/panackelty-website/blob/main/ROADMAP.md)
-  owns site publication. No intermediate bridge promotion is scheduled.
+- **Release rebalance and planned scope: Done, 21 October 2026.**
+  Website PR #51 incorporates the scope changes from PR #50. Alpha.15–19 remain
+  planned, with the GI#106 validation-speed milestone in alpha.15. GI#435's
+  string, collection and cross-field guards are planned for alpha.15; further
+  guard families remain alpha.19 design work. This supersedes the earlier
+  alpha.14–18 assignments and their pending website handovers, without adding
+  optional candidates to release scope. Historical article text is retained
+  with a dated alpha.14 completion note.
+
+  Website commit `4331330b1a43728a71ad5c708242d69d8d4950c6` passed publication
+  and deployed-byte verification in run 39537834581, reusing PR validation run
+  39537462276. Live browser checks confirmed the current and previous release
+  pages. See [alpha.14 acceptance](../../releases/ALPHA14_RELEASE_ACCEPTANCE.md).
 
 - **GI#162 preview-tool adoption** — Done, 2026-10-15. Core PR #498 supplies
   the generic tool; website PR #42 adopted it with a pinned source installation.

@@ -16,10 +16,26 @@ for command in check compile run disasm; do contains "$work/stdout" "PASS failur
 contains "$work/stdout" 'PASS failure/unknown_name/no artifact'
 contains "$work/stdout" 'tests: 7, failures: 0'
 pass
-case_name=incremental-failure-corpus
-capture 0 45 ./bin/panack run "$runner" --failures-only
-contains "$work/stdout" 'PASS failure/while_condition_type/no artifact'
-contains "$work/stdout" 'tests: 333, failures: 0'
+# Bound each fixture, not the growing corpus. The functional suite separately
+# verifies whole-corpus discovery and its 333-assertion aggregate report.
+case_name=failure-corpus-per-fixture
+fixture_count=0
+assertion_count=0
+for directory in tests/functional/failures/*; do
+    [ -d "$directory" ] || continue
+    fixture=${directory##*/}
+    case_name="failure-corpus-$fixture"
+    capture 0 45 ./bin/panack run "$runner" --failure "$fixture"
+    contains "$work/stdout" "PASS failure/$fixture/no artifact"
+    count=$(sed -n 's/^tests: \([0-9][0-9]*\), failures: 0$/\1/p' "$work/stdout")
+    case "$count" in ''|*[!0-9]*) fail 'missing successful fixture summary' ;; esac
+    fixture_count=$((fixture_count + 1))
+    assertion_count=$((assertion_count + count))
+done
+case_name=failure-corpus-per-fixture
+[ "$fixture_count" = 101 ] || fail 'failure fixture inventory changed'
+# Each isolated invocation repeats the two selection assertions: 333 + 2*100.
+[ "$assertion_count" = 533 ] || fail 'failure assertion inventory changed'
 pass
 for fixture in cli_environment_files cli_commands cli_explanations cli_check_disasm stdlib; do
     case_name=runner-$fixture

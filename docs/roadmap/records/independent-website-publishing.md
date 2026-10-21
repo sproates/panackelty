@@ -83,6 +83,16 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
+- **Release rebalance, alpha.14–alpha.19 (20 October 2026):** this supersedes
+  the earlier release-direction and GI#435 presentation assignments below.
+  Update homepage, roadmap and maintenance guidance to the canonical scope;
+  add a dated completion note to the methods article. Keep alpha.13 pins and
+  historical prose. Core planning maintainer owns scope handover; website
+  maintainer owns preview, publication and live verification. Companion website
+  PR pending; publication requires approval. HTTP reference delivery is a separate
+  GI#552 implementation slice, not completed by these editorial changes.
+
+
 - **GI#435 validated domain types (20 October 2026):** after the scope PR merges,
   review the site's alpha.14/alpha.18 roadmap descriptions and related capability
   summaries. Alpha.14 now selects string constraints, non-empty/bounded collections

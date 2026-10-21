@@ -119,7 +119,7 @@ provides the cooperative starting point; this proposal does not replace it.
 Acceptance is a reproducible prototype, safety evidence, measurements and a
 reviewable decision. A negative result is a valid outcome. A production scheduler,
 shared-memory threads, automatic parallelisation, distributed execution and
-changes to the agreed alpha.14–alpha.18 scope are outside this investigation.
+changes to the agreed alpha.14–alpha.19 scope are outside this investigation.
 The website's existing research-only description remains accurate; a selected
 public capability or release would need a separate website follow-up.
 
@@ -178,7 +178,7 @@ commitment.
 
 **RM#64: Inference and diagnostics** · [GI#170: Inference and diagnostics](https://github.com/sproates/panackelty/issues/170).
 
-**Selected for Alpha.14 as an investigation.** Owner direction, 2026-10-15:
+**Selected for Alpha.15 as an investigation after the 20 October rebalance.** Owner direction, 2026-10-15:
 assess current inference limits and the diagnostic experience under the existing
 scope below. This does not select an inference architecture, language change or
 implementation slice; recommend any implementation only after the assessment.
@@ -613,7 +613,8 @@ and release workflows, not a claim that arbitrary program equivalence is decidab
 
 **RM#153: Expand guarded types beyond numeric bounds** · [GI#435: Expand guarded types beyond numeric bounds](https://github.com/sproates/panackelty/issues/435).
 
-**Planned for alpha.14; scope broadened by owner direction, 20 October 2026.**
+**Planned for alpha.15 after the 20 October release rebalance; scope broadened
+by owner direction on the same date.**
 Develop validated domain types beyond numeric bounds. The selected initial scope
 now includes string constraints, non-empty/bounded collections and relationships
 between fields of a record. This supersedes the non-empty-string-only slice.
@@ -661,11 +662,11 @@ validated; whether its file exists or is readable depends on external state and
 must not become an enduring value guarantee. Likewise, validated text alone
 must not imply context-independent security properties such as injection safety.
 
-Broader candidates remain for subsequent selection, including alpha.18's further
+Broader candidates remain for subsequent selection, including alpha.19's further
 guard work: identifier/UUID/date formats, sorted or unique collections,
 element-wide predicates, relationships between separate arguments (index and
 collection, equal-length vectors or matrix dimensions), and domain-specific
-checksums or predicates. These are not automatic alpha.14 commitments. No general
+checksums or predicates. These are not automatic alpha.15 commitments. No general
 regex engine, dependent-type system or arbitrary user predicate evaluator is
 selected by this scope.
 

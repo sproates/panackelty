@@ -261,6 +261,18 @@ for example in http_server http_contextual_server; do
         "$panack" run http-server.bc "$http_port" >http-run.stdout 2>http-run.stderr &
     fi
     server_pid=$!
+    # Source execution compiles before opening the listener. Wait for the
+    # application's readiness signal before starting the HTTP protocol check.
+    printf 'Listening on http://127.0.0.1:%s/\n' "$http_port" >http-run.expected
+    remaining=900
+    until cmp -s http-run.stdout http-run.expected; do
+      if ! kill -0 "$server_pid" 2>/dev/null || [ "$remaining" = 0 ]; then
+        cat http-run.stdout http-run.stderr >&2
+        fail "installed HTTP example did not become ready: $example/$mode"
+      fi
+      remaining=$((remaining - 1))
+      sleep 0.05
+    done
     if ! "$http_client" "$http_port" "$peer_mode"; then
       cat http-run.stdout http-run.stderr >&2
       fail "independent HTTP client rejected installed example $example/$mode"

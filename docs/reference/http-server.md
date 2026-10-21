@@ -1,5 +1,11 @@
 # HTTP Server reference
 
+**API stability during alpha:** APIs may change between alpha releases without
+advance notice. This reference follows the latest release; documentation for
+earlier alpha versions isn't maintained. From the first non-alpha release,
+documentation will be versioned and breaking changes managed through the release
+process.
+
 Signatures and behaviour are checked against
 the package source and integration tests linked in [Source and test evidence](#source-and-test-evidence).
 

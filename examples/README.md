@@ -115,3 +115,5 @@ update the example count in `tests/runner/main.panack` and the ordered example
 list and transcript total in `tests/functional/cases/runner_smoke/main.panack`.
 Run `sh tests/fixture_inventory.sh` for immediate bookkeeping feedback before
 `make check`. See the [preflight contract](../tests/README.md#fixture-inventory-preflight).
+
+The [HTTP playbook](../docs/guides/HTTP_PLAYBOOK.md) walks through the routed server examples, including [explicit listener shutdown](network/http_server_lifecycle/README.md).

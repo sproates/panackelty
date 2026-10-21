@@ -1,8 +1,7 @@
 # Migrating to type-owned methods
 
-This guide describes the unreleased alpha.14 toolchain on `next`. Published
-alpha.13 downloads and the website's alpha.13 playground retain their own
-contract. Upgrade the compiler, VM and standard library together; do not copy new
+This guide covers the changes to method calls in alpha.14. Upgrade the compiler,
+VM and standard library together; do not copy new
 library sources into an older installation. Rebuild saved artifacts with the
 matching toolchain before distributing them.
 
@@ -54,6 +53,4 @@ main(): Void {
 
 The output is `10`, `11`, `20`, `21`, one value per line. Owned methods retain
 visibility, generic inference, purity and asynchronous contracts. Server methods
-and Map methods can share names without sharing signatures or dispatch. The
-language acceptance fixtures do not establish HTTP framework networking support;
-that work remains GI#518.
+and Map methods can share names without sharing signatures or dispatch. For working HTTP servers, see the [HTTP Server Playbook](HTTP_PLAYBOOK.md).

@@ -1,6 +1,6 @@
 # Static HTTP server
 
-Serve any directory over HTTP. Native alpha.13 includes the installed
+Serve any directory over HTTP. Native alpha.14 includes the installed
 `panack-http-server` command:
 
 ```sh
@@ -17,7 +17,7 @@ From a built source checkout, run the same tool with:
 with its runtime and packages. The command resolves those files from its own
 installation, works from any directory, and survives moving the whole installation.
 It does not require an adjacent source checkout. Install/build once before use;
-installation compiles the tool once and launching executes its saved bytecode. Native alpha.13 archives include this tool. See the
+installation compiles the tool once and launching executes its saved bytecode. Native alpha.14 archives include this tool. See the
 [installation guide](../../docs/guides/INSTALLATION.md).
 
 ```sh

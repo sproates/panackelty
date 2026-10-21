@@ -55,6 +55,24 @@ retains promotion prerequisites and ownership; no website deployment or current
 release-pin change is part of this delivery. Existing GI#106/RM#123 performance
 work remains open; this delivery does not establish a throughput benchmark.
 
+## HTTP reference review slice: GI#552
+
+The alpha.14 GI#552 slice adds HTTP Server and Client references and an HTTP
+playbook: first server, request/response handling, routing, application
+configuration, listener lifecycle and static serving. The guides include complete programs and
+manifests, curl requests and expected results. Ordinary and contextual examples
+run from source and saved bytecode in the existing installed-package checks;
+the lifecycle example runs in the HTTP package suite. The original contract
+example retains its own assertions, separate from the installed query-header check.
+
+The companion website renders exact Markdown snapshots, with a local cross-repository
+comparison and a CI generation check. Both versions target alpha.14 and publish with that release. The client reference
+covers GET, custom limits, response/error types and a runnable example; the
+playbook includes the bundled static tool and its package integration. This
+completes the selected HTTP slice, not the wider standard-library work in GI#552.
+Performance: no compiler/runtime changes; additional example assertions reuse
+existing server runs, with one small lifecycle program checked in both modes.
+
 ## Bounded method experiment — 2026-10-17
 
 Owner-selected proof of concept: two `Fruit` instances call owned `apple` and

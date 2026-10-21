@@ -6,13 +6,20 @@ in `docs/releases/RELEASE_POLICY.md`.
 
 ## Unreleased
 
+## 0.1.0-alpha.14 — 2026-10-21
+
+### Features and fixes
+
+- Add HTTP Server and Client API references and a practical HTTP playbook, with
+  complete examples, request/response transcripts, static serving and explicit
+  alpha compatibility guidance.
+
 - Add the routed HTTP server framework for alpha.14: ordinary/contextual servers,
   named handlers, owned route and response methods, fixed request limits,
   request-local fault recovery and bounded shutdown. Replace the old finite HTTP
   and `http/service` exports; the HTTP client is unchanged. The static preview
   tool now uses a contextual fallback, retaining loopback/`--host` and confined
   file access. Add ordinary/contextual runnable examples and migration guidance.
-  This is implemented on `next`, not a published alpha.14 release.
 
 - Detect stale example inventories and smoke transcript totals before canonical
   validation starts compiler builds; preserve all executable fixture checks.
@@ -21,7 +28,7 @@ in `docs/releases/RELEASE_POLICY.md`.
   source and saved-bytecode checks. These demonstrate custom APIs alongside Map
   methods, persistent updates, chaining and typed callbacks.
 
-- Complete the source syntax cutover to type-owned dot methods on `next` for
+- Complete the source syntax cutover to type-owned dot methods for
   alpha.14. A receiver call selects a method owned by its checked type; globals
   with matching names do not supply methods. Namespace calls and record fields
   retain their distinct meanings. Invoke callable fields explicitly through
@@ -31,8 +38,7 @@ in `docs/releases/RELEASE_POLICY.md`.
   Use owned methods instead of the removed receiver-global APIs and wrappers.
   Compiler, library, packages, tools, examples and maintained tests use dots.
   Saved bytecode retains its existing VM contract. Native package and browser-consumer acceptance is recorded in
-  [P15](docs/design/type-owned-dispatch/p15-consumer-acceptance.md). This is not a
-  published native release. See the [migration guide](docs/guides/METHOD_MIGRATION.md)
+  [P15](docs/design/type-owned-dispatch/p15-consumer-acceptance.md). See the [migration guide](docs/guides/METHOD_MIGRATION.md)
   for removed globals, namespace wrappers and matching-toolchain requirements.
 
 ## 0.1.0-alpha.13 — 2026-10-15

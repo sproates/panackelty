@@ -1361,11 +1361,20 @@ internal package source/bytecode fixtures and raw C peer modes for framing, Expe
 handler errors/traps, first-send preservation, four-request/sixteen-connection caps,
 real ten-second deadlines, and lifecycle/port reuse. Public-package fixtures now
 cover corrected contract examples, checked arithmetic recovery and active-request
-shutdown. Static and archive smoke tests exercise ordinary/contextual examples
-from relocated installations. Canonical validation passed in 509 seconds; the
+shutdown. Static and archive smoke tests exercise both examples from relocated
+installations; the static installed-example test also checks the ordinary POST
+echo body and the contextual query value in `X-Query`.
+Canonical validation passed in 509 seconds; the
 final GI#518 acceptance adds distinct-context dispatch, all supported/unsupported
 method cases, callback arity/effect rejection, response byte boundaries and live
 oversize rejection, active close/destroy/escalation and process-exit response
 preservation. Native allocation sweeps cover the new state/writer ownership.
 Final canonical and exact-head CI provenance is recorded in the
 [acceptance register](../docs/design/routed-http-server/acceptance-register.md).
+
+HTTP playbook coverage: the existing installed-example runs check POST/PUT/DELETE
+byte echo, query/header access, fallback 404 and known-path 405. The contextual
+query-header assertion is restricted to the installed example; the original
+contract fixture uses its unchanged common checks. `tests/http_package.sh` also
+runs the public lifecycle program from source and bytecode and compares shutdown
+output. The playbook embeds the matching example source and manifests.

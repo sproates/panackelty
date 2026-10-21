@@ -716,8 +716,10 @@ context types are compile-time rejection cases.
 
 `continuous_service.sh` checks process lifetime, readiness failure and signals.
 `static_http.sh` checks confinement and file policy plus source/bytecode runs of
-both public examples against a relocated installation. `release_archive_smoke.sh`
-repeats both examples through the extracted archive from an unrelated directory.
+both public examples against a relocated installation; its independent peer
+checks the ordinary POST echo and contextual query-header responses.
+`release_archive_smoke.sh` repeats both examples through the extracted archive
+from an unrelated directory.
 HTTP client tests remain independent. Native tests cover opaque ownership,
 invalid handles, request fault classification and cancellation safety.
 
@@ -938,3 +940,10 @@ consumers must pin the corrected source revision rather than replace that asset.
 
 The native header contract also syntax-checks the portable HTTP transport branch
 without curl, catching native-only declarations leaking into that branch.
+
+HTTP playbook coverage: the existing installed-example runs check POST/PUT/DELETE
+byte echo, query/header access, fallback 404 and known-path 405. The contextual
+query-header assertion is restricted to the installed example; the original
+contract fixture uses its unchanged common checks. `tests/http_package.sh` also
+runs the public lifecycle program from source and bytecode and compares shutdown
+output. The playbook embeds the matching example source and manifests.

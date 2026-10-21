@@ -69,7 +69,8 @@ static int send_all(int fd, const void *data, size_t length)
     return 0;
 }
 
-static int response_contains(int fd, const char *status, const char *body, int head_only)
+static int response_matches(int fd, const char *status, const char *body,
+                            const char *header, int head_only)
 {
     char response[32768];
     size_t total = 0;
@@ -89,11 +90,18 @@ static int response_contains(int fd, const char *status, const char *body, int h
     if ((!strcmp(status, "204 No Content") || !strcmp(status, "304 Not Modified")) &&
         (!header_end || header_end[4] || strstr(response, "Content-Length:"))) return -1;
     const char *status_start = !strncmp(status, "HTTP/", 5) ? response : response + (total >= 9 ? 9 : 0);
+    const char *expected_header = header ? strstr(response, header) : NULL;
     if (!strstr(response, "HTTP/1.1 100 Continue") && !strncmp(status_start, status, strlen(status)) && strstr(response, body) &&
+        (!header || (expected_header && header_end && expected_header < header_end)) &&
         (!head_only || (header_end && header_end[4] == '\0'))) return 0;
     fprintf(stderr, "unexpected HTTP response (%zu bytes); expected %s and body %s\n%s\n",
             total, status, body, response);
     return -1;
+}
+
+static int response_contains(int fd, const char *status, const char *body, int head_only)
+{
+    return response_matches(fd, status, body, NULL, head_only);
 }
 
 static int exchange(const char *port, const char *request, const char *status,
@@ -104,6 +112,17 @@ static int exchange(const char *port, const char *request, const char *status,
     int result = send_all(fd, request, strlen(request));
     if (!result && close_write && shutdown(fd, SHUT_WR)) result = -1;
     if (!result) result = response_contains(fd, status, body, !strncmp(request, "HEAD ", 5));
+    close(fd);
+    return result;
+}
+
+static int exchange_header(const char *port, const char *request, const char *status,
+                           const char *body, const char *header)
+{
+    int fd = connect_to(port);
+    if (fd < 0) return -1;
+    int result = send_all(fd, request, strlen(request));
+    if (!result) result = response_matches(fd, status, body, header, 0);
     close(fd);
     return result;
 }
@@ -375,9 +394,11 @@ int main(int argc, char **argv)
             exchange(port, "POST /messages HTTP/1.1\r\nHost: local\r\n\r\n", "201 Created", "\r\n\r\nCreated", 0) ||
             exchange(port, "GET /about HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "About this service", 0);
     }
-    if (!strcmp(mode, "example-contextual")) {
+    if (!strcmp(mode, "example-contextual") || !strcmp(mode, "installed-contextual")) {
         return exchange(port, "GET / HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\nHello", 0) ||
-            exchange(port, "GET /health HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\nOK: Hello", 0);
+            exchange(port, "GET /health HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\nOK: Hello", 0) ||
+            (!strcmp(mode, "installed-contextual") && exchange_header(port, "GET /health?probe=1 HTTP/1.1\r\nHost: local\r\n\r\n",
+                            "200 OK", "\r\n\r\nOK: Hello", "X-Query: probe=1"));
     }
     if (!strcmp(mode, "routed-exit"))
         return exchange(port, "GET /exit HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "leaving", 0) ? 1 : 0;
@@ -390,7 +411,14 @@ int main(int argc, char **argv)
                         "HTTP/1.1 200 OK", "\r\n\r\nok", 0) ? 1 : 0;
     if (!strcmp(mode, "example"))
         return exchange(port, "GET / HTTP/1.1\r\nHost: example.test\r\n\r\n",
-                        "HTTP/1.1 200 OK", "hello from Panackelty HTTP server", 0) ? 1 : 0;
+                        "HTTP/1.1 200 OK", "hello from Panackelty HTTP server", 0) ||
+            exchange(port, "POST /echo HTTP/1.1\r\nHost: example.test\r\nContent-Length: 5\r\n\r\nhello",
+                     "HTTP/1.1 200 OK", "\r\n\r\nhello", 0) ||
+            exchange(port, "PUT /echo HTTP/1.1\r\nHost: local\r\nContent-Length: 5\r\n\r\nhello", "200 OK", "\r\n\r\nhello", 0) ||
+            exchange(port, "DELETE /echo HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\n", 0) ||
+            exchange_header(port, "GET /inspect?name=Ada HTTP/1.1\r\nHost: local\r\nX-Caller: guide\r\n\r\n", "200 OK", "Caller: guide", "X-Query: name=Ada") ||
+            exchange(port, "GET /missing HTTP/1.1\r\nHost: local\r\n\r\n", "404 Not Found", "No route for /missing", 0) ||
+            exchange_header(port, "GET /echo HTTP/1.1\r\nHost: local\r\n\r\n", "405 Method Not Allowed", "\r\n\r\n", "Allow: POST, PUT, DELETE") ? 1 : 0;
     if (!strcmp(mode, "head"))
         return exchange(port, "HEAD / HTTP/1.1\r\nHost: example.test\r\n\r\n",
                         "HTTP/1.1 200 OK", "Content-Length: 2\r\n", 0) ? 1 : 0;

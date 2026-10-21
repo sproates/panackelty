@@ -3,7 +3,7 @@
   "package": "examples.http_server_lifecycle",
   "version": "0.1.0",
   "language": "modules-v1",
-  "toolchain": "0.1.0-alpha.13",
+  "toolchain": "0.1.0-alpha.14",
   "source": "src",
   "entry": "main.panack",
   "exports": {},

@@ -447,6 +447,77 @@ If starting or stopping the server fails, the result is `Error(ServerError)`.
 Use its `message` to explain the problem to the user, but don't make your
 program's behaviour depend on the exact wording of that message.
 
+## Serve a directory
+
+If you want to serve HTML, stylesheets or other files, the release includes
+`panack-http-server`. It uses the same routed server framework, with a static
+file handler that keeps requests inside the directory you choose.
+
+From your extracted release directory, create a small page and start the tool:
+
+```sh
+mkdir -p demo-site
+printf '<h1>Hello from Panackelty</h1>\n' > demo-site/index.html
+./bin/panack-http-server --root ./demo-site --port 8084 --no-cache --noindex
+```
+
+Once it prints `Serving http://127.0.0.1:8084/`, open that address in a browser.
+You'll see “Hello from Panackelty”. You can also request the page from another
+terminal:
+
+```sh
+curl http://127.0.0.1:8084/
+```
+
+```html
+<h1>Hello from Panackelty</h1>
+```
+
+Changes to the file appear on the next request. Press Ctrl-C in the server
+terminal to stop it. The tool waits up to one second for active requests to
+finish before cancelling any that remain.
+
+The default address is `127.0.0.1`. Add `--host 0.0.0.0` to accept connections
+from other devices, using your machine's network address to connect.
+`--no-cache` adds `Cache-Control: no-store`; `--noindex` asks search engines not
+to index the pages. Neither option is an access control.
+
+The tool serves regular files with appropriate content types and uses
+`index.html` for directories. It doesn't list directory contents. Missing files
+return 404, and paths that escape the chosen root are rejected. GET is supported;
+other methods don't serve file content. Responses, including their headers, must
+fit within 1 MiB. Larger files return 503. There is no TLS, compression, range
+support or automatic browser reload.
+
+### Use static serving in your application
+
+For a program that needs to start its own directory server, add a `static_http`
+dependency pointing to `packages/static_http` in the release and import
+`static_http/service`. Its `serve` function registers a contextual fallback on
+the routed HTTP server. The command above is the ready-to-run version of this
+integration.
+
+```panack
+async serve(
+  configuration: Config,
+  ready: AsyncFn[Endpoint,Result[Unit,Str]]
+): Result[Unit,Str]
+```
+
+`Config` contains `root: Path`, `address: Str`, `port: Nat`,
+`request_body_limit: Nat`, `response_limit: Nat` and `headers: [Header]`.
+`Endpoint` contains the bound `address: Str` and `port: Nat`.
+The ready callback runs after the root has been validated and the socket bound;
+returning an error stops the server. A successful call returns after readiness,
+while the listener keeps the process running. The public function doesn't return
+a server handle.
+
+The tool uses a 16 KiB request-body limit and a 1 MiB response limit. Application
+limits must fit within the framework's 1 MiB body limits; the response limit must
+be greater than 512 bytes and leave room for headers. Extra headers cannot
+override framing headers, `Content-Type`, `Location` or `Allow`. Invalid
+configuration returns an error before the listener starts.
+
 ## Before building a larger service
 
 Before using these examples in a larger service, check that the server's limits

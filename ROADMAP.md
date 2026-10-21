@@ -57,18 +57,19 @@ work remains open; this delivery does not establish a throughput benchmark.
 
 ## HTTP reference review slice: GI#552
 
-This intermediate GI#552 slice adds the HTTP Server reference and a five-part
-HTTP playbook: first server, request/response handling, routing, application
-configuration and listener lifecycle. The guides include complete programs and
+The alpha.14 GI#552 slice adds HTTP Server and Client references and an HTTP
+playbook: first server, request/response handling, routing, application
+configuration, listener lifecycle and static serving. The guides include complete programs and
 manifests, curl requests and expected results. Ordinary and contextual examples
 run from source and saved bytecode in the existing installed-package checks;
 the lifecycle example runs in the HTTP package suite. The original contract
 example retains its own assertions, separate from the installed query-header check.
 
 The companion website renders exact Markdown snapshots, with a local cross-repository
-comparison and a CI generation check. Both versions describe unreleased alpha.14;
-there is no change to current-release claims. This PR is a review slice and does
-not close GI#552 or extend documentation to the wider standard library.
+comparison and a CI generation check. Both versions target alpha.14 and publish with that release. The client reference
+covers GET, custom limits, response/error types and a runnable example; the
+playbook includes the bundled static tool and its package integration. This
+completes the selected HTTP slice, not the wider standard-library work in GI#552.
 Performance: no compiler/runtime changes; additional example assertions reuse
 existing server runs, with one small lifecycle program checked in both modes.
 

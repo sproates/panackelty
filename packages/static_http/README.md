@@ -2,7 +2,7 @@
 
 A generic read-only directory server built on `http/server` and
 `stdlib/async_filesystem`. Website builds and preview assembly belong to callers.
-This package ships in the native alpha.13 release.
+This package ships in the native alpha.14 release.
 
 Use the executable in [`tools/http-server`](../../tools/http-server/README.md) for
 ordinary directory serving. Applications can depend on this package, import

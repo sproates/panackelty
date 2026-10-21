@@ -32,7 +32,7 @@ is also the name of this project's command-line tool.
 
 ## Get started
 
-**Latest native release: [0.1.0-alpha.13](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.13).**
+**Latest native release: [0.1.0-alpha.14](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.14).**
 Available for Linux x86-64 and macOS Apple silicon. This is a developer preview:
 source APIs and bytecode may change between releases.
 
@@ -40,13 +40,14 @@ source APIs and bytecode may change between releases.
 2. [Take the language tour](docs/guides/LANGUAGE_TOUR.md) and run the examples.
 3. [Use the toolchain](docs/guides/TOOLCHAIN.md) to check, compile and explain programs.
 
-Alpha.13 includes namespaces, local packages, native HTTP clients and services,
-expanded compiler explanations, and a static HTTP server for serving directories.
+Alpha.14 adds type-owned methods and a routed HTTP server framework, with HTTP
+API references and a playbook of runnable examples. It also includes local packages,
+native HTTP clients, compiler explanations and a static file server.
 Read the [release notes](CHANGELOG.md) and [compatibility policy](docs/releases/RELEASE_POLICY.md).
 
-The `next` source includes [type-owned methods](docs/reference/SPEC.md#type-owned-methods-next) for records, enums and built-in types. The alpha.14 compiler uses owned dot calls, without receiver-to-global fallback; the temporary arrow syntax is removed. This is not part of the published alpha.13 release.
+Alpha.14 includes [type-owned methods](docs/reference/SPEC.md#type-owned-methods-next) for records, enums and built-in types. The alpha.14 compiler uses owned dot calls, without receiver-to-global fallback; the temporary arrow syntax is removed.
 
-For the unreleased alpha.14 source transition, see the
+For migration from earlier releases, see the
 [type-owned method migration guide](docs/guides/METHOD_MIGRATION.md) and
 [P15 consumer acceptance](docs/design/type-owned-dispatch/p15-consumer-acceptance.md).
 Runnable [owned and generic method examples](examples/README.md#type-owned-methods-alpha14)

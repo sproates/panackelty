@@ -4,12 +4,11 @@
 
 ## Release plans and decisions
 
-**Current status (20 October 2026): alpha.12 and alpha.13 are released.**
-Alpha.14 is the next planned release; the current allocation table below
-supersedes the older release assignments in the retained decision history. The alpha.12/13 planning text below is retained
-to explain
-original decisions, not to assert that their release gates are still pending.
-See [alpha.13 acceptance](../../releases/ALPHA13_RELEASE_ACCEPTANCE.md).
+**Current status (21 October 2026): alpha.14 is released.**
+Alpha.15 is the next planned release. The allocation table below supersedes
+older release assignments in the retained decision history. Earlier planning
+text explains the original decisions, rather than reopening completed gates.
+See [alpha.14 acceptance](../../releases/ALPHA14_RELEASE_ACCEPTANCE.md).
 
 ## Agreed release direction — 20 October 2026
 
@@ -23,7 +22,7 @@ Implementation and release publication remain separate decisions.
 
 | Release | General scope | Boundaries |
 | --- | --- | --- |
-| alpha.14: methods and HTTP | GI#525 type-owned methods/dot notation and GI#518 routed HTTP framework are complete on `next`. Finish the HTTP reference and runnable examples slice of [GI#552](https://github.com/sproates/panackelty/issues/552). | No new broad language work. [GI#555](https://github.com/sproates/panackelty/issues/555) coloured diagnostics is optional, only if explicitly selected without delaying release. Standard release validation and owner publication approval remain. |
+| alpha.14: methods and HTTP | Released: GI#525 type-owned methods/dot notation, GI#518 routed HTTP framework, and the HTTP reference and runnable examples slice of [GI#552](https://github.com/sproates/panackelty/issues/552). | Release validation passed and native artifacts are published. [GI#555](https://github.com/sproates/panackelty/issues/555) coloured diagnostics was not included. The wider GI#552 standard-library reference remains separate. |
 | alpha.15: strengthen the foundations | Remaining compiler understanding GI#180 (GI#173 provenance and GI#134 explanations); GI#435 validated domain types; GI#170 inference assessment; GI#409 compiler-facing stdlib assessment; GI#200 package-management design; RM#154 faster coverage, RM#155 selected friction improvements, RM#157 performance review/quick wins; GI#106 validation-speed milestone. | All previously agreed bounded outcomes remain. Package management is a design outcome, not an assumed implementation. Test-speed acceptance stays here rather than moving with the old alpha.15 theme. |
 | alpha.16: build useful programs | GI#166 typed HTTP exchanges, GI#167 recursive file discovery, GI#168 subprocess examples, GI#169 tiny build tool, GI#138 tested guides coordinated with GI#310. | Prove installed success/failure workflows; no general RPC framework or production build system. Full GI#552 API-reference completion and GI#553 load profiling were only proposed for old alpha.15; their corresponding candidate slot is now alpha.16, not an automatic commitment. |
 | alpha.17: improve everyday development | GI#139 one-editor support, GI#136 source-aware runtime errors, GI#147 Homebrew installation. | No full language server/debugger commitment. GI#555's proposed fallback slot moves here if not selected for alpha.14. |
@@ -41,8 +40,8 @@ Cross-link reference entries and repository examples; execute examples against t
 matching toolchain and verify site links and presentation. A reader must be able
 to find and use the API without opening implementation source.
 
-This finishes the HTTP slice, not the entire stdlib reference initiative. Mark
-alpha.14 APIs as unreleased until publication. Methods and HTTP delivery evidence
+This finishes the HTTP slice, not the entire stdlib reference initiative.
+Alpha.14 API documentation now applies to the published release. Methods and HTTP delivery evidence
 remain in their existing acceptance records; no completed work is reopened.
 
 For alpha.15, retain each selected workstream's acceptance, including implemented
@@ -53,8 +52,8 @@ by their existing records. Do not silently shift an optional candidate into a ga
 
 The homepage, roadmap and maintenance guidance must use the same release mapping.
 The methods article still promises exactly methods and HTTP in alpha.14; add a dated
-completion note while retaining its historical migration explanation. No published
-release pins change. This planning update does not authorise publication.
+completion note while retaining its historical migration explanation. The owner subsequently authorised alpha.14 publication; the acceptance record
+tracks the native, browser and website promotion evidence.
 
 ## Historical alpha.12 plan — 2026-10-06
 

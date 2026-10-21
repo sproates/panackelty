@@ -1,7 +1,7 @@
 # Panackelty release policy
 
-Panackelty `0.1.0-alpha.13` is the latest published developer preview. Its public
-native archives passed release acceptance on 15 October 2026. It is intended for learning,
+Panackelty `0.1.0-alpha.14` is the latest published developer preview. Its public
+native archives passed release acceptance on 21 October 2026. It is intended for learning,
 experimentation, feedback, and non-critical terminal programs. It is not yet
 recommended for production systems or irreplaceable data.
 
@@ -18,7 +18,7 @@ Windows and other processor architectures are not supported by the initial
 preview.
 
 Downloaded toolchains require the operating system, a terminal, `tar`, and
-the platform's standard SHA-256 utility for download verification. Alpha.13 native
+the platform's standard SHA-256 utility for download verification. Alpha.14 native
 Linux builds also require libcurl at runtime (`libcurl4` on Ubuntu 22.04); macOS
 uses system libcurl. Source builds require development headers and `curl-config`. The archive
 includes the compiler, VM, and standard library needed to build and run programs.

@@ -109,6 +109,44 @@ remain unscheduled/deferred in the website backlog.
   when promoting alpha.14 learning material. The
   [website roadmap](https://github.com/sproates/panackelty-website/blob/main/ROADMAP.md)
   owns site publication. No intermediate bridge promotion is scheduled.
+- **Release rebalance, alpha.14–alpha.19 (20 October 2026):** this supersedes
+  the earlier release-direction and GI#435 presentation assignments below.
+  Update homepage, roadmap and maintenance guidance to the canonical scope;
+  add a dated completion note to the methods article. Keep alpha.13 pins and
+  historical prose. Core planning maintainer owns scope handover; website
+  maintainer owns preview, publication and live verification. Companion website
+  PR pending; publication requires approval. HTTP reference delivery is a separate
+  GI#552 implementation slice, not completed by these editorial changes.
+
+
+- **GI#435 validated domain types (20 October 2026):** after the scope PR merges,
+  review the site's alpha.14/alpha.18 roadmap descriptions and related capability
+  summaries. Alpha.14 now selects string constraints, non-empty/bounded collections
+  and cross-field record invariants with explicit validation; alpha.18 remains
+  further expansion subject to design. Label these as planned, not released.
+  Core scope maintainer owns handover; website maintainer owns publication and
+  live verification, tracked alongside the existing release-direction entry.
+  Publication pending; existing numeric-guard release claims and pins stay valid.
+
+
+- **Alpha.15 validation-speed milestone (20 October 2026):** after the core
+  roadmap PR merges, update the site's alpha.15 roadmap scope and review its
+  homepage release summary and maintenance guidance for consistency. Describe
+  faster validation with preserved/stronger tests as planned work, not a measured
+  improvement already delivered. Core delivery maintainer owns the handover;
+  website maintainer owns publication and live verification. Track alongside the
+  [existing release-direction entry](https://github.com/sproates/panackelty-website/blob/main/ROADMAP.md#alpha14-through-alpha18-release-direction).
+  Publication pending; no release pins or existing availability claims change.
+
+
+- **Alpha.14–alpha.18 direction (20 October 2026):** update homepage summaries,
+  roadmap sections and website maintenance guidance to match the
+  [agreed release scope](next-release--agreed-scope-2026-10-06.md#agreed-release-direction--20-october-2026).
+  Owned by the maintainer delivering the companion website PR; publication and
+  live verification remain pending. Preserve alpha.13 pins, historical articles,
+  optional scope and unresolved design qualifications. Website tracking:
+  [release direction](https://github.com/sproates/panackelty-website/blob/main/ROADMAP.md#alpha14-through-alpha18-release-direction).
+
 
 - **GI#162 preview-tool adoption** — Done, 2026-10-15. Core PR #498 supplies
   the generic tool; website PR #42 adopted it with a pinned source installation.

@@ -5,19 +5,45 @@ and [acceptance evidence](docs/releases/ALPHA13_RELEASE_ACCEPTANCE.md).
 
 ## Next: alpha.14
 
-Selected work includes compiler understanding, package management and compilation
-provenance, faster coverage collection with validated exact-input plan caching and
-fresh execution, and prioritised authoring-friction improvements. The detailed
-records retain the agreed scope, dependencies and acceptance criteria.
+Alpha.14 delivers type-owned methods and dot notation (GI#525), the routed HTTP
+server framework (GI#518), and the HTTP reference and runnable examples slice of
+GI#552. Implementation is complete; release validation and publication are in
+progress. Remaining foundation work belongs to alpha.15 under the agreed rebalance.
 
 - [Release plans](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md)
 - [All roadmap records](docs/roadmap/README.md)
 - [Decision and completion process](docs/roadmap/ROADMAP_PROCESS.md)
 
+## Planned direction: alpha.14 through alpha.19
+
+Owner-approved release rebalance, 20 October 2026. All remain unreleased; see the
+[scope and boundaries](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#agreed-release-direction--20-october-2026).
+
+- **alpha.14:** completed type-owned methods and HTTP framework, finished with
+  the HTTP API reference and runnable examples slice of GI#552. Colours (GI#555)
+  are optional, not a release gate.
+- **alpha.15:** remaining foundation work: package-management design, compiler
+  understanding, validated domain types, inference/stdlib assessments, faster
+  coverage, selected friction/performance work, and the GI#106 test-speed milestone.
+- **alpha.16:** build useful programs: typed service exchanges, file discovery,
+  subprocess examples, a tiny build tool and tested guides.
+- **alpha.17:** everyday development: one editor, source-aware runtime errors and
+  Homebrew installation.
+- **alpha.18:** interactive/connected applications: browser event handlers and
+  service contract testing; Docker images/Linux ARM64 remain optional.
+- **alpha.19:** language ergonomics: error propagation and further guarded types,
+  subject to design/evidence.
+
+The full GI#552 reference, GI#553 load profiling and GI#555 colours retain candidate
+status beyond the explicitly selected HTTP documentation slice. No dates or new
+implementation authorisation are implied. Release validation/publication approval
+remain required; scope does not grow through optional candidates.
+
 The original modules/packages/HTTP programme baseline remains **90/100 earned**;
 P7 retains its deferred 10-point allocation. Alpha.13 release acceptance is complete.
-No item has been renumbered or given additional scope by this documentation split.
-**Next available roadmap identifier: RM#156.**
+No existing identifier or item scope changed; RM#156 records the GI#518 selection
+and RM#157 records the performance outcome.
+**Next available roadmap identifier: RM#158.**
 
 ## Example inventory preflight — 2026-10-20
 
@@ -137,6 +163,8 @@ Existing RM links remain valid below and lead to their detailed record.
 <a id="rm-152"></a> [rm-152](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-152)
 <a id="rm-154"></a> [rm-154](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154)
 <a id="rm-155"></a> [rm-155](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-155)
+<a id="rm-156"></a> [rm-156](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-156)
+<a id="rm-157"></a> [rm-157](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-157)
 <a id="else-if-chains"></a> [else-if-chains](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#else-if-chains)
 <a id="rm-142"></a> [rm-142](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-142)
 <a id="first-non-alpha-release--milestone-definition"></a> [first-non-alpha-release--milestone-definition](docs/roadmap/records/first-non-alpha-release--milestone-definition.md#first-non-alpha-release--milestone-definition)
@@ -379,6 +407,11 @@ Existing RM links remain valid below and lead to their detailed record.
 <a id="further-language-research--unscheduled"></a> [further-language-research--unscheduled](docs/roadmap/records/language-direction-and-differentiation--exploration.md#further-language-research--unscheduled)
 <a id="rm-145"></a> [rm-145](docs/roadmap/records/language-direction-and-differentiation--exploration.md#rm-145)
 <a id="rm-146"></a> [rm-146](docs/roadmap/records/language-direction-and-differentiation--exploration.md#rm-146)
+
+RM#146 now proposes a bounded investigation into isolated multicore workers and
+HTTP scaling, with sequential correctness comparisons, ownership/cancellation
+evidence and measured scaling costs. It remains unscheduled research, with no
+release allocation; see the linked record for scope and acceptance.
 <a id="rm-147"></a> [rm-147](docs/roadmap/records/language-direction-and-differentiation--exploration.md#rm-147)
 <a id="rm-148"></a> [rm-148](docs/roadmap/records/language-direction-and-differentiation--exploration.md#rm-148)
 <a id="error-propagation-shorthand"></a> [error-propagation-shorthand](docs/roadmap/records/language-direction-and-differentiation--exploration.md#error-propagation-shorthand)

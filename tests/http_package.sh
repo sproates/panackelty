@@ -52,11 +52,13 @@ for mode in source bytecode; do
     fi
     server_pid=$!
     check_http "$port" routed
-    check_http "$port" routed-capacity
     if [ "$mode" = bytecode ]; then
         check_http "$port" routed-limits
         check_http "$port" routed-deadline
     fi
+    # Capacity deliberately fills every connection slot. Run it last so the
+    # next contract cannot race the server draining those closed test peers.
+    check_http "$port" routed-capacity
     kill -TERM "$server_pid"
     wait "$server_pid"
     server_pid=

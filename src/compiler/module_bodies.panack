@@ -1876,6 +1876,7 @@ pure body_special_core_call(target: BodyTarget): Bool {
       name == "fs_root_identity_async" || name == "fs_metadata" || (name == "fs_read_beneath" || name == "fs_read_beneath_async") || name == "fs_directories_overlap" || name == "fs_read" || name == "fs_write" ||
       name == "fs_list" || name == "fs_create_directory" || name == "fs_remove_file" ||
       name == "fs_remove_directory" || name == "fs_temp_file" || name == "fs_temp_directory" ||
+      name == "package_archive_inspect" || name == "package_archive_restore" ||
       name == "read_file" || name == "file_exists" || name == "read_bytes" || name == "write_bytes" ||
       name == "async_fake_read" || name == "tcp_exchange" || name == "http_transport_exchange" || name == "tcp_serve" ||
       name == "tcp_service" || name == "tcp_serve_stream" || name == "tcp_server_read_chunk" ||
@@ -3083,7 +3084,8 @@ pure body_check_typed_intrinsic(
       if context.retain_guard_conversions && (
         name == "fs_read" || (name == "fs_read_beneath" || name == "fs_read_beneath_async") || name == "fs_write" || name == "fs_root_identity_async" || name == "fs_metadata" || name == "fs_list" ||
         name == "fs_directories_overlap" || name == "fs_create_directory" || name == "fs_remove_file" ||
-        name == "fs_remove_directory" || name == "fs_temp_file" || name == "fs_temp_directory"
+        name == "fs_remove_directory" || name == "fs_temp_file" || name == "fs_temp_directory" ||
+        name == "package_archive_inspect" || name == "package_archive_restore"
       ) {
         accepted: Option[Bool] = if required.diagnostics.len() > 0 {
           Some(false)
@@ -3139,7 +3141,13 @@ pure body_check_legacy_host_filesystem_core_call(
   host_error: SignatureType = body_intrinsic_type(context, "HostError")
   mut inputs: [SignatureType] = []
   mut result: SignatureType = body_intrinsic_type(context, "Void")
-  if name == "run_bytecode_args" {
+  if name == "package_archive_inspect" {
+    inputs = [path]
+    result = body_intrinsic_result(bytes, host_error)
+  } else if name == "package_archive_restore" {
+    inputs = [path, path, body_intrinsic_type(context, "Str"), body_intrinsic_type(context, "Str")]
+    result = body_intrinsic_result(unit, host_error)
+  } else if name == "run_bytecode_args" {
     inputs = [bytes, strings]
   } else {
     if name == "command_args" || name == "host_arguments_async" {
@@ -3276,6 +3284,7 @@ pure body_check_special_core_call(
     name == "fs_root_identity_async" || name == "fs_metadata" || (name == "fs_read_beneath" || name == "fs_read_beneath_async") || name == "fs_directories_overlap" || name == "fs_read" || name == "fs_write" ||
     name == "fs_list" || name == "fs_create_directory" || name == "fs_remove_file" ||
     name == "fs_remove_directory" || name == "fs_temp_file" || name == "fs_temp_directory" ||
+    name == "package_archive_inspect" || name == "package_archive_restore" ||
     name == "read_file" || name == "file_exists" || name == "read_bytes" || name == "write_bytes" {
     if types.len() > 0 {
       body_failure("explicit type arguments require a generic function", type_argument_span)

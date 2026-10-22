@@ -15,7 +15,8 @@ pub record PackageManifestExport {
 
 pub record PackageManifestDependency {
   alias: Str,
-  path: Str
+  path: Str,
+  archive: Bool
 }
 
 pub record PackageManifest {
@@ -567,6 +568,7 @@ pure manifest_path_ends_with(path: Str, suffix: Str): Bool {
 pure manifest_relative_path_error(
   value: Str,
   allow_parent: Bool,
+  allow_absolute: Bool,
   require_source_suffix: Bool,
   offset: Nat
 ): Option[PackageManifestError] {
@@ -582,12 +584,12 @@ pure manifest_relative_path_error(
   if failure != None() { failure }
   else if value.len() == 0 {
     Some(manifest_error("manifest paths cannot be empty", offset))
-  } else if value[0] == "/" || value[0] == "\\" ||
+  } else if (!allow_absolute && value[0] == "/") || value[0] == "\\" ||
       (value.len() >= 2 && manifest_ascii_letter(value[0]) && value[1] == ":") {
-    Some(manifest_error("manifest paths must be relative", offset))
+    Some(manifest_error(if allow_absolute { "manifest path is not portable" } else { "manifest paths must be relative" }, offset))
   } else {
-    mut cursor: Nat = 0
-    mut segment_start: Nat = 0
+    mut cursor: Nat = if allow_absolute && value[0] == "/" { 1 } else { 0 }
+    mut segment_start: Nat = cursor
     mut valid = true
     while cursor <= value.len() && valid {
       if cursor == value.len() || value[cursor] == "/" {
@@ -706,7 +708,7 @@ pure manifest_manifest_exports(value: ManifestJsonValue): Result[[PackageManifes
           failure = Some(manifest_error("export keys must be slash-separated identifiers", member.offset))
         }
         match member.value {
-          ManifestJsonString(path) => match manifest_relative_path_error(path, false, true, member.offset) {
+          ManifestJsonString(path) => match manifest_relative_path_error(path, false, false, true, member.offset) {
             Some(error) => if failure == None() { failure = Some(error) },
             None() => { exports = exports.append(PackageManifestExport(member.key, path)) }
           },
@@ -740,16 +742,37 @@ pure manifest_manifest_dependencies(value: ManifestJsonValue): Result[[PackageMa
           failure = Some(manifest_error("dependency aliases must be identifiers other than project or stdlib", member.offset))
         }
         if failure == None() {
-          match manifest_object_unknown_field(member.value, ["path"]) {
+          match manifest_object_unknown_field(member.value, ["path", "archive"]) {
             Some(error) => { failure = Some(error) },
-            None() => match manifest_json_string_field(member.value, "path") {
-              Error(error) => { failure = Some(error) },
-              Ok(path) => match manifest_json_object_field(member.value, "path") {
-                Some(path_field) => match manifest_relative_path_error(path, true, false, path_field.offset) {
-                  Some(error) => { failure = Some(error) },
-                  None() => { dependencies = dependencies.append(PackageManifestDependency(member.key, path)) }
-                },
-                None() => { failure = Some(manifest_error("dependency path is required", member.offset)) }
+            None() => {
+              path_field: Option[ParsedManifestField] = manifest_json_object_field(member.value, "path")
+              archive_field: Option[ParsedManifestField] = manifest_json_object_field(member.value, "archive")
+              if path_field != None() && archive_field != None() {
+                failure = Some(manifest_error("dependency must declare exactly one of path or archive", member.offset))
+              } else {
+                source_field: Option[ParsedManifestField] = if path_field != None() { path_field } else { archive_field }
+                match source_field {
+                  None() => { failure = Some(manifest_error("dependency path or archive is required", member.offset)) },
+                  Some(field) => match field.value {
+                    ManifestJsonString(path) => {
+                      is_archive: Bool = archive_field != None()
+                      match manifest_relative_path_error(path, true, true, false, field.offset) {
+                        Some(error) => { failure = Some(error) },
+                        None() => if is_archive && !path.ends_with(".tar.gz") &&
+                            !path.starts_with_at("https://", 0) {
+                          failure = Some(manifest_error("archive paths must end in .tar.gz", field.offset))
+                        } else {
+                          dependencies = dependencies.append(PackageManifestDependency(member.key, path, is_archive))
+                        }
+                      }
+                    },
+                    ManifestJsonNull() => { failure = Some(manifest_error("dependency source must be a string", field.offset)) },
+                    ManifestJsonBool(flag) => { failure = Some(manifest_error("dependency source must be a string", field.offset)) },
+                    ManifestJsonNumber(number) => { failure = Some(manifest_error("dependency source must be a string", field.offset)) },
+                    ManifestJsonArray(items) => { failure = Some(manifest_error("dependency source must be a string", field.offset)) },
+                    ManifestJsonObject(fields) => { failure = Some(manifest_error("dependency source must be a string", field.offset)) }
+                  }
+                }
               }
             }
           }
@@ -835,7 +858,7 @@ pub pure parse_package_manifest(data: Bytes, supported_toolchain: Str): Result[P
           failure = Some(manifest_error("manifest toolchain must exactly match the supported release", 0))
         }
         match manifest_json_object_field(root, "source") {
-          Some(field) => match manifest_relative_path_error(source, false, false, field.offset) {
+          Some(field) => match manifest_relative_path_error(source, false, false, false, field.offset) {
             Some(error) => if failure == None() { failure = Some(error) },
             None() => {}
           },
@@ -845,7 +868,7 @@ pub pure parse_package_manifest(data: Bytes, supported_toolchain: Str): Result[P
         match entry_field {
           None() => {},
           Some(field) => match field.value {
-            ManifestJsonString(value) => match manifest_relative_path_error(value, false, true, field.offset) {
+            ManifestJsonString(value) => match manifest_relative_path_error(value, false, false, true, field.offset) {
               Some(error) => if failure == None() { failure = Some(error) },
               None() => { entry = Some(value) }
             },

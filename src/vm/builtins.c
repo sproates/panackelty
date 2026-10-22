@@ -4,6 +4,7 @@
 #include "host.h"
 #include "host_capabilities.h"
 #include "host_types.h"
+#include "package_archive.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -82,6 +83,8 @@ static const Builtin BUILTINS[] = {
     {"fs_remove_directory", 1, false, host_capability_call},
     {"fs_temp_file", 1, false, host_capability_call},
     {"fs_temp_directory", 1, false, host_capability_call},
+    {"package_archive_inspect", 1, false, host_capability_call},
+    {"package_archive_restore", 4, false, host_capability_call},
     {"host_decode_utf8", 1, true, host_capability_call},
     {"host_sleep", 1, false, host_capability_call},
     {"process_run", 7, false, host_capability_call},

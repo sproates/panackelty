@@ -67,7 +67,7 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   signature resolution. This avoids rescanning each module's full AST for every
   nominal type lookup. The loader separates physical source paths from relative
   semantic identity and passes declaration origins into resolver diagnostics.
-- `package_manifest.panack` is a pure parser for P3's strict schema-1
+- `package_manifest.panack` is a pure parser for P02's strict schema-1
   `panack.json` schema. It bounds JSON input and nesting, rejects duplicate and
   unknown keys, validates package/version/toolchain fields and portable logical
   paths, and returns a typed package record. `package_project.panack` selects an
@@ -83,8 +83,13 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   captured from its manifest; exported sources cannot escape through symlinks.
   Two apps can share the same library root. Direct application/dependency and
   distinct-dependency source roots are compared by physical directory ancestry,
-  including symlink aliases. Nested dependency graphs and full package-loader
-  acceptance remain open P3 work.
+  including symlink aliases. Local directory dependency paths may be relative
+  or absolute. Locked graph verification and full command-line package workflow
+  remain open P02/P04 work.
+- `package_archive.panack` exposes bounded inspection and restoration for
+  local gzip-compressed tar archives. The VM validates archive and canonical
+  tree digests, rejects unsafe entries, and extracts through a staged directory
+  before installation.
 - `module_resolution.panack` resolves an explicit binding graph with namespace and
   selective imports, original-identity re-exports, enum selectors and qualified
   functions/types. It validates missing/private/conflicting imports and cycles,

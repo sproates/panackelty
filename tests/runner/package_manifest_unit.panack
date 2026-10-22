@@ -54,7 +54,7 @@ main(): Void {
       results = results.append(std_testing.expect("manifest entry, exports and dependency",
         manifest.entry == Some("main.panack") && manifest.exports.len() == 2 &&
           manifest.exports[1].module == "nested/other" &&
-          manifest.dependencies == [PackageManifestDependency("geometry", "../geometry")],
+          manifest.dependencies == [PackageManifestDependency("geometry", "../geometry", false)],
         "wrong parsed package graph"))
     },
     Error(error) => { results = results.append(std_testing.expect("valid manifest", false, error.message)) }
@@ -81,6 +81,20 @@ main(): Void {
     manifest_rejects(replace_first(manifest_fixture(), "vector.panack", "vector.txt")), "invalid export suffix accepted"))
   results = results.append(std_testing.expect("reserved dependency alias rejected",
     manifest_rejects(replace_first(manifest_fixture(), "geometry\":{", "project\":{")), "reserved alias accepted"))
+  results = results.append(std_testing.expect("absolute local directory dependency is accepted",
+    manifest_accepts(replace_first(manifest_fixture(), "../geometry", "/opt/panackelty/geometry")),
+    "absolute directory dependency was rejected"))
+  results = results.append(std_testing.expect("local archive dependency is distinguished",
+    match parse_package_manifest(replace_first(manifest_fixture(), "\"path\":\"../geometry\"",
+        "\"archive\":\"vendor/geometry.tar.gz\"" ).encode_utf8(), "0.1.0-alpha.12") {
+      Ok(manifest) => manifest.dependencies.len() == 1 &&
+        manifest.dependencies[0] == PackageManifestDependency("geometry", "vendor/geometry.tar.gz", true),
+      Error(error) => false
+    }, "archive dependency was not parsed"))
+  results = results.append(std_testing.expect("dependency cannot declare both path and archive",
+    manifest_rejects(replace_first(manifest_fixture(), "\"path\":\"../geometry\"",
+        "\"path\":\"../geometry\",\"archive\":\"vendor/geometry.tar.gz\"")),
+    "two dependency sources were accepted"))
   results = results.append(std_testing.expect("invalid prerelease rejected",
     manifest_rejects(replace_first(manifest_fixture(), "1.2.3-alpha.1", "1.2.3-01")), "invalid SemVer prerelease accepted"))
   results = results.append(std_testing.equal_str("malformed manifest reports field context",

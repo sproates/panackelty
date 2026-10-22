@@ -53,20 +53,18 @@ recorded re-estimate.
 
 | Packet | Work | Dependencies | Status | Weight | Complete | Earned |
 | --- | --- | --- | --- | ---: | ---: | ---: |
-| P01 | [Lock and restore contract](https://github.com/sproates/panackelty/issues/566) | — | In progress | 15% | 80% | 12 pp |
-| P02 | [Locked local dependencies](https://github.com/sproates/panackelty/issues/567) | P01 | Planned | 25% | 0% | 0 pp |
+| P01 | [Lock and restore contract](https://github.com/sproates/panackelty/issues/566) | — | Done | 15% | 100% | 15 pp |
+| P02 | [Locked local dependencies](https://github.com/sproates/panackelty/issues/567) | P01 | In progress | 25% | 20% | 5 pp |
 | P03 | [Pinned remote sources](https://github.com/sproates/panackelty/issues/568) | P01–P02 | Planned | 35% | 0% | 0 pp |
 | P04 | [`panack` workflow integration](https://github.com/sproates/panackelty/issues/569) | P01–P03 | Planned | 25% | 0% | 0 pp |
-| **Total** |  |  |  | **100%** | **12%** | **12 pp** |
+| **Total** |  |  |  | **100%** | **20%** | **20 pp** |
 
-The [P01 contract](../../design/PACKAGE_MANAGEMENT_CONTRACT.md) is drafted and
-validated, pending owner review; its remaining acceptance is not yet complete.
-It defines the
-lockfile and manifest forms, update and restore behavior, cache verification,
-offline operation, path-safe archive handling, diagnostics and the test evidence
-needed by P02–P04. P01 specifies the implementation; it does not count as
-dependency acquisition or package-management implementation. GI#200 completion
-requires the full graph and `panack` acceptance in P04.
+The [P01 contract](../../design/PACKAGE_MANAGEMENT_CONTRACT.md) was accepted in
+PR#571. P02 implementation has begun with local source parsing, bounded archive
+inspection and restoration, digest verification and path-safety coverage. Lock
+graph serialization, stale-manifest checks and full package workflow acceptance
+remain open. GI#200 completion requires the full graph and `panack` acceptance
+in P04.
 
 ## Packet records
 
@@ -74,13 +72,13 @@ requires the full graph and `panack` acceptance in P04.
 <a id="rm-158"></a>
 
 **P01 · RM#158: Lock and restore contract** · [GI#566](https://github.com/sproates/panackelty/issues/566).
-In progress; 15% of GI#200. Defines the implementation contract and acceptance.
+Done in PR#571; 15% of GI#200. Defines the implementation contract and acceptance.
 
 <a id="p02"></a>
 <a id="rm-159"></a>
 
 **P02 · RM#159: Locked local dependencies** · [GI#567](https://github.com/sproates/panackelty/issues/567).
-Planned; 25% of GI#200. Implements local directory and archive sources.
+In progress; 25% of GI#200. Implements local directory and archive sources.
 
 <a id="p03"></a>
 <a id="rm-160"></a>

@@ -7,8 +7,10 @@ within [RM#108: Modules programme](../roadmap/records/modules-packages-and-http-
 This document records the P1 design accepted in PR#240 and the follow-on programme
 decisions. Its tables remain design contracts rather than general feature evidence.
 Alpha.13 ships the namespace, local-package, migrated standard-library and HTTP
-client/server deliveries (P2–P6). P8 release acceptance is complete. Reproducible
-package management (P7) remains deferred to alpha.14. See the
+client/server deliveries (P2–P6). P8 release acceptance is complete. The former
+P7 package-management proposal was deferred from alpha.14; the owner later selected
+the full GI#200 implementation for alpha.15. Its current contract is in
+[PACKAGE_MANAGEMENT_CONTRACT.md](PACKAGE_MANAGEMENT_CONTRACT.md). See the
 [release acceptance](../releases/ALPHA13_RELEASE_ACCEPTANCE.md) and
 [language specification](../reference/SPEC.md) for current guarantees.
 
@@ -243,7 +245,9 @@ P3's library examples use pure/source-only data. Tests use separate application
 manifests with explicit dependencies on the library and any test helpers; no
 implicit development dependency namespace or production export widening. Ship
 source trees initially. Integrity, offline locks, immutable Git acquisition and vendoring
-are P7; a binary ABI, registry and separate linker remain outside this programme.
+were deferred beyond the original P1–P6 deliveries; current GI#200 scope is
+defined in [PACKAGE_MANAGEMENT_CONTRACT.md](PACKAGE_MANAGEMENT_CONTRACT.md). A
+binary ABI, registry and separate linker remain outside the selected programme.
 
 ### Two applications consuming one local library
 
@@ -630,69 +634,12 @@ P3 tests must include symlink replacement races where the host supports them.
 Package confinement is a source-loading rule, not a sandbox for running package
 code. Existing host capability controls still apply.
 
-## Dependency reproduction (P7)
+## Dependency reproduction
 
-> **Historical implementation proposal; superseded for Alpha.13 by the owner
-> decision recorded in `ROADMAP.md` and GI#200.** The Git, lockfile, vendor,
-> integrity and offline requirements below are not an accepted P7 specification.
-> The 2026-10-15 decision moves GI#200 to Alpha.14, including discussion and
-> refinement before any owner-reviewed design document. Do not draft that document
-> until the owner says the discussion is ready to record. Treat this
-> section and its acceptance matrix as historical input for that discussion.
-
-Keep local paths as the baseline. P7 is independently schedulable after P1/P3;
-remote retrieval is not required for the language/local-package checkpoint or
-first-client acceptance. P7 first adds a committed `panack.lock.json` containing exact graph
-identities, toolchain/language version, normalized source locations and SHA-256
-content digests, plus explicit immutable Git acquisition and a vendor directory for offline use. Define the
-canonical file-set digest over sorted relative paths and file bytes, excluding
-lock output, caches and build artifacts; include manifest, all package source and
-any declared distributed resources. Reject symlink ambiguity, path traversal and
-case-colliding entries rather than assigning platform-dependent hashes.
-
-An explicit lock/update command changes resolutions; ordinary check/compile/run in
-locked mode neither rewrites the lock nor fetches missing content. Relative source
-locations remain relocatable; version labels alone are not integrity evidence.
-Verify digests before compiling or populating a cache, and use atomic cache writes.
-No dependency code executes during acquisition. One package version per graph
-remains the policy; display both dependency chains for conflicts. An authenticated
-origin/trusted digest is distinct from a digest's corruption detection.
-
-Select HTTPS Git repositories pinned to full immutable commit object IDs as the
-bounded remote source for P7. A dependency specification is either a local path
-or `{"git": "https://host/repository.git", "rev": "FULL_COMMIT_OID", "subdir": "."}`.
-The placeholder is not a valid revision. Record the object hash algorithm in the
-lock; reject branch/tag names, abbreviations, unpinned revisions, embedded URL
-credentials and non-HTTPS schemes. A subdirectory must remain within the verified
-checkout, with no absolute/parent path or escaping symlink. Submodules, Git LFS,
-hooks and package build scripts are not run; reject required content unavailable
-without them. Resolve direct/transitive manifests using the same identity rules.
-Relative local-path dependencies declared inside a remote package may address only
-other manifests within that same verified repository snapshot/commit. They never
-resolve into the host cache's parent directories or the user's filesystem. Preserve
-source origin through every such edge and reject an escape before any read.
-A separately declared remote dependency needs its own pinned/locked source; local
-application path dependencies retain the explicitly configured local-root rules.
-
-Proposed explicit `panack deps lock --project MANIFEST` resolves requested immutable
-sources and writes the lock; `panack deps restore --locked --project MANIFEST`
-fetches exactly locked content and verifies both commit identity and canonical
-SHA-256 package digest. `--offline` forbids network and requires a verified cache
-or vendor tree. Ordinary compilation never fetches. Bound clone/fetch duration,
-object/tree/file counts and total bytes; subprocess/backend cancellation must
-clean temporary state before returning. Select the concrete native Git backend
-versus a bounded Git command prerequisite in P7's first slice, with release
-packaging, interpreter-free execution and credentials kept outside manifests and
-logs. No repository hook runs during restore. This is a scoped implementation
-choice, not permission to drop remote acquisition from P7 acceptance.
-
-A clean second machine must restore a pinned remote application/library/transitive
-graph, then reproduce it offline from verified cache/vendor data. Reject changed
-or unavailable commit content, lock mismatch, corrupt cache, path traversal,
-source conflicts and unavailable uncached sources. Archive downloads and a public
-registry remain outside the initial scope. Neither the language/local-package
-release nor the first client waits for P7, but final programme acceptance requires
-its immutable remote restore and verified offline outcomes.
+This dated P7 proposal is historical input only. The Alpha.15 owner decision and
+P01 specification supersede its unresolved source formats, lock lifecycle,
+offline behavior and acceptance details. Use the current
+[package-management contract](PACKAGE_MANAGEMENT_CONTRACT.md) for implementation.
 Tests with separate
 application manifests have separately reproducible graphs; production dependencies
 cannot acquire test-only packages by incidental load order.

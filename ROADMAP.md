@@ -8,7 +8,8 @@ and [acceptance evidence](docs/releases/ALPHA14_RELEASE_ACCEPTANCE.md).
 Alpha.14 delivers type-owned methods and dot notation (GI#525), the routed HTTP
 server framework (GI#518), and the HTTP reference and runnable examples slice of
 GI#552. Alpha.15 takes forward the remaining foundation work under the agreed
-release rebalance, including the GI#106 test-speed milestone.
+release rebalance, including the GI#106 test-speed milestone and the full
+implementation of package management (GI#200) in four sequenced packets.
 
 - [Release plans](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md)
 - [All roadmap records](docs/roadmap/README.md)
@@ -23,7 +24,7 @@ through alpha.19 remain planned. See the
 - **alpha.14:** completed type-owned methods and HTTP framework, finished with
   the HTTP API reference and runnable examples slice of GI#552. Colours (GI#555)
   were not included.
-- **alpha.15:** remaining foundation work: package-management design, compiler
+- **alpha.15:** remaining foundation work: package-management implementation, compiler
   understanding, validated domain types, inference/stdlib assessments, faster
   coverage, selected friction/performance work, and the GI#106 test-speed milestone.
 - **alpha.16:** build useful programs: typed service exchanges, file discovery,
@@ -40,11 +41,48 @@ status beyond the explicitly selected HTTP documentation slice. No dates or new
 implementation authorisation are implied. Release validation/publication approval
 remain required; scope does not grow through optional candidates.
 
+**RM#44: Alpha.15 package-management packets P01–P04.** GI#200 remains open
+as the umbrella through final acceptance. The work is split into four packets:
+[P01: lock and restore contract](docs/roadmap/records/dependency-management--idea.md#p01),
+[P02: locked local dependencies](docs/roadmap/records/dependency-management--idea.md#p02),
+[P03: pinned Git and archive sources](docs/roadmap/records/dependency-management--idea.md#p03),
+and [P04: `panack` workflow integration](docs/roadmap/records/dependency-management--idea.md#p04). Each has its own RM and GI reference in the detailed plan.
+The provisional packet weights are 15%, 25%, 35% and 25%, respectively, and sum
+to 100% of this GI#200 implementation plan. All are planned, with implementation
+not started. The sequence and acceptance are recorded in the
+[dependency-management plan](docs/roadmap/records/dependency-management--idea.md#alpha15-implementation-plan).
+
 The original modules/packages/HTTP programme baseline remains **90/100 earned**;
-P7 retains its deferred 10-point allocation. Alpha.13 release acceptance is complete.
-No existing identifier or item scope changed; RM#156 records the GI#518 selection
-and RM#157 records the performance outcome.
-**Next available roadmap identifier: RM#158.**
+P7's 10 points remain unearned on that original baseline, and GI#200 is now
+planned for Alpha.15 implementation. Its packet weights are a separate baseline
+within GI#200 and are not added to the SP1 total. Alpha.13 release acceptance is
+complete. RM#156 records the GI#518 selection and RM#157 records the performance
+outcome.
+**Next available roadmap identifier: RM#162.**
+
+<a id="rm-158"></a>
+
+P01 · RM#158: Lock and restore contract. See the
+[packet plan](docs/roadmap/records/dependency-management--idea.md#p01) and
+[GI#566](https://github.com/sproates/panackelty/issues/566).
+
+<a id="rm-159"></a>
+
+P02 · RM#159: Locked local dependencies. See the
+[packet plan](docs/roadmap/records/dependency-management--idea.md#p02) and
+[GI#567](https://github.com/sproates/panackelty/issues/567).
+
+<a id="rm-160"></a>
+
+P03 · RM#160: Pinned remote sources. See the
+[packet plan](docs/roadmap/records/dependency-management--idea.md#p03) and
+[GI#568](https://github.com/sproates/panackelty/issues/568).
+
+<a id="rm-161"></a>
+
+P04 · RM#161: `panack` workflow integration. See the
+[packet plan](docs/roadmap/records/dependency-management--idea.md#p04) and
+[GI#569](https://github.com/sproates/panackelty/issues/569).
 
 ## Example inventory preflight — 2026-10-20
 

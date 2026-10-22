@@ -160,7 +160,7 @@ bootstrap, docs, independent review and explicit merge approval.
 | P4 | [RM#42: Standard library namespaces](standard-library-module-api-migration.md#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Done on `next` in PR#404; alpha.13 release adoption accepted | P1–P3 as needed | Medium / 1–2 PRs |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Complete on `next` in PR#456; P8 release acceptance complete in alpha.13 | P1–P3; transport/DNS/TLS | Large, delivered / 4–7 PRs |
 | P6 | [RM#111: HTTP server package](#rm-111) · [GI#237: HTTP server package](https://github.com/sproates/panackelty/issues/237) | Complete on `next` in PR#467; P8 release acceptance complete in alpha.13 | P1–P3; transport/lifecycle | Large, delivered / 2–4 PRs |
-| P7 | [RM#44: Package management](dependency-management--idea.md#rm-44) · [GI#200: Panack package management](https://github.com/sproates/panackelty/issues/200) | Selected for full Alpha.15 implementation on 2026-10-22; four packets planned, implementation not started | P1, P3 inform the design; RM#158–RM#161 form the delivery sequence | 10% of the original SP1 baseline remains unearned; a separate provisional packet baseline is in RM#44 |
+| P7 | [RM#44: Package management](dependency-management--idea.md#rm-44) · [GI#200: Panack package management](https://github.com/sproates/panackelty/issues/200) | Selected for full Alpha.15 implementation on 2026-10-22; P01–P04 planned, implementation not started | P1 and P3 inform the design; P01–P04 (RM#158–RM#161) form the delivery sequence | 10% of the original SP1 baseline remains unearned; packet weights are recorded under RM#44 |
 | P8 | [RM#112: Package and HTTP acceptance](#rm-112) · [GI#238: Package and HTTP acceptance](https://github.com/sproates/panackelty/issues/238) | Done; alpha.13 public artifacts and all three acceptance gates verified | Language/local-package evidence; client evidence; final integration and release artifacts; GI#200 is no longer an Alpha.13 dependency | Medium / 1–2 PRs, provisional; reassess across the gates |
 
 <a id="rm-149"></a>
@@ -353,7 +353,7 @@ Provisional scope/effort baseline recorded on 2026-10-03 in
 | P4 / [RM#42: Standard library namespaces](standard-library-module-api-migration.md#rm-42) | 5% | 100%; PR#404 and alpha.13 release adoption | 5 pp |
 | P5 / [RM#110: HTTP client package](#rm-110) | 20% | 100% implementation on `next`; P8 acceptance complete in alpha.13 | 20 pp |
 | P6 / [RM#111: HTTP server package](#rm-111) | 15% | 100% implementation on `next`; P8 acceptance complete in alpha.13 | 15 pp |
-| P7 / [RM#44: Package management](dependency-management--idea.md#rm-44) | 10% (original SP1 implementation baseline) | Selected for full Alpha.15 implementation; four packet plan recorded, implementation not started | 0 pp |
+| P7 / [RM#44: Package management](dependency-management--idea.md#rm-44) | 10% (original SP1 implementation baseline) | Selected for full Alpha.15 implementation; P01–P04 planned, implementation not started | 0 pp |
 | P8 / [RM#112: Package and HTTP acceptance](#rm-112) | 5% | 100%; published artifact and installed/relocated acceptance | 5 pp |
 | **Total** | **100% original SP1 baseline** | P1–P6 and P8 accepted in alpha.13; P7 planned for Alpha.15 | **90 pp earned on the original baseline; P7 retains 10%** |
 

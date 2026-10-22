@@ -16,8 +16,8 @@ item's scope; policy, review history and navigation sections are not work items.
 The initial allocation contains **105 identities**. **Next available: RM#162.**
 RM#136–RM#141 are already allocated to source-coverage stages on `next`;
 reserve those identities here to prevent reuse before promotion.
-RM#158–RM#161 are allocated to the four Alpha.15 package-management packets
-recorded in [RM#44](dependency-management--idea.md#rm-44).
+RM#158–RM#161 track packet outcomes P01–P04 for Alpha.15 package management,
+recorded under [RM#44](dependency-management--idea.md#rm-44).
 Allocate the next unused number above the largest allocated number, updating this
 pointer in the same change. Never renumber or reuse IDs on reordering, completion,
 deferral or retirement. Retain a linked tombstone for a removed or merged item.

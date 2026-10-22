@@ -49,13 +49,13 @@ including implementation, tests, integration and documentation. They account
 for all of GI#200's implementation scope and will remain fixed unless new
 evidence justifies a recorded re-estimate.
 
-| Packet | State | Weight | Dependencies and outcome |
-| --- | --- | ---: | --- |
-| [RM#158: Lock and restore contract](#rm-158) · [GI#566](https://github.com/sproates/panackelty/issues/566) | Planned | 15% | Specify lock schema, source identities, lock update and restore behavior, stale/missing cache behavior, offline behavior, safe extraction and diagnostics. No implementation completion is claimed. |
-| [RM#159: Locked local dependencies](#rm-159) · [GI#567](https://github.com/sproates/panackelty/issues/567) | Planned | 25% | Depends on RM#158. Support relative/absolute directories and local `.tar.gz` sources, lock them, and test package imports. |
-| [RM#160: Pinned remote sources](#rm-160) · [GI#568](https://github.com/sproates/panackelty/issues/568) | Planned | 35% | Depends on RM#158 and RM#159. Fetch exact Git commits and optional subpaths, and digest-pinned remote archives into `.panack_modules`; reject unsafe extraction and partial or mismatched content. |
-| [RM#161: `panack` workflow integration](#rm-161) · [GI#569](https://github.com/sproates/panackelty/issues/569) | Planned | 25% | Depends on RM#158–RM#160. Integrate manifest and lock handling into `panack` commands and compile/run workflows, with end-to-end coverage and user documentation. |
-| **Total** |  | **100%** | Planning only; no packet implementation has started. |
+| Packet | Work | Dependencies | Status | Weight | Complete | Earned |
+| --- | --- | --- | --- | ---: | ---: | ---: |
+| P01 | [Lock and restore contract](https://github.com/sproates/panackelty/issues/566) | — | Planned | 15% | 0% | 0 pp |
+| P02 | [Locked local dependencies](https://github.com/sproates/panackelty/issues/567) | P01 | Planned | 25% | 0% | 0 pp |
+| P03 | [Pinned remote sources](https://github.com/sproates/panackelty/issues/568) | P01–P02 | Planned | 35% | 0% | 0 pp |
+| P04 | [`panack` workflow integration](https://github.com/sproates/panackelty/issues/569) | P01–P03 | Planned | 25% | 0% | 0 pp |
+| **Total** |  |  |  | **100%** | **0%** | **0 pp** |
 
 The compiler resolves imports against paths supplied by `panack`; it does not
 fetch or restore dependencies. Direct edits to `panack.json` remain supported,
@@ -66,24 +66,28 @@ path-safe extraction, useful diagnostics, and complete Panack programs run via
 
 ## Packet records
 
+<a id="p01"></a>
 <a id="rm-158"></a>
 
-**RM#158: Lock and restore contract** · [GI#566](https://github.com/sproates/panackelty/issues/566).
+**P01 · RM#158: Lock and restore contract** · [GI#566](https://github.com/sproates/panackelty/issues/566).
 Planned; 15% of GI#200. Defines the implementation contract and acceptance.
 
+<a id="p02"></a>
 <a id="rm-159"></a>
 
-**RM#159: Locked local dependencies** · [GI#567](https://github.com/sproates/panackelty/issues/567).
+**P02 · RM#159: Locked local dependencies** · [GI#567](https://github.com/sproates/panackelty/issues/567).
 Planned; 25% of GI#200. Implements directory and local-archive sources.
 
+<a id="p03"></a>
 <a id="rm-160"></a>
 
-**RM#160: Pinned remote sources** · [GI#568](https://github.com/sproates/panackelty/issues/568).
+**P03 · RM#160: Pinned remote sources** · [GI#568](https://github.com/sproates/panackelty/issues/568).
 Planned; 35% of GI#200. Implements Git and remote-archive acquisition.
 
+<a id="p04"></a>
 <a id="rm-161"></a>
 
-**RM#161: `panack` workflow integration** · [GI#569](https://github.com/sproates/panackelty/issues/569).
+**P04 · RM#161: `panack` workflow integration** · [GI#569](https://github.com/sproates/panackelty/issues/569).
 Planned; 25% of GI#200. Integrates restore, CLI operations and end-to-end
 acceptance.
 

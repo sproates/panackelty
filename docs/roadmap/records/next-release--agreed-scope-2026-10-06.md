@@ -23,7 +23,7 @@ Implementation and release publication remain separate decisions.
 | Release | General scope | Boundaries |
 | --- | --- | --- |
 | alpha.14: methods and HTTP | Released: GI#525 type-owned methods/dot notation, GI#518 routed HTTP framework, and the HTTP reference and runnable examples slice of [GI#552](https://github.com/sproates/panackelty/issues/552). | Release validation passed and native artifacts are published. [GI#555](https://github.com/sproates/panackelty/issues/555) coloured diagnostics was not included. The wider GI#552 standard-library reference remains separate. |
-| alpha.15: strengthen the foundations | Remaining compiler understanding GI#180 (GI#173 provenance and GI#134 explanations); GI#435 validated domain types; GI#170 inference assessment; GI#409 compiler-facing stdlib assessment; GI#200 package-management design; RM#154 faster coverage, RM#155 selected friction improvements, RM#157 performance review/quick wins; GI#106 validation-speed milestone. | All previously agreed bounded outcomes remain. Package management is a design outcome, not an assumed implementation. Test-speed acceptance stays here rather than moving with the old alpha.15 theme. |
+| alpha.15: strengthen the foundations | Remaining compiler understanding GI#180 (GI#173 provenance and GI#134 explanations); GI#435 validated domain types; GI#170 inference assessment; GI#409 compiler-facing stdlib assessment; full GI#200 package-management implementation in P01–P04 under RM#44; RM#154 faster coverage, RM#155 selected friction improvements, RM#157 performance review/quick wins; GI#106 validation-speed milestone. | All previously agreed bounded outcomes remain. GI#200 implementation follows the P01–P04 scope and acceptance in the [dependency-management record](dependency-management--idea.md#alpha15-implementation-plan). Test-speed acceptance stays here rather than moving with the old alpha.15 theme. |
 | alpha.16: build useful programs | GI#166 typed HTTP exchanges, GI#167 recursive file discovery, GI#168 subprocess examples, GI#169 tiny build tool, GI#138 tested guides coordinated with GI#310. | Prove installed success/failure workflows; no general RPC framework or production build system. Full GI#552 API-reference completion and GI#553 load profiling were only proposed for old alpha.15; their corresponding candidate slot is now alpha.16, not an automatic commitment. |
 | alpha.17: improve everyday development | GI#139 one-editor support, GI#136 source-aware runtime errors, GI#147 Homebrew installation. | No full language server/debugger commitment. GI#555's proposed fallback slot moves here if not selected for alpha.14. |
 | alpha.18: interactive and connected applications | GI#165 browser event handlers; GI#142 bounded service/library contract testing. | Contract design follows concrete use cases; no general DOM/UI framework. Docker toolchain images (GI#146) and Linux ARM64 releases (GI#145) remain optional. |
@@ -119,6 +119,13 @@ P8 acceptance requirement. Its product model remains under discussion; do not
 draft a design document until the owner says the discussion is ready to record.
 This defers package-management work without choosing a mechanism or committing
 to implementation.
+
+Owner decision, 2026-10-22: superseding the 15 October deferral, select full
+package-management implementation for Alpha.15. GI#200 remains open through
+final acceptance, with P01 lock/restore contract, P02 local dependencies, P03
+pinned remote sources and P04 `panack` integration. See
+[RM#44](dependency-management--idea.md#rm-44) for packet status and the accepted
+source scope.
 
 Owner decision, 2026-10-15: GI#134's selected Alpha.13 outcome is accepted
 complete. Its broader checker-decision scope is moved to Alpha.14; GI#134 remains

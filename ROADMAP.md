@@ -8,7 +8,8 @@ and [acceptance evidence](docs/releases/ALPHA14_RELEASE_ACCEPTANCE.md).
 Alpha.14 delivers type-owned methods and dot notation (GI#525), the routed HTTP
 server framework (GI#518), and the HTTP reference and runnable examples slice of
 GI#552. Alpha.15 takes forward the remaining foundation work under the agreed
-release rebalance, including the GI#106 test-speed milestone.
+release rebalance, including package-management implementation (GI#200) and the
+GI#106 test-speed milestone.
 
 - [Release plans](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md)
 - [All roadmap records](docs/roadmap/README.md)
@@ -23,7 +24,7 @@ through alpha.19 remain planned. See the
 - **alpha.14:** completed type-owned methods and HTTP framework, finished with
   the HTTP API reference and runnable examples slice of GI#552. Colours (GI#555)
   were not included.
-- **alpha.15:** remaining foundation work: package-management design, compiler
+- **alpha.15:** remaining foundation work: package-management implementation, compiler
   understanding, validated domain types, inference/stdlib assessments, faster
   coverage, selected friction/performance work, and the GI#106 test-speed milestone.
 - **alpha.16:** build useful programs: typed service exchanges, file discovery,
@@ -40,11 +41,30 @@ status beyond the explicitly selected HTTP documentation slice. No dates or new
 implementation authorisation are implied. Release validation/publication approval
 remain required; scope does not grow through optional candidates.
 
+<a id="rm-44"></a>
+
+**RM#44: Alpha.15 package-management packets P01–P04.** GI#200 remains open
+through final acceptance. [P01: lock and restore contract](docs/roadmap/records/dependency-management--idea.md#p01),
+[P02: locked local dependencies](docs/roadmap/records/dependency-management--idea.md#p02),
+[P03: pinned remote sources](docs/roadmap/records/dependency-management--idea.md#p03),
+and [P04: `panack` workflow integration](docs/roadmap/records/dependency-management--idea.md#p04)
+are sequenced in the [package-management plan](docs/roadmap/records/dependency-management--idea.md#alpha15-implementation-plan).
+Their provisional weights are 15%, 25%, 35% and 25% of GI#200, respectively.
+P01 is in progress; implementation is not yet complete. The P01
+[contract](docs/design/PACKAGE_MANAGEMENT_CONTRACT.md) is the source of truth for
+the lock and restore behavior. Website impact: none; this is a compiler and
+package-tool contract and does not change user-facing site claims.
+
+<a id="rm-158"></a> [RM#158](docs/roadmap/records/dependency-management--idea.md#rm-158),
+<a id="rm-159"></a> [RM#159](docs/roadmap/records/dependency-management--idea.md#rm-159),
+<a id="rm-160"></a> [RM#160](docs/roadmap/records/dependency-management--idea.md#rm-160) and
+<a id="rm-161"></a> [RM#161](docs/roadmap/records/dependency-management--idea.md#rm-161).
+
 The original modules/packages/HTTP programme baseline remains **90/100 earned**;
 P7 retains its deferred 10-point allocation. Alpha.13 release acceptance is complete.
-No existing identifier or item scope changed; RM#156 records the GI#518 selection
-and RM#157 records the performance outcome.
-**Next available roadmap identifier: RM#158.**
+RM#156 records the GI#518 selection and RM#157 records the performance outcome.
+RM#158–RM#161 identify the Alpha.15 package-management packets.
+**Next available roadmap identifier: RM#162.**
 
 ## Example inventory preflight — 2026-10-20
 

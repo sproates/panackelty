@@ -11,6 +11,7 @@ and release notes to determine what is available today.
 - [GI#162: generic static HTTP service and website previews](GI162_STATIC_HTTP_PLAN.md)
 - [GI#518: routed HTTP server implementation plan](GI518_ROUTED_HTTP_SERVER_PLAN.md)
 - [Module, package and HTTP design](MODULE_PACKAGE_DESIGN.md)
+- [Package management contract — Alpha.15 P01](PACKAGE_MANAGEMENT_CONTRACT.md)
 - [Native HTTP client design (P5)](NATIVE_HTTP_CLIENT_DESIGN.md)
 
 - [PR#524: type-owned dispatch migration plan and implementation handoff](type-owned-dispatch/dispatch-migration-plan.md)

@@ -75,15 +75,24 @@ Ordinary locked commands never resolve refs, so moved refs have no effect until
 `panack deps update`. Submodules, Git LFS, hooks and repository-provided commands
 are not run. A `subdir` is a normalized repository-relative path that must remain
 within the selected checkout after physical resolution. Git acquisition keeps
-the complete locked repository snapshot under `.panack_modules/<package-name>`;
-the package root is that snapshot plus `subdir` (or the snapshot root when it is
-omitted). This preserves repository-relative layout for sibling packages.
+one complete locked repository snapshot at
+`.panack_modules/.sources/<source-key>`, where `source-key` is derived from the
+canonical HTTPS URL, object format and full commit ID. Compute it as lowercase
+hex SHA-256 over `PANACK-GIT-SOURCE\0v1\0`, followed by those three UTF-8 fields
+in that order, each encoded as an unsigned 64-bit big-endian byte length and
+then its bytes. Every package edge with that Git identity shares this snapshot;
+its package root is the snapshot plus `subdir` (or the snapshot root when
+omitted). Thus the same sibling package reached through multiple parents has
+one canonical physical root.
 Relative path dependencies declared by a Git package resolve from that
-package's directory. When they resolve to another package inside the same
-locked repository snapshot, the edge is recorded as a Git source with the same
-URL, object format and full commit, and the target repository-relative path as
-its `subdir`. Resolution outside the snapshot is rejected; it cannot read an
-arbitrary path on the restoring machine. This also applies transitively.
+package's directory and may traverse within the shared snapshot to locate a
+sibling package. When they resolve to another package inside the same locked
+repository snapshot, the edge is recorded as a Git source with the same URL,
+object format and full commit, and the target repository-relative path as its
+`subdir`. Resolution outside the snapshot is rejected; it cannot read an
+arbitrary path on the restoring machine. This also applies transitively. A
+diamond graph in which two packages depend on the same sibling must resolve
+both edges to the same package record and physical root.
 
 Local directory paths are live by design: their normalized declared path,
 package name/version and manifest digest are locked, while source-file edits are
@@ -147,8 +156,11 @@ included once, including empty directories. Owner, timestamp and permission
 bits are excluded. Normalized duplicate and case-colliding paths are rejected.
 Archives may contain only directories and regular files. Git administrative
 metadata, untracked files and submodule contents are never included; submodules
-are rejected. Git symlinks are included in the digest and may be followed only
-when physical resolution keeps accessed sources within the repository snapshot.
+are rejected. Git symlinks are included in the digest. Acquisition validates
+that repository paths stay within the snapshot, while package source loading
+and compilation separately require every followed symlink to resolve within
+that package's own root. A package cannot read a sibling package's private
+files through a symlink; sibling access requires a declared dependency edge.
 
 The example uses synthetic digests and a synthetic Git commit. It documents the
 shape, not usable source content.
@@ -263,15 +275,18 @@ commit. Project `check`, `compile` and `run` are always network-free.
 
 ## Cache and acquisition safety
 
-`.panack_modules/<package-name>` is a per-checkout materialization cache. Local
-directories remain at their declared paths. Cache metadata is stored outside
-package sources under `.panack_modules/.state/` and binds a package identity to
-the canonical lock source identity and tree digest. Symlinked cache or state paths,
-or paths escaping `.panack_modules`, are rejected. A missing cache is built in
-a temporary sibling and atomically installed only after source, manifest and
-tree verification. Mismatched or corrupt entries are never used; restore
-replaces the generated entry atomically after successful reacquisition. Failure
-leaves the previous cache untouched, and the compiler cannot see partial output.
+`.panack_modules/<package-name>` is the materialization path for local and
+remote archives. Git repository snapshots instead use the shared
+`.panack_modules/.sources/<source-key>` path defined above, and package roots
+resolve directly to their subdirectories in that snapshot. Local directories
+remain at their declared paths. Cache metadata is stored outside package
+sources under `.panack_modules/.state/` and binds a canonical source identity
+and tree digest to each package identity. Symlinked cache or state paths, or
+paths escaping `.panack_modules`, are rejected. A missing cache is built in a
+temporary sibling and atomically installed only after source, manifest and tree
+verification. Mismatched or corrupt entries are never used; restore replaces
+the generated entry atomically after successful reacquisition. Failure leaves
+the previous cache untouched, and the compiler cannot see partial output.
 
 Archive acquisition is bounded to 64 MiB compressed input, 256 MiB expanded
 content and 16,384 total file/directory entries per archive. Exceeding a bound
@@ -301,8 +316,8 @@ partial lock or package and do not expose credentials.
 | Packet | Implementation boundary and required evidence |
 | --- | --- |
 | P02 · Locked local dependencies | Add lock reader/writer and stale-manifest checks; support live local directories and local archives; implement bounded, path-safe extraction and cache identity. Cover stable serialization, relative/absolute paths, changed archive bytes, malformed archives, traversal, duplicate paths, limits, stale locks and atomic failure behavior. |
-| P03 · Pinned remote sources | Resolve Git refs only during explicit lock/update; record full commit and object format; acquire Git repository snapshots and remote archives; verify source/tree digests and enforce redirect, cache and offline rules. Cover moved refs, unavailable commits, changed remote bytes, redirects, credentials, subdirectories and sibling-package dependencies, offline cache and network failure. |
-| P04 · `panack` workflow integration | Add `deps lock`, `deps update`, `deps restore` and manifest-aware check/compile/run behavior. Keep compiler resolution filesystem-only. Run complete Panack programs with direct/transitive dependencies and verify restore, lock stability, stale failure, offline behavior, diagnostics and relocation. |
+| P03 · Pinned remote sources | Resolve Git refs only during explicit lock/update; record full commit and object format; acquire shared Git repository snapshots and remote archives; verify source/tree digests and enforce redirect, cache and offline rules. Cover moved refs, unavailable commits, changed remote bytes, redirects, credentials, subdirectories, sibling dependencies and shared roots in a diamond graph, offline cache and network failure. |
+| P04 · `panack` workflow integration | Add `deps lock`, `deps update`, `deps restore` and manifest-aware check/compile/run behavior. Keep compiler resolution filesystem-only. Run complete Panack programs with direct/transitive dependencies and verify restore, lock stability, stale failure, offline behavior, diagnostics, relocation, diamond-root deduplication and package-bounded symlink resolution. |
 
 Acceptance covers all four source forms; lock reproducibility; missing/stale
 locks and caches; changed archive/remote content; unavailable offline sources;

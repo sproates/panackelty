@@ -23,18 +23,21 @@ The selected sources are:
 - Remote `.tar.gz` archive URLs.
 
 Local archives, Git sources and remote archives are materialized under
-`.panack_modules/<package-name>`. For Git sources this preserves the complete
-locked repository snapshot; a selected package subdirectory stays in its
-repository-relative location, allowing sibling packages at the same commit to
-resolve safely. This is a per-checkout cache and is reused only when its
-recorded identity matches the lock. Local directories are not materialized. The
-lock records source identity and exact remote content; it does not record
-whether a checkout has already unpacked a dependency. Absolute local directory
-entries are machine-specific. The `panack` command layer obtains and prepares
-sources, while the compiler receives resolved paths and does no network access.
-Archive extraction must stay within its dependency destination. Offline restore
-can verify and extract a locked local archive from its declared path without a
-prior cache entry.
+`.panack_modules/<package-name>`. Git repositories use a shared snapshot under
+`.panack_modules/.sources/<source-key>`, keyed by canonical URL, object format
+and full commit. Each selected package subdirectory resolves directly within
+that snapshot, so repeated or diamond-shaped dependencies share one physical
+package root. This is a per-checkout cache and is reused only when its recorded
+identity matches the lock. Local directories are not materialized. The lock
+records source identity and exact remote content; it does not record whether a
+checkout has already unpacked a dependency. Absolute local directory entries
+are machine-specific. The `panack` command layer obtains and prepares sources,
+while the compiler receives resolved paths and does no network access. Archive
+extraction must stay within its dependency destination. Offline restore can
+verify and extract a locked local archive from its declared path without a
+prior cache entry. Git sibling lookup is limited to the shared repository
+snapshot, while source symlinks remain confined to each package root during
+compilation.
 
 Package dependencies remain strict entries in `panack.json`, and direct edits to
 that manifest remain supported alongside dependency commands. Registries,

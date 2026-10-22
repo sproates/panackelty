@@ -68,6 +68,21 @@ The examples deliberately stay small enough to modify. The
 [`examples` guide](../../examples/README.md) continues with complete algorithms,
 including palindrome detection, memoized Fibonacci, and Project Euler 1–5.
 
+### Interpolate a local value
+
+Interpolation accepts a local scalar name, such as `${first}`. If the value comes
+from an expression or field access, bind it to a local first:
+
+```panackelty
+pure describe(name: Str, score: Nat): Str {
+  first: Str = name[0]
+  "${first}: ${name} scored ${score}"
+}
+```
+
+For example, `${name[0]}` is not an interpolation form; `first = name[0]`
+followed by `${first}` is. See the complete [strings example](../../examples/strings.panack).
+
 
 ## Language highlights
 

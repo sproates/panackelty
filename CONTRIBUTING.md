@@ -10,6 +10,10 @@ language behavior, `docs/internals/ARCHITECTURE.md` for component boundaries, an
 for current priorities. Security-sensitive reports must follow `SECURITY.md`
 instead of using a public issue.
 
+New to the project? Start with the [first program](docs/guides/INSTALLATION.md#write-and-run-a-first-program),
+then use the [language tour](docs/guides/LANGUAGE_TOUR.md) and
+[testing guide](tests/README.md) as you explore and contribute.
+
 The developer preview has shipped; implementation priorities are being assessed.
 Follow the [roadmap decision process](docs/roadmap/ROADMAP_PROCESS.md) and discuss
 substantial features before implementing them. Use the **Roadmap proposal** issue

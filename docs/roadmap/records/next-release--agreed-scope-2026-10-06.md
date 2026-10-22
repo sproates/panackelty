@@ -352,6 +352,14 @@ existing correctness and compatibility contracts,
 and document any deliberately selected changes. This roadmap addition starts no
 implementation and adds no gate to the ongoing Alpha.13 release.
 
+**Selected Alpha.15 documentation improvements, 2026-10-22:** contributor
+onboarding links to the existing first-program, language-tour and testing guides;
+the language tour explains that interpolation takes a local name and shows
+binding an indexed value before using it. These changes improve discovery and
+clarify the existing syntax without changing language behavior. Website: no
+impact; no live website claims or release information change. No issue was
+created solely for this documentation work.
+
 <a id="rm-156"></a>
 
 **RM#156: HTTP server framework and type-owned dispatch — Alpha.14.**

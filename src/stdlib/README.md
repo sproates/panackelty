@@ -48,6 +48,7 @@ testing, and TCP modules remain separate imports.
 | `process` | `ProcessOutput`, bounded `run` |
 | `host` | `HostError`, nested bytecode `run`, `arguments`, `exit`, `stderr`, `stdout`, `sleep`, checked `decode_utf8` |
 | `package_filesystem` | `FilesystemRootIdentity`, `FilesystemRootRead`, `directories_overlap`, `read_beneath` |
+| `package_archive` | `PackageArchiveInspection`, `inspect_local_archive`, `restore_local_archive` |
 | `testing` | `TestOutcome`, `TestResult`, `expect`, `equal_str`, `equal_nat`, `report` |
 | `testing_files` | `TestWorkspace`, `workspace_create`, `discover_fixtures`; TestWorkspace owns `remove_empty` |
 | `testing_commands` | `TestCommand`, `command_output`, `command_result`, `harness_command`, `capture_report`, `run_command`, `expect_command_error` |

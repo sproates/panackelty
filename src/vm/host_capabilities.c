@@ -4,6 +4,7 @@
 #include "builtins_internal.h"
 #include "host_capabilities.h"
 #include "host_types.h"
+#include "package_archive.h"
 #include "utf8.h"
 #include "value.h"
 
@@ -840,6 +841,10 @@ finish:
 
 Value *host_capability_call(VM *vm, const char *name, Value **a)
 {
+    if (!strcmp(name, "package_archive_inspect") ||
+        !strcmp(name, "package_archive_restore")) {
+        return package_archive_call(vm, name, a);
+    }
     if (!strcmp(name, "fs_root_identity")) {
         return hc_root_identity(vm, a);
     }

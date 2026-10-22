@@ -297,6 +297,9 @@ symbolic links and special files. Every path is validated before writing and
 stays beneath a fresh staging directory. The archive root must contain
 `panack.json`; no top-level directory is silently stripped. Existing package
 manifest and source-closure limits still apply after extraction.
+POSIX PAX local headers are accepted for path overrides and non-semantic file
+metadata; unsupported PAX fields fail closed. Archive metadata never changes
+the canonical tree digest or installed ownership and permissions.
 
 Acquisition never invokes package code, Git hooks, archive commands, install
 scripts or build scripts. Remote URLs cannot contain credentials, query strings

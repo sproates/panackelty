@@ -1001,7 +1001,11 @@ pure builtin_filesystem_return(name: Str): Str {
 }
 
 pure builtin_legacy_return(name: Str): Str {
-  if name == "tcp_serve" || name == "tcp_serve_stream" {
+  if name == "package_archive_inspect" {
+    "Result[Bytes,HostError]"
+  } else if name == "package_archive_restore" {
+    "Result[Unit,HostError]"
+  } else if name == "tcp_serve" || name == "tcp_serve_stream" {
     "Result[[Result[Unit,Str]],Str]"
   } else {
     if name == "async_fake_read" || name == "tcp_exchange" || name == "http_transport_exchange" ||
@@ -1217,7 +1221,9 @@ pure builtin_service_arity(name: Str): Nat {
 }
 
 pure builtin_legacy_arity(name: Str): Nat {
-  if name == "http_transport_exchange" || name == "$http_transport_exchange" {
+  if name == "package_archive_inspect" { 1 }
+  else if name == "package_archive_restore" { 4 }
+  else if name == "http_transport_exchange" || name == "$http_transport_exchange" {
     6
   } else {
   if name == "tcp_serve" || name == "$tcp_serve" {
@@ -1428,7 +1434,11 @@ pure builtin_network_parameter(name: Str, index: Nat): Str {
 }
 
 pure builtin_legacy_parameter(name: Str, index: Nat): Str {
-  if name == "tcp_serve" {
+  if name == "package_archive_inspect" {
+    "Path"
+  } else if name == "package_archive_restore" {
+    if index < 2 { "Path" } else { "Str" }
+  } else if name == "tcp_serve" {
     if index == 0 {
       "Str"
     } else {

@@ -50,10 +50,13 @@ through final acceptance. [P01: lock and restore contract](docs/roadmap/records/
 and [P04: `panack` workflow integration](docs/roadmap/records/dependency-management--idea.md#p04)
 are sequenced in the [package-management plan](docs/roadmap/records/dependency-management--idea.md#alpha15-implementation-plan).
 Their provisional weights are 15%, 25%, 35% and 25% of GI#200, respectively.
-P01 is in progress; implementation is not yet complete. The P01
-[contract](docs/design/PACKAGE_MANAGEMENT_CONTRACT.md) is the source of truth for
-the lock and restore behavior. Website impact: none; this is a compiler and
-package-tool contract and does not change user-facing site claims.
+P01's contract was accepted in PR#571. P02 has started local source parsing,
+bounded archive inspection/restoration, digest verification and path-safety
+coverage. Lock graph serialization, stale-manifest checks and full package
+workflow acceptance remain open. The
+[contract](docs/design/PACKAGE_MANAGEMENT_CONTRACT.md) remains the source of
+truth for lock and restore behavior. Website impact: none; this is compiler and
+package-tool work and does not change user-facing site claims.
 
 <a id="rm-158"></a> [RM#158](docs/roadmap/records/dependency-management--idea.md#rm-158),
 <a id="rm-159"></a> [RM#159](docs/roadmap/records/dependency-management--idea.md#rm-159),

@@ -7,8 +7,11 @@ within [RM#108: Modules programme](../roadmap/records/modules-packages-and-http-
 This document records the P1 design accepted in PR#240 and the follow-on programme
 decisions. Its tables remain design contracts rather than general feature evidence.
 Alpha.13 ships the namespace, local-package, migrated standard-library and HTTP
-client/server deliveries (P2–P6). P8 release acceptance is complete. Reproducible
-package management (P7) remains deferred to alpha.14. See the
+client/server deliveries (P2–P6). P8 release acceptance is complete. P7 package
+management is selected for full Alpha.15 implementation under the four-packet
+plan in the [current roadmap record](../roadmap/records/dependency-management--idea.md#alpha15-implementation-plan).
+The P1 design below remains historical where it conflicts with that selected
+scope. See the
 [release acceptance](../releases/ALPHA13_RELEASE_ACCEPTANCE.md) and
 [language specification](../reference/SPEC.md) for current guarantees.
 
@@ -638,7 +641,9 @@ code. Existing host capability controls still apply.
 > The 2026-10-15 decision moves GI#200 to Alpha.14, including discussion and
 > refinement before any owner-reviewed design document. Do not draft that document
 > until the owner says the discussion is ready to record. Treat this
-> section and its acceptance matrix as historical input for that discussion.
+> section and its acceptance matrix as historical input. On 2026-10-22 the owner
+> selected a different source and lock model for Alpha.15 implementation; see
+> the [current GI#200 plan](../roadmap/records/dependency-management--idea.md#alpha15-implementation-plan).
 
 Keep local paths as the baseline. P7 is independently schedulable after P1/P3;
 remote retrieval is not required for the language/local-package checkpoint or

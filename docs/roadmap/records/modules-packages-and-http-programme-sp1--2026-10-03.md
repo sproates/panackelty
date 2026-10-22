@@ -160,7 +160,7 @@ bootstrap, docs, independent review and explicit merge approval.
 | P4 | [RM#42: Standard library namespaces](standard-library-module-api-migration.md#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Done on `next` in PR#404; alpha.13 release adoption accepted | P1–P3 as needed | Medium / 1–2 PRs |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Complete on `next` in PR#456; P8 release acceptance complete in alpha.13 | P1–P3; transport/DNS/TLS | Large, delivered / 4–7 PRs |
 | P6 | [RM#111: HTTP server package](#rm-111) · [GI#237: HTTP server package](https://github.com/sproates/panackelty/issues/237) | Complete on `next` in PR#467; P8 release acceptance complete in alpha.13 | P1–P3; transport/lifecycle | Large, delivered / 2–4 PRs |
-| P7 | [RM#44: Package management](dependency-management--idea.md#rm-44) · [GI#200: Dependency management](https://github.com/sproates/panackelty/issues/200) | Moved to Alpha.14 by owner decision on 2026-10-15; product model remains under discussion | P1, P3 inform the design | Scope and estimate remain open until discussion is ready to record |
+| P7 | [RM#44: Package management](dependency-management--idea.md#rm-44) · [GI#200: Panack package management](https://github.com/sproates/panackelty/issues/200) | Selected for full Alpha.15 implementation on 2026-10-22; four packets planned, implementation not started | P1, P3 inform the design; RM#158–RM#161 form the delivery sequence | 10% of the original SP1 baseline remains unearned; a separate provisional packet baseline is in RM#44 |
 | P8 | [RM#112: Package and HTTP acceptance](#rm-112) · [GI#238: Package and HTTP acceptance](https://github.com/sproates/panackelty/issues/238) | Done; alpha.13 public artifacts and all three acceptance gates verified | Language/local-package evidence; client evidence; final integration and release artifacts; GI#200 is no longer an Alpha.13 dependency | Medium / 1–2 PRs, provisional; reassess across the gates |
 
 <a id="rm-149"></a>
@@ -335,10 +335,12 @@ No public registry, separate compilation, web framework or new engine is
 required. Website impact: none for this test-only acceptance; it does not change
 shipped behavior or user-facing package documentation.
 
-Current scope supersedes the historical checkpoint above: P1–P6 and P8 are accepted in published alpha.13.
-P7 is moved to Alpha.14. Their shared design is recorded in P1, with provisional
-implementation estimates above and detailed slices in the design. No public
-registry, separate compilation, web framework or new engine is required.
+Current scope supersedes the historical checkpoint above: P1–P6 and P8 are
+accepted in published alpha.13. P7 is selected for full Alpha.15 implementation
+under the owner decision of 22 October 2026. Its 10% remains unearned on the
+original SP1 baseline; the four packet weights in RM#44 are a separate planning
+baseline. No public registry, separate compilation, web framework or new engine
+is required.
 
 Provisional scope/effort baseline recorded on 2026-10-03 in
 [GI#233: Modules programme](https://github.com/sproates/panackelty/issues/233):
@@ -351,9 +353,9 @@ Provisional scope/effort baseline recorded on 2026-10-03 in
 | P4 / [RM#42: Standard library namespaces](standard-library-module-api-migration.md#rm-42) | 5% | 100%; PR#404 and alpha.13 release adoption | 5 pp |
 | P5 / [RM#110: HTTP client package](#rm-110) | 20% | 100% implementation on `next`; P8 acceptance complete in alpha.13 | 20 pp |
 | P6 / [RM#111: HTTP server package](#rm-111) | 15% | 100% implementation on `next`; P8 acceptance complete in alpha.13 | 15 pp |
-| P7 / [RM#44: Remote Panack package-management design](dependency-management--idea.md#rm-44) | 10% (former implementation baseline; rebaseline after design) | Moved to Alpha.14; design discussion not ready for documentation | 0 pp |
+| P7 / [RM#44: Package management](dependency-management--idea.md#rm-44) | 10% (original SP1 implementation baseline) | Selected for full Alpha.15 implementation; four packet plan recorded, implementation not started | 0 pp |
 | P8 / [RM#112: Package and HTTP acceptance](#rm-112) | 5% | 100%; published artifact and installed/relocated acceptance | 5 pp |
-| **Total** | **100% original SP1 baseline** | P1–P6 and P8 accepted in alpha.13; P7 moved to Alpha.14 | **90 pp earned on the original baseline; P7 retains 10%** |
+| **Total** | **100% original SP1 baseline** | P1–P6 and P8 accepted in alpha.13; P7 planned for Alpha.15 | **90 pp earned on the original baseline; P7 retains 10%** |
 
 P1 earned its design-task credit through merged PR#240. P2 is complete on `next`:
 its four foundations are PR#261, PR#262, PR#275 and PR#284; slice 1 is PR#297; slice 2

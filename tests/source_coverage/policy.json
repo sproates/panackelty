@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "GI518 adds the typed HTTP runtime adapter to the explicit unmeasured inventory; the bounded measured corpus is unchanged.",
+    "reason": "GI518's typed HTTP runtime adapter and GI200's package archive adapter are explicit unmeasured source entries; the bounded measured corpus is unchanged.",
     "basis": "All 31 fresh local sessions completed for a914d81 with the hashing repair. Reviewed all 410 exclusions against source declarations: 255 imports, 130 records and 25 enums; no executable declaration is excluded.",
-    "scopeChange": "Account for src/stdlib/http_runtime.panack with its native and source/bytecode fixture evidence. No existing eligible file, execution root, exclusion or threshold changes; no fresh percentage measurement is claimed."
+    "scopeChange": "Account for src/stdlib/package_archive.panack with its native runtime tests, alongside the existing HTTP runtime entry. No existing eligible file, execution root, exclusion or threshold changes; no fresh percentage measurement is claimed."
   },
-  "manifestHash": "fca63aa0f41107a8d11d5000f824909a19ed98475e49c75aace706daf72d7506",
+  "manifestHash": "c0e7317f83f315c5a3cd1f9ed0b0f396b633e9bb2d3bdabde48e6b27741ed8cd",
   "exclusionHash": "773435167944b7750a18a232c06a2697356e8fb853efda5dfcf1a3acd8f10a7e"
 }

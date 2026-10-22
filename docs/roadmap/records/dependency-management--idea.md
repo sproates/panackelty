@@ -22,7 +22,7 @@ The selected sources are:
 - Git repositories, optionally selecting a package subdirectory.
 - Remote `.tar.gz` archive URLs.
 
-Local archives, Git sources and remote archives are materialized under
+Local and remote archives are materialized under
 `.panack_modules/<package-name>`. Git repositories use a shared snapshot under
 `.panack_modules/.sources/<source-key>`, keyed by canonical URL, object format
 and full commit. Each selected package subdirectory resolves directly within

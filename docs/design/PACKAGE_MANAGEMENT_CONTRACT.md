@@ -58,10 +58,11 @@ The supported source forms are:
   subdirectory. `ref` and `subdir` are optional; omitted `ref` means the remote
   default-branch tip at explicit lock/update time, and omitted `subdir` means `.`.
 
-Archives and Git checkouts are materialized under
-`.panack_modules/<package-name>`. The declared package name is unique within a
-resolved graph, so transitive packages with the same local alias cannot collide
-in the cache. Source objects have closed schemas; unknown
+Local and remote archives are materialized under
+`.panack_modules/<package-name>`. Git snapshots use the shared source-keyed
+location defined below. The declared package name is unique within a resolved
+graph, so transitive packages with the same local alias cannot collide in the
+archive cache. Source objects have closed schemas; unknown
 keys, multiple source kinds, empty paths, URL credentials, non-HTTPS remote URLs
 and reserved aliases are errors. Archive paths must end in `.tar.gz`; URL query
 strings and fragments are not allowed. Bytes must also decode as gzip containing

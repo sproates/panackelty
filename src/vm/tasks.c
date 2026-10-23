@@ -106,6 +106,7 @@ VMTasks *vm_tasks_create(const VM *template_vm, size_t task_limit, size_t event_
     tasks->template_vm = *template_vm;
     tasks->template_vm.filesystem_stages = NULL;
     tasks->template_vm.gzip_streams = NULL;
+    tasks->template_vm.http_streams = NULL;
     tasks->template_vm.digests = NULL;
     tasks->template_vm.resource_parent = NULL;
     if (!template_vm->coverage_run) vm_coverage_gap(template_vm->coverage);

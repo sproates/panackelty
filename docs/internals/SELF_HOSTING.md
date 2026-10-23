@@ -10,6 +10,14 @@ stages 2, 3 and 4 reproduce it. Package-only changes rebuild the package artifac
 without refreshing this seed. Generic host grants are part of the initial
 interface change; there is no new bytecode version or arbitrary C FFI.
 
+The P03a HTTP prerequisite adds three checked grants for `stdlib/http_stream`.
+Its one-time seed refresh exposes generic open/read/close transport operations;
+it adds no package policy to the compiler. Subsequent remote-package changes
+continue to build only the separate package artifact. The seed is reproduced
+through the existing stage 2/3/4 procedure, producing
+`34690cbd157483b57076e508d362a480405924326ce748de3905783d35d97eed`.
+The standard-library conformance artifact remains unchanged.
+
 ## Current state
 
 Alpha.13 is published with the self-hosted namespace-capable compiler, local

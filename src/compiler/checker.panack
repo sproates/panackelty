@@ -1007,6 +1007,9 @@ pure builtin_legacy_return(name: Str): Str {
   if name == "digest_update" { "Result[Unit,HostError]" } else
   if name == "digest_finish" { "Result[Bytes,HostError]" } else
   if name == "digest_close" { "Result[Unit,HostError]" } else
+  if name == "http_stream_open" { "Result[Nat,Str]" } else
+  if name == "http_stream_read" { "Result[Bytes,Str]" } else
+  if name == "http_stream_close" { "Result[Unit,Str]" } else
   if name == "gzip_open" { "Result[Nat,HostError]" } else
   if name == "gzip_step" { "Result[GzipChunk,HostError]" } else
   if name == "gzip_close" { "Result[Unit,HostError]" } else
@@ -1238,6 +1241,8 @@ pure builtin_legacy_arity(name: Str): Nat {
   if name == "digest_update" { 2 } else
   if name == "digest_finish" { 1 } else
   if name == "digest_close" { 1 } else
+  if name == "http_stream_open" { 6 } else
+  if name == "http_stream_read" || name == "http_stream_close" { 1 } else
   if name == "gzip_open" { 1 } else
   if name == "gzip_step" { 3 } else
   if name == "gzip_close" { 1 } else
@@ -1464,6 +1469,8 @@ pure builtin_legacy_parameter(name: Str, index: Nat): Str {
   if name == "digest_update" { if index == 0 { "Nat" } else if index == 1 { "Bytes" } else { "Any" } } else
   if name == "digest_finish" { if index == 0 { "Nat" } else { "Any" } } else
   if name == "digest_close" { if index == 0 { "Nat" } else { "Any" } } else
+  if name == "http_stream_open" { if index == 0 { "Str" } else if index == 2 { "Bool" } else if index == 3 { "Bytes" } else { "Nat" } } else
+  if name == "http_stream_read" || name == "http_stream_close" { "Nat" } else
   if name == "gzip_open" { if index == 0 { "Nat" } else { "Any" } } else
   if name == "gzip_step" { if index == 0 { "Nat" } else if index == 1 { "Bytes" } else if index == 2 { "Bool" } else { "Any" } } else
   if name == "gzip_close" { if index == 0 { "Nat" } else { "Any" } } else

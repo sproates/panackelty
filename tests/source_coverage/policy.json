@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "P02 separates package policy and descriptor validation into dedicated source components; their files are explicitly accounted as unmeasured while the bounded execution corpus stays unchanged.",
-    "basis": "The package-tool handoff, resolved-project unit checks and public CLI fixture provide focused evidence. No package-source coverage percentage is claimed.",
-    "scopeChange": "Move package manifest and graph support into src/project_model/ and src/packages/, add the shared UTF-8 helper, and account for all new paths as unmeasured. No existing eligible source, execution root, exclusion or threshold changes. Account for archive acquisition, locking, tar parsing, Unicode case folding, digests and generic bounded host adapters as unmeasured; preserve the eligible baseline."
+    "reason": "P03a prerequisite adds one generic raw HTTP streaming wrapper, explicitly unmeasured.",
+    "basis": "Native 32 MiB transfer and source/bytecode HTTP/TLS fixtures establish contracts, not source coverage percentages.",
+    "scopeChange": "Add src/stdlib/http_stream.panack to unmeasured inventory. Preserve eligible sources, execution roots, exclusions and thresholds."
   },
-  "manifestHash": "24908832e8b351cf3da788d8190e1c728e70b6c30028d031c0ebf79b3a8c636d",
+  "manifestHash": "f76da12263e3498b951a38215672ff1bb684ad514386b1c76cc28360160ed1eb",
   "exclusionHash": "773435167944b7750a18a232c06a2697356e8fb853efda5dfcf1a3acd8f10a7e"
 }

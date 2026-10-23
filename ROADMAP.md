@@ -61,6 +61,9 @@ local workflow; the [acceptance record](docs/design/PACKAGE_LOCAL_ACCEPTANCE.md)
 records verification, performance evidence and publication limits.
 Website changes wait for a matching native release
 and are recorded in the website follow-up register.
+P03a starts with the [bounded HTTP streaming prerequisite](docs/design/HTTP_STREAMING_ACCEPTANCE.md),
+followed by HTTPS archive acquisition. Git acquisition remains in later slices;
+the prerequisite alone earns no additional programme completion.
 
 <a id="rm-158"></a> [RM#158](docs/roadmap/records/dependency-management--idea.md#rm-158),
 <a id="rm-159"></a> [RM#159](docs/roadmap/records/dependency-management--idea.md#rm-159),

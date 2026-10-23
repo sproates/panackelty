@@ -216,7 +216,10 @@ separate package cache.
 | P02a: independent tool | Package-tool entry/artifact, launcher route, exact descriptor schema and compiler handoff. Run a complete project with a local directory dependency. Demonstrate that a package-only behaviour edit changes tool output while compiler artifact/seed hashes and compiler build invocation count remain unchanged. Record the native API surface and prove staging/publication guarantees. |
 | P02b: local graph and lock | Panackelty strict lock reader/writer, exact root/transitive manifest digests, graph validation and local-directory commands. Prove stale/missing lock failures, relocation, absolute-path caveat, diamond identity and deterministic serialization. |
 | P02c: local archives | Narrow zlib adapter, Panackelty tar/canonicalisation implementation and safe cache lifecycle. Deliver local `deps lock/update/restore` and project check/compile/run through the public CLI. P02 ends with a usable local workflow, not disconnected parser modules. |
-| P03: remote sources | HTTPS archives through existing HTTP support and controlled Git acquisition. Test redirects, moved refs, unavailable pinned commits, whole-snapshot verification, sibling/diamond roots, changed remote bytes and offline reuse. Extend the same tool and descriptor without importing acquisition into the compiler. |
+| P03a: HTTPS archives | Reuse P02 extraction and cache verification. Deliver lock/update/restore with bounded downloads, safe redirects, changed-byte rejection and verified offline reuse. |
+| P03b: controlled Git acquisition | Isolate Git configuration and acquire an exact complete commit snapshot. Prove disabled hooks/filters/helpers, containment, symlink handling and cleanup before package graph integration. |
+| P03c: Git package integration | Connect snapshots to locks, subdirectories and transitive dependencies. Prove shared snapshot identity, siblings and diamond roots through public commands. |
+| P03d: remote-source acceptance | Verify moved refs, unavailable commits, changed bytes, corrupt caches, interrupted acquisition, selective updates and offline behaviour on supported native platforms. |
 | P04: final integration | Install/package both artifacts and native dependencies; finish help and diagnostics; validate all four source forms together, existing standalone routes, relocation and supported native platforms. Prove ordinary project commands remain network-free and never restore implicitly. |
 
 P02c must include independently calculated SHA-256 and tree-digest fixtures,
@@ -242,6 +245,15 @@ edits. Required integration/full validation remains in place at delivery; build
 independence is not permission to omit correctness checks.
 
 ## Implementation discretion
+
+On 24 October 2026 the owner approved a separate P03a prerequisite: bounded
+streaming through the existing libcurl transport. A public CLI probe proved
+that the HTTP client's 1 MiB body cap rejects a 64 MiB request before network
+access; the existing native exchange also buffers at most 16 MiB. The generic
+`stdlib/http_stream` open/read/close interface uses bounded blocking reads for
+command-line consumers, preserving the existing async client. Its compiler/VM
+grant and seed update occur once in the prerequisite PR. HTTP framing and all
+redirect, archive, lock and cache policy remain in Panack. Git is outside P03a.
 
 The language split, separate artifact, dependency direction, zlib choice, Git
 process choice, command semantics and safety guarantees above are settled.

@@ -39,7 +39,7 @@ jobs:
         run: |
           openssl version
           curl-config --version
-          for fixture in tls-ok tls-wrong-host tls-untrusted tls-late; do
+          for fixture in tls-ok tls-wrong-host tls-untrusted tls-late stream tls-stream tls-stream-untrusted; do
             echo "TLS fixture: $fixture"
             sh tests/http_client_package.sh "$fixture"
           done

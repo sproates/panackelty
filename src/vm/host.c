@@ -1,3 +1,4 @@
+#include "http_transport.h"
 #include "platform.h"
 #include "filesystem_stage.h"
 #include "gzip_stream.h"
@@ -393,6 +394,7 @@ Value *host_call(VM *vm, const char *name, Value **a)
         for (VM *owner = vm; owner; owner = owner->resource_parent) {
             filesystem_stage_destroy(owner);
             gzip_stream_destroy(owner);
+            http_stream_destroy(owner);
             digest_destroy(owner);
         }
         exit((int)code);

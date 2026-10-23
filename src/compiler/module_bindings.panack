@@ -452,6 +452,9 @@ pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool 
     (owner.module.path == "digest.panack" && owner.name == "update" && name == "digest_update") ||
     (owner.module.path == "digest.panack" && owner.name == "finish" && name == "digest_finish") ||
     (owner.module.path == "digest.panack" && owner.name == "close" && name == "digest_close") ||
+    (owner.module.path == "http_stream.panack" && owner.name == "open" && name == "http_stream_open") ||
+    (owner.module.path == "http_stream.panack" && owner.name == "read" && name == "http_stream_read") ||
+    (owner.module.path == "http_stream.panack" && owner.name == "close" && name == "http_stream_close") ||
     (owner.module.path == "gzip.panack" && owner.name == "open" && name == "gzip_open") ||
     (owner.module.path == "gzip.panack" && owner.name == "step" && name == "gzip_step") ||
     (owner.module.path == "gzip.panack" && owner.name == "close" && name == "gzip_close") ||
@@ -507,6 +510,7 @@ pub pure module_internal_primitive_name(identity: ModuleIdentity, name: Str): Bo
     (identity.path == "testing_async.panack" && (name == "async_fake_read")) ||
     (identity.path == "filesystem_stage.panack" && (name == "fs_stage_begin" || name == "fs_stage_path" || name == "fs_stage_directory" || name == "fs_stage_write" || name == "fs_stage_publish" || name == "fs_stage_close")) ||
     (identity.path == "digest.panack" && (name == "digest_sha256_open" || name == "digest_update" || name == "digest_finish" || name == "digest_close")) ||
+    (identity.path == "http_stream.panack" && (name == "http_stream_open" || name == "http_stream_read" || name == "http_stream_close")) ||
     (identity.path == "gzip.panack" && (name == "gzip_open" || name == "gzip_step" || name == "gzip_close")) ||
     (identity.path == "bounded_filesystem.panack" && (name == "fs_read_chunk" || name == "fs_atomic_write")) ||
     (identity.path == "filesystem.panack" && (name == "fs_create_directory" || name == "fs_list" || name == "fs_metadata" || name == "fs_read" || name == "fs_remove_directory" || name == "fs_remove_file" || name == "fs_temp_directory" || name == "fs_temp_file" || name == "fs_write")) ||

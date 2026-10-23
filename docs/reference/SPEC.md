@@ -1472,6 +1472,18 @@ are 10 seconds, 64 KiB of response headers and 1 MiB of body. Hard limits are
 60 seconds, 64 KiB and 1 MiB respectively. The transport also caps total raw
 response bytes at 16 MiB.
 
+`stdlib/http_stream` supplies a separate blocking raw transport for command-line
+stream consumers. `open(host, port, tls, request, response_limit, timeout_ms)`
+returns an invocation-local handle; connection work starts on `read(handle)`.
+Each read returns at most 16 KiB, with empty bytes marking EOF. `close(handle)`
+releases the connection and invalidates the handle. The request is bounded at
+64 KiB, raw response at 256 MiB, timeout at 60 seconds and handle allocation at
+512 per invocation. The absolute deadline includes time between reads. Handles
+are never reused within an invocation, and VM teardown releases abandoned ones.
+These operations return `Result[...,Str]` and cannot be called from async or
+pure functions. They reuse verified libcurl transport; HTTP framing, redirects
+and application policy remain in Panack code. Buffered client limits are unchanged.
+
 The package accepts HTTP and HTTPS URLs with ASCII DNS names or dotted IPv4
 addresses. It rejects IPv6, user information, fragments, non-ASCII hosts,
 control characters and unsupported schemes. Requests use origin-form paths and

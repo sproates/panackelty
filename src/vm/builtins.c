@@ -1,3 +1,4 @@
+#include "http_transport.h"
 #include "builtins.h"
 
 #include "builtins_internal.h"
@@ -93,6 +94,9 @@ static const Builtin BUILTINS[] = {
     {"digest_update", 2, false, digest_call},
     {"digest_finish", 1, false, digest_call},
     {"digest_close", 1, false, digest_call},
+    {"http_stream_open", 6, false, http_stream_call},
+    {"http_stream_read", 1, false, http_stream_call},
+    {"http_stream_close", 1, false, http_stream_call},
     {"gzip_open", 1, false, gzip_stream_call},
     {"gzip_step", 3, false, gzip_stream_call},
     {"gzip_close", 1, false, gzip_stream_call},

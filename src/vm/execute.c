@@ -1328,6 +1328,7 @@ bool vm_execution_destroy(VMExecution *execution)
     restore_stop_signals(execution);
     filesystem_stage_destroy(execution->vm);
     gzip_stream_destroy(execution->vm);
+    http_stream_destroy(execution->vm);
     digest_destroy(execution->vm);
     frames_clear(execution);
     free(execution->frames);
@@ -1411,6 +1412,7 @@ Value *execute(VM *vm, Function *function, Value **arguments)
     restore_stop_signals(&execution);
     filesystem_stage_destroy(vm);
     gzip_stream_destroy(vm);
+    http_stream_destroy(vm);
     digest_destroy(vm);
     frames_clear(&execution);
     free(execution.frames);

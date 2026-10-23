@@ -20,6 +20,7 @@
     "src/stdlib/time.panack"
   ],
   "unmeasured": [
+    {"path":"src/stdlib/http_stream.panack","reason":"Generic raw stream wrapper; functional/native contracts do not establish source execution coverage."},
     {"path": "src/compiler/owned_intrinsics.panack", "reason": "P06 intrinsic registration and lowering are exercised by binding and CLI tests; source-execution percentages for this new module are not yet included in the bounded 45-file baseline."},
     {"path": "src/packages/main.panack", "reason": "The independent package-tool entry point is tested through its bytecode artifact, outside the bounded native source-execution corpus."},
     {"path": "src/packages/project_graph.panack", "reason": "Package graph support is exercised by package-tool and public CLI tests, outside the bounded native source-execution corpus."},

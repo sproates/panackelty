@@ -30,7 +30,13 @@ openssl x509 -req -in "$work/test.csr" -CA "$work/ca.crt" -CAkey "$work/ca.key" 
 export CURL_CA_BUNDLE="$work/ca.crt"
 node tests/package_https_fixture.cjs "$work" > "$work/server.log" "$work/large.time" 2>&1 &
 pid=$!
-for attempt in 1 2 3 4 5 6 7 8 9 10; do [ -s "$work/port" ] && break; sleep 0.1; done
+attempt=0
+while [ ! -s "$work/port" ] && [ "$attempt" -lt 100 ]; do
+    kill -0 "$pid" 2>/dev/null || { echo 'HTTPS test peer exited before readiness' >&2; exit 1; }
+    attempt=$((attempt + 1))
+    sleep 0.1
+done
+[ -s "$work/port" ] || { echo 'HTTPS test peer did not become ready within 10 seconds' >&2; exit 1; }
 port=$(cat "$work/port")
 manifest="$work/app/panack.json"
 lock="$work/app/panack.lock.json"

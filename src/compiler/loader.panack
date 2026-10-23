@@ -29,9 +29,9 @@ import project/src/compiler/types::{SourcePos}
 pub import project/src/compiler/checker::{SubtractionEvidence}
 pub import project/src/compiler/purity::{EffectEvidence}
 import project/src/compiler/resolver::{append_program_declarations}
-pub import project/src/compiler/package_project::{ManifestDependencyProject}
-pub import project/src/compiler/package_project::{FilesystemRootIdentity}
-import project/src/compiler/package_manifest::{PackageManifestExport}
+pub import project/src/project_model/package_project::{ManifestDependencyProject}
+pub import stdlib/package_filesystem::{FilesystemRootIdentity}
+import project/src/project_model/package_manifest::{PackageManifestExport}
 
 // Resolve and read the module closure once, preserving traversal order and original
 // source snapshots. Host I/O belongs here rather than in the pure frontend.

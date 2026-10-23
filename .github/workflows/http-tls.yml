@@ -32,9 +32,9 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install --yes libcurl4-openssl-dev
+          sudo apt-get install --yes libcurl4-openssl-dev zlib1g-dev libssl-dev
       - name: Build native fixture runner
-        run: make native build/vm/http_fixture
+        run: make native package-tool build/vm/http_fixture
       - name: Exercise TLS source and bytecode contracts
         run: |
           openssl version

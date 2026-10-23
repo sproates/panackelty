@@ -1,8 +1,8 @@
-import project/src/bytecode/decoder::{valid_utf8}
+import project/src/project_model/utf8::{valid_utf8}
 import stdlib/bytes as byte_buffer
 
-// Keep manifest parsing independent of the compiler driver. The package loader
-// can consume this validated value once explicit project roots are wired in.
+// Manifest records and parsing are shared by the package tool and compiler
+// through the neutral project-model boundary.
 pub record PackageManifestError {
   message: Str,
   offset: Nat
@@ -15,6 +15,7 @@ pub record PackageManifestExport {
 
 pub record PackageManifestDependency {
   alias: Str,
+  kind: Str,
   path: Str
 }
 
@@ -29,7 +30,7 @@ pub record PackageManifest {
   dependencies: [PackageManifestDependency]
 }
 
-enum ManifestJsonValue {
+pub enum ManifestJsonValue {
   ManifestJsonNull,
   ManifestJsonBool(Bool),
   ManifestJsonNumber(Str),
@@ -38,7 +39,7 @@ enum ManifestJsonValue {
   ManifestJsonObject([ManifestJsonMember])
 }
 
-record ManifestJsonMember {
+pub record ManifestJsonMember {
   key: Str,
   value: ManifestJsonValue,
   offset: Nat
@@ -59,7 +60,7 @@ record ParsedManifestHex {
   next: Nat
 }
 
-record ParsedManifestField {
+pub record ParsedManifestField {
   value: ManifestJsonValue,
   offset: Nat
 }
@@ -423,9 +424,15 @@ pure parse_manifest_json_value(data: Bytes, cursor: Nat, depth: Nat): Result[Par
   }
 }
 
-pure parse_manifest_json(data: Bytes): Result[ManifestJsonValue, PackageManifestError] {
+pub pure parse_manifest_json(data: Bytes): Result[ManifestJsonValue, PackageManifestError] {
   if data.length() > package_manifest_byte_limit() {
     Error(manifest_error("manifest exceeds 65536-byte limit", package_manifest_byte_limit()))
+  } else { parse_bounded_json(data, package_manifest_byte_limit()) }
+}
+
+pub pure parse_bounded_json(data: Bytes, limit: Nat): Result[ManifestJsonValue, PackageManifestError] {
+  if data.length() > limit {
+    Error(manifest_error("JSON input exceeds byte limit", limit))
   } else if !valid_utf8(data) {
     Error(manifest_error("manifest is not valid UTF-8", 0))
   } else {
@@ -440,7 +447,7 @@ pure parse_manifest_json(data: Bytes): Result[ManifestJsonValue, PackageManifest
   }
 }
 
-pure manifest_json_object_field(value: ManifestJsonValue, name: Str): Option[ParsedManifestField] {
+pub pure manifest_json_object_field(value: ManifestJsonValue, name: Str): Option[ParsedManifestField] {
   match value {
     ManifestJsonObject(members) => {
       mut result: Option[ParsedManifestField] = None()
@@ -457,7 +464,7 @@ pure manifest_json_object_field(value: ManifestJsonValue, name: Str): Option[Par
   }
 }
 
-pure manifest_json_string_field(value: ManifestJsonValue, name: Str): Result[Str, PackageManifestError] {
+pub pure manifest_json_string_field(value: ManifestJsonValue, name: Str): Result[Str, PackageManifestError] {
   match manifest_json_object_field(value, name) {
     None() => Error(manifest_error("missing required string field ${name}", 0)),
     Some(field) => match field.value {
@@ -479,7 +486,7 @@ pure manifest_name_is_allowed(allowed: [Str], name: Str): Bool {
   found
 }
 
-pure manifest_object_unknown_field(value: ManifestJsonValue, allowed: [Str]): Option[PackageManifestError] {
+pub pure manifest_object_unknown_field(value: ManifestJsonValue, allowed: [Str]): Option[PackageManifestError] {
   match value {
     ManifestJsonObject(members) => {
       mut failure: Option[PackageManifestError] = None()
@@ -507,7 +514,7 @@ pure manifest_ascii_digit(character: Str): Bool {
   character >= "0" && character <= "9"
 }
 
-pure manifest_identifier(value: Str): Bool {
+pub pure manifest_identifier(value: Str): Bool {
   if value.len() == 0 { false }
   else {
     first: Str = value[0]
@@ -522,7 +529,7 @@ pure manifest_identifier(value: Str): Bool {
   }
 }
 
-pure manifest_package_name(value: Str): Bool {
+pub pure manifest_package_name(value: Str): Bool {
   if value.len() == 0 { false }
   else {
     mut segment_start: Nat = 0
@@ -543,7 +550,7 @@ pure manifest_package_name(value: Str): Bool {
   }
 }
 
-pure manifest_logical_path(value: Str): Bool {
+pub pure manifest_logical_path(value: Str): Bool {
   if value.len() == 0 { false }
   else {
     mut segment_start: Nat = 0
@@ -564,7 +571,7 @@ pure manifest_path_ends_with(path: Str, suffix: Str): Bool {
   path.ends_with(suffix)
 }
 
-pure manifest_relative_path_error(
+pub pure manifest_relative_path_error(
   value: Str,
   allow_parent: Bool,
   require_source_suffix: Bool,
@@ -668,7 +675,7 @@ pure manifest_prerelease_part(value: Str, start: Nat, end: Nat): Bool {
   }
 }
 
-pure manifest_semver(value: Str): Bool {
+pub pure manifest_semver(value: Str): Bool {
   mut dash: Option[Nat] = None()
   mut cursor: Nat = 0
   mut valid = true
@@ -740,16 +747,26 @@ pure manifest_manifest_dependencies(value: ManifestJsonValue): Result[[PackageMa
           failure = Some(manifest_error("dependency aliases must be identifiers other than project or stdlib", member.offset))
         }
         if failure == None() {
-          match manifest_object_unknown_field(member.value, ["path"]) {
+          path_field = manifest_json_object_field(member.value, "path")
+          kind: Str = if path_field != None() { "path" } else { "archive" }
+          match manifest_object_unknown_field(member.value, [kind]) {
             Some(error) => { failure = Some(error) },
-            None() => match manifest_json_string_field(member.value, "path") {
+            None() => match manifest_json_string_field(member.value, kind) {
               Error(error) => { failure = Some(error) },
-              Ok(path) => match manifest_json_object_field(member.value, "path") {
-                Some(path_field) => match manifest_relative_path_error(path, true, false, path_field.offset) {
-                  Some(error) => { failure = Some(error) },
-                  None() => { dependencies = dependencies.append(PackageManifestDependency(member.key, path)) }
-                },
-                None() => { failure = Some(manifest_error("dependency path is required", member.offset)) }
+              Ok(path) => {
+                if path == "" || (kind == "archive" && !path.ends_with(".tar.gz")) {
+                  failure = Some(manifest_error("dependency source is empty or archive does not end in .tar.gz", member.offset))
+                } else if path.starts_with_at("https://", 0) || path.starts_with_at("http://", 0) {
+                  failure = Some(manifest_error("remote dependency sources require P03 support", member.offset))
+                } else {
+                  // Only dependency paths may be absolute. Source and export
+                  // paths retain the strict package-relative validation above.
+                  relative: Str = if path.starts_with_at("/", 0) { path.slice(1, path.len()) } else { path }
+                  match manifest_relative_path_error(relative, true, false, member.offset) {
+                    Some(error) => { failure = Some(error) },
+                    None() => { dependencies = dependencies.append(PackageManifestDependency(member.key, kind, path)) }
+                  }
+                }
               }
             }
           }

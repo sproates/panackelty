@@ -1,0 +1,458 @@
+pub import project/src/project_model/package_manifest::{
+  ManifestJsonValue, ManifestJsonValue.ManifestJsonNull, ManifestJsonValue.ManifestJsonBool,
+  ManifestJsonValue.ManifestJsonNumber, ManifestJsonValue.ManifestJsonString,
+  ManifestJsonValue.ManifestJsonArray, ManifestJsonValue.ManifestJsonObject,
+  PackageManifestError, PackageManifestExport,
+  manifest_json_object_field, manifest_json_string_field,
+  manifest_object_unknown_field, parse_bounded_json,
+  manifest_identifier, manifest_package_name, manifest_semver,
+  manifest_logical_path, manifest_relative_path_error
+}
+pub import stdlib/package_filesystem::{FilesystemRootIdentity}
+
+pub record ResolvedProject {
+  root: Str,
+  toolchain: Str,
+  packages: [ResolvedPackage]
+}
+
+pub record ResolvedPackage {
+  id: Str,
+  name: Str,
+  version: Str,
+  package_root: Str,
+  source_root: Str,
+  entry: Option[Str],
+  exports: [PackageManifestExport],
+  identity: FilesystemRootIdentity,
+  dependencies: [ResolvedPackageEdge]
+}
+
+pub record ResolvedPackageEdge {
+  alias: Str,
+  target: Str
+}
+
+pub pure resolved_project_descriptor_schema(): Nat { 1 }
+pub pure resolved_project_package_limit(): Nat { 64 }
+pub pure resolved_project_edge_limit(): Nat { 256 }
+
+pure resolved_project_error(message: Str, offset: Nat): PackageManifestError {
+  PackageManifestError(message, offset)
+}
+
+pure resolved_required_string(value: ManifestJsonValue, name: Str): Result[Str, PackageManifestError] {
+  manifest_json_string_field(value, name)
+}
+
+pure resolved_string(value: ManifestJsonValue, name: Str): Result[Str, PackageManifestError] {
+  match manifest_json_object_field(value, name) {
+    None() => Error(resolved_project_error("missing required field " + name, 0)),
+    Some(field) => match field.value {
+      ManifestJsonString(text) => Ok(text),
+      ManifestJsonNull() => Error(resolved_project_error("field " + name + " must be a string", field.offset)),
+      ManifestJsonBool(flag) => Error(resolved_project_error("field " + name + " must be a string", field.offset)),
+      ManifestJsonNumber(number) => Error(resolved_project_error("field " + name + " must be a string", field.offset)),
+      ManifestJsonArray(items) => Error(resolved_project_error("field " + name + " must be a string", field.offset)),
+      ManifestJsonObject(members) => Error(resolved_project_error("field " + name + " must be a string", field.offset))
+    }
+  }
+}
+
+pure resolved_nat(value: ManifestJsonValue, name: Str): Result[Nat, PackageManifestError] {
+  match manifest_json_object_field(value, name) {
+    None() => Error(resolved_project_error("missing required field " + name, 0)),
+    Some(field) => match field.value {
+      ManifestJsonNumber(number) => {
+        mut valid: Bool = number.len() > 0
+        for index in 0..number.len() {
+          valid = valid && number[index] >= "0" && number[index] <= "9"
+        }
+        if valid {
+          Ok(number.parse_nat())
+        } else {
+          Error(resolved_project_error("field " + name + " must be a non-negative integer", field.offset))
+        }
+      },
+      ManifestJsonNull() => Error(resolved_project_error("field " + name + " must be a non-negative integer", field.offset)),
+      ManifestJsonBool(flag) => Error(resolved_project_error("field " + name + " must be a non-negative integer", field.offset)),
+      ManifestJsonString(text) => Error(resolved_project_error("field " + name + " must be a non-negative integer", field.offset)),
+      ManifestJsonArray(items) => Error(resolved_project_error("field " + name + " must be a non-negative integer", field.offset)),
+      ManifestJsonObject(members) => Error(resolved_project_error("field " + name + " must be a non-negative integer", field.offset))
+    }
+  }
+}
+
+pure resolved_optional_string(value: ManifestJsonValue, name: Str): Result[Option[Str], PackageManifestError] {
+  match manifest_json_object_field(value, name) {
+    None() => Error(resolved_project_error("missing required field " + name, 0)),
+    Some(field) => match field.value {
+      ManifestJsonString(text) => Ok(Some(text)),
+      ManifestJsonNull() => Ok(None()),
+      ManifestJsonBool(flag) => Error(resolved_project_error("field " + name + " must be a string or null", field.offset)),
+      ManifestJsonNumber(number) => Error(resolved_project_error("field " + name + " must be a string or null", field.offset)),
+      ManifestJsonArray(items) => Error(resolved_project_error("field " + name + " must be a string or null", field.offset)),
+      ManifestJsonObject(members) => Error(resolved_project_error("field " + name + " must be a string or null", field.offset))
+    }
+  }
+}
+
+pure resolved_package_export(value: ManifestJsonValue): Result[PackageManifestExport, PackageManifestError] {
+  match manifest_object_unknown_field(value, ["module", "path"]) {
+    Some(error) => Error(error),
+    None() => match resolved_string(value, "module") {
+      Error(error) => Error(error),
+      Ok(module) => match resolved_string(value, "path") {
+        Error(error) => Error(error),
+        Ok(path) => if !manifest_logical_path(module) ||
+            manifest_relative_path_error(path, false, true, 0) != None() {
+          Error(resolved_project_error("descriptor export fields must not be empty", 0))
+        } else {
+          Ok(PackageManifestExport(module, path))
+        }
+      }
+    }
+  }
+}
+
+pure resolved_exports(value: ManifestJsonValue): Result[[PackageManifestExport], PackageManifestError] {
+  match manifest_json_object_field(value, "exports") {
+    None() => Error(resolved_project_error("missing required field exports", 0)),
+    Some(field) => match field.value {
+      ManifestJsonArray(items) => {
+        mut output: [PackageManifestExport] = []
+        mut failure: Option[PackageManifestError] = None()
+        for item in items {
+          match resolved_package_export(item) {
+            Error(error) => { if failure == None() { failure = Some(error) } },
+            Ok(exported) => { output = output.append(exported) }
+          }
+        }
+        match failure {
+          Some(error) => Error(error),
+          None() => Ok(output)
+        }
+      },
+      ManifestJsonNull() => Error(resolved_project_error("field exports must be an array", field.offset)),
+      ManifestJsonBool(flag) => Error(resolved_project_error("field exports must be an array", field.offset)),
+      ManifestJsonNumber(number) => Error(resolved_project_error("field exports must be an array", field.offset)),
+      ManifestJsonString(text) => Error(resolved_project_error("field exports must be an array", field.offset)),
+      ManifestJsonObject(members) => Error(resolved_project_error("field exports must be an array", field.offset))
+    }
+  }
+}
+
+pure resolved_package_edge(value: ManifestJsonValue): Result[ResolvedPackageEdge, PackageManifestError] {
+  match manifest_object_unknown_field(value, ["alias", "target"]) {
+    Some(error) => Error(error),
+    None() => match resolved_string(value, "alias") {
+      Error(error) => Error(error),
+      Ok(alias) => match resolved_string(value, "target") {
+        Error(error) => Error(error),
+        Ok(target) => if !manifest_identifier(alias) || alias == "project" || alias == "stdlib" || target == "" {
+          Error(resolved_project_error("descriptor dependency fields must not be empty", 0))
+        } else {
+          Ok(ResolvedPackageEdge(alias, target))
+        }
+      }
+    }
+  }
+}
+
+pure resolved_dependencies(value: ManifestJsonValue): Result[[ResolvedPackageEdge], PackageManifestError] {
+  match manifest_json_object_field(value, "dependencies") {
+    None() => Error(resolved_project_error("missing required field dependencies", 0)),
+    Some(field) => match field.value {
+      ManifestJsonArray(items) => {
+        mut output: [ResolvedPackageEdge] = []
+        mut failure: Option[PackageManifestError] = None()
+        for item in items {
+          match resolved_package_edge(item) {
+            Error(error) => { if failure == None() { failure = Some(error) } },
+            Ok(edge) => { output = output.append(edge) }
+          }
+        }
+        match failure {
+          Some(error) => Error(error),
+          None() => Ok(output)
+        }
+      },
+      ManifestJsonNull() => Error(resolved_project_error("field dependencies must be an array", field.offset)),
+      ManifestJsonBool(flag) => Error(resolved_project_error("field dependencies must be an array", field.offset)),
+      ManifestJsonNumber(number) => Error(resolved_project_error("field dependencies must be an array", field.offset)),
+      ManifestJsonString(text) => Error(resolved_project_error("field dependencies must be an array", field.offset)),
+      ManifestJsonObject(members) => Error(resolved_project_error("field dependencies must be an array", field.offset))
+    }
+  }
+}
+
+pure resolved_package(value: ManifestJsonValue): Result[ResolvedPackage, PackageManifestError] {
+  match manifest_object_unknown_field(value, [
+    "id", "name", "version", "package_root", "source_root", "entry",
+    "exports", "root_device", "root_inode", "dependencies"
+  ]) {
+    Some(error) => Error(error),
+    None() => match resolved_string(value, "id") {
+      Error(error) => Error(error),
+      Ok(id) => match resolved_string(value, "name") {
+        Error(error) => Error(error),
+        Ok(name) => match resolved_string(value, "version") {
+          Error(error) => Error(error),
+          Ok(version) => match resolved_string(value, "package_root") {
+            Error(error) => Error(error),
+            Ok(package_root) => match resolved_string(value, "source_root") {
+              Error(error) => Error(error),
+              Ok(source_root) => match resolved_optional_string(value, "entry") {
+                Error(error) => Error(error),
+                Ok(entry) => match resolved_exports(value) {
+                  Error(error) => Error(error),
+                  Ok(exports) => match resolved_nat(value, "root_device") {
+                    Error(error) => Error(error),
+                    Ok(device) => match resolved_nat(value, "root_inode") {
+                      Error(error) => Error(error),
+                      Ok(inode) => match resolved_dependencies(value) {
+                        Error(error) => Error(error),
+                        Ok(dependencies) => if id != name + "@" + version ||
+                            !manifest_package_name(name) || !manifest_semver(version) ||
+                            package_root == "" || source_root == "" {
+                          Error(resolved_project_error("descriptor package identity or roots are invalid", 0))
+                        } else {
+                          Ok(ResolvedPackage(
+                            id, name, version, package_root, source_root, entry,
+                            exports, FilesystemRootIdentity(device, inode), dependencies
+                          ))
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+pure resolved_packages(value: ManifestJsonValue): Result[[ResolvedPackage], PackageManifestError] {
+  match manifest_json_object_field(value, "packages") {
+    None() => Error(resolved_project_error("missing required field packages", 0)),
+    Some(field) => match field.value {
+      ManifestJsonArray(items) => {
+        mut output: [ResolvedPackage] = []
+        mut failure: Option[PackageManifestError] = None()
+        for item in items {
+          match resolved_package(item) {
+            Error(error) => { if failure == None() { failure = Some(error) } },
+            Ok(package) => { output = output.append(package) }
+          }
+        }
+        match failure {
+          Some(error) => Error(error),
+          None() => Ok(output)
+        }
+      },
+      ManifestJsonNull() => Error(resolved_project_error("field packages must be an array", field.offset)),
+      ManifestJsonBool(flag) => Error(resolved_project_error("field packages must be an array", field.offset)),
+      ManifestJsonNumber(number) => Error(resolved_project_error("field packages must be an array", field.offset)),
+      ManifestJsonString(text) => Error(resolved_project_error("field packages must be an array", field.offset)),
+      ManifestJsonObject(members) => Error(resolved_project_error("field packages must be an array", field.offset))
+    }
+  }
+}
+
+pure resolved_project_valid_graph(project: ResolvedProject): Bool {
+  mut valid: Bool = project.packages.len() > 0 &&
+    project.packages.len() <= resolved_project_package_limit()
+  mut identities: Set[Str] = set()
+  mut names: Set[Str] = set()
+  mut edge_count: Nat = 0
+  mut root_found: Bool = false
+  for package in project.packages {
+    if identities.has(package.id) || names.has(package.name) {
+      valid = false
+    }
+    for previous in project.packages {
+      if previous.id != package.id &&
+          (previous.identity == package.identity || previous.package_root == package.package_root) {
+        valid = false
+      }
+    }
+    mut exports: Set[Str] = set()
+    for exported in package.exports {
+      if exports.has(exported.module) { valid = false }
+      exports = exports.add(exported.module)
+    }
+    identities = identities.add(package.id)
+    names = names.add(package.name)
+    if package.id == project.root { root_found = true }
+    edge_count = edge_count + package.dependencies.len()
+    mut aliases: Set[Str] = set()
+    for edge in package.dependencies {
+      if aliases.has(edge.alias) { valid = false }
+      aliases = aliases.add(edge.alias)
+    }
+  }
+  valid = valid && root_found && edge_count <= resolved_project_edge_limit()
+  for package in project.packages {
+    for edge in package.dependencies {
+      if !identities.has(edge.target) { valid = false }
+    }
+  }
+  mut reachable: Set[Str] = set().add(project.root)
+  mut changed: Bool = true
+  mut rounds: Nat = 0
+  while changed && rounds <= project.packages.len() {
+    changed = false
+    rounds = rounds + 1
+    for package in project.packages {
+      if reachable.has(package.id) {
+        for edge in package.dependencies {
+          if !reachable.has(edge.target) {
+            reachable = reachable.add(edge.target)
+            changed = true
+          }
+        }
+      }
+    }
+  }
+  mut reachable_count: Nat = 0
+  for package in project.packages {
+    if reachable.has(package.id) { reachable_count = reachable_count + 1 }
+  }
+  mut depths: Map[Str, Nat] = map().put(project.root, 1)
+  for round in 0..64 {
+    for package in project.packages {
+      if depths.has(package.id) {
+        depth: Nat = depths.get(package.id)
+        if depth > 32 { valid = false }
+        for edge in package.dependencies {
+          if !depths.has(edge.target) || depths.get(edge.target) < depth + 1 {
+            depths = depths.put(edge.target, depth + 1)
+          }
+        }
+      }
+    }
+  }
+  valid && reachable_count == project.packages.len()
+}
+
+pure resolved_json_hex(value: Nat): Str {
+  digits: [Str] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"]
+  digits[value]
+}
+
+pure resolved_json_quote(value: Str): Str {
+  mut output: Str = "\""
+  for index in 0..value.len() {
+    character: Str = value[index]
+    if character == "\"" {
+      output = output + "\\\""
+    } else if character == "\\" {
+      output = output + "\\\\"
+    } else if character == "\n" {
+      output = output + "\\n"
+    } else if character == "\r" {
+      output = output + "\\r"
+    } else if character == "\t" {
+      output = output + "\\t"
+    } else if character == "\b" {
+      output = output + "\\b"
+    } else if character == "\f" {
+      output = output + "\\f"
+    } else {
+      encoded: Bytes = character.encode_utf8()
+      if encoded.length() == 1 && encoded.at(0) < 32 {
+        byte: Nat = encoded.at(0)
+        output = output + "\\u00" + resolved_json_hex(byte.divide(16)) + resolved_json_hex(byte % 16)
+      } else {
+        output = output + character
+      }
+    }
+  }
+  output + "\""
+}
+
+pure resolved_package_json(package: ResolvedPackage): Str {
+  device: Nat = package.identity.device
+  inode: Nat = package.identity.inode
+  device_text: Str = "${device}"
+  inode_text: Str = "${inode}"
+  mut output: Str = "{\"id\":" + resolved_json_quote(package.id) +
+    ",\"name\":" + resolved_json_quote(package.name) +
+    ",\"version\":" + resolved_json_quote(package.version) +
+    ",\"package_root\":" + resolved_json_quote(package.package_root) +
+    ",\"source_root\":" + resolved_json_quote(package.source_root) +
+    ",\"entry\":"
+  output = output + match package.entry {
+    None() => "null",
+    Some(entry) => resolved_json_quote(entry)
+  }
+  output = output + ",\"exports\":["
+  mut first_export: Bool = true
+  for exported in package.exports {
+    if !first_export { output = output + "," }
+    first_export = false
+    output = output + "{\"module\":" + resolved_json_quote(exported.module) +
+      ",\"path\":" + resolved_json_quote(exported.path) + "}"
+  }
+  output = output + "],\"root_device\":" + device_text +
+    ",\"root_inode\":" + inode_text + ",\"dependencies\":["
+  mut first_edge: Bool = true
+  for edge in package.dependencies {
+    if !first_edge { output = output + "," }
+    first_edge = false
+    output = output + "{\"alias\":" + resolved_json_quote(edge.alias) +
+      ",\"target\":" + resolved_json_quote(edge.target) + "}"
+  }
+  output + "]}"
+}
+
+pub pure serialize_resolved_project(project: ResolvedProject): Str {
+  schema: Nat = resolved_project_descriptor_schema()
+  schema_text: Str = "${schema}"
+  mut output: Str = "{\"schema\":" + schema_text + ",\"root\":" +
+    resolved_json_quote(project.root) + ",\"toolchain\":" + resolved_json_quote(project.toolchain) +
+    ",\"packages\":["
+  mut first: Bool = true
+  for package in project.packages {
+    if !first { output = output + "," }
+    first = false
+    output = output + resolved_package_json(package)
+  }
+  output + "]}"
+}
+
+pub pure parse_resolved_project(data: Bytes): Result[ResolvedProject, PackageManifestError] {
+  match parse_bounded_json(data, 1048576) {
+    Error(error) => Error(error),
+    Ok(value) => match manifest_object_unknown_field(value, ["schema", "root", "toolchain", "packages"]) {
+      Some(error) => Error(error),
+      None() => match resolved_nat(value, "schema") {
+        Error(error) => Error(error),
+        Ok(schema) => if schema != resolved_project_descriptor_schema() {
+          Error(resolved_project_error("unsupported resolved-project descriptor schema", 0))
+        } else {
+          match resolved_string(value, "root") {
+            Error(error) => Error(error),
+            Ok(root) => match resolved_string(value, "toolchain") {
+              Error(error) => Error(error),
+              Ok(toolchain) => match resolved_packages(value) {
+                Error(error) => Error(error),
+                Ok(packages) => {
+                  project: ResolvedProject = ResolvedProject(root, toolchain, packages)
+                  if toolchain == "" || !resolved_project_valid_graph(project) {
+                    Error(resolved_project_error("resolved-project package graph is invalid", 0))
+                  } else {
+                    Ok(project)
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

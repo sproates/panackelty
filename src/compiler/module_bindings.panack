@@ -392,6 +392,7 @@ pub pure module_declaration_display(binding: ModuleDeclarationBinding): Str {
 // A matching source filename in an application never grants primitive access.
 pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool {
   owner.module.package == ToolchainModulePackage() && (
+    (owner.module.path == "bytes.panack" && owner.name == "slice" && name == "http_bytes_slice") ||
     (owner.module.path == "http_runtime.panack" && ((owner.name == "bytes_slice" && name == "http_bytes_slice") || (owner.name == "body" && name == "http_body") || (owner.name == "body_size" && name == "http_body_size") || (owner.name == "body_append" && name == "http_body_append") || (owner.name == "connection_continue" && name == "http_connection_continue"))) ||
     (owner.module.path == "http_runtime.panack" && ((owner.name == "listen_ordinary" && name == "http_listen_ordinary") || (owner.name == "listen_contextual" && name == "http_listen_contextual") || (owner.name == "close" && name == "http_close") || (owner.name == "destroy" && name == "http_destroy"))) ||
     (owner.module.path == "http_runtime.panack" && ((owner.name == "connection_writer" && name == "http_connection_writer") || (owner.name == "connection_routes" && name == "http_connection_routes") || (owner.name == "connection_fallback" && name == "http_connection_fallback") || (owner.name == "connection_admit" && name == "http_connection_admit") || (owner.name == "connection_invoke" && name == "http_connection_invoke"))) ||
@@ -441,6 +442,21 @@ pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool 
     (owner.module.path == "filesystem.panack" && owner.name == "remove_directory" && (name == "fs_remove_directory")) ||
     (owner.module.path == "filesystem.panack" && owner.name == "create_directory" && (name == "fs_create_directory")) ||
     (owner.module.path == "filesystem.panack" && owner.name == "temp_directory" && (name == "fs_temp_directory")) ||
+    (owner.module.path == "filesystem_stage.panack" && owner.name == "begin" && name == "fs_stage_begin") ||
+    (owner.module.path == "filesystem_stage.panack" && owner.name == "path" && name == "fs_stage_path") ||
+    (owner.module.path == "filesystem_stage.panack" && owner.name == "directory" && name == "fs_stage_directory") ||
+    (owner.module.path == "filesystem_stage.panack" && owner.name == "write" && name == "fs_stage_write") ||
+    (owner.module.path == "filesystem_stage.panack" && owner.name == "publish" && name == "fs_stage_publish") ||
+    (owner.module.path == "filesystem_stage.panack" && owner.name == "close" && name == "fs_stage_close") ||
+    (owner.module.path == "digest.panack" && owner.name == "sha256_open" && name == "digest_sha256_open") ||
+    (owner.module.path == "digest.panack" && owner.name == "update" && name == "digest_update") ||
+    (owner.module.path == "digest.panack" && owner.name == "finish" && name == "digest_finish") ||
+    (owner.module.path == "digest.panack" && owner.name == "close" && name == "digest_close") ||
+    (owner.module.path == "gzip.panack" && owner.name == "open" && name == "gzip_open") ||
+    (owner.module.path == "gzip.panack" && owner.name == "step" && name == "gzip_step") ||
+    (owner.module.path == "gzip.panack" && owner.name == "close" && name == "gzip_close") ||
+    (owner.module.path == "bounded_filesystem.panack" && owner.name == "read_chunk" && name == "fs_read_chunk") ||
+    (owner.module.path == "bounded_filesystem.panack" && owner.name == "atomic_write" && name == "fs_atomic_write") ||
     (owner.module.path == "filesystem.panack" && owner.name == "temp_file" && (name == "fs_temp_file")) ||
     (owner.module.path == "core.panack" && owner.name == "$owned$Path$join" && (name == "path_append")) ||
     (owner.module.path == "core.panack" && owner.name == "$owned$Path$to_text" && (name == "path_to_text")) ||
@@ -472,6 +488,7 @@ pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool 
 
 pub pure module_internal_primitive_name(identity: ModuleIdentity, name: Str): Bool {
   identity.package == ToolchainModulePackage() && (
+    (identity.path == "bytes.panack" && name == "http_bytes_slice") ||
     (identity.path == "http_runtime.panack" && (name == "http_bytes_slice" || name == "http_body" || name == "http_body_size" || name == "http_body_append" || name == "http_connection_continue")) ||
     (identity.path == "http_runtime.panack" && (name == "http_listen_ordinary" || name == "http_listen_contextual" || name == "http_close" || name == "http_destroy")) ||
     (identity.path == "http_runtime.panack" && (name == "http_connection_writer" || name == "http_connection_routes" || name == "http_connection_fallback" || name == "http_connection_admit" || name == "http_connection_invoke")) ||
@@ -488,6 +505,10 @@ pub pure module_internal_primitive_name(identity: ModuleIdentity, name: Str): Bo
     (identity.path == "tcp.panack" && (name == "tcp_exchange" || name == "tcp_serve" || name == "tcp_serve_stream" || name == "tcp_server_read_chunk")) ||
     (identity.path == "path.panack" && (name == "path_current" || name == "path_from_native" || name == "path_from_text")) ||
     (identity.path == "testing_async.panack" && (name == "async_fake_read")) ||
+    (identity.path == "filesystem_stage.panack" && (name == "fs_stage_begin" || name == "fs_stage_path" || name == "fs_stage_directory" || name == "fs_stage_write" || name == "fs_stage_publish" || name == "fs_stage_close")) ||
+    (identity.path == "digest.panack" && (name == "digest_sha256_open" || name == "digest_update" || name == "digest_finish" || name == "digest_close")) ||
+    (identity.path == "gzip.panack" && (name == "gzip_open" || name == "gzip_step" || name == "gzip_close")) ||
+    (identity.path == "bounded_filesystem.panack" && (name == "fs_read_chunk" || name == "fs_atomic_write")) ||
     (identity.path == "filesystem.panack" && (name == "fs_create_directory" || name == "fs_list" || name == "fs_metadata" || name == "fs_read" || name == "fs_remove_directory" || name == "fs_remove_file" || name == "fs_temp_directory" || name == "fs_temp_file" || name == "fs_write")) ||
     (identity.path == "core.panack" && (name == "duration_from_seconds" || name == "duration_nanoseconds" || name == "path_absolute" || name == "path_append" || name == "path_directory" || name == "path_display" || name == "path_filename" || name == "path_native_bytes" || name == "path_to_text")) ||
     (identity.path == "compiler_paths.panack" && (name == "path_is_absolute" || name == "path_join" || name == "path_parent" || name == "path_resolve" || name == "path_suffix" || name == "path_with_suffix")) ||

@@ -1,5 +1,5 @@
 import stdlib/testing as std_testing
-import project/src/compiler/package_manifest::{parse_package_manifest, PackageManifest, PackageManifestError, PackageManifestDependency, package_manifest_byte_limit}
+import project/src/project_model/package_manifest::{parse_package_manifest, PackageManifest, PackageManifestError, PackageManifestDependency, package_manifest_byte_limit}
 import stdlib/bytes as byte_buffer
 import stdlib/testing::{TestResult}
 import stdlib/host as std_host
@@ -54,7 +54,7 @@ main(): Void {
       results = results.append(std_testing.expect("manifest entry, exports and dependency",
         manifest.entry == Some("main.panack") && manifest.exports.len() == 2 &&
           manifest.exports[1].module == "nested/other" &&
-          manifest.dependencies == [PackageManifestDependency("geometry", "../geometry")],
+          manifest.dependencies == [PackageManifestDependency("geometry", "path", "../geometry")],
         "wrong parsed package graph"))
     },
     Error(error) => { results = results.append(std_testing.expect("valid manifest", false, error.message)) }

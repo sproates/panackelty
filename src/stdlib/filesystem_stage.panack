@@ -1,0 +1,26 @@
+// Invocation-scoped private staging directories. Publishing consumes the handle.
+pub import stdlib/host::{HostError}
+
+pub begin(parent: Path): Result[Nat, HostError] {
+  fs_stage_begin(parent)
+}
+
+pub path(handle: Nat): Result[Path, HostError] {
+  fs_stage_path(handle)
+}
+
+pub directory(handle: Nat, relative: Path): Result[Unit, HostError] {
+  fs_stage_directory(handle, relative)
+}
+
+pub write(handle: Nat, relative: Path, data: Bytes, offset: Nat): Result[Unit, HostError] {
+  fs_stage_write(handle, relative, data, offset)
+}
+
+pub publish(handle: Nat, name: Path, replace: Bool): Result[Unit, HostError] {
+  fs_stage_publish(handle, name, replace)
+}
+
+pub close(handle: Nat): Result[Unit, HostError] {
+  fs_stage_close(handle)
+}

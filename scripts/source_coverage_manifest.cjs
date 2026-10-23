@@ -1,6 +1,6 @@
 'use strict';
 
-const sourcePath = /^src\/(?:bytecode|compiler|stdlib)\/.+\.panack$/;
+const sourcePath = /^src\/(?:bytecode|compiler|packages|project_model|stdlib)\/.+\.panack$/;
 
 function validateManifest(manifest, tracked) {
   if (manifest?.schema !== 1 || !Array.isArray(manifest.eligible) ||

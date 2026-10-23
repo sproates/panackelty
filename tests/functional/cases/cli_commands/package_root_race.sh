@@ -107,7 +107,7 @@ while [ "$attempt" -lt 40 ]; do
     attempt=$((attempt + 1))
     result=0
     PANACKELTY_VERSION="$version" PANACKELTY_STDLIB_PATH="$stdlib" \
-        ./panack-vm run "$compiler" run --project "$active/panack.json" \
+        ./bin/panack run --project "$active/panack.json" \
         > "$work/stdout" 2> "$work/stderr" || result=$?
     if [ "$result" -eq 0 ]; then
         output=$(cat "$work/stdout")
@@ -120,6 +120,8 @@ while [ "$attempt" -lt 40 ]; do
         test ! -s "$work/stdout" || { cat "$work/stdout" >&2; exit 1; }
         errors=$(cat "$work/stderr")
         case "$errors" in
+            *'resolved project package root changed after resolution'*)
+                identity_changes=$((identity_changes + 1)) ;;
             *'package root identity changed while loading source'*)
                 identity_changes=$((identity_changes + 1)) ;;
             *'package source read failed'*)

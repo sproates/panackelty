@@ -31,7 +31,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install --yes libcurl4-openssl-dev
+          sudo apt-get install --yes libcurl4-openssl-dev zlib1g-dev libssl-dev
       - name: Build ordinary native prerequisites
         env:
           VALIDATION_PROFILE_RUN: preparation

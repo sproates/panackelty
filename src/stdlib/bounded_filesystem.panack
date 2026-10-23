@@ -1,0 +1,9 @@
+pub import stdlib/host::{HostError}
+
+pub read_chunk(file: Path, offset: Nat, limit: Nat): Result[Bytes, HostError] {
+  fs_read_chunk(file, offset, limit)
+}
+
+pub atomic_write(file: Path, data: Bytes): Result[Unit, HostError] {
+  fs_atomic_write(file, data)
+}

@@ -14,13 +14,31 @@ test('the reviewed manifest accounts for every tracked production source', () =>
   const tracked = execFileSync('git', ['ls-files', 'src'], {encoding: 'utf8'}).trim().split('\n').filter(p => p.endsWith('.panack')).sort();
   assert.deepEqual(validateManifest(manifest, tracked).unmeasured.map(entry => entry.path), [
     'src/compiler/owned_intrinsics.panack',
-    'src/compiler/package_manifest.panack',
-    'src/compiler/package_project.panack',
+    'src/packages/main.panack',
+    'src/packages/project_graph.panack',
+    'src/project_model/package_manifest.panack',
+    'src/project_model/package_project.panack',
+    'src/project_model/resolved_project.panack',
+    'src/project_model/utf8.panack',
     'src/stdlib/async_filesystem.panack',
     'src/stdlib/async_host.panack',
     'src/stdlib/http_runtime.panack',
     'src/stdlib/tcp_service.panack',
-    'src/stdlib/package_filesystem.panack'
+    'src/stdlib/package_filesystem.panack',
+    'src/packages/acquisition.panack',
+    'src/packages/archive.panack',
+    'src/packages/case_fold.panack',
+    'src/packages/local_lock.panack',
+    'src/packages/lock.panack',
+    'src/packages/selective_update.panack',
+    'src/packages/sha256.panack',
+    'src/packages/tar_header.panack',
+    'src/packages/tar_stream.panack',
+    'src/packages/tree_digest.panack',
+    'src/stdlib/bounded_filesystem.panack',
+    'src/stdlib/digest.panack',
+    'src/stdlib/filesystem_stage.panack',
+    'src/stdlib/gzip.panack'
   ]);
 });
 
@@ -30,11 +48,11 @@ test('HTML and text reports visibly identify unmeasured production sources', t =
   t.after(() => fs.rmSync(root, {recursive: true, force: true}));
   const report = {
     commit: 'a'.repeat(40), generatedAt: '2026-10-14T00:00:00Z',
-    manifest: {unmeasured: [{path: 'src/compiler/package_manifest.panack', reason: 'not in corpus'}]},
+    manifest: {unmeasured: [{path: 'src/project_model/package_manifest.panack', reason: 'not in corpus'}]},
     components: {}, files: []
   };
   writeReport(output, report);
-  assert.match(fs.readFileSync(path.join(output, 'html/index.html'), 'utf8'), /src\/compiler\/package_manifest\.panack/);
+  assert.match(fs.readFileSync(path.join(output, 'html/index.html'), 'utf8'), /src\/project_model\/package_manifest\.panack/);
   assert.match(fs.readFileSync(path.join(output, 'summary.txt'), 'utf8'), /excluded from denominators/);
   assert.match(fs.readFileSync(path.join(output, 'summary.txt'), 'utf8'), /not in corpus/);
 });

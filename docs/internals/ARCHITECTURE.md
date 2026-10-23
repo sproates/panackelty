@@ -131,6 +131,26 @@ reports independently. The website owns compatibility coverage landing pages.
 
 ## Compiler pipeline
 
+Project package resolution now has a separate Panackelty package tool under
+`src/packages/`, built as `build/tools/panack-packages.bc` from the saved seed.
+The tool and compiler share only records, manifest parsing and the strict
+resolved-project descriptor under `src/project_model/`. For a project command,
+`bin/panack` asks the package tool to prepare a temporary descriptor, then gives
+that descriptor to the compiler. Package-only source edits rebuild the package
+tool without rebuilding the compiler or refreshing its seed. The compiler
+validates the descriptor and retains its physical root and source containment
+checks; lock and archive policy stays outside compiler implementation modules.
+
+Generic native adapters supply bounded file I/O, confined staging, zlib streams
+and OpenSSL EVP digests. Panack modules under `src/packages` own archive
+validation, graph acquisition, lock policy, Unicode collision checks and cache
+verification. Directory handles and no-follow operations keep writes beneath a
+private stage. Atomic rename/exchange publishes one fully verified package at a
+time. Lock-bound state lives outside package sources in `.panack_modules/.state`.
+A failure after some entries are published requires restore; publication is not
+a transaction spanning the complete graph. VM completion, traps and synchronous
+process exit release outstanding adapter handles.
+
 P05's method owner metadata distinguishes nominal declaration identities from
 closed built-in family tags. Built-in declarations are accepted only in the
 loader-assigned toolchain package's designated `core.panack`; a user package name

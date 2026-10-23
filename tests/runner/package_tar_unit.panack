@@ -1,0 +1,27 @@
+import project/src/packages/tar_header::{tar_normalize_path, parse_pax}
+import stdlib/testing as testing
+import stdlib/host as host
+pure safe(path: Str): Bool {
+  match tar_normalize_path(path) { Ok(value) => true, Error(problem) => false }
+}
+pure rejects_pax(value: Str): Bool {
+  match parse_pax(value.encode_utf8()) { Error(problem) => true, Ok(header) => false }
+}
+main(): Void {
+  results = [
+    testing.expect("nested archive path", safe("src/nested/main.panack"), "nested path rejected"),
+    testing.expect("parent traversal", !safe("src/../../outside"), "traversal accepted"),
+    testing.expect("absolute archive path", !safe("/outside"), "absolute path accepted"),
+    testing.expect("PAX truncated record", match parse_pax("99 path=x\n".encode_utf8()) {
+      Error(problem) => true, Ok(value) => false
+    }, "truncated PAX accepted"),
+    testing.expect("PAX decimal size", match parse_pax("10 size=3\n".encode_utf8()) {
+      Ok(header) => header.size == Some(3), Error(problem) => false
+    }, "valid size rejected"),
+    testing.expect("PAX leading space size", rejects_pax("11 size= 3\n"), "space accepted"),
+    testing.expect("PAX trailing space size", rejects_pax("11 size=3 \n"), "space accepted"),
+    testing.expect("PAX empty size", rejects_pax("8 size=\n"), "empty size accepted"),
+    testing.expect("PAX duplicate key", rejects_pax("10 size=3\n10 size=4\n"), "duplicate accepted")
+  ]
+  if testing.report(results) > 0 { host.exit(1) }
+}

@@ -58,3 +58,28 @@ returns `source-map: unavailable`. Execution and bytecode v9 are unchanged.
 Sidecars contain complete source text, including imports and comments. Read the
 [trust, privacy and compatibility contract](SOURCE_MAPS.md) before sharing
 one. Automatic source-aware runtime errors remain future work.
+
+## Locked local dependencies on next
+
+Projects with dependencies require `panack.lock.json`. Create it explicitly:
+
+```sh
+panack deps lock --project panack.json
+panack check --project panack.json
+panack run --project panack.json
+```
+
+Local directories are used in place; edits to their source files are live.
+Local `.tar.gz` dependencies are verified and extracted under `.panack_modules`.
+Changed manifests or archive bytes require `panack deps update --project
+panack.json`. Add root dependency aliases after the manifest path to restrict an
+update to those dependencies and their required subgraphs. Changes outside that
+selection are refused. Commit the lock with the manifest; exclude the generated
+`.panack_modules` directory from version control.
+
+`panack deps restore --project panack.json --offline` verifies the locked local
+archives and rebuilds missing or corrupt materialization without rewriting the
+lock. Ordinary check, compile and run commands verify the existing lock and cache;
+they never extract archives or repair a cache implicitly. A project without
+dependencies needs no lock. Remote archive and Git acquisition are not yet
+implemented; their syntax remains reserved by the package contract.

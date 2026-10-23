@@ -1,0 +1,72 @@
+import project/src/project_model/package_manifest::{ManifestJsonValue, ManifestJsonMember, ManifestJsonValue.ManifestJsonObject, ManifestJsonValue.ManifestJsonString}
+import project/src/packages/lock::{PackageLock, PackageLockPackage, PackageLockEdge, serialize_package_lock, parse_package_lock}
+import stdlib/testing as testing
+import stdlib/host as host
+pure accepted(lock: PackageLock): Bool {
+  match parse_package_lock(serialize_package_lock(lock).encode_utf8()) {
+    Error(problem) => false,
+    Ok(parsed) => serialize_package_lock(parsed) == serialize_package_lock(lock)
+  }
+}
+pure rejects_text(text: Str): Bool {
+  match parse_package_lock(text.encode_utf8()) {
+    Error(error) => true, Ok(lock) => false
+  }
+}
+
+pure source(kind: Str, hash: Str): ManifestJsonValue {
+  mut fields = [
+    ManifestJsonMember("kind", ManifestJsonString(kind), 0),
+    ManifestJsonMember("path", ManifestJsonString("../lib.tar.gz"), 0)
+  ]
+  if kind == "archive" {
+    fields = fields.append(ManifestJsonMember("archive_sha256", ManifestJsonString(hash), 0))
+  }
+  ManifestJsonObject(fields)
+}
+
+pure graph(count: Nat, hash: Str): PackageLock {
+  mut packages: [PackageLockPackage] = []
+  for index in 0..count {
+    mut edges: [PackageLockEdge] = []
+    if index + 1 < count {
+      next_index: Nat = index + 1
+      edges = [PackageLockEdge("next", "example.p${next_index}@1.0.0", source("path", hash))]
+    }
+    packages = packages.append(PackageLockPackage("example.p${index}", "1.0.0", hash, None(), edges))
+  }
+  PackageLock("example.app", "1.0.0", hash, "0.1.0-alpha.15",
+    [PackageLockEdge("lib", "example.p0@1.0.0", source("path", hash))], packages)
+}
+
+pure problem(lock: PackageLock): Str {
+  match parse_package_lock(serialize_package_lock(lock).encode_utf8()) {
+    Error(error) => error.message, Ok(parsed) => "round-trip changed"
+  }
+}
+
+main(): Void {
+  hash: Str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  valid: PackageLock = PackageLock("example.app", "1.0.0", hash, "0.1.0-alpha.15", [], [])
+  empty_hash: PackageLock = PackageLock("example.app", "1.0.0", "", "0.1.0-alpha.15", [], [])
+  archive_edge = PackageLockEdge("lib", "example.lib@1.0.0", source("archive", hash))
+  archive_package = PackageLockPackage("example.lib", "1.0.0", hash, Some(hash), [])
+  missing_tree = PackageLockPackage("example.lib", "1.0.0", hash, None(), [])
+  text: Str = serialize_package_lock(valid)
+  tail: Str = text.slice(1, text.len())
+  results = [
+    testing.expect("real manifest digest round-trips", accepted(valid), "valid lock rejected"),
+    testing.expect("unknown lock field rejected", rejects_text("{\"extra\":true," + tail), "unknown field accepted"),
+    testing.expect("duplicate lock field rejected", rejects_text("{\"lock_schema\":1," + tail), "duplicate field accepted"),
+    testing.expect("missing package rejected", !accepted(PackageLock("example.app", "1.0.0", hash, "0.1.0-alpha.15", [archive_edge], [])), "dangling edge accepted"),
+    testing.expect("unreferenced package rejected", !accepted(PackageLock("example.app", "1.0.0", hash, "0.1.0-alpha.15", [], [archive_package])), "orphan accepted"),
+    testing.expect("duplicate package rejected", !accepted(PackageLock("example.app", "1.0.0", hash, "0.1.0-alpha.15", [archive_edge], [archive_package, archive_package])), "duplicate identity accepted"),
+    testing.expect("empty root digest rejected", !accepted(empty_hash), "empty digest accepted"),
+    testing.expect("archive digests round-trip", accepted(PackageLock("example.app", "1.0.0", hash, "0.1.0-alpha.15", [archive_edge], [archive_package])), "archive rejected"),
+    testing.expect("archive requires tree digest", !accepted(PackageLock("example.app", "1.0.0", hash, "0.1.0-alpha.15", [archive_edge], [missing_tree])), "missing tree accepted"),
+    testing.expect("lock depth 32 accepted", accepted(graph(31, hash)), problem(graph(31, hash))),
+    testing.expect("lock depth 33 rejected", !accepted(graph(32, hash)), "excess depth accepted"),
+    testing.expect("lock package bound rejected", !accepted(graph(64, hash)), "excess packages accepted")
+  ]
+  if testing.report(results) > 0 { host.exit(1) }
+}

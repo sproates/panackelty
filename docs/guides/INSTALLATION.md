@@ -249,3 +249,13 @@ Panackelty completely:
 rm "$HOME/.local/bin/panack"
 rm -rf "$HOME/.local/opt/panackelty"
 ```
+
+### Building the unreleased package tool
+
+A source build of `next` includes a separate Panack package-tool artifact.
+Install the OpenSSL 3 and zlib development files described in the
+[development guide](../internals/DEVELOPMENT.md), then use `make` and `make install`.
+The installed launcher, compiler, package tool and standard library must come
+from the same build. The package tool is not required to run already compiled
+bytecode. Projects with dependencies use the
+[explicit lock workflow](TOOLCHAIN.md#locked-local-dependencies-on-next).

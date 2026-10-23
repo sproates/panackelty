@@ -363,3 +363,13 @@ Ordinary HTTP mutation wrappers have a derived local-resource permission. Both t
 source checker and bytecode verifier compute it from direct calls to the closed
 native operation set. It permits direct calls from async handlers, while preserving
 pure-function restrictions and rejecting blocking/indirect ordinary wrappers.
+
+## Generic package-tool capabilities
+
+`filesystem_stage.c` owns directory handles, confined writes, atomic file
+replacement and atomic directory publication. `gzip_stream.c` owns bounded zlib
+decoders; `digest.c` owns OpenSSL EVP SHA-256 contexts. None accepts package names,
+manifest or lock records, URLs, or archive headers. Panack modules decide policy.
+Handles are invocation scoped and non-reused. Normal completion and traps destroy
+them; synchronous `process_exit` also releases the active VM and its nested
+execution parents before exiting. Browser builds expose unsupported results.

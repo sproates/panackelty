@@ -57,7 +57,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install --yes libcurl4-openssl-dev
+          sudo apt-get install --yes libcurl4-openssl-dev zlib1g-dev libssl-dev
 
       - name: Run isolated validation suite
         run: make check-no-interpreter CI_SUITE=${{ matrix.suite }}
@@ -152,7 +152,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install --yes libcurl4-openssl-dev
+          sudo apt-get install --yes libcurl4-openssl-dev zlib1g-dev libssl-dev
 
       - name: Run compiler, runtime and bootstrap suites
         if: contains(fromJSON('["compiler", "runtime", "bootstrap"]'), matrix.suite)

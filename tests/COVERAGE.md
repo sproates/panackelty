@@ -1378,3 +1378,25 @@ query-header assertion is restricted to the installed example; the original
 contract fixture uses its unchanged common checks. `tests/http_package.sh` also
 runs the public lifecycle program from source and bytecode and compares shutdown
 output. The playbook embeds the matching example source and manifests.
+
+## GI#200 P02 local dependency evidence
+
+`tests/package_dependencies.sh` runs complete programs through the public CLI
+with live directories, local archives and an archive-owned transitive archive.
+It asserts lock no-op bytes, stale manifests, selective update refusal outside
+the selected subgraph, source and saved-bytecode output, corrupt-cache repair,
+changed archive rejection, symlinked cache/state refusal, staging cleanup,
+relocation and offline restore without lock changes. The existing package graph
+boundary and relocation fixtures now create explicit locks.
+
+The package probes cover canonical lock serialization and digest requirements,
+lock depth boundaries, strict resolved descriptors including cycles, independent
+SHA-256/tree vectors, Unicode case folding, malformed PAX sizes and duplicate
+keys. Archive streaming fixtures reject corrupt/truncated gzip, links, duplicate
+paths and full Unicode case collisions. Native adapter tests assert consumed
+handles, bounded chunks/output, atomic replacement, parent substitution refusal,
+concatenated gzip members and cleanup; they also pass ASan/UBSan.
+
+The new package and generic adapter sources are explicitly unmeasured in the
+source-execution coverage manifest. These assertions do not claim a coverage
+percentage or change the existing eligible-source denominator or thresholds.

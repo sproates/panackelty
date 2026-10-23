@@ -1,0 +1,132 @@
+import project/src/packages/selective_update::{validate_selective_update}
+import project/src/packages/local_lock::{current_local_lock, read_local_lock, write_local_lock, locks_match, verify_local_lock}
+import project/src/packages/project_graph::{ManifestProject, read_manifest_project, package_project_from_manifest}
+import project/src/packages/acquisition::{AcquisitionOptions, verify_cache_state, publish_archives}
+import project/src/packages/lock::{PackageLock}
+import project/src/project_model/resolved_project::{ResolvedProject, serialize_resolved_project}
+import stdlib/compiler_paths as paths
+import stdlib/environment as environment
+import stdlib/host as host
+
+package_tool_usage(): Str {
+  "usage: panack-packages prepare --project panack.json | deps lock|update|restore --project panack.json [ALIAS... | --offline]"
+}
+
+package_tool_error(message: Str): Nat {
+  host.stderr("panack: ${message}")
+  1
+}
+
+package_tool_prepare(manifest: Str): Nat {
+  root: Str = paths.parent(paths.resolve(manifest))
+  match read_local_lock(root) {
+    Error(problem) => package_tool_error(problem),
+    Ok(existing) => {
+      state = match existing { None() => Ok(()), Some(lock) => verify_cache_state(root, lock) }
+      match state {
+        Error(problem) => package_tool_error(problem),
+        Ok(completed_1) => match read_manifest_project(manifest, AcquisitionOptions(root, false, existing)) {
+          Error(problem) => package_tool_error(problem),
+          Ok(project) => match verify_local_lock(project) {
+            Error(problem) => package_tool_error(problem),
+            Ok(completed_2) => {
+              toolchain: Str = environment.get("PANACKELTY_VERSION").value_or("")
+              if toolchain == "" { package_tool_error("running toolchain version is unavailable") }
+              else {
+                resolved: ResolvedProject = package_project_from_manifest(project, project.dependencies, toolchain)
+                host.stdout(serialize_resolved_project(resolved))
+                0
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+finish_dependencies(operation: Str, project: ManifestProject, existing: Option[PackageLock], aliases: [Str]): Nat {
+  match current_local_lock(project) {
+    Error(problem) => package_tool_error(problem),
+    Ok(current) => {
+      mut failure: Option[Str] = None()
+      mut write: Bool = operation == "update"
+      if operation != "update" {
+        match existing {
+          None() => if operation == "lock" { write = true }
+            else { failure = Some("missing lockfile; run panack deps lock") },
+          Some(lock) => if !locks_match(lock, current) {
+            failure = Some("lockfile is stale or archive digest changed; run panack deps update")
+          }
+        }
+      }
+      if aliases.len() > 0 {
+        match existing {
+          None() => { failure = Some("selective update requires a lockfile; run panack deps lock") },
+          Some(previous) => match validate_selective_update(previous, current, aliases) {
+            Error(problem) => { failure = Some(problem) },
+            Ok(validated) => {}
+          }
+        }
+      }
+      if failure == None() && write {
+        match write_local_lock(project.package_root, current) {
+          Error(problem) => { failure = Some(problem) },
+          Ok(written) => {}
+        }
+      }
+      if failure == None() {
+        match publish_archives(project.package_root, project.archives, current) {
+          Error(problem) => { failure = Some(problem) },
+          Ok(completed_3) => {}
+        }
+      }
+      match failure {
+        Some(problem) => package_tool_error(problem),
+        None() => { print("ok"); 0 }
+      }
+    }
+  }
+}
+
+package_tool_dependencies(arguments: [Str]): Nat {
+  operation: Str = arguments[1]
+  valid: Bool = (operation == "lock" || operation == "update" || operation == "restore") &&
+    (arguments.len() == 4 || operation == "update" || (operation == "restore" && arguments.len() == 5 && arguments[4] == "--offline"))
+  if !valid { package_tool_error(package_tool_usage()) }
+  else {
+    mut aliases: [Str] = []
+    if operation == "update" { for index in 4..arguments.len() { aliases = aliases.append(arguments[index]) } }
+    root: Str = paths.parent(paths.resolve(arguments[3]))
+    match read_local_lock(root) {
+      Error(problem) => package_tool_error(problem),
+      Ok(existing) => if operation == "restore" && existing == None() {
+        package_tool_error("missing lockfile; run panack deps lock")
+      } else {
+        materialize: Bool = operation != "lock" || existing == None()
+        state = if materialize { Ok(()) }
+          else { match existing { None() => Ok(()), Some(lock) => verify_cache_state(root, lock) } }
+        match state {
+          Error(problem) => package_tool_error(problem),
+          Ok(completed_5) => match read_manifest_project(arguments[3], AcquisitionOptions(root, materialize, existing)) {
+            Error(problem) => package_tool_error(problem),
+            Ok(project) => finish_dependencies(operation, project, existing, aliases)
+          }
+        }
+      }
+    }
+  }
+}
+
+package_tool_command(arguments: [Str]): Nat {
+  if arguments.len() == 3 && arguments[0] == "prepare" && arguments[1] == "--project" && arguments[2] != "" {
+    package_tool_prepare(arguments[2])
+  } else if arguments.len() >= 4 && arguments[0] == "deps" && arguments[2] == "--project" {
+    package_tool_dependencies(arguments)
+  } else { package_tool_error(package_tool_usage()) }
+}
+
+main(): Void {
+  status: Nat = package_tool_command(host.arguments())
+  if status != 0 { host.exit(status) }
+}

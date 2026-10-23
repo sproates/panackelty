@@ -1,0 +1,66 @@
+import stdlib/digest as digest
+import stdlib/bytes as byte_buffer
+
+// Package code owns canonical input bytes. The generic host digest owns only
+// SHA-256 state; failures remain explicit through incremental feeds and finish.
+pub record Sha256 { context: Result[Nat, Str] }
+
+pub sha256_new(): Sha256 {
+  match digest.sha256_open() {
+    Error(problem) => Sha256(Error("cannot initialise SHA-256: " + problem.code)),
+    Ok(handle) => Sha256(Ok(handle))
+  }
+}
+
+pub sha256_feed(state: Sha256, data: Bytes): Sha256 {
+  mut current: Sha256 = state
+  mut offset: Nat = 0
+  while offset < data.length() {
+    end: Nat = if offset + 65536 < data.length() { offset + 65536 } else { data.length() }
+    match current.context {
+      Error(problem) => {},
+      Ok(handle) => match digest.update(handle, byte_buffer.slice(data, offset, end)) {
+        Ok(unit) => {},
+        Error(problem) => {
+          closed = digest.close(handle)
+          current = Sha256(Error("cannot update SHA-256: " + problem.code))
+        }
+      }
+    }
+    offset = end
+  }
+  current
+}
+
+pure digest_hex(data: Bytes): Str {
+  alphabet: Str = "0123456789abcdef"
+  mut output: Str = ""
+  for index in 0..data.length() {
+    byte: Nat = data.at(index)
+    output = output + alphabet.slice(byte.divide(16), byte.divide(16) + 1) +
+      alphabet.slice(byte % 16, byte % 16 + 1)
+  }
+  output
+}
+
+pub sha256_finish(state: Sha256): Result[Str, Str] {
+  match state.context {
+    Error(problem) => Error(problem),
+    Ok(handle) => match digest.finish(handle) {
+      Error(problem) => Error("cannot finish SHA-256: " + problem.code),
+      Ok(bytes) => Ok(digest_hex(bytes))
+    }
+  }
+}
+
+pub sha256_close(state: Sha256): Unit {
+  match state.context {
+    Error(problem) => {},
+    Ok(handle) => { closed = digest.close(handle) }
+  }
+  ()
+}
+
+pub sha256_bytes(data: Bytes): Result[Str, Str] {
+  sha256_finish(sha256_feed(sha256_new(), data))
+}

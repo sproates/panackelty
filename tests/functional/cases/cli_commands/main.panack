@@ -62,18 +62,11 @@ pure command(arguments: [Str]): TestCommand {
 }
 
 source_compiler_arguments(arguments: [Str]): [Str] {
-  compiler: Str = std_environment.get("PANACK_TEST_COMPILER").value_or("")
-  mut invocation: [Str] = ["run", if compiler == "" {
-    "build/bootstrap/stage2/compiler.bc"
-  } else { compiler }]
-  for argument in arguments {
-    invocation = invocation.append(argument)
-  }
-  invocation
+  arguments
 }
 
 source_compiler_command(arguments: [Str], toolchain_version: Str): TestCommand {
-  TestCommand(path("./panack-vm"), source_compiler_arguments(arguments), byte_buffer.empty(), std_path.current(),
+  TestCommand(path("./bin/panack"), arguments, byte_buffer.empty(), std_path.current(),
     ["PANACKELTY_VERSION=${toolchain_version}"], std_time.seconds(10), 1048576)
 }
 
@@ -201,7 +194,7 @@ main(): Void {
         "\"extra\":\"extra.panack\"",
         "\"extra\":\"extra.panack\",\"escape\":\"escaped.panack\"")
       std_filesystem.write(library_manifest, library_escape_manifest_text.encode_utf8())
-      match std_process.run(path("./panack-vm"),
+      match std_process.run(path("./bin/panack"),
           source_compiler_arguments(["check", "--project", library_manifest_text]),
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           std_time.seconds(10), 1048576) {
@@ -224,6 +217,9 @@ main(): Void {
         "\"dependencies\":{\"geometry\":{\"path\":\"../library\"}}")
       std_filesystem.write(package_manifest, dependency_manifest_text.encode_utf8())
       std_filesystem.write(package_entry, "import stdlib/host as service_host\nimport project/value as value\nimport geometry/api as geometry\nmain(): Void { print(value.answer()); print(geometry.answer()); arguments: [Str] = service_host.arguments(); print(arguments.len()); }\n".encode_utf8())
+      results = results.append(std_testing_commands.run_command("local dependency fixture creates lock",
+        source_compiler_command(["deps", "update", "--project", package_manifest_text], toolchain_version),
+        ProcessOutput(0, 0, "ok\n".encode_utf8(), byte_buffer.empty())))
       results = results.append(std_testing_commands.run_command("manifest application checks declared local library",
         source_compiler_command(["check", "--project", package_manifest_text], toolchain_version),
         ProcessOutput(0, 0, "ok\n".encode_utf8(), byte_buffer.empty())))
@@ -237,7 +233,7 @@ main(): Void {
         command([bytecode_text]),
         ProcessOutput(0, 0, "42\n42\n0\n".encode_utf8(), byte_buffer.empty())))
       std_filesystem.write(package_entry, "import geometry/implementation as implementation\nmain(): Void { print(implementation.answer()); }\n".encode_utf8())
-      match std_process.run(path("./panack-vm"),
+      match std_process.run(path("./bin/panack"),
           source_compiler_arguments(["check", "--project", package_manifest_text]),
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           std_time.seconds(10), 1048576) {
@@ -253,7 +249,7 @@ main(): Void {
         }
       }
       std_filesystem.write(package_entry, "import missing/api as api\nmain(): Void { print(api.answer()); }\n".encode_utf8())
-      match std_process.run(path("./panack-vm"),
+      match std_process.run(path("./bin/panack"),
           source_compiler_arguments(["check", "--project", package_manifest_text]),
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           std_time.seconds(10), 1048576) {
@@ -284,6 +280,9 @@ main(): Void {
         "\"geometry\":{\"path\":\"../library\"},\"geometry_copy\":{\"path\":\"../library\"}")
       std_filesystem.write(second_app_manifest, second_app_manifest_contents.encode_utf8())
       std_filesystem.write(second_app_entry, "import geometry_copy/api as geometry\nmain(): Void { print(geometry.answer()); }\n".encode_utf8())
+      results = results.append(std_testing_commands.run_command("second application fixture creates lock",
+        source_compiler_command(["deps", "update", "--project", second_app_manifest_text], toolchain_version),
+        ProcessOutput(0, 0, "ok\n".encode_utf8(), byte_buffer.empty())))
       results = results.append(std_testing_commands.run_command("second manifest application shares the local library",
         source_compiler_command(["run", "--project", second_app_manifest_text], toolchain_version),
         ProcessOutput(0, 0, "42\n".encode_utf8(), byte_buffer.empty())))
@@ -293,7 +292,7 @@ main(): Void {
         "\"geometry\":{\"path\":\"../library\"}",
         "\"geometry\":{\"path\":\"../library\"},\"geometry_alt\":{\"path\":\"../library-copy\"}")
       std_filesystem.write(package_manifest, duplicate_root_manifest.encode_utf8())
-      match std_process.run(path("./panack-vm"),
+      match std_process.run(path("./bin/panack"),
           source_compiler_arguments(["check", "--project", package_manifest_text]),
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           std_time.seconds(10), 1048576) {
@@ -319,7 +318,7 @@ main(): Void {
         "\"geometry\":{\"path\":\"../library\"}",
         "\"geometry\":{\"path\":\"src/embedded-library\"}")
       std_filesystem.write(package_manifest, app_root_overlap_manifest.encode_utf8())
-      match std_process.run(path("./panack-vm"),
+      match std_process.run(path("./bin/panack"),
           source_compiler_arguments(["check", "--project", package_manifest_text]),
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           std_time.seconds(10), 1048576) {
@@ -349,7 +348,7 @@ main(): Void {
         "\"dependencies\":{}",
         "\"dependencies\":{\"nested\":{\"path\":\"src/nested-library\"}}")
       std_filesystem.write(library_manifest, dependency_overlap_manifest.encode_utf8())
-      match std_process.run(path("./panack-vm"),
+      match std_process.run(path("./bin/panack"),
           source_compiler_arguments(["check", "--project", package_manifest_text]),
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           std_time.seconds(10), 1048576) {
@@ -372,7 +371,7 @@ main(): Void {
       std_filesystem.write(package_manifest, dependency_manifest_text.encode_utf8())
       missing_dependency_manifest = replace_first(dependency_manifest_text, "../library", "../missing")
       std_filesystem.write(package_manifest, missing_dependency_manifest.encode_utf8())
-      match std_process.run(path("./panack-vm"),
+      match std_process.run(path("./bin/panack"),
           source_compiler_arguments(["check", "--project", package_manifest_text]),
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           std_time.seconds(10), 1048576) {
@@ -396,8 +395,11 @@ main(): Void {
         "\"geometry\":{\"path\":\"../library\"}",
         "\"geometry\":{\"path\":\"../library\"},\"math_direct\":{\"path\":\"../internal\"}")
       std_filesystem.write(package_manifest, nested_diamond_manifest.encode_utf8())
+      results = results.append(std_testing_commands.run_command("nested dependency fixture refreshes lock",
+        source_compiler_command(["deps", "update", "--project", package_manifest_text], toolchain_version),
+        ProcessOutput(0, 0, "ok\n".encode_utf8(), byte_buffer.empty())))
       std_filesystem.write(package_entry, "import stdlib/host as service_host\nimport project/value as value\nimport geometry/api as geometry\nimport math_direct/math as direct_math\nmain(): Void { print(value.answer()); print(geometry.answer()); print(direct_math.answer()); arguments: [Str] = service_host.arguments(); print(arguments.len()); }\n".encode_utf8())
-      match std_process.run(path("./panack-vm"),
+      match std_process.run(path("./bin/panack"),
           source_compiler_arguments(["check", "--project", package_manifest_text]),
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           std_time.seconds(10), 1048576) {
@@ -422,7 +424,7 @@ main(): Void {
         command([bytecode_text]),
         ProcessOutput(0, 0, "42\n42\n42\n0\n".encode_utf8(), byte_buffer.empty())))
       std_filesystem.write(package_entry, "import common/math as math\nmain(): Void { print(math.answer()); }\n".encode_utf8())
-      match std_process.run(path("./panack-vm"),
+      match std_process.run(path("./bin/panack"),
           source_compiler_arguments(["check", "--project", package_manifest_text]),
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           std_time.seconds(10), 1048576) {
@@ -441,7 +443,7 @@ main(): Void {
       cyclic_internal_manifest = replace_first(internal_manifest_contents,
         "\"dependencies\":{}", "\"dependencies\":{\"geometry\":{\"path\":\"../library\"}}")
       std_filesystem.write(internal_manifest, cyclic_internal_manifest.encode_utf8())
-      match std_process.run(path("./panack-vm"),
+      match std_process.run(path("./bin/panack"),
           source_compiler_arguments(["check", "--project", package_manifest_text]),
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           std_time.seconds(10), 1048576) {
@@ -604,19 +606,19 @@ main(): Void {
 
       results = results.append(std_testing_commands.run_command("manifest-only library compile requires an entry",
         source_compiler_command(["compile", "--project", library_manifest_text, "-o", bytecode_text], toolchain_version),
-        ProcessOutput(1, 0, byte_buffer.empty(), "error: library manifests support check only; compile and run require an application entry\n".encode_utf8())))
+        ProcessOutput(1, 0, byte_buffer.empty(), "error: library projects support check only; compile and run require an application entry\n".encode_utf8())))
       results = results.append(std_testing_commands.run_command("manifest-only library run requires an entry",
         source_compiler_command(["run", "--project", library_manifest_text], toolchain_version),
-        ProcessOutput(1, 0, byte_buffer.empty(), "error: library manifests support check only; compile and run require an application entry\n".encode_utf8())))
+        ProcessOutput(1, 0, byte_buffer.empty(), "error: library projects support check only; compile and run require an application entry\n".encode_utf8())))
       empty_library_manifest = replace_first(library_manifest_text_value,
         "\"api\":\"api.panack\",\"api_alias\":\"api.panack\",\"extra\":\"extra.panack\"", "")
       std_filesystem.write(library_manifest, empty_library_manifest.encode_utf8())
       results = results.append(std_testing_commands.run_command("manifest-only library requires an export",
         source_compiler_command(["check", "--project", library_manifest_text], toolchain_version),
-        ProcessOutput(1, 0, byte_buffer.empty(), "error: library manifest must export at least one module\n".encode_utf8())))
+        ProcessOutput(1, 0, byte_buffer.empty(), "panack: library manifest must export at least one module\n".encode_utf8())))
       std_filesystem.write(library_manifest, library_manifest_text_value.encode_utf8())
       std_filesystem.write(library_extra, "import project/api as api\npub pure next_answer(): Nat { true }\n".encode_utf8())
-      match std_process.run(path("./panack-vm"),
+      match std_process.run(path("./bin/panack"),
           source_compiler_arguments(["check", "--project", library_manifest_text]),
           byte_buffer.empty(), std_path.current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           std_time.seconds(10), 1048576) {
@@ -632,6 +634,9 @@ main(): Void {
         }
       }
       std_filesystem.write(library_extra, "import project/api as api\npub pure next_answer(): Nat { api.answer() + 1 }\n".encode_utf8())
+      results = results.append(std_testing_commands.run_command("direct dependency fixture refreshes lock",
+        source_compiler_command(["deps", "update", "--project", package_manifest_text], toolchain_version),
+        ProcessOutput(0, 0, "ok\n".encode_utf8(), byte_buffer.empty())))
       results = results.append(std_testing_commands.run_command("manifest application recompiles direct dependencies after nested checks",
         source_compiler_command(["compile", "--project", package_manifest_text, "-o", bytecode_text], toolchain_version),
         ProcessOutput(0, 0, "wrote ${bytecode_text}\n".encode_utf8(), byte_buffer.empty())))
@@ -647,6 +652,8 @@ main(): Void {
       results = results.append(std_testing_commands.run_command("saved package bytecode runs after relocation",
         command(["run", bytecode_text]),
         ProcessOutput(0, 0, "42\n42\n0\n".encode_utf8(), byte_buffer.empty())))
+      std_filesystem.remove_file(child(relocated_root, "panack.lock.json"))
+      std_filesystem.remove_file(child(second_app_root, "panack.lock.json"))
       std_filesystem.remove_file(relocated_entry)
       std_filesystem.remove_file(relocated_value)
       std_filesystem.remove_file(relocated_manifest)

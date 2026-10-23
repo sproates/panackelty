@@ -1,5 +1,15 @@
 # Self-hosting roadmap
 
+## Package tool separation on next
+
+GI#200 P02 builds the Panack package tool separately from the compiler. The
+compiler accepts and validates a temporary resolved-project descriptor; it
+contains no archive acquisition or lock policy. The matching compiler seed is
+`aa2eb354c90be0cf85f743f4b1e2673f229c087a71e6f79698df0943c5de18d6`;
+stages 2, 3 and 4 reproduce it. Package-only changes rebuild the package artifact
+without refreshing this seed. Generic host grants are part of the initial
+interface change; there is no new bytecode version or arbitrary C FFI.
+
 ## Current state
 
 Alpha.13 is published with the self-hosted namespace-capable compiler, local

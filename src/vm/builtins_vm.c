@@ -23,6 +23,10 @@ Value *builtins_vm_call(VM *vm, const char *name, Value **a)
             return NULL;
         }
         VM child = *vm;
+        child.filesystem_stages = NULL;
+        child.gzip_streams = NULL;
+        child.digests = NULL;
+        child.resource_parent = vm;
         if (!vm->coverage_run) vm_coverage_gap(vm->coverage);
         child.coverage_run = vm_coverage_child(vm->coverage_run, &nested,
             a[0]->as.bytes.data, a[0]->as.bytes.length, "nested\n");
@@ -72,6 +76,10 @@ Value *builtins_vm_call(VM *vm, const char *name, Value **a)
             arguments[i] = (char *)argument->as.bytes.data;
         }
         VM child = *vm;
+        child.filesystem_stages = NULL;
+        child.gzip_streams = NULL;
+        child.digests = NULL;
+        child.resource_parent = vm;
         if (!vm->coverage_run) vm_coverage_gap(vm->coverage);
         child.coverage_run = vm_coverage_child(vm->coverage_run, &nested,
             a[0]->as.bytes.data, a[0]->as.bytes.length, "nested\n");

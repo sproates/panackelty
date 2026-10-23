@@ -1,5 +1,9 @@
 import project/src/compiler/path_support as path_support
 import stdlib/environment as std_environment
+import stdlib/path as std_path
+import stdlib/filesystem as std_filesystem
+import stdlib/package_filesystem as std_package_filesystem
+import stdlib/filesystem::{FileKind.RegularFile}
 import project/src/compiler/filesystem_support as filesystem_support
 import stdlib/host as std_host
 import project/src/compiler/explanations::{explanation_function_selector, render_function_explanations, render_expression_type_explanation}
@@ -11,7 +15,11 @@ import project/src/compiler/loader::{
   LoadedProject, load_project, load_project_package, load_project_package_for_check,
   load_project_explained, load_project_for_source_map
 }
-import project/src/compiler/package_project::{ManifestProject, read_manifest_project}
+import project/src/project_model/package_project::{ManifestDependencyProject}
+import project/src/project_model/resolved_project::{
+  ResolvedPackage, ResolvedProject, parse_resolved_project
+}
+import project/src/project_model/package_manifest::{package_manifest_byte_limit}
 import project/src/compiler/parser::{Program}
 pub import project/src/compiler/types::{Diagnostic}
 import project/src/compiler/diagnostics::{diagnostic_with_source}
@@ -114,41 +122,37 @@ pure driver_usage(): Str {
 }
 
 run_manifest_command(arguments: [Str]): Nat {
-  if arguments.len() < 3 {
-    report_driver_error("usage: check --project panack.json; compile --project panack.json [-o FILE]; run --project panack.json [arguments]")
+  report_driver_error("project manifests are resolved by the panack package tool")
+}
+
+run_resolved_project_command(arguments: [Str]): Nat {
+  if arguments.len() < 3 || arguments[1] != "--resolved-project" {
+    report_driver_error("internal project commands require --resolved-project DESCRIPTOR")
   } else {
     command: Str = arguments[0]
-    if command != "check" && command != "compile" && command != "run" {
-      report_driver_error("--project is supported only with check, compile, and run")
+    descriptor_path: Str = arguments[2]
+    mut output: Str = ""
+    mut program_arguments: [Str] = []
+    mut valid_options: Bool = true
+    if command == "check" {
+      valid_options = arguments.len() == 3
+    } else if command == "compile" {
+      if arguments.len() == 5 && arguments[3] == "-o" && arguments[4] != "" {
+        output = arguments[4]
+      } else {
+        valid_options = arguments.len() == 3
+      }
+    } else if command == "run" {
+      for index in 3..arguments.len() {
+        program_arguments = program_arguments.append(arguments[index])
+      }
     } else {
-      manifest_path: Str = arguments[2]
-      mut output: Str = ""
-      mut program_arguments: [Str] = []
-      mut valid_options: Bool = true
-      if command == "compile" {
-        if arguments.len() == 5 && arguments[3] == "-o" && arguments[4] != "" {
-          output = arguments[4]
-        } else {
-          if arguments.len() != 3 {
-            valid_options = false
-          }
-        }
-      } else {
-        if command == "check" {
-          valid_options = arguments.len() == 3
-        } else {
-          mut index: Nat = 3
-          while index < arguments.len() {
-            program_arguments = program_arguments.append(arguments[index])
-            index = index + 1
-          }
-        }
-      }
-      if !valid_options {
-        report_driver_error("project command options are invalid; use compile --project panack.json [-o FILE], check --project panack.json, or run --project panack.json [arguments]")
-      } else {
-        run_manifest_source_command(command, manifest_path, output, program_arguments)
-      }
+      valid_options = false
+    }
+    if !valid_options {
+      report_driver_error("resolved project command options are invalid")
+    } else {
+      run_resolved_project_source_command(command, descriptor_path, output, program_arguments)
     }
   }
 }
@@ -205,9 +209,114 @@ run_source_command(command: Str, path: Str, output: Str, program_arguments: [Str
   }
 }
 
-prepare_manifest_project(
-  project: ManifestProject,
+pure driver_resolved_package(project: ResolvedProject, package_id: Str): Option[ResolvedPackage] {
+  mut found: Option[ResolvedPackage] = None()
+  for package in project.packages {
+    if package.id == package_id { found = Some(package) }
+  }
+  found
+}
+
+pure driver_resolved_dependency_edges(project: ResolvedProject): [ManifestDependencyProject] {
+  mut output: [ManifestDependencyProject] = []
+  for owner in project.packages {
+    for dependency in owner.dependencies {
+      match driver_resolved_package(project, dependency.target) {
+        None() => {},
+        Some(target) => {
+          output = output.append(ManifestDependencyProject(
+            owner.identity,
+            dependency.alias,
+            target.package_root,
+            target.source_root,
+            target.exports,
+            target.name,
+            target.version,
+            target.identity
+          ))
+        }
+      }
+    }
+  }
+  output
+}
+
+driver_resolved_package_paths_valid(package: ResolvedPackage): Result[Unit, Str] {
+  root: Str = path_support.resolve(package.package_root)
+  source: Str = path_support.resolve(package.source_root)
+  if root != package.package_root || source != package.source_root ||
+      !(source == root || source.starts_with_at(root + "/", 0)) {
+    Error("resolved project package roots are invalid or outside their package")
+  } else if match package.entry {
+    None() => false,
+    Some(entry) => path_support.resolve(entry) != entry || !entry.starts_with_at(source + "/", 0)
+  } {
+    Error("resolved project entry is outside its source root")
+  } else {
+    match std_path.from_text(root) {
+      Error(error) => Error("resolved project package root is invalid"),
+      Ok(root_path) => match std_path.from_text("panack.json") {
+        Error(error) => Error("resolved project manifest path is invalid"),
+        Ok(manifest_path) => match std_package_filesystem.read_beneath(
+          root_path, manifest_path, package_manifest_byte_limit()
+        ) {
+          Error(error) => Error("cannot verify resolved project package manifest"),
+          Ok(read) => if read.identity != package.identity {
+            Error("resolved project package root changed after resolution")
+          } else {
+            Ok(())
+          }
+        }
+      }
+    }
+  }
+}
+
+driver_validate_resolved_project(project: ResolvedProject): Result[ResolvedPackage, Str] {
+  toolchain: Str = std_environment.get("PANACKELTY_VERSION").value_or("")
+  if project.toolchain != toolchain || toolchain == "" {
+    Error("resolved project toolchain does not match the running compiler")
+  } else {
+    mut root: Option[ResolvedPackage] = None()
+    mut failure: Option[Str] = None()
+    for package in project.packages {
+      match driver_resolved_package_paths_valid(package) {
+        Error(message) => { if failure == None() { failure = Some(message) } },
+        Ok(unit) => {}
+      }
+      if package.id == project.root { root = Some(package) }
+      else if package.entry != None() || package.exports.len() == 0 {
+        failure = Some("resolved dependency must be a library with exports")
+      }
+      for other in project.packages {
+        if package.id < other.id && failure == None() {
+          match std_path.from_text(package.source_root) {
+            Error(problem) => { failure = Some("invalid source root") },
+            Ok(left) => match std_path.from_text(other.source_root) {
+              Error(problem) => { failure = Some("invalid source root") },
+              Ok(right) => match std_package_filesystem.directories_overlap(left, right) {
+                Error(problem) => { failure = Some("cannot inspect resolved source roots") },
+                Ok(overlaps) => if overlaps { failure = Some("resolved physical source roots overlap") }
+              }
+            }
+          }
+        }
+      }
+    }
+    match failure {
+      Some(message) => Error(message),
+      None() => match root {
+        None() => Error("resolved project root package is missing"),
+        Some(package) => Ok(package)
+      }
+    }
+  }
+}
+
+prepare_resolved_package(
+  project: ResolvedPackage,
   entry_path: Str,
+  dependencies: [ManifestDependencyProject],
   loaded: LoadedProject
 ): PreparedProject {
   entry: Str = path_support.resolve(entry_path)
@@ -219,71 +328,39 @@ prepare_manifest_project(
   identity: ModuleIdentity = driver_entry_identity(
     loaded,
     entry,
-    source_package_module_identity(
-      entry,
-      root,
-      stdlib_root,
-      project.package,
-      project.version
-    )
+    source_package_module_identity(entry, root, stdlib_root, project.name, project.version)
   )
   match prepare_project_program_with_dependencies(
-    loaded, root, stdlib_root, identity, true, project.root_identity, project.dependencies
+    loaded, root, stdlib_root, identity, true, project.identity, dependencies
   ) {
     Error(diagnostics) => PreparedProject(false, loaded.program, diagnostic_messages(diagnostics, loaded.sources)),
     Ok(program) => PreparedProject(true, program, "")
   }
 }
 
-run_manifest_source_command(
+run_resolved_project_source_command(
   command: Str,
-  manifest_path: Str,
+  descriptor_path: Str,
   output: Str,
   program_arguments: [Str]
 ): Nat {
-  match read_manifest_project(manifest_path) {
-    Error(message) => report_driver_error(message),
-    Ok(project) => match project.entry {
-      None() => if command == "check" {
-        run_manifest_library_check(project)
+  match std_path.from_text(descriptor_path) {
+    Error(error) => report_driver_error("resolved project descriptor path is invalid"),
+    Ok(path) => match std_filesystem.metadata(path) {
+      Error(error) => report_driver_error("cannot read resolved project descriptor"),
+      Ok(metadata) => if metadata.kind != RegularFile() || metadata.size > 1048576 {
+        report_driver_error("resolved project descriptor is not a bounded regular file")
       } else {
-        report_driver_error("library manifests support check only; compile and run require an application entry")
-      },
-      Some(entry) => {
-        loaded: LoadedProject = load_project_package(
-          entry,
-          project.source_root,
-          project.package_root,
-          project.root_identity,
-          project.package,
-          project.version,
-          project.dependencies
-        )
-        prepared: PreparedProject = prepare_manifest_project(project, entry, loaded)
-        if !prepared.valid {
-          report_driver_error(prepared.message)
-        } else {
-          bytecode: BytecodeProgram = compile_program(prepared.program)
-          if command == "check" {
-            print("ok")
-            0
-          } else {
-            if command == "compile" {
-              destination: Str = if output.len() > 0 {
-                output
-              } else {
-                path_support.with_suffix(entry, ".bc")
+        match std_filesystem.read(path, 1048576) {
+          Error(error) => report_driver_error("cannot read resolved project descriptor"),
+          Ok(data) => match parse_resolved_project(data) {
+            Error(error) => report_driver_error("invalid resolved project descriptor at byte ${error.offset}: ${error.message}"),
+            Ok(project) => match driver_validate_resolved_project(project) {
+              Error(message) => report_driver_error(message),
+              Ok(root) => {
+                dependencies: [ManifestDependencyProject] = driver_resolved_dependency_edges(project)
+                driver_run_resolved_command(command, root, dependencies, output, program_arguments)
               }
-              if path_support.resolve(destination) == path_support.resolve(entry) {
-                report_driver_error("bytecode output cannot overwrite the source file")
-              } else {
-                filesystem_support.write_file_bytes(destination, serialize_bytecode(bytecode))
-                print("wrote ${destination}")
-                0
-              }
-            } else {
-              std_host.run(serialize_bytecode(bytecode), program_arguments)
-              0
             }
           }
         }
@@ -292,36 +369,72 @@ run_manifest_source_command(
   }
 }
 
-run_manifest_library_check(project: ManifestProject): Nat {
+driver_run_resolved_command(
+  command: Str,
+  project: ResolvedPackage,
+  dependencies: [ManifestDependencyProject],
+  output: Str,
+  program_arguments: [Str]
+): Nat {
+  match project.entry {
+    None() => if command == "check" {
+      driver_run_resolved_library_check(project, dependencies)
+    } else {
+      report_driver_error("library projects support check only; compile and run require an application entry")
+    },
+    Some(entry) => {
+      loaded: LoadedProject = load_project_package(
+        entry, project.source_root, project.package_root, project.identity,
+        project.name, project.version, dependencies
+      )
+      prepared: PreparedProject = prepare_resolved_package(project, entry, dependencies, loaded)
+      if !prepared.valid {
+        report_driver_error(prepared.message)
+      } else {
+        bytecode: BytecodeProgram = compile_program(prepared.program)
+        if command == "check" {
+          print("ok")
+          0
+        } else if command == "compile" {
+          destination: Str = if output.len() > 0 { output } else { path_support.with_suffix(entry, ".bc") }
+          if path_support.resolve(destination) == path_support.resolve(entry) {
+            report_driver_error("bytecode output cannot overwrite the source file")
+          } else {
+            filesystem_support.write_file_bytes(destination, serialize_bytecode(bytecode))
+            print("wrote ${destination}")
+            0
+          }
+        } else {
+          std_host.run(serialize_bytecode(bytecode), program_arguments)
+          0
+        }
+      }
+    }
+  }
+}
+
+driver_run_resolved_library_check(
+  project: ResolvedPackage,
+  dependencies: [ManifestDependencyProject]
+): Nat {
   mut failures: Str = ""
   mut checked_exports: Set[Str] = set()
   for exported in project.exports {
-    if !checked_exports.has(exported) {
-      checked_exports = checked_exports.add(exported)
+    entry: Str = path_support.resolve(path_support.join(project.source_root, exported.path))
+    if !checked_exports.has(entry) {
+      checked_exports = checked_exports.add(entry)
       loaded: LoadedProject = load_project_package_for_check(
-        exported,
-        project.source_root,
-        project.package_root,
-        project.root_identity,
-        project.package,
-        project.version,
-        project.dependencies
+        entry, project.source_root, project.package_root, project.identity,
+        project.name, project.version, dependencies
       )
-      prepared: PreparedProject = prepare_manifest_project(project, exported, loaded)
+      prepared: PreparedProject = prepare_resolved_package(project, entry, dependencies, loaded)
       if !prepared.valid {
-        if failures.len() > 0 {
-          failures = failures + "\n"
-        }
+        if failures.len() > 0 { failures = failures + "\n" }
         failures = failures + prepared.message
       }
     }
   }
-  if failures.len() == 0 {
-    print("ok")
-    0
-  } else {
-    report_driver_error(failures)
-  }
+  if failures.len() == 0 { print("ok"); 0 } else { report_driver_error(failures) }
 }
 
 pure explanation_coordinate(text: Str): Option[Nat] {
@@ -679,7 +792,9 @@ run_compiler_command(arguments: [Str]): Nat {
     print(driver_usage())
     0
   } else {
-    if values.len() > 1 && values[1] == "--project" {
+    if values.len() > 1 && values[1] == "--resolved-project" {
+      run_resolved_project_command(values)
+    } else if values.len() > 1 && values[1] == "--project" {
       run_manifest_command(values)
     } else {
     if values[0] == "coverage-report" || values[0] == "coverage-aggregate" {

@@ -270,6 +270,7 @@ async main(): Unit {
 }
 SOURCE
 
+"$panack_bin" deps lock --project "$app/panack.json" >/dev/null
 "$panack_bin" check --project "$app/panack.json" >/dev/null
 "$panack_bin" compile --project "$app/panack.json" -o "$work/client.bc" >/dev/null
 case "$selected_case" in
@@ -289,10 +290,15 @@ case "$selected_case" in
             preload_path="$(pwd -P)/$work/http_dns_delay.so"
             ;;
     esac
+    # Preload must target the VM directly on macOS. Resolve through the package
+    # tool first, then pass its ordinary descriptor to the source compiler.
+    PANACKELTY_STDLIB_PATH="$(pwd -P)/src/stdlib" PANACKELTY_VERSION="$version" \
+        ./panack-vm run build/tools/panack-packages.bc prepare --project "$app/panack.json" \
+        > "$work/resolved.json"
     for mode in source bytecode; do
         rm -f "$work/dns-started" "$work/dns-finished" "$work/dns-failure"
         if [ "$mode" = source ]; then
-            set -- run "$(pwd -P)/bootstrap/compiler-v9.bc" run --project "$app/panack.json"
+            set -- run "$(pwd -P)/bootstrap/compiler-v9.bc" run --resolved-project "$work/resolved.json"
         else
             set -- run "$work/client.bc"
         fi

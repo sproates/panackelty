@@ -1,7 +1,11 @@
 # P02 local dependency acceptance
 
-This record describes the candidate implementation in PR#575. Full-suite and
-exact-head CI acceptance are still pending; GI#567 remains in progress.
+PR#575 completes GI#567 on merge, subject to its exact-head CI gate. The final
+local `make check` passed on 23 October 2026 in 642 seconds, including unit,
+bootstrap, functional, relocated distribution and quick-start checks. The
+CI-only smoke dependency correction also passed `make ci-next-smoke`, the
+routing/partition regression suite and workflow YAML validation. The printed
+historical timing budgets are comparison warnings under the current policy.
 
 The package tool is Panack under `src/packages`. It emits a strict temporary
 resolved-project descriptor; the compiler checks identity, reachability, depth,

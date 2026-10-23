@@ -54,10 +54,10 @@ recorded re-estimate.
 | Packet | Work | Dependencies | Status | Weight | Complete | Earned |
 | --- | --- | --- | --- | ---: | ---: | ---: |
 | P01 | [Lock and restore contract](https://github.com/sproates/panackelty/issues/566) | — | Done | 15% | 100% | 15 pp |
-| P02 | [Locked local dependencies](https://github.com/sproates/panackelty/issues/567) | P01 | In progress | 25% | 0% | 0 pp |
+| P02 | [Locked local dependencies](https://github.com/sproates/panackelty/issues/567) | P01 | Done on merge of PR#575 | 25% | 100% | 25 pp |
 | P03 | [Pinned remote sources](https://github.com/sproates/panackelty/issues/568) | P01–P02 | Planned | 35% | 0% | 0 pp |
 | P04 | [`panack` workflow integration](https://github.com/sproates/panackelty/issues/569) | P01–P03 | Planned | 25% | 0% | 0 pp |
-| **Total** |  |  |  | **100%** | **15%** | **15 pp** |
+| **Total on merge of PR#575** |  |  |  | **100%** | **40%** | **40 pp** |
 
 The [P01 contract](../../design/PACKAGE_MANAGEMENT_CONTRACT.md) was accepted in
 [PR#571](https://github.com/sproates/panackelty/pull/571). It defines the lock,
@@ -92,23 +92,22 @@ Done in PR#571; 15% of GI#200. Defines the implementation contract and acceptanc
 <a id="rm-159"></a>
 
 **P02 · RM#159: Locked local dependencies** · [GI#567](https://github.com/sproates/panackelty/issues/567).
-In progress; 25% of GI#200, with 0% earned until packet acceptance. P02a is
-implementing the independent tool and compiler handoff; P02b implements local
-graphs and locks; P02c adds bounded local archives and the complete local command
-workflow. The interim implementation includes the separate tool, stricter
-compiler handoff, local-directory locks, native staging/gzip/digest adapters and
-Panack tar/tree-digest modules. Focused checks pass, but this remains a draft
-checkpoint. Archive/cache integration, selective updates, the reproducible seed refresh
-and coverage inventories are now implemented. Focused local CLI, transitive
-archive, relocation and sanitizer checks pass. Full-suite acceptance and exact-head
-CI remain outstanding. No P02 completion
-credit is earned by publishing the interim PR.
+Done on merge of PR#575; 25% of GI#200. The separate Panack package tool resolves
+local directory and archive graphs, writes and validates locks, restores offline,
+and updates selected dependency closures. The compiler consumes a checked
+descriptor. Package-only edits do not rebuild the compiler. Generic filesystem,
+zlib and OpenSSL adapters support Panack-owned package policy.
+The [acceptance record](../../design/PACKAGE_LOCAL_ACCEPTANCE.md) covers public
+CLI behaviour, transitive archives, relocation, tampering, bounds, independent
+hash vectors, sanitizers, bootstrap reproducibility and installation. Publication
+is atomic per entry; a late publication failure requires restore. Remote sources
+and all-source workflow acceptance remain P03 and P04.
 
 The owner approved OpenSSL 3+ for generic SHA-256 after the pure-Panack version
 took 35.05 seconds for the 64 KiB benchmark. The EVP version took 0.11 seconds
-with the same digest. This is a focused measurement, not a claim that package
-performance acceptance is complete. Website impact: no published feature or
-release claim changes at this draft checkpoint.
+with the same digest. Archive timing and memory observations are recorded with
+their limits in the acceptance record. Website claims wait for a matching native
+release, as recorded in the website follow-up register.
 
 <a id="p03"></a>
 <a id="rm-160"></a>

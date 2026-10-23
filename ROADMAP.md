@@ -50,15 +50,16 @@ through final acceptance. [P01: lock and restore contract](docs/roadmap/records/
 and [P04: `panack` workflow integration](docs/roadmap/records/dependency-management--idea.md#p04)
 are sequenced in the [package-management plan](docs/roadmap/records/dependency-management--idea.md#alpha15-implementation-plan).
 Their provisional weights are 15%, 25%, 35% and 25% of GI#200, respectively.
-P01 is accepted in PR#571: weighted completion is 15%. PR#573 reverted the
-initial P02 implementation to the P01 baseline; P02–P04 remain at 0%. The P01
+P01 is accepted in PR#571. P02 completes on merge of PR#575, taking weighted
+completion to 40%; P03 and P04 remain planned. PR#573 reverted the initial P02
+implementation to the P01 baseline. The P01
 [contract](docs/design/PACKAGE_MANAGEMENT_CONTRACT.md) defines lock and restore
 behaviour. The [implementation boundaries](docs/design/PACKAGE_MANAGEMENT_IMPLEMENTATION.md)
 require a separately built Panackelty package tool, zlib for gzip and a small
 compiler-handoff proof before archive implementation. PR#575 implements the
-local workflow; [candidate acceptance](docs/design/PACKAGE_LOCAL_ACCEPTANCE.md)
-records focused evidence and remaining full-suite/CI validation. No additional
-completion is earned yet. Website changes wait for a matching native release
+local workflow; the [acceptance record](docs/design/PACKAGE_LOCAL_ACCEPTANCE.md)
+records verification, performance evidence and publication limits.
+Website changes wait for a matching native release
 and are recorded in the website follow-up register.
 
 <a id="rm-158"></a> [RM#158](docs/roadmap/records/dependency-management--idea.md#rm-158),

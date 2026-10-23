@@ -116,7 +116,7 @@ release, as recorded in the website follow-up register.
 Planned; 35% of GI#200. Implements Git and remote archive acquisition.
 The owner selected P03a HTTPS archives first, followed by P03b controlled Git
 acquisition, P03c Git graph integration and P03d remote-source acceptance.
-The separate generic streaming HTTP prerequisite is in progress. It resolves
+The separate generic streaming HTTP prerequisite completes on merge of PR#576. It resolves
 the existing buffered client's 1 MiB body limit without reducing P01 archive
 bounds. This prerequisite alone earns no P03 completion credit; GI#568 stays open.
 

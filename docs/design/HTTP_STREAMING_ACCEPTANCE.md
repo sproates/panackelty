@@ -34,6 +34,9 @@ a prerequisite interface change, not a package-only rebuild dependency.
   Native receive-buffer allocation is fixed at 16 KiB per stream; no peak-RSS
   measurement is claimed.
 
-Canonical full validation and exact-head CI remain the delivery gates. This
-prerequisite does not complete P03a or GI#568. HTTPS archive acquisition follows
+Canonical `make check` passed on 24 October 2026 in 731 seconds, including unit,
+bootstrap, functional, installed distribution and quick-start checks. PR#576
+delivers the prerequisite subject to its exact-head CI merge gate. The printed
+historical budget warnings remain comparison data under the current policy.
+This prerequisite does not complete P03a or GI#568. HTTPS archive acquisition follows
 in a separate PR using the same package tool and descriptor.

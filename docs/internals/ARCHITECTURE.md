@@ -133,18 +133,26 @@ reports independently. The website owns compatibility coverage landing pages.
 
 Project package resolution now has a separate Panackelty package tool under
 `src/packages/`, built as `build/tools/panack-packages.bc` from the saved seed.
-The tool and compiler share only records, manifest parsing and the strict
+The tool and compiler share records, generic JSON/path validation and the strict
 resolved-project descriptor under `src/project_model/`. For a project command,
 `bin/panack` asks the package tool to prepare a temporary descriptor, then gives
 that descriptor to the compiler. Package-only source edits rebuild the package
 tool without rebuilding the compiler or refreshing its seed. The compiler
 validates the descriptor and retains its physical root and source containment
 checks; lock and archive policy stays outside compiler implementation modules.
+Active manifest source policy is in `src/packages/manifest.panack`. The original
+shared full-manifest parser is frozen, unused by package commands, to avoid
+changing the existing compiler/bootstrap input in P03a. Its removal belongs to
+a separately reviewed compiler cleanup; it is not a second maintained policy.
 
 Generic native adapters supply bounded file I/O, confined staging, zlib streams
 and OpenSSL EVP digests. Panack modules under `src/packages` own archive
 validation, graph acquisition, lock policy, Unicode collision checks and cache
-verification. Directory handles and no-follow operations keep writes beneath a
+verification. HTTPS acquisition uses `packages/http/src/stream.panack` for
+response framing and bounded body folds into the existing gzip/tar pipeline.
+The package tool owns redirect policy, pin verification and offline decisions.
+Its build depends on the HTTP package sources; compiler sources do not depend
+on this acquisition path. Directory handles and no-follow operations keep writes beneath a
 private stage. Atomic rename/exchange publishes one fully verified package at a
 time. Lock-bound state lives outside package sources in `.panack_modules/.state`.
 A failure after some entries are published requires restore; publication is not

@@ -1,0 +1,218 @@
+// Package manifest policy belongs to the package tool. The old shared parser
+// remains frozen in the compiler input until a separately reviewed bootstrap
+// cleanup; package commands and their tests use this module exclusively.
+pub import project/src/project_model/package_manifest::{PackageManifest, PackageManifestError, PackageManifestDependency, PackageManifestExport}
+import project/src/project_model/package_manifest::{ManifestJsonValue, ParsedManifestField,
+  parse_manifest_json, manifest_json_object_field, manifest_json_string_field,
+  manifest_object_unknown_field, manifest_identifier, manifest_logical_path,
+  manifest_package_name, manifest_semver, manifest_relative_path_error}
+import project/src/project_model/package_manifest::{ManifestJsonValue.ManifestJsonNull, ManifestJsonValue.ManifestJsonBool,
+  ManifestJsonValue.ManifestJsonNumber, ManifestJsonValue.ManifestJsonString,
+  ManifestJsonValue.ManifestJsonArray, ManifestJsonValue.ManifestJsonObject}
+pure manifest_error(message: Str, offset: Nat): PackageManifestError { PackageManifestError(message, offset) }
+
+pure manifest_manifest_exports(value: ManifestJsonValue): Result[[PackageManifestExport], PackageManifestError] {
+  match value {
+    ManifestJsonObject(members) => {
+      mut exports: [PackageManifestExport] = []
+      mut failure: Option[PackageManifestError] = None()
+      for member in members {
+        if !manifest_logical_path(member.key) && failure == None() {
+          failure = Some(manifest_error("export keys must be slash-separated identifiers", member.offset))
+        }
+        match member.value {
+          ManifestJsonString(path) => match manifest_relative_path_error(path, false, true, member.offset) {
+            Some(error) => if failure == None() { failure = Some(error) },
+            None() => { exports = exports.append(PackageManifestExport(member.key, path)) }
+          },
+          ManifestJsonNull() => if failure == None() { failure = Some(manifest_error("export paths must be strings", member.offset)) },
+          ManifestJsonBool(flag) => if failure == None() { failure = Some(manifest_error("export paths must be strings", member.offset)) },
+          ManifestJsonNumber(number) => if failure == None() { failure = Some(manifest_error("export paths must be strings", member.offset)) },
+          ManifestJsonArray(items) => if failure == None() { failure = Some(manifest_error("export paths must be strings", member.offset)) },
+          ManifestJsonObject(fields) => if failure == None() { failure = Some(manifest_error("export paths must be strings", member.offset)) }
+        }
+      }
+      match failure {
+        Some(error) => Error(error),
+        None() => Ok(exports)
+      }
+    },
+    ManifestJsonNull() => Error(manifest_error("manifest exports must be an object", 0)),
+    ManifestJsonBool(flag) => Error(manifest_error("manifest exports must be an object", 0)),
+    ManifestJsonNumber(number) => Error(manifest_error("manifest exports must be an object", 0)),
+    ManifestJsonString(text) => Error(manifest_error("manifest exports must be an object", 0)),
+    ManifestJsonArray(items) => Error(manifest_error("manifest exports must be an object", 0))
+  }
+}
+
+pure manifest_manifest_dependencies(value: ManifestJsonValue): Result[[PackageManifestDependency], PackageManifestError] {
+  match value {
+    ManifestJsonObject(members) => {
+      mut dependencies: [PackageManifestDependency] = []
+      mut failure: Option[PackageManifestError] = None()
+      for member in members {
+        if (!manifest_identifier(member.key) || member.key == "project" || member.key == "stdlib") && failure == None() {
+          failure = Some(manifest_error("dependency aliases must be identifiers other than project or stdlib", member.offset))
+        }
+        if failure == None() {
+          path_field = manifest_json_object_field(member.value, "path")
+          kind: Str = if path_field != None() { "path" } else { "archive" }
+          match manifest_object_unknown_field(member.value, [kind]) {
+            Some(error) => { failure = Some(error) },
+            None() => match manifest_json_string_field(member.value, kind) {
+              Error(error) => { failure = Some(error) },
+              Ok(path) => {
+                if path == "" || (kind == "archive" && !path.ends_with(".tar.gz")) {
+                  failure = Some(manifest_error("dependency source is empty or archive does not end in .tar.gz", member.offset))
+                } else if path.starts_with_at("https://", 0) || path.starts_with_at("http://", 0) {
+                  if kind != "archive" || !manifest_https_archive_url(path) {
+                    failure = Some(manifest_error("archive URL must use HTTPS without credentials, query or fragment", member.offset))
+                  } else { dependencies = dependencies.append(PackageManifestDependency(member.key, kind, path)) }
+                } else {
+                  // Only dependency paths may be absolute. Source and export
+                  // paths retain the strict package-relative validation above.
+                  relative: Str = if path.starts_with_at("/", 0) { path.slice(1, path.len()) } else { path }
+                  match manifest_relative_path_error(relative, true, false, member.offset) {
+                    Some(error) => { failure = Some(error) },
+                    None() => { dependencies = dependencies.append(PackageManifestDependency(member.key, kind, path)) }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      match failure {
+        Some(error) => Error(error),
+        None() => Ok(dependencies)
+      }
+    },
+    ManifestJsonNull() => Error(manifest_error("manifest dependencies must be an object", 0)),
+    ManifestJsonBool(flag) => Error(manifest_error("manifest dependencies must be an object", 0)),
+    ManifestJsonNumber(number) => Error(manifest_error("manifest dependencies must be an object", 0)),
+    ManifestJsonString(text) => Error(manifest_error("manifest dependencies must be an object", 0)),
+    ManifestJsonArray(items) => Error(manifest_error("manifest dependencies must be an object", 0))
+  }
+}
+
+pure manifest_json_schema_is_one(value: ManifestJsonValue): Bool {
+  match value {
+    ManifestJsonNumber(number) => number == "1",
+    ManifestJsonNull() => false,
+    ManifestJsonBool(flag) => false,
+    ManifestJsonString(text) => false,
+    ManifestJsonArray(items) => false,
+    ManifestJsonObject(members) => false
+  }
+}
+
+pub pure parse_package_manifest(data: Bytes, supported_toolchain: Str): Result[PackageManifest, PackageManifestError] {
+  match parse_manifest_json(data) {
+    Error(error) => Error(error),
+    Ok(root) => match manifest_object_unknown_field(root,
+      ["schema", "package", "version", "language", "toolchain", "source", "entry", "exports", "dependencies"]) {
+      Some(error) => Error(error),
+      None() => {
+        schema_field: Option[ParsedManifestField] = manifest_json_object_field(root, "schema")
+        package_field: Result[Str, PackageManifestError] = manifest_json_string_field(root, "package")
+        version_field: Result[Str, PackageManifestError] = manifest_json_string_field(root, "version")
+        language_field: Result[Str, PackageManifestError] = manifest_json_string_field(root, "language")
+        toolchain_field: Result[Str, PackageManifestError] = manifest_json_string_field(root, "toolchain")
+        source_field: Result[Str, PackageManifestError] = manifest_json_string_field(root, "source")
+        exports_field: Option[ParsedManifestField] = manifest_json_object_field(root, "exports")
+        dependencies_field: Option[ParsedManifestField] = manifest_json_object_field(root, "dependencies")
+        entry_field: Option[ParsedManifestField] = manifest_json_object_field(root, "entry")
+        mut failure: Option[PackageManifestError] = None()
+        match schema_field {
+          None() => { failure = Some(manifest_error("missing required manifest field schema", 0)) },
+          Some(field) => if !manifest_json_schema_is_one(field.value) {
+            failure = Some(manifest_error("manifest schema must be the integer 1", field.offset))
+          }
+        }
+        package: Str = match package_field {
+          Error(error) => { if failure == None() { failure = Some(error) }; "" },
+          Ok(value) => value
+        }
+        version: Str = match version_field {
+          Error(error) => { if failure == None() { failure = Some(error) }; "" },
+          Ok(value) => value
+        }
+        language: Str = match language_field {
+          Error(error) => { if failure == None() { failure = Some(error) }; "" },
+          Ok(value) => value
+        }
+        toolchain: Str = match toolchain_field {
+          Error(error) => { if failure == None() { failure = Some(error) }; "" },
+          Ok(value) => value
+        }
+        source: Str = match source_field {
+          Error(error) => { if failure == None() { failure = Some(error) }; "" },
+          Ok(value) => value
+        }
+        if failure == None() && !manifest_package_name(package) {
+          failure = Some(manifest_error("package must be a dotted ASCII identifier", 0))
+        }
+        if failure == None() && !manifest_semver(version) {
+          failure = Some(manifest_error("package version must be exact major.minor.patch with an optional prerelease", 0))
+        }
+        if failure == None() && language != "modules-v1" {
+          failure = Some(manifest_error("unsupported manifest language; expected modules-v1", 0))
+        }
+        if failure == None() && (supported_toolchain == "" || toolchain != supported_toolchain) {
+          failure = Some(manifest_error("manifest toolchain must exactly match the supported release", 0))
+        }
+        match manifest_json_object_field(root, "source") {
+          Some(field) => match manifest_relative_path_error(source, false, false, field.offset) {
+            Some(error) => if failure == None() { failure = Some(error) },
+            None() => {}
+          },
+          None() => {}
+        }
+        mut entry: Option[Str] = None()
+        match entry_field {
+          None() => {},
+          Some(field) => match field.value {
+            ManifestJsonString(value) => match manifest_relative_path_error(value, false, true, field.offset) {
+              Some(error) => if failure == None() { failure = Some(error) },
+              None() => { entry = Some(value) }
+            },
+            ManifestJsonNull() => if failure == None() { failure = Some(manifest_error("entry must be a string", field.offset)) },
+            ManifestJsonBool(flag) => if failure == None() { failure = Some(manifest_error("entry must be a string", field.offset)) },
+            ManifestJsonNumber(number) => if failure == None() { failure = Some(manifest_error("entry must be a string", field.offset)) },
+            ManifestJsonArray(items) => if failure == None() { failure = Some(manifest_error("entry must be a string", field.offset)) },
+            ManifestJsonObject(members) => if failure == None() { failure = Some(manifest_error("entry must be a string", field.offset)) }
+          }
+        }
+        exports: [PackageManifestExport] = match exports_field {
+          None() => { if failure == None() { failure = Some(manifest_error("missing required manifest field exports", 0)) }; [] },
+          Some(field) => match manifest_manifest_exports(field.value) {
+            Error(error) => { if failure == None() { failure = Some(error) }; [] },
+            Ok(values) => values
+          }
+        }
+        dependencies: [PackageManifestDependency] = match dependencies_field {
+          None() => { if failure == None() { failure = Some(manifest_error("missing required manifest field dependencies", 0)) }; [] },
+          Some(field) => match manifest_manifest_dependencies(field.value) {
+            Error(error) => { if failure == None() { failure = Some(error) }; [] },
+            Ok(values) => values
+          }
+        }
+        match failure {
+          Some(error) => Error(error),
+          None() => Ok(PackageManifest(package, version, language, toolchain, source, entry, exports, dependencies))
+        }
+      }
+    }
+  }
+}
+
+// This is source policy, not a network operation. Validate before acquisition.
+pub pure manifest_https_archive_url(value: Str): Bool {
+  mut valid: Bool = value.starts_with_at("https://", 0) && value.len() > 8
+  data = value.encode_utf8()
+  for index in 0..data.length() {
+    byte = data.at(index)
+    if byte <= 32 || byte == 127 || byte == 64 || byte == 63 || byte == 35 || byte == 92 { valid = false }
+  }
+  valid
+}

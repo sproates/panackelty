@@ -54,10 +54,10 @@ recorded re-estimate.
 | Packet | Work | Dependencies | Status | Weight | Complete | Earned |
 | --- | --- | --- | --- | ---: | ---: | ---: |
 | P01 | [Lock and restore contract](https://github.com/sproates/panackelty/issues/566) | — | Done | 15% | 100% | 15 pp |
-| P02 | [Locked local dependencies](https://github.com/sproates/panackelty/issues/567) | P01 | Done on merge of PR#575 | 25% | 100% | 25 pp |
-| P03 | [Pinned remote sources](https://github.com/sproates/panackelty/issues/568) | P01–P02 | Planned | 35% | 0% | 0 pp |
+| P02 | [Locked local dependencies](https://github.com/sproates/panackelty/issues/567) | P01 | Done | 25% | 100% | 25 pp |
+| P03 | [Pinned remote sources](https://github.com/sproates/panackelty/issues/568) | P01–P02 | P03a done on merge of PR#578; P03b–d pending | 35% | 30% | 10.5 pp |
 | P04 | [`panack` workflow integration](https://github.com/sproates/panackelty/issues/569) | P01–P03 | Planned | 25% | 0% | 0 pp |
-| **Total on merge of PR#575** |  |  |  | **100%** | **40%** | **40 pp** |
+| **Total on merge of PR#578** |  |  |  | **100%** | **50.5%** | **50.5 pp** |
 
 The [P01 contract](../../design/PACKAGE_MANAGEMENT_CONTRACT.md) was accepted in
 [PR#571](https://github.com/sproates/panackelty/pull/571). It defines the lock,
@@ -113,12 +113,22 @@ release, as recorded in the website follow-up register.
 <a id="rm-160"></a>
 
 **P03 · RM#160: Pinned remote sources** · [GI#568](https://github.com/sproates/panackelty/issues/568).
-Planned; 35% of GI#200. Implements Git and remote archive acquisition.
+In progress; 35% of GI#200. Implements Git and remote archive acquisition.
 The owner selected P03a HTTPS archives first, followed by P03b controlled Git
 acquisition, P03c Git graph integration and P03d remote-source acceptance.
-The separate generic streaming HTTP prerequisite completes on merge of PR#576. It resolves
+The separate generic streaming HTTP prerequisite merged as PR#576. It resolves
 the existing buffered client's 1 MiB body limit without reducing P01 archive
 bounds. This prerequisite alone earns no P03 completion credit; GI#568 stays open.
+
+P03a completes on merge of [PR#578](https://github.com/sproates/panackelty/pull/578),
+with [HTTPS archive acceptance](../../design/PACKAGE_HTTPS_ACCEPTANCE.md).
+The existing parent weights are unchanged. To credit this delivered sub-outcome,
+P03 now has a provisional internal scope allocation: HTTPS archives 30%, controlled
+Git acquisition 35%, Git graph integration 20%, and cross-source acceptance 15%.
+Git acquisition carries the largest share because process/configuration isolation
+and exact-commit snapshot safety remain substantial work. These are scope
+estimates, not counts of packets. P03a earns 10.5 percentage points of GI#200;
+P03b, P03c, P03d and P04 remain unstarted. No Git support is claimed.
 
 <a id="p04"></a>
 <a id="rm-161"></a>

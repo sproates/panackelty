@@ -83,6 +83,12 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
+- **P03a HTTPS archives: Pending release.** After matching native release and
+  final acceptance, add HTTPS archive declarations, pinned restore/update and
+  offline-cache requirements to package examples. Keep alpha.14 claims unchanged
+  and do not imply Git support. Ownership: core release and website maintainers;
+  evidence: [HTTPS acceptance](../../design/PACKAGE_HTTPS_ACCEPTANCE.md).
+
 - **P03a streaming transport prerequisite: Pending release.** Document
   `stdlib/http_stream` as blocking raw transport only when a matching native
   release is available. Preserve the existing async HTTP client's 1 MiB body

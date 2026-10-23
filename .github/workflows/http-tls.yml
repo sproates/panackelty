@@ -6,6 +6,9 @@ on:
       - '.github/workflows/http-tls.yml'
       - 'tests/http_client_package.sh'
       - 'tests/http_fixture.c'
+      - 'tests/package_https*'
+      - 'src/packages/**'
+      - 'src/project_model/package_manifest.panack'
       - 'src/vm/http_transport.c'
       - 'packages/http/**'
 
@@ -43,3 +46,5 @@ jobs:
             echo "TLS fixture: $fixture"
             sh tests/http_client_package.sh "$fixture"
           done
+      - name: Exercise HTTPS package acquisition
+        run: sh tests/package_https.sh

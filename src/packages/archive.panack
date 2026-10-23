@@ -1,5 +1,5 @@
-pub import project/src/packages/tar_stream::{ArchiveEntry}
-import project/src/packages/tar_stream::{TarStream, tar_stream_new, tar_stream_feed, tar_stream_finish}
+pub import project/src/packages/tar_stream::{ArchiveEntry, TarStream}
+import project/src/packages/tar_stream::{tar_stream_new, tar_stream_feed, tar_stream_finish}
 import project/src/packages/sha256::{Sha256, sha256_new, sha256_feed, sha256_finish, sha256_close}
 import stdlib/bounded_filesystem as bounded_filesystem
 import stdlib/filesystem_stage as staging
@@ -20,7 +20,7 @@ record ArchiveDecoder {
   offset: Nat
 }
 
-consume_compressed(
+pub consume_compressed(
   stage: Nat,
   decoder: Nat,
   state: TarStream,

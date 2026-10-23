@@ -33,6 +33,8 @@
     {"path": "src/stdlib/http_runtime.panack", "reason": "GI518 typed HTTP runtime adapters are exercised by native writer/handle tests and source/bytecode socket fixtures outside the bounded source-coverage corpus."},
     {"path": "src/stdlib/tcp_service.panack", "reason": "Continuous service lifecycle is tested by native and source/bytecode HTTP fixtures outside the bounded source-coverage corpus."},
     {"path": "src/stdlib/package_filesystem.panack", "reason": "Package filesystem support is not included in the bounded native source-execution corpus."},
+    {"path":"src/packages/manifest.panack","reason":"Active package manifest policy is verified by unit and public CLI fixtures outside the bounded source-execution corpus."},
+    {"path":"src/packages/remote_archive.panack","reason":"HTTPS acquisition is exercised through public CLI TLS fixtures outside the bounded source-execution corpus; no source coverage percentage is claimed."},
     {"path":"src/packages/acquisition.panack","reason":"P02 package and host-adapter behaviour is checked by focused unit and public CLI tests outside the bounded native source-execution corpus; no execution coverage percentage is claimed."},
     {"path":"src/packages/archive.panack","reason":"P02 package and host-adapter behaviour is checked by focused unit and public CLI tests outside the bounded native source-execution corpus; no execution coverage percentage is claimed."},
     {"path":"src/packages/case_fold.panack","reason":"P02 package and host-adapter behaviour is checked by focused unit and public CLI tests outside the bounded native source-execution corpus; no execution coverage percentage is claimed."},

@@ -26,6 +26,8 @@ test('the reviewed manifest accounts for every tracked production source', () =>
     'src/stdlib/http_runtime.panack',
     'src/stdlib/tcp_service.panack',
     'src/stdlib/package_filesystem.panack',
+    'src/packages/manifest.panack',
+    'src/packages/remote_archive.panack',
     'src/packages/acquisition.panack',
     'src/packages/archive.panack',
     'src/packages/case_fold.panack',

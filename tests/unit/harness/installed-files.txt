@@ -15,6 +15,7 @@ packages/http/src/routed_socket_test.panack
 packages/http/src/routed_test.panack
 packages/http/src/routing.panack
 packages/http/src/server.panack
+packages/http/src/stream.panack
 packages/http/src/transport.panack
 packages/http/src/types.panack
 packages/http/src/writer_test.panack

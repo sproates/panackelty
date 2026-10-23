@@ -1,9 +1,11 @@
+import project/src/packages/manifest::{parse_package_manifest}
+import project/src/packages/remote_archive::{stage_remote_archive}
 pub import project/src/packages/lock::{PackageLock, PackageLockEdge, PackageLockPackage}
 import project/src/packages/lock::{lock_package_id, serialize_package_lock}
 import project/src/packages/archive::{StagedArchive, stage_archive, discard_archive}
 import project/src/packages/tree_digest::{tree_digest, verify_tree_digest}
 import project/src/packages/sha256::{Sha256, sha256_new, sha256_feed, sha256_finish, sha256_bytes, sha256_close}
-import project/src/project_model/package_manifest::{parse_package_manifest, manifest_json_string_field}
+import project/src/project_model/package_manifest::{manifest_json_string_field}
 import stdlib/path as path
 import stdlib/filesystem as filesystem
 import stdlib/filesystem::{FileKind.Directory, FileKind.RegularFile}
@@ -22,7 +24,7 @@ pub record ArchiveSource {
   stage: Option[Nat]
 }
 
-pub record AcquisitionOptions { root: Str, materialize: Bool, locked: Option[PackageLock] }
+pub record AcquisitionOptions { root: Str, materialize: Bool, locked: Option[PackageLock], offline: Bool, refresh: Bool, aliases: [Str], boundary: Option[Str] }
 
 pub pure locked_edge(lock: PackageLock, owner: Str, alias: Str): Option[PackageLockEdge] {
   mut edges: [PackageLockEdge] = []
@@ -115,7 +117,7 @@ cached_archive(options: AcquisitionOptions, source: Str, owner: Str, alias: Str)
         None() => Error("locked package is missing"),
         Some(package) => match manifest_json_string_field(edge.source, "archive_sha256") {
           Error(problem) => Error("locked dependency is not an archive; run panack deps update"),
-          Ok(expected) => match hash_archive_file(source) {
+          Ok(expected) => match if source.starts_with_at("https://", 0) { Ok(expected) } else { hash_archive_file(source) } {
             Error(problem) => Error(problem),
             Ok(actual) => if actual != expected { Error("archive digest mismatch; run panack deps update") }
             else {
@@ -139,7 +141,7 @@ cached_archive(options: AcquisitionOptions, source: Str, owner: Str, alias: Str)
   }
 }
 
-pub acquire_archive(options: AcquisitionOptions, source: Str, owner: Str, alias: Str,
+acquire_local_archive(options: AcquisitionOptions, source: Str, owner: Str, alias: Str,
   previous: [ArchiveSource]): Result[ArchiveSource, Str] {
   mut known: Option[ArchiveSource] = None()
   for acquired in previous { if acquired.source == source { known = Some(acquired) } }
@@ -222,6 +224,68 @@ pub publish_archives(root: Str, sources: [ArchiveSource], lock: PackageLock): Re
             Ok(file) => match bounded.atomic_write(file, serialize_package_lock(lock).encode_utf8()) {
               Error(problem) => Error("cannot publish cache state: " + problem.code),
               Ok(completed_9) => Ok(())
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+remote_pin(options: AcquisitionOptions, source: Str, owner: Str, alias: Str): Result[Str, Str] {
+  match options.locked {
+    None() => Error("missing lockfile; run panack deps lock"),
+    Some(lock) => match locked_edge(lock, owner, alias) {
+      None() => Error("remote dependency is missing from lock; run panack deps update"),
+      Some(edge) => match manifest_json_string_field(edge.source, "url") {
+        Error(problem) => Error("remote source changed; run panack deps update"),
+        Ok(url) => if url != source { Error("remote source changed; run panack deps update") }
+          else { match manifest_json_string_field(edge.source, "archive_sha256") {
+            Error(problem) => Error("remote archive digest missing"), Ok(hash) => Ok(hash)
+          } }
+      }
+    }
+  }
+}
+
+pub acquire_archive(options: AcquisitionOptions, source: Str, owner: Str, alias: Str,
+  previous: [ArchiveSource]): Result[ArchiveSource, Str] {
+  if !source.starts_with_at("https://", 0) { acquire_local_archive(options, source, owner, alias, previous) }
+  else {
+    pin = if options.refresh { Ok("") } else { remote_pin(options, source, owner, alias) }
+    match pin {
+      Error(problem) => Error(problem),
+      Ok(expected) => {
+        mut known: Option[ArchiveSource] = None()
+        for acquired in previous { if acquired.source == source { known = Some(acquired) } }
+        match known {
+          Some(acquired) => if expected != "" && acquired.archive_hash != expected { Error("archive digest mismatch") } else { Ok(acquired) },
+          None() => {
+            cached = if options.refresh { Error("refresh requested") } else {
+              match options.locked {
+                None() => Error("missing lockfile"),
+                Some(lock) => match verify_cache_state(options.root, lock) {
+                  Error(problem) => Error(problem),
+                  Ok(unit) => cached_archive(options, source, owner, alias)
+                }
+              }
+            }
+            match cached {
+              Ok(acquired) => Ok(acquired),
+              Error(cache_problem) => if options.offline || !options.materialize {
+                Error("remote archive cache unavailable or invalid; run panack deps restore online")
+              } else { match ensure_directory(options.root + "/.panack_modules", true) {
+                Error(problem) => Error(problem),
+                Ok(unit) => match stage_remote_archive(options.root + "/.panack_modules", source) {
+                  Error(problem) => Error(problem),
+                  Ok(archive) => {
+                    result = if expected != "" && expected != archive.compressed_sha256 {
+                      Error("archive digest mismatch; run panack deps update")
+                    } else { inspect_staged_archive(source, archive) }
+                    match result { Ok(acquired) => Ok(acquired), Error(problem) => { closed = discard_archive(archive); Error(problem) } }
+                  }
+                }
+              } }
             }
           }
         }

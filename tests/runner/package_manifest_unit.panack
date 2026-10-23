@@ -1,5 +1,6 @@
+import project/src/packages/manifest::{parse_package_manifest}
 import stdlib/testing as std_testing
-import project/src/project_model/package_manifest::{parse_package_manifest, PackageManifest, PackageManifestError, PackageManifestDependency, package_manifest_byte_limit}
+import project/src/project_model/package_manifest::{PackageManifest, PackageManifestError, PackageManifestDependency, package_manifest_byte_limit}
 import stdlib/bytes as byte_buffer
 import stdlib/testing::{TestResult}
 import stdlib/host as std_host
@@ -144,6 +145,19 @@ main(): Void {
   results = results.append(std_testing.expect("JSON nesting bound",
     manifest_error_message(nested) == "manifest JSON nesting exceeds 32 levels",
     "nesting limit was not applied"))
+
+  remote = replace_first(manifest_fixture(), "\"path\":\"../geometry\"", "\"archive\":\"https://example.org/library.tar.gz\"")
+  results = results.append(std_testing.expect("HTTPS archive declaration",
+    match parse_package_manifest(remote.encode_utf8(), "0.1.0-alpha.12") {
+      Error(problem) => false,
+      Ok(manifest) => manifest.dependencies[0].kind == "archive" && manifest.dependencies[0].path == "https://example.org/library.tar.gz"
+    }, "HTTPS archive was rejected"))
+  for invalid in ["http://example.org/library.tar.gz", "https://user:secret@example.org/library.tar.gz", "https://example.org/library.tar.gz?secret=x", "https://example.org/library.tar.gz#fragment"] {
+    candidate = replace_first(remote, "https://example.org/library.tar.gz", invalid)
+    results = results.append(std_testing.expect("unsafe archive URL",
+      match parse_package_manifest(candidate.encode_utf8(), "0.1.0-alpha.12") { Error(problem) => true, Ok(manifest) => false },
+      "unsafe archive URL accepted"))
+  }
 
   if std_testing.report(results) > 0 { std_host.exit(1) }
 }

@@ -1,0 +1,222 @@
+import "client.panack"::{parse_url, transport_error}
+import "parser.panack"::{response_head, find_header_end_from, find_crlf, parse_chunk_size, parse_trailers}
+pub import "types.panack"::{Header, HttpError}
+import "types.panack"::{HttpError.InvalidLimits, HttpError.ProtocolError, HttpError.LimitExceeded}
+import stdlib/http_stream as transport
+import stdlib/bytes as byte_buffer
+
+pub record ResponseStream {
+  handle: Nat,
+  status: Nat,
+  headers: [Header],
+  buffer: Bytes,
+  content_length: Option[Nat],
+  chunked: Bool,
+  header_bytes: Nat
+}
+record Reader { handle: Nat, buffer: Bytes, eof: Bool }
+record Line { reader: Reader, text: Bytes }
+record Copied[S] { reader: Reader, count: Nat, state: S }
+
+pure remaining_bytes(left: Nat, right: Nat): Nat {
+  signed_left: Int = left
+  if signed_left >= right { ((signed_left - right) / 1).nat() } else { 0 }
+}
+
+more(reader: Reader): Result[Reader, HttpError] {
+  if reader.eof { Ok(reader) } else {
+    match transport.read(reader.handle) {
+      Error(problem) => Error(transport_error(problem)),
+      Ok(chunk) => Ok(Reader(reader.handle, reader.buffer.join(chunk), chunk.length() == 0))
+    }
+  }
+}
+
+line(reader: Reader): Result[Line, HttpError] {
+  mut current = reader
+  mut result: Option[Line] = None()
+  mut failure: Option[HttpError] = None()
+  while result == None() && failure == None() {
+    match find_crlf(current.buffer, 0, current.buffer.length()) {
+      Some(end) => if end > 8192 { failure = Some(LimitExceeded("chunk line")) }
+        else { result = Some(Line(Reader(current.handle,
+          byte_buffer.slice(current.buffer, end + 2, current.buffer.length()), current.eof),
+          byte_buffer.slice(current.buffer, 0, end))) },
+      None() => if current.buffer.length() > 8192 { failure = Some(LimitExceeded("chunk line")) }
+        else if current.eof { failure = Some(ProtocolError("truncated chunk line")) }
+        else { match more(current) {
+          Error(problem) => { failure = Some(problem) }, Ok(next) => { current = next }
+        } }
+    }
+  }
+  match failure { Some(problem) => Error(problem), None() => match result {
+    Some(found) => Ok(found), None() => Error(ProtocolError("missing chunk line"))
+  } }
+}
+
+copy_bytes[S](reader: Reader, count: Nat, initial: S, consume: Fn[S,Bytes,Result[S,HttpError]]): Result[Copied[S], HttpError] {
+  mut state: S = initial
+  mut current = reader
+  mut copied: Nat = 0
+  mut failure: Option[HttpError] = None()
+  while copied < count && failure == None() {
+    if current.buffer.length() == 0 {
+      if current.eof { failure = Some(ProtocolError("truncated HTTP response body")) }
+      else { match more(current) { Error(problem) => { failure = Some(problem) }, Ok(next) => { current = next } } }
+    } else {
+      remaining = remaining_bytes(count, copied)
+      amount = if current.buffer.length() < remaining { current.buffer.length() } else { remaining }
+      match consume.call(state, byte_buffer.slice(current.buffer, 0, amount)) {
+        Error(problem) => { failure = Some(problem) },
+        Ok(next_state) => {
+          state = next_state
+          copied = copied + amount
+          current = Reader(current.handle, byte_buffer.slice(current.buffer, amount, current.buffer.length()), current.eof)
+        }
+      }
+    }
+  }
+  match failure { Some(problem) => Error(problem), None() => Ok(Copied(current, copied, state)) }
+}
+
+expect_end(reader: Reader): Result[Unit, HttpError] {
+  if reader.buffer.length() != 0 { Error(ProtocolError("extra bytes after HTTP response")) }
+  else { match more(reader) {
+    Error(problem) => Error(problem),
+    Ok(next) => if next.buffer.length() == 0 && next.eof { Ok(()) }
+      else { Error(ProtocolError("extra bytes after HTTP response")) }
+  } }
+}
+
+read_head(handle: Nat, body_limit: Nat): Result[ResponseStream, HttpError] {
+  mut current = Reader(handle, byte_buffer.empty(), false)
+  mut headers: Nat = 0
+  mut informationals: Nat = 0
+  mut found: Option[ResponseStream] = None()
+  mut failure: Option[HttpError] = None()
+  while found == None() && failure == None() {
+    match find_header_end_from(current.buffer, 0) {
+      None() => if headers + current.buffer.length() > 65536 { failure = Some(LimitExceeded("response headers")) }
+        else if current.eof { failure = Some(ProtocolError("incomplete HTTP response headers")) }
+        else { match more(current) { Error(problem) => { failure = Some(problem) }, Ok(next) => { current = next } } },
+      Some(end) => {
+        headers = headers + end + 4
+        if headers > 65536 { failure = Some(LimitExceeded("response headers")) }
+        else { match response_head(current.buffer, 0, end, body_limit) {
+          Error(problem) => { failure = Some(problem) },
+          Ok(head) => {
+            rest = byte_buffer.slice(current.buffer, head.body_start, current.buffer.length())
+            if head.status < 200 {
+              informationals = informationals + 1
+              if informationals > 8 { failure = Some(LimitExceeded("informational responses")) }
+              current = Reader(handle, rest, current.eof)
+            } else { found = Some(ResponseStream(handle, head.status, head.headers, rest,
+              head.content_length, head.chunked, headers)) }
+          }
+        } }
+      }
+    }
+  }
+  match failure { Some(problem) => Error(problem), None() => match found {
+    Some(response) => Ok(response), None() => Error(ProtocolError("missing HTTP response"))
+  } }
+}
+
+pub open_response(url: Str, timeout_ms: Nat, body_limit: Nat): Result[ResponseStream, HttpError] {
+  if body_limit == 0 || body_limit > 67108864 || timeout_ms == 0 || timeout_ms > 60000 { Error(InvalidLimits()) }
+  else { match parse_url(url) {
+    Error(problem) => Error(problem),
+    Ok(parsed) => {
+      target = parsed.target
+      host_header = parsed.host_header
+      request = ("GET ${target} HTTP/1.1\r\nHost: ${host_header}\r\n" +
+        "Accept-Encoding: identity\r\nConnection: close\r\n\r\n").encode_utf8()
+      match transport.open(parsed.host, parsed.port, parsed.tls, request, 268435456, timeout_ms) {
+        Error(problem) => Error(transport_error(problem)),
+        Ok(handle) => { result = read_head(handle, body_limit)
+          match result { Ok(response) => Ok(response), Error(problem) => {
+            closed = transport.close(handle); Error(problem)
+          } }
+        }
+      }
+    }
+  } }
+}
+
+pub close_response(response: ResponseStream): Result[Unit, HttpError] {
+  match transport.close(response.handle) { Ok(unit) => Ok(()), Error(problem) => Error(transport_error(problem)) }
+}
+
+pub fold_body[S](response: ResponseStream, initial: S, consume: Fn[S,Bytes,Result[S,HttpError]], body_limit: Nat): Result[S, HttpError] {
+  mut state: S = initial
+  mut reader = Reader(response.handle, response.buffer, false)
+  mut total: Nat = 0
+  mut failure: Option[HttpError] = None()
+  if body_limit == 0 || body_limit > 67108864 { failure = Some(InvalidLimits()) }
+
+  if failure == None() {
+    if response.status == 204 || response.status == 205 || response.status == 304 {
+      match expect_end(reader) { Error(problem) => { failure = Some(problem) }, Ok(unit) => {} }
+    } else { match response.content_length {
+      Some(length) => if length > body_limit { failure = Some(LimitExceeded("response body")) }
+        else { match copy_bytes(reader, length, state, consume) {
+          Error(problem) => { failure = Some(problem) },
+          Ok(copied) => { state = copied.state; total = copied.count
+            match expect_end(copied.reader) { Error(problem) => { failure = Some(problem) }, Ok(unit) => {} }
+          }
+        } },
+      None() => if response.chunked {
+        mut finished: Bool = false
+        while !finished && failure == None() {
+          match line(reader) {
+            Error(problem) => { failure = Some(problem) },
+            Ok(found) => { reader = found.reader
+              remaining = remaining_bytes(body_limit, total)
+              match parse_chunk_size(found.text, 0, found.text.length(), remaining) {
+                Error(problem) => { failure = Some(problem) },
+                Ok(size) => if size == 0 { finished = true }
+                  else { match copy_bytes(reader, size, state, consume) {
+                    Error(problem) => { failure = Some(problem) },
+                    Ok(copied) => { state = copied.state; total = total + copied.count
+                      match line(copied.reader) {
+                        Error(problem) => { failure = Some(problem) },
+                        Ok(ending) => if ending.text.length() != 0 { failure = Some(ProtocolError("chunk data is missing CRLF")) }
+                          else { reader = ending.reader }
+                      }
+                    }
+                  } }
+              }
+            }
+          }
+        }
+        finished = false
+        while !finished && failure == None() {
+          match parse_trailers(reader.buffer, 0, reader.eof, response.header_bytes) {
+            Error(problem) => { failure = Some(problem) },
+            Ok(end) => match end {
+              Some(offset) => { finished = true
+                match expect_end(Reader(reader.handle, byte_buffer.slice(reader.buffer, offset, reader.buffer.length()), reader.eof)) {
+                  Error(problem) => { failure = Some(problem) }, Ok(unit) => {}
+                }
+              },
+              None() => if response.header_bytes + reader.buffer.length() > 65536 { failure = Some(LimitExceeded("response trailers")) }
+                else { match more(reader) { Error(problem) => { failure = Some(problem) }, Ok(next) => { reader = next } } }
+            }
+          }
+        }
+      } else {
+        while !reader.eof && failure == None() {
+          amount = reader.buffer.length()
+          if total + amount > body_limit { failure = Some(LimitExceeded("response body")) }
+          else { match copy_bytes(reader, amount, state, consume) {
+            Error(problem) => { failure = Some(problem) },
+            Ok(copied) => { state = copied.state; total = total + copied.count
+              match more(copied.reader) { Error(problem) => { failure = Some(problem) }, Ok(next) => { reader = next } }
+            }
+          } }
+        }
+      }
+    } }
+  }
+  match failure { Some(problem) => Error(problem), None() => Ok(state) }
+}

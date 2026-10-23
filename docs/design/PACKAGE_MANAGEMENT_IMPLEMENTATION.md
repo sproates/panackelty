@@ -1,0 +1,184 @@
+# Package management implementation boundaries
+
+GI#200 must deliver a package manager written in Panackelty, built separately
+from the compiler. This document fixes the implementation boundaries for
+P02–P04. Read it with the [P01 contract](PACKAGE_MANAGEMENT_CONTRACT.md), which
+defines source identities, lock semantics, containment and command behaviour.
+These are planned requirements, not claims about the current implementation.
+
+## Starting point
+
+P01 was accepted in [PR#571](https://github.com/sproates/panackelty/pull/571).
+[PR#573](https://github.com/sproates/panackelty/pull/573) reverted the initial P02
+archive implementation and restored that tracked tree on `next` at
+`4398760adf93adcc49e67b09e10f9db41156449c`. Start replacement work from current
+`next`. The withdrawn implementation and unfinished lock branch are references
+for findings and regression cases, not an approved architecture to reinstate.
+
+## Ownership and dependency direction
+
+| Component | Required responsibility | Boundary |
+| --- | --- | --- |
+| Package tool under `src/packages/` | Panackelty entry point, manifest and lock handling, graph resolution, tar parsing, canonical hashing, cache policy, acquisition orchestration and diagnostics | Separately compiled bytecode; no import of compiler implementation modules |
+| Shared project model | Pure Panackelty records and validation needed by both tool and compiler | Neutral module with no dependency on acquisition, CLI or compiler passes |
+| Compiler | Source loading, package visibility, parsing, checking and code generation from a resolved project | No lock resolution, archive parsing, fetching or restoring; no import of package-tool implementation |
+| Standard library and host adapters | HTTP transport, gzip decompression, filesystem and process operations | Generic capabilities; no manifest, lock, package identity, tar or cache policy in C |
+| `bin/panack` | Command routing and invocation of separately built tools | No package policy in shell; preserve the public command and existing source/bytecode routes |
+
+Reuse the existing HTTP package and its libcurl transport. Use zlib for gzip.
+Implement tar parsing, digest canonicalisation and SHA-256 in Panackelty, with
+known-answer tests. Do not introduce a C `package_archive` subsystem or a
+package-specific hash intrinsic. If a required language capability is absent,
+demonstrate that limitation before proposing a narrow generic extension.
+Native-library management for user packages remains outside GI#200; linking
+the toolchain to zlib does not add such a feature.
+
+## Separate build and compiler handoff
+
+Build and install a separate package-tool bytecode artifact alongside the
+compiler artifact. Give it its own source dependency fingerprint and focused
+build/test target. A package-only source edit must rebuild that artifact without
+recompiling the compiler or regenerating its bootstrap seed. Moving source files
+while retaining the compiler import dependency does not meet this requirement.
+
+For `deps lock`, `deps update` and `deps restore`, the launcher invokes the
+package tool. For project `check`, `compile` and `run`, the tool first validates
+the lock and existing sources without network access, extraction or writes to
+the lock/cache. It emits a temporary resolved-project descriptor, then the
+launcher invokes the compiler using that descriptor. Preserve arguments, exit
+status and diagnostics, and remove temporary files on success and failure.
+A project without dependencies needs no lock. Plain source and bytecode command
+behaviour remains unchanged.
+
+Use a versioned, strict JSON descriptor with a closed schema. It contains the
+selected root package ID and one record per reachable package: identity,
+physical package root, source root, entry, exports and owning alias-to-package-ID
+edges. Include the root toolchain requirement. Acquisition URLs, selectors,
+archive bytes and cache state are not compiler inputs. This descriptor is
+temporary and machine-local; it is not a second persistent lockfile.
+
+P02's first slice must commit the exact descriptor schema, fixtures and internal
+invocation before adding archive acquisition. The implementor chooses field
+names and internal option spelling and records them there; owner consultation
+is not required. Reuse existing project-model validation where appropriate.
+The compiler treats the descriptor as untrusted: reject unsupported versions,
+duplicate/unknown fields, invalid identities, dangling or unreachable graph
+nodes and conflicting roots, and apply existing project/source limits. Retain
+package visibility and physical containment checks when opening source files,
+including symlinks. Validation by the package tool is no reason to remove them.
+
+An initial compiler-interface change and seed update may be necessary. Generic
+host-runtime changes may also invalidate compiler builds under current build
+rules. Neither justifies coupling subsequent package-policy edits to compiler
+rebuilds. GI#200 does not require a general separate-compilation or FFI project.
+
+## Native adapter contract
+
+Use the existing host-function mechanism to expose a small gzip stream adapter.
+This crosses a foreign-function boundary; it does not expose arbitrary C calls
+to Panackelty. The adapter owns zlib state and resource cleanup. Panackelty owns
+the archive policy and passes the remaining output budget on each operation.
+
+The operations must support opening a decoder, feeding bounded byte chunks,
+reading bounded output, finishing and closing it. Results distinguish progress,
+input needed, end of stream, invalid/truncated data and exhausted output budget.
+Handle ownership must prevent use after close and release resources on every
+error. No native allocation may depend on an unchecked archive-supplied size.
+
+Select gzip decoding explicitly, not zlib/raw-deflate auto-detection. Validate
+the gzip checksum and trailer. Support concatenated gzip members within one
+shared compressed/expanded budget and reject trailing non-gzip data. zlib's
+`inflate` finishes one member at a time, so the adapter must handle continuation
+explicitly. See the [zlib manual](https://www.zlib.net/manual.html). No output is
+published until the complete compressed input has been validated. Do not shell
+out to `gzip` or `tar`, or implement DEFLATE in Panackelty.
+
+Generic host filesystem operations may provide directory-relative creation,
+no-follow opens and atomic publication. They receive handles, relative paths
+and bytes, not package names or lock records. Panackelty decides which paths are
+allowed and when verification is complete. A lexical path check followed by an
+unprotected write is insufficient. Replacement must preserve the old usable
+cache on failure; deleting it before rename does not satisfy atomic replacement.
+Use the existing supported platform mechanisms, with explicit failure if the
+required guarantee cannot be provided. Prove this before relying on it.
+
+## Archive and remote implementation choices
+
+The initial tar reader supports POSIX ustar regular files and directories, plus
+per-entry PAX `path`, `size` and timestamp/ownership metadata. Metadata does not
+enter the canonical digest. Reject unknown PAX keys and global PAX headers,
+GNU extensions, sparse files, links and special files with an unsupported-format
+diagnostic. Validate header checksums, numeric overflow, PAX record lengths,
+padding, payload length and the tar end marker. Permit zero padding after the
+end marker; reject nonzero trailing tar data. Do not silently strip a wrapper
+directory. Fixtures must include archives produced by ordinary archive tools
+using the documented supported format.
+
+Apply P01's 64 MiB compressed and 256 MiB expanded limits while streaming; the
+expanded limit includes tar headers, padding and metadata. Enforce 16,384 unique
+filesystem entries, including implicit parent directories, and at most 16,384
+tar headers, including metadata headers. Validate effective PAX paths with the
+same rules as header paths. Normalised duplicates, file/directory conflicts and
+case collisions fail before publication. Sorting for the tree digest is UTF-8
+byte order, independent of collision detection. Stage extraction under a fresh
+private directory, then verify manifest and digest before publication.
+
+For P03, use the existing process capability to invoke Git with explicit argv,
+not a shell command assembled from user input. Work in a controlled temporary
+repository; isolate system/global Git configuration, disable hooks, credential
+helpers, external protocols and repository filters, and permit only the locked
+HTTPS source. Do not run checkout filters, submodules, LFS or repository commands.
+Obtain and validate the exact commit tree without executing repository content.
+Preserve symbolic links for the P01 digest and enforce snapshot containment.
+Treat Git as a documented native-tool dependency and test its absence. A Git
+library migration is outside this implementation. The Git snapshot and sibling
+package rules in P01 remain mandatory; do not copy each subdirectory into a
+separate package cache.
+
+## Delivery sequence and acceptance
+
+| Slice | Deliverable and evidence required before continuing |
+| --- | --- |
+| P02a: independent tool | Package-tool entry/artifact, launcher route, exact descriptor schema and compiler handoff. Run a complete project with a local directory dependency. Demonstrate that a package-only behaviour edit changes tool output while compiler artifact/seed hashes and compiler build invocation count remain unchanged. Record the native API surface and prove staging/publication guarantees. |
+| P02b: local graph and lock | Panackelty strict lock reader/writer, exact root/transitive manifest digests, graph validation and local-directory commands. Prove stale/missing lock failures, relocation, absolute-path caveat, diamond identity and deterministic serialization. |
+| P02c: local archives | Narrow zlib adapter, Panackelty tar/digest implementation and safe cache lifecycle. Deliver local `deps lock/update/restore` and project check/compile/run through the public CLI. P02 ends with a usable local workflow, not disconnected parser modules. |
+| P03: remote sources | HTTPS archives through existing HTTP support and controlled Git acquisition. Test redirects, moved refs, unavailable pinned commits, whole-snapshot verification, sibling/diamond roots, changed remote bytes and offline reuse. Extend the same tool and descriptor without importing acquisition into the compiler. |
+| P04: final integration | Install/package both artifacts and native dependencies; finish help and diagnostics; validate all four source forms together, existing standalone routes, relocation and supported native platforms. Prove ordinary project commands remain network-free and never restore implicitly. |
+
+P02c must include independently calculated SHA-256 and tree-digest fixtures,
+not expectations generated by the implementation under test. Include
+`src/nested/main.panack`, empty and implicit directories, mixed-case paths
+`Z.panack` and `a.panack`, duplicate normalised names, parent/file conflicts,
+traversal, corrupt/truncated gzip, concatenated members, expansion limits and
+interrupted publication. Empty or malformed digest strings must fail; a real
+root-manifest digest must round-trip and become stale when its exact bytes change.
+
+Across P02–P04, test malformed lock graphs, cache tampering, symlinked cache/state
+paths, package-bounded source symlinks and failure cleanup. Public-command tests
+must execute complete Panackelty programs and assert output. Network prohibition
+must be observed with an instrumented transport or blocked endpoint, not inferred
+solely from a successful cached run. Capture lock/cache state before and after
+ordinary commands to prove they do not mutate it.
+
+Record comparable cold/warm timings, peak memory and compiler build counts for
+a small graph and a larger bounded archive. Use chunked processing; do not build
+the entire expanded archive or digest input through repeated byte concatenation.
+Focused package tests must be usable without a compiler rebuild after package-only
+edits. Required integration/full validation remains in place at delivery; build
+independence is not permission to omit correctness checks.
+
+## Implementation discretion
+
+The language split, separate artifact, dependency direction, zlib choice, Git
+process choice, command semantics and safety guarantees above are settled.
+Choose internal names, module subdivision, error representation and test layout
+without asking the owner. Resolve ordinary details using existing repository
+conventions and document the choice in the delivery PR. Do not turn each slice
+into an owner-approval checkpoint.
+
+Escalate only when evidence shows that a settled requirement cannot be met,
+requirements conflict, or a material scope/compatibility change is needed. Bring
+the concrete failing case, impact and a recommended alternative. Do not silently
+move package logic into C or the compiler to get past a difficulty. No additional
+commands, registry, general FFI, new compiler modularity programme or package
+build scripts are authorised by this plan.

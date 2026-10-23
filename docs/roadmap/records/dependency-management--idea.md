@@ -53,20 +53,32 @@ recorded re-estimate.
 
 | Packet | Work | Dependencies | Status | Weight | Complete | Earned |
 | --- | --- | --- | --- | ---: | ---: | ---: |
-| P01 | [Lock and restore contract](https://github.com/sproates/panackelty/issues/566) | — | In progress | 15% | 80% | 12 pp |
-| P02 | [Locked local dependencies](https://github.com/sproates/panackelty/issues/567) | P01 | Planned | 25% | 0% | 0 pp |
+| P01 | [Lock and restore contract](https://github.com/sproates/panackelty/issues/566) | — | Done | 15% | 100% | 15 pp |
+| P02 | [Locked local dependencies](https://github.com/sproates/panackelty/issues/567) | P01 | Restart planned | 25% | 0% | 0 pp |
 | P03 | [Pinned remote sources](https://github.com/sproates/panackelty/issues/568) | P01–P02 | Planned | 35% | 0% | 0 pp |
 | P04 | [`panack` workflow integration](https://github.com/sproates/panackelty/issues/569) | P01–P03 | Planned | 25% | 0% | 0 pp |
-| **Total** |  |  |  | **100%** | **12%** | **12 pp** |
+| **Total** |  |  |  | **100%** | **15%** | **15 pp** |
 
-The [P01 contract](../../design/PACKAGE_MANAGEMENT_CONTRACT.md) is drafted and
-validated, pending owner review; its remaining acceptance is not yet complete.
-It defines the
-lockfile and manifest forms, update and restore behavior, cache verification,
-offline operation, path-safe archive handling, diagnostics and the test evidence
-needed by P02–P04. P01 specifies the implementation; it does not count as
-dependency acquisition or package-management implementation. GI#200 completion
-requires the full graph and `panack` acceptance in P04.
+The [P01 contract](../../design/PACKAGE_MANAGEMENT_CONTRACT.md) was accepted in
+[PR#571](https://github.com/sproates/panackelty/pull/571). It defines the lock,
+sources, command behaviour, cache safety and acceptance; it does not claim that
+package-management functionality has been implemented. GI#200 remains open
+through the full graph and public-command acceptance in P04.
+
+On 23 October 2026, [PR#573](https://github.com/sproates/panackelty/pull/573)
+reverted the initial P02 archive implementation and restored the P01 tracked
+tree. P02 receives no earned completion from that withdrawn work. The revised
+[implementation boundaries](../../design/PACKAGE_MANAGEMENT_IMPLEMENTATION.md)
+require package policy in Panackelty, a separately built tool and narrow native
+adapters, using zlib for gzip. P02 starts with a working compiler handoff and
+proof that package-only edits do not rebuild the compiler. It then delivers the
+local public-command workflow; P04 completes installation and cross-source
+acceptance. These refinements retain the four packet weights.
+
+This planning change has no runtime performance impact and makes no claim of
+improved build times. Implementation must measure independent build behaviour,
+cold/warm operation and memory use. Website impact: none; no released behaviour
+or website claim changes.
 
 ## Packet records
 
@@ -74,13 +86,15 @@ requires the full graph and `panack` acceptance in P04.
 <a id="rm-158"></a>
 
 **P01 · RM#158: Lock and restore contract** · [GI#566](https://github.com/sproates/panackelty/issues/566).
-In progress; 15% of GI#200. Defines the implementation contract and acceptance.
+Done in PR#571; 15% of GI#200. Defines the implementation contract and acceptance.
 
 <a id="p02"></a>
 <a id="rm-159"></a>
 
 **P02 · RM#159: Locked local dependencies** · [GI#567](https://github.com/sproates/panackelty/issues/567).
-Planned; 25% of GI#200. Implements local directory and archive sources.
+Restart planned; 25% of GI#200. P02a proves the independent tool and compiler
+handoff; P02b implements local graphs and locks; P02c adds bounded local archives
+and the complete local command workflow. Follow the implementation boundaries.
 
 <a id="p03"></a>
 <a id="rm-160"></a>
@@ -92,8 +106,8 @@ Planned; 35% of GI#200. Implements Git and remote archive acquisition.
 <a id="rm-161"></a>
 
 **P04 · RM#161: `panack` workflow integration** · [GI#569](https://github.com/sproates/panackelty/issues/569).
-Planned; 25% of GI#200. Integrates restore, CLI operations and end-to-end
-acceptance.
+Planned; 25% of GI#200. Completes installation, help, diagnostics and end-to-end
+acceptance across all sources. Ordinary project commands never restore implicitly.
 
 The previous design-only Alpha.15 direction and its unresolved product questions
 were superseded by the owner's 22 October decision. PR#240's historic P7 design

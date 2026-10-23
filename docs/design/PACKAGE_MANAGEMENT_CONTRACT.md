@@ -5,7 +5,10 @@ management](../roadmap/records/dependency-management--idea.md#rm-44) and
 [GI#200](https://github.com/sproates/panackelty/issues/200). It completes
 [P01: Lock and restore contract](../roadmap/records/dependency-management--idea.md#p01)
 and guides P02–P04. The manifest remains strict JSON `panack.json`, schema 1.
-The lockfile is strict JSON `panack.lock.json`, schema 1.
+The lockfile is strict JSON `panack.lock.json`, schema 1. The companion
+[implementation boundaries](PACKAGE_MANAGEMENT_IMPLEMENTATION.md) require a
+separately built Panackelty package tool, narrow native adapters and an early
+compiler-handoff proof. Both documents govern P02–P04.
 
 The `panack` command layer resolves, obtains and prepares dependencies. The
 compiler receives resolved source paths and performs no network access. Restore
@@ -271,8 +274,8 @@ exists yet, then install the verified result atomically. Local directory
 dependencies remain live in place. Locked remote archives and Git snapshots
 must already be present and verified in the local cache; offline restore never
 uses a network response, unverified directory or different Git commit. Without
-`--offline`, restore accesses only locked HTTPS sources and the recorded Git
-commit. Project `check`, `compile` and `run` are always network-free.
+`--offline`, any network access is limited to locked HTTPS sources and the
+recorded Git commit. Project `check`, `compile` and `run` are always network-free.
 
 ## Cache and acquisition safety
 
@@ -290,7 +293,10 @@ the generated entry atomically after successful reacquisition. Failure leaves
 the previous cache untouched, and the compiler cannot see partial output.
 
 Archive acquisition is bounded to 64 MiB compressed input, 256 MiB expanded
-content and 16,384 total file/directory entries per archive. Exceeding a bound
+content (including tar headers, padding and metadata) and 16,384 total
+file/directory entries per archive, including implicit parents. The
+[implementation boundaries](PACKAGE_MANAGEMENT_IMPLEMENTATION.md#archive-and-remote-implementation-choices)
+define the supported tar subset and a separate 16,384-header bound. Exceeding a bound
 fails before installing a cache entry. Extraction rejects absolute paths,
 parent traversal, NULs, duplicate normalized paths, case collisions, hard links,
 symbolic links and special files. Every path is validated before writing and
@@ -316,9 +322,9 @@ partial lock or package and do not expose credentials.
 
 | Packet | Implementation boundary and required evidence |
 | --- | --- |
-| P02 · Locked local dependencies | Add lock reader/writer and stale-manifest checks; support live local directories and local archives; implement bounded, path-safe extraction and cache identity. Cover stable serialization, relative/absolute paths, changed archive bytes, malformed archives, traversal, duplicate paths, limits, stale locks and atomic failure behavior. |
+| P02 · Locked local dependencies | First prove the separate Panackelty tool, compiler handoff and independent build; add lock reader/writer and stale-manifest checks; support live local directories and local archives; implement bounded, path-safe extraction and cache identity. Deliver local lock/update/restore and project check/compile/run. Cover stable serialization, relative/absolute paths, changed archive bytes, malformed archives, traversal, duplicate paths, limits, stale locks and atomic failure behavior. |
 | P03 · Pinned remote sources | Resolve Git refs only during explicit lock/update; record full commit and object format; acquire shared Git repository snapshots and remote archives; verify source/tree digests and enforce redirect, cache and offline rules. Cover moved refs, unavailable commits, changed remote bytes, redirects, credentials, subdirectories, sibling dependencies and shared roots in a diamond graph, offline cache and network failure. |
-| P04 · `panack` workflow integration | Add `deps lock`, `deps update`, `deps restore` and manifest-aware check/compile/run behavior. Keep compiler resolution filesystem-only. Run complete Panack programs with direct/transitive dependencies and verify restore, lock stability, stale failure, offline behavior, diagnostics, relocation, diamond-root deduplication and package-bounded symlink resolution. |
+| P04 · `panack` workflow integration | Complete installation, help, diagnostics and all-source acceptance for the commands introduced in P02–P03. Keep compiler resolution filesystem-only; ordinary project commands never restore implicitly. Run complete Panack programs with direct/transitive dependencies and verify restore, lock stability, stale failure, offline behavior, diagnostics, relocation, diamond-root deduplication and package-bounded symlink resolution. |
 
 Acceptance covers all four source forms; lock reproducibility; missing/stale
 locks and caches; changed archive/remote content; unavailable offline sources;

@@ -1,6 +1,3 @@
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
 #include "platform.h"
 #include "filesystem_stage.h"
 #include "builtins_internal.h"

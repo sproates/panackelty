@@ -140,7 +140,7 @@ for contract in \
     'sh tests/run_suites.sh $(MAKE) unit-runtime-native unit-runtime-probes' \
     'tests/check.sh $(MAKE) --no-print-directory ci-runtime-phases' \
     'ci-runtime-phases: unit-runtime functional' \
-    'ci-next-smoke: native $(STAGE2_COMPILER) $(BUILD_DIR)/vm/http_fixture' \
+    'ci-next-smoke: native $(STAGE2_COMPILER) package-tool $(BUILD_DIR)/vm/http_fixture' \
     'sh tests/ci_next_smoke.sh "$(abspath $(STAGE2_COMPILER))"' \
     'CI_PACKAGE_SMOKE_TARGETS := quick-start' \
     'ci-bootstrap: bootstrap-check $(CI_PACKAGE_SMOKE_TARGETS)' \

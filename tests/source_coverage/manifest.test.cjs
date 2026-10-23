@@ -16,7 +16,6 @@ test('the reviewed manifest accounts for every tracked production source', () =>
     'src/compiler/owned_intrinsics.panack',
     'src/compiler/package_manifest.panack',
     'src/compiler/package_project.panack',
-    'src/stdlib/package_archive.panack',
     'src/stdlib/async_filesystem.panack',
     'src/stdlib/async_host.panack',
     'src/stdlib/http_runtime.panack',

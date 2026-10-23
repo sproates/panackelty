@@ -462,8 +462,6 @@ pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool 
     (owner.module.path == "compiler_paths.panack" && owner.name == "resolve" && (name == "path_resolve")) ||
     (owner.module.path == "package_filesystem.panack" && owner.name == "directories_overlap" && (name == "fs_directories_overlap")) ||
     (owner.module.path == "package_filesystem.panack" && owner.name == "read_beneath" && (name == "fs_read_beneath")) ||
-    (owner.module.path == "package_archive.panack" && owner.name == "inspect_local_archive" && (name == "package_archive_inspect")) ||
-    (owner.module.path == "package_archive.panack" && owner.name == "restore_local_archive" && (name == "package_archive_restore")) ||
     (owner.module.path == "tcp_service.panack" && owner.name == "serve" && (name == "tcp_service")) ||
     (owner.module.path == "compiler_files.panack" && owner.name == "read_text" && (name == "read_file")) ||
     (owner.module.path == "compiler_files.panack" && owner.name == "exists" && (name == "file_exists")) ||
@@ -494,7 +492,6 @@ pub pure module_internal_primitive_name(identity: ModuleIdentity, name: Str): Bo
     (identity.path == "core.panack" && (name == "duration_from_seconds" || name == "duration_nanoseconds" || name == "path_absolute" || name == "path_append" || name == "path_directory" || name == "path_display" || name == "path_filename" || name == "path_native_bytes" || name == "path_to_text")) ||
     (identity.path == "compiler_paths.panack" && (name == "path_is_absolute" || name == "path_join" || name == "path_parent" || name == "path_resolve" || name == "path_suffix" || name == "path_with_suffix")) ||
     (identity.path == "package_filesystem.panack" && (name == "fs_directories_overlap" || name == "fs_read_beneath")) ||
-    (identity.path == "package_archive.panack" && (name == "package_archive_inspect" || name == "package_archive_restore")) ||
     (identity.path == "tcp_service.panack" && (name == "tcp_service")) ||
     (identity.path == "compiler_files.panack" && (name == "file_exists" || name == "read_bytes" || name == "read_file" || name == "write_bytes"))
   )

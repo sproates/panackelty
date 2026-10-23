@@ -46,7 +46,6 @@ share/panackelty/stdlib/filesystem.panack
 share/panackelty/stdlib/host.panack
 share/panackelty/stdlib/http_runtime.panack
 share/panackelty/stdlib/http_transport.panack
-share/panackelty/stdlib/package_archive.panack
 share/panackelty/stdlib/package_filesystem.panack
 share/panackelty/stdlib/path.panack
 share/panackelty/stdlib/prelude.panack

@@ -5,6 +5,12 @@ on:
       - '.github/workflows/native-filesystem.yml'
       - 'tests/unit/vm/native_modules.c'
       - 'tests/runner/vm_unit.panack'
+      - 'src/vm/platform.h'
+      - 'src/vm/filesystem_stage.*'
+      - 'src/vm/gzip_stream.*'
+      - 'src/vm/digest.*'
+      - 'tests/filesystem_stage_native.c'
+      - 'tests/digest_native.c'
 permissions:
   contents: read
 concurrency:
@@ -25,7 +31,7 @@ jobs:
       - name: Install native dependency
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install --yes libcurl4-openssl-dev zlib1g-dev libssl-dev
-      - run: make native-module-build
+      - run: make native-module-build native-io-check
       - name: Measure isolated filesystem and complete native contracts
         run: |
           time build/vm/test_modules filesystem-root

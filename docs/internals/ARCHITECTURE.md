@@ -1282,6 +1282,13 @@ uses libcurl multi connect-only mode; neither libcurl's HTTP parser nor its
 types and error strings cross the source boundary. The package owns response
 framing and typed errors. The backend is replaceable after alpha.13 evidence.
 
+The same adapter provides `stdlib/http_stream` for blocking command-line
+consumers. It retains one 16 KiB receive buffer per connection and counts total
+raw bytes against the caller's bound. A VM-owned handle table closes abandoned
+connections at teardown and is reset in child/task invocation contexts. Neither
+HTTP framing nor package acquisition policy enters the native adapter. The
+existing async exchange path retains its original buffered API.
+
 ## Implicit core and standard methods
 
 The loader loads the toolchain-owned `src/stdlib/core.panack` before the entry module, using the same canonical visited set. Value-dot calls select checked owned declarations; the temporary arrow-call syntax is rejected. Namespace/value classification happens before body binding; lexical values shadow namespace aliases, and neither path falls back to globals. The old core compatibility helpers are removed. All core functions use checked emission; local types and source positions survive tooling rechecks. Generic checking and purity use their source signatures. Core enums are shared with the compiler, replacing its duplicate Result definition. Reachable core algorithms are emitted through existing calls; unused core algorithms are omitted. No VM, opcode or bytecode-v9 contract changes are required. Other stdlib modules remain explicit. Native packages and browser assets must carry the matching core source and compiler seed.

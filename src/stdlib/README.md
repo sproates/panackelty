@@ -178,6 +178,14 @@ feed chunks of at most 64 KiB, then finish for 32 digest bytes or close it. Fini
 and close consume the handle; stale handles fail. It does not implement package
 identity or lock policy.
 
+`stdlib/http_stream` offers blocking raw HTTP/TLS reads for command-line consumers.
+`open(host, port, tls, request, response_limit, timeout_ms)` returns a handle;
+`read(handle)` returns at most 16 KiB, and empty bytes indicate EOF. Always call
+`close(handle)` after completion or failure. A total byte limit up to 256 MiB
+and an absolute deadline up to 60 seconds include time between reads. Requests
+are limited to 64 KiB. HTTP framing belongs to the caller's Panack HTTP package.
+This is a transport capability, not a URL downloader; it performs no redirects.
+
 `stdlib/gzip` provides a zlib decoder with an output budget up to 256 MiB.
 Each step accepts at most 64 KiB and returns consumed input, at most 64 KiB output,
 and a finished flag. Continue with unconsumed input; mark the final input and

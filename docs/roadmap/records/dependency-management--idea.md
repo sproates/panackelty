@@ -114,6 +114,11 @@ release, as recorded in the website follow-up register.
 
 **P03 · RM#160: Pinned remote sources** · [GI#568](https://github.com/sproates/panackelty/issues/568).
 Planned; 35% of GI#200. Implements Git and remote archive acquisition.
+The owner selected P03a HTTPS archives first, followed by P03b controlled Git
+acquisition, P03c Git graph integration and P03d remote-source acceptance.
+The separate generic streaming HTTP prerequisite completes on merge of PR#576. It resolves
+the existing buffered client's 1 MiB body limit without reducing P01 archive
+bounds. This prerequisite alone earns no P03 completion credit; GI#568 stays open.
 
 <a id="p04"></a>
 <a id="rm-161"></a>

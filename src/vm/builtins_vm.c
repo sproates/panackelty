@@ -25,6 +25,7 @@ Value *builtins_vm_call(VM *vm, const char *name, Value **a)
         VM child = *vm;
         child.filesystem_stages = NULL;
         child.gzip_streams = NULL;
+        child.http_streams = NULL;
         child.digests = NULL;
         child.resource_parent = vm;
         if (!vm->coverage_run) vm_coverage_gap(vm->coverage);
@@ -78,6 +79,7 @@ Value *builtins_vm_call(VM *vm, const char *name, Value **a)
         VM child = *vm;
         child.filesystem_stages = NULL;
         child.gzip_streams = NULL;
+        child.http_streams = NULL;
         child.digests = NULL;
         child.resource_parent = vm;
         if (!vm->coverage_run) vm_coverage_gap(vm->coverage);

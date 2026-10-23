@@ -25,7 +25,7 @@ pub pure is_impure_builtin(name: Str): Bool {
     name == "fs_create_directory" ||
     name == "fs_remove_file" ||
     name == "fs_remove_directory" ||
-    (name == "fs_stage_begin" || name == "fs_stage_path" || name == "fs_stage_directory" || name == "fs_stage_write" || name == "fs_stage_publish" || name == "fs_stage_close" || (name == "digest_sha256_open" || name == "digest_update" || name == "digest_finish" || name == "digest_close" || name == "gzip_open" || name == "gzip_step" || name == "gzip_close" || (name == "fs_read_chunk" || name == "fs_atomic_write" || name == "fs_temp_file"))) ||
+    (name == "http_stream_open" || name == "http_stream_read" || name == "http_stream_close" || name == "fs_stage_begin" || name == "fs_stage_path" || name == "fs_stage_directory" || name == "fs_stage_write" || name == "fs_stage_publish" || name == "fs_stage_close" || (name == "digest_sha256_open" || name == "digest_update" || name == "digest_finish" || name == "digest_close" || name == "gzip_open" || name == "gzip_step" || name == "gzip_close" || (name == "fs_read_chunk" || name == "fs_atomic_write" || name == "fs_temp_file"))) ||
     name == "fs_temp_directory" ||
     name == "host_sleep" ||
     name == "process_run" ||

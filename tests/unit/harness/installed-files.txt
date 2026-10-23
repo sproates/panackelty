@@ -54,6 +54,7 @@ share/panackelty/stdlib/filesystem_stage.panack
 share/panackelty/stdlib/gzip.panack
 share/panackelty/stdlib/host.panack
 share/panackelty/stdlib/http_runtime.panack
+share/panackelty/stdlib/http_stream.panack
 share/panackelty/stdlib/http_transport.panack
 share/panackelty/stdlib/package_filesystem.panack
 share/panackelty/stdlib/path.panack

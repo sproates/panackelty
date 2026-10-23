@@ -83,6 +83,12 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
+- **P03a streaming transport prerequisite: Pending release.** Document
+  `stdlib/http_stream` as blocking raw transport only when a matching native
+  release is available. Preserve the existing async HTTP client's 1 MiB body
+  limit in current website examples. Do not claim remote package support from
+  this prerequisite. Ownership: core release and website maintainers.
+
 - **GI#200 local package locks: Pending release.** On release of the matching
   native toolchain, update package examples, installation prerequisites and
   capability descriptions for explicit locks, local archive restore and the

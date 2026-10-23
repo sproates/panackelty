@@ -1,5 +1,12 @@
 # Specification coverage
 
+The P03a HTTP prerequisite adds raw streaming transport contracts: a 32 MiB
+transfer read in chunks of at most 16 KiB, total-limit failure, stale and foreign
+handles, deadline expiry between reads and invocation cleanup. HTTP client
+fixtures exercise the streaming wrapper through source and saved bytecode,
+including trusted and untrusted TLS. This is transport evidence, not remote
+package acceptance or an execution-coverage percentage.
+
 The compiler-free fixture inventory preflight has isolated mutation regressions
 for missing, stale, duplicate and reordered examples, output pairing, runner counts,
 smoke totals and Makefile rejection before build phases. It supplements the

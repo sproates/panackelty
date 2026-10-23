@@ -28,6 +28,7 @@ typedef struct VM {
     VMExecution *execution;
     struct VMFilesystemStages *filesystem_stages;
     struct VMGzipStreams *gzip_streams;
+    struct VMHttpStreams *http_streams;
     struct VMDigests *digests;
     struct VM *resource_parent; /* Synchronous nested execution only. */
     struct VMHttpRuntime *http_runtime; /* Borrowed from the root invocation. */

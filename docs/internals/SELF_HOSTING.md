@@ -17,6 +17,9 @@ continue to build only the separate package artifact. The seed is reproduced
 through the existing stage 2/3/4 procedure, producing
 `34690cbd157483b57076e508d362a480405924326ce748de3905783d35d97eed`.
 The standard-library conformance artifact remains unchanged.
+P03a acquisition uses these existing grants through the Panack HTTP package.
+Its package-tool handoff test verifies that a package-only behaviour edit changes
+neither compiler artifact nor seed and invokes no compiler build.
 
 ## Current state
 

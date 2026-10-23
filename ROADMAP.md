@@ -50,8 +50,8 @@ through final acceptance. [P01: lock and restore contract](docs/roadmap/records/
 and [P04: `panack` workflow integration](docs/roadmap/records/dependency-management--idea.md#p04)
 are sequenced in the [package-management plan](docs/roadmap/records/dependency-management--idea.md#alpha15-implementation-plan).
 Their provisional weights are 15%, 25%, 35% and 25% of GI#200, respectively.
-P01 is accepted in PR#571. P02 completes on merge of PR#575, taking weighted
-completion to 40%; P03 and P04 remain planned. PR#573 reverted the initial P02
+P01 is accepted in PR#571. P02 merged as PR#575, taking weighted
+completion to 40%; P03a is in progress and P04 remains planned. PR#573 reverted the initial P02
 implementation to the P01 baseline. The P01
 [contract](docs/design/PACKAGE_MANAGEMENT_CONTRACT.md) defines lock and restore
 behaviour. The [implementation boundaries](docs/design/PACKAGE_MANAGEMENT_IMPLEMENTATION.md)
@@ -62,7 +62,7 @@ records verification, performance evidence and publication limits.
 Website changes wait for a matching native release
 and are recorded in the website follow-up register.
 P03a starts with the [bounded HTTP streaming prerequisite](docs/design/HTTP_STREAMING_ACCEPTANCE.md),
-followed by HTTPS archive acquisition. Git acquisition remains in later slices;
+followed by [HTTPS archive acquisition](docs/design/PACKAGE_HTTPS_ACCEPTANCE.md). Git acquisition remains in later slices;
 the prerequisite alone earns no additional programme completion.
 
 <a id="rm-158"></a> [RM#158](docs/roadmap/records/dependency-management--idea.md#rm-158),

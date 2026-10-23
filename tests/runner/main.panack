@@ -113,7 +113,9 @@ pure runner_timed_command(arguments: [Str], clear_stdlib_value: Bool,
 
 pure runner_bytes_preview(value: Bytes): Str {
   text = value.decode_utf8()
-  shown = if text.len() < 160 { text.len() } else { 160 }
+  // Preserve the complete small CLI transcript when an assertion fails; the
+  // previous 160-character prefix hid the failing assertion below passing ones.
+  shown = if text.len() < 4096 { text.len() } else { 4096 }
   preview = text.slice(0, shown)
   if text.len() > shown { "${preview}..." } else { preview }
 }

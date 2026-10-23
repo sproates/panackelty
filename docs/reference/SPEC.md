@@ -1561,14 +1561,21 @@ Backend fixtures name internal operations explicitly and do not define the
 public language. The [P12 report](../design/type-owned-dispatch/p12-legacy-removal.md)
 records the boundary and validation.
 
-## Local dependency locks on next
+## Dependency locks on next
 
-The separate Panack package tool implements the local-source portion of the
+The separate Panack package tool implements local directories, local archives and HTTPS archives from the
 [package contract](../design/PACKAGE_MANAGEMENT_CONTRACT.md): explicit lock,
 update (optionally restricted to root aliases), and offline restore. Project
 check/compile/run require a current lock for dependencies and validate existing
 archive materialization without acquiring sources. Local directory source edits
-remain live; manifest and local archive changes require explicit update.
+remain live; manifest and archive changes require explicit update.
+HTTPS archive declarations use `{"archive":"https://host/package.tar.gz"}`.
+The lock retains the declared URL and SHA-256 of compressed bytes. Redirects
+are limited to five HTTPS hops, with credentials, queries and fragments rejected.
+Downloads enforce the 64 MiB compressed and 256 MiB expanded bounds while
+streaming. A missing or corrupt remote cache requires an online explicit restore;
+`--offline` verifies existing remote entries and never repairs them from the network.
+Each HTTP response has a 60-second deadline. Git acquisition remains unsupported.
 Archive and lock policy do not execute inside the compiler.
 
 The tool uses generic native modules `stdlib/filesystem_stage`,

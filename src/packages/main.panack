@@ -25,7 +25,7 @@ package_tool_prepare(manifest: Str): Nat {
       state = match existing { None() => Ok(()), Some(lock) => verify_cache_state(root, lock) }
       match state {
         Error(problem) => package_tool_error(problem),
-        Ok(completed_1) => match read_manifest_project(manifest, AcquisitionOptions(root, false, existing)) {
+        Ok(completed_1) => match read_manifest_project(manifest, AcquisitionOptions(root, false, existing, true, false, [], None())) {
           Error(problem) => package_tool_error(problem),
           Ok(project) => match verify_local_lock(project) {
             Error(problem) => package_tool_error(problem),
@@ -108,7 +108,9 @@ package_tool_dependencies(arguments: [Str]): Nat {
           else { match existing { None() => Ok(()), Some(lock) => verify_cache_state(root, lock) } }
         match state {
           Error(problem) => package_tool_error(problem),
-          Ok(completed_5) => match read_manifest_project(arguments[3], AcquisitionOptions(root, materialize, existing)) {
+          Ok(completed_5) => match read_manifest_project(arguments[3], AcquisitionOptions(root, materialize, existing,
+            arguments.len() == 5 && arguments[4] == "--offline",
+            (operation == "update" && aliases.len() == 0) || existing == None(), aliases, None())) {
             Error(problem) => package_tool_error(problem),
             Ok(project) => finish_dependencies(operation, project, existing, aliases)
           }

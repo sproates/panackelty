@@ -47,6 +47,8 @@ fi
 mkdir -p "$variant_dir/tests" "$variant_dir/build/tools"
 cp -p Makefile VERSION panack-vm "$variant_dir/"
 cp -pR src bootstrap "$variant_dir/"
+mkdir -p "$variant_dir/packages"
+cp -pR packages/http "$variant_dir/packages/"
 cp -p tests/profile_command.sh "$variant_dir/tests/"
 cp -p build/tools/panack-packages.bc "$variant_dir/build/tools/"
 # The native executable has already been validated by the caller. Keep this
@@ -54,6 +56,8 @@ cp -p build/tools/panack-packages.bc "$variant_dir/build/tools/"
 (cd "$variant_dir" && make --no-print-directory -o panack-vm package-tool) > "$work/baseline.out"
 sed 's/panack-packages prepare/panack-packages inspect/' \
     src/packages/main.panack > "$variant_dir/src/packages/main.panack"
+sed 's/archive URL must use HTTPS/package archive URL must use HTTPS/' \
+    src/packages/manifest.panack > "$variant_dir/src/packages/manifest.panack"
 # Make the edited source newer even on filesystems with coarse timestamps.
 # Keep the artifact present: otherwise a missing dependency could pass the test.
 touch -t 203001010000 "$variant_dir/src/packages/main.panack"

@@ -1,3 +1,4 @@
+import project/src/packages/manifest::{parse_package_manifest}
 pub import project/src/packages/acquisition::{ArchiveSource, AcquisitionOptions}
 import project/src/packages/acquisition::{acquire_archive}
 import stdlib/compiler_paths as path_support
@@ -9,7 +10,7 @@ pub import project/src/project_model/resolved_project::{ResolvedPackage, Resolve
 pub import stdlib/package_filesystem::{FilesystemRootIdentity}
 import stdlib/package_filesystem::{FilesystemRootRead}
 pub import project/src/project_model/package_manifest::{PackageManifestExport}
-import project/src/project_model/package_manifest::{PackageManifest, PackageManifestDependency, parse_package_manifest, package_manifest_byte_limit}
+import project/src/project_model/package_manifest::{PackageManifest, PackageManifestDependency, package_manifest_byte_limit}
 import project/src/project_model/utf8::{valid_utf8}
 
 // A dependency edge binds an owner-scoped alias to the target's public module map
@@ -266,13 +267,31 @@ resolve_package_dependency_graph(
       Some(message) => {},
       None() => {
         alias: Str = dependency.alias
-        declared: Str = path_support.resolve(path_support.join(owner.package_root, dependency.path))
+        declared: Str = if dependency.path.starts_with_at("https://", 0) { dependency.path }
+          else { path_support.resolve(path_support.join(owner.package_root, dependency.path)) }
+        mut refresh: Bool = options.refresh
+        if owner.package_root == options.root { for selected in options.aliases { if selected == alias { refresh = true } } }
+        mut child_options = AcquisitionOptions(options.root, options.materialize, options.locked, options.offline, refresh, [], options.boundary)
         mut source_root: Result[Str, Str] = Ok(declared)
-        if dependency.kind == "archive" {
-          match acquire_archive(options, declared, package_project_package_id(owner.package, owner.version), alias, current.archives) {
+        mut contained: Bool = true
+        if !dependency.path.starts_with_at("https://", 0) {
+          match options.boundary {
+            None() => {},
+            Some(boundary) => { contained = declared == boundary || declared.starts_with_at(boundary + "/", 0) }
+          }
+        }
+        if !contained { source_root = Error("remote package dependency escapes its archive") }
+        else if dependency.kind == "archive" {
+          match acquire_archive(child_options, declared, package_project_package_id(owner.package, owner.version), alias, current.archives) {
             Error(message) => { source_root = Error(message) },
             Ok(acquired) => {
               source_root = Ok(acquired.root)
+              // A local archive nested inside a remote archive retains the
+              // confinement rule even though it receives a new staging root.
+              if dependency.path.starts_with_at("https://", 0) || options.boundary != None() {
+                child_options = AcquisitionOptions(options.root, options.materialize, options.locked,
+                  options.offline, refresh, [], Some(acquired.root))
+              }
               mut present: Bool = false
               for previous in current.archives { present = present || previous.root == acquired.root }
               if !present { current = PackageDependencyGraph(current.packages, current.edges, current.archives.append(acquired)) }
@@ -374,7 +393,7 @@ resolve_package_dependency_graph(
                                 package,
                                 declaration.dependencies,
                                 ancestry.append(package.root_identity),
-                                current, options
+                                current, child_options
                               ) {
                                 Error(message) => { failure = Some("dependency ${alias}: ${message}") },
                                 Ok(expanded) => { current = expanded }

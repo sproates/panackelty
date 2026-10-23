@@ -1407,3 +1407,19 @@ concatenated gzip members and cleanup; they also pass ASan/UBSan.
 The new package and generic adapter sources are explicitly unmeasured in the
 source-execution coverage manifest. These assertions do not claim a coverage
 percentage or change the existing eligible-source denominator or thresholds.
+
+## GI#200 P03a HTTPS archive evidence
+
+`tests/package_https.sh` runs complete projects through the public CLI against
+an instrumented local TLS peer. It verifies independent compressed SHA-256,
+redirect identity, source and bytecode output, warm/cold/corrupt cache behaviour,
+changed-byte rejection, selective updates, relocation, transitive archives,
+remote-manifest containment, TLS trust, URL policy and failure cleanup. Request
+counts prove ordinary commands and offline operations do not access the peer.
+Existing local dependency tests remain part of `make check`.
+
+The HTTP package fixtures exercise streamed fixed-length, chunked and
+close-delimited bodies, truncation, ambiguous framing and size limits through
+source and bytecode execution. The TLS workflow runs HTTPS package acceptance
+on Linux and macOS. These behavioural checks do not establish a source execution
+coverage percentage for the new acquisition module.

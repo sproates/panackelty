@@ -223,6 +223,7 @@ $(BUILD_DIR)/vm/http_fixture: tests/http_fixture.c
 
 functional-impl: package-tool $(BUILD_DIR)/vm/static_http_client $(STAGE2_COMPILER) $(BUILD_DIR)/vm/tcp_server $(BUILD_DIR)/vm/tcp_client $(BUILD_DIR)/vm/http_client $(BUILD_DIR)/vm/http_fixture
 	@$(PROFILE) functional/package-dependencies sh tests/package_dependencies.sh
+	@$(PROFILE) functional/package-https sh tests/package_https.sh
 	@$(MAKE) --no-print-directory identity-root-audit
 	@$(PROFILE) functional/owned-dispatch-removal sh tests/owned_dispatch_removal.sh
 	@$(PROFILE) functional/owned-dot-dispatch sh tests/owned_dot_dispatch.sh
@@ -429,7 +430,7 @@ native-check: bootstrap-check
 	sh tests/native_conformance.sh
 
 PACKAGE_TOOL_ARTIFACT := $(BUILD_DIR)/tools/panack-packages.bc
-PACKAGE_TOOL_SOURCES := $(wildcard src/packages/*.panack src/project_model/*.panack src/stdlib/*.panack)
+PACKAGE_TOOL_SOURCES := $(wildcard src/packages/*.panack src/project_model/*.panack src/stdlib/*.panack packages/http/src/*.panack)
 
 .PHONY: package-tool package-tool-check
 package-tool: $(PACKAGE_TOOL_ARTIFACT)

@@ -113,3 +113,19 @@ second; `await server.destroy()` cancels immediately. Native SIGINT/SIGTERM and
 explicit process exit perform bounded cleanup. A closed server cannot be restarted.
 The old `http/service` export, finite HTTP sessions, connection contexts and public
 serializer helpers have been removed. Low-level TCP APIs remain separate.
+
+## Bounded response streams on next
+
+`http/stream` provides blocking `open_response(url, timeout_ms, body_limit)`,
+`fold_body(response, initial, @consume, body_limit)` and `close_response(response)`.
+The callback receives state and a bounded byte chunk and returns a checked next
+state. Always close a successfully opened response, including after callback
+failure. Open errors close their transport automatically.
+
+The module parses Content-Length, chunked bodies and trailers, and bodies ended
+by connection close. Headers/trailers are bounded to 64 KiB, chunk lines to 8 KiB,
+and bodies to 64 MiB. It rejects ambiguous framing, truncation and excess bytes.
+It uses verified TLS for HTTPS and a deadline of at most 60 seconds per response.
+It does not follow redirects or decompress bodies; callers own those policies.
+This blocking interface is intended for command-line consumers. The existing
+async buffered client retains its contract and limits.

@@ -1,9 +1,10 @@
+import project/src/packages/manifest::{parse_package_manifest}
 import stdlib/compiler_paths as paths
 pub import project/src/packages/project_graph::{ManifestProject}
 import project/src/packages/project_graph::{package_project_from_manifest}
 import project/src/project_model/resolved_project::{ResolvedPackage, ResolvedProject}
 import project/src/project_model/package_manifest::{
-  parse_package_manifest, PackageManifest, PackageManifestDependency, ManifestJsonMember,
+  PackageManifest, PackageManifestDependency, ManifestJsonMember,
   ManifestJsonValue.ManifestJsonObject, ManifestJsonValue.ManifestJsonString
 }
 pub import project/src/packages/lock::{PackageLock}
@@ -63,7 +64,8 @@ pure local_edges(package: ResolvedPackage, declarations: [PackageManifestDepende
       if resolved.alias == declaration.alias {
         mut fields: [ManifestJsonMember] = [
           ManifestJsonMember("kind", ManifestJsonString(declaration.kind), 0),
-          ManifestJsonMember("path", ManifestJsonString(normalize_dependency_path(declaration.path)), 0)
+          ManifestJsonMember(if declaration.path.starts_with_at("https://", 0) { "url" } else { "path" },
+            ManifestJsonString(if declaration.path.starts_with_at("https://", 0) { declaration.path } else { normalize_dependency_path(declaration.path) }), 0)
         ]
         if declaration.kind == "archive" {
           for archive in archives {
@@ -92,7 +94,8 @@ pub current_local_lock(project: ManifestProject): Result[PackageLock, Str] {
         Error(problem) => { failure = Some(problem) },
         Ok(read) => {
           for declaration in read.manifest.dependencies {
-            source: Str = paths.resolve(paths.join(package.package_root, declaration.path))
+            source: Str = if declaration.path.starts_with_at("https://", 0) { declaration.path }
+              else { paths.resolve(paths.join(package.package_root, declaration.path)) }
             mut agrees: Bool = false
             for edge in package.dependencies {
               if edge.alias == declaration.alias {

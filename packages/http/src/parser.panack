@@ -1,7 +1,7 @@
-import project/types::{HttpError.InvalidLimits, HttpError.InvalidRequest, HttpError.LimitExceeded,
+import "types.panack"::{HttpError.InvalidLimits, HttpError.InvalidRequest, HttpError.LimitExceeded,
   HttpError.InvalidResponse, HttpError.ProtocolError, HttpError.UnsupportedMethod,
   HttpError.UnsupportedTransferEncoding, HttpError.UnsupportedVersion}
-pub import project/types::{Header, HttpError, Request, Response}
+pub import "types.panack"::{Header, HttpError, Request, Response}
 import stdlib/http_runtime as runtime
 import stdlib/bytes as byte_buffer
 
@@ -14,7 +14,7 @@ pub record RequestHead {
   chunked: Bool
 }
 
-record ResponseHead {
+pub record ResponseHead {
   status: Nat,
   headers: [Header],
   body_start: Nat,
@@ -83,7 +83,7 @@ pure token_byte(value: Nat): Bool {
     value == 94 || value == 95 || value == 96 || value == 124 || value == 126
 }
 
-pure lower_ascii(value: Str): Str {
+pub pure lower_ascii(value: Str): Str {
   mut output: Bytes = byte_buffer.empty()
   mut cursor: Nat = 0
   encoded: Bytes = value.encode_utf8()
@@ -421,7 +421,7 @@ pub pure parse_chunk_size(data: Bytes, start: Nat, end: Nat, remaining: Nat): Re
   else { Ok(size) }
 }
 
-pure parse_trailers(data: Bytes, start: Nat, eof: Bool, header_bytes: Nat): Result[Option[Nat],HttpError] {
+pub pure parse_trailers(data: Bytes, start: Nat, eof: Bool, header_bytes: Nat): Result[Option[Nat],HttpError] {
   mut cursor = start
   mut trailer_bytes: Nat = 0
   mut finished = false
@@ -582,7 +582,7 @@ pub pure parse_request_for_methods(
   }
 }
 
-pure find_header_end_from(data: Bytes, start: Nat): Option[Nat] {
+pub pure find_header_end_from(data: Bytes, start: Nat): Option[Nat] {
   mut found: Option[Nat] = None()
   mut cursor = start
   while cursor + 3 < byte_length(data) && found == None() {
@@ -658,7 +658,7 @@ pure parse_response_decimal(data: Bytes, start: Nat, end: Nat, limit: Nat): Resu
   }
 }
 
-pure response_head(data: Bytes, offset: Nat, header_end: Nat, body_limit: Nat):
+pub pure response_head(data: Bytes, offset: Nat, header_end: Nat, body_limit: Nat):
     Result[ResponseHead,HttpError] {
   match find_crlf(data, offset, header_end + 2) {
     None() => Error(ProtocolError("invalid HTTP response status line")),

@@ -4,7 +4,7 @@ panack_bin=${PANACK_BIN:-./bin/panack}
 fixture=${PANACK_HTTP_FIXTURE:-build/vm/http_fixture}
 repo=$(pwd)
 if [ "$#" -eq 0 ]; then
-    for case_name in ok missing chunked close truncated duplicate oversize bad-url ipv6 timeout connect-failure tls-ok tls-wrong-host tls-untrusted tls-late stream tls-stream tls-stream-untrusted dns-failure dns-late installed; do
+    for case_name in ok missing chunked close truncated duplicate oversize bad-url ipv6 timeout connect-failure tls-ok tls-wrong-host tls-untrusted tls-late stream tls-stream tls-stream-untrusted body-stream body-chunked body-chunk-limit body-close body-truncated body-duplicate body-oversize dns-failure dns-late installed; do
         echo "HTTP client fixture: $case_name"
         sh "$0" "$case_name"
     done
@@ -271,6 +271,39 @@ async main(): Unit {
 SOURCE
 
 case "$selected_case" in
+    body-*)
+        body_path=/ok; body_expected=ok; body_failure=false; body_limit=1048576
+        case "$selected_case" in
+            body-chunked) body_path=/chunked; body_expected=hello ;;
+            body-chunk-limit) body_path=/chunked; body_limit=3; body_failure=true ;;
+            body-close) body_path=/close; body_expected='close body' ;;
+            body-truncated) body_path=/truncated; body_failure=true ;;
+            body-duplicate) body_path=/duplicate; body_failure=true ;;
+            body-oversize) body_path=/oversize; body_limit=3; body_failure=true ;;
+        esac
+        cat > "$app/src/main.panack" <<SOURCE
+import http/stream as http
+import stdlib/bytes as byte_buffer
+pure expect(value: Bool): Unit { checked = [0][if value { 0 } else { 1 }]; () }
+pure collect(state: Bytes, chunk: Bytes): Result[Bytes,http.HttpError] { Ok(state.join(chunk)) }
+main(): Void {
+  mut failed: Bool = false
+  match http.open_response("http://127.0.0.1:$http_port$body_path", 10000, $body_limit) {
+    Error(problem) => { failed = true; () },
+    Ok(response) => {
+      expect(response.status == 200)
+      match http.fold_body(response, byte_buffer.empty(), @collect, $body_limit) {
+        Error(problem) => { failed = true; () },
+        Ok(data) => { expect(data == "$body_expected".encode_utf8()) }
+      }
+      expect(match http.close_response(response) { Ok(unit) => true, Error(problem) => false })
+    }
+  }
+  expect(failed == $body_failure)
+  print("stream passed")
+}
+SOURCE
+        ;;
     stream|tls-stream|tls-stream-untrusted)
         stream_host=127.0.0.1; stream_port=$http_port; stream_tls=false; stream_path=/large
         stream_minimum=33554432; stream_failure=false
@@ -372,7 +405,7 @@ case "$selected_case" in
 esac
 case "$selected_case" in
     connect-failure|dns-failure|dns-late) ;;
-    stream|tls-stream|tls-stream-untrusted)
+    stream|tls-stream|tls-stream-untrusted|body-*)
         if [ "$selected_case" = tls-stream-untrusted ]; then
             env -u CURL_CA_BUNDLE "$panack_bin" run --project "$app/panack.json" > "$work/source.stdout"
             env -u CURL_CA_BUNDLE "$panack_bin" run "$work/client.bc" > "$work/bytecode.stdout"

@@ -81,5 +81,22 @@ selection are refused. Commit the lock with the manifest; exclude the generated
 archives and rebuilds missing or corrupt materialization without rewriting the
 lock. Ordinary check, compile and run commands verify the existing lock and cache;
 they never extract archives or repair a cache implicitly. A project without
-dependencies needs no lock. Remote archive and Git acquisition are not yet
-implemented; their syntax remains reserved by the package contract.
+dependencies needs no lock. Git acquisition is not yet
+implemented; its syntax remains reserved by the package contract.
+
+### HTTPS archives on next
+
+Use an HTTPS archive declaration such as
+`"utilities": {"archive":"https://example.org/utilities.tar.gz"}`. The archive
+must contain `panack.json` at its root and obey the same extraction limits as a
+local archive. URLs and redirect targets cannot contain credentials, queries or
+fragments. Up to five HTTPS redirects are allowed; the lock retains the original
+URL and compressed SHA-256.
+
+Initial `deps lock` downloads and verifies the package. Later `deps lock` and
+ordinary project commands only verify existing state. `deps restore` reuses a
+verified cache or downloads the pinned bytes when repair is needed. Changed
+remote bytes fail without changing the lock. Use `deps update [ALIAS...]` to
+accept a deliberate change; unselected remote dependencies retain their pins.
+`deps restore --offline` requires verified remote entries already in the cache.
+It can still restore local archives from their declared paths.

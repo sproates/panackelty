@@ -51,7 +51,9 @@ and [P04: `panack` workflow integration](docs/roadmap/records/dependency-managem
 are sequenced in the [package-management plan](docs/roadmap/records/dependency-management--idea.md#alpha15-implementation-plan).
 Their provisional weights are 15%, 25%, 35% and 25% of GI#200, respectively.
 P01 is accepted in PR#571. P02 merged as PR#575, taking weighted
-completion to 40%; P03a is in progress and P04 remains planned. PR#573 reverted the initial P02
+completion to 40%. P03a completes on merge of PR#578, taking estimated weighted
+completion to 50.5% under the recorded P03 sub-scope allocation; P03b–d and P04
+remain planned. PR#573 reverted the initial P02
 implementation to the P01 baseline. The P01
 [contract](docs/design/PACKAGE_MANAGEMENT_CONTRACT.md) defines lock and restore
 behaviour. The [implementation boundaries](docs/design/PACKAGE_MANAGEMENT_IMPLEMENTATION.md)

@@ -1,6 +1,7 @@
 # P03a HTTPS archive acceptance
 
-P03a adds HTTPS archive acquisition to the separate Panack package tool. The
+P03a completes on merge of [PR#578](https://github.com/sproates/panackelty/pull/578),
+after its full local and hosted checks pass. It adds HTTPS archive acquisition to the separate Panack package tool. The
 native streaming prerequisite merged as PR#576. Active manifest policy lives in `src/packages/manifest.panack`. The old shared
 full-manifest parser remains frozen solely to preserve compiler/bootstrap input;
 package commands and manifest policy tests use the package-owned parser.
@@ -61,8 +62,17 @@ hooks, external archive commands or compiler acquisition path is introduced.
 
 ## Validation and performance
 
-Full final `make check` and hosted Linux/macOS acceptance are pending. Focused
-passing tests do not yet establish completion or merge readiness.
+The canonical local command is `make check`; PR#578 records its final result
+and duration before merge. Hosted HTTPS acquisition passed on Linux and macOS,
+including nested archives, URL policy and the larger-than-1-MiB fixture. Source
+coverage policy checks pass (13 tests). The delivery remains conditional on the
+full local check and green checks for the exact final PR head.
+
+An earlier full run failed one saved-bytecode CLI regression while its source
+run passed. The failing assertion was hidden by a 160-character transcript
+preview. Two focused CLI runs and eight repetitions of the package-root race
+check passed; diagnostics now retain up to 4 KiB on failure, with all assertions
+unchanged. The full-suite rerun is the acceptance gate, not the focused passes.
 
 On the local Apple Silicon Mac, one 2 MiB incompressible archive update and warm
 offline restore were measured with `/usr/bin/time -l`. The update took 0.07 seconds with 15,597,568 bytes maximum resident set size;

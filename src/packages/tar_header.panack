@@ -20,8 +20,11 @@ pub pure tar_zero(data: Bytes): Bool {
 pure tar_text(data: Bytes, start: Nat, end: Nat): Result[Str, Str] {
   mut stop: Nat = start
   while stop < end && data.at(stop) != 0 { stop = stop + 1 }
+  mut padding_valid: Bool = true
+  for index in stop..end { padding_valid = padding_valid && data.at(index) == 0 }
   value: Bytes = tar_slice(data, start, stop)
-  if !valid_utf8(value) { Error("archive path is not UTF-8") }
+  if !padding_valid { Error("nonzero bytes after tar text terminator") }
+  else if !valid_utf8(value) { Error("archive path is not UTF-8") }
   else { Ok(value.decode_utf8()) }
 }
 
@@ -150,10 +153,15 @@ pub pure parse_pax(data: Bytes): Result[PaxHeader, Str] {
                 if seen.has(key) { failure = Some("duplicate PAX key") }
                 else if key == "path" { path = Some(value) }
                 else if key == "size" {
-                  match tar_number(value_bytes, 0, value_bytes.length(), 10) {
-                    Error(problem) => { failure = Some(problem) },
-                    Ok(number) => if value == "" { failure = Some("empty PAX size") } else { size = Some(number) }
+                  mut decimal: Bool = value_bytes.length() > 0
+                  for index in 0..value_bytes.length() {
+                    decimal = decimal && value_bytes.at(index) >= 48 && value_bytes.at(index) <= 57
                   }
+                  if !decimal { failure = Some("PAX size must contain decimal digits") }
+                  else { match tar_number(value_bytes, 0, value_bytes.length(), 10) {
+                    Error(problem) => { failure = Some(problem) },
+                    Ok(number) => { size = Some(number) }
+                  } }
                 } else if key != "mtime" && key != "atime" && key != "ctime" && key != "uid" && key != "gid" && key != "uname" && key != "gname" {
                   failure = Some("unsupported PAX key: " + key)
                 }

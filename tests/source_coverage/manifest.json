@@ -31,7 +31,21 @@
     {"path": "src/stdlib/async_host.panack", "reason": "Async CLI adapters are tested by native and source/bytecode service fixtures outside the bounded source-coverage corpus."},
     {"path": "src/stdlib/http_runtime.panack", "reason": "GI518 typed HTTP runtime adapters are exercised by native writer/handle tests and source/bytecode socket fixtures outside the bounded source-coverage corpus."},
     {"path": "src/stdlib/tcp_service.panack", "reason": "Continuous service lifecycle is tested by native and source/bytecode HTTP fixtures outside the bounded source-coverage corpus."},
-    {"path": "src/stdlib/package_filesystem.panack", "reason": "Package filesystem support is not included in the bounded native source-execution corpus."}
+    {"path": "src/stdlib/package_filesystem.panack", "reason": "Package filesystem support is not included in the bounded native source-execution corpus."},
+    {"path":"src/packages/acquisition.panack","reason":"P02 package and host-adapter behaviour is checked by focused unit and public CLI tests outside the bounded native source-execution corpus; no execution coverage percentage is claimed."},
+    {"path":"src/packages/archive.panack","reason":"P02 package and host-adapter behaviour is checked by focused unit and public CLI tests outside the bounded native source-execution corpus; no execution coverage percentage is claimed."},
+    {"path":"src/packages/case_fold.panack","reason":"P02 package and host-adapter behaviour is checked by focused unit and public CLI tests outside the bounded native source-execution corpus; no execution coverage percentage is claimed."},
+    {"path":"src/packages/local_lock.panack","reason":"P02 package and host-adapter behaviour is checked by focused unit and public CLI tests outside the bounded native source-execution corpus; no execution coverage percentage is claimed."},
+    {"path":"src/packages/lock.panack","reason":"P02 package and host-adapter behaviour is checked by focused unit and public CLI tests outside the bounded native source-execution corpus; no execution coverage percentage is claimed."},
+    {"path":"src/packages/selective_update.panack","reason":"P02 package and host-adapter behaviour is checked by focused unit and public CLI tests outside the bounded native source-execution corpus; no execution coverage percentage is claimed."},
+    {"path":"src/packages/sha256.panack","reason":"P02 package and host-adapter behaviour is checked by focused unit and public CLI tests outside the bounded native source-execution corpus; no execution coverage percentage is claimed."},
+    {"path":"src/packages/tar_header.panack","reason":"P02 package and host-adapter behaviour is checked by focused unit and public CLI tests outside the bounded native source-execution corpus; no execution coverage percentage is claimed."},
+    {"path":"src/packages/tar_stream.panack","reason":"P02 package and host-adapter behaviour is checked by focused unit and public CLI tests outside the bounded native source-execution corpus; no execution coverage percentage is claimed."},
+    {"path":"src/packages/tree_digest.panack","reason":"P02 package and host-adapter behaviour is checked by focused unit and public CLI tests outside the bounded native source-execution corpus; no execution coverage percentage is claimed."},
+    {"path":"src/stdlib/bounded_filesystem.panack","reason":"P02 package and host-adapter behaviour is checked by focused unit and public CLI tests outside the bounded native source-execution corpus; no execution coverage percentage is claimed."},
+    {"path":"src/stdlib/digest.panack","reason":"P02 package and host-adapter behaviour is checked by focused unit and public CLI tests outside the bounded native source-execution corpus; no execution coverage percentage is claimed."},
+    {"path":"src/stdlib/filesystem_stage.panack","reason":"P02 package and host-adapter behaviour is checked by focused unit and public CLI tests outside the bounded native source-execution corpus; no execution coverage percentage is claimed."},
+    {"path":"src/stdlib/gzip.panack","reason":"P02 package and host-adapter behaviour is checked by focused unit and public CLI tests outside the bounded native source-execution corpus; no execution coverage percentage is claimed."}
   ],
   "units": [
     "compiler_lexer", "compiler_parser", "compiler_resolver", "compiler_purity", "compiler_contracts",

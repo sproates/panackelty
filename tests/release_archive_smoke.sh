@@ -40,8 +40,10 @@ test -x "$temporary/unpacked/panackelty/bin/panack" || \
   fail "archive does not contain panackelty/bin/panack"
 mv "$temporary/unpacked/panackelty" "$temporary/relocated/toolchain"
 
-dirname_command=$(command -v dirname)
-ln -s "$dirname_command" "$temporary/runtime-bin/dirname"
+for utility in dirname mktemp rm; do
+  utility_path=$(command -v "$utility")
+  ln -s "$utility_path" "$temporary/runtime-bin/$utility"
+done
 runtime_path=$temporary/runtime-bin
 panack=$temporary/relocated/toolchain/bin/panack
 workspace=$temporary/workspace

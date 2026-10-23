@@ -27,7 +27,7 @@
     "integer.stdout": "b76ed4198632a6466e759d15b4ba7968cb2395f81400e28e1ec0aead6c5b76cd",
     "rational.panack": "90083187fd0e85d3d5310517390ca796b8695206ec15ab7a75fde85349dd60d6",
     "rational.stdout": "0090c4a2f10d38441e3801b3a4aadd236f2475ae3921eb1092259161d052ae3a",
-    "stdlib.hex": "ce10ebe82e593c9d53d75fc62974781907d5731ee6cd20d35834fa4cd965cc02"
+    "stdlib.hex": "5c157c8fb43879655004a37c25f330e16140a5d2045b0609fc93e18ad4233f31"
   },
   "artifact_updates": {
     "stdlib": {
@@ -65,6 +65,12 @@
       "reason": "Remove the deleted option wrapper module from the logical-import fixture",
       "generator": "Fixed-point P12 seed; old and new artifact disassembly compared",
       "review": "Only the unused Option value_or method/wrapper blocks disappear and the two remaining imported function IDs shift down one. Main instructions otherwise match and both old/new artifacts print 42. VM registry expectations remain unchanged for saved-bytecode compatibility. Stdlib removes compatibility wrappers and their otherwise unused core callees. Every surviving function body is identical after the explicit imported-module index renumbering; main is included in that comparison. Old/new stdout is identical."
+    },
+    "p02-bounded-byte-slice": {
+      "date": "2026-10-23",
+      "reason": "Expose the existing bounded byte-slice primitive through stdlib/bytes for streaming archive parsing",
+      "generator": "Fixed-point P02 seed, reviewed against previous independent artifact disassembly",
+      "review": "Exactly one added function block: $module1_slice loads data/start/end and calls the existing http_bytes_slice ABI with arity three. Every previous function and instruction is unchanged. Both old and new artifacts match the unchanged expected stdout."
     }
   }
 }

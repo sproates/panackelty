@@ -1,0 +1,76 @@
+pub import project/src/packages/lock::{PackageLock, PackageLockPackage, PackageLockEdge, lock_package_id, serialize_package_lock}
+
+pure selected_alias(aliases: [Str], alias: Str): Bool {
+  mut found: Bool = false
+  for selected in aliases { found = found || selected == alias }
+  found
+}
+
+pure selected_packages(lock: PackageLock, aliases: [Str]): Set[Str] {
+  mut selected: Set[Str] = set()
+  for edge in lock.dependencies { if selected_alias(aliases, edge.alias) { selected = selected.add(edge.package) } }
+  // Package graphs have at most 64 nodes. Bounded closure also terminates for a
+  // malformed cyclic input; the lock parser separately rejects such graphs.
+  for iteration in 0..64 {
+    for package in lock.packages {
+      if selected.has(lock_package_id(package.name, package.version)) {
+        for edge in package.dependencies { selected = selected.add(edge.package) }
+      }
+    }
+  }
+  selected
+}
+
+pure package_signature(package: PackageLockPackage): Str {
+  serialize_package_lock(PackageLock("root", "1.0.0", "", "", [], [package]))
+}
+
+pure edge_signature(edge: PackageLockEdge): Str {
+  serialize_package_lock(PackageLock("root", "1.0.0", "", "", [edge], []))
+}
+
+pub pure validate_selective_update(previous: PackageLock, current: PackageLock, aliases: [Str]): Result[Unit, Str] {
+  mut failure: Option[Str] = None()
+  if previous.root_name != current.root_name || previous.root_version != current.root_version || previous.toolchain != current.toolchain {
+    failure = Some("root identity or toolchain changed; run deps update without aliases")
+  }
+  for alias in aliases {
+    mut found: Bool = false
+    for edge in previous.dependencies { found = found || edge.alias == alias }
+    for edge in current.dependencies { found = found || edge.alias == alias }
+    if !found { failure = Some("unknown dependency alias: " + alias) }
+  }
+  for edge in previous.dependencies {
+    if !selected_alias(aliases, edge.alias) {
+      mut found: Bool = false
+      for candidate in current.dependencies { found = found || edge_signature(candidate) == edge_signature(edge) }
+      if !found { failure = Some("unselected dependency changed: " + edge.alias) }
+    }
+  }
+  for edge in current.dependencies {
+    if !selected_alias(aliases, edge.alias) {
+      mut found: Bool = false
+      for candidate in previous.dependencies { found = found || edge_signature(candidate) == edge_signature(edge) }
+      if !found { failure = Some("unselected dependency changed: " + edge.alias) }
+    }
+  }
+  old_selected: Set[Str] = selected_packages(previous, aliases)
+  new_selected: Set[Str] = selected_packages(current, aliases)
+  for package in previous.packages {
+    id: Str = lock_package_id(package.name, package.version)
+    if !old_selected.has(id) && !new_selected.has(id) {
+      mut found: Bool = false
+      for candidate in current.packages { found = found || package_signature(candidate) == package_signature(package) }
+      if !found { failure = Some("unselected package changed: " + id) }
+    }
+  }
+  for package in current.packages {
+    id: Str = lock_package_id(package.name, package.version)
+    if !old_selected.has(id) && !new_selected.has(id) {
+      mut found: Bool = false
+      for candidate in previous.packages { found = found || package_signature(candidate) == package_signature(package) }
+      if !found { failure = Some("unselected package changed: " + id) }
+    }
+  }
+  match failure { Some(problem) => Error(problem), None() => Ok(()) }
+}

@@ -222,6 +222,7 @@ $(BUILD_DIR)/vm/http_fixture: tests/http_fixture.c
 	$(CC) $(CFLAGS) $(VM_WARNINGS) $< -o $@
 
 functional-impl: package-tool $(BUILD_DIR)/vm/static_http_client $(STAGE2_COMPILER) $(BUILD_DIR)/vm/tcp_server $(BUILD_DIR)/vm/tcp_client $(BUILD_DIR)/vm/http_client $(BUILD_DIR)/vm/http_fixture
+	@$(PROFILE) functional/package-dependencies sh tests/package_dependencies.sh
 	@$(MAKE) --no-print-directory identity-root-audit
 	@$(PROFILE) functional/owned-dispatch-removal sh tests/owned_dispatch_removal.sh
 	@$(PROFILE) functional/owned-dot-dispatch sh tests/owned_dot_dispatch.sh
@@ -441,9 +442,11 @@ $(PACKAGE_TOOL_ARTIFACT): panack-vm $(SEED_COMPILER) $(PACKAGE_TOOL_SOURCES)
 package-tool-check: package-tool native-io-check
 	@PANACK_PROBE_SEED="$(abspath $(SEED_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROBE) tests/runner/package_sha256_unit.panack
 	@PANACK_PROBE_SEED="$(abspath $(SEED_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROBE) tests/runner/resolved_project_unit.panack
+	@PANACK_PROBE_SEED="$(abspath $(SEED_COMPILER))" $(PROBES) tests/runner/package_lock_unit.panack tests/runner/package_tar_unit.panack tests/runner/package_case_fold_unit.panack
+	@PANACK_PROBE_SEED="$(abspath $(SEED_COMPILER))" sh tests/package_archive_stream.sh
 	@sh tests/package_tool_handoff.sh
 
-$(BUILD_DIR)/tools/http-server.bc: package-tool panack-vm $(SEED_COMPILER) tools/http-server/panack.json tools/http-server/src/main.panack $(wildcard packages/static_http/src/*.panack) packages/static_http/panack.json $(wildcard packages/http/src/*.panack) packages/http/panack.json $(wildcard src/stdlib/*.panack)
+$(BUILD_DIR)/tools/http-server.bc: package-tool panack-vm $(SEED_COMPILER) tools/http-server/panack.json tools/http-server/panack.lock.json tools/http-server/src/main.panack $(wildcard packages/static_http/src/*.panack) packages/static_http/panack.json $(wildcard packages/http/src/*.panack) packages/http/panack.json $(wildcard src/stdlib/*.panack)
 	@mkdir -p "$(@D)"
 	./bin/panack compile --project tools/http-server/panack.json -o "$@"
 
@@ -466,9 +469,9 @@ install: native package-tool $(BUILD_DIR)/tools/http-server.bc
 	install -m 644 src/stdlib/*.panack "$(DESTDIR)$(PREFIX)/share/panackelty/stdlib/"
 	cp -R packages/http/. "$(DESTDIR)$(PREFIX)/packages/http/"
 	cp -R packages/static_http/. "$(DESTDIR)$(PREFIX)/packages/static_http/"
-	install -m 644 tools/http-server/panack.json tools/http-server/README.md "$(DESTDIR)$(PREFIX)/tools/http-server/"
+	install -m 644 tools/http-server/panack.json tools/http-server/panack.lock.json tools/http-server/README.md "$(DESTDIR)$(PREFIX)/tools/http-server/"
 	install -m 644 tools/http-server/src/*.panack "$(DESTDIR)$(PREFIX)/tools/http-server/src/"
-	install -m 644 docs/licenses/OpenSSL-Apache-2.0.txt "$(DESTDIR)$(PREFIX)/share/doc/panackelty/"
+	install -m 644 docs/licenses/Unicode-License.txt docs/licenses/OpenSSL-Apache-2.0.txt "$(DESTDIR)$(PREFIX)/share/doc/panackelty/"
 	install -m 644 LICENSE CHANGELOG.md docs/releases/RELEASE_POLICY.md SECURITY.md docs/reference/SPEC.md "$(DESTDIR)$(PREFIX)/share/doc/panackelty/"
 
 package: native-check

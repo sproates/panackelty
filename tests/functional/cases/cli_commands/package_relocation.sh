@@ -110,6 +110,9 @@ assert_bytecode() {
     return 1
 }
 
+run_panack deps lock --project "$app_one/panack.json" > "$work/lock-one.out"
+run_panack deps lock --project "$app_two/panack.json" > "$work/lock-two.out"
+
 assert_output 'app-one check before relocation' ok check --project "$app_one/panack.json"
 assert_output 'app-one source run before relocation' 42 run --project "$app_one/panack.json"
 assert_output "app-one compile before relocation" "wrote $bytecode_one" compile --project "$app_one/panack.json" -o "$bytecode_one"

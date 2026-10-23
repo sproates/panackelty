@@ -1548,3 +1548,23 @@ legacy acceptance tests with owned-dispatch and old-syntax rejection coverage.
 Backend fixtures name internal operations explicitly and do not define the
 public language. The [P12 report](../design/type-owned-dispatch/p12-legacy-removal.md)
 records the boundary and validation.
+
+## Local dependency locks on next
+
+The separate Panack package tool implements the local-source portion of the
+[package contract](../design/PACKAGE_MANAGEMENT_CONTRACT.md): explicit lock,
+update (optionally restricted to root aliases), and offline restore. Project
+check/compile/run require a current lock for dependencies and validate existing
+archive materialization without acquiring sources. Local directory source edits
+remain live; manifest and local archive changes require explicit update.
+Archive and lock policy do not execute inside the compiler.
+
+The tool uses generic native modules `stdlib/filesystem_stage`,
+`stdlib/bounded_filesystem`, `stdlib/gzip` and `stdlib/digest`. Their bounded
+operations return `Result[..., HostError]`; handles belong to one VM invocation,
+are never reused during it, and reject use after close. SHA-256 uses OpenSSL EVP,
+gzip uses zlib, and both operate on chunks of at most 64 KiB. Native filesystem
+staging publishes one complete directory atomically. See the
+[adapter contracts](../../src/stdlib/README.md#native-streaming-and-confined-filesystem-adapters-on-next)
+for limits, cleanup and platform restrictions. These modules introduce no
+arbitrary foreign-function interface or new bytecode version.

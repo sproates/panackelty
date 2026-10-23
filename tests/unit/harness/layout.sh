@@ -127,7 +127,7 @@ contains Makefile '@$(MAKE) --no-print-directory functional'
 contains Makefile '@$(MAKE) --no-print-directory quick-start'
 contains Makefile 'package: native-check
 	$(MAKE) quick-start'
-contains tests/quick_start.sh 'for utility in awk cmp dirname gzip ln mkdir mv readlink rm tar; do'
+contains tests/quick_start.sh 'for utility in awk cmp dirname gzip ln mkdir mktemp mv readlink rm tar; do'
 pass
 case_name=layout-version-and-implementation
 sh tests/no_python.sh

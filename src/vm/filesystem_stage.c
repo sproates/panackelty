@@ -52,10 +52,22 @@ static int stage_directory(int base, const char *path)
     if (current < 0) return -1;
     char *copy = strdup(path), *save = NULL;
     if (!copy) { close(current); return -1; }
+    bool first = true;
+    (void)first;
     for (char *part = strtok_r(copy, "/", &save); part; part = strtok_r(NULL, "/", &save)) {
         if (!strcmp(part, ".")) continue;
         if (!strcmp(part, "..")) { errno = EINVAL; close(current); free(copy); return -1; }
-        int next = openat(current, part, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+        int flags = O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC;
+#ifdef __APPLE__
+        /* macOS exposes these root-owned system directories through symlinks.
+         * Permit only the initial OS alias, never a user-controlled ancestor. */
+        if (first && path[0] == '/' &&
+            (!strcmp(part, "tmp") || !strcmp(part, "var") || !strcmp(part, "etc"))) {
+            flags &= ~O_NOFOLLOW;
+        }
+#endif
+        first = false;
+        int next = openat(current, part, flags);
         int error = errno; close(current); current = next; errno = error;
         if (current < 0) break;
     }
@@ -91,13 +103,40 @@ static int stage_remove(int parent, const char *name)
     if (!error && unlinkat(parent, name, AT_REMOVEDIR)) error = errno;
     errno = error; return error ? -1 : 0;
 }
-static void stage_release(struct Stage *stage)
+static int stage_release(struct Stage *stage)
 {
-    if (!stage->live) return;
-    if (stage->name[0]) (void)stage_remove(stage->parent, stage->name);
-    close(stage->directory); close(stage->parent); free(stage->parent_path);
+    if (!stage->live) return 0;
+    int error = 0;
+    if (stage->name[0]) {
+        struct stat held, named;
+        if (fstat(stage->directory, &held) ||
+            fstatat(stage->parent, stage->name, &named, AT_SYMLINK_NOFOLLOW) ||
+            held.st_dev != named.st_dev || held.st_ino != named.st_ino) {
+            error = ESTALE;
+        } else if (stage_remove(stage->parent, stage->name)) {
+            error = errno;
+        }
+    }
+    close(stage->directory);
+    close(stage->parent);
+    free(stage->parent_path);
     stage->live = false;
+    return error;
 }
+
+static bool stage_parent_matches(struct Stage *stage)
+{
+    int cwd = open(".", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    int parent = cwd < 0 ? -1 : stage_directory(cwd, stage->parent_path);
+    if (cwd >= 0) close(cwd);
+    if (parent < 0) return false;
+    struct stat held, named;
+    bool same = !fstat(stage->parent, &held) && !fstat(parent, &named) &&
+        held.st_dev == named.st_dev && held.st_ino == named.st_ino;
+    close(parent);
+    return same;
+}
+
 #endif
 void filesystem_stage_destroy(VM *vm)
 {
@@ -210,7 +249,12 @@ Value *filesystem_stage_call(VM *vm, const char *name, Value **a)
         !vm->filesystem_stages || handle > vm->filesystem_stages->count || !vm->filesystem_stages->slots[handle - 1].live)
         return stage_error(name, "invalid_handle", 0);
     struct Stage *stage = &vm->filesystem_stages->slots[handle - 1];
-    if (!strcmp(name, "fs_stage_close")) { stage_release(stage); return stage_ok(); }
+    if (!strcmp(name, "fs_stage_close")) {
+        int error = stage_release(stage);
+        return error ? stage_error(name, "cleanup_failed", error) : stage_ok();
+    }
+    if ((!strcmp(name, "fs_stage_path") || !strcmp(name, "fs_stage_publish")) &&
+        !stage_parent_matches(stage)) return stage_error(name, "parent_changed", 0);
     if (!strcmp(name, "fs_stage_path")) {
         size_t length = strlen(stage->parent_path) + strlen(stage->name) + 2;
         char *path = malloc(length);
@@ -247,7 +291,18 @@ Value *filesystem_stage_call(VM *vm, const char *name, Value **a)
         /* The exchange commits publication. Cleanup of the old generation is
          * separate; never report a publication failure after a successful swap. */
         if (exists) stage->name[0] = 0;
-        stage_release(stage);
+        else {
+            int old = openat(stage->parent, stage->name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+            struct stat old_info;
+            if (old < 0 || fstat(old, &old_info) || old_info.st_dev != target.st_dev || old_info.st_ino != target.st_ino) {
+                if (old >= 0) close(old);
+                stage->name[0] = 0; /* Never delete a substituted old generation. */
+            } else {
+                close(stage->directory);
+                stage->directory = old;
+            }
+        }
+        (void)stage_release(stage);
         return stage_ok();
     }
     int parent = stage_parent(stage->directory, path, &leaf);

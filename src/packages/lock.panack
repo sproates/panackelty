@@ -1,7 +1,7 @@
 pub import project/src/project_model/package_manifest::{ManifestJsonValue, ParsedManifestField, PackageManifestError}
 import project/src/project_model/package_manifest::{ManifestJsonMember}
 import project/src/project_model/package_manifest::{ManifestJsonValue.ManifestJsonNull, ManifestJsonValue.ManifestJsonBool, ManifestJsonValue.ManifestJsonNumber, ManifestJsonValue.ManifestJsonString, ManifestJsonValue.ManifestJsonArray, ManifestJsonValue.ManifestJsonObject}
-import project/src/project_model/package_manifest::{parse_manifest_json, manifest_json_object_field, manifest_json_string_field, manifest_object_unknown_field}
+import project/src/project_model/package_manifest::{parse_bounded_json, manifest_json_object_field, manifest_json_string_field, manifest_object_unknown_field}
 import stdlib/bytes as byte_buffer
 import project/src/project_model/package_manifest::{manifest_identifier, manifest_package_name, manifest_semver}
 
@@ -28,9 +28,33 @@ pub record PackageLock {
   packages: [PackageLockPackage]
 }
 
-record PackageLockCycleWalk {
-  cycle: Bool,
-  visited: [Str]
+pub pure normalize_dependency_path(value: Str): Str {
+  absolute: Bool = value.starts_with_at("/", 0)
+  mut segments: [Str] = []
+  mut start: Nat = 0
+  for index in 0..value.len() + 1 {
+    if index == value.len() || value[index] == "/" {
+      segment: Str = value.slice(start, index)
+      count: Nat = segments.len()
+      previous: Nat = if count > 0 { count - 1 } else { 0 }
+      if segment != "" && segment != "." {
+        if segment == ".." && count > 0 && segments[previous] != ".." {
+          mut reduced: [Str] = []
+          for keep in 0..previous { reduced = reduced.append(segments[keep]) }
+          segments = reduced
+        } else if segment != ".." || !absolute {
+          segments = segments.append(segment)
+        }
+      }
+      start = index + 1
+    }
+  }
+  mut result: Str = if absolute { "/" } else { "" }
+  for segment in segments {
+    if result != "" && result != "/" { result = result + "/" }
+    result = result + segment
+  }
+  if result == "" { "." } else { result }
 }
 
 pure lock_error(message: Str, offset: Nat): PackageManifestError {
@@ -133,7 +157,7 @@ pure lock_parse_edges(value: ManifestJsonValue): Result[[PackageLockEdge], Packa
                                   if kind == "path" {
                                     match lock_nonempty_string(source, "path") {
                                       Error(error) => if failure == None() { failure = Some(error) },
-                                      Ok(path) => if (lock_contains(path, "\\") || lock_contains(path, "".encode_utf8().push(0).decode_utf8())) && failure == None() { failure = Some(lock_error("lock path source is not normalized", member.offset)) }
+                                      Ok(path) => if (normalize_dependency_path(path) != path || lock_contains(path, "\\") || lock_contains(path, "".encode_utf8().push(0).decode_utf8())) && failure == None() { failure = Some(lock_error("lock path source is not normalized", member.offset)) }
                                     }
                                   } else if kind == "archive" {
                                     mut archive_sha: Str = ""
@@ -156,7 +180,7 @@ pure lock_parse_edges(value: ManifestJsonValue): Result[[PackageLockEdge], Packa
                                     if path_field != None() {
                                       match lock_nonempty_string(source, "path") {
                                         Error(error) => if failure == None() { failure = Some(error) },
-                                        Ok(path) => if (!path.ends_with(".tar.gz") || lock_contains(path, "\\") || lock_contains(path, "".encode_utf8().push(0).decode_utf8())) && failure == None() { failure = Some(lock_error("local archive path must be normalized and end in .tar.gz", member.offset)) }
+                                        Ok(path) => if (!path.ends_with(".tar.gz") || normalize_dependency_path(path) != path || lock_contains(path, "\\") || lock_contains(path, "".encode_utf8().push(0).decode_utf8())) && failure == None() { failure = Some(lock_error("local archive path must be normalized and end in .tar.gz", member.offset)) }
                                       }
                                     }
                                     if url_field != None() {
@@ -235,36 +259,6 @@ pure lock_parse_edges(value: ManifestJsonValue): Result[[PackageLockEdge], Packa
 }
 
 pub pure lock_package_id(name: Str, version: Str): Str { name + "@" + version }
-
-pure lock_cycle_visit(
-  identity: Str,
-  packages: [PackageLockPackage],
-  active: [Str],
-  visited: [Str]
-): PackageLockCycleWalk {
-  mut on_stack = false
-  for candidate in active { on_stack = on_stack || candidate == identity }
-  mut already_seen = false
-  for candidate in visited { already_seen = already_seen || candidate == identity }
-  if on_stack { PackageLockCycleWalk(true, visited) }
-  else if already_seen { PackageLockCycleWalk(false, visited) }
-  else {
-    mut next_visited = visited.append(identity)
-    mut cycle = false
-    for package in packages {
-      if lock_package_id(package.name, package.version) == identity {
-        for edge in package.dependencies {
-          if !cycle {
-            walked = lock_cycle_visit(edge.package, packages, active.append(identity), next_visited)
-            cycle = walked.cycle
-            next_visited = walked.visited
-          }
-        }
-      }
-    }
-    PackageLockCycleWalk(cycle, next_visited)
-  }
-}
 
 pure lock_hex_digit(value: Nat): Nat {
   if value < 10 { 48 + value } else { 87 + value }
@@ -372,26 +366,8 @@ pub pure serialize_package_lock(lock: PackageLock): Str {
     ",\"version\":" + lock_json_quote(lock.root_version) + "}}"
 }
 
-pub pure verify_package_lock_root(
-  lock: PackageLock,
-  package: Str,
-  version: Str,
-  manifest_sha256: Str,
-  toolchain: Str
-): Result[Unit, Str] {
-  if lock.root_name != package || lock.root_version != version {
-    Error("lockfile root package identity does not match panack.json")
-  } else if lock.root_manifest_sha256 != manifest_sha256 {
-    Error("lockfile is stale: root manifest changed; run panack deps update")
-  } else if lock.toolchain != toolchain {
-    Error("lockfile toolchain does not match the running Panackelty version")
-  } else {
-    Ok(())
-  }
-}
-
 pub pure parse_package_lock(data: Bytes): Result[PackageLock, PackageManifestError] {
-  match parse_manifest_json(data) {
+  match parse_bounded_json(data, 1048576) {
     Error(error) => Error(error),
     Ok(root) => match manifest_object_unknown_field(root, ["lock_schema", "root", "packages"]) {
       Some(error) => Error(error),
@@ -479,13 +455,46 @@ pub pure parse_package_lock(data: Bytes): Result[PackageLock, PackageManifestErr
         mut referenced: [Str] = []
         for edge in root_deps { referenced = referenced.append(edge.package) }
         for package in packages { for edge in package.dependencies { referenced = referenced.append(edge.package) } }
-        mut reachable: [Str] = []
-        for edge in root_deps {
-          reachable = lock_reach(edge.package, packages, reachable)
-          walked = lock_cycle_visit(edge.package, packages, [], [])
-          if walked.cycle && failure == None() { failure = Some(lock_error("lock dependency graph contains a cycle", 0)) }
+        // Bound graph work before traversing untrusted lock records. Longest-path
+        // propagation also detects cycles without recursive stack growth.
+        mut depth: Map[Str, Nat] = map()
+        for edge in root_deps { depth = depth.put(edge.package, 2) }
+        if failure == None() {
+          for round in 0..64 {
+            for package in packages {
+              identity: Str = lock_package_id(package.name, package.version)
+              if depth.has(identity) {
+                next_depth: Nat = depth.get(identity) + 1
+                for edge in package.dependencies {
+                  if !depth.has(edge.package) || depth.get(edge.package) < next_depth {
+                    depth = depth.put(edge.package, next_depth)
+                  }
+                  if next_depth > 32 && failure == None() {
+                    failure = Some(lock_error("lock dependency graph contains a cycle or exceeds depth 32", 0))
+                  }
+                }
+              }
+            }
+          }
+          mut edges: [PackageLockEdge] = root_deps
+          for package in packages { for edge in package.dependencies { edges = edges.append(edge) } }
+          for package in packages {
+            identity: Str = lock_package_id(package.name, package.version)
+            if !depth.has(identity) && failure == None() {
+              failure = Some(lock_error("lock contains unreferenced package records", 0))
+            }
+            for edge in edges {
+              if edge.package == identity {
+                match lock_string(edge.source, "kind") {
+                  Error(error) => if failure == None() { failure = Some(error) },
+                  Ok(kind) => if (kind == "path") != (package.tree_sha256 == None()) && failure == None() {
+                    failure = Some(lock_error("lock tree digest must exist exactly for acquired package sources", 0))
+                  }
+                }
+              }
+            }
+          }
         }
-        if reachable.len() != packages.len() && failure == None() { failure = Some(lock_error("lock contains unreferenced package records", 0)) }
         for reference in referenced {
           mut found = false
           for identity in identities { found = found || identity == reference }
@@ -497,20 +506,5 @@ pub pure parse_package_lock(data: Bytes): Result[PackageLock, PackageManifestErr
         }
       }
     }
-  }
-}
-
-pure lock_reach(identity: Str, packages: [PackageLockPackage], visited: [Str]): [Str] {
-  mut next = visited
-  mut seen = false
-  for item in next { seen = seen || item == identity }
-  if seen { next } else {
-    next = next.append(identity)
-    for package in packages {
-      if lock_package_id(package.name, package.version) == identity {
-        for edge in package.dependencies { next = lock_reach(edge.package, packages, next) }
-      }
-    }
-    next
   }
 }

@@ -24,7 +24,7 @@ jobs:
           persist-credentials: false
       - name: Install native dependency
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install --yes libcurl4-openssl-dev
+        run: sudo apt-get update && sudo apt-get install --yes libcurl4-openssl-dev zlib1g-dev libssl-dev
       - run: make native-module-build
       - name: Measure isolated filesystem and complete native contracts
         run: |

@@ -24,7 +24,21 @@ test('the reviewed manifest accounts for every tracked production source', () =>
     'src/stdlib/async_host.panack',
     'src/stdlib/http_runtime.panack',
     'src/stdlib/tcp_service.panack',
-    'src/stdlib/package_filesystem.panack'
+    'src/stdlib/package_filesystem.panack',
+    'src/packages/acquisition.panack',
+    'src/packages/archive.panack',
+    'src/packages/case_fold.panack',
+    'src/packages/local_lock.panack',
+    'src/packages/lock.panack',
+    'src/packages/selective_update.panack',
+    'src/packages/sha256.panack',
+    'src/packages/tar_header.panack',
+    'src/packages/tar_stream.panack',
+    'src/packages/tree_digest.panack',
+    'src/stdlib/bounded_filesystem.panack',
+    'src/stdlib/digest.panack',
+    'src/stdlib/filesystem_stage.panack',
+    'src/stdlib/gzip.panack'
   ]);
 });
 

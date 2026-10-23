@@ -53,6 +53,8 @@ For migration from earlier releases, see the
 Runnable [owned and generic method examples](examples/README.md#type-owned-methods-alpha14)
 show custom APIs, Map coexistence and typed callbacks.
 
+The unreleased `next` branch adds [explicit locks and local archive dependencies](docs/guides/TOOLCHAIN.md#locked-local-dependencies-on-next) through a separate package tool written in Panack.
+
 ## Explore
 
 | I want to… | Start here |
@@ -73,4 +75,5 @@ See [contributor guidance](CONTRIBUTING.md) for the development workflow and
 [security policy](SECURITY.md) for reporting vulnerabilities.
 Panackelty is [MIT licensed](LICENSE); the photograph has its own attribution above.
 The native digest adapter uses OpenSSL 3 or later under
-[Apache 2.0](docs/licenses/OpenSSL-Apache-2.0.txt).
+[Apache 2.0](docs/licenses/OpenSSL-Apache-2.0.txt). Archive collision tables use
+[Unicode data](docs/licenses/Unicode-License.txt).

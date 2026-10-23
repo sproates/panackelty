@@ -4,14 +4,14 @@ pub record GzipChunk { consumed: Nat, data: Bytes, finished: Bool }
 
 // Each step consumes a prefix of input and emits at most 64 KiB. Pass finish
 // only for the final input; continue with its unconsumed suffix until finished.
-pub open(arg0: Nat): Result[Nat, HostError] {
-  gzip_open(arg0)
+pub open(output_limit: Nat): Result[Nat, HostError] {
+  gzip_open(output_limit)
 }
 
-pub step(arg0: Nat, arg1: Bytes, arg2: Bool): Result[GzipChunk, HostError] {
-  gzip_step(arg0, arg1, arg2)
+pub step(handle: Nat, input: Bytes, finish: Bool): Result[GzipChunk, HostError] {
+  gzip_step(handle, input, finish)
 }
 
-pub close(arg0: Nat): Result[Unit, HostError] {
-  gzip_close(arg0)
+pub close(handle: Nat): Result[Unit, HostError] {
+  gzip_close(handle)
 }

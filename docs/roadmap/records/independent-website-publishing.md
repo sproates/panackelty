@@ -83,6 +83,13 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
+- **GI#200 local package locks: Pending release.** On release of the matching
+  native toolchain, update package examples, installation prerequisites and
+  capability descriptions for explicit locks, local archive restore and the
+  separate Panack package tool. Keep alpha.14 instructions unchanged. Remote
+  source claims require P03/P04 acceptance. Ownership: core release and website
+  maintainers; evidence is the [P02 acceptance record](../../design/PACKAGE_LOCAL_ACCEPTANCE.md).
+
 - **Alpha.14 methods, HTTP and documentation: Done, 21 October 2026.**
   Website PR #51 published GI#518/GI#525 learning material and the HTTP slice of
   GI#552 after verifying the native alpha.14 and browser 0.2.1 releases. The

@@ -1,4 +1,7 @@
 #include "platform.h"
+#include "filesystem_stage.h"
+#include "gzip_stream.h"
+#include "digest.h"
 
 #include "buffer.h"
 #include "builtins_internal.h"
@@ -384,6 +387,13 @@ Value *host_call(VM *vm, const char *name, Value **a)
         if (!value_index(a[0], &code)) {
             vm->error = "VM trap: invalid process status";
             return NULL;
+        }
+        /* The synchronous exit path bypasses execute() teardown. Release
+         * native handles for this invocation and suspended bytecode parents. */
+        for (VM *owner = vm; owner; owner = owner->resource_parent) {
+            filesystem_stage_destroy(owner);
+            gzip_stream_destroy(owner);
+            digest_destroy(owner);
         }
         exit((int)code);
     }

@@ -427,6 +427,12 @@ pure parse_manifest_json_value(data: Bytes, cursor: Nat, depth: Nat): Result[Par
 pub pure parse_manifest_json(data: Bytes): Result[ManifestJsonValue, PackageManifestError] {
   if data.length() > package_manifest_byte_limit() {
     Error(manifest_error("manifest exceeds 65536-byte limit", package_manifest_byte_limit()))
+  } else { parse_bounded_json(data, package_manifest_byte_limit()) }
+}
+
+pub pure parse_bounded_json(data: Bytes, limit: Nat): Result[ManifestJsonValue, PackageManifestError] {
+  if data.length() > limit {
+    Error(manifest_error("JSON input exceeds byte limit", limit))
   } else if !valid_utf8(data) {
     Error(manifest_error("manifest is not valid UTF-8", 0))
   } else {

@@ -31,12 +31,13 @@ cat > "$work/geometry/src/api.panack" <<'SOURCE'
 pub pure answer(): Nat { 42 }
 SOURCE
 
+"$repo_root/bin/panack" deps lock --project "$work/app/panack.json" > "$work/lock.out"
 "$repo_root/bin/panack" check --project "$work/app/panack.json" > "$work/check.out"
 test "$(cat "$work/check.out")" = ok
 "$repo_root/bin/panack" run --project "$work/app/panack.json" > "$work/run.out"
 test "$(cat "$work/run.out")" = 42
 
-if rg -n '^import project/src/(compiler|bytecode)/' src/packages src/project_model; then
+if rg -n '^(pub )?import project/src/(compiler|bytecode)/' src/packages src/project_model; then
     echo 'package tool imports compiler or bytecode implementation sources' >&2
     exit 1
 fi

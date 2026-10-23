@@ -34,6 +34,7 @@ MANIFEST
 run_ok() {
     label=$1
     manifest=$2
+    PANACKELTY_VERSION="$version" PANACKELTY_STDLIB_PATH="$stdlib" ./bin/panack deps lock --project "$manifest" > "$work/lock.out"
     if PANACKELTY_VERSION="$version" PANACKELTY_STDLIB_PATH="$stdlib" \
         ./bin/panack check --project "$manifest" \
         > "$work/stdout" 2> "$work/stderr"; then

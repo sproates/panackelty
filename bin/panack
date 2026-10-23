@@ -74,29 +74,49 @@ case "${1-}" in
         echo "panack: cannot create a temporary resolved-project descriptor" >&2
         exit 1
       }
-      trap 'rm -f "$descriptor"' 0 HUP INT TERM
+      child=
+      project_signal() {
+        trap - HUP INT TERM
+        status=1
+        if [ -n "$child" ]; then
+          kill -"$1" "$child" 2>/dev/null || :
+          wait "$child"
+          status=$?
+        fi
+        rm -f "$descriptor"
+        exit "$status"
+      }
+      trap 'rm -f "$descriptor"' 0
+      trap 'project_signal HUP' HUP
+      trap 'project_signal INT' INT
+      trap 'project_signal TERM' TERM
       status=0
-      "$vm" run "$package_tool" prepare --project "$project" > "$descriptor" || status=$?
+      "$vm" run "$package_tool" prepare --project "$project" <&0 > "$descriptor" &
+      child=$!
+      wait "$child" || status=$?
+      child=
       if [ "$status" -eq 0 ]; then
-        "$vm" run "$compiler" "$command" --resolved-project "$descriptor" "$@" || status=$?
+        "$vm" run "$compiler" "$command" --resolved-project "$descriptor" "$@" <&0 &
+        child=$!
+        wait "$child" || status=$?
+        child=
       fi
       rm -f "$descriptor"
       trap - 0 HUP INT TERM
       exit "$status"
     fi
+    if [ "$command" != compile ]; then
+      case "${2-}" in
+        *.bc)
+          artifact=$2
+          shift 2
+          exec "$vm" "$command" "$artifact" "$@"
+          ;;
+      esac
+    fi
     ;;
   coverage-run|coverage-session)
     exec "$vm" "$@"
-    ;;
-  run|check)
-    command=$1
-    artifact=${2-}
-    case "$artifact" in
-      *.bc)
-        shift 2
-        exec "$vm" "$command" "$artifact" "$@"
-        ;;
-    esac
     ;;
   *.bc)
     artifact=$1

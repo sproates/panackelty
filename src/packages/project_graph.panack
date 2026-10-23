@@ -1,3 +1,5 @@
+pub import project/src/packages/acquisition::{ArchiveSource, AcquisitionOptions}
+import project/src/packages/acquisition::{acquire_archive}
 import stdlib/compiler_paths as path_support
 import stdlib/path as std_path
 import stdlib/package_filesystem as std_package_filesystem
@@ -21,7 +23,8 @@ pub record ManifestProject {
   package: Str,
   version: Str,
   dependencies: [ManifestDependencyProject],
-  root_identity: FilesystemRootIdentity
+  root_identity: FilesystemRootIdentity,
+  archives: [ArchiveSource]
 }
 
 record ManifestPackageDeclaration {
@@ -31,7 +34,8 @@ record ManifestPackageDeclaration {
 
 record PackageDependencyGraph {
   packages: [ManifestPackageDeclaration],
-  edges: [ManifestDependencyProject]
+  edges: [ManifestDependencyProject],
+  archives: [ArchiveSource]
 }
 
 package_dependency_graph_max_packages(): Nat { 64 }
@@ -119,11 +123,11 @@ physical_source_roots_overlap(left: Str, right: Str): Result[Bool, Str] {
   }
 }
 
-pub read_manifest_project(path: Str): Result[ManifestProject, Str] {
+pub read_manifest_project(path: Str, options: AcquisitionOptions): Result[ManifestProject, Str] {
   match read_manifest_project_file(path, true) {
     Error(message) => Error(message),
     Ok(declaration) => manifest_project_with_dependencies(
-      declaration.project, declaration.dependencies
+      declaration.project, declaration.dependencies, options
     )
   }
 }
@@ -204,7 +208,7 @@ manifest_project_from_manifest(
         manifest.package,
         manifest.version,
         [],
-        root_identity
+        root_identity, []
       ))
     },
     Some(entry) => {
@@ -218,7 +222,7 @@ manifest_project_from_manifest(
         manifest.package,
         manifest.version,
         [],
-        root_identity
+        root_identity, []
       ))
     }
   }
@@ -226,12 +230,13 @@ manifest_project_from_manifest(
 
 manifest_project_with_dependencies(
   project: ManifestProject,
-  dependencies: [PackageManifestDependency]
+  dependencies: [PackageManifestDependency],
+  options: AcquisitionOptions
 ): Result[ManifestProject, Str] {
   initial: PackageDependencyGraph = PackageDependencyGraph(
-    [ManifestPackageDeclaration(project, dependencies)], []
+    [ManifestPackageDeclaration(project, dependencies)], [], []
   )
-  match resolve_package_dependency_graph(project, dependencies, [project.root_identity], initial) {
+  match resolve_package_dependency_graph(project, dependencies, [project.root_identity], initial, options) {
     Error(message) => Error(message),
     Ok(graph) => Ok(ManifestProject(
       project.package_root,
@@ -242,7 +247,7 @@ manifest_project_with_dependencies(
       project.package,
       project.version,
       graph.edges,
-      project.root_identity
+      project.root_identity, graph.archives
     ))
   }
 }
@@ -251,7 +256,8 @@ resolve_package_dependency_graph(
   owner: ManifestProject,
   declarations: [PackageManifestDependency],
   ancestry: [FilesystemRootIdentity],
-  graph: PackageDependencyGraph
+  graph: PackageDependencyGraph,
+  options: AcquisitionOptions
 ): Result[PackageDependencyGraph, Str] {
   mut current: PackageDependencyGraph = graph
   mut failure: Option[Str] = None()
@@ -260,9 +266,24 @@ resolve_package_dependency_graph(
       Some(message) => {},
       None() => {
         alias: Str = dependency.alias
-        dependency_root: Str = path_support.resolve(path_support.join(owner.package_root, dependency.path))
-        dependency_manifest: Str = path_support.join(dependency_root, "panack.json")
-        match read_manifest_project_file(dependency_manifest, false) {
+        declared: Str = path_support.resolve(path_support.join(owner.package_root, dependency.path))
+        mut source_root: Result[Str, Str] = Ok(declared)
+        if dependency.kind == "archive" {
+          match acquire_archive(options, declared, package_project_package_id(owner.package, owner.version), alias, current.archives) {
+            Error(message) => { source_root = Error(message) },
+            Ok(acquired) => {
+              source_root = Ok(acquired.root)
+              mut present: Bool = false
+              for previous in current.archives { present = present || previous.root == acquired.root }
+              if !present { current = PackageDependencyGraph(current.packages, current.edges, current.archives.append(acquired)) }
+            }
+          }
+        }
+        declaration_result = match source_root {
+          Error(message) => Error(message),
+          Ok(root) => read_manifest_project_file(path_support.join(root, "panack.json"), false)
+        }
+        match declaration_result {
           Error(message) => { failure = Some("dependency ${alias}: ${message}") },
           Ok(declaration) => {
             package: ManifestProject = declaration.project
@@ -339,7 +360,7 @@ resolve_package_dependency_graph(
                           package.version,
                           package.root_identity
                         )
-                        current = PackageDependencyGraph(current.packages, current.edges.append(edge))
+                        current = PackageDependencyGraph(current.packages, current.edges.append(edge), current.archives)
                         match known {
                           Some(previous) => {},
                           None() => {
@@ -347,13 +368,13 @@ resolve_package_dependency_graph(
                               failure = Some("package dependency graph exceeds 64 packages")
                             } else {
                               current = PackageDependencyGraph(
-                                current.packages.append(declaration), current.edges
+                                current.packages.append(declaration), current.edges, current.archives
                               )
                               match resolve_package_dependency_graph(
                                 package,
                                 declaration.dependencies,
                                 ancestry.append(package.root_identity),
-                                current
+                                current, options
                               ) {
                                 Error(message) => { failure = Some("dependency ${alias}: ${message}") },
                                 Ok(expanded) => { current = expanded }

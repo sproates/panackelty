@@ -4,7 +4,7 @@ pub import project/src/project_model/package_manifest::{
   ManifestJsonValue.ManifestJsonArray, ManifestJsonValue.ManifestJsonObject,
   PackageManifestError, PackageManifestExport,
   manifest_json_object_field, manifest_json_string_field,
-  manifest_object_unknown_field, parse_manifest_json,
+  manifest_object_unknown_field, parse_bounded_json,
   manifest_identifier, manifest_package_name, manifest_semver,
   manifest_logical_path, manifest_relative_path_error
 }
@@ -321,6 +321,20 @@ pure resolved_project_valid_graph(project: ResolvedProject): Bool {
   for package in project.packages {
     if reachable.has(package.id) { reachable_count = reachable_count + 1 }
   }
+  mut depths: Map[Str, Nat] = map().put(project.root, 1)
+  for round in 0..64 {
+    for package in project.packages {
+      if depths.has(package.id) {
+        depth: Nat = depths.get(package.id)
+        if depth > 32 { valid = false }
+        for edge in package.dependencies {
+          if !depths.has(edge.target) || depths.get(edge.target) < depth + 1 {
+            depths = depths.put(edge.target, depth + 1)
+          }
+        }
+      }
+    }
+  }
   valid && reachable_count == project.packages.len()
 }
 
@@ -411,7 +425,7 @@ pub pure serialize_resolved_project(project: ResolvedProject): Str {
 }
 
 pub pure parse_resolved_project(data: Bytes): Result[ResolvedProject, PackageManifestError] {
-  match parse_manifest_json(data) {
+  match parse_bounded_json(data, 1048576) {
     Error(error) => Error(error),
     Ok(value) => match manifest_object_unknown_field(value, ["schema", "root", "toolchain", "packages"]) {
       Some(error) => Error(error),

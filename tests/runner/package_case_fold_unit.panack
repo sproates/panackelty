@@ -1,0 +1,14 @@
+import project/src/packages/case_fold::{case_folder, fold_path}
+import stdlib/testing as testing
+import stdlib/host as host
+main(): Void {
+  folder = case_folder()
+  results = [
+    testing.equal_str("ASCII path case folding", fold_path(folder, "Src/API.panack"), "src/api.panack"),
+    testing.equal_str("Latin non-ASCII case folding", fold_path(folder, "École"), "école"),
+    testing.equal_str("Full Unicode expansion", fold_path(folder, "Straße"), "strasse"),
+    testing.equal_str("Greek final sigma folding", fold_path(folder, "Σςσ"), "σσσ"),
+    testing.equal_str("Cyrillic case folding", fold_path(folder, "Б"), "б")
+  ]
+  if testing.report(results) > 0 { host.exit(1) }
+}

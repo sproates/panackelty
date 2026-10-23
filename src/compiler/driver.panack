@@ -247,6 +247,11 @@ driver_resolved_package_paths_valid(package: ResolvedPackage): Result[Unit, Str]
   if root != package.package_root || source != package.source_root ||
       !(source == root || source.starts_with_at(root + "/", 0)) {
     Error("resolved project package roots are invalid or outside their package")
+  } else if match package.entry {
+    None() => false,
+    Some(entry) => path_support.resolve(entry) != entry || !entry.starts_with_at(source + "/", 0)
+  } {
+    Error("resolved project entry is outside its source root")
   } else {
     match std_path.from_text(root) {
       Error(error) => Error("resolved project package root is invalid"),
@@ -280,6 +285,23 @@ driver_validate_resolved_project(project: ResolvedProject): Result[ResolvedPacka
         Ok(unit) => {}
       }
       if package.id == project.root { root = Some(package) }
+      else if package.entry != None() || package.exports.len() == 0 {
+        failure = Some("resolved dependency must be a library with exports")
+      }
+      for other in project.packages {
+        if package.id < other.id && failure == None() {
+          match std_path.from_text(package.source_root) {
+            Error(problem) => { failure = Some("invalid source root") },
+            Ok(left) => match std_path.from_text(other.source_root) {
+              Error(problem) => { failure = Some("invalid source root") },
+              Ok(right) => match std_package_filesystem.directories_overlap(left, right) {
+                Error(problem) => { failure = Some("cannot inspect resolved source roots") },
+                Ok(overlaps) => if overlaps { failure = Some("resolved physical source roots overlap") }
+              }
+            }
+          }
+        }
+      }
     }
     match failure {
       Some(message) => Error(message),

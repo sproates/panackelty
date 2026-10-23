@@ -141,10 +141,15 @@ tool without rebuilding the compiler or refreshing its seed. The compiler
 validates the descriptor and retains its physical root and source containment
 checks; lock and archive policy stays outside compiler implementation modules.
 
-The current typed filesystem API cannot safely publish a staged package cache:
-it exposes path-based writes and unique temporary paths, but no directory
-handles or atomic publication. Archive extraction remains gated on a generic
-host operation that can provide those guarantees.
+Generic native adapters supply bounded file I/O, confined staging, zlib streams
+and OpenSSL EVP digests. Panack modules under `src/packages` own archive
+validation, graph acquisition, lock policy, Unicode collision checks and cache
+verification. Directory handles and no-follow operations keep writes beneath a
+private stage. Atomic rename/exchange publishes one fully verified package at a
+time. Lock-bound state lives outside package sources in `.panack_modules/.state`.
+A failure after some entries are published requires restore; publication is not
+a transaction spanning the complete graph. VM completion, traps and synchronous
+process exit release outstanding adapter handles.
 
 P05's method owner metadata distinguishes nominal declaration identities from
 closed built-in family tags. Built-in declarations are accepted only in the

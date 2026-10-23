@@ -98,8 +98,10 @@ graphs and locks; P02c adds bounded local archives and the complete local comman
 workflow. The interim implementation includes the separate tool, stricter
 compiler handoff, local-directory locks, native staging/gzip/digest adapters and
 Panack tar/tree-digest modules. Focused checks pass, but this remains a draft
-checkpoint. Archive/cache integration, selective updates, bootstrap refresh,
-coverage inventories and full CLI acceptance are outstanding. No P02 completion
+checkpoint. Archive/cache integration, selective updates, the reproducible seed refresh
+and coverage inventories are now implemented. Focused local CLI, transitive
+archive, relocation and sanitizer checks pass. Full-suite acceptance and exact-head
+CI remain outstanding. No P02 completion
 credit is earned by publishing the interim PR.
 
 The owner approved OpenSSL 3+ for generic SHA-256 after the pure-Panack version

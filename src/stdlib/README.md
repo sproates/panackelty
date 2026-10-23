@@ -170,3 +170,28 @@ P10 migrates library bodies and conformance callers to owned dispatch.
 `TestWorkspace.remove_empty` is defined in its owning testing_files module.
 Its old module function is removed. Compiler and remaining callers use owned
 methods after P11; P12 removes their compatibility implementation.
+
+## Native streaming and confined filesystem adapters on next
+
+`stdlib/digest` provides invocation-owned OpenSSL SHA-256 contexts. Open a handle,
+feed chunks of at most 64 KiB, then finish for 32 digest bytes or close it. Finish
+and close consume the handle; stale handles fail. It does not implement package
+identity or lock policy.
+
+`stdlib/gzip` provides a zlib decoder with an output budget up to 256 MiB.
+Each step accepts at most 64 KiB and returns consumed input, at most 64 KiB output,
+and a finished flag. Continue with unconsumed input; mark the final input and
+continue until finished. Concatenated members share the budget. Invalid trailers,
+truncation and trailing non-gzip data fail. Close the handle after completion.
+
+`stdlib/bounded_filesystem` reads regular files in chunks of at most 64 KiB and
+atomically replaces a regular file with at most 32 MiB. `stdlib/filesystem_stage`
+creates a private directory below a verified parent. Its opaque handle supports
+relative directory creation and exclusive file creation followed by sequential
+chunk writes. Publishing consumes the handle and atomically installs or exchanges
+one immediate child directory; close discards an unpublished stage. Symlinks and
+parent traversal are rejected. These operations provide visibility atomicity,
+not a multi-file transaction or a promise of crash durability.
+
+Live handles are released on VM completion, failure and synchronous process exit.
+The native adapters are unavailable in the browser and report `unsupported`.

@@ -1,3 +1,4 @@
+import stdlib/compiler_paths as paths
 pub import project/src/packages/project_graph::{ManifestProject}
 import project/src/packages/project_graph::{package_project_from_manifest}
 import project/src/project_model/resolved_project::{ResolvedPackage, ResolvedProject}
@@ -7,8 +8,9 @@ import project/src/project_model/package_manifest::{
 }
 pub import project/src/packages/lock::{PackageLock}
 import project/src/packages/lock::{PackageLockPackage, PackageLockEdge,
-  parse_package_lock, serialize_package_lock}
+  parse_package_lock, serialize_package_lock, normalize_dependency_path}
 import project/src/packages/sha256::{sha256_bytes}
+import project/src/packages/acquisition::{ArchiveSource}
 import stdlib/environment as environment
 import stdlib/path as path
 import stdlib/filesystem as filesystem
@@ -19,35 +21,6 @@ import stdlib/package_filesystem as package_filesystem
 record LockedManifest {
   manifest: PackageManifest,
   digest: Str
-}
-
-pub pure normalize_dependency_path(value: Str): Str {
-  absolute: Bool = value.starts_with_at("/", 0)
-  mut segments: [Str] = []
-  mut start: Nat = 0
-  for index in 0..value.len() + 1 {
-    if index == value.len() || value[index] == "/" {
-      segment: Str = value.slice(start, index)
-      count: Nat = segments.len()
-      previous: Nat = if count > 0 { count - 1 } else { 0 }
-      if segment != "" && segment != "." {
-        if segment == ".." && count > 0 && segments[previous] != ".." {
-          mut reduced: [Str] = []
-          for keep in 0..previous { reduced = reduced.append(segments[keep]) }
-          segments = reduced
-        } else if segment != ".." || !absolute {
-          segments = segments.append(segment)
-        }
-      }
-      start = index + 1
-    }
-  }
-  mut result: Str = if absolute { "/" } else { "" }
-  for segment in segments {
-    if result != "" && result != "/" { result = result + "/" }
-    result = result + segment
-  }
-  if result == "" { "." } else { result }
 }
 
 read_locked_manifest(package: ResolvedPackage, toolchain: Str): Result[LockedManifest, Str] {
@@ -62,7 +35,13 @@ read_locked_manifest(package: ResolvedPackage, toolchain: Str): Result[LockedMan
         } else {
           match parse_package_manifest(read.contents, toolchain) {
             Error(problem) => Error(problem.message),
-            Ok(manifest) => if manifest.package != package.name || manifest.version != package.version {
+            Ok(manifest) => if manifest.package != package.name || manifest.version != package.version ||
+              paths.resolve(paths.join(package.package_root, manifest.source)) != package.source_root ||
+              manifest.exports != package.exports ||
+              match manifest.entry {
+                None() => package.entry != None(),
+                Some(entry) => package.entry != Some(paths.resolve(paths.join(package.source_root, entry)))
+              } {
               Error("package identity changed while resolving dependencies")
             } else {
               match sha256_bytes(read.contents) {
@@ -77,16 +56,23 @@ read_locked_manifest(package: ResolvedPackage, toolchain: Str): Result[LockedMan
   }
 }
 
-pure local_edges(package: ResolvedPackage, declarations: [PackageManifestDependency]): [PackageLockEdge] {
+pure local_edges(package: ResolvedPackage, declarations: [PackageManifestDependency], archives: [ArchiveSource]): [PackageLockEdge] {
   mut edges: [PackageLockEdge] = []
   for declaration in declarations {
     for resolved in package.dependencies {
       if resolved.alias == declaration.alias {
-        source = ManifestJsonObject([
+        mut fields: [ManifestJsonMember] = [
           ManifestJsonMember("kind", ManifestJsonString(declaration.kind), 0),
           ManifestJsonMember("path", ManifestJsonString(normalize_dependency_path(declaration.path)), 0)
-        ])
-        edges = edges.append(PackageLockEdge(declaration.alias, resolved.target, source))
+        ]
+        if declaration.kind == "archive" {
+          for archive in archives {
+            if resolved.target == archive.name + "@" + archive.version {
+              fields = fields.append(ManifestJsonMember("archive_sha256", ManifestJsonString(archive.archive_hash), 0))
+            }
+          }
+        }
+        edges = edges.append(PackageLockEdge(declaration.alias, resolved.target, ManifestJsonObject(fields)))
       }
     }
   }
@@ -105,15 +91,34 @@ pub current_local_lock(project: ManifestProject): Result[PackageLock, Str] {
       match read_locked_manifest(package, toolchain) {
         Error(problem) => { failure = Some(problem) },
         Ok(read) => {
-          edges: [PackageLockEdge] = local_edges(package, read.manifest.dependencies)
+          for declaration in read.manifest.dependencies {
+            source: Str = paths.resolve(paths.join(package.package_root, declaration.path))
+            mut agrees: Bool = false
+            for edge in package.dependencies {
+              if edge.alias == declaration.alias {
+                for target in resolved.packages {
+                  if target.id == edge.target {
+                    if declaration.kind == "path" { agrees = source == target.package_root }
+                    else { for archive in project.archives {
+                      agrees = agrees || (archive.root == target.package_root && archive.source == source)
+                    } }
+                  }
+                }
+              }
+            }
+            if !agrees { failure = Some("dependency source changed while resolving graph") }
+          }
+          edges: [PackageLockEdge] = local_edges(package, read.manifest.dependencies, project.archives)
           if edges.len() != package.dependencies.len() {
             failure = Some("package manifest changed while constructing lock graph")
           } else if package.id == resolved.root {
             root_hash = read.digest
             root_edges = edges
           } else {
+            mut tree: Option[Str] = None()
+            for archive in project.archives { if archive.root == package.package_root { tree = Some(archive.tree_hash) } }
             packages = packages.append(PackageLockPackage(
-              package.name, package.version, read.digest, None(), edges
+              package.name, package.version, read.digest, tree, edges
             ))
           }
         }

@@ -217,6 +217,9 @@ main(): Void {
         "\"dependencies\":{\"geometry\":{\"path\":\"../library\"}}")
       std_filesystem.write(package_manifest, dependency_manifest_text.encode_utf8())
       std_filesystem.write(package_entry, "import stdlib/host as service_host\nimport project/value as value\nimport geometry/api as geometry\nmain(): Void { print(value.answer()); print(geometry.answer()); arguments: [Str] = service_host.arguments(); print(arguments.len()); }\n".encode_utf8())
+      results = results.append(std_testing_commands.run_command("local dependency fixture creates lock",
+        source_compiler_command(["deps", "update", "--project", package_manifest_text], toolchain_version),
+        ProcessOutput(0, 0, "ok\n".encode_utf8(), byte_buffer.empty())))
       results = results.append(std_testing_commands.run_command("manifest application checks declared local library",
         source_compiler_command(["check", "--project", package_manifest_text], toolchain_version),
         ProcessOutput(0, 0, "ok\n".encode_utf8(), byte_buffer.empty())))
@@ -277,6 +280,9 @@ main(): Void {
         "\"geometry\":{\"path\":\"../library\"},\"geometry_copy\":{\"path\":\"../library\"}")
       std_filesystem.write(second_app_manifest, second_app_manifest_contents.encode_utf8())
       std_filesystem.write(second_app_entry, "import geometry_copy/api as geometry\nmain(): Void { print(geometry.answer()); }\n".encode_utf8())
+      results = results.append(std_testing_commands.run_command("second application fixture creates lock",
+        source_compiler_command(["deps", "update", "--project", second_app_manifest_text], toolchain_version),
+        ProcessOutput(0, 0, "ok\n".encode_utf8(), byte_buffer.empty())))
       results = results.append(std_testing_commands.run_command("second manifest application shares the local library",
         source_compiler_command(["run", "--project", second_app_manifest_text], toolchain_version),
         ProcessOutput(0, 0, "42\n".encode_utf8(), byte_buffer.empty())))
@@ -389,6 +395,9 @@ main(): Void {
         "\"geometry\":{\"path\":\"../library\"}",
         "\"geometry\":{\"path\":\"../library\"},\"math_direct\":{\"path\":\"../internal\"}")
       std_filesystem.write(package_manifest, nested_diamond_manifest.encode_utf8())
+      results = results.append(std_testing_commands.run_command("nested dependency fixture refreshes lock",
+        source_compiler_command(["deps", "update", "--project", package_manifest_text], toolchain_version),
+        ProcessOutput(0, 0, "ok\n".encode_utf8(), byte_buffer.empty())))
       std_filesystem.write(package_entry, "import stdlib/host as service_host\nimport project/value as value\nimport geometry/api as geometry\nimport math_direct/math as direct_math\nmain(): Void { print(value.answer()); print(geometry.answer()); print(direct_math.answer()); arguments: [Str] = service_host.arguments(); print(arguments.len()); }\n".encode_utf8())
       match std_process.run(path("./bin/panack"),
           source_compiler_arguments(["check", "--project", package_manifest_text]),
@@ -625,6 +634,9 @@ main(): Void {
         }
       }
       std_filesystem.write(library_extra, "import project/api as api\npub pure next_answer(): Nat { api.answer() + 1 }\n".encode_utf8())
+      results = results.append(std_testing_commands.run_command("direct dependency fixture refreshes lock",
+        source_compiler_command(["deps", "update", "--project", package_manifest_text], toolchain_version),
+        ProcessOutput(0, 0, "ok\n".encode_utf8(), byte_buffer.empty())))
       results = results.append(std_testing_commands.run_command("manifest application recompiles direct dependencies after nested checks",
         source_compiler_command(["compile", "--project", package_manifest_text, "-o", bytecode_text], toolchain_version),
         ProcessOutput(0, 0, "wrote ${bytecode_text}\n".encode_utf8(), byte_buffer.empty())))
@@ -640,6 +652,8 @@ main(): Void {
       results = results.append(std_testing_commands.run_command("saved package bytecode runs after relocation",
         command(["run", bytecode_text]),
         ProcessOutput(0, 0, "42\n42\n0\n".encode_utf8(), byte_buffer.empty())))
+      std_filesystem.remove_file(child(relocated_root, "panack.lock.json"))
+      std_filesystem.remove_file(child(second_app_root, "panack.lock.json"))
       std_filesystem.remove_file(relocated_entry)
       std_filesystem.remove_file(relocated_value)
       std_filesystem.remove_file(relocated_manifest)

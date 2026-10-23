@@ -55,8 +55,11 @@ initial P02 implementation to the P01 baseline; P02–P04 remain at 0%. The P01
 [contract](docs/design/PACKAGE_MANAGEMENT_CONTRACT.md) defines lock and restore
 behaviour. The [implementation boundaries](docs/design/PACKAGE_MANAGEMENT_IMPLEMENTATION.md)
 require a separately built Panackelty package tool, zlib for gzip and a small
-compiler-handoff proof before archive implementation. Website impact: none; this is a compiler and
-package-tool contract and does not change user-facing site claims.
+compiler-handoff proof before archive implementation. PR#575 implements the
+local workflow; [candidate acceptance](docs/design/PACKAGE_LOCAL_ACCEPTANCE.md)
+records focused evidence and remaining full-suite/CI validation. No additional
+completion is earned yet. Website changes wait for a matching native release
+and are recorded in the website follow-up register.
 
 <a id="rm-158"></a> [RM#158](docs/roadmap/records/dependency-management--idea.md#rm-158),
 <a id="rm-159"></a> [RM#159](docs/roadmap/records/dependency-management--idea.md#rm-159),

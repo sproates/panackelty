@@ -153,7 +153,7 @@ cache on failure; deleting it before rename does not satisfy atomic replacement.
 Use the existing supported platform mechanisms, with explicit failure if the
 required guarantee cannot be provided. Prove this before relying on it.
 
-The current API inventory has been checked for P02a. `stdlib/filesystem`
+The original API inventory for P02a established the missing capability. `stdlib/filesystem`
 provides path-based metadata, bounded read, truncating write, listing, removal,
 directory creation and unique temporary paths. `stdlib/package_filesystem`
 adds physical root identity, ancestry comparison and a no-follow rooted read.
@@ -161,10 +161,20 @@ The native implementation uses directory-relative opens for that rooted read,
 but exposes no directory handle, directory-relative create/write, recursive
 staging operation or atomic rename/publication operation to Panackelty. Ordinary
 `fs_write` truncates its target in place. These APIs therefore do not establish
-safe extraction or replacement of a published cache. P02c archive work is
-blocked on a generic host capability that can stage under a verified directory
-and atomically publish while preserving the prior cache on failure. Do not
-approximate that capability with lexical checks plus path-based writes.
+safe extraction or replacement of a published cache. P02 adds `stdlib/filesystem_stage`: opaque handles retain verified parent and
+staging directories, create files through no-follow directory-relative opens,
+and publish with an exclusive rename or atomic exchange. Native tests exercise
+replacement, symlink refusal and cleanup. Panack decides when a validated
+archive is ready to publish; the adapter receives no package or lock metadata.
+
+Publication is atomic per cache entry. The complete graph is validated before
+any entry is published, and each failed exchange preserves that entry. A group
+of exchanges and the lock are not a single filesystem transaction. Update
+writes the validated lock first; a later publication failure leaves complete
+entries and requires `deps restore` before compilation can proceed. Cache state
+is the canonical lock under `.panack_modules/.state/lock.json`, written after
+all entries. Ordinary commands verify that state and each tree before emitting
+a compiler descriptor.
 
 ## Archive and remote implementation choices
 
@@ -246,3 +256,14 @@ the concrete failing case, impact and a recommended alternative. Do not silently
 move package logic into C or the compiler to get past a difficulty. No additional
 commands, registry, general FFI, new compiler modularity programme or package
 build scripts are authorised by this plan.
+
+## Unicode collision keys
+
+Archive path collisions use Unicode 17.0.0 default full case folding (the C and
+F mappings in Unicode CaseFolding.txt; no locale-specific Turkic mappings).
+`src/packages/case_fold.panack` contains the sorted mapping table and a binary
+search. These keys affect collision detection only: source names and canonical
+tree digests retain their original UTF-8 bytes. No normalization is applied.
+The data is distributed under `docs/licenses/Unicode-License.txt`, included in
+installed documentation. When updating the Unicode version, regenerate both
+sorted arrays from the C/F records and rerun the collision fixtures.

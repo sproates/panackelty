@@ -18,7 +18,9 @@ case_name=checksum-from-spaced-checkout
 checkout=$work/'checkout with spaces (test)'
 mkdir "$checkout"
 for name in Makefile VERSION bin bootstrap src tests examples packages tools docs README.md ROADMAP.md CONTRIBUTING.md LICENSE CHANGELOG.md SECURITY.md; do
-    ln -s "$root/$name" "$checkout/$name"
+    # Source compilation checks physical containment, including bootstrap tools.
+    # A real copied checkout also tests packaging without borrowing source roots.
+    cp -R "$root/$name" "$checkout/$name"
 done
 # Builds must own the executable they relink; a symlink shares the live root VM.
 cp "$root/panack-vm" "$checkout/panack-vm"
@@ -117,10 +119,7 @@ equal_files "$work/stdout" "$work/import.stdout"
 test ! -s "$work/stderr" || fail 'installed import stderr'
 pass
 case_name=compiler-artifact-from-spaced-checkout
-# Use real copied sources, as source.path must remain inside this checkout.
-rm "$checkout/src" "$checkout/examples"
-cp -R "$root/src" "$checkout/src"
-cp -R "$root/examples" "$checkout/examples"
+# Sources were copied when this isolated checkout was created.
 for stage in stage1 stage2; do
     mkdir -p "$checkout/build/bootstrap/$stage"
     cp "$root/bootstrap/compiler-v9.bc" "$checkout/build/bootstrap/$stage/compiler.bc"

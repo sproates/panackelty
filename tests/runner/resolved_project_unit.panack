@@ -69,6 +69,10 @@ main(): Void {
   results = results.append(std_testing.expect("export parent traversal rejected",
     !descriptor_accepts(replace_first(descriptor_fixture(), "api.panack", "../private.panack")),
     "escaping export accepted"))
+  results = results.append(std_testing.expect("descriptor dependency cycle rejected",
+    !descriptor_accepts(replace_first(descriptor_fixture(), "\"dependencies\":[]}]}",
+      "\"dependencies\":[{\"alias\":\"app\",\"target\":\"example.app@1.0.0\"}]}]}")),
+    "dependency cycle accepted"))
   failures: Nat = std_testing.report(results)
   if failures > 0 { std_host.exit(1) }
 }

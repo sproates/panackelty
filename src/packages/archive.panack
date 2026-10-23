@@ -20,11 +20,6 @@ record ArchiveDecoder {
   offset: Nat
 }
 
-pure archive_remaining(total: Nat, used: Nat): Nat {
-  signed_total: Int = total
-  ((signed_total - used) / 1).nat()
-}
-
 consume_compressed(
   stage: Nat,
   decoder: Nat,

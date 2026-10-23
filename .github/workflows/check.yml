@@ -106,7 +106,7 @@ jobs:
         if: runner.os == 'Linux' && needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
         run: |
           sudo apt-get update
-          sudo apt-get install --yes libcurl4-openssl-dev
+          sudo apt-get install --yes libcurl4-openssl-dev zlib1g-dev libssl-dev
 
       - name: Validate and package with an isolated command environment
         if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
@@ -190,7 +190,7 @@ jobs:
       - name: Install native HTTP client dependency
         run: |
           sudo apt-get update
-          sudo apt-get install --yes libcurl4-openssl-dev
+          sudo apt-get install --yes libcurl4-openssl-dev zlib1g-dev libssl-dev
       - name: Run bounded compiler and runtime smoke
         run: make check-no-interpreter CI_SUITE=next-smoke
 
@@ -217,7 +217,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install --yes libcurl4-openssl-dev
+          sudo apt-get install --yes libcurl4-openssl-dev zlib1g-dev libssl-dev
 
       - name: Run project checks
         if: contains(fromJSON('["compiler", "runtime"]'), matrix.suite)

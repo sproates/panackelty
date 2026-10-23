@@ -1,0 +1,28 @@
+import project/src/packages/archive::{stage_archive, discard_archive}
+import stdlib/host as host
+
+pure contains(value: Str, needle: Str): Bool {
+  mut found: Bool = false
+  for index in 0..value.len() {
+    found = found || value.starts_with_at(needle, index)
+  }
+  found
+}
+
+// Exercise the real streaming parser and verify the diagnostic category.
+main(): Void {
+  arguments = host.arguments()
+  match stage_archive(arguments[0], arguments[1]) {
+    Error(problem) => {
+      if !contains(problem, arguments[2]) {
+        print("unexpected archive error: " + problem)
+        host.exit(1)
+      }
+    },
+    Ok(archive) => {
+      cleanup = discard_archive(archive)
+      print("unsafe archive accepted")
+      host.exit(1)
+    }
+  }
+}

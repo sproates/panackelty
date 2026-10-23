@@ -1,0 +1,231 @@
+pub import project/src/packages/lock::{PackageLock, PackageLockEdge, PackageLockPackage}
+import project/src/packages/lock::{lock_package_id, serialize_package_lock}
+import project/src/packages/archive::{StagedArchive, stage_archive, discard_archive}
+import project/src/packages/tree_digest::{tree_digest, verify_tree_digest}
+import project/src/packages/sha256::{Sha256, sha256_new, sha256_feed, sha256_finish, sha256_bytes, sha256_close}
+import project/src/project_model/package_manifest::{parse_package_manifest, manifest_json_string_field}
+import stdlib/path as path
+import stdlib/filesystem as filesystem
+import stdlib/filesystem::{FileKind.Directory, FileKind.RegularFile}
+import stdlib/bounded_filesystem as bounded
+import stdlib/filesystem_stage as staging
+import stdlib/environment as environment
+
+pub record ArchiveSource {
+  source: Str,
+  root: Str,
+  name: Str,
+  version: Str,
+  archive_hash: Str,
+  manifest_hash: Str,
+  tree_hash: Str,
+  stage: Option[Nat]
+}
+
+pub record AcquisitionOptions { root: Str, materialize: Bool, locked: Option[PackageLock] }
+
+pub pure locked_edge(lock: PackageLock, owner: Str, alias: Str): Option[PackageLockEdge] {
+  mut edges: [PackageLockEdge] = []
+  if owner == lock_package_id(lock.root_name, lock.root_version) { edges = lock.dependencies }
+  else { for package in lock.packages {
+    if owner == lock_package_id(package.name, package.version) { edges = package.dependencies }
+  } }
+  mut found: Option[PackageLockEdge] = None()
+  for edge in edges { if edge.alias == alias { found = Some(edge) } }
+  found
+}
+
+pub pure locked_package(lock: PackageLock, id: Str): Option[PackageLockPackage] {
+  mut found: Option[PackageLockPackage] = None()
+  for package in lock.packages {
+    if lock_package_id(package.name, package.version) == id { found = Some(package) }
+  }
+  found
+}
+
+pub ensure_directory(name: Str, create: Bool): Result[Unit, Str] {
+  match path.from_text(name) {
+    Error(problem) => Error("invalid directory path"),
+    Ok(directory) => match filesystem.metadata(directory) {
+      Ok(info) => if info.kind == Directory() { Ok(()) }
+        else { Error("cache or state path is not a directory: " + name) },
+      Error(problem) => if problem.code == "not_found" && create {
+        match filesystem.create_directory(directory) {
+          Error(creation_error) => Error("cannot create cache directory: " + creation_error.code),
+          Ok(completed_1) => ensure_directory(name, false)
+        }
+      } else { Error("missing cache; run panack deps restore") }
+    }
+  }
+}
+
+pub hash_archive_file(name: Str): Result[Str, Str] {
+  match path.from_text(name) {
+    Error(problem) => Error("invalid archive path"),
+    Ok(file) => {
+      mut hash: Sha256 = sha256_new()
+      mut offset: Nat = 0
+      mut done: Bool = false
+      mut failure: Option[Str] = None()
+      while !done && failure == None() {
+        match bounded.read_chunk(file, offset, 65536) {
+          Error(problem) => { failure = Some("cannot read archive: " + problem.code) },
+          Ok(bytes) => {
+            offset = offset + bytes.length()
+            if offset > 67108864 { failure = Some("archive exceeds 64 MiB compressed input") }
+            else { hash = sha256_feed(hash, bytes) }
+            done = bytes.length() == 0
+          }
+        }
+      }
+      match failure {
+        Some(problem) => { sha256_close(hash); Error(problem) },
+        None() => sha256_finish(hash)
+      }
+    }
+  }
+}
+
+inspect_staged_archive(source: Str, archive: StagedArchive): Result[ArchiveSource, Str] {
+  match path.from_text(archive.root + "/panack.json") {
+    Error(problem) => Error("invalid staged manifest path"),
+    Ok(file) => match filesystem.read(file, 65536) {
+      Error(problem) => Error("cannot read staged manifest"),
+      Ok(bytes) => match parse_package_manifest(bytes, environment.get("PANACKELTY_VERSION").value_or("")) {
+        Error(problem) => Error("invalid archive manifest: " + problem.message),
+        Ok(manifest) => match sha256_bytes(bytes) {
+          Error(problem) => Error(problem),
+          Ok(manifest_hash) => match tree_digest(archive.root, archive.entries) {
+            Error(problem) => Error(problem),
+            Ok(tree_hash) => Ok(ArchiveSource(source, archive.root, manifest.package,
+              manifest.version, archive.compressed_sha256, manifest_hash, tree_hash, Some(archive.handle)))
+          }
+        }
+      }
+    }
+  }
+}
+
+cached_archive(options: AcquisitionOptions, source: Str, owner: Str, alias: Str): Result[ArchiveSource, Str] {
+  match options.locked {
+    None() => Error("missing lockfile; run panack deps lock"),
+    Some(lock) => match locked_edge(lock, owner, alias) {
+      None() => Error("dependency is missing from lock; run panack deps update"),
+      Some(edge) => match locked_package(lock, edge.package) {
+        None() => Error("locked package is missing"),
+        Some(package) => match manifest_json_string_field(edge.source, "archive_sha256") {
+          Error(problem) => Error("locked dependency is not an archive; run panack deps update"),
+          Ok(expected) => match hash_archive_file(source) {
+            Error(problem) => Error(problem),
+            Ok(actual) => if actual != expected { Error("archive digest mismatch; run panack deps update") }
+            else {
+              root: Str = options.root + "/.panack_modules/" + package.name
+              match ensure_directory(root, false) {
+                Error(problem) => Error(problem),
+                Ok(completed_2) => match package.tree_sha256 {
+                  None() => Error("archive lock is missing tree digest"),
+                  Some(tree) => match verify_tree_digest(root, tree) {
+                    Error(problem) => Error(problem),
+                    Ok(completed_3) => Ok(ArchiveSource(source, root, package.name, package.version,
+                      actual, package.manifest_sha256, tree, None()))
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+pub acquire_archive(options: AcquisitionOptions, source: Str, owner: Str, alias: Str,
+  previous: [ArchiveSource]): Result[ArchiveSource, Str] {
+  mut known: Option[ArchiveSource] = None()
+  for acquired in previous { if acquired.source == source { known = Some(acquired) } }
+  match known {
+    Some(acquired) => Ok(acquired),
+    None() => if !options.materialize && options.locked == None() {
+      Error("missing lockfile; run panack deps lock")
+    } else { match ensure_directory(options.root + "/.panack_modules", options.materialize) {
+      Error(problem) => Error(problem),
+      Ok(completed_4) => if !options.materialize { cached_archive(options, source, owner, alias) }
+      else {
+        match stage_archive(options.root + "/.panack_modules", source) {
+          Error(problem) => Error(problem),
+          Ok(archive) => {
+            result = inspect_staged_archive(source, archive)
+            match result {
+              Ok(acquired) => Ok(acquired),
+              Error(problem) => { cleanup = discard_archive(archive); Error(problem) }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+}
+
+pub verify_cache_state(root: Str, lock: PackageLock): Result[Unit, Str] {
+  mut archives: Bool = false
+  for package in lock.packages { if package.tree_sha256 != None() { archives = true } }
+  if !archives { Ok(()) } else {
+    match ensure_directory(root + "/.panack_modules", false) {
+      Error(problem) => Error(problem),
+      Ok(completed_5) => match ensure_directory(root + "/.panack_modules/.state", false) {
+        Error(problem) => Error(problem),
+        Ok(completed_6) => match path.from_text(root + "/.panack_modules/.state/lock.json") {
+          Error(problem) => Error("invalid state path"),
+          Ok(file) => match filesystem.metadata(file) {
+            Error(problem) => Error("missing cache state; run panack deps restore"),
+            Ok(info) => if info.kind != RegularFile() { Error("cache state must be a regular file") }
+            else { match filesystem.read(file, 1048576) {
+              Error(problem) => Error("cannot read cache state"),
+              Ok(bytes) => if bytes == serialize_package_lock(lock).encode_utf8() { Ok(()) }
+                else { Error("cache state mismatch; run panack deps restore") }
+            } }
+          }
+        }
+      }
+    }
+  }
+}
+
+pub publish_archives(root: Str, sources: [ArchiveSource], lock: PackageLock): Result[Unit, Str] {
+  mut pending: Bool = false
+  for source in sources { pending = pending || source.stage != None() }
+  if !pending { Ok(()) } else {
+    // All graph and lock validation precedes this per-entry commit. Each exchange
+    // preserves its previous entry if that exchange fails; this is not a
+    // multi-package transaction. State is published only after all entries.
+    match ensure_directory(root + "/.panack_modules/.state", true) {
+      Error(problem) => Error(problem),
+      Ok(completed_7) => {
+        mut failure: Option[Str] = None()
+        for source in sources {
+          if failure == None() { match source.stage {
+            None() => {},
+            Some(handle) => match path.from_text(source.name) {
+              Error(problem) => { failure = Some("invalid package cache name") },
+              Ok(name) => match staging.publish(handle, name, true) {
+                Error(problem) => { failure = Some("cannot publish package cache: " + problem.code) },
+                Ok(completed_8) => {}
+              }
+            }
+          } }
+        }
+        match failure {
+          Some(problem) => Error(problem),
+          None() => match path.from_text(root + "/.panack_modules/.state/lock.json") {
+            Error(problem) => Error("invalid state path"),
+            Ok(file) => match bounded.atomic_write(file, serialize_package_lock(lock).encode_utf8()) {
+              Error(problem) => Error("cannot publish cache state: " + problem.code),
+              Ok(completed_9) => Ok(())
+            }
+          }
+        }
+      }
+    }
+  }
+}

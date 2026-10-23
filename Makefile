@@ -5,7 +5,7 @@ HTTP_CURL_CONFIG ?= curl-config
 HTTP_CURL_CFLAGS := $(shell $(HTTP_CURL_CONFIG) --cflags 2>/dev/null)
 HTTP_CURL_LIBS := $(shell $(HTTP_CURL_CONFIG) --libs 2>/dev/null)
 CPPFLAGS += $(HTTP_CURL_CFLAGS) -pthread
-LDLIBS += $(HTTP_CURL_LIBS) -pthread -lz
+LDLIBS += $(HTTP_CURL_LIBS) -pthread
 export PANACKELTY_STDLIB_PATH := $(abspath src/stdlib)
 
 CHECK_BUDGET_SECONDS ?= 120
@@ -165,7 +165,6 @@ unit-runtime-probes:
 		tests/runner/bytecode_unit.panack \
 		tests/runner/bytecode_native_unit.panack
 	@PANACK_PROBE_SEED="$(abspath $(STAGE2_COMPILER))" $(PROFILE) probe/package_filesystem_unit $(PROBE) tests/runner/package_filesystem_unit.panack
-	@PANACK_PROBE_SEED="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROFILE) probe/package_archive_unit sh tests/package_archive.sh $(PROBE)
 
 unit-compiler: native $(STAGE2_COMPILER) compiler-integration-probe
 	@$(MAKE) --no-print-directory native-oracle-artifacts

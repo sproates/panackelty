@@ -71,8 +71,7 @@ pub pure is_builtin(name: Str): Bool {
     name == "fs_remove_file" ||
     name == "fs_remove_directory" ||
     name == "fs_temp_file" ||
-    name == "fs_temp_directory" || name == "package_archive_inspect" ||
-    name == "package_archive_restore" ||
+    name == "fs_temp_directory" ||
     name == "host_decode_utf8" ||
     name == "host_sleep" ||
     name == "process_run" ||

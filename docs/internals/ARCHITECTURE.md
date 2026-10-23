@@ -131,6 +131,21 @@ reports independently. The website owns compatibility coverage landing pages.
 
 ## Compiler pipeline
 
+Project package resolution now has a separate Panackelty package tool under
+`src/packages/`, built as `build/tools/panack-packages.bc` from the saved seed.
+The tool and compiler share only records, manifest parsing and the strict
+resolved-project descriptor under `src/project_model/`. For a project command,
+`bin/panack` asks the package tool to prepare a temporary descriptor, then gives
+that descriptor to the compiler. Package-only source edits rebuild the package
+tool without rebuilding the compiler or refreshing its seed. The compiler
+validates the descriptor and retains its physical root and source containment
+checks; lock and archive policy stays outside compiler implementation modules.
+
+The current typed filesystem API cannot safely publish a staged package cache:
+it exposes path-based writes and unique temporary paths, but no directory
+handles or atomic publication. Archive extraction remains gated on a generic
+host operation that can provide those guarantees.
+
 P05's method owner metadata distinguishes nominal declaration identities from
 closed built-in family tags. Built-in declarations are accepted only in the
 loader-assigned toolchain package's designated `core.panack`; a user package name

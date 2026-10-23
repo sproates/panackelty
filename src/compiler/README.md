@@ -67,24 +67,12 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   signature resolution. This avoids rescanning each module's full AST for every
   nominal type lookup. The loader separates physical source paths from relative
   semantic identity and passes declaration origins into resolver diagnostics.
-- `package_manifest.panack` is a pure parser for P3's strict schema-1
-  `panack.json` schema. It bounds JSON input and nesting, rejects duplicate and
-  unknown keys, validates package/version/toolchain fields and portable logical
-  paths, and returns a typed package record. `package_project.panack` selects an
-  explicitly named application manifest, enforces the running toolchain version,
-  and resolves its source and entry roots. The driver supports `check`, `compile`,
-  and `run` with `--project panack.json`; the loader reads package sources beneath
-  the selected physical root and assigns relocation-stable package identities.
-  Dependency-free libraries can also be checked across their exported modules;
-  compilation and execution require an application entry. Applications can
-  declare direct local library dependencies and import only their exported
-  logical modules; package-internal `project/` imports stay rooted in that
-  package. Each source read is checked against the physical package-root identity
-  captured from its manifest; exported sources cannot escape through symlinks.
-  Two apps can share the same library root. Direct application/dependency and
-  distinct-dependency source roots are compared by physical directory ancestry,
-  including symlink aliases. Nested dependency graphs and full package-loader
-  acceptance remain open P3 work.
+- `project_model/` owns package manifest records, parsing and the strict
+  schema-1 resolved-project descriptor shared with the independent package
+  tool. The compiler consumes only the descriptor; it does not resolve locks,
+  acquire packages or interpret archives. It still treats the descriptor as
+  untrusted and checks physical package-root identity and source containment
+  while loading.
 - `module_resolution.panack` resolves an explicit binding graph with namespace and
   selective imports, original-identity re-exports, enum selectors and qualified
   functions/types. It validates missing/private/conflicting imports and cycles,

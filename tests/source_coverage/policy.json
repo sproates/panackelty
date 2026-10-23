@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "GI518 adds the typed HTTP runtime adapter to the explicit unmeasured inventory; the bounded measured corpus is unchanged.",
-    "basis": "All 31 fresh local sessions completed for a914d81 with the hashing repair. Reviewed all 410 exclusions against source declarations: 255 imports, 130 records and 25 enums; no executable declaration is excluded.",
-    "scopeChange": "Account for src/stdlib/http_runtime.panack with its native and source/bytecode fixture evidence. No existing eligible file, execution root, exclusion or threshold changes; no fresh percentage measurement is claimed."
+    "reason": "P02 separates package policy and descriptor validation into dedicated source components; their files are explicitly accounted as unmeasured while the bounded execution corpus stays unchanged.",
+    "basis": "The package-tool handoff, resolved-project unit checks and public CLI fixture provide focused evidence. No package-source coverage percentage is claimed.",
+    "scopeChange": "Move package manifest and graph support into src/project_model/ and src/packages/, add the shared UTF-8 helper, and account for all new paths as unmeasured. No existing eligible source, execution root, exclusion or threshold changes."
   },
-  "manifestHash": "fca63aa0f41107a8d11d5000f824909a19ed98475e49c75aace706daf72d7506",
+  "manifestHash": "a22c856857c18d55ef91a0a9ec82544a4c3bb8b1988f2b10d7394d5f85366290",
   "exclusionHash": "773435167944b7750a18a232c06a2697356e8fb853efda5dfcf1a3acd8f10a7e"
 }

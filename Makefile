@@ -4,8 +4,17 @@ CFLAGS ?= -O2
 HTTP_CURL_CONFIG ?= curl-config
 HTTP_CURL_CFLAGS := $(shell $(HTTP_CURL_CONFIG) --cflags 2>/dev/null)
 HTTP_CURL_LIBS := $(shell $(HTTP_CURL_CONFIG) --libs 2>/dev/null)
+# Override OPENSSL_PREFIX for a non-system installation. Homebrew locations
+# are detected without making Homebrew or pkg-config a build dependency.
+OPENSSL_PREFIX ?= $(firstword $(wildcard /opt/homebrew/opt/openssl@3 /usr/local/opt/openssl@3))
+ifneq ($(OPENSSL_PREFIX),)
+CPPFLAGS += -I$(OPENSSL_PREFIX)/include
+CRYPTO_LIBS ?= $(OPENSSL_PREFIX)/lib/libcrypto.a
+else
+CRYPTO_LIBS ?= -lcrypto
+endif
 CPPFLAGS += $(HTTP_CURL_CFLAGS) -pthread
-LDLIBS += $(HTTP_CURL_LIBS) -pthread
+LDLIBS += $(HTTP_CURL_LIBS) -pthread -lz $(CRYPTO_LIBS)
 export PANACKELTY_STDLIB_PATH := $(abspath src/stdlib)
 
 CHECK_BUDGET_SECONDS ?= 120
@@ -62,7 +71,7 @@ COMPILER_INTEGRATION_GROUPS := \
 export PANACK_PROBE_CACHE := $(abspath $(BUILD_DIR))/probes
 export PANACK_PROBE_SEED := $(abspath $(SEED_COMPILER))
 
-all: native
+all: native package-tool
 
 browser-runtime-bundle:
 	@sh scripts/browser_runtime_bundle.sh
@@ -73,7 +82,7 @@ check:
 check-phases:
 	@sh tests/fixture_inventory.sh
 	@$(MAKE) --no-print-directory policy
-	@$(MAKE) --no-print-directory native native-module-build native-fault-build
+	@$(MAKE) --no-print-directory native package-tool native-module-build native-fault-build
 	@VALIDATION_JOBS="$(VALIDATION_JOBS)" sh tests/run_check_phases.sh "$(MAKE)"
 	@$(MAKE) --no-print-directory functional
 	@$(MAKE) --no-print-directory quick-start
@@ -137,7 +146,7 @@ check-vm-impl:
 	@$(PROFILE) functional/case/cli_commands $(PROBE) tests/runner/main.panack --case cli_commands
 	@$(PROFILE) functional/case/cli_environment_files $(PROBE) tests/runner/main.panack --case cli_environment_files
 
-unit: native native-module-build native-fault-build
+unit: native package-tool-check native-module-build native-fault-build
 	@$(TIMED) unit $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory unit-impl
 
 unit-impl:
@@ -189,7 +198,7 @@ unit-compiler: native $(STAGE2_COMPILER) compiler-integration-probe
 		tests/runner/compiler_lexer_unit.panack \
 		tests/runner/package_manifest_unit.panack
 
-functional: native
+functional: native package-tool
 	@$(TIMED) functional $(FUNCTIONAL_BUDGET_SECONDS) $(MAKE) --no-print-directory functional-impl
 
 $(BUILD_DIR)/vm/tcp_server: tests/tcp_server.c
@@ -212,7 +221,7 @@ $(BUILD_DIR)/vm/http_fixture: tests/http_fixture.c
 	@mkdir -p "$(@D)"
 	$(CC) $(CFLAGS) $(VM_WARNINGS) $< -o $@
 
-functional-impl: $(BUILD_DIR)/vm/static_http_client $(STAGE2_COMPILER) $(BUILD_DIR)/vm/tcp_server $(BUILD_DIR)/vm/tcp_client $(BUILD_DIR)/vm/http_client $(BUILD_DIR)/vm/http_fixture
+functional-impl: package-tool $(BUILD_DIR)/vm/static_http_client $(STAGE2_COMPILER) $(BUILD_DIR)/vm/tcp_server $(BUILD_DIR)/vm/tcp_client $(BUILD_DIR)/vm/http_client $(BUILD_DIR)/vm/http_fixture
 	@$(MAKE) --no-print-directory identity-root-audit
 	@$(PROFILE) functional/owned-dispatch-removal sh tests/owned_dispatch_removal.sh
 	@$(PROFILE) functional/owned-dot-dispatch sh tests/owned_dot_dispatch.sh
@@ -418,11 +427,27 @@ bootstrap-seed-refresh:
 native-check: bootstrap-check
 	sh tests/native_conformance.sh
 
-$(BUILD_DIR)/tools/http-server.bc: panack-vm $(SEED_COMPILER) tools/http-server/panack.json tools/http-server/src/main.panack $(wildcard packages/static_http/src/*.panack) packages/static_http/panack.json $(wildcard packages/http/src/*.panack) packages/http/panack.json $(wildcard src/stdlib/*.panack)
+PACKAGE_TOOL_ARTIFACT := $(BUILD_DIR)/tools/panack-packages.bc
+PACKAGE_TOOL_SOURCES := $(wildcard src/packages/*.panack src/project_model/*.panack src/stdlib/*.panack)
+
+.PHONY: package-tool package-tool-check
+package-tool: $(PACKAGE_TOOL_ARTIFACT)
+
+$(PACKAGE_TOOL_ARTIFACT): panack-vm $(SEED_COMPILER) $(PACKAGE_TOOL_SOURCES)
+	@mkdir -p "$(@D)"
+	PANACKELTY_BOOTSTRAP_ROOT="$(abspath .)" $(PROFILE) package-tool-build ./panack-vm run "$(SEED_COMPILER)" compile src/packages/main.panack -o "$@"
+	./panack-vm check "$@"
+
+package-tool-check: package-tool native-io-check
+	@PANACK_PROBE_SEED="$(abspath $(SEED_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROBE) tests/runner/package_sha256_unit.panack
+	@PANACK_PROBE_SEED="$(abspath $(SEED_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROBE) tests/runner/resolved_project_unit.panack
+	@sh tests/package_tool_handoff.sh
+
+$(BUILD_DIR)/tools/http-server.bc: package-tool panack-vm $(SEED_COMPILER) tools/http-server/panack.json tools/http-server/src/main.panack $(wildcard packages/static_http/src/*.panack) packages/static_http/panack.json $(wildcard packages/http/src/*.panack) packages/http/panack.json $(wildcard src/stdlib/*.panack)
 	@mkdir -p "$(@D)"
 	./bin/panack compile --project tools/http-server/panack.json -o "$@"
 
-install: native $(BUILD_DIR)/tools/http-server.bc
+install: native package-tool $(BUILD_DIR)/tools/http-server.bc
 	install -d "$(DESTDIR)$(PREFIX)/bin"
 	install -d "$(DESTDIR)$(PREFIX)/libexec/panackelty"
 	install -d "$(DESTDIR)$(PREFIX)/share/panackelty"
@@ -436,12 +461,14 @@ install: native $(BUILD_DIR)/tools/http-server.bc
 	install -m 755 panack-vm "$(DESTDIR)$(PREFIX)/libexec/panackelty/panack-vm"
 	install -m 644 VERSION "$(DESTDIR)$(PREFIX)/share/panackelty/VERSION"
 	install -m 644 $(SEED_COMPILER) "$(DESTDIR)$(PREFIX)/share/panackelty/compiler-v9.bc"
+	install -m 644 "$(PACKAGE_TOOL_ARTIFACT)" "$(DESTDIR)$(PREFIX)/share/panackelty/panack-packages-v1.bc"
 	install -m 644 "$(BUILD_DIR)/tools/http-server.bc" "$(DESTDIR)$(PREFIX)/share/panackelty/http-server-v1.bc"
 	install -m 644 src/stdlib/*.panack "$(DESTDIR)$(PREFIX)/share/panackelty/stdlib/"
 	cp -R packages/http/. "$(DESTDIR)$(PREFIX)/packages/http/"
 	cp -R packages/static_http/. "$(DESTDIR)$(PREFIX)/packages/static_http/"
 	install -m 644 tools/http-server/panack.json tools/http-server/README.md "$(DESTDIR)$(PREFIX)/tools/http-server/"
 	install -m 644 tools/http-server/src/*.panack "$(DESTDIR)$(PREFIX)/tools/http-server/src/"
+	install -m 644 docs/licenses/OpenSSL-Apache-2.0.txt "$(DESTDIR)$(PREFIX)/share/doc/panackelty/"
 	install -m 644 LICENSE CHANGELOG.md docs/releases/RELEASE_POLICY.md SECURITY.md docs/reference/SPEC.md "$(DESTDIR)$(PREFIX)/share/doc/panackelty/"
 
 package: native-check
@@ -576,3 +603,14 @@ $(BUILD_DIR)/experiments/runtime-provenance-vm: tests/experiments/runtime_proven
 .PHONY: source-coverage-session-smoke
 source-coverage-session-smoke: native
 	@sh tests/coverage_compiler_session.sh
+
+.PHONY: native-io-check
+native-io-check: $(BUILD_DIR)/vm/filesystem_stage_native $(BUILD_DIR)/vm/digest_native
+	./$(BUILD_DIR)/vm/filesystem_stage_native
+	./$(BUILD_DIR)/vm/digest_native
+
+$(BUILD_DIR)/vm/filesystem_stage_native: tests/filesystem_stage_native.c $(VM_LIBRARY_OBJECTS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< $(VM_LIBRARY_OBJECTS) -o $@ $(LDLIBS)
+
+$(BUILD_DIR)/vm/digest_native: tests/digest_native.c $(VM_LIBRARY_OBJECTS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< $(VM_LIBRARY_OBJECTS) -o $@ $(LDLIBS)

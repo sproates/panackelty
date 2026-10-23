@@ -375,6 +375,9 @@ static VMTcpServer *tcp_server_start_mode(const VM *vm, Function *handler, const
         return server;
     }
     server->template_vm = *vm;
+    server->template_vm.filesystem_stages = NULL;
+    server->template_vm.gzip_streams = NULL;
+    server->template_vm.digests = NULL;
     if (!vm->coverage_run) vm_coverage_gap(vm->coverage);
     server->template_vm.coverage = NULL;
     server->handler = handler;

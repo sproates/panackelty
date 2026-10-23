@@ -1,0 +1,148 @@
+pub import project/src/packages/tar_stream::{ArchiveEntry}
+import project/src/packages/tar_stream::{TarStream, tar_stream_new, tar_stream_feed, tar_stream_finish}
+import project/src/packages/sha256::{Sha256, sha256_new, sha256_feed, sha256_finish, sha256_close}
+import stdlib/bounded_filesystem as bounded_filesystem
+import stdlib/filesystem_stage as staging
+import stdlib/gzip as gzip
+import stdlib/path as path
+import stdlib/bytes as byte_buffer
+
+pub record StagedArchive {
+  handle: Nat,
+  root: Str,
+  compressed_sha256: Str,
+  entries: [ArchiveEntry]
+}
+
+record ArchiveDecoder {
+  tar: TarStream,
+  digest: Sha256,
+  offset: Nat
+}
+
+pure archive_remaining(total: Nat, used: Nat): Nat {
+  signed_total: Int = total
+  ((signed_total - used) / 1).nat()
+}
+
+consume_compressed(
+  stage: Nat,
+  decoder: Nat,
+  state: TarStream,
+  input: Bytes,
+  final: Bool
+): Result[TarStream, Str] {
+  mut current: TarStream = state
+  mut offset: Nat = 0
+  mut complete: Bool = false
+  mut failure: Option[Str] = None()
+  // Empty input with final=true proves that a complete gzip trailer was seen.
+  while !complete && failure == None() {
+    match gzip.step(decoder, byte_buffer.slice(input, offset, input.length()), final) {
+      Error(problem) => { failure = Some("gzip: " + problem.code) },
+      Ok(chunk) => {
+        offset = offset + chunk.consumed
+        match tar_stream_feed(stage, current, chunk.data) {
+          Error(problem) => { failure = Some(problem) },
+          Ok(next) => { current = next }
+        }
+        complete = chunk.finished || (!final && offset == input.length() && chunk.data.length() < 65536)
+        if !complete && chunk.consumed == 0 && chunk.data.length() == 0 {
+          failure = Some("gzip decoder made no progress")
+        }
+      }
+    }
+  }
+  match failure { Some(problem) => Error(problem), None() => Ok(current) }
+}
+
+read_archive_stream(stage: Nat, decoder: Nat, source: Path): Result[ArchiveDecoder, Str] {
+  mut state: TarStream = tar_stream_new()
+  mut hash: Sha256 = sha256_new()
+  mut offset: Nat = 0
+  mut finished: Bool = false
+  mut failure: Option[Str] = None()
+  while !finished && failure == None() {
+    match bounded_filesystem.read_chunk(source, offset, 65536) {
+      Error(problem) => { failure = Some("cannot read archive: " + problem.code) },
+      Ok(input) => {
+        offset = offset + input.length()
+        if offset > 67108864 { failure = Some("archive exceeds 64 MiB compressed input") }
+        else {
+          hash = sha256_feed(hash, input)
+          finished = input.length() == 0
+          match consume_compressed(stage, decoder, state, input, finished) {
+            Error(problem) => { failure = Some(problem) },
+            Ok(next) => { state = next }
+          }
+        }
+      }
+    }
+  }
+  match failure {
+    Some(problem) => { sha256_close(hash)
+      Error(problem) },
+    None() => Ok(ArchiveDecoder(state, hash, offset))
+  }
+}
+
+extract_archive(stage: Nat, source: Path): Result[StagedArchive, Str] {
+  match gzip.open(268435456) {
+    Error(problem) => Error("cannot open gzip decoder: " + problem.code),
+    Ok(decoder) => {
+      read = read_archive_stream(stage, decoder, source)
+      closed = gzip.close(decoder)
+      match read {
+        Error(problem) => Error(problem),
+        Ok(state) => {
+          hash = sha256_finish(state.digest)
+          match hash {
+            Error(problem) => Error(problem),
+            Ok(hash_text) => match closed {
+          Error(problem) => Error("gzip cleanup failed: " + problem.code),
+          Ok(unit) => match tar_stream_finish(state.tar) {
+            Error(problem) => Error(problem),
+            Ok(entries) => match staging.path(stage) {
+              Error(problem) => Error("staging path unavailable: " + problem.code),
+              Ok(root) => match root.to_text() {
+                Error(problem) => Error("staging root is not UTF-8"),
+                Ok(text) => Ok(StagedArchive(stage, text, hash_text, entries))
+              }
+            }
+          }
+        }
+          }
+        }
+      }
+    }
+  }
+}
+
+pub stage_archive(parent: Str, archive: Str): Result[StagedArchive, Str] {
+  match path.from_text(parent) {
+    Error(problem) => Error("invalid archive staging parent"),
+    Ok(parent_path) => match path.from_text(archive) {
+      Error(problem) => Error("invalid archive source path"),
+      Ok(source) => match staging.begin(parent_path) {
+        Error(problem) => Error("cannot create archive staging directory: " + problem.code),
+        Ok(stage) => {
+          result = extract_archive(stage, source)
+          match result {
+            Ok(ready) => Ok(ready),
+            Error(problem) => {
+              cleanup = staging.close(stage)
+              Error(problem)
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+pub discard_archive(archive: StagedArchive): Result[Unit, Str] {
+  match staging.close(archive.handle) {
+    Error(problem) => Error("cannot remove staging directory: " + problem.code),
+    Ok(unit) => Ok(())
+  }
+}

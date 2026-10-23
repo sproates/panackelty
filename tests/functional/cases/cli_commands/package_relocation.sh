@@ -72,12 +72,6 @@ import shared/extra as extra
 main(): Void { print(extra.incremented()); }
 SOURCE
 
-run_compiler() (
-    cd "$outside"
-    PANACKELTY_VERSION="$version" PANACKELTY_STDLIB_PATH="$stdlib" \
-        "$panack_vm" run "$compiler" "$@"
-)
-
 run_panack() (
     cd "$outside"
     PANACKELTY_VERSION="$version" PANACKELTY_STDLIB_PATH="$stdlib" \
@@ -89,7 +83,7 @@ assert_output() {
     expected=$2
     shift 2
     status=0
-    run_compiler "$@" > "$work/stdout" 2> "$work/stderr" || status=$?
+    run_panack "$@" > "$work/stdout" 2> "$work/stderr" || status=$?
     if [ "$status" -eq 0 ] && [ "$(cat "$work/stdout")" = "$expected" ] && [ ! -s "$work/stderr" ]; then
         printf 'PASS %s from unrelated cwd\n' "$label"
         return

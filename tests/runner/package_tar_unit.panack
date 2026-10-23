@@ -1,0 +1,17 @@
+import project/src/packages/tar_header::{tar_normalize_path, parse_pax}
+import stdlib/testing as testing
+import stdlib/host as host
+pure safe(path: Str): Bool {
+  match tar_normalize_path(path) { Ok(value) => true, Error(problem) => false }
+}
+main(): Void {
+  results = [
+    testing.expect("nested archive path", safe("src/nested/main.panack"), "nested path rejected"),
+    testing.expect("parent traversal", !safe("src/../../outside"), "traversal accepted"),
+    testing.expect("absolute archive path", !safe("/outside"), "absolute path accepted"),
+    testing.expect("PAX truncated record", match parse_pax("99 path=x\n".encode_utf8()) {
+      Error(problem) => true, Ok(value) => false
+    }, "truncated PAX accepted")
+  ]
+  if testing.report(results) > 0 { host.exit(1) }
+}

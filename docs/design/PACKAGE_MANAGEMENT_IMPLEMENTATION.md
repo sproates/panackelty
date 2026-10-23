@@ -22,16 +22,26 @@ for findings and regression cases, not an approved architecture to reinstate.
 | Package tool under `src/packages/` | Panackelty entry point, manifest and lock handling, graph resolution, tar parsing, canonical hashing, cache policy, acquisition orchestration and diagnostics | Separately compiled bytecode; no import of compiler implementation modules |
 | Shared project model | Pure Panackelty records and validation needed by both tool and compiler | Neutral module with no dependency on acquisition, CLI or compiler passes |
 | Compiler | Source loading, package visibility, parsing, checking and code generation from a resolved project | No lock resolution, archive parsing, fetching or restoring; no import of package-tool implementation |
-| Standard library and host adapters | HTTP transport, gzip decompression, filesystem and process operations | Generic capabilities; no manifest, lock, package identity, tar or cache policy in C |
+| Standard library and host adapters | HTTP transport, gzip decompression, cryptographic digests, filesystem and process operations | Generic capabilities; no manifest, lock, package identity, tar or cache policy in C |
 | `bin/panack` | Command routing and invocation of separately built tools | No package policy in shell; preserve the public command and existing source/bytecode routes |
 
 Reuse the existing HTTP package and its libcurl transport. Use zlib for gzip.
-Implement tar parsing, digest canonicalisation and SHA-256 in Panackelty, with
-known-answer tests. Do not introduce a C `package_archive` subsystem or a
+Implement tar parsing and digest canonicalisation in Panackelty. Use OpenSSL 3
+or later through its EVP digest API for SHA-256, with known-answer tests. The
+generic adapter accepts bounded byte chunks and returns digest bytes; it knows
+nothing about packages, manifests, locks or cache paths. Do not introduce a C `package_archive` subsystem or a
 package-specific hash intrinsic. If a required language capability is absent,
 demonstrate that limitation before proposing a narrow generic extension.
 Native-library management for user packages remains outside GI#200; linking
-the toolchain to zlib does not add such a feature.
+the toolchain to zlib or libcrypto does not add such a feature.
+
+The owner approved the OpenSSL boundary on 23 October 2026 after the initial
+pure-Panackelty SHA-256 implementation took 35.05 seconds to hash 64 KiB on the
+development Mac. The EVP-backed implementation completed the same program in
+0.11 seconds with the identical hash, including byte-buffer construction. This changes the earlier requirement to implement the hash
+algorithm in Panackelty. Canonical input construction stays in Panackelty. Use
+the same backend on macOS and Linux. OpenSSL 3 and later use Apache 2.0; preserve
+its licence and applicable notices wherever release artifacts redistribute it.
 
 ## Separate build and compiler handoff
 
@@ -56,6 +66,47 @@ physical package root, source root, entry, exports and owning alias-to-package-I
 edges. Include the root toolchain requirement. Acquisition URLs, selectors,
 archive bytes and cache state are not compiler inputs. This descriptor is
 temporary and machine-local; it is not a second persistent lockfile.
+
+Schema 1 uses these exact fields. Every object is closed; fields shown below are
+required unless their value is `null` as documented:
+
+```json
+{
+  "schema": 1,
+  "root": "example.app@1.0.0",
+  "toolchain": "0.1.0-alpha.15",
+  "packages": [{
+    "id": "example.app@1.0.0",
+    "name": "example.app",
+    "version": "1.0.0",
+    "package_root": "/workspace/app",
+    "source_root": "/workspace/app/src",
+    "entry": "/workspace/app/src/main.panack",
+    "exports": [],
+    "root_device": 1,
+    "root_inode": 10,
+    "dependencies": [{"alias": "geometry", "target": "example.geometry@1.0.0"}]
+  }, {
+    "id": "example.geometry@1.0.0",
+    "name": "example.geometry",
+    "version": "1.0.0",
+    "package_root": "/workspace/geometry",
+    "source_root": "/workspace/geometry/src",
+    "entry": null,
+    "exports": [{"module": "api", "path": "api.panack"}],
+    "root_device": 1,
+    "root_inode": 11,
+    "dependencies": []
+  }]
+}
+```
+
+`root` and edge `target` are `name@version` IDs. `entry` is an absolute path
+for an application and `null` for a library. Export paths remain package
+relative. Root device/inode values bind each physical package root for this
+invocation; the compiler rechecks them before loading sources. Package records
+must describe exactly the reachable graph, with unique package names and no
+conflicting physical roots.
 
 P02's first slice must commit the exact descriptor schema, fixtures and internal
 invocation before adding archive acquisition. The implementor chooses field
@@ -102,6 +153,19 @@ cache on failure; deleting it before rename does not satisfy atomic replacement.
 Use the existing supported platform mechanisms, with explicit failure if the
 required guarantee cannot be provided. Prove this before relying on it.
 
+The current API inventory has been checked for P02a. `stdlib/filesystem`
+provides path-based metadata, bounded read, truncating write, listing, removal,
+directory creation and unique temporary paths. `stdlib/package_filesystem`
+adds physical root identity, ancestry comparison and a no-follow rooted read.
+The native implementation uses directory-relative opens for that rooted read,
+but exposes no directory handle, directory-relative create/write, recursive
+staging operation or atomic rename/publication operation to Panackelty. Ordinary
+`fs_write` truncates its target in place. These APIs therefore do not establish
+safe extraction or replacement of a published cache. P02c archive work is
+blocked on a generic host capability that can stage under a verified directory
+and atomically publish while preserving the prior cache on failure. Do not
+approximate that capability with lexical checks plus path-based writes.
+
 ## Archive and remote implementation choices
 
 The initial tar reader supports POSIX ustar regular files and directories, plus
@@ -141,7 +205,7 @@ separate package cache.
 | --- | --- |
 | P02a: independent tool | Package-tool entry/artifact, launcher route, exact descriptor schema and compiler handoff. Run a complete project with a local directory dependency. Demonstrate that a package-only behaviour edit changes tool output while compiler artifact/seed hashes and compiler build invocation count remain unchanged. Record the native API surface and prove staging/publication guarantees. |
 | P02b: local graph and lock | Panackelty strict lock reader/writer, exact root/transitive manifest digests, graph validation and local-directory commands. Prove stale/missing lock failures, relocation, absolute-path caveat, diamond identity and deterministic serialization. |
-| P02c: local archives | Narrow zlib adapter, Panackelty tar/digest implementation and safe cache lifecycle. Deliver local `deps lock/update/restore` and project check/compile/run through the public CLI. P02 ends with a usable local workflow, not disconnected parser modules. |
+| P02c: local archives | Narrow zlib adapter, Panackelty tar/canonicalisation implementation and safe cache lifecycle. Deliver local `deps lock/update/restore` and project check/compile/run through the public CLI. P02 ends with a usable local workflow, not disconnected parser modules. |
 | P03: remote sources | HTTPS archives through existing HTTP support and controlled Git acquisition. Test redirects, moved refs, unavailable pinned commits, whole-snapshot verification, sibling/diamond roots, changed remote bytes and offline reuse. Extend the same tool and descriptor without importing acquisition into the compiler. |
 | P04: final integration | Install/package both artifacts and native dependencies; finish help and diagnostics; validate all four source forms together, existing standalone routes, relocation and supported native platforms. Prove ordinary project commands remain network-free and never restore implicitly. |
 

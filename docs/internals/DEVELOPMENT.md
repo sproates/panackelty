@@ -7,7 +7,14 @@ toolchain itself. Normal Panackelty programs should use a downloaded release.
 Native development requires neither WASI SDK nor JavaScript packages.
 
 A source build requires a POSIX-like Linux or macOS environment, a C11 compiler,
-and `make`, plus standard POSIX utilities and a SHA-256 utility. The complete
+and `make`, plus standard POSIX utilities and a SHA-256 utility. Native libraries
+require libcurl, zlib and OpenSSL 3 or later, including their development headers.
+On Ubuntu install `libcurl4-openssl-dev zlib1g-dev libssl-dev`; on macOS install
+Homebrew `openssl@3` alongside the system curl and zlib SDK headers. The Makefile
+detects the usual Homebrew OpenSSL paths, or accepts `OPENSSL_PREFIX`. Homebrew
+builds link libcrypto statically so installed tools do not depend on a Homebrew
+path. System builds link `-lcrypto`; distributors must provide that runtime
+library. `CRYPTO_LIBS` can select a different library location. The complete
 development suite additionally requires Git for release-tag safety tests.
 `make policy` rejects source-tree
 interpreter dependencies; `make check-no-interpreter` runs a clean full check,

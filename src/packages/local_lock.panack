@@ -1,0 +1,182 @@
+pub import project/src/packages/project_graph::{ManifestProject}
+import project/src/packages/project_graph::{package_project_from_manifest}
+import project/src/project_model/resolved_project::{ResolvedPackage, ResolvedProject}
+import project/src/project_model/package_manifest::{
+  parse_package_manifest, PackageManifest, PackageManifestDependency, ManifestJsonMember,
+  ManifestJsonValue.ManifestJsonObject, ManifestJsonValue.ManifestJsonString
+}
+pub import project/src/packages/lock::{PackageLock}
+import project/src/packages/lock::{PackageLockPackage, PackageLockEdge,
+  parse_package_lock, serialize_package_lock}
+import project/src/packages/sha256::{sha256_bytes}
+import stdlib/environment as environment
+import stdlib/path as path
+import stdlib/filesystem as filesystem
+import stdlib/bounded_filesystem as bounded_filesystem
+import stdlib/filesystem::{FileKind.RegularFile}
+import stdlib/package_filesystem as package_filesystem
+
+record LockedManifest {
+  manifest: PackageManifest,
+  digest: Str
+}
+
+pub pure normalize_dependency_path(value: Str): Str {
+  absolute: Bool = value.starts_with_at("/", 0)
+  mut segments: [Str] = []
+  mut start: Nat = 0
+  for index in 0..value.len() + 1 {
+    if index == value.len() || value[index] == "/" {
+      segment: Str = value.slice(start, index)
+      count: Nat = segments.len()
+      previous: Nat = if count > 0 { count - 1 } else { 0 }
+      if segment != "" && segment != "." {
+        if segment == ".." && count > 0 && segments[previous] != ".." {
+          mut reduced: [Str] = []
+          for keep in 0..previous { reduced = reduced.append(segments[keep]) }
+          segments = reduced
+        } else if segment != ".." || !absolute {
+          segments = segments.append(segment)
+        }
+      }
+      start = index + 1
+    }
+  }
+  mut result: Str = if absolute { "/" } else { "" }
+  for segment in segments {
+    if result != "" && result != "/" { result = result + "/" }
+    result = result + segment
+  }
+  if result == "" { "." } else { result }
+}
+
+read_locked_manifest(package: ResolvedPackage, toolchain: Str): Result[LockedManifest, Str] {
+  match path.from_text(package.package_root) {
+    Error(problem) => Error("invalid package root"),
+    Ok(root) => match path.from_text("panack.json") {
+      Error(problem) => Error("invalid manifest name"),
+      Ok(relative) => match package_filesystem.read_beneath(root, relative, 65536) {
+        Error(problem) => Error("cannot read dependency manifest: " + package.package_root),
+        Ok(read) => if read.identity != package.identity {
+          Error("package root changed while reading its lock identity")
+        } else {
+          match parse_package_manifest(read.contents, toolchain) {
+            Error(problem) => Error(problem.message),
+            Ok(manifest) => if manifest.package != package.name || manifest.version != package.version {
+              Error("package identity changed while resolving dependencies")
+            } else {
+              match sha256_bytes(read.contents) {
+                Error(problem) => Error(problem),
+                Ok(hash) => Ok(LockedManifest(manifest, hash))
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+pure local_edges(package: ResolvedPackage, declarations: [PackageManifestDependency]): [PackageLockEdge] {
+  mut edges: [PackageLockEdge] = []
+  for declaration in declarations {
+    for resolved in package.dependencies {
+      if resolved.alias == declaration.alias {
+        source = ManifestJsonObject([
+          ManifestJsonMember("kind", ManifestJsonString(declaration.kind), 0),
+          ManifestJsonMember("path", ManifestJsonString(normalize_dependency_path(declaration.path)), 0)
+        ])
+        edges = edges.append(PackageLockEdge(declaration.alias, resolved.target, source))
+      }
+    }
+  }
+  edges
+}
+
+pub current_local_lock(project: ManifestProject): Result[PackageLock, Str] {
+  toolchain: Str = environment.get("PANACKELTY_VERSION").value_or("")
+  resolved: ResolvedProject = package_project_from_manifest(project, project.dependencies, toolchain)
+  mut root_hash: Str = ""
+  mut root_edges: [PackageLockEdge] = []
+  mut packages: [PackageLockPackage] = []
+  mut failure: Option[Str] = None()
+  for package in resolved.packages {
+    if failure == None() {
+      match read_locked_manifest(package, toolchain) {
+        Error(problem) => { failure = Some(problem) },
+        Ok(read) => {
+          edges: [PackageLockEdge] = local_edges(package, read.manifest.dependencies)
+          if edges.len() != package.dependencies.len() {
+            failure = Some("package manifest changed while constructing lock graph")
+          } else if package.id == resolved.root {
+            root_hash = read.digest
+            root_edges = edges
+          } else {
+            packages = packages.append(PackageLockPackage(
+              package.name, package.version, read.digest, None(), edges
+            ))
+          }
+        }
+      }
+    }
+  }
+  match failure {
+    Some(problem) => Error(problem),
+    None() => Ok(PackageLock(project.package, project.version, root_hash, toolchain, root_edges, packages))
+  }
+}
+
+pub read_local_lock(root: Str): Result[Option[PackageLock], Str] {
+  match path.from_text(root + "/panack.lock.json") {
+    Error(problem) => Error("invalid lock path"),
+    Ok(lock_path) => match filesystem.metadata(lock_path) {
+      Error(problem) => if problem.code == "not_found" { Ok(None()) } else { Error("cannot inspect lockfile") },
+      Ok(metadata) => if metadata.kind != RegularFile() {
+        Error("lockfile must be a regular file, not a symlink")
+      } else {
+        match filesystem.read(lock_path, 1048576) {
+          Error(problem) => Error("cannot read lockfile"),
+          Ok(data) => match parse_package_lock(data) {
+            Error(problem) => Error("invalid lockfile: " + problem.message),
+            Ok(lock) => Ok(Some(lock))
+          }
+        }
+      }
+    }
+  }
+}
+
+pub write_local_lock(root: Str, lock: PackageLock): Result[Unit, Str] {
+  match path.from_text(root + "/panack.lock.json") {
+    Error(problem) => Error("invalid lock path"),
+    Ok(destination) => match bounded_filesystem.atomic_write(destination, serialize_package_lock(lock).encode_utf8()) {
+      Error(problem) => Error("cannot atomically publish lockfile: " + problem.code),
+      Ok(unit) => Ok(())
+    }
+  }
+}
+
+pub pure locks_match(left: PackageLock, right: PackageLock): Bool {
+  serialize_package_lock(left) == serialize_package_lock(right)
+}
+
+pub verify_local_lock(project: ManifestProject): Result[Unit, Str] {
+  if project.dependencies.len() == 0 {
+    Ok(())
+  } else {
+    match read_local_lock(project.package_root) {
+      Error(problem) => Error(problem),
+      Ok(existing) => match existing {
+        None() => Error("missing lockfile; run panack deps lock"),
+        Some(lock) => match current_local_lock(project) {
+          Error(problem) => Error(problem),
+          Ok(current) => if locks_match(lock, current) {
+            Ok(())
+          } else {
+            Error("lockfile is stale: project or dependency manifest changed; run panack deps update")
+          }
+        }
+      }
+    }
+  }
+}

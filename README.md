@@ -72,3 +72,5 @@ show custom APIs, Map coexistence and typed callbacks.
 See [contributor guidance](CONTRIBUTING.md) for the development workflow and
 [security policy](SECURITY.md) for reporting vulnerabilities.
 Panackelty is [MIT licensed](LICENSE); the photograph has its own attribution above.
+The native digest adapter uses OpenSSL 3 or later under
+[Apache 2.0](docs/licenses/OpenSSL-Apache-2.0.txt).

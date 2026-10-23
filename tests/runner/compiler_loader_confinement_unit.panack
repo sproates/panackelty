@@ -3,7 +3,7 @@ import stdlib/testing as std_testing
 import stdlib/process as std_process
 import project/src/compiler/filesystem_support as filesystem_support
 import project/src/compiler/loader::{LoadedProject, load_project, load_project_diagnostics, load_project_package}
-import project/src/compiler/package_project::{FilesystemRootIdentity}
+import stdlib/package_filesystem::{FilesystemRootIdentity}
 import project/src/compiler/module_bodies::{BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyInvalid}
 import stdlib/bytes as byte_buffer
 import stdlib/filesystem as std_filesystem

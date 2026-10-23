@@ -1,0 +1,146 @@
+pub import project/src/packages/tar_stream::{ArchiveEntry}
+import project/src/packages/tar_header::{tar_normalize_path}
+import project/src/packages/sha256::{Sha256, sha256_new, sha256_feed, sha256_finish, sha256_close}
+import stdlib/bytes as byte_buffer
+import stdlib/path as path
+import stdlib/filesystem as filesystem
+import stdlib/filesystem::{FileKind.Directory, FileKind.RegularFile}
+import stdlib/bounded_filesystem as bounded_filesystem
+
+pure tree_entry_less(left: ArchiveEntry, right: ArchiveEntry): Bool { left.path < right.path }
+
+// All lengths are bounded far below 2^64 before encoding. Emit the contract's
+// unsigned big-endian length without depending on host integer representation.
+pure tree_length(value: Nat): Bytes {
+  mut result: Bytes = byte_buffer.empty()
+  mut divisor: Nat = 72057594037927936
+  for index in 0..8 {
+    result = result.push(value.divide(divisor) % 256)
+    divisor = divisor.divide(256)
+  }
+  result
+}
+
+tree_feed_file(state: Sha256, root: Str, entry: ArchiveEntry): Result[Sha256, Str] {
+  match path.from_text(root + "/" + entry.path) {
+    Error(problem) => Error("invalid tree entry path"),
+    Ok(file) => {
+      mut hash: Sha256 = state
+      mut offset: Nat = 0
+      mut finished: Bool = false
+      mut failure: Option[Str] = None()
+      while !finished && failure == None() {
+        match bounded_filesystem.read_chunk(file, offset, 65536) {
+          Error(problem) => { failure = Some("cannot read tree entry: " + entry.path) },
+          Ok(chunk) => {
+            offset = offset + chunk.length()
+            if offset > entry.size { failure = Some("tree entry changed size: " + entry.path) }
+            else { hash = sha256_feed(hash, chunk) }
+            finished = chunk.length() == 0
+          }
+        }
+      }
+      match failure {
+        Some(problem) => Error(problem),
+        None() => if offset != entry.size { Error("tree entry changed size: " + entry.path) }
+          else { Ok(hash) }
+      }
+    }
+  }
+}
+
+pub tree_digest(root: Str, entries: [ArchiveEntry]): Result[Str, Str] {
+  mut hash: Sha256 = sha256_feed(sha256_new(), "PANACK-PACKAGE-TREE".encode_utf8().push(0))
+  hash = sha256_feed(hash, "v1".encode_utf8().push(0))
+  mut failure: Option[Str] = None()
+  sorted = entries.sort_by(@tree_entry_less)
+  for entry in sorted {
+    if failure == None() {
+      name: Bytes = entry.path.encode_utf8()
+      hash = sha256_feed(hash, (if entry.directory { "D" } else { "F" }).encode_utf8())
+      hash = sha256_feed(hash, tree_length(name.length()))
+      hash = sha256_feed(hash, name)
+      hash = sha256_feed(hash, tree_length(if entry.directory { 0 } else { entry.size }))
+      if !entry.directory {
+        match tree_feed_file(hash, root, entry) {
+          Error(problem) => { failure = Some(problem) },
+          Ok(next) => { hash = next }
+        }
+      }
+    }
+  }
+  match failure {
+    Some(problem) => { sha256_close(hash); Error(problem) },
+    None() => sha256_finish(hash)
+  }
+}
+
+record TreeInventory { entries: [ArchiveEntry], bytes: Nat }
+
+scan_tree(root: Str, relative: Str, inventory: TreeInventory): Result[TreeInventory, Str] {
+  match path.from_text(root + "/" + relative) {
+    Error(problem) => Error("invalid cache directory"),
+    Ok(directory) => match filesystem.list_directory(directory) {
+      Error(problem) => Error("cannot list cache directory"),
+      Ok(children) => {
+        mut current: TreeInventory = inventory
+        mut failure: Option[Str] = None()
+        for child in children {
+          if failure == None() {
+            match child.to_text() {
+              Error(problem) => { failure = Some("cache path is not UTF-8") },
+              Ok(name) => {
+                joined: Str = if relative == "" { name } else { relative + "/" + name }
+                match tar_normalize_path(joined) {
+                  Error(problem) => { failure = Some(problem) },
+                  Ok(normalized) => if normalized != joined { failure = Some("noncanonical cache path") }
+                  else {
+                    match path.from_text(root + "/" + joined) {
+                      Error(problem) => { failure = Some("invalid cache path") },
+                      Ok(file) => match filesystem.metadata(file) {
+                        Error(problem) => { failure = Some("cannot inspect cache entry") },
+                        Ok(metadata) => {
+                          is_directory: Bool = metadata.kind == Directory()
+                          if !is_directory && metadata.kind != RegularFile() {
+                            failure = Some("cache contains a symlink or special file")
+                          } else if current.entries.len() >= 16384 {
+                            failure = Some("cache exceeds 16384 entries")
+                          } else {
+                            total: Nat = current.bytes + if is_directory { 0 } else { metadata.size }
+                            if total > 268435456 { failure = Some("cache exceeds expanded content limit") }
+                            else {
+                              current = TreeInventory(current.entries.append(
+                                ArchiveEntry(joined, if is_directory { 0 } else { metadata.size }, is_directory, true)), total)
+                              if is_directory {
+                                match scan_tree(root, joined, current) {
+                                  Error(problem) => { failure = Some(problem) },
+                                  Ok(next) => { current = next }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        match failure { Some(problem) => Error(problem), None() => Ok(current) }
+      }
+    }
+  }
+}
+
+pub verify_tree_digest(root: Str, expected: Str): Result[Unit, Str] {
+  match scan_tree(root, "", TreeInventory([], 0)) {
+    Error(problem) => Error(problem),
+    Ok(inventory) => match tree_digest(root, inventory.entries) {
+      Error(problem) => Error(problem),
+      Ok(actual) => if actual == expected { Ok(()) }
+        else { Error("cache tree digest mismatch; run panack deps restore") }
+    }
+  }
+}

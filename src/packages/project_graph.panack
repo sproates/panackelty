@@ -1,26 +1,17 @@
-import project/src/compiler/path_support as path_support
+import stdlib/compiler_paths as path_support
 import stdlib/path as std_path
 import stdlib/package_filesystem as std_package_filesystem
 import stdlib/environment as std_environment
+pub import project/src/project_model/package_project::{ManifestDependencyProject}
+pub import project/src/project_model/resolved_project::{ResolvedPackage, ResolvedPackageEdge, ResolvedProject}
 pub import stdlib/package_filesystem::{FilesystemRootIdentity}
 import stdlib/package_filesystem::{FilesystemRootRead}
-pub import project/src/compiler/package_manifest::{PackageManifestExport}
-import project/src/compiler/package_manifest::{PackageManifest, PackageManifestDependency, parse_package_manifest, package_manifest_byte_limit}
-import project/src/bytecode/decoder::{valid_utf8}
+pub import project/src/project_model/package_manifest::{PackageManifestExport}
+import project/src/project_model/package_manifest::{PackageManifest, PackageManifestDependency, parse_package_manifest, package_manifest_byte_limit}
+import project/src/project_model/utf8::{valid_utf8}
 
 // A dependency edge binds an owner-scoped alias to the target's public module map
 // and captured physical root. The loader consumes edges without filesystem search.
-pub record ManifestDependencyProject {
-  owner_root_identity: FilesystemRootIdentity,
-  alias: Str,
-  package_root: Str,
-  source_root: Str,
-  exported_modules: [PackageManifestExport],
-  package: Str,
-  version: Str,
-  root_identity: FilesystemRootIdentity
-}
-
 pub record ManifestProject {
   package_root: Str,
   source_root: Str,
@@ -46,6 +37,74 @@ record PackageDependencyGraph {
 package_dependency_graph_max_packages(): Nat { 64 }
 package_dependency_graph_max_edges(): Nat { 256 }
 package_dependency_graph_max_depth(): Nat { 32 }
+
+pure package_project_package_id(name: Str, version: Str): Str {
+  name + "@" + version
+}
+
+pure package_project_edges_for(
+  edges: [ManifestDependencyProject],
+  owner: FilesystemRootIdentity
+): [ResolvedPackageEdge] {
+  mut output: [ResolvedPackageEdge] = []
+  for edge in edges {
+    if edge.owner_root_identity == owner {
+      output = output.append(ResolvedPackageEdge(
+        edge.alias, package_project_package_id(edge.package, edge.version)
+      ))
+    }
+  }
+  output
+}
+
+pure package_project_has_identity(
+  packages: [ResolvedPackage],
+  identity: FilesystemRootIdentity
+): Bool {
+  mut found: Bool = false
+  for package in packages {
+    if package.identity == identity { found = true }
+  }
+  found
+}
+
+pub pure package_project_from_manifest(
+  root: ManifestProject,
+  edges: [ManifestDependencyProject],
+  toolchain: Str
+): ResolvedProject {
+  mut packages: [ResolvedPackage] = [ResolvedPackage(
+    package_project_package_id(root.package, root.version),
+    root.package,
+    root.version,
+    root.package_root,
+    root.source_root,
+    root.entry,
+    root.exported_modules,
+    root.root_identity,
+    package_project_edges_for(edges, root.root_identity)
+  )]
+  for edge in edges {
+    if !package_project_has_identity(packages, edge.root_identity) {
+      packages = packages.append(ResolvedPackage(
+        package_project_package_id(edge.package, edge.version),
+        edge.package,
+        edge.version,
+        edge.package_root,
+        edge.source_root,
+        None(),
+        edge.exported_modules,
+        edge.root_identity,
+        package_project_edges_for(edges, edge.root_identity)
+      ))
+    }
+  }
+  ResolvedProject(
+    package_project_package_id(root.package, root.version),
+    toolchain,
+    packages
+  )
+}
 
 physical_source_roots_overlap(left: Str, right: Str): Result[Bool, Str] {
   match std_path.from_text(left) {

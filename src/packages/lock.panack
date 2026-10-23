@@ -1,0 +1,516 @@
+pub import project/src/project_model/package_manifest::{ManifestJsonValue, ParsedManifestField, PackageManifestError}
+import project/src/project_model/package_manifest::{ManifestJsonMember}
+import project/src/project_model/package_manifest::{ManifestJsonValue.ManifestJsonNull, ManifestJsonValue.ManifestJsonBool, ManifestJsonValue.ManifestJsonNumber, ManifestJsonValue.ManifestJsonString, ManifestJsonValue.ManifestJsonArray, ManifestJsonValue.ManifestJsonObject}
+import project/src/project_model/package_manifest::{parse_manifest_json, manifest_json_object_field, manifest_json_string_field, manifest_object_unknown_field}
+import stdlib/bytes as byte_buffer
+import project/src/project_model/package_manifest::{manifest_identifier, manifest_package_name, manifest_semver}
+
+pub record PackageLockEdge {
+  alias: Str,
+  package: Str,
+  source: ManifestJsonValue
+}
+
+pub record PackageLockPackage {
+  name: Str,
+  version: Str,
+  manifest_sha256: Str,
+  tree_sha256: Option[Str],
+  dependencies: [PackageLockEdge]
+}
+
+pub record PackageLock {
+  root_name: Str,
+  root_version: Str,
+  root_manifest_sha256: Str,
+  toolchain: Str,
+  dependencies: [PackageLockEdge],
+  packages: [PackageLockPackage]
+}
+
+record PackageLockCycleWalk {
+  cycle: Bool,
+  visited: [Str]
+}
+
+pure lock_error(message: Str, offset: Nat): PackageManifestError {
+  PackageManifestError(message, offset)
+}
+
+pure lock_field(value: ManifestJsonValue, key: Str): Result[ManifestJsonValue, PackageManifestError] {
+  match manifest_json_object_field(value, key) {
+    None() => Error(lock_error("missing required lock field ${key}", 0)),
+    Some(field) => Ok(field.value)
+  }
+}
+
+pure lock_string(value: ManifestJsonValue, key: Str): Result[Str, PackageManifestError] {
+  manifest_json_string_field(value, key)
+}
+
+pure lock_nonempty_string(value: ManifestJsonValue, key: Str): Result[Str, PackageManifestError] {
+  match lock_string(value, key) {
+    Error(error) => Error(error),
+    Ok(text) => if text == "" { Error(lock_error("lock field " + key + " cannot be empty", 0)) } else { Ok(text) }
+  }
+}
+
+pure lock_lower_hex(value: Str, expected_length: Nat): Bool {
+  if value.len() != expected_length { false } else {
+    mut valid = true
+    mut index: Nat = 0
+    while index < value.len() && valid {
+      character: Str = value[index]
+      valid = (character >= "0" && character <= "9") || (character >= "a" && character <= "f")
+      index = index + 1
+    }
+    valid
+  }
+}
+
+pure lock_https_url(value: Str): Bool {
+  value.len() > 8 && value.slice(0, 8) == "https://" &&
+    !lock_contains(value, "@") && !lock_contains(value, "#") && !lock_contains(value, "?")
+}
+
+pure lock_contains(value: Str, needle: Str): Bool {
+  mut found = false
+  mut index: Nat = 0
+  while index + needle.len() <= value.len() && !found {
+    found = value.slice(index, index + needle.len()) == needle
+    index = index + 1
+  }
+  found
+}
+
+pub pure lock_sha256(value: Str): Bool {
+  if value.len() != 64 { false } else {
+    mut valid = true
+    mut index: Nat = 0
+    while index < value.len() && valid {
+      character: Str = value[index]
+      valid = (character >= "0" && character <= "9") ||
+        (character >= "a" && character <= "f")
+      index = index + 1
+    }
+    valid
+  }
+}
+
+pure lock_parse_edges(value: ManifestJsonValue): Result[[PackageLockEdge], PackageManifestError] {
+  match value {
+    ManifestJsonObject(members) => {
+      mut edges: [PackageLockEdge] = []
+      mut failure: Option[PackageManifestError] = None()
+      for member in members {
+        if (!manifest_identifier(member.key) || member.key == "project" || member.key == "stdlib") && failure == None() {
+          failure = Some(lock_error("invalid lock dependency alias", member.offset))
+        }
+        match member.value {
+          ManifestJsonObject(fields) => {
+            match manifest_object_unknown_field(member.value, ["package", "source"]) {
+              Some(error) => if failure == None() { failure = Some(error) },
+              None() => match lock_string(member.value, "package") {
+                Error(error) => if failure == None() { failure = Some(error) },
+                Ok(package) => match lock_field(member.value, "source") {
+                  Error(error) => if failure == None() { failure = Some(error) },
+                  Ok(source) => match source {
+                    ManifestJsonObject(source_fields) => {
+                      match manifest_json_object_field(source, "kind") {
+                        None() => if failure == None() { failure = Some(lock_error("lock source is missing kind", member.offset)) },
+                        Some(kind_field) => match kind_field.value {
+                          ManifestJsonString(kind) => {
+                            allowed: [Str] = if kind == "path" { ["kind", "path"] }
+                              else if kind == "archive" { ["kind", "path", "url", "archive_sha256"] }
+                              else if kind == "git" { ["kind", "url", "subdir", "object_format", "commit"] }
+                              else { [] }
+                            if allowed.len() == 0 {
+                              if failure == None() { failure = Some(lock_error("unknown lock source kind", kind_field.offset)) }
+                            } else {
+                              match manifest_object_unknown_field(source, allowed) {
+                                Some(error) => if failure == None() { failure = Some(error) },
+                                None() => {
+                                  if kind == "path" {
+                                    match lock_nonempty_string(source, "path") {
+                                      Error(error) => if failure == None() { failure = Some(error) },
+                                      Ok(path) => if (lock_contains(path, "\\") || lock_contains(path, "".encode_utf8().push(0).decode_utf8())) && failure == None() { failure = Some(lock_error("lock path source is not normalized", member.offset)) }
+                                    }
+                                  } else if kind == "archive" {
+                                    mut archive_sha: Str = ""
+                                    match manifest_json_object_field(source, "archive_sha256") {
+                                      None() => if failure == None() { failure = Some(lock_error("archive source is missing archive_sha256", member.offset)) },
+                                      Some(field) => match field.value {
+                                        ManifestJsonString(hash) => { archive_sha = hash },
+                                        ManifestJsonNull() => if failure == None() { failure = Some(lock_error("archive_sha256 must be a string", field.offset)) },
+                                        ManifestJsonBool(flag) => if failure == None() { failure = Some(lock_error("archive_sha256 must be a string", field.offset)) },
+                                        ManifestJsonNumber(number) => if failure == None() { failure = Some(lock_error("archive_sha256 must be a string", field.offset)) },
+                                        ManifestJsonArray(values) => if failure == None() { failure = Some(lock_error("archive_sha256 must be a string", field.offset)) },
+                                        ManifestJsonObject(nested_members) => if failure == None() { failure = Some(lock_error("archive_sha256 must be a string", field.offset)) }
+                                      }
+                                    }
+                                    if !lock_sha256(archive_sha) && failure == None() { failure = Some(lock_error("archive_sha256 must be lowercase SHA-256", member.offset)) }
+                                    path_field: Option[ParsedManifestField] = manifest_json_object_field(source, "path")
+                                    url_field: Option[ParsedManifestField] = manifest_json_object_field(source, "url")
+                                    if path_field == None() && url_field == None() && failure == None() { failure = Some(lock_error("archive source requires path or url", member.offset)) }
+                                    if path_field != None() && url_field != None() && failure == None() { failure = Some(lock_error("archive source cannot contain both path and url", member.offset)) }
+                                    if path_field != None() {
+                                      match lock_nonempty_string(source, "path") {
+                                        Error(error) => if failure == None() { failure = Some(error) },
+                                        Ok(path) => if (!path.ends_with(".tar.gz") || lock_contains(path, "\\") || lock_contains(path, "".encode_utf8().push(0).decode_utf8())) && failure == None() { failure = Some(lock_error("local archive path must be normalized and end in .tar.gz", member.offset)) }
+                                      }
+                                    }
+                                    if url_field != None() {
+                                      match lock_nonempty_string(source, "url") {
+                                        Error(error) => if failure == None() { failure = Some(error) },
+                                        Ok(url) => if (!lock_https_url(url) || !url.ends_with(".tar.gz")) && failure == None() { failure = Some(lock_error("remote archive URL must be HTTPS and end in .tar.gz", member.offset)) }
+                                      }
+                                    }
+                                  } else {
+                                    mut git_url = ""
+                                    mut object_format = ""
+                                    mut commit = ""
+                                    for required in ["url", "object_format", "commit"] {
+                                      match lock_nonempty_string(source, required) {
+                                        Error(error) => if failure == None() { failure = Some(error) },
+                                        Ok(field_text) => {
+                                          if required == "url" { git_url = field_text }
+                                          else if required == "object_format" { object_format = field_text }
+                                          else { commit = field_text }
+                                        }
+                                      }
+                                    }
+                                    if git_url != "" && !lock_https_url(git_url) && failure == None() { failure = Some(lock_error("git source URL must be HTTPS", member.offset)) }
+                                    if object_format != "" && object_format != "sha1" && object_format != "sha256" && failure == None() { failure = Some(lock_error("git object_format must be sha1 or sha256", member.offset)) }
+                                    if commit != "" && ((object_format == "sha1" && !lock_lower_hex(commit, 40)) || (object_format == "sha256" && !lock_lower_hex(commit, 64)) || (object_format != "sha1" && object_format != "sha256")) && failure == None() { failure = Some(lock_error("git commit must be a full lowercase object ID", member.offset)) }
+                                    match manifest_json_object_field(source, "subdir") {
+                                      None() => {},
+                                      Some(field) => match field.value {
+                                        ManifestJsonString(path) => if path == "" || path[0] == "/" || lock_contains(path, "\\") || lock_contains(path, "".encode_utf8().push(0).decode_utf8()) || lock_contains(path, "../") || lock_contains(path, "/..") && failure == None() { failure = Some(lock_error("git subdir must be a normalized repository-relative path", field.offset)) },
+                                        ManifestJsonNull() => if failure == None() { failure = Some(lock_error("git subdir must be a string", field.offset)) },
+                                        ManifestJsonBool(flag) => if failure == None() { failure = Some(lock_error("git subdir must be a string", field.offset)) },
+                                        ManifestJsonNumber(number) => if failure == None() { failure = Some(lock_error("git subdir must be a string", field.offset)) },
+                                        ManifestJsonArray(values) => if failure == None() { failure = Some(lock_error("git subdir must be a string", field.offset)) },
+                                        ManifestJsonObject(nested_members) => if failure == None() { failure = Some(lock_error("git subdir must be a string", field.offset)) }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          ManifestJsonNull() => if failure == None() { failure = Some(lock_error("lock source kind must be a string", kind_field.offset)) },
+                          ManifestJsonBool(flag) => if failure == None() { failure = Some(lock_error("lock source kind must be a string", kind_field.offset)) },
+                          ManifestJsonNumber(number) => if failure == None() { failure = Some(lock_error("lock source kind must be a string", kind_field.offset)) },
+                          ManifestJsonArray(values) => if failure == None() { failure = Some(lock_error("lock source kind must be a string", kind_field.offset)) },
+                          ManifestJsonObject(nested_members) => if failure == None() { failure = Some(lock_error("lock source kind must be a string", kind_field.offset)) }
+                        }
+                      }
+                      edges = edges.append(PackageLockEdge(member.key, package, source))
+                    },
+                    ManifestJsonNull() => if failure == None() { failure = Some(lock_error("lock source must be an object", member.offset)) },
+                    ManifestJsonBool(flag) => if failure == None() { failure = Some(lock_error("lock source must be an object", member.offset)) },
+                    ManifestJsonNumber(number) => if failure == None() { failure = Some(lock_error("lock source must be an object", member.offset)) },
+                    ManifestJsonString(text) => if failure == None() { failure = Some(lock_error("lock source must be an object", member.offset)) },
+                    ManifestJsonArray(values) => if failure == None() { failure = Some(lock_error("lock source must be an object", member.offset)) }
+                  }
+                }
+              }
+            }
+          },
+          ManifestJsonNull() => if failure == None() { failure = Some(lock_error("lock dependency edge must be an object", member.offset)) },
+          ManifestJsonBool(flag) => if failure == None() { failure = Some(lock_error("lock dependency edge must be an object", member.offset)) },
+          ManifestJsonNumber(number) => if failure == None() { failure = Some(lock_error("lock dependency edge must be an object", member.offset)) },
+          ManifestJsonString(text) => if failure == None() { failure = Some(lock_error("lock dependency edge must be an object", member.offset)) },
+          ManifestJsonArray(values) => if failure == None() { failure = Some(lock_error("lock dependency edge must be an object", member.offset)) }
+        }
+      }
+      match failure { Some(error) => Error(error), None() => Ok(edges) }
+    },
+    ManifestJsonNull() => Error(lock_error("lock dependencies must be an object", 0)),
+    ManifestJsonBool(flag) => Error(lock_error("lock dependencies must be an object", 0)),
+    ManifestJsonNumber(number) => Error(lock_error("lock dependencies must be an object", 0)),
+    ManifestJsonString(text) => Error(lock_error("lock dependencies must be an object", 0)),
+    ManifestJsonArray(values) => Error(lock_error("lock dependencies must be an object", 0))
+  }
+}
+
+pub pure lock_package_id(name: Str, version: Str): Str { name + "@" + version }
+
+pure lock_cycle_visit(
+  identity: Str,
+  packages: [PackageLockPackage],
+  active: [Str],
+  visited: [Str]
+): PackageLockCycleWalk {
+  mut on_stack = false
+  for candidate in active { on_stack = on_stack || candidate == identity }
+  mut already_seen = false
+  for candidate in visited { already_seen = already_seen || candidate == identity }
+  if on_stack { PackageLockCycleWalk(true, visited) }
+  else if already_seen { PackageLockCycleWalk(false, visited) }
+  else {
+    mut next_visited = visited.append(identity)
+    mut cycle = false
+    for package in packages {
+      if lock_package_id(package.name, package.version) == identity {
+        for edge in package.dependencies {
+          if !cycle {
+            walked = lock_cycle_visit(edge.package, packages, active.append(identity), next_visited)
+            cycle = walked.cycle
+            next_visited = walked.visited
+          }
+        }
+      }
+    }
+    PackageLockCycleWalk(cycle, next_visited)
+  }
+}
+
+pure lock_hex_digit(value: Nat): Nat {
+  if value < 10 { 48 + value } else { 87 + value }
+}
+
+pub pure lock_json_quote(value: Str): Str {
+  bytes: Bytes = value.encode_utf8()
+  mut output: Bytes = byte_buffer.empty().push(34)
+  mut index: Nat = 0
+  while index < bytes.length() {
+    byte: Nat = bytes.at(index)
+    if byte == 34 || byte == 92 {
+      output = output.push(92).push(byte)
+    } else if byte == 8 { output = output.push(92).push(98) }
+    else if byte == 9 { output = output.push(92).push(116) }
+    else if byte == 10 { output = output.push(92).push(110) }
+    else if byte == 12 { output = output.push(92).push(102) }
+    else if byte == 13 { output = output.push(92).push(114) }
+    else if byte < 32 {
+      output = output.push(92).push(117).push(48).push(48)
+        .push(lock_hex_digit(byte.divide(16))).push(lock_hex_digit(byte % 16))
+    } else { output = output.push(byte) }
+    index = index + 1
+  }
+  output.push(34).decode_utf8()
+}
+
+pure lock_json_member_less(left: ManifestJsonMember, right: ManifestJsonMember): Bool {
+  left.key < right.key
+}
+
+pure lock_edge_less(left: PackageLockEdge, right: PackageLockEdge): Bool {
+  left.alias < right.alias
+}
+
+pure lock_package_less(left: PackageLockPackage, right: PackageLockPackage): Bool {
+  lock_package_id(left.name, left.version) < lock_package_id(right.name, right.version)
+}
+
+pub pure lock_json_value(value: ManifestJsonValue): Str {
+  match value {
+    ManifestJsonNull() => "null",
+    ManifestJsonBool(flag) => if flag { "true" } else { "false" },
+    ManifestJsonNumber(number) => number,
+    ManifestJsonString(text) => lock_json_quote(text),
+    ManifestJsonArray(items) => {
+      mut output = "["
+      mut first = true
+      for item in items {
+        if !first { output = output + "," }
+        output = output + lock_json_value(item)
+        first = false
+      }
+      output + "]"
+    },
+    ManifestJsonObject(members) => {
+      sorted = members.sort_by(@lock_json_member_less)
+      mut output = "{"
+      mut first = true
+      for member in sorted {
+        if !first { output = output + "," }
+        output = output + lock_json_quote(member.key) + ":" + lock_json_value(member.value)
+        first = false
+      }
+      output + "}"
+    }
+  }
+}
+
+pure lock_json_edges(edges: [PackageLockEdge]): Str {
+  sorted = edges.sort_by(@lock_edge_less)
+  mut output = "{"
+  mut first = true
+  for edge in sorted {
+    if !first { output = output + "," }
+    output = output + lock_json_quote(edge.alias) + ":{\"package\":" +
+      lock_json_quote(edge.package) + ",\"source\":" + lock_json_value(edge.source) + "}"
+    first = false
+  }
+  output + "}"
+}
+
+pub pure serialize_package_lock(lock: PackageLock): Str {
+  sorted = lock.packages.sort_by(@lock_package_less)
+  mut packages_json = "["
+  mut first_package = true
+  for package in sorted {
+    if !first_package { packages_json = packages_json + "," }
+    packages_json = packages_json + "{\"dependencies\":" + lock_json_edges(package.dependencies) +
+      ",\"manifest_sha256\":" + lock_json_quote(package.manifest_sha256) +
+      ",\"name\":" + lock_json_quote(package.name)
+    match package.tree_sha256 {
+      None() => {},
+      Some(hash) => { packages_json = packages_json + ",\"tree_sha256\":" + lock_json_quote(hash) }
+    }
+    packages_json = packages_json + ",\"version\":" + lock_json_quote(package.version) + "}"
+    first_package = false
+  }
+  packages_json = packages_json + "]"
+  "{\"lock_schema\":1,\"packages\":" + packages_json +
+    ",\"root\":{\"dependencies\":" + lock_json_edges(lock.dependencies) +
+    ",\"manifest_sha256\":" + lock_json_quote(lock.root_manifest_sha256) +
+    ",\"name\":" + lock_json_quote(lock.root_name) +
+    ",\"toolchain\":" + lock_json_quote(lock.toolchain) +
+    ",\"version\":" + lock_json_quote(lock.root_version) + "}}"
+}
+
+pub pure verify_package_lock_root(
+  lock: PackageLock,
+  package: Str,
+  version: Str,
+  manifest_sha256: Str,
+  toolchain: Str
+): Result[Unit, Str] {
+  if lock.root_name != package || lock.root_version != version {
+    Error("lockfile root package identity does not match panack.json")
+  } else if lock.root_manifest_sha256 != manifest_sha256 {
+    Error("lockfile is stale: root manifest changed; run panack deps update")
+  } else if lock.toolchain != toolchain {
+    Error("lockfile toolchain does not match the running Panackelty version")
+  } else {
+    Ok(())
+  }
+}
+
+pub pure parse_package_lock(data: Bytes): Result[PackageLock, PackageManifestError] {
+  match parse_manifest_json(data) {
+    Error(error) => Error(error),
+    Ok(root) => match manifest_object_unknown_field(root, ["lock_schema", "root", "packages"]) {
+      Some(error) => Error(error),
+      None() => {
+        mut failure: Option[PackageManifestError] = None()
+        match lock_field(root, "lock_schema") {
+          Error(error) => { failure = Some(error) },
+          Ok(schema) => match schema {
+            ManifestJsonNumber(number) => if number != "1" { failure = Some(lock_error("lock_schema must be the integer 1", 0)) },
+            ManifestJsonNull() => { failure = Some(lock_error("lock_schema must be the integer 1", 0)) },
+            ManifestJsonBool(flag) => { failure = Some(lock_error("lock_schema must be the integer 1", 0)) },
+            ManifestJsonString(text) => { failure = Some(lock_error("lock_schema must be the integer 1", 0)) },
+            ManifestJsonArray(values) => { failure = Some(lock_error("lock_schema must be the integer 1", 0)) },
+            ManifestJsonObject(members) => { failure = Some(lock_error("lock_schema must be the integer 1", 0)) }
+          }
+        }
+        root_value: ManifestJsonValue = match lock_field(root, "root") { Error(error) => { if failure == None() { failure = Some(error) }; ManifestJsonNull() }, Ok(value) => value }
+        root_unknown: Option[PackageManifestError] = manifest_object_unknown_field(root_value, ["name", "version", "manifest_sha256", "toolchain", "dependencies"])
+        match root_unknown { Some(error) => if failure == None() { failure = Some(error) }, None() => {} }
+        name: Str = match lock_string(root_value, "name") { Error(error) => { if failure == None() { failure = Some(error) }; "" }, Ok(value) => value }
+        version: Str = match lock_string(root_value, "version") { Error(error) => { if failure == None() { failure = Some(error) }; "" }, Ok(value) => value }
+        manifest_hash: Str = match lock_string(root_value, "manifest_sha256") { Error(error) => { if failure == None() { failure = Some(error) }; "" }, Ok(value) => value }
+        toolchain: Str = match lock_string(root_value, "toolchain") { Error(error) => { if failure == None() { failure = Some(error) }; "" }, Ok(value) => value }
+        if !lock_sha256(manifest_hash) && failure == None() { failure = Some(lock_error("manifest_sha256 must be lowercase SHA-256", 0)) }
+        root_deps_value: ManifestJsonValue = match lock_field(root_value, "dependencies") { Error(error) => { if failure == None() { failure = Some(error) }; ManifestJsonNull() }, Ok(value) => value }
+        root_deps: [PackageLockEdge] = match lock_parse_edges(root_deps_value) { Error(error) => { if failure == None() { failure = Some(error) }; [] }, Ok(value) => value }
+        packages_value: ManifestJsonValue = match lock_field(root, "packages") { Error(error) => { if failure == None() { failure = Some(error) }; ManifestJsonNull() }, Ok(value) => value }
+        mut packages: [PackageLockPackage] = []
+        match packages_value {
+          ManifestJsonArray(items) => {
+            for item in items {
+              match manifest_object_unknown_field(item, ["name", "version", "manifest_sha256", "tree_sha256", "dependencies"]) {
+                Some(error) => if failure == None() { failure = Some(error) },
+                None() => {
+                  package_name: Str = match lock_string(item, "name") { Error(error) => { if failure == None() { failure = Some(error) }; "" }, Ok(value) => value }
+                  package_version: Str = match lock_string(item, "version") { Error(error) => { if failure == None() { failure = Some(error) }; "" }, Ok(value) => value }
+                  package_hash: Str = match lock_string(item, "manifest_sha256") { Error(error) => { if failure == None() { failure = Some(error) }; "" }, Ok(value) => value }
+                  if !lock_sha256(package_hash) && failure == None() { failure = Some(lock_error("manifest_sha256 must be lowercase SHA-256", 0)) }
+                  mut tree_hash: Option[Str] = None()
+                  match manifest_json_object_field(item, "tree_sha256") {
+                    None() => {},
+                    Some(field) => match field.value {
+                      ManifestJsonString(value) => if lock_sha256(value) { tree_hash = Some(value) } else if failure == None() { failure = Some(lock_error("tree_sha256 must be lowercase SHA-256", field.offset)) },
+                      ManifestJsonNull() => if failure == None() { failure = Some(lock_error("tree_sha256 must be a string", field.offset)) },
+                      ManifestJsonBool(flag) => if failure == None() { failure = Some(lock_error("tree_sha256 must be a string", field.offset)) },
+                      ManifestJsonNumber(number) => if failure == None() { failure = Some(lock_error("tree_sha256 must be a string", field.offset)) },
+                      ManifestJsonArray(values) => if failure == None() { failure = Some(lock_error("tree_sha256 must be a string", field.offset)) },
+                      ManifestJsonObject(members) => if failure == None() { failure = Some(lock_error("tree_sha256 must be a string", field.offset)) }
+                    }
+                  }
+                  deps_value: ManifestJsonValue = match lock_field(item, "dependencies") { Error(error) => { if failure == None() { failure = Some(error) }; ManifestJsonNull() }, Ok(value) => value }
+                  deps: [PackageLockEdge] = match lock_parse_edges(deps_value) { Error(error) => { if failure == None() { failure = Some(error) }; [] }, Ok(value) => value }
+                  packages = packages.append(PackageLockPackage(package_name, package_version, package_hash, tree_hash, deps))
+                }
+              }
+            }
+          },
+          ManifestJsonNull() => if failure == None() { failure = Some(lock_error("lock packages must be an array", 0)) },
+          ManifestJsonBool(flag) => if failure == None() { failure = Some(lock_error("lock packages must be an array", 0)) },
+          ManifestJsonNumber(number) => if failure == None() { failure = Some(lock_error("lock packages must be an array", 0)) },
+          ManifestJsonString(text) => if failure == None() { failure = Some(lock_error("lock packages must be an array", 0)) },
+          ManifestJsonObject(members) => if failure == None() { failure = Some(lock_error("lock packages must be an array", 0)) }
+        }
+        if (!manifest_package_name(name) || !manifest_semver(version) || toolchain == "") && failure == None() {
+          failure = Some(lock_error("invalid lock root identity or toolchain", 0))
+        }
+        if packages.len() > 63 && failure == None() { failure = Some(lock_error("lock graph exceeds 64 packages including the root", 0)) }
+        mut identities: [Str] = []
+        mut package_names: [Str] = []
+        mut edge_count: Nat = root_deps.len()
+        for package in packages {
+          edge_count = edge_count + package.dependencies.len()
+          if (!manifest_package_name(package.name) || !manifest_semver(package.version) || package.name == name) && failure == None() {
+            failure = Some(lock_error("invalid or conflicting dependency identity", 0))
+          }
+          identity: Str = lock_package_id(package.name, package.version)
+          for previous in identities { if previous == identity && failure == None() { failure = Some(lock_error("duplicate lock package identity ${identity}", 0)) } }
+          for previous in package_names { if previous == package.name && failure == None() { failure = Some(lock_error("lock contains multiple versions of package ${package.name}", 0)) } }
+          identities = identities.append(identity)
+          package_names = package_names.append(package.name)
+        }
+        if edge_count > 256 && failure == None() {
+          failure = Some(lock_error("lock graph exceeds 256 edges", 0))
+        }
+        mut referenced: [Str] = []
+        for edge in root_deps { referenced = referenced.append(edge.package) }
+        for package in packages { for edge in package.dependencies { referenced = referenced.append(edge.package) } }
+        mut reachable: [Str] = []
+        for edge in root_deps {
+          reachable = lock_reach(edge.package, packages, reachable)
+          walked = lock_cycle_visit(edge.package, packages, [], [])
+          if walked.cycle && failure == None() { failure = Some(lock_error("lock dependency graph contains a cycle", 0)) }
+        }
+        if reachable.len() != packages.len() && failure == None() { failure = Some(lock_error("lock contains unreferenced package records", 0)) }
+        for reference in referenced {
+          mut found = false
+          for identity in identities { found = found || identity == reference }
+          if !found && failure == None() { failure = Some(lock_error("lock dependency references missing package ${reference}", 0)) }
+        }
+        match failure {
+          Some(error) => Error(error),
+          None() => Ok(PackageLock(name, version, manifest_hash, toolchain, root_deps, packages))
+        }
+      }
+    }
+  }
+}
+
+pure lock_reach(identity: Str, packages: [PackageLockPackage], visited: [Str]): [Str] {
+  mut next = visited
+  mut seen = false
+  for item in next { seen = seen || item == identity }
+  if seen { next } else {
+    next = next.append(identity)
+    for package in packages {
+      if lock_package_id(package.name, package.version) == identity {
+        for edge in package.dependencies { next = lock_reach(edge.package, packages, next) }
+      }
+    }
+    next
+  }
+}

@@ -54,7 +54,7 @@ recorded re-estimate.
 | Packet | Work | Dependencies | Status | Weight | Complete | Earned |
 | --- | --- | --- | --- | ---: | ---: | ---: |
 | P01 | [Lock and restore contract](https://github.com/sproates/panackelty/issues/566) | — | Done | 15% | 100% | 15 pp |
-| P02 | [Locked local dependencies](https://github.com/sproates/panackelty/issues/567) | P01 | Restart planned | 25% | 0% | 0 pp |
+| P02 | [Locked local dependencies](https://github.com/sproates/panackelty/issues/567) | P01 | In progress | 25% | 0% | 0 pp |
 | P03 | [Pinned remote sources](https://github.com/sproates/panackelty/issues/568) | P01–P02 | Planned | 35% | 0% | 0 pp |
 | P04 | [`panack` workflow integration](https://github.com/sproates/panackelty/issues/569) | P01–P03 | Planned | 25% | 0% | 0 pp |
 | **Total** |  |  |  | **100%** | **15%** | **15 pp** |
@@ -92,9 +92,21 @@ Done in PR#571; 15% of GI#200. Defines the implementation contract and acceptanc
 <a id="rm-159"></a>
 
 **P02 · RM#159: Locked local dependencies** · [GI#567](https://github.com/sproates/panackelty/issues/567).
-Restart planned; 25% of GI#200. P02a proves the independent tool and compiler
-handoff; P02b implements local graphs and locks; P02c adds bounded local archives
-and the complete local command workflow. Follow the implementation boundaries.
+In progress; 25% of GI#200, with 0% earned until packet acceptance. P02a is
+implementing the independent tool and compiler handoff; P02b implements local
+graphs and locks; P02c adds bounded local archives and the complete local command
+workflow. The interim implementation includes the separate tool, stricter
+compiler handoff, local-directory locks, native staging/gzip/digest adapters and
+Panack tar/tree-digest modules. Focused checks pass, but this remains a draft
+checkpoint. Archive/cache integration, selective updates, bootstrap refresh,
+coverage inventories and full CLI acceptance are outstanding. No P02 completion
+credit is earned by publishing the interim PR.
+
+The owner approved OpenSSL 3+ for generic SHA-256 after the pure-Panack version
+took 35.05 seconds for the 64 KiB benchmark. The EVP version took 0.11 seconds
+with the same digest. This is a focused measurement, not a claim that package
+performance acceptance is complete. Website impact: no published feature or
+release claim changes at this draft checkpoint.
 
 <a id="p03"></a>
 <a id="rm-160"></a>

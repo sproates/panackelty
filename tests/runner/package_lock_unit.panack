@@ -1,0 +1,19 @@
+import project/src/packages/lock::{PackageLock, PackageLockPackage, PackageLockEdge, serialize_package_lock, parse_package_lock}
+import stdlib/testing as testing
+import stdlib/host as host
+pure accepted(lock: PackageLock): Bool {
+  match parse_package_lock(serialize_package_lock(lock).encode_utf8()) {
+    Error(problem) => false,
+    Ok(parsed) => parsed == lock
+  }
+}
+main(): Void {
+  hash: Str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  valid: PackageLock = PackageLock("example.app", "1.0.0", hash, "0.1.0-alpha.15", [], [])
+  empty_hash: PackageLock = PackageLock("example.app", "1.0.0", "", "0.1.0-alpha.15", [], [])
+  results = [
+    testing.expect("real manifest digest round-trips", accepted(valid), "valid lock rejected"),
+    testing.expect("empty root digest rejected", !accepted(empty_hash), "empty digest accepted")
+  ]
+  if testing.report(results) > 0 { host.exit(1) }
+}

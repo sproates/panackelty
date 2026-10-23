@@ -26,6 +26,9 @@ typedef struct {
     const char *error;
     VMFaultKind fault_kind;
     VMExecution *execution;
+    struct VMFilesystemStages *filesystem_stages;
+    struct VMGzipStreams *gzip_streams;
+    struct VMDigests *digests;
     struct VMHttpRuntime *http_runtime; /* Borrowed from the root invocation. */
     VMCoverageRun *coverage_run; /* Optional registered execution; owned by caller. */
     VMCoverage *coverage; /* Optional, borrowed, single-execution collector. */

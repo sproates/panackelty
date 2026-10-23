@@ -35,7 +35,7 @@ run_ok() {
     label=$1
     manifest=$2
     if PANACKELTY_VERSION="$version" PANACKELTY_STDLIB_PATH="$stdlib" \
-        ./panack-vm run "$compiler" check --project "$manifest" \
+        ./bin/panack check --project "$manifest" \
         > "$work/stdout" 2> "$work/stderr"; then
         if [ "$(cat "$work/stdout")" = 'ok' ] && [ ! -s "$work/stderr" ]; then
             printf 'PASS %s\n' "$label"
@@ -54,7 +54,7 @@ run_rejected() {
     expected=$3
     status=0
     PANACKELTY_VERSION="$version" PANACKELTY_STDLIB_PATH="$stdlib" \
-        ./panack-vm run "$compiler" check --project "$manifest" \
+        ./bin/panack check --project "$manifest" \
         > "$work/stdout" 2> "$work/stderr" || status=$?
     if [ "$status" -eq 1 ] && [ ! -s "$work/stdout" ] &&
         grep -F "$expected" "$work/stderr" >/dev/null; then

@@ -3,6 +3,9 @@
 #include "builtins_internal.h"
 #include "host.h"
 #include "host_capabilities.h"
+#include "filesystem_stage.h"
+#include "gzip_stream.h"
+#include "digest.h"
 #include "host_types.h"
 
 #include <stdlib.h>
@@ -80,6 +83,21 @@ static const Builtin BUILTINS[] = {
     {"fs_create_directory", 1, false, host_capability_call},
     {"fs_remove_file", 1, false, host_capability_call},
     {"fs_remove_directory", 1, false, host_capability_call},
+    {"fs_stage_begin", 1, false, filesystem_stage_call},
+    {"fs_stage_path", 1, false, filesystem_stage_call},
+    {"fs_stage_directory", 2, false, filesystem_stage_call},
+    {"fs_stage_write", 4, false, filesystem_stage_call},
+    {"fs_stage_publish", 3, false, filesystem_stage_call},
+    {"fs_stage_close", 1, false, filesystem_stage_call},
+    {"digest_sha256_open", 0, false, digest_call},
+    {"digest_update", 2, false, digest_call},
+    {"digest_finish", 1, false, digest_call},
+    {"digest_close", 1, false, digest_call},
+    {"gzip_open", 1, false, gzip_stream_call},
+    {"gzip_step", 3, false, gzip_stream_call},
+    {"gzip_close", 1, false, gzip_stream_call},
+    {"fs_read_chunk", 3, false, filesystem_stage_call},
+    {"fs_atomic_write", 2, false, filesystem_stage_call},
     {"fs_temp_file", 1, false, host_capability_call},
     {"fs_temp_directory", 1, false, host_capability_call},
     {"host_decode_utf8", 1, true, host_capability_call},

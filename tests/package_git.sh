@@ -181,3 +181,6 @@ test "$(ls -A "$work/published")" = snapshot
 test "$(cat "$work/published/snapshot/data")" = hello
 test "$(readlink "$work/published/snapshot/nested/link")" = ../data
 printf '%s\n' 'PASS publication preserves links; rejected replacement preserves the previous snapshot'
+
+# P03c public manifest, lock and shared-snapshot integration.
+sh tests/package_git_integration.sh

@@ -45,6 +45,19 @@ pure problem(lock: PackageLock): Str {
   }
 }
 
+pure git_lock(subdir: Str, hash: Str): PackageLock {
+  fields = [
+    ManifestJsonMember("kind", ManifestJsonString("git"), 0),
+    ManifestJsonMember("url", ManifestJsonString("https://example.test/repo"), 0),
+    ManifestJsonMember("subdir", ManifestJsonString(subdir), 0),
+    ManifestJsonMember("object_format", ManifestJsonString("sha256"), 0),
+    ManifestJsonMember("commit", ManifestJsonString(hash), 0)
+  ]
+  PackageLock("example.app", "1.0.0", hash, "0.1.0-alpha.15",
+    [PackageLockEdge("lib", "example.lib@1.0.0", ManifestJsonObject(fields))],
+    [PackageLockPackage("example.lib", "1.0.0", hash, Some(hash), [])])
+}
+
 main(): Void {
   hash: Str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   valid: PackageLock = PackageLock("example.app", "1.0.0", hash, "0.1.0-alpha.15", [], [])
@@ -54,7 +67,7 @@ main(): Void {
   missing_tree = PackageLockPackage("example.lib", "1.0.0", hash, None(), [])
   text: Str = serialize_package_lock(valid)
   tail: Str = text.slice(1, text.len())
-  results = [
+  mut results = [
     testing.expect("real manifest digest round-trips", accepted(valid), "valid lock rejected"),
     testing.expect("unknown lock field rejected", rejects_text("{\"extra\":true," + tail), "unknown field accepted"),
     testing.expect("duplicate lock field rejected", rejects_text("{\"lock_schema\":1," + tail), "duplicate field accepted"),
@@ -68,5 +81,11 @@ main(): Void {
     testing.expect("lock depth 33 rejected", !accepted(graph(32, hash)), "excess depth accepted"),
     testing.expect("lock package bound rejected", !accepted(graph(64, hash)), "excess packages accepted")
   ]
+  for subdir in [".", "packages/lib", "packages/lib..other"] {
+    results = results.append(testing.expect("Git lock subdir accepted", accepted(git_lock(subdir, hash)), "valid Git subdir rejected"))
+  }
+  for subdir in ["..", "../escape", "/absolute", "packages/../lib", "packages//lib", "packages/./lib", ""] {
+    results = results.append(testing.expect("noncanonical Git lock rejected", !accepted(git_lock(subdir, hash)), "invalid Git subdir accepted"))
+  }
   if testing.report(results) > 0 { host.exit(1) }
 }

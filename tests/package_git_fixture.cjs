@@ -40,5 +40,6 @@ const server = https.createServer({key: fs.readFileSync(root + '/test.key'), cer
   req.pipe(child.stdin);
   child.stdin.on('error', () => {});
 });
+server.on('connection', () => fs.appendFileSync(root + '/connections', 'connection\n'));
 server.listen(0, '127.0.0.1', () => fs.writeFileSync(root + '/port', String(server.address().port)));
 process.on('SIGTERM', () => server.close());

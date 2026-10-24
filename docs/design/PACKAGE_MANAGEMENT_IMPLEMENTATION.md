@@ -307,7 +307,8 @@ sorted arrays from the C/F records and rerun the collision fixtures.
 
 The P03b API accepts a full commit identity already selected by its caller. Ref
 selection, Git manifest parsing, locks, sibling edges and shared cache reuse
-remain P03c. Git snapshots use the existing 16,384-entry and 256 MiB expanded
+are implemented by P03c's package modules; see
+[Git integration acceptance](PACKAGE_GIT_INTEGRATION_ACCEPTANCE.md). Git snapshots use the existing 16,384-entry and 256 MiB expanded
 content limits. Each Git command has a 60-second timeout and a combined 16 MiB
 output limit. Blob data bypasses that output buffer through a private temporary
 file, copied in 64 KiB chunks. A fetched pack is not subject to a byte quota;

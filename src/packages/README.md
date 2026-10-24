@@ -30,7 +30,7 @@ without changing the lock. Ordinary project commands only verify existing state.
 HTTPS archives use the same extraction and verification pipeline, fed by bounded
 `http/stream` reads. Redirects and lock/cache policy stay in Panack; libcurl supplies
 verified TLS. Offline restore requires an already verified remote cache. Git
-acquisition remains subsequent P03 work.
+refs and full commits are integrated through the same explicit command lifecycle.
 
 Publication is atomic for each individual cache entry. Graph validation precedes
 publication; a failure partway through publishing several entries requires
@@ -41,8 +41,11 @@ P03b adds controlled Git acquisition as internal Panack modules. `git_snapshot.s
 accepts an explicit absolute Git executable, a credential-free HTTPS URL, an
 object format and a full commit ID. It returns an owned staging handle, source
 key and canonical tree digest; the caller must publish or close that handle.
-No manifest is read and no dependency graph is changed. P03c connects this API
-to public commands, locks and shared source caches.
+That low-level API does not read manifests or change graphs. P03c's `git_refs`,
+`git_acquisition` and `git_cache` connect it to public commands, locks and shared
+source caches. Package manifest records live here so Git fields do not change
+the compiler's frozen project-model input. Ref resolution occurs only on explicit
+lock/update; restore uses locked commits and prepare verifies existing snapshots.
 
 Git 2.29 or newer is a native-tool dependency for this path. Git receives an exact
 private environment and no inherited configuration. Raw blobs are extracted

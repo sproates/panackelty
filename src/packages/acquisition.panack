@@ -196,7 +196,7 @@ pub verify_cache_state(root: Str, lock: PackageLock): Result[Unit, Str] {
 
 pub publish_archives(root: Str, sources: [ArchiveSource], lock: PackageLock): Result[Unit, Str] {
   mut pending: Bool = false
-  for source in sources { pending = pending || source.stage != None() }
+  for package in lock.packages { pending = pending || package.tree_sha256 != None() }
   if !pending { Ok(()) } else {
     // All graph and lock validation precedes this per-entry commit. Each exchange
     // preserves its previous entry if that exchange fails; this is not a

@@ -1,0 +1,108 @@
+pub import project/src/packages/git_snapshot::{GitSource}
+import project/src/packages/git_process::{GitContext, git_command}
+import project/src/packages/git_inventory::{git_object_id}
+import project/src/project_model/utf8::{valid_utf8}
+import stdlib/filesystem_stage as staging
+import stdlib/filesystem as filesystem
+import stdlib/filesystem::{FileKind.RegularFile, FileKind.SymbolicLink}
+import stdlib/environment as environment
+import stdlib/path as path
+import stdlib/bytes as byte_buffer
+
+pub git_executable(): Result[Path, Str] {
+  search = environment.get("PATH").value_or("/usr/bin:/bin")
+  mut start: Nat = 0
+  mut found: Option[Path] = None()
+  for index in 0..search.len() + 1 {
+    if index == search.len() || search[index] == ":" {
+      directory = search.slice(start, index)
+      if found == None() && directory.starts_with_at("/", 0) {
+        match path.from_text(directory + "/git") {
+          Error(problem) => {},
+          Ok(candidate) => match filesystem.metadata(candidate) {
+            Error(problem) => {},
+            Ok(info) => if info.kind == RegularFile() || info.kind == SymbolicLink() { found = Some(candidate) }
+          }
+        }
+      }
+      start = index + 1
+    }
+  }
+  match found { Some(executable) => Ok(executable), None() => Error("Git 2.29 or newer is required on PATH") }
+}
+
+// Exact matches only. An ambiguous short branch/tag name is rejected. Annotated
+// tags use their peeled commit; stage_git_commit subsequently verifies its type.
+pub pure parse_git_refs(data: Bytes, url: Str, selector: Str): Result[GitSource, Str] {
+  mut failure: Option[Str] = None()
+  mut branch: Str = ""
+  mut tag: Str = ""
+  mut peeled: Str = ""
+  mut head: Str = ""
+  if !valid_utf8(data) { failure = Some("Git ref response is not UTF-8") }
+  text = data.decode_utf8()
+  mut start: Nat = 0
+  for index in 0..text.len() {
+    if text[index] == "\n" {
+      line = text.slice(start, index)
+      mut tab: Nat = line.len()
+      for cursor in 0..line.len() { if line[cursor] == "\t" && tab == line.len() { tab = cursor } }
+      if tab == line.len() { failure = Some("invalid Git ref response") }
+      else {
+        object = line.slice(0, tab)
+        name = line.slice(tab + 1, line.len())
+        if !git_object_id(object, 40) && !git_object_id(object, 64) {
+          failure = Some("invalid Git ref object ID")
+        } else {
+          if name == "HEAD" { head = object }
+          if name == selector || name == "refs/heads/" + selector {
+            if name.starts_with_at("refs/tags/", 0) { tag = object }
+            else { branch = object }
+          }
+          if name == "refs/tags/" + selector { tag = object }
+          if name == "refs/tags/" + selector + "^{}" || name == selector + "^{}" { peeled = object }
+        }
+      }
+      start = index + 1
+    }
+  }
+  if start != text.len() { failure = Some("truncated Git ref response") }
+  if branch != "" && tag != "" { failure = Some("ambiguous Git branch/tag; use a full ref name") }
+  selected = if selector == "" { head } else if branch != "" { branch }
+    else if peeled != "" { peeled } else { tag }
+  if selected == "" { failure = Some("Git ref is unavailable") }
+  match failure {
+    Some(problem) => Error(problem),
+    None() => Ok(GitSource(url, if selected.len() == 40 { "sha1" } else { "sha256" }, selected))
+  }
+}
+
+pub resolve_git_ref(parent: Path, executable: Path, url: Str, selector: Str,
+    certificate: Option[Str]): Result[GitSource, Str] {
+  if git_object_id(selector, 40) || git_object_id(selector, 64) {
+    Ok(GitSource(url, if selector.len() == 40 { "sha1" } else { "sha256" }, selector))
+  } else {
+    match staging.begin(parent) {
+      Error(problem) => Error("cannot stage Git ref resolution"),
+      Ok(handle) => {
+        result = match staging.path(handle) {
+          Error(problem) => Error("cannot locate Git ref stage"),
+          Ok(repository) => {
+            context = GitContext(executable, repository, repository.to_text().value_or(""), certificate)
+            patterns = if selector == "" { ["HEAD"] }
+              else if selector.starts_with_at("refs/", 0) { [selector, selector + "^{}"] }
+              else { ["refs/heads/" + selector, "refs/tags/" + selector, "refs/tags/" + selector + "^{}"] }
+            mut arguments = ["ls-remote", "--exit-code", "--", url]
+            for pattern in patterns { arguments = arguments.append(pattern) }
+            match git_command(context, arguments, byte_buffer.empty()) {
+              Error(problem) => Error("cannot resolve Git ref: " + problem),
+              Ok(data) => parse_git_refs(data, url, selector)
+            }
+          }
+        }
+        closed = staging.close(handle)
+        match closed { Error(problem) => Error("cannot clean Git ref stage"), Ok(done) => result }
+      }
+    }
+  }
+}

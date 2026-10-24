@@ -30,6 +30,19 @@ No new numeric performance gate is introduced. GI#106 reassessment and RM#56
 representative runtime measurements retain their existing ownership and next
 actions; this feature delivery does not close them.
 
+P03c delivery observation (25 October 2026): canonical `make check` passed in
+699 seconds (unit 404 seconds) against P03b's previous 680-second run (unit
+399 seconds). This adds Git manifest/lock/shared-snapshot acceptance and is not
+a matched performance experiment. A small local TLS diamond measured 0.67-second
+cold lock and 0.18-second warm project run; the latter was 0.19 seconds in the
+full run. Shared snapshots avoid duplicate acquisition/hash work within a graph;
+file hashing uses 64 KiB reads. The package-tool handoff test proves no compiler
+or seed rebuild after package-only edits. Keep the existing GI#106 alpha.15
+validation-latency disposition: the delivery maintainer owns representative
+baseline and bounded improvements, with owner acceptance still required. No
+new speed threshold, waived assertion or completed performance milestone is
+claimed. See [P03c evidence](../../design/PACKAGE_GIT_INTEGRATION_ACCEPTANCE.md).
+
 The modules programme remains the principal feature initiative;
 its checked declaration/signature identity slice merged in PR#275 as `0bcf092`;
 bounded body identities merged in PR#284 as `9f8f8a0`. Ordinary expressions and

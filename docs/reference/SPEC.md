@@ -1591,11 +1591,11 @@ records the boundary and validation.
 
 ## Dependency locks on next
 
-The separate Panack package tool implements local directories, local archives and HTTPS archives from the
+The separate Panack package tool implements local directories, local/HTTPS archives and Git snapshots from the
 [package contract](../design/PACKAGE_MANAGEMENT_CONTRACT.md): explicit lock,
 update (optionally restricted to root aliases), and offline restore. Project
 check/compile/run require a current lock for dependencies and validate existing
-archive materialization without acquiring sources. Local directory source edits
+materialized snapshots without acquiring sources. Local directory source edits
 remain live; manifest and archive changes require explicit update.
 HTTPS archive declarations use `{"archive":"https://host/package.tar.gz"}`.
 The lock retains the declared URL and SHA-256 of compressed bytes. Redirects
@@ -1603,9 +1603,16 @@ are limited to five HTTPS hops, with credentials, queries and fragments rejected
 Downloads enforce the 64 MiB compressed and 256 MiB expanded bounds while
 streaming. A missing or corrupt remote cache requires an online explicit restore;
 `--offline` verifies existing remote entries and never repairs them from the network.
-Each HTTP response has a 60-second deadline. Git dependency declarations remain unsupported.
-P03b provides an internal exact-commit snapshot API; public manifest/lock integration
-remains P03c. See the [Git acquisition record](../design/PACKAGE_GIT_ACQUISITION_ACCEPTANCE.md).
+Each HTTP response has a 60-second deadline.
+Git dependencies use `{"git":{"url":"https://host/repo.git","ref":"v1","subdir":"packages/lib"}}`.
+The optional ref defaults to the remote HEAD at lock/update time; the optional
+subdirectory defaults to `.`. Branch/tag resolution is explicit and ambiguous
+short names fail. The lock stores the full commit and object format, never a
+moving selector. Git 2.29+ must be on PATH for acquisition; warm commands do not
+invoke Git. Each commit has one shared source-keyed snapshot. Sibling path
+edges stay within it and become Git lock edges; source imports remain bounded
+by each individual package root. Git redirects fail closed. See the
+[Git integration record](../design/PACKAGE_GIT_INTEGRATION_ACCEPTANCE.md).
 Archive and lock policy do not execute inside the compiler.
 
 The tool uses generic native modules `stdlib/filesystem_stage`,

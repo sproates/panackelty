@@ -1,6 +1,7 @@
 import project/src/packages/manifest::{parse_package_manifest}
 import stdlib/testing as std_testing
-import project/src/project_model/package_manifest::{PackageManifest, PackageManifestError, PackageManifestDependency, package_manifest_byte_limit}
+import project/src/packages/manifest::{PackageManifest, PackageManifestDependency}
+import project/src/project_model/package_manifest::{PackageManifestError, package_manifest_byte_limit}
 import stdlib/bytes as byte_buffer
 import stdlib/testing::{TestResult}
 import stdlib/host as std_host
@@ -55,7 +56,7 @@ main(): Void {
       results = results.append(std_testing.expect("manifest entry, exports and dependency",
         manifest.entry == Some("main.panack") && manifest.exports.len() == 2 &&
           manifest.exports[1].module == "nested/other" &&
-          manifest.dependencies == [PackageManifestDependency("geometry", "path", "../geometry")],
+          manifest.dependencies == [PackageManifestDependency("geometry", "path", "../geometry", "", ".")],
         "wrong parsed package graph"))
     },
     Error(error) => { results = results.append(std_testing.expect("valid manifest", false, error.message)) }
@@ -108,6 +109,28 @@ main(): Void {
   results = results.append(std_testing.expect("required package field is enforced",
     manifest_rejects("{\"schema\":1,\"version\":\"1.2.3\",\"language\":\"modules-v1\",\"toolchain\":\"0.1.0-alpha.12\",\"source\":\"src\",\"exports\":{},\"dependencies\":{}}"),
     "missing package accepted"))
+
+  for source in [
+    "{\"git\":{\"url\":\"https://example.test/repo\"}}",
+    "{\"git\":{\"url\":\"https://example.test/repo\",\"ref\":\"refs/tags/v1\",\"subdir\":\"packages/./lib\"}}"
+  ] {
+    results = results.append(std_testing.expect("Git manifest accepted", manifest_accepts(
+      replace_first(manifest_fixture(), "{\"path\":\"../geometry\"}", source)), "Git source rejected"))
+  }
+  for source in [
+    "{\"git\":\"https://example.test/repo\"}",
+    "{\"git\":{\"url\":\"http://example.test/repo\"}}",
+    "{\"git\":{\"url\":\"https://user:secret@example.test/repo\"}}",
+    "{\"git\":{\"url\":\"https://example.test/repo?secret=value\"}}",
+    "{\"git\":{\"url\":\"https://example.test/repo\",\"ref\":\"abc123\"}}",
+    "{\"git\":{\"url\":\"https://example.test/repo\",\"ref\":\"\"}}",
+    "{\"git\":{\"url\":\"https://example.test/repo\",\"subdir\":\"../escape\"}}",
+    "{\"git\":{\"url\":\"https://example.test/repo\",\"extra\":true}}",
+    "{\"git\":{\"url\":\"https://example.test/repo\"},\"path\":\"../geometry\"}"
+  ] {
+    results = results.append(std_testing.expect("invalid Git manifest rejected", manifest_rejects(
+      replace_first(manifest_fixture(), "{\"path\":\"../geometry\"}", source)), "invalid Git source accepted"))
+  }
 
   mut invalid_utf8 = byte_buffer.empty()
   invalid_utf8 = invalid_utf8.push(255)

@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "P03b adds four Panack Git acquisition modules, explicitly unmeasured.",
-    "basis": "Unit and public source/bytecode HTTPS fixtures prove acquisition behaviour, not source-execution coverage percentages.",
-    "scopeChange": "Add git_inventory, git_links, git_process and git_snapshot under src/packages to the unmeasured inventory. Preserve all eligible sources, execution roots, exclusions and thresholds."
+    "reason": "P03c adds three Panack Git integration modules, explicitly unmeasured.",
+    "basis": "Unit and public-command HTTPS fixtures assert ref, lock and snapshot graph behaviour, not source-execution coverage percentages.",
+    "scopeChange": "Add git_acquisition, git_cache and git_refs to the unmeasured inventory. Preserve all eligible sources, execution roots, exclusions and thresholds."
   },
-  "manifestHash": "73d64a2eaa9f044318bdf2771d8e5a925391fe159b7d13d37ecdd3df8946710e",
+  "manifestHash": "39dbc4979494512d7fd5aba240c93e4c5120891fbdaa8245e9da059aa50bb00b",
   "exclusionHash": "773435167944b7750a18a232c06a2697356e8fb853efda5dfcf1a3acd8f10a7e"
 }

@@ -53,12 +53,12 @@ For migration from earlier releases, see the
 Runnable [owned and generic method examples](examples/README.md#type-owned-methods-alpha14)
 show custom APIs, Map coexistence and typed callbacks.
 
-The unreleased `next` branch adds [explicit locks and local/HTTPS archive dependencies](docs/guides/TOOLCHAIN.md#locked-local-dependencies-on-next) through a separate package tool written in Panack.
+The unreleased `next` branch adds [explicit locks and local, archive and Git dependencies](docs/guides/TOOLCHAIN.md#locked-local-dependencies-on-next) through a separate package tool written in Panack.
 Its generic host APIs also provide exact-environment process launch and confined
 symbolic-link operations; see the [standard-library contracts](src/stdlib/README.md).
-Git dependencies remain under development.
+Git dependencies support pinned HTTPS commits and shared repository subdirectories on `next`.
 Its generic `stdlib/http_stream` transport supports bounded blocking reads for
-command-line consumers. Remote package acquisition remains follow-on work.
+command-line consumers. Cross-source acceptance and final packaging remain in progress.
 
 ## Explore
 

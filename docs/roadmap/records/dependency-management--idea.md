@@ -55,9 +55,9 @@ recorded re-estimate.
 | --- | --- | --- | --- | ---: | ---: | ---: |
 | P01 | [Lock and restore contract](https://github.com/sproates/panackelty/issues/566) | — | Done | 15% | 100% | 15 pp |
 | P02 | [Locked local dependencies](https://github.com/sproates/panackelty/issues/567) | P01 | Done | 25% | 100% | 25 pp |
-| P03 | [Pinned remote sources](https://github.com/sproates/panackelty/issues/568) | P01–P02 | P03a done; P03b done on merge of PR#580; P03c–d pending | 35% | 65% | 22.75 pp |
+| P03 | [Pinned remote sources](https://github.com/sproates/panackelty/issues/568) | P01–P02 | P03a–c complete on merge of PR#581; P03d pending | 35% | 85% | 29.75 pp |
 | P04 | [`panack` workflow integration](https://github.com/sproates/panackelty/issues/569) | P01–P03 | Planned | 25% | 0% | 0 pp |
-| **Total on merge of PR#580** |  |  |  | **100%** | **62.75%** | **62.75 pp** |
+| **Total on merge of PR#581** |  |  |  | **100%** | **69.75%** | **69.75 pp** |
 
 The [P01 contract](../../design/PACKAGE_MANAGEMENT_CONTRACT.md) was accepted in
 [PR#571](https://github.com/sproates/panackelty/pull/571). It defines the lock,
@@ -134,8 +134,12 @@ after the generic process/filesystem prerequisite merged as PR#579. Its
 isolated exact-commit snapshots, canonical digests, safe links, unsupported-content
 rejection, cleanup and source/bytecode HTTPS tests on Linux and macOS. This earns
 12.25 further percentage points, taking P03 to 65% and GI#200 to 62.75% on merge.
-The prerequisite itself earns no separate credit. P03c, P03d and P04 remain
-unstarted; public Git dependency declarations are not yet supported.
+The prerequisite itself earns no separate credit. P03c completes on merge of
+[PR#581](https://github.com/sproates/panackelty/pull/581): public Git manifests, selector resolution, full-commit locks,
+shared snapshots and sibling/diamond graphs. Its
+[integration record](../../design/PACKAGE_GIT_INTEGRATION_ACCEPTANCE.md) captures
+acceptance and limitations. It earns 7 further percentage points, taking P03 to
+85% and GI#200 to 69.75%. P03d and P04 remain unstarted; GI#568 and GI#200 stay open.
 Native-interface decoupling remains
 alpha.16 work. Website impact: no change to published alpha.14 claims; document
 the new generic APIs when the matching native release is promoted.

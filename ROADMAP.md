@@ -53,7 +53,8 @@ Their provisional weights are 15%, 25%, 35% and 25% of GI#200, respectively.
 P01 is accepted in PR#571. P02 merged as PR#575, taking weighted
 completion to 40%. P03a completes on merge of PR#578, taking estimated weighted
 completion to 50.5%. P03b completes on merge of PR#580, taking the total to
-62.75% under the same P03 allocation; P03c–d and P04 remain planned. PR#573 reverted the initial P02
+62.75% under the same P03 allocation. P03c completes on merge of PR#581,
+raising the total to 69.75%; P03d and P04 remain planned. PR#573 reverted the initial P02
 implementation to the P01 baseline. The P01
 [contract](docs/design/PACKAGE_MANAGEMENT_CONTRACT.md) defines lock and restore
 behaviour. The [implementation boundaries](docs/design/PACKAGE_MANAGEMENT_IMPLEMENTATION.md)
@@ -73,7 +74,8 @@ environments, confined staged link creation and link-target inspection. This
 prepares controlled Git acquisition without moving package policy into native
 code. PR#580 stages exact Git commits with isolated configuration, raw blob
 extraction, canonical hashes, safe symlinks and cleanup on failure. Public Git
-manifests, locks and shared snapshot graphs remain P03c. The alpha.16 coupling
+manifests, locks and shared snapshot graphs are delivered by P03c; see its
+[integration record](docs/design/PACKAGE_GIT_INTEGRATION_ACCEPTANCE.md). The alpha.16 coupling
 task stays separate.
 
 <a id="rm-158"></a> [RM#158](docs/roadmap/records/dependency-management--idea.md#rm-158),

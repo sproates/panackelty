@@ -1448,4 +1448,20 @@ authentication and interrupted transport; and checks cleanup and preservation
 of a previously published snapshot. Hostile inherited helper/template/filter
 configuration cannot execute its marker script. Linux and macOS run the fixture
 in the HTTP TLS workflow. These are behaviour assertions, not source-execution
-coverage percentages. Manifest/ref/lock graph integration is deferred to P03c.
+coverage percentages. P03c integration coverage is described below.
+
+## GI#200 P03c Git package integration
+
+`tests/package_git.sh` also runs `tests/package_git_integration.sh`. Complete
+programs through public project check/compile/run and saved bytecode assert
+annotated tags, default HEAD, full refs and commits, SHA-1/SHA-256 repositories,
+root packages, linked subdirectories, sibling diamonds and repeated aliases.
+The HTTPS peer counts TCP connections to prove warm and offline commands do not
+contact it. Tests assert unchanged locks after moved refs, exact-commit cold
+restore, corrupt-cache repair, atomic selective-update rejection and snapshot
+versus package-private containment. New manifest/ref/lock boundary assertions
+live in the existing package unit runners. These are behavioural assertions;
+the three new production modules remain explicitly unmeasured in the source
+coverage inventory, with eligible sources and thresholds unchanged.
+P03d still owns the broader cross-source acceptance matrix; P04 owns installed
+all-source workflows. See the [integration record](../docs/design/PACKAGE_GIT_INTEGRATION_ACCEPTANCE.md).

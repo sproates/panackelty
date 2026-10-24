@@ -651,3 +651,10 @@ The alpha.13 coverage-capacity correction refreshes the v9 seed through the
 standard stages 2–4 fixed-point proof. The self-hosted raw/session readers accept
 32 MiB containers while identity blobs remain bounded at 16 MiB. Compiler digest:
 `206a9dc17af2ca4d7d85af6759729aa35a7e9cb5dc53593b038d473cfbcf4403`.
+
+The P03b generic prerequisite adds exact-environment process launch, staged
+symbolic-link creation and bounded link-target inspection. Their explicit
+compiler grants refresh the v9 seed through the existing staged fixed-point
+procedure; bytecode remains version 9. Package policy remains outside the
+compiler. This prerequisite does not complete Git acquisition or the alpha.16
+native-interface decoupling task.

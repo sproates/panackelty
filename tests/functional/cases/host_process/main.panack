@@ -32,4 +32,23 @@ main(): Void {
   print(code(std_process.run(path("/bin/sh"), [], byte_buffer.empty(), std_path.current(), [], std_time.seconds(0), 10)))
   print(code(std_process.run(path("/bin/sh"), [], byte_buffer.empty(), path("/does-not-exist"), [], std_time.seconds(1), 10)))
   print(code(std_process.run(path("/bin/sh"), ["-c", "sleep 5 & exit 0"], byte_buffer.empty(), std_path.current(), [], std_time.milliseconds(30), 10)))
+  match std_process.run_isolated(path("/usr/bin/env"), [], byte_buffer.empty(),
+      std_path.current(), ["ONLY=explicit"], std_time.seconds(3), 100) {
+    Error(error) => print(error.code),
+    Ok(output) => print(output.stdout == "ONLY=explicit\n".encode_utf8())
+  }
+  match std_process.run_isolated(path("/usr/bin/env"), [], byte_buffer.empty(),
+      std_path.current(), [], std_time.seconds(3), 100) {
+    Error(error) => print(error.code),
+    Ok(output) => print(output.stdout.length())
+  }
+  print(code(std_process.run_isolated(path("/usr/bin/env"), [], byte_buffer.empty(),
+    std_path.current(), ["A=1", "A=2"], std_time.seconds(1), 100)))
+  print(code(std_process.run_isolated(path("/bin/sh"), ["-c", "printf excess"], byte_buffer.empty(),
+    std_path.current(), [], std_time.seconds(1), 1)))
+  print(code(std_process.run_isolated(path("/bin/sh"), ["-c", "/bin/sleep 5"], byte_buffer.empty(),
+    std_path.current(), [], std_time.milliseconds(30), 100)))
+  print(code(std_process.run_isolated(path("/does-not-exist"), [], byte_buffer.empty(),
+    std_path.current(), [], std_time.seconds(1), 100)))
+
 }

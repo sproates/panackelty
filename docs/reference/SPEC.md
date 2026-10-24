@@ -1097,6 +1097,25 @@ network or listener permission. Native CLI execution permits these operations;
 server children inherit the parent's filesystem grant, but never its listener
 grant. Existing synchronous filesystem calls remain unavailable in async bodies.
 
+### Confined symbolic-link operations
+
+`filesystem_stage.symlink(handle: Nat, relative: Path, target: Path)` returns
+`Result[Unit,HostError]`. It exclusively creates a symbolic link beneath the
+retained stage directory, refusing parent traversal and symlinked ancestors.
+It never overwrites an existing entry or opens the target. Targets retain their
+native bytes and must be nonempty, NUL-free and at most 4096 bytes, subject to
+host limits. The caller decides whether absolute, dangling or escaping targets
+are appropriate; package acquisition imposes its own containment policy.
+
+`bounded_filesystem.read_link(root: Path, relative: Path)` returns
+`Result[Bytes,HostError]`. It opens directory ancestors without following links,
+then returns the final link's native target bytes without dereferencing it.
+The root follows staging's documented system-directory-alias handling on macOS.
+Relative paths cannot be absolute or traverse parents. Missing paths, regular
+files, symlinked ancestors and targets exceeding 4096 bytes fail explicitly.
+The read is bounded; it does not promise stability across subsequent calls.
+Both operations are native-only and return `unsupported` in the browser.
+
 ### Process execution
 
 ```panack
@@ -1119,7 +1138,16 @@ Arguments exclude argv[0], are UTF-8 encoded, and reject NUL. Explicitly invokin
 `/bin/sh` opts into that shell's parsing. Environment entries use `NAME=value`
 and override the invocation's captured environment only in the child; empty
 names, missing `=`, duplicate names, and NUL are rejected. Empty values are
-allowed. Environment deletion and native-byte argument construction are deferred.
+allowed. Native-byte argument construction is deferred.
+
+`process.run_isolated` has the same signature, limits and termination semantics,
+but supplies exactly the explicit environment entries. An empty list gives an
+empty environment. It neither inherits invocation variables nor injects an
+automatic coverage ticket. During coverage collection it marks the session
+incomplete because the child is unobserved, even if the caller supplies a ticket
+explicitly. `process.run` retains its inherited-environment
+behaviour. Environment isolation is not a filesystem or process sandbox, and
+does not prevent a child from reading its normal configuration files.
 
 The parent concurrently writes stdin and drains stdout and stderr, closing stdin
 when exhausted or when the child closes it. The output limit applies to the sum

@@ -11,3 +11,9 @@ out_of_range
 timeout
 launch_failed
 timeout
+true
+0
+invalid_environment
+output_limit
+timeout
+launch_failed

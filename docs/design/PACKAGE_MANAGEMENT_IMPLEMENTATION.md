@@ -211,6 +211,29 @@ separate package cache.
 
 ## Delivery sequence and acceptance
 
+P03b has a narrow generic prerequisite approved on 24 October 2026:
+`process.run_isolated` supplies an exact child environment, staging can create
+symbolic links, and bounded filesystem access can read link-target bytes without
+following them. The existing process operation inherits environment entries;
+disabling Git's system/global files alone does not remove inherited Git settings.
+The new operations contain no Git, manifest or cache policy. Their native grants
+require one compiler/VM interface update under the current architecture. General
+native-interface decoupling remains alpha.16 work, outside this package programme.
+The prerequisite alone does not complete P03b or enable Git dependency manifests.
+
+[PR#579](https://github.com/sproates/panackelty/pull/579) delivers this prerequisite
+on merge. Native contracts and public source/bytecode fixtures cover exact and
+empty environments, unchanged inherited calls, link bytes, no-follow ancestors,
+traversal, exclusive creation and cleanup. The coverage-session regression proves
+that no ticket is injected and the unobserved child marks the session incomplete.
+Compiler stages 2/3/4 match at
+`aab8b0557c9525ac1e917d093e1c44452ba746fde59d880b7ea3e5c2a24509df`.
+The stdlib artifact adds only the isolated-process wrapper; reviewed disassembly
+and unchanged stdout support the explicit golden-fixture update. Both process
+operations share existing bounded I/O and cleanup; isolated calls avoid copying
+inherited entries. Link reads use a fixed 4097-byte buffer. No Git throughput or
+additional programme completion is claimed.
+
 | Slice | Deliverable and evidence required before continuing |
 | --- | --- |
 | P02a: independent tool | Package-tool entry/artifact, launcher route, exact descriptor schema and compiler handoff. Run a complete project with a local directory dependency. Demonstrate that a package-only behaviour edit changes tool output while compiler artifact/seed hashes and compiler build invocation count remain unchanged. Record the native API surface and prove staging/publication guarantees. |

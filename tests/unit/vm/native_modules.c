@@ -352,7 +352,8 @@ static void host_builtins_reject_wrong_operand_types(void)
                  {"fs_temp_file", 1},
                  {"fs_temp_directory", 1},
                  {"host_sleep", 1},
-                 {"process_run", 7}};
+                 {"process_run", 7},
+                 {"process_run_isolated", 7}};
     Value *wrong = value_size(0);
     assert(wrong);
     Value *args[] = {wrong, wrong, wrong, wrong, wrong, wrong, wrong};
@@ -365,6 +366,49 @@ static void host_builtins_reject_wrong_operand_types(void)
         assert(wrong->refs == 1);
     }
     release(wrong);
+}
+
+static void process_environment_isolation_is_exact(void)
+{
+    char *inherited[] = {"GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=panack.probe",
+                         "GIT_CONFIG_VALUE_0=ambient", "PANACK_COVERAGE_TICKET=ambient"};
+    VM vm = {0};
+    vm.environment = inherited;
+    vm.env_count = 4;
+    Value *setting = value_data(V_STR, (const uint8_t *)"ONLY=explicit", 13);
+    Value *environment[] = {setting};
+    Value *duration = value_size(1000000000);
+    duration->kind = V_DURATION;
+    Value *args[] = {value_data(V_PATH, (const uint8_t *)"/usr/bin/env", 12),
+                     value_sequence(V_ARRAY, NULL, 0),
+                     value_data(V_BYTES, NULL, 0),
+                     value_data(V_PATH, (const uint8_t *)".", 1),
+                     value_sequence(V_ARRAY, environment, 1),
+                     duration,
+                     value_size(4096)};
+    for (size_t mode = 0; mode < 2; mode++) {
+        Value *result = builtin_call(&vm, mode ? "process_run" : "process_run_isolated", args);
+        assert(!vm.error && result && !strcmp(result->as.named.name, "Ok"));
+        Value *output = result->as.named.values[0]->as.named.values[2];
+        if (!mode) {
+            assert(output->as.bytes.length == 14);
+            assert(!memcmp(output->as.bytes.data, "ONLY=explicit\n", 14));
+        } else {
+            assert(strstr((const char *)output->as.bytes.data, "GIT_CONFIG_COUNT=1\n"));
+            assert(strstr((const char *)output->as.bytes.data, "ONLY=explicit\n"));
+        }
+        release(result);
+    }
+    release(args[4]);
+    args[4] = value_sequence(V_ARRAY, NULL, 0);
+    Value *result = builtin_call(&vm, "process_run_isolated", args);
+    assert(result && !strcmp(result->as.named.name, "Ok"));
+    assert(result->as.named.values[0]->as.named.values[2]->as.bytes.length == 0);
+    release(result);
+    for (size_t i = 0; i < 7; i++) {
+        release(args[i]);
+    }
+    release(setting);
 }
 
 static Value *rooted_read(const char *root, const char *relative)
@@ -986,6 +1030,11 @@ int main(int argc, char **argv)
         http_writer_artifact(argv[2]);
         return 0;
     }
+    if (argc == 2 && !strcmp(argv[1], "process-isolation")) {
+        process_environment_isolation_is_exact();
+        puts("native process isolation: ok");
+        return 0;
+    }
     if (argc == 2 && !strcmp(argv[1], "filesystem-root")) {
         filesystem_data_limits_are_independent_of_process_limits();
         filesystem_root_reads_stay_beneath_the_open_root();
@@ -1061,6 +1110,7 @@ int main(int argc, char **argv)
     opaque_host_values_keep_distinct_kinds();
     record_module_progress("opaque_host_values");
     host_builtins_reject_wrong_operand_types();
+    process_environment_isolation_is_exact();
     record_module_progress("host_builtin_types");
     filesystem_data_limits_are_independent_of_process_limits();
     record_module_progress("filesystem_data_limits");

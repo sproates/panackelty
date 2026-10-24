@@ -7,3 +7,9 @@ pub read_chunk(file: Path, offset: Nat, limit: Nat): Result[Bytes, HostError] {
 pub atomic_write(file: Path, data: Bytes): Result[Unit, HostError] {
   fs_atomic_write(file, data)
 }
+
+// Read at most 4096 native target bytes, without following the final link or
+// symlinked ancestors. The relative path must remain below root.
+pub read_link(root: Path, relative: Path): Result[Bytes, HostError] {
+  fs_read_link(root, relative)
+}

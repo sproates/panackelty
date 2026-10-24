@@ -110,8 +110,11 @@ ln -s loop-one "$work/source/loop-two"
 commit_tree cycle
 reject_snapshot 'Git symlink escapes the snapshot or contains a cycle' "$url" "$bad_commit" "$work/test.crt" /usr/bin/git sha1 plain
 rm "$work/source/loop-one" "$work/source/loop-two"
-printf 'version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 1\n' > "$work/source/lfs"
+printf 'version https://git-lfs.github.com/spec/v1\noid sha256:0000000000000000000000000000000000000000000000000000000000000000\nsize 1\n' > "$work/source/lfs"
 commit_tree lfs
+reject_snapshot 'Git LFS content is unsupported' "$url" "$bad_commit" "$work/test.crt" /usr/bin/git sha1 plain
+printf 'version https://git-lfs.github.com/spec/v1\r\noid sha256:0000000000000000000000000000000000000000000000000000000000000000\r\nsize 1\r\n' > "$work/source/lfs"
+commit_tree lfs-crlf
 reject_snapshot 'Git LFS content is unsupported' "$url" "$bad_commit" "$work/test.crt" /usr/bin/git sha1 plain
 rm "$work/source/lfs"
 /usr/bin/git -C "$work/source" update-index --add --cacheinfo "160000,$commit,submodule"

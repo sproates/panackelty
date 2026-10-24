@@ -32,7 +32,7 @@ making that commit available; failure never substitutes another commit.
 
 ## Verification
 
-- Thirty focused policy assertions cover inventory/path/size and link rules.
+- Thirty-four focused policy assertions cover inventory/path/size and link rules.
 - Source and saved-bytecode HTTPS fixtures independently reproduce source keys
   and canonical tree digests, and inspect original file bytes and link targets.
 - Hostile inherited URL rewrite, helper path, global/system configuration,
@@ -45,6 +45,11 @@ making that commit available; failure never substitutes another commit.
 - Publishing preserves links; a rejected replacement preserves the old snapshot.
 - Compiler/native sources and bootstrap bytes are unchanged. Package handoff
   validation checks the separate build boundary.
+
+LFS rejection includes current and historical markers, CRLF and leading Unicode
+whitespace recognised by the [Git LFS parser](https://github.com/git-lfs/git-lfs/blob/main/lfs/pointer.go).
+The earlier LF-only marker check was caught during self-review and corrected
+before acceptance.
 
 Final local validation and hosted Linux/macOS acceptance are pending. This record
 does not claim P03b delivered until both pass and the delivery PR is merged.

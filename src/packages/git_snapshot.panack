@@ -47,7 +47,9 @@ pure git_line(data: Bytes): Result[Str, Str] {
   } else {
     text: Str = byte_buffer.slice(data, 0, end).decode_utf8()
     mut valid: Bool = true
-    for index in 0..end { if data.at(index) == 0 || data.at(index) == 10 || data.at(index) == 13 { valid = false } }
+    for index in 0..end {
+      if data.at(index) == 0 || data.at(index) == 10 || data.at(index) == 13 { valid = false }
+    }
     if valid { Ok(text) } else { Error("invalid Git command response") }
   }
 }
@@ -73,6 +75,33 @@ read_git_links(context: GitContext, inventory: GitInventory): Result[Map[Str, St
   match failure { Some(problem) => Error(problem), None() => Ok(links) }
 }
 
+// Reject current and historical LFS version markers, including noncanonical
+// whitespace accepted by Git LFS. This is detection only, never an LFS fetch.
+pub pure git_lfs_pointer(data: Bytes): Bool {
+  if !valid_utf8(data) { false }
+  else {
+    text: Str = data.decode_utf8()
+    mut start: Nat = 0
+    mut whitespace: Bool = true
+    while start < text.len() && whitespace {
+      encoded: Bytes = text[start].encode_utf8()
+      scalar: Nat = if encoded.length() == 1 { encoded.at(0) }
+        else if encoded.length() == 2 { (encoded.at(0) % 32) * 64 + encoded.at(1) % 64 }
+        else if encoded.length() == 3 {
+          (encoded.at(0) % 16) * 4096 + (encoded.at(1) % 64) * 64 + encoded.at(2) % 64
+        } else { 0 }
+      // Unicode White_Space, matching the pointer decoder's leading trim.
+      whitespace = (scalar >= 9 && scalar <= 13) || scalar == 32 || scalar == 133 ||
+        scalar == 160 || scalar == 5760 || (scalar >= 8192 && scalar <= 8202) ||
+        scalar == 8232 || scalar == 8233 || scalar == 8239 || scalar == 8287 || scalar == 12288
+      if whitespace { start = start + 1 }
+    }
+    text.starts_with_at("version https://git-lfs.github.com/spec/v1", start) ||
+      text.starts_with_at("version https://hawser.github.com/spec/v1", start) ||
+      text.starts_with_at("version http://git-media.io/v/2", start)
+  }
+}
+
 // Git expands one blob to a private temporary file without attributes or filters.
 // Panack copies and hashes it in bounded chunks; no full blob is buffered here.
 stage_git_blob(context: GitContext, stage: Nat, entry: GitEntry, state: Sha256): Result[Sha256, Str] {
@@ -82,7 +111,9 @@ stage_git_blob(context: GitContext, stage: Nat, entry: GitEntry, state: Sha256):
       Error(problem) => Error(problem),
       Ok(name) => {
         mut valid: Bool = name.starts_with_at(".merge_file_", 0)
-        for index in 0..name.len() { if name[index] == "/" || name[index] == "\\" { valid = false } }
+        for index in 0..name.len() {
+          if name[index] == "/" || name[index] == "\\" { valid = false }
+        }
         if !valid { Error("unexpected Git blob temporary path") }
         else {
           file = context.repository.join(git_path(name)).value_or(context.repository)
@@ -96,9 +127,7 @@ stage_git_blob(context: GitContext, stage: Nat, entry: GitEntry, state: Sha256):
               Ok(chunk) => {
                 if offset + chunk.length() > entry.size { failure = Some("Git blob exceeds declared size") }
                 else {
-                  lfs_prefix = "version https://git-lfs.github.com/spec/v1\n".encode_utf8()
-                  if offset == 0 && chunk.length() >= lfs_prefix.length() &&
-                      byte_buffer.slice(chunk, 0, lfs_prefix.length()) == lfs_prefix {
+                  if offset == 0 && git_lfs_pointer(chunk) {
                     failure = Some("Git LFS content is unsupported")
                   } else if chunk.length() > 0 || offset == 0 {
                     match staging.write(stage, git_path(entry.path), chunk, offset) {

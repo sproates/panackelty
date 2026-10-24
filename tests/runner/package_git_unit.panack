@@ -1,3 +1,4 @@
+import project/src/packages/git_snapshot::{git_lfs_pointer}
 import project/src/packages/git_inventory::{parse_git_inventory, git_object_id}
 import project/src/packages/git_links::{git_link_beneath}
 import stdlib/testing as testing
@@ -12,6 +13,10 @@ pure accepted(data: Bytes): Bool {
 main(): Void {
   empty: Map[Str, Str] = map()
   results = [
+    testing.expect("LFS CRLF", git_lfs_pointer("version https://git-lfs.github.com/spec/v1\r\noid sha256:abc\r\n".encode_utf8()), "CRLF pointer accepted"),
+    testing.expect("LFS historical marker", git_lfs_pointer("version https://hawser.github.com/spec/v1\n".encode_utf8()), "historical pointer accepted"),
+    testing.expect("LFS whitespace", git_lfs_pointer(byte_buffer.empty().push(194).push(160).join("\nversion http://git-media.io/v/2\n".encode_utf8())), "whitespace pointer accepted"),
+    testing.expect("ordinary file", !git_lfs_pointer("ordinary data".encode_utf8()), "ordinary file rejected"),
     testing.expect("regular blob", accepted(row("100644", "blob", "5", "file")), "Git policy mismatch"),
     testing.expect("executable blob", accepted(row("100755", "blob", "5", "file")), "Git policy mismatch"),
     testing.expect("directory", accepted(row("040000", "tree", "-", "dir")), "Git policy mismatch"),

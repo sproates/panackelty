@@ -51,6 +51,12 @@ whitespace recognised by the [Git LFS parser](https://github.com/git-lfs/git-lfs
 The earlier LF-only marker check was caught during self-review and corrected
 before acceptance.
 
+The first complete run failed an existing package-root race fixture: the compiler
+returned its safe `cannot verify resolved project package manifest` diagnostic,
+which the fixture did not classify. The fixture now counts that exact diagnostic
+as a manifest-read rejection, retaining the no-mixed-output and observed-identity-change
+assertions. The focused 40-attempt race passes. No compiler behaviour changed.
+
 Final local validation and hosted Linux/macOS acceptance are pending. This record
 does not claim P03b delivered until both pass and the delivery PR is merged.
 

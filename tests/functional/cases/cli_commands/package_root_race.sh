@@ -126,6 +126,9 @@ while [ "$attempt" -lt 40 ]; do
                 identity_changes=$((identity_changes + 1)) ;;
             *'package source read failed'*)
                 source_read_errors=$((source_read_errors + 1)) ;;
+            'error: cannot verify resolved project package manifest')
+                # read_beneath can reject the changing root before returning an identity.
+                manifest_read_errors=$((manifest_read_errors + 1)) ;;
             *'cannot read project manifest ('*)
                 manifest_read_errors=$((manifest_read_errors + 1)) ;;
             *) echo "unexpected package race failure: $errors" >&2; exit 1 ;;

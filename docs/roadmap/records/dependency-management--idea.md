@@ -152,4 +152,3 @@ were superseded by the owner's 22 October decision. PR#240's historic P7 design
 remains context only where it does not conflict with the current contract.
 
 [Roadmap index](../README.md) · [Current release and next work](../../../ROADMAP.md)
-

@@ -1,10 +1,11 @@
-import project/src/packages/manifest::{parse_package_manifest}
+import project/src/packages/git_acquisition::{AcquiredGit, git_containing, git_relative, git_package_root}
+import project/src/packages/manifest::{parse_package_manifest, PackageManifest, PackageManifestDependency}
 import stdlib/compiler_paths as paths
 pub import project/src/packages/project_graph::{ManifestProject}
 import project/src/packages/project_graph::{package_project_from_manifest}
 import project/src/project_model/resolved_project::{ResolvedPackage, ResolvedProject}
 import project/src/project_model/package_manifest::{
-  PackageManifest, PackageManifestDependency, ManifestJsonMember,
+  ManifestJsonMember,
   ManifestJsonValue.ManifestJsonObject, ManifestJsonValue.ManifestJsonString
 }
 pub import project/src/packages/lock::{PackageLock}
@@ -57,7 +58,13 @@ read_locked_manifest(package: ResolvedPackage, toolchain: Str): Result[LockedMan
   }
 }
 
-pure local_edges(package: ResolvedPackage, declarations: [PackageManifestDependency], archives: [ArchiveSource]): [PackageLockEdge] {
+pure local_edges(
+  package: ResolvedPackage,
+  declarations: [PackageManifestDependency],
+  archives: [ArchiveSource],
+  gits: [AcquiredGit],
+  packages: [ResolvedPackage]
+): [PackageLockEdge] {
   mut edges: [PackageLockEdge] = []
   for declaration in declarations {
     for resolved in package.dependencies {
@@ -71,6 +78,22 @@ pure local_edges(package: ResolvedPackage, declarations: [PackageManifestDepende
           for archive in archives {
             if resolved.target == archive.name + "@" + archive.version {
               fields = fields.append(ManifestJsonMember("archive_sha256", ManifestJsonString(archive.archive_hash), 0))
+            }
+          }
+        }
+        for target in packages {
+          if target.id == resolved.target {
+            match git_containing(target.package_root, gits) {
+              None() => {},
+              Some(snapshot) => {
+                fields = [
+                  ManifestJsonMember("kind", ManifestJsonString("git"), 0),
+                  ManifestJsonMember("url", ManifestJsonString(snapshot.source.url), 0),
+                  ManifestJsonMember("subdir", ManifestJsonString(git_relative(target.package_root, snapshot)), 0),
+                  ManifestJsonMember("object_format", ManifestJsonString(snapshot.source.object_format), 0),
+                  ManifestJsonMember("commit", ManifestJsonString(snapshot.source.commit), 0)
+                ]
+              }
             }
           }
         }
@@ -101,8 +124,22 @@ pub current_local_lock(project: ManifestProject): Result[PackageLock, Str] {
               if edge.alias == declaration.alias {
                 for target in resolved.packages {
                   if target.id == edge.target {
-                    if declaration.kind == "path" { agrees = source == target.package_root }
-                    else { for archive in project.archives {
+                    if declaration.kind == "git" {
+                      for snapshot in project.gits {
+                        if snapshot.source.url == declaration.path {
+                          match git_package_root(snapshot, declaration.subdir) {
+                            Error(problem) => {}, Ok(root) => { agrees = agrees || root == target.package_root }
+                          }
+                        }
+                      }
+                    } else if declaration.kind == "path" {
+                      match git_containing(package.package_root, project.gits) {
+                        None() => { agrees = source == target.package_root },
+                        Some(snapshot) => match git_package_root(snapshot, git_relative(package.package_root, snapshot) + "/" + declaration.path) {
+                          Error(problem) => {}, Ok(root) => { agrees = root == target.package_root }
+                        }
+                      }
+                    } else { for archive in project.archives {
                       agrees = agrees || (archive.root == target.package_root && archive.source == source)
                     } }
                   }
@@ -111,7 +148,7 @@ pub current_local_lock(project: ManifestProject): Result[PackageLock, Str] {
             }
             if !agrees { failure = Some("dependency source changed while resolving graph") }
           }
-          edges: [PackageLockEdge] = local_edges(package, read.manifest.dependencies, project.archives)
+          edges: [PackageLockEdge] = local_edges(package, read.manifest.dependencies, project.archives, project.gits, resolved.packages)
           if edges.len() != package.dependencies.len() {
             failure = Some("package manifest changed while constructing lock graph")
           } else if package.id == resolved.root {
@@ -120,6 +157,9 @@ pub current_local_lock(project: ManifestProject): Result[PackageLock, Str] {
           } else {
             mut tree: Option[Str] = None()
             for archive in project.archives { if archive.root == package.package_root { tree = Some(archive.tree_hash) } }
+            match git_containing(package.package_root, project.gits) {
+              None() => {}, Some(snapshot) => { tree = Some(snapshot.tree) }
+            }
             packages = packages.append(PackageLockPackage(
               package.name, package.version, read.digest, tree, edges
             ))

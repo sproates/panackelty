@@ -20,6 +20,9 @@
     "src/stdlib/time.panack"
   ],
   "unmeasured": [
+    {"path":"src/packages/git_acquisition.panack","reason":"P03c Git integration is asserted by unit and public-command HTTPS fixtures outside the bounded source-execution corpus; no coverage percentage is claimed."},
+    {"path":"src/packages/git_cache.panack","reason":"P03c Git integration is asserted by unit and public-command HTTPS fixtures outside the bounded source-execution corpus; no coverage percentage is claimed."},
+    {"path":"src/packages/git_refs.panack","reason":"P03c Git integration is asserted by unit and public-command HTTPS fixtures outside the bounded source-execution corpus; no coverage percentage is claimed."},
     {"path":"src/packages/git_inventory.panack","reason":"P03b Git policy is exercised by unit and source/bytecode HTTPS fixtures outside the bounded source-execution corpus; no coverage percentage is claimed."},
     {"path":"src/packages/git_links.panack","reason":"P03b Git policy is exercised by unit and source/bytecode HTTPS fixtures outside the bounded source-execution corpus; no coverage percentage is claimed."},
     {"path":"src/packages/git_process.panack","reason":"P03b Git policy is exercised by unit and source/bytecode HTTPS fixtures outside the bounded source-execution corpus; no coverage percentage is claimed."},

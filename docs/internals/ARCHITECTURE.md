@@ -1755,8 +1755,8 @@ The staging adapter also supports exclusive symbolic-link creation beneath its
 retained directory handle. Bounded link inspection opens ancestors without
 following links and reads the final link's native target bytes. The adapter does
 not interpret Git trees or package containment rules. Those policies remain in
-the separately compiled Panack package tool. These generic additions prepare
-P03b; Git dependency acquisition is not yet delivered.
+the separately compiled Panack package tool. P03b uses these generic additions
+for controlled Git acquisition.
 
 P03b implements that acquisition boundary in four Panack modules:
 `git_process` owns the isolated Git invocation, `git_inventory` validates tree
@@ -1764,5 +1764,10 @@ records, `git_links` checks physical link containment, and `git_snapshot` builds
 the staged snapshot and canonical digests. Git supplies verified object access;
 Panack owns source validation, bounds, materialisation and rejection policy.
 The caller receives the stage only after validation and must publish or discard
-it. Manifest/lock integration remains P03c. No new compiler or native operation
-is introduced by P03b itself.
+it. P03c adds `git_refs` for explicit selector resolution, `git_cache` for
+whole-snapshot verification and physical subdirectory resolution, and
+`git_acquisition` for locked acquisition and shared publication. The graph owns
+one physical snapshot per URL/object-format/commit and turns sibling path edges
+into Git lock edges. The package manifest types evolve within `src/packages`;
+the frozen compiler parser and resolved descriptor remain unchanged. Neither
+P03b nor P03c introduces a compiler or native operation.

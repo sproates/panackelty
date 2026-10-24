@@ -81,8 +81,7 @@ selection are refused. Commit the lock with the manifest; exclude the generated
 archives and rebuilds missing or corrupt materialization without rewriting the
 lock. Ordinary check, compile and run commands verify the existing lock and cache;
 they never extract archives or repair a cache implicitly. A project without
-dependencies needs no lock. Git acquisition is not yet
-implemented; its syntax remains reserved by the package contract.
+dependencies needs no lock.
 
 ### HTTPS archives on next
 
@@ -100,3 +99,44 @@ remote bytes fail without changing the lock. Use `deps update [ALIAS...]` to
 accept a deliberate change; unselected remote dependencies retain their pins.
 `deps restore --offline` requires verified remote entries already in the cache.
 It can still restore local archives from their declared paths.
+
+### Git dependencies on next
+
+Declare a dependency with an HTTPS repository URL:
+
+```json
+"utilities": {
+  "git": {
+    "url": "https://example.org/utilities.git",
+    "ref": "v1.2.0",
+    "subdir": "packages/utilities"
+  }
+}
+```
+
+`ref` may be a branch, tag or full commit ID. Omit it to select the remote
+HEAD during explicit lock/update. Omit `subdir` for a package at the repository
+root. Abbreviated object IDs and revision expressions are rejected; disambiguate
+branch/tag names with `refs/heads/...` or `refs/tags/...`.
+
+Install Git 2.29 or newer on PATH for initial acquisition and cold restore.
+Git runs with private configuration and no credential helpers, hooks or filters.
+Use a direct HTTPS URL without credentials, query or fragment; Git redirects
+are rejected. TLS verification stays enabled. `CURL_CA_BUNDLE`, when set by the
+caller, supplies the trusted certificate bundle for both archive and Git transport.
+
+The lock pins a full commit. Moving a branch or tag changes nothing until
+`deps update`. Restore fetches only that commit; an unavailable commit fails.
+Verified warm and offline commands do not invoke Git or access the network.
+
+Packages from one repository commit share a snapshot under
+`.panack_modules/.sources/<source-key>`. Relative sibling dependencies may stay
+within that snapshot; they cannot read outside it. Shared packages in a diamond
+resolve to one physical root. If a selective update would give the same package
+two different roots, it fails without changing the lock; update the affected
+root aliases together. A package's imports cannot follow links into a sibling's
+private files.
+
+Snapshots are limited to 16,384 entries and 256 MiB expanded content. The fetched
+Git pack has no pre-fetch byte quota. Cross-source acceptance and final installed
+workflow acceptance remain subsequent programme work.

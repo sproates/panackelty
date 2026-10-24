@@ -1,3 +1,5 @@
+import project/src/packages/git_refs::{parse_git_refs}
+import project/src/packages/manifest::{manifest_git_ref}
 import project/src/packages/git_snapshot::{git_lfs_pointer}
 import project/src/packages/git_inventory::{parse_git_inventory, git_object_id}
 import project/src/packages/git_links::{git_link_beneath}
@@ -10,9 +12,29 @@ pure row(mode: Str, kind: Str, size: Str, name: Str): Bytes {
 pure accepted(data: Bytes): Bool {
   match parse_git_inventory(data, 40) { Ok(inventory) => true, Error(problem) => false }
 }
+pure selected_ref(text: Str, selector: Str): Str {
+  match parse_git_refs(text.encode_utf8(), "https://example.test/repo", selector) {
+    Error(problem) => "error", Ok(source) => source.object_format + ":" + source.commit
+  }
+}
 main(): Void {
   empty: Map[Str, Str] = map()
+  sha1 = "0123456789012345678901234567890123456789"
+  sha256 = "0123456789012345678901234567890123456789012345678901234567890123"
   results = [
+    testing.expect("branch selector", manifest_git_ref("feature/packages"), "branch rejected"),
+    testing.expect("short commit rejected", !manifest_git_ref("abc123"), "short object accepted"),
+    testing.expect("revision expression rejected", !manifest_git_ref("main~1"), "expression accepted"),
+    testing.expect("option rejected", !manifest_git_ref("--upload-pack=evil"), "option accepted"),
+    testing.expect("ref glob rejected", !manifest_git_ref("refs/heads/*"), "glob accepted"),
+    testing.expect("parent ref rejected", !manifest_git_ref("a/../b"), "parent accepted"),
+    testing.expect("full commit accepted", manifest_git_ref(sha1), "commit rejected"),
+    testing.equal_str("default tip", selected_ref(sha1 + "\tHEAD\n", ""), "sha1:" + sha1),
+    testing.equal_str("sha256 branch", selected_ref(sha256 + "\trefs/heads/main\n", "main"), "sha256:" + sha256),
+    testing.equal_str("annotated tag peeled", selected_ref(sha1 + "\trefs/tags/v1\n" + sha256 + "\trefs/tags/v1^{}\n", "v1"), "sha256:" + sha256),
+    testing.equal_str("ambiguous branch/tag", selected_ref(sha1 + "\trefs/heads/v1\n" + sha1 + "\trefs/tags/v1\n", "v1"), "error"),
+    testing.equal_str("truncated refs", selected_ref(sha1 + "\tHEAD", ""), "error"),
+    testing.equal_str("unrelated suffix ignored", selected_ref(sha1 + "\trefs/heads/nested/main\n", "main"), "error"),
     testing.expect("LFS CRLF", git_lfs_pointer("version https://git-lfs.github.com/spec/v1\r\noid sha256:abc\r\n".encode_utf8()), "CRLF pointer accepted"),
     testing.expect("LFS historical marker", git_lfs_pointer("version https://hawser.github.com/spec/v1\n".encode_utf8()), "historical pointer accepted"),
     testing.expect("LFS whitespace", git_lfs_pointer(byte_buffer.empty().push(194).push(160).join("\nversion http://git-media.io/v/2\n".encode_utf8())), "whitespace pointer accepted"),

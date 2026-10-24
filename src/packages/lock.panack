@@ -209,7 +209,7 @@ pure lock_parse_edges(value: ManifestJsonValue): Result[[PackageLockEdge], Packa
                                     match manifest_json_object_field(source, "subdir") {
                                       None() => {},
                                       Some(field) => match field.value {
-                                        ManifestJsonString(path) => if path == "" || path[0] == "/" || lock_contains(path, "\\") || lock_contains(path, "".encode_utf8().push(0).decode_utf8()) || lock_contains(path, "../") || lock_contains(path, "/..") && failure == None() { failure = Some(lock_error("git subdir must be a normalized repository-relative path", field.offset)) },
+                                        ManifestJsonString(path) => if (path == "" || path[0] == "/" || normalize_dependency_path(path) != path || path == ".." || path.starts_with_at("../", 0) || lock_contains(path, "\\") || lock_contains(path, "".encode_utf8().push(0).decode_utf8())) && failure == None() { failure = Some(lock_error("git subdir must be a normalized repository-relative path", field.offset)) },
                                         ManifestJsonNull() => if failure == None() { failure = Some(lock_error("git subdir must be a string", field.offset)) },
                                         ManifestJsonBool(flag) => if failure == None() { failure = Some(lock_error("git subdir must be a string", field.offset)) },
                                         ManifestJsonNumber(number) => if failure == None() { failure = Some(lock_error("git subdir must be a string", field.offset)) },

@@ -1,7 +1,8 @@
 // Package manifest policy belongs to the package tool. The old shared parser
 // remains frozen in the compiler input until a separately reviewed bootstrap
 // cleanup; package commands and their tests use this module exclusively.
-pub import project/src/project_model/package_manifest::{PackageManifest, PackageManifestError, PackageManifestDependency, PackageManifestExport}
+pub import project/src/project_model/package_manifest::{PackageManifestError, PackageManifestExport}
+import project/src/packages/lock::{normalize_dependency_path}
 import project/src/project_model/package_manifest::{ManifestJsonValue, ParsedManifestField,
   parse_manifest_json, manifest_json_object_field, manifest_json_string_field,
   manifest_object_unknown_field, manifest_identifier, manifest_logical_path,
@@ -9,7 +10,88 @@ import project/src/project_model/package_manifest::{ManifestJsonValue, ParsedMan
 import project/src/project_model/package_manifest::{ManifestJsonValue.ManifestJsonNull, ManifestJsonValue.ManifestJsonBool,
   ManifestJsonValue.ManifestJsonNumber, ManifestJsonValue.ManifestJsonString,
   ManifestJsonValue.ManifestJsonArray, ManifestJsonValue.ManifestJsonObject}
+pub record PackageManifestDependency {
+  alias: Str,
+  kind: Str,
+  path: Str,
+  selector: Str,
+  subdir: Str
+}
+
+pub record PackageManifest {
+  package: Str,
+  version: Str,
+  language: Str,
+  toolchain: Str,
+  source: Str,
+  entry: Option[Str],
+  exports: [PackageManifestExport],
+  dependencies: [PackageManifestDependency]
+}
+
 pure manifest_error(message: Str, offset: Nat): PackageManifestError { PackageManifestError(message, offset) }
+
+// Ref names are data, never revision expressions or command-line options.
+pub pure manifest_git_ref(value: Str): Bool {
+  mut valid: Bool = value != "" && !value.starts_with_at("-", 0) &&
+    !value.starts_with_at("/", 0) && !value.ends_with("/") && !value.ends_with(".")
+  mut hex: Bool = true
+  mut component: Str = ""
+  for index in 0..value.len() {
+    character = value[index]
+    hex = hex && ((character >= "0" && character <= "9") || (character >= "a" && character <= "f"))
+    if character.encode_utf8().at(0) <= 32 || character == "~" || character == "^" ||
+        character == ":" || character == "?" || character == "*" || character == "[" ||
+        character == "\\" || character.encode_utf8().at(0) == 127 ||
+        value.starts_with_at("..", index) || value.starts_with_at("@{", index) {
+      valid = false
+    }
+    if character == "/" {
+      if component == "" || component.starts_with_at(".", 0) || component.ends_with(".lock") { valid = false }
+      component = ""
+    } else { component = component + character }
+  }
+  if component.starts_with_at(".", 0) || component.ends_with(".lock") || value == "@" { valid = false }
+  valid && (!hex || value.len() == 40 || value.len() == 64)
+}
+
+pure manifest_git_dependency(alias: Str, value: ManifestJsonValue): Result[PackageManifestDependency, PackageManifestError] {
+  match manifest_object_unknown_field(value, ["url", "ref", "subdir"]) {
+    Some(problem) => Error(problem),
+    None() => {
+      mut failure: Option[PackageManifestError] = None()
+      url = match manifest_json_string_field(value, "url") {
+        Error(problem) => { failure = Some(problem); "" }, Ok(text) => text
+      }
+      mut selector: Str = ""
+      mut subdir: Str = "."
+      for name in ["ref", "subdir"] {
+        if manifest_json_object_field(value, name) != None() {
+          match manifest_json_string_field(value, name) {
+            Error(problem) => { failure = Some(problem) },
+            Ok(text) => if name == "ref" {
+              selector = text
+              if !manifest_git_ref(text) { failure = Some(manifest_error("invalid Git ref or abbreviated object ID", 0)) }
+            } else {
+              subdir = normalize_dependency_path(text)
+              match manifest_relative_path_error(text, true, false, 0) {
+                Some(problem) => { failure = Some(problem) }, None() => {}
+              }
+              if text == "" || text.starts_with_at("/", 0) || subdir == ".." || subdir.starts_with_at("../", 0) {
+                failure = Some(manifest_error("Git subdir must stay within the repository", 0))
+              }
+            }
+          }
+        }
+      }
+      if !manifest_https_archive_url(url) { failure = Some(manifest_error("Git URL must use HTTPS without credentials, query or fragment", 0)) }
+      match failure {
+        Some(problem) => Error(problem),
+        None() => Ok(PackageManifestDependency(alias, "git", url, selector, subdir))
+      }
+    }
+  }
+}
 
 pure manifest_manifest_exports(value: ManifestJsonValue): Result[[PackageManifestExport], PackageManifestError] {
   match value {
@@ -54,7 +136,18 @@ pure manifest_manifest_dependencies(value: ManifestJsonValue): Result[[PackageMa
         if (!manifest_identifier(member.key) || member.key == "project" || member.key == "stdlib") && failure == None() {
           failure = Some(manifest_error("dependency aliases must be identifiers other than project or stdlib", member.offset))
         }
-        if failure == None() {
+        if failure == None() && manifest_json_object_field(member.value, "git") != None() {
+          match manifest_object_unknown_field(member.value, ["git"]) {
+            Some(problem) => { failure = Some(problem) },
+            None() => match manifest_json_object_field(member.value, "git") {
+              None() => {},
+              Some(field) => match manifest_git_dependency(member.key, field.value) {
+                Error(problem) => { failure = Some(problem) },
+                Ok(dependency) => { dependencies = dependencies.append(dependency) }
+              }
+            }
+          }
+        } else if failure == None() {
           path_field = manifest_json_object_field(member.value, "path")
           kind: Str = if path_field != None() { "path" } else { "archive" }
           match manifest_object_unknown_field(member.value, [kind]) {
@@ -67,14 +160,14 @@ pure manifest_manifest_dependencies(value: ManifestJsonValue): Result[[PackageMa
                 } else if path.starts_with_at("https://", 0) || path.starts_with_at("http://", 0) {
                   if kind != "archive" || !manifest_https_archive_url(path) {
                     failure = Some(manifest_error("archive URL must use HTTPS without credentials, query or fragment", member.offset))
-                  } else { dependencies = dependencies.append(PackageManifestDependency(member.key, kind, path)) }
+                  } else { dependencies = dependencies.append(PackageManifestDependency(member.key, kind, path, "", ".")) }
                 } else {
                   // Only dependency paths may be absolute. Source and export
                   // paths retain the strict package-relative validation above.
                   relative: Str = if path.starts_with_at("/", 0) { path.slice(1, path.len()) } else { path }
                   match manifest_relative_path_error(relative, true, false, member.offset) {
                     Some(error) => { failure = Some(error) },
-                    None() => { dependencies = dependencies.append(PackageManifestDependency(member.key, kind, path)) }
+                    None() => { dependencies = dependencies.append(PackageManifestDependency(member.key, kind, path, "", ".")) }
                   }
                 }
               }

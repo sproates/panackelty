@@ -31,7 +31,7 @@ pure link_relative_target(value: Str): Bool {
 // Resolve against the complete snapshot's link inventory before creating links.
 // Parent components are handled after link expansion, matching filesystem order.
 // Dangling targets inside the root are allowed; cycles and escapes are not.
-pub pure git_link_beneath(name: Str, target: Str, links: Map[Str, Str]): Bool {
+pub pure git_resolve_link(name: Str, target: Str, links: Map[Str, Str]): Result[Str, Str] {
   mut resolved: [Str] = []
   original: [Str] = link_components(name)
   for index in 0..original.len() {
@@ -68,5 +68,10 @@ pub pure git_link_beneath(name: Str, target: Str, links: Map[Str, Str]): Bool {
       } else { resolved = resolved.append(component) }
     }
   }
-  valid
+  if valid { Ok(if resolved.len() == 0 { "." } else { join_components(resolved) }) }
+  else { Error("Git path escapes snapshot or contains a link cycle") }
+}
+
+pub pure git_link_beneath(name: Str, target: Str, links: Map[Str, Str]): Bool {
+  match git_resolve_link(name, target, links) { Ok(value) => true, Error(problem) => false }
 }

@@ -1,3 +1,4 @@
+import project/src/packages/git_acquisition::{publish_git}
 import project/src/packages/selective_update::{validate_selective_update}
 import project/src/packages/local_lock::{current_local_lock, read_local_lock, write_local_lock, locks_match, verify_local_lock}
 import project/src/packages/project_graph::{ManifestProject, read_manifest_project, package_project_from_manifest}
@@ -75,10 +76,16 @@ finish_dependencies(operation: Str, project: ManifestProject, existing: Option[P
           Ok(written) => {}
         }
       }
-      if failure == None() {
-        match publish_archives(project.package_root, project.archives, current) {
+      if failure == None() && (operation != "lock" || existing == None()) {
+        match publish_git(project.gits) {
           Error(problem) => { failure = Some(problem) },
           Ok(completed_3) => {}
+        }
+      }
+      if failure == None() && (operation != "lock" || existing == None()) {
+        match publish_archives(project.package_root, project.archives, current) {
+          Error(problem) => { failure = Some(problem) },
+          Ok(done) => {}
         }
       }
       match failure {

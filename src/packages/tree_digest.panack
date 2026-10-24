@@ -1,6 +1,7 @@
 pub import project/src/packages/tar_stream::{ArchiveEntry}
 import project/src/packages/tar_header::{tar_normalize_path}
-import project/src/packages/sha256::{Sha256, sha256_new, sha256_feed, sha256_finish, sha256_close}
+pub import project/src/packages/sha256::{Sha256}
+import project/src/packages/sha256::{ sha256_new, sha256_feed, sha256_finish, sha256_close}
 import stdlib/bytes as byte_buffer
 import stdlib/path as path
 import stdlib/filesystem as filesystem
@@ -21,7 +22,7 @@ pub pure tree_length(value: Nat): Bytes {
   result
 }
 
-tree_feed_file(state: Sha256, root: Str, entry: ArchiveEntry): Result[Sha256, Str] {
+pub tree_feed_file(state: Sha256, root: Str, entry: ArchiveEntry): Result[Sha256, Str] {
   match path.from_text(root + "/" + entry.path) {
     Error(problem) => Error("invalid tree entry path"),
     Ok(file) => {

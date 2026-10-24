@@ -103,6 +103,7 @@ successes=0
 identity_changes=0
 source_read_errors=0
 manifest_read_errors=0
+lock_read_errors=0
 while [ "$attempt" -lt 40 ]; do
     attempt=$((attempt + 1))
     result=0
@@ -131,6 +132,10 @@ while [ "$attempt" -lt 40 ]; do
                 manifest_read_errors=$((manifest_read_errors + 1)) ;;
             *'cannot read project manifest ('*)
                 manifest_read_errors=$((manifest_read_errors + 1)) ;;
+            'panack: cannot inspect lockfile')
+                # The package tool inspects the optional lock before reading the
+                # manifest. Path lookup can fail during the same root replacement.
+                lock_read_errors=$((lock_read_errors + 1)) ;;
             *) echo "unexpected package race failure: $errors" >&2; exit 1 ;;
         esac
     fi
@@ -143,5 +148,5 @@ test "$identity_changes" -gt 0 || {
 }
 printf 'package root race passed (%s consistent reads, %s identity changes, ' \
     "$successes" "$identity_changes"
-printf '%s source read errors, %s manifest read errors)\n' \
-    "$source_read_errors" "$manifest_read_errors"
+printf '%s source read errors, %s manifest read errors, %s lock read errors)\n' \
+    "$source_read_errors" "$manifest_read_errors" "$lock_read_errors"

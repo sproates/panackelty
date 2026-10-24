@@ -83,6 +83,13 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
+- **P03c Git dependencies: Pending release and final acceptance.** Add HTTPS Git
+  manifests, full-commit locks, Git 2.29+ installation, sibling/shared snapshot
+  examples, offline requirements and direct-URL/no-redirect limitations after
+  P03d/P04 and a matching native release. Keep published alpha.14 claims unchanged.
+  Ownership: core release and website maintainers; evidence:
+  [Git integration acceptance](../../design/PACKAGE_GIT_INTEGRATION_ACCEPTANCE.md).
+
 - **P03a HTTPS archives: Pending release.** After matching native release and
   final acceptance, add HTTPS archive declarations, pinned restore/update and
   offline-cache requirements to package examples. Keep alpha.14 claims unchanged

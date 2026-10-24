@@ -663,3 +663,7 @@ P03b's Git acquisition modules use the merged prerequisite without changing
 compiler sources, native sources, bytecode version or bootstrap bytes. Its source
 and saved-bytecode fixtures compile with the existing seed. The package-only
 handoff regression remains the check that edits do not trigger a compiler build.
+
+P03c adds manifest/ref, lock and shared-snapshot integration entirely in the
+Panack package tool. Its package-owned manifest records do not alter the frozen
+compiler parser, saved seed, native operations or resolved-project schema.

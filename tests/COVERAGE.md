@@ -1423,3 +1423,14 @@ close-delimited bodies, truncation, ambiguous framing and size limits through
 source and bytecode execution. The TLS workflow runs HTTPS package acceptance
 on Linux and macOS. These behavioural checks do not establish a source execution
 coverage percentage for the new acquisition module.
+
+The P03b generic prerequisite exercises exact and empty child environments against
+inherited Git configuration and coverage-ticket variables, alongside unchanged
+inherited-process behaviour. Native staging tests verify raw link-target bytes,
+dangling and absolute targets, exclusive creation, consumed handles, no-follow
+ancestors and traversal rejection. The existing `host_process` and
+`host_capabilities` functional cases assert these public wrappers through source
+and saved bytecode, including process limits, timeouts and cleanup. Isolated
+processes do not automatically propagate child coverage tickets; an active
+session is explicitly incomplete. The coverage-session regression proves both
+the exact environment and rejection of a complete aggregate.

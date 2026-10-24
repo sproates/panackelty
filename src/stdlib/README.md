@@ -197,9 +197,24 @@ atomically replaces a regular file with at most 32 MiB. `stdlib/filesystem_stage
 creates a private directory below a verified parent. Its opaque handle supports
 relative directory creation and exclusive file creation followed by sequential
 chunk writes. Publishing consumes the handle and atomically installs or exchanges
-one immediate child directory; close discards an unpublished stage. Symlinks and
-parent traversal are rejected. These operations provide visibility atomicity,
+one immediate child directory; close discards an unpublished stage. Symlinked
+ancestors and parent traversal are rejected. `symlink(handle, relative, target)`
+exclusively creates a link, storing the target's native bytes without opening it.
+The caller owns target containment policy; the generic operation permits dangling
+and absolute targets. Targets are nonempty, NUL-free and at most 4096 bytes,
+subject to the host filesystem's smaller limit. Existing writes never follow links.
+`bounded_filesystem.read_link(root, relative)` reads the final link's raw target
+bytes, at most 4096, without following it or any symlinked ancestor. Root paths
+use the same no-follow walk as staging, including the documented macOS system
+directory aliases. Regular files, missing links and unsafe paths return errors.
+These operations provide visibility atomicity,
 not a multi-file transaction or a promise of crash durability.
+
+`stdlib/process.run_isolated` uses the existing bounded process implementation
+with an exact explicit environment; it adds no inherited variables or coverage
+ticket; an active coverage session is marked incomplete. `run` continues to merge explicit entries with the invocation environment.
+Both use explicit executable paths and argv, with the same timeout, output limits
+and cleanup. Neither operation provides a process sandbox.
 
 Live handles are released on VM completion, failure and synchronous process exit.
 The native adapters are unavailable in the browser and report `unsupported`.

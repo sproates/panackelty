@@ -412,11 +412,12 @@ static Value *decimal(const char *digits, int exponent)
 }
 
 static Value *process_inputs[7];
+static const char *process_name = "process_run";
 
 static void process_operation(void)
 {
     VM vm = {0};
-    Value *result = builtin_call(&vm, "process_run", process_inputs);
+    Value *result = builtin_call(&vm, process_name, process_inputs);
     if (!fault_triggered()) {
         assert(result && !strcmp(result->as.named.name, "Ok"));
         Value *output = result->as.named.values[0]->as.named.values[2];
@@ -439,6 +440,9 @@ static void host_failures(void)
     process_inputs[5]->kind = V_DURATION;
     process_inputs[6] = value_size(1024);
     sweep("process", process_operation);
+    process_name = "process_run_isolated";
+    sweep("isolated process", process_operation);
+    process_name = "process_run";
 
     const char *calls[] = {"clock_gettime", "pipe", "fork", "poll", "read", "write"};
     for (size_t i = 0; i < sizeof(calls) / sizeof(*calls); i++) {

@@ -9,3 +9,12 @@ pub run(executable: Path, arguments: [Str], stdin: Bytes,
   process_run(executable, arguments, stdin, working_directory, environment,
     timeout, output_limit)
 }
+
+// Supply the complete child environment. No inherited variables or automatic
+// coverage ticket are added; executable lookup remains an explicit Path.
+pub run_isolated(executable: Path, arguments: [Str], stdin: Bytes,
+        working_directory: Path, environment: [Str], timeout: Duration,
+        output_limit: Nat): Result[ProcessOutput,HostError] {
+  process_run_isolated(executable, arguments, stdin, working_directory, environment,
+    timeout, output_limit)
+}

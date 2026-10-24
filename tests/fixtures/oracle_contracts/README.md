@@ -82,3 +82,11 @@ return. Comparison of old/new disassembly leaves every previous function and
 instruction unchanged. Both artifacts match the unchanged independent stdout.
 The inventory records this constrained transformation; validation still compares
 complete artifact bytes.
+
+The isolated-process prerequisite extends `stdlib.hex` with the new public
+`process.run_isolated` wrapper. Before refreshing this expectation, disassembly
+comparison established that the only added function loads its seven arguments,
+calls `process_run_isolated` with arity seven, and returns. Existing function
+instructions and the independently fixed stdout remain unchanged. Compiler and
+stdlib stage 2/3/4 fixed points also match. This is an explicit reviewed oracle
+update, not automatic regeneration during tests.

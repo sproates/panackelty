@@ -211,6 +211,16 @@ separate package cache.
 
 ## Delivery sequence and acceptance
 
+P03b has a narrow generic prerequisite approved on 24 October 2026:
+`process.run_isolated` supplies an exact child environment, staging can create
+symbolic links, and bounded filesystem access can read link-target bytes without
+following them. The existing process operation inherits environment entries;
+disabling Git's system/global files alone does not remove inherited Git settings.
+The new operations contain no Git, manifest or cache policy. Their native grants
+require one compiler/VM interface update under the current architecture. General
+native-interface decoupling remains alpha.16 work, outside this package programme.
+The prerequisite alone does not complete P03b or enable Git dependency manifests.
+
 | Slice | Deliverable and evidence required before continuing |
 | --- | --- |
 | P02a: independent tool | Package-tool entry/artifact, launcher route, exact descriptor schema and compiler handoff. Run a complete project with a local directory dependency. Demonstrate that a package-only behaviour edit changes tool output while compiler artifact/seed hashes and compiler build invocation count remain unchanged. Record the native API surface and prove staging/publication guarantees. |

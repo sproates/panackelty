@@ -151,6 +151,40 @@ Value *filesystem_stage_call(VM *vm, const char *name, Value **a)
     (void)vm; (void)a;
     return stage_error(name, "unsupported", 0);
 #else
+    if (!strcmp(name, "fs_read_link")) {
+        char *root_path = stage_path(a[0]);
+        char *relative = stage_path(a[1]);
+        if (!root_path || !relative) {
+            free(root_path);
+            free(relative);
+            return stage_error(name, "invalid_path", 0);
+        }
+        int cwd = open(".", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+        int root = cwd < 0 ? -1 : stage_directory(cwd, root_path);
+        if (cwd >= 0) {
+            close(cwd);
+        }
+        char *leaf = NULL;
+        int parent = root < 0 ? -1 : stage_parent(root, relative, &leaf);
+        int error = errno;
+        if (root >= 0) {
+            close(root);
+        }
+        Value *result = NULL;
+        if (parent >= 0) {
+            // One spare byte distinguishes a supported target from truncation.
+            uint8_t target[4097];
+            ssize_t count = readlinkat(parent, leaf, (char *)target, sizeof(target));
+            error = count < 0 ? errno : count > 4096 ? EOVERFLOW : 0;
+            if (!error) {
+                result = host_variant("Ok", value_data(V_BYTES, target, (size_t)count));
+            }
+            close(parent);
+        }
+        free(root_path);
+        free(relative);
+        return error ? stage_error(name, "filesystem_error", error) : result;
+    }
     if (!strcmp(name, "fs_read_chunk") || !strcmp(name, "fs_atomic_write")) {
         char *full = stage_path(a[0]);
         if (!full) return stage_error(name, "invalid_path", errno);
@@ -307,6 +341,16 @@ Value *filesystem_stage_call(VM *vm, const char *name, Value **a)
     int error = 0;
     if (!strcmp(name, "fs_stage_directory")) {
         if (mkdirat(parent, leaf, 0700)) error = errno;
+    } else if (!strcmp(name, "fs_stage_symlink")) {
+        char *target = stage_path(a[2]);
+        if (!target) {
+            error = EINVAL;
+        } else {
+            if (symlinkat(target, parent, leaf)) {
+                error = errno;
+            }
+            free(target);
+        }
     } else if (!strcmp(name, "fs_stage_write")) {
         size_t offset;
         if (a[2]->kind != V_BYTES || a[2]->as.bytes.length > CHUNK_LIMIT || a[3]->kind != V_NAT ||
@@ -330,7 +374,9 @@ Value *filesystem_stage_call(VM *vm, const char *name, Value **a)
                 if (close(file) && !error) error = errno;
             }
         }
-    } else error = EINVAL;
+    } else {
+        error = EINVAL;
+    }
     close(parent); free(path);
     return error ? stage_error(name, "filesystem_error", error) : stage_ok();
 #endif

@@ -71,6 +71,19 @@ main(): Void {
       results = results.append(std_testing.expect("cached transcript cannot invent fresh execution", cached.exit_code == 1 &&
         session_contains(cached.stderr.decode_utf8(), "cached runner transcript cannot establish fresh coverage") &&
         cached_report.exit_code == 1 && cached_report.stdout == byte_buffer.empty(), "cache bypassed collection"))
+      isolated_source: Str = dir + "/isolated.panack"
+      isolated_bc: Str = dir + "/isolated.bc"
+      isolated_inv: Str = dir + "/isolated.inv"
+      session_write(isolated_source, "import stdlib/process as process\nimport stdlib/path as path\nimport stdlib/time as time\nimport stdlib/bytes as byte_buffer\nmain(): Void { executable = path.from_text(\"/usr/bin/env\").value_or(path.current()); match process.run_isolated(executable, [], byte_buffer.empty(), path.current(), [\"ONLY=explicit\"], time.seconds(3), 1024) { Error(problem) => print(problem.code), Ok(output) => print(output.stdout == \"ONLY=explicit\\n\".encode_utf8()) } }\n".encode_utf8())
+      for setup in [["compile", isolated_source, "-o", isolated_bc], ["inventory", isolated_source, "-o", isolated_inv]] {
+        result: ProcessOutput = session_command(setup)
+        results = results.append(std_testing.expect("isolated process setup", result.exit_code == 0, result.stderr.decode_utf8()))
+      }
+      isolated_session: Str = dir + "/isolated-session"
+      isolated_run: ProcessOutput = session_command(["coverage-session", isolated_session, isolated_bc, isolated_inv, "--"])
+      isolated_report: ProcessOutput = session_command(["coverage-aggregate", "--source", isolated_source, isolated_inv, "--session", isolated_session])
+      results = results.append(std_testing.expect("coverage cannot inject an isolated environment", isolated_run.exit_code == 0 && isolated_run.stdout == "true\n".encode_utf8(), isolated_run.stderr.decode_utf8()))
+      results = results.append(std_testing.expect("isolated child is explicitly unobserved", isolated_report.exit_code == 1 && isolated_report.stdout == byte_buffer.empty(), isolated_report.stderr.decode_utf8()))
       session_clean(dir)
       if std_testing.report(results) > 0 { std_host.exit(1); }
     }

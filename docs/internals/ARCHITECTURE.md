@@ -1742,3 +1742,18 @@ of sockets. These modules are not exported as a completed routed-server API.
 The VM records structured fault categories separately from error text; recovery
 is not enabled until request ownership and cleanup are implemented. Existing HTTP
 client and low-level service contracts remain unchanged during this foundation.
+
+### Generic acquisition prerequisites
+
+The process runtime shares one bounded launch/collection implementation between
+`process.run` and `process.run_isolated`. The latter constructs an exact explicit
+environment and omits automatic coverage-ticket propagation. Existing callers
+retain inheritance and coverage behaviour. The compiler grants each operation
+only to its designated standard-library wrapper.
+
+The staging adapter also supports exclusive symbolic-link creation beneath its
+retained directory handle. Bounded link inspection opens ancestors without
+following links and reads the final link's native target bytes. The adapter does
+not interpret Git trees or package containment rules. Those policies remain in
+the separately compiled Panack package tool. These generic additions prepare
+P03b; Git dependency acquisition is not yet delivered.

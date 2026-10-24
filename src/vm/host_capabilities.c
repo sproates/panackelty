@@ -524,7 +524,7 @@ static void hc_free_strings(char **items)
     }
 }
 
-static Value *hc_process(VM *vm, Value **a)
+static Value *hc_process(VM *vm, const char *operation, Value **a, bool isolated)
 {
     REQUIRE(hc_string(a[0], V_PATH) && hc_string(a[3], V_PATH), "VM trap: process requires Path");
     REQUIRE(a[1]->kind == V_ARRAY && a[2]->kind == V_BYTES && a[4]->kind == V_ARRAY &&
@@ -533,18 +533,18 @@ static Value *hc_process(VM *vm, Value **a)
     size_t timeout = 0, limit = 0;
     const char *problem = hc_duration(a[5], &timeout);
     if (problem) {
-        return hc_error("process_run", problem, 0);
+        return hc_error(operation, problem, 0);
     }
     if (!pn_big_fits_size(&a[6]->as.integer, &limit) || limit > HC_MAX_BYTES ||
         a[2]->as.bytes.length > HC_MAX_BYTES || a[1]->as.sequence.count > 4096 ||
         a[4]->as.sequence.count > 4096) {
-        return hc_error("process_run", "out_of_range", 0);
+        return hc_error(operation, "out_of_range", 0);
     }
     for (size_t i = 0; i < a[1]->as.sequence.count; i++) {
         REQUIRE(a[1]->as.sequence.items[i]->kind == V_STR,
                 "VM trap: process argument requires Str");
         if (!hc_string(a[1]->as.sequence.items[i], V_STR)) {
-            return hc_error("process_run", "invalid_argument", 0);
+            return hc_error(operation, "invalid_argument", 0);
         }
     }
     for (size_t i = 0; i < a[4]->as.sequence.count; i++) {
@@ -552,21 +552,21 @@ static Value *hc_process(VM *vm, Value **a)
         REQUIRE(entry->kind == V_STR, "VM trap: environment entry requires Str");
         char *equal = strchr((char *)entry->as.bytes.data, '=');
         if (!hc_string(entry, V_STR) || !equal || equal == (char *)entry->as.bytes.data) {
-            return hc_error("process_run", "invalid_environment", 0);
+            return hc_error(operation, "invalid_environment", 0);
         }
         for (size_t j = 0; j < i; j++) {
             char *prior = (char *)a[4]->as.sequence.items[j]->as.bytes.data;
             size_t n = (size_t)(equal - (char *)entry->as.bytes.data);
             if (!strncmp(prior, (char *)entry->as.bytes.data, n) && prior[n] == '=') {
-                return hc_error("process_run", "invalid_environment", 0);
+                return hc_error(operation, "invalid_environment", 0);
             }
         }
     }
     if (!timeout) {
-        return hc_error("process_run", "timeout", 0);
+        return hc_error(operation, "timeout", 0);
     }
     size_t inherited = 0;
-    inherited = vm->env_count;
+    inherited = isolated ? 0 : vm->env_count;
     char **argv = calloc(a[1]->as.sequence.count + 2, sizeof(char *));
     char **env = calloc(inherited + a[4]->as.sequence.count + 2, sizeof(char *));
     if (!argv || !env) {
@@ -599,7 +599,12 @@ static Value *hc_process(VM *vm, Value **a)
         env[count] = strdup((char *)a[4]->as.sequence.items[i]->as.bytes.data);
         allocated = env[count++] != NULL;
     }
-    if (vm->coverage_run && allocated) {
+    // Exact environments must not acquire an implicit instrumentation variable.
+    // Record the unobserved child rather than claiming complete session coverage.
+    if (isolated && vm->coverage_run) {
+        vm_coverage_gap(vm->coverage);
+    }
+    if (!isolated && vm->coverage_run && allocated) {
         char *ticket = vm_coverage_process_ticket(vm->coverage_run);
         if (ticket) {
             const char *key = "PANACK_COVERAGE_TICKET=";
@@ -817,7 +822,7 @@ finish:
     hc_free_strings(env);
     Value *result;
     if (problem || error) {
-        result = hc_error("process_run", problem, error);
+        result = hc_error(operation, problem, error);
     } else {
         char *fields[] = {"exit_code", "signal", "stdout", "stderr"};
         Value *values[] = {value_size(WIFEXITED(status) ? (size_t)WEXITSTATUS(status) : 0),
@@ -849,8 +854,8 @@ Value *host_capability_call(VM *vm, const char *name, Value **a)
     if (!strcmp(name, "fs_directories_overlap")) {
         return hc_directories_overlap(vm, a);
     }
-    if (!strcmp(name, "process_run")) {
-        return hc_process(vm, a);
+    if (!strcmp(name, "process_run") || !strcmp(name, "process_run_isolated")) {
+        return hc_process(vm, name, a, !strcmp(name, "process_run_isolated"));
     }
     if (!strcmp(name, "host_decode_utf8")) {
         REQUIRE(a[0]->kind == V_BYTES, "VM trap: UTF-8 decode requires Bytes");

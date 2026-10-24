@@ -27,7 +27,7 @@
     "integer.stdout": "b76ed4198632a6466e759d15b4ba7968cb2395f81400e28e1ec0aead6c5b76cd",
     "rational.panack": "90083187fd0e85d3d5310517390ca796b8695206ec15ab7a75fde85349dd60d6",
     "rational.stdout": "0090c4a2f10d38441e3801b3a4aadd236f2475ae3921eb1092259161d052ae3a",
-    "stdlib.hex": "5c157c8fb43879655004a37c25f330e16140a5d2045b0609fc93e18ad4233f31"
+    "stdlib.hex": "69c04c492f66c6fb67e6bf196c1f417786579b3e6bfdae3bbdb0c92f758e4de7"
   },
   "artifact_updates": {
     "stdlib": {
@@ -71,6 +71,12 @@
       "reason": "Expose the existing bounded byte-slice primitive through stdlib/bytes for streaming archive parsing",
       "generator": "Fixed-point P02 seed, reviewed against previous independent artifact disassembly",
       "review": "Exactly one added function block: $module1_slice loads data/start/end and calls the existing http_bytes_slice ABI with arity three. Every previous function and instruction is unchanged. Both old and new artifacts match the unchanged expected stdout."
+    },
+    "p03b-isolated-process": {
+      "date": "2026-10-24",
+      "reason": "Expose exact-environment process launch through the existing process module",
+      "generator": "Fixed-point prerequisite seed, compared with previous independent artifact disassembly",
+      "review": "Exactly one added function block: $module7_run_isolated loads its seven parameters, calls process_run_isolated with arity seven, and returns. Existing function instructions and expected stdout are unchanged."
     }
   }
 }

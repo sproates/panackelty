@@ -17,6 +17,12 @@ pub write(handle: Nat, relative: Path, data: Bytes, offset: Nat): Result[Unit, H
   fs_stage_write(handle, relative, data, offset)
 }
 
+// Create a new link without following any destination ancestor. The caller owns
+// target policy; target is stored verbatim and is never opened by this operation.
+pub symlink(handle: Nat, relative: Path, target: Path): Result[Unit, HostError] {
+  fs_stage_symlink(handle, relative, target)
+}
+
 pub publish(handle: Nat, name: Path, replace: Bool): Result[Unit, HostError] {
   fs_stage_publish(handle, name, replace)
 }

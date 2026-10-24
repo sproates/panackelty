@@ -128,7 +128,11 @@ Git acquisition 35%, Git graph integration 20%, and cross-source acceptance 15%.
 Git acquisition carries the largest share because process/configuration isolation
 and exact-commit snapshot safety remain substantial work. These are scope
 estimates, not counts of packets. P03a earns 10.5 percentage points of GI#200;
-P03b, P03c, P03d and P04 remain unstarted. No Git support is claimed.
+P03b has begun with the approved generic process/filesystem prerequisite.
+P03c, P03d and P04 remain unstarted. No Git support is claimed, and the prerequisite
+alone earns no further completion credit. Native-interface decoupling remains
+alpha.16 work. Website impact: no change to published alpha.14 claims; document
+the new generic APIs when the matching native release is promoted.
 
 <a id="p04"></a>
 <a id="rm-161"></a>

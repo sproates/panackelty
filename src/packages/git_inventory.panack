@@ -1,0 +1,118 @@
+import project/src/packages/tar_header::{tar_normalize_path, tar_number}
+import project/src/packages/case_fold::{CaseFolder, case_folder, fold_path}
+import project/src/project_model/utf8::{valid_utf8}
+import stdlib/bytes as byte_buffer
+
+pub record GitEntry {
+  path: Str,
+  object_id: Str,
+  kind: Str,
+  size: Nat
+}
+
+pub record GitInventory {
+  entries: [GitEntry],
+  content_bytes: Nat
+}
+
+pub pure git_object_id(value: Str, length: Nat): Bool {
+  mut valid: Bool = value.len() == length && (length == 40 || length == 64)
+  for index in 0..value.len() {
+    character: Str = value[index]
+    valid = valid && ((character >= "0" && character <= "9") ||
+      (character >= "a" && character <= "f"))
+  }
+  valid
+}
+
+pure git_header_fields(value: Str): [Str] {
+  mut fields: [Str] = []
+  mut start: Nat = 0
+  for index in 0..value.len() + 1 {
+    if index == value.len() || value[index] == " " {
+      if start < index { fields = fields.append(value.slice(start, index)) }
+      start = index + 1
+    }
+  }
+  fields
+}
+
+pure git_portable_path(value: Str, folder: CaseFolder): Bool {
+  folded: Str = fold_path(folder, value)
+  mut valid: Bool = true
+  mut start: Nat = 0
+  for index in 0..folded.len() + 1 {
+    if index == folded.len() || folded[index] == "/" {
+      component: Str = folded.slice(start, index)
+      if component == ".git" { valid = false }
+      start = index + 1
+    }
+  }
+  match tar_normalize_path(value) {
+    Error(problem) => false,
+    Ok(normalized) => valid && normalized == value
+  }
+}
+
+pure parse_git_entry(record: Bytes, object_length: Nat, folder: CaseFolder): Result[GitEntry, Str] {
+  mut tab: Nat = 0
+  while tab < record.length() && record.at(tab) != 9 { tab = tab + 1 }
+  if tab == record.length() || !valid_utf8(record) { Error("invalid Git tree record") }
+  else {
+    header: Str = byte_buffer.slice(record, 0, tab).decode_utf8()
+    name: Str = byte_buffer.slice(record, tab + 1, record.length()).decode_utf8()
+    fields: [Str] = git_header_fields(header)
+    if fields.len() != 4 || !git_portable_path(name, folder) { Error("invalid Git snapshot path or metadata") }
+    else if !git_object_id(fields[2], object_length) { Error("invalid Git tree object identity") }
+    else if fields[0] == "160000" || fields[1] == "commit" { Error("Git submodules are unsupported") }
+    else if fields[0] == "040000" && fields[1] == "tree" && fields[3] == "-" {
+      Ok(GitEntry(name, fields[2], "D", 0))
+    } else if fields[1] != "blob" ||
+        (fields[0] != "100644" && fields[0] != "100755" && fields[0] != "120000") {
+      Error("unsupported Git tree entry")
+    } else {
+      size_bytes: Bytes = fields[3].encode_utf8()
+      match tar_number(size_bytes, 0, size_bytes.length(), 10) {
+        Error(problem) => Error("invalid or oversized Git blob"),
+        Ok(size) => {
+          kind: Str = if fields[0] == "120000" { "L" } else { "F" }
+          if kind == "L" && (size == 0 || size > 4096) { Error("invalid Git link target size") }
+          else { Ok(GitEntry(name, fields[2], kind, size)) }
+        }
+      }
+    }
+  }
+}
+
+pub pure parse_git_inventory(data: Bytes, object_length: Nat): Result[GitInventory, Str] {
+  mut entries: [GitEntry] = []
+  mut names: Map[Str, Bool] = map()
+  folder = case_folder()
+  mut content_bytes: Nat = 0
+  mut start: Nat = 0
+  mut failure: Option[Str] = None()
+  for index in 0..data.length() {
+    if data.at(index) == 0 && failure == None() {
+      match parse_git_entry(byte_buffer.slice(data, start, index), object_length, folder) {
+        Error(problem) => { failure = Some(problem) },
+        Ok(entry) => {
+          key: Str = fold_path(folder, entry.path)
+          if names.has(key) { failure = Some("duplicate or case-colliding Git path") }
+          else if entries.len() >= 16384 { failure = Some("Git snapshot exceeds 16384 entries") }
+          else if content_bytes + entry.size > 268435456 { failure = Some("Git snapshot exceeds 256 MiB") }
+          else {
+            names = names.put(key, true)
+            entries = entries.append(entry)
+            content_bytes = content_bytes + entry.size
+          }
+        }
+      }
+      start = index + 1
+    }
+  }
+  if failure == None() && start != data.length() { failure = Some("truncated Git tree listing") }
+  match failure {
+    Some(problem) => Error(problem),
+    None() => Ok(GitInventory(entries, content_bytes))
+  }
+}

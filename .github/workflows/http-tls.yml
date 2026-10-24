@@ -7,6 +7,8 @@ on:
       - 'tests/http_client_package.sh'
       - 'tests/http_fixture.c'
       - 'tests/package_https*'
+      - 'tests/package_git*'
+      - 'tests/fixtures/package_git/**'
       - 'src/packages/**'
       - 'src/project_model/package_manifest.panack'
       - 'src/vm/http_transport.c'
@@ -48,3 +50,5 @@ jobs:
           done
       - name: Exercise HTTPS package acquisition
         run: sh tests/package_https.sh
+      - name: Exercise isolated Git snapshots over HTTPS
+        run: sh tests/package_git.sh

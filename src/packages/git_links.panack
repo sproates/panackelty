@@ -1,0 +1,72 @@
+pure link_components(value: Str): [Str] {
+  mut parts: [Str] = []
+  mut start: Nat = 0
+  for index in 0..value.len() + 1 {
+    if index == value.len() || value[index] == "/" {
+      parts = parts.append(value.slice(start, index))
+      start = index + 1
+    }
+  }
+  parts
+}
+
+pure join_components(parts: [Str]): Str {
+  mut text: Str = ""
+  for part in parts {
+    if text != "" { text = text + "/" }
+    text = text + part
+  }
+  text
+}
+
+pure link_relative_target(value: Str): Bool {
+  mut valid: Bool = value != "" && !value.starts_with_at("/", 0) && value.encode_utf8().length() <= 4096
+  data = value.encode_utf8()
+  for index in 0..data.length() {
+    if data.at(index) == 0 || data.at(index) == 92 || data.at(index) == 58 { valid = false }
+  }
+  valid
+}
+
+// Resolve against the complete snapshot's link inventory before creating links.
+// Parent components are handled after link expansion, matching filesystem order.
+// Dangling targets inside the root are allowed; cycles and escapes are not.
+pub pure git_link_beneath(name: Str, target: Str, links: Map[Str, Str]): Bool {
+  mut resolved: [Str] = []
+  original: [Str] = link_components(name)
+  for index in 0..original.len() {
+    if index + 1 < original.len() { resolved = resolved.append(original[index]) }
+  }
+  mut pending: [Str] = link_components(target)
+  mut position: Nat = 0
+  mut hops: Nat = 0
+  mut valid: Bool = link_relative_target(target)
+  while valid && position < pending.len() {
+    component: Str = pending[position]
+    position = position + 1
+    if component == ".." {
+      if resolved.len() == 0 { valid = false }
+      else {
+        mut parent: [Str] = []
+        for index in 0..resolved.len() {
+          if index + 1 < resolved.len() { parent = parent.append(resolved[index]) }
+        }
+        resolved = parent
+      }
+    } else if component != "" && component != "." {
+      candidate: Str = join_components(resolved.append(component))
+      if links.has(candidate) {
+        hops = hops + 1
+        next: Str = links.get(candidate)
+        if hops > 40 || !link_relative_target(next) { valid = false }
+        else {
+          mut expanded: [Str] = link_components(next)
+          for index in position..pending.len() { expanded = expanded.append(pending[index]) }
+          pending = expanded
+          position = 0
+        }
+      } else { resolved = resolved.append(component) }
+    }
+  }
+  valid
+}

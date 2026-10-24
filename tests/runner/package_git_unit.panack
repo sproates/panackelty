@@ -1,0 +1,47 @@
+import project/src/packages/git_inventory::{parse_git_inventory, git_object_id}
+import project/src/packages/git_links::{git_link_beneath}
+import stdlib/testing as testing
+import stdlib/host as host
+import stdlib/bytes as byte_buffer
+pure row(mode: Str, kind: Str, size: Str, name: Str): Bytes {
+  (mode + " " + kind + " 0123456789012345678901234567890123456789 " + size + "\t" + name).encode_utf8().push(0)
+}
+pure accepted(data: Bytes): Bool {
+  match parse_git_inventory(data, 40) { Ok(inventory) => true, Error(problem) => false }
+}
+main(): Void {
+  empty: Map[Str, Str] = map()
+  results = [
+    testing.expect("regular blob", accepted(row("100644", "blob", "5", "file")), "Git policy mismatch"),
+    testing.expect("executable blob", accepted(row("100755", "blob", "5", "file")), "Git policy mismatch"),
+    testing.expect("directory", accepted(row("040000", "tree", "-", "dir")), "Git policy mismatch"),
+    testing.expect("link", accepted(row("120000", "blob", "4", "link")), "Git policy mismatch"),
+    testing.expect("empty tree", accepted(byte_buffer.empty()), "Git policy mismatch"),
+    testing.expect("submodule", !accepted(row("160000", "commit", "-", "module")), "Git policy mismatch"),
+    testing.expect("traversal", !accepted(row("100644", "blob", "5", "../file")), "Git policy mismatch"),
+    testing.expect("absolute path", !accepted(row("100644", "blob", "5", "/file")), "Git policy mismatch"),
+    testing.expect("administrative metadata", !accepted(row("100644", "blob", "5", ".GiT/config")), "Git policy mismatch"),
+    testing.expect("unknown mode", !accepted(row("100600", "blob", "5", "file")), "Git policy mismatch"),
+    testing.expect("missing size", !accepted(row("100644", "blob", "-", "file")), "Git policy mismatch"),
+    testing.expect("oversize blob", !accepted(row("100644", "blob", "268435457", "file")), "Git policy mismatch"),
+    testing.expect("oversize total", !accepted(row("100644", "blob", "268435456", "one").join(row("100644", "blob", "1", "two"))), "Git policy mismatch"),
+    testing.expect("empty link", !accepted(row("120000", "blob", "0", "link")), "Git policy mismatch"),
+    testing.expect("long link", !accepted(row("120000", "blob", "4097", "link")), "Git policy mismatch"),
+    testing.expect("duplicate", !accepted(row("100644", "blob", "5", "file").join(row("100644", "blob", "5", "file"))), "Git policy mismatch"),
+    testing.expect("case collision", !accepted(row("100644", "blob", "5", "File").join(row("100644", "blob", "5", "file"))), "Git policy mismatch"),
+    testing.expect("truncated record", !accepted("truncated".encode_utf8()), "Git policy mismatch"),
+    testing.expect("invalid UTF8", !accepted(row("100644", "blob", "5", "file").join(byte_buffer.empty().push(255).push(0))), "Git policy mismatch"),
+    testing.expect("full sha1", git_object_id("0123456789012345678901234567890123456789", 40), "Git policy mismatch"),
+    testing.expect("short object", !git_object_id("abcd", 40), "Git policy mismatch"),
+    testing.expect("uppercase object", !git_object_id("ABCDEF0123456789012345678901234567890123", 40), "Git policy mismatch"),
+    testing.expect("internal parent link", git_link_beneath("dir/link", "../data", empty), "Git policy mismatch"),
+    testing.expect("dangling internal link", git_link_beneath("link", "missing", empty), "Git policy mismatch"),
+    testing.expect("escaping link", !git_link_beneath("link", "../outside", empty), "Git policy mismatch"),
+    testing.expect("absolute link", !git_link_beneath("link", "/outside", empty), "Git policy mismatch"),
+    testing.expect("cyclic links", !git_link_beneath("link", "a", empty.put("a", "b").put("b", "a")), "Git policy mismatch"),
+    testing.expect("physical parent resolution", !git_link_beneath("dir/link", "../a/../outside", empty.put("a", ".")), "Git policy mismatch"),
+    testing.expect("internal link chain", git_link_beneath("link", "a/data", empty.put("a", "dir")), "Git policy mismatch"),
+    testing.expect("drive target", !git_link_beneath("link", "C:/data", empty), "Git policy mismatch")
+  ]
+  if testing.report(results) > 0 { host.exit(1) }
+}

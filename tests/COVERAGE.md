@@ -1434,3 +1434,18 @@ and saved bytecode, including process limits, timeouts and cleanup. Isolated
 processes do not automatically propagate child coverage tickets; an active
 session is explicitly incomplete. The coverage-session regression proves both
 the exact environment and rejection of a complete aggregate.
+
+## GI#200 P03b controlled Git acquisition
+
+`package_git_unit.panack` covers inventory modes, object identities, UTF-8,
+paths, duplicate/case collisions, size limits and physical symlink containment.
+`package_git.sh` runs complete programs through the public CLI in source and
+saved-bytecode form against a private HTTPS Git CGI peer. It independently
+checks source/tree hashes, raw file bytes, symlinks and a 17 MiB binary blob;
+exercises SHA-1/SHA-256 repositories; rejects unavailable commits, untrusted TLS,
+credential-bearing URLs, missing Git, unsafe links, submodules, LFS, redirects,
+authentication and interrupted transport; and checks cleanup and preservation
+of a previously published snapshot. Hostile inherited helper/template/filter
+configuration cannot execute its marker script. Linux and macOS run the fixture
+in the HTTP TLS workflow. These are behaviour assertions, not source-execution
+coverage percentages. Manifest/ref/lock graph integration is deferred to P03c.

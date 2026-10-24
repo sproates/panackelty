@@ -1603,7 +1603,9 @@ are limited to five HTTPS hops, with credentials, queries and fragments rejected
 Downloads enforce the 64 MiB compressed and 256 MiB expanded bounds while
 streaming. A missing or corrupt remote cache requires an online explicit restore;
 `--offline` verifies existing remote entries and never repairs them from the network.
-Each HTTP response has a 60-second deadline. Git acquisition remains unsupported.
+Each HTTP response has a 60-second deadline. Git dependency declarations remain unsupported.
+P03b provides an internal exact-commit snapshot API; public manifest/lock integration
+remains P03c. See the [Git acquisition record](../design/PACKAGE_GIT_ACQUISITION_ACCEPTANCE.md).
 Archive and lock policy do not execute inside the compiler.
 
 The tool uses generic native modules `stdlib/filesystem_stage`,

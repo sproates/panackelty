@@ -302,3 +302,20 @@ tree digests retain their original UTF-8 bytes. No normalization is applied.
 The data is distributed under `docs/licenses/Unicode-License.txt`, included in
 installed documentation. When updating the Unicode version, regenerate both
 sorted arrays from the C/F records and rerun the collision fixtures.
+
+### P03b acquisition boundary
+
+The P03b API accepts a full commit identity already selected by its caller. Ref
+selection, Git manifest parsing, locks, sibling edges and shared cache reuse
+remain P03c. Git snapshots use the existing 16,384-entry and 256 MiB expanded
+content limits. Each Git command has a 60-second timeout and a combined 16 MiB
+output limit. Blob data bypasses that output buffer through a private temporary
+file, copied in 64 KiB chunks. A fetched pack is not subject to a byte quota;
+the expanded-tree bound is checked after fetch. This is a documented disk-use
+limitation, not a claim that remote transfer is bounded to the tree size.
+
+Git redirects fail closed: zero hops are followed. This stays within P01's
+five-hop ceiling but does not offer redirect compatibility. A caller must supply
+the direct HTTPS repository URL. Git 2.29+ is required for both supported object
+formats. Missing Git fails explicitly. `PACKAGE_GIT_ACQUISITION_ACCEPTANCE.md`
+records the fixtures and remaining integration scope.

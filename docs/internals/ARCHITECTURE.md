@@ -1757,3 +1757,12 @@ following links and reads the final link's native target bytes. The adapter does
 not interpret Git trees or package containment rules. Those policies remain in
 the separately compiled Panack package tool. These generic additions prepare
 P03b; Git dependency acquisition is not yet delivered.
+
+P03b implements that acquisition boundary in four Panack modules:
+`git_process` owns the isolated Git invocation, `git_inventory` validates tree
+records, `git_links` checks physical link containment, and `git_snapshot` builds
+the staged snapshot and canonical digests. Git supplies verified object access;
+Panack owns source validation, bounds, materialisation and rejection policy.
+The caller receives the stage only after validation and must publish or discard
+it. Manifest/lock integration remains P03c. No new compiler or native operation
+is introduced by P03b itself.

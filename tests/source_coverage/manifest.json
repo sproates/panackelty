@@ -20,6 +20,10 @@
     "src/stdlib/time.panack"
   ],
   "unmeasured": [
+    {"path":"src/packages/git_inventory.panack","reason":"P03b Git policy is exercised by unit and source/bytecode HTTPS fixtures outside the bounded source-execution corpus; no coverage percentage is claimed."},
+    {"path":"src/packages/git_links.panack","reason":"P03b Git policy is exercised by unit and source/bytecode HTTPS fixtures outside the bounded source-execution corpus; no coverage percentage is claimed."},
+    {"path":"src/packages/git_process.panack","reason":"P03b Git policy is exercised by unit and source/bytecode HTTPS fixtures outside the bounded source-execution corpus; no coverage percentage is claimed."},
+    {"path":"src/packages/git_snapshot.panack","reason":"P03b Git policy is exercised by unit and source/bytecode HTTPS fixtures outside the bounded source-execution corpus; no coverage percentage is claimed."},
     {"path":"src/stdlib/http_stream.panack","reason":"Generic raw stream wrapper; functional/native contracts do not establish source execution coverage."},
     {"path": "src/compiler/owned_intrinsics.panack", "reason": "P06 intrinsic registration and lowering are exercised by binding and CLI tests; source-execution percentages for this new module are not yet included in the bounded 45-file baseline."},
     {"path": "src/packages/main.panack", "reason": "The independent package-tool entry point is tested through its bytecode artifact, outside the bounded native source-execution corpus."},

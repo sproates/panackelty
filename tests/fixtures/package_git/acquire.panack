@@ -1,0 +1,47 @@
+import project/src/packages/git_snapshot::{GitSource, stage_git_commit}
+import stdlib/host as host
+import stdlib/filesystem as filesystem
+import stdlib/bounded_filesystem as bounded
+import stdlib/bytes as byte_buffer
+import stdlib/path as path
+import stdlib/filesystem_stage as staging
+
+main(): Void {
+  args = host.arguments()
+  match stage_git_commit(path.from_text(args[0]).value_or(path.current()),
+      path.from_text(args[4]).value_or(path.current()),
+      GitSource(args[1], args[5], args[2]),
+      if args[3] == "none" { None() } else { Some(args[3]) }) {
+    Error(problem) => {
+      print(problem)
+      host.exit(1)
+    },
+    Ok(snapshot) => {
+      if args[6] == "inspect" || args[6] == "hash" {
+        print(snapshot.source_key)
+        print(snapshot.tree_sha256)
+      }
+      if args[6] == "inspect" {
+        root = path.from_text(snapshot.root).value_or(path.current())
+        file = path.from_text(snapshot.root + "/data").value_or(path.current())
+        print(filesystem.read(file, 100).value_or(byte_buffer.empty()) == "hello\n".encode_utf8())
+        print(bounded.read_link(root, path.from_text("nested/link").value_or(path.current()))
+          .value_or(byte_buffer.empty()) == "../data".encode_utf8())
+      } else if args[6] == "publish" {
+        match staging.publish(snapshot.handle, path.from_text("snapshot").value_or(path.current()), true) {
+          Error(problem) => {
+            print("publication failed")
+            host.exit(1)
+          },
+          Ok(done) => { print("ok") }
+        }
+      } else if args[6] != "hash" { print("ok") }
+      if args[6] != "publish" {
+        match staging.close(snapshot.handle) {
+          Error(problem) => { host.exit(1) },
+          Ok(done) => {}
+        }
+      }
+    }
+  }
+}

@@ -147,3 +147,9 @@ were superseded by the owner's 22 October decision. PR#240's historic P7 design
 remains context only where it does not conflict with the current contract.
 
 [Roadmap index](../README.md) · [Current release and next work](../../../ROADMAP.md)
+
+P03b implementation is on `feat/p03b-git-acquisition`, based on merged PR#579.
+[Controlled Git acquisition evidence](../../design/PACKAGE_GIT_ACQUISITION_ACCEPTANCE.md)
+records exact-commit staging, isolated Git configuration and the failure fixtures.
+Full local and hosted acceptance are pending, so the earned total remains 50.5%
+until the packet is verified and merged. Public Git manifest support remains P03c.

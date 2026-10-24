@@ -52,8 +52,8 @@ are sequenced in the [package-management plan](docs/roadmap/records/dependency-m
 Their provisional weights are 15%, 25%, 35% and 25% of GI#200, respectively.
 P01 is accepted in PR#571. P02 merged as PR#575, taking weighted
 completion to 40%. P03a completes on merge of PR#578, taking estimated weighted
-completion to 50.5% under the recorded P03 sub-scope allocation; P03b–d and P04
-remain planned. PR#573 reverted the initial P02
+completion to 50.5%. P03b completes on merge of PR#580, taking the total to
+62.75% under the same P03 allocation; P03c–d and P04 remain planned. PR#573 reverted the initial P02
 implementation to the P01 baseline. The P01
 [contract](docs/design/PACKAGE_MANAGEMENT_CONTRACT.md) defines lock and restore
 behaviour. The [implementation boundaries](docs/design/PACKAGE_MANAGEMENT_IMPLEMENTATION.md)
@@ -64,13 +64,17 @@ records verification, performance evidence and publication limits.
 Website changes wait for a matching native release
 and are recorded in the website follow-up register.
 P03a starts with the [bounded HTTP streaming prerequisite](docs/design/HTTP_STREAMING_ACCEPTANCE.md),
-followed by [HTTPS archive acquisition](docs/design/PACKAGE_HTTPS_ACCEPTANCE.md). Git acquisition remains in later slices;
-the prerequisite alone earns no additional programme completion.
+followed by [HTTPS archive acquisition](docs/design/PACKAGE_HTTPS_ACCEPTANCE.md).
+P03b adds [controlled Git acquisition](docs/design/PACKAGE_GIT_ACQUISITION_ACCEPTANCE.md)
+in PR#580; prerequisites alone earn no additional programme completion.
 [PR#579](https://github.com/sproates/panackelty/pull/579) delivers the approved
 P03b generic process/filesystem prerequisite on merge: exact child
 environments, confined staged link creation and link-target inspection. This
 prepares controlled Git acquisition without moving package policy into native
-code. Git acquisition remains incomplete; the alpha.16 coupling task stays separate.
+code. PR#580 stages exact Git commits with isolated configuration, raw blob
+extraction, canonical hashes, safe symlinks and cleanup on failure. Public Git
+manifests, locks and shared snapshot graphs remain P03c. The alpha.16 coupling
+task stays separate.
 
 <a id="rm-158"></a> [RM#158](docs/roadmap/records/dependency-management--idea.md#rm-158),
 <a id="rm-159"></a> [RM#159](docs/roadmap/records/dependency-management--idea.md#rm-159),

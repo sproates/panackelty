@@ -55,9 +55,9 @@ recorded re-estimate.
 | --- | --- | --- | --- | ---: | ---: | ---: |
 | P01 | [Lock and restore contract](https://github.com/sproates/panackelty/issues/566) | — | Done | 15% | 100% | 15 pp |
 | P02 | [Locked local dependencies](https://github.com/sproates/panackelty/issues/567) | P01 | Done | 25% | 100% | 25 pp |
-| P03 | [Pinned remote sources](https://github.com/sproates/panackelty/issues/568) | P01–P02 | P03a done on merge of PR#578; P03b–d pending | 35% | 30% | 10.5 pp |
+| P03 | [Pinned remote sources](https://github.com/sproates/panackelty/issues/568) | P01–P02 | P03a done; P03b done on merge of PR#580; P03c–d pending | 35% | 65% | 22.75 pp |
 | P04 | [`panack` workflow integration](https://github.com/sproates/panackelty/issues/569) | P01–P03 | Planned | 25% | 0% | 0 pp |
-| **Total on merge of PR#578** |  |  |  | **100%** | **50.5%** | **50.5 pp** |
+| **Total on merge of PR#580** |  |  |  | **100%** | **62.75%** | **62.75 pp** |
 
 The [P01 contract](../../design/PACKAGE_MANAGEMENT_CONTRACT.md) was accepted in
 [PR#571](https://github.com/sproates/panackelty/pull/571). It defines the lock,
@@ -128,10 +128,15 @@ Git acquisition 35%, Git graph integration 20%, and cross-source acceptance 15%.
 Git acquisition carries the largest share because process/configuration isolation
 and exact-commit snapshot safety remain substantial work. These are scope
 estimates, not counts of packets. P03a earns 10.5 percentage points of GI#200;
-P03b has begun with the approved generic process/filesystem prerequisite,
-delivered on merge of [PR#579](https://github.com/sproates/panackelty/pull/579).
-P03c, P03d and P04 remain unstarted. No Git support is claimed, and the prerequisite
-alone earns no further completion credit. Native-interface decoupling remains
+P03b completes on merge of [PR#580](https://github.com/sproates/panackelty/pull/580),
+after the generic process/filesystem prerequisite merged as PR#579. Its
+[acquisition record](../../design/PACKAGE_GIT_ACQUISITION_ACCEPTANCE.md) covers
+isolated exact-commit snapshots, canonical digests, safe links, unsupported-content
+rejection, cleanup and source/bytecode HTTPS tests on Linux and macOS. This earns
+12.25 further percentage points, taking P03 to 65% and GI#200 to 62.75% on merge.
+The prerequisite itself earns no separate credit. P03c, P03d and P04 remain
+unstarted; public Git dependency declarations are not yet supported.
+Native-interface decoupling remains
 alpha.16 work. Website impact: no change to published alpha.14 claims; document
 the new generic APIs when the matching native release is promoted.
 
@@ -148,8 +153,3 @@ remains context only where it does not conflict with the current contract.
 
 [Roadmap index](../README.md) · [Current release and next work](../../../ROADMAP.md)
 
-P03b implementation is on `feat/p03b-git-acquisition`, based on merged PR#579.
-[Controlled Git acquisition evidence](../../design/PACKAGE_GIT_ACQUISITION_ACCEPTANCE.md)
-records exact-commit staging, isolated Git configuration and the failure fixtures.
-Full local and hosted acceptance are pending, so the earned total remains 50.5%
-until the packet is verified and merged. Public Git manifest support remains P03c.

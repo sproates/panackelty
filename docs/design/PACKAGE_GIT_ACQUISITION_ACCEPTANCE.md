@@ -57,8 +57,12 @@ which the fixture did not classify. The fixture now counts that exact diagnostic
 as a manifest-read rejection, retaining the no-mixed-output and observed-identity-change
 assertions. The focused 40-attempt race passes. No compiler behaviour changed.
 
-Final local validation and hosted Linux/macOS acceptance are pending. This record
-does not claim P03b delivered until both pass and the delivery PR is merged.
+The HTTPS Git fixtures passed on hosted Linux and macOS for the implementation
+revision. Delivery is conditional on a successful complete local `make check`,
+green hosted checks on the exact final head, and merge of [PR#580](https://github.com/sproates/panackelty/pull/580).
+The PR records the final local result, elapsed time and accepted revision. P03b
+completes on that merge; there is no separate deployment acceptance for this
+internal acquisition API. GI#568 remains open for P03c and P03d.
 
 ## Performance and remaining work
 

@@ -66,7 +66,8 @@ and are recorded in the website follow-up register.
 P03a starts with the [bounded HTTP streaming prerequisite](docs/design/HTTP_STREAMING_ACCEPTANCE.md),
 followed by [HTTPS archive acquisition](docs/design/PACKAGE_HTTPS_ACCEPTANCE.md). Git acquisition remains in later slices;
 the prerequisite alone earns no additional programme completion.
-P03b now has an approved generic process/filesystem prerequisite: exact child
+[PR#579](https://github.com/sproates/panackelty/pull/579) delivers the approved
+P03b generic process/filesystem prerequisite on merge: exact child
 environments, confined staged link creation and link-target inspection. This
 prepares controlled Git acquisition without moving package policy into native
 code. Git acquisition remains incomplete; the alpha.16 coupling task stays separate.

@@ -53,7 +53,7 @@ Their provisional weights are 15%, 25%, 35% and 25% of GI#200, respectively.
 P01 is accepted in PR#571. P02 merged as PR#575, taking weighted
 completion to 40%. P03a completes on merge of PR#578, taking estimated weighted
 completion to 50.5%. P03b completes on merge of PR#580, taking the total to
-62.75% under the same P03 allocation. P03c completes on merge of this delivery,
+62.75% under the same P03 allocation. P03c completes on merge of PR#581,
 raising the total to 69.75%; P03d and P04 remain planned. PR#573 reverted the initial P02
 implementation to the P01 baseline. The P01
 [contract](docs/design/PACKAGE_MANAGEMENT_CONTRACT.md) defines lock and restore

@@ -11,7 +11,7 @@ pure tree_entry_less(left: ArchiveEntry, right: ArchiveEntry): Bool { left.path 
 
 // All lengths are bounded far below 2^64 before encoding. Emit the contract's
 // unsigned big-endian length without depending on host integer representation.
-pure tree_length(value: Nat): Bytes {
+pub pure tree_length(value: Nat): Bytes {
   mut result: Bytes = byte_buffer.empty()
   mut divisor: Nat = 72057594037927936
   for index in 0..8 {

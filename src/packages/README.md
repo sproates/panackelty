@@ -36,3 +36,16 @@ Publication is atomic for each individual cache entry. Graph validation precedes
 publication; a failure partway through publishing several entries requires
 restore. It never makes a partially extracted package visible to the compiler.
 P02 acceptance is recorded in `docs/design/PACKAGE_LOCAL_ACCEPTANCE.md`.
+
+P03b adds controlled Git acquisition as internal Panack modules. `git_snapshot.stage_git_commit`
+accepts an explicit absolute Git executable, a credential-free HTTPS URL, an
+object format and a full commit ID. It returns an owned staging handle, source
+key and canonical tree digest; the caller must publish or close that handle.
+No manifest is read and no dependency graph is changed. P03c connects this API
+to public commands, locks and shared source caches.
+
+Git 2.29 or newer is a native-tool dependency for this path. Git receives an exact
+private environment and no inherited configuration. Raw blobs are extracted
+without checkout filters, then copied and hashed in 64 KiB chunks. The entire
+commit tree is validated before symlinks are created. The limits and acceptance
+fixtures are recorded in `docs/design/PACKAGE_GIT_ACQUISITION_ACCEPTANCE.md`.

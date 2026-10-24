@@ -658,3 +658,8 @@ compiler grants refresh the v9 seed through the existing staged fixed-point
 procedure; bytecode remains version 9. Package policy remains outside the
 compiler. This prerequisite does not complete Git acquisition or the alpha.16
 native-interface decoupling task.
+
+P03b's Git acquisition modules use the merged prerequisite without changing
+compiler sources, native sources, bytecode version or bootstrap bytes. Its source
+and saved-bytecode fixtures compile with the existing seed. The package-only
+handoff regression remains the check that edits do not trigger a compiler build.

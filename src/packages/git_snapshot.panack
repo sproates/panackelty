@@ -1,0 +1,303 @@
+import project/src/packages/tree_digest::{tree_length}
+import project/src/packages/git_process::{GitContext, git_command}
+import project/src/packages/git_inventory::{GitEntry, GitInventory, git_object_id, parse_git_inventory}
+import project/src/packages/git_links::{git_link_beneath}
+import project/src/packages/manifest::{manifest_https_archive_url}
+import project/src/packages/sha256::{Sha256, sha256_new, sha256_feed, sha256_finish, sha256_close}
+import project/src/project_model/utf8::{valid_utf8}
+import stdlib/filesystem_stage as staging
+import stdlib/bounded_filesystem as bounded
+import stdlib/filesystem as filesystem
+import stdlib/path as path
+import stdlib/bytes as byte_buffer
+
+pub record GitSource {
+  url: Str,
+  object_format: Str,
+  commit: Str
+}
+pub record StagedGit {
+  handle: Nat,
+  root: Str,
+  source: GitSource,
+  source_key: Str,
+  tree_sha256: Str
+}
+
+// Callers pass fixed literals, validated inventory paths, or validated link targets.
+// Panack Path stores these bytes without normalising away link components.
+pure git_path(value: Str): Path { path.from_text(value).value_or(path.current()) }
+
+pub git_source_key(source: GitSource): Result[Str, Str] {
+  mut hash = sha256_feed(sha256_new(), "PANACK-GIT-SOURCE".encode_utf8().push(0))
+  hash = sha256_feed(hash, "v1".encode_utf8().push(0))
+  for field in [source.url, source.object_format, source.commit] {
+    field_bytes: Bytes = field.encode_utf8()
+    hash = sha256_feed(hash, tree_length(field_bytes.length()))
+    hash = sha256_feed(hash, field_bytes)
+  }
+  sha256_finish(hash)
+}
+
+pure git_line(data: Bytes): Result[Str, Str] {
+  count: Nat = data.length()
+  end: Nat = if count > 0 { count - 1 } else { 0 }
+  if count == 0 || !valid_utf8(data) || data.at(end) != 10 {
+    Error("invalid Git command response")
+  } else {
+    text: Str = byte_buffer.slice(data, 0, end).decode_utf8()
+    mut valid: Bool = true
+    for index in 0..end {
+      if data.at(index) == 0 || data.at(index) == 10 || data.at(index) == 13 { valid = false }
+    }
+    if valid { Ok(text) } else { Error("invalid Git command response") }
+  }
+}
+
+read_git_links(context: GitContext, inventory: GitInventory): Result[Map[Str, Str], Str] {
+  mut links: Map[Str, Str] = map()
+  mut failure: Option[Str] = None()
+  for entry in inventory.entries {
+    if failure == None() && entry.kind == "L" {
+      match git_command(context, ["cat-file", "blob", entry.object_id], byte_buffer.empty()) {
+        Error(problem) => { failure = Some(problem) },
+        Ok(target) => if target.length() != entry.size || !valid_utf8(target) {
+          failure = Some("invalid Git symlink target")
+        } else { links = links.put(entry.path, target.decode_utf8()) }
+      }
+    }
+  }
+  for entry in inventory.entries {
+    if failure == None() && entry.kind == "L" && !git_link_beneath(entry.path, links.get(entry.path), links) {
+      failure = Some("Git symlink escapes the snapshot or contains a cycle")
+    }
+  }
+  match failure { Some(problem) => Error(problem), None() => Ok(links) }
+}
+
+// Reject current and historical LFS version markers, including noncanonical
+// whitespace accepted by Git LFS. This is detection only, never an LFS fetch.
+pub pure git_lfs_pointer(data: Bytes): Bool {
+  if !valid_utf8(data) { false }
+  else {
+    text: Str = data.decode_utf8()
+    mut start: Nat = 0
+    mut whitespace: Bool = true
+    while start < text.len() && whitespace {
+      encoded: Bytes = text[start].encode_utf8()
+      scalar: Nat = if encoded.length() == 1 { encoded.at(0) }
+        else if encoded.length() == 2 { (encoded.at(0) % 32) * 64 + encoded.at(1) % 64 }
+        else if encoded.length() == 3 {
+          (encoded.at(0) % 16) * 4096 + (encoded.at(1) % 64) * 64 + encoded.at(2) % 64
+        } else { 0 }
+      // Unicode White_Space, matching the pointer decoder's leading trim.
+      whitespace = (scalar >= 9 && scalar <= 13) || scalar == 32 || scalar == 133 ||
+        scalar == 160 || scalar == 5760 || (scalar >= 8192 && scalar <= 8202) ||
+        scalar == 8232 || scalar == 8233 || scalar == 8239 || scalar == 8287 || scalar == 12288
+      if whitespace { start = start + 1 }
+    }
+    text.starts_with_at("version https://git-lfs.github.com/spec/v1", start) ||
+      text.starts_with_at("version https://hawser.github.com/spec/v1", start) ||
+      text.starts_with_at("version http://git-media.io/v/2", start)
+  }
+}
+
+// Git expands one blob to a private temporary file without attributes or filters.
+// Panack copies and hashes it in bounded chunks; no full blob is buffered here.
+stage_git_blob(context: GitContext, stage: Nat, entry: GitEntry, state: Sha256): Result[Sha256, Str] {
+  match git_command(context, ["unpack-file", entry.object_id], byte_buffer.empty()) {
+    Error(problem) => Error(problem),
+    Ok(output) => match git_line(output) {
+      Error(problem) => Error(problem),
+      Ok(name) => {
+        mut valid: Bool = name.starts_with_at(".merge_file_", 0)
+        for index in 0..name.len() {
+          if name[index] == "/" || name[index] == "\\" { valid = false }
+        }
+        if !valid { Error("unexpected Git blob temporary path") }
+        else {
+          file = context.repository.join(git_path(name)).value_or(context.repository)
+          mut hash: Sha256 = state
+          mut offset: Nat = 0
+          mut failure: Option[Str] = None()
+          mut finished: Bool = false
+          while !finished && failure == None() {
+            match bounded.read_chunk(file, offset, 65536) {
+              Error(problem) => { failure = Some("cannot read Git blob") },
+              Ok(chunk) => {
+                if offset + chunk.length() > entry.size { failure = Some("Git blob exceeds declared size") }
+                else {
+                  if offset == 0 && git_lfs_pointer(chunk) {
+                    failure = Some("Git LFS content is unsupported")
+                  } else if chunk.length() > 0 || offset == 0 {
+                    match staging.write(stage, git_path(entry.path), chunk, offset) {
+                      Error(problem) => { failure = Some("cannot stage Git blob") },
+                      Ok(done) => { hash = sha256_feed(hash, chunk) }
+                    }
+                  }
+                  offset = offset + chunk.length()
+                  finished = chunk.length() == 0
+                }
+              }
+            }
+          }
+          removed = filesystem.remove_file(file)
+          match failure {
+            Some(problem) => Error(problem),
+            None() => if offset != entry.size { Error("Git blob is truncated") }
+              else { match removed { Error(problem) => Error("cannot clean Git blob"), Ok(done) => Ok(hash) } }
+          }
+        }
+      }
+    }
+  }
+}
+
+pure git_entry_less(left: GitEntry, right: GitEntry): Bool { left.path < right.path }
+
+materialize_git(context: GitContext, stage: Nat, inventory: GitInventory, links: Map[Str, Str]): Result[Str, Str] {
+  mut hash = sha256_feed(sha256_new(), "PANACK-PACKAGE-TREE".encode_utf8().push(0))
+  hash = sha256_feed(hash, "v1".encode_utf8().push(0))
+  mut failure: Option[Str] = None()
+  for entry in inventory.entries.sort_by(@git_entry_less) {
+    if failure == None() {
+      name = entry.path.encode_utf8()
+      hash = sha256_feed(hash, entry.kind.encode_utf8())
+      hash = sha256_feed(hash, tree_length(name.length()))
+      hash = sha256_feed(hash, name)
+      hash = sha256_feed(hash, tree_length(entry.size))
+      if entry.kind == "D" {
+        match staging.directory(stage, git_path(entry.path)) {
+          Error(problem) => { failure = Some("cannot stage Git directory") },
+          Ok(done) => {}
+        }
+      } else if entry.kind == "F" {
+        match stage_git_blob(context, stage, entry, hash) {
+          Error(problem) => { failure = Some(problem) },
+          Ok(next) => { hash = next }
+        }
+      } else { hash = sha256_feed(hash, links.get(entry.path).encode_utf8()) }
+    }
+  }
+  // Links are created only after every ordinary path has been written.
+  for entry in inventory.entries {
+    if failure == None() && entry.kind == "L" {
+      match staging.symlink(stage, git_path(entry.path), git_path(links.get(entry.path))) {
+        Error(problem) => { failure = Some("cannot stage Git symlink") },
+        Ok(done) => {}
+      }
+    }
+  }
+  match failure {
+    Some(problem) => {
+      sha256_close(hash)
+      Error(problem)
+    },
+    None() => sha256_finish(hash)
+  }
+}
+
+snapshot_from_inventory(parent: Path, context: GitContext, source: GitSource,
+    source_key: Str, inventory: GitInventory, links: Map[Str, Str]): Result[StagedGit, Str] {
+  match staging.begin(parent) {
+    Error(problem) => Error("cannot create Git snapshot stage"),
+    Ok(handle) => {
+      result = match materialize_git(context, handle, inventory, links) {
+        Error(problem) => Error(problem),
+        Ok(digest) => match staging.path(handle) {
+          Error(problem) => Error("cannot locate Git snapshot stage"),
+          Ok(root) => match root.to_text() {
+            Error(problem) => Error("Git snapshot path is not UTF-8"),
+            Ok(text) => Ok(StagedGit(handle, text, source, source_key, digest))
+          }
+        }
+      }
+      match result {
+        Ok(snapshot) => Ok(snapshot),
+        Error(problem) => {
+          closed = staging.close(handle)
+          Error(problem)
+        }
+      }
+    }
+  }
+}
+
+fetch_git_commit(parent: Path, context: GitContext, source: GitSource,
+    source_key: Str): Result[StagedGit, Str] {
+  empty = byte_buffer.empty()
+  repository: Str = context.repository.to_text().value_or("")
+  mut failure: Option[Str] = None()
+  for command in [
+    ["init", "--bare", "--template=", "--object-format=" + source.object_format, repository],
+    ["-c", "fetch.fsckObjects=true", "fetch", "--quiet", "--no-tags", "--no-recurse-submodules",
+      "--no-auto-maintenance", "--depth=1", "--", source.url, source.commit]
+  ] {
+    if failure == None() {
+      match git_command(context, command, empty) {
+        Error(problem) => { failure = Some(problem) },
+        Ok(output) => {}
+      }
+    }
+  }
+  if failure == None() {
+    match git_command(context, ["rev-parse", "--verify", "--end-of-options", "FETCH_HEAD^{commit}"], empty) {
+      Error(problem) => { failure = Some("Git commit is unavailable") },
+      Ok(output) => match git_line(output) {
+        Error(problem) => { failure = Some(problem) },
+        Ok(actual) => if actual != source.commit { failure = Some("Git fetched a different commit") }
+      }
+    }
+  }
+  match failure {
+    Some(problem) => Error(problem),
+    None() => match git_command(context, ["ls-tree", "-r", "-t", "-l", "-z", source.commit], empty) {
+      Error(problem) => Error("cannot inspect Git commit tree"),
+      Ok(output) => match parse_git_inventory(output, source.commit.len()) {
+        Error(problem) => Error(problem),
+        Ok(inventory) => match read_git_links(context, inventory) {
+          Error(problem) => Error(problem),
+          Ok(links) => snapshot_from_inventory(parent, context, source, source_key, inventory, links)
+        }
+      }
+    }
+  }
+}
+
+// P03b accepts an already selected full commit. Manifest/ref resolution and
+// lock integration are P03c; this operation never substitutes a newer commit.
+pub stage_git_commit(parent: Path, executable: Path, source: GitSource,
+    certificate_file: Option[Str]): Result[StagedGit, Str] {
+  length: Nat = if source.object_format == "sha1" { 40 } else if source.object_format == "sha256" { 64 } else { 0 }
+  if !manifest_https_archive_url(source.url) || !git_object_id(source.commit, length) {
+    Error("Git requires a credential-free HTTPS URL and full commit identity")
+  } else {
+    match git_source_key(source) {
+      Error(problem) => Error(problem),
+      Ok(source_key) => match staging.begin(parent) {
+        Error(problem) => Error("cannot create Git temporary repository"),
+        Ok(handle) => {
+          result = match staging.path(handle) {
+            Error(problem) => Error("cannot locate Git temporary repository"),
+            Ok(repository) => match staging.directory(handle, git_path("home")) {
+              Error(problem) => Error("cannot create Git private home"),
+              Ok(done) => {
+                home = repository.to_text().value_or("") + "/home"
+                context = GitContext(executable, repository, home, certificate_file)
+                fetch_git_commit(parent, context, source, source_key)
+              }
+            }
+          }
+          cleaned = staging.close(handle)
+          match cleaned {
+            Ok(done) => result,
+            Error(problem) => {
+              match result { Error(failure) => {}, Ok(snapshot) => { closed = staging.close(snapshot.handle) } }
+              Error("cannot clean Git temporary repository")
+            }
+          }
+        }
+      }
+    }
+  }
+}

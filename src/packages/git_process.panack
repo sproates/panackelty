@@ -1,0 +1,55 @@
+import stdlib/process as process
+import stdlib/bytes as byte_buffer
+import stdlib/time as time
+import stdlib/path as path
+
+pub record GitContext {
+  executable: Path,
+  repository: Path,
+  home: Str,
+  certificate_file: Option[Str]
+}
+
+// Only trusted tool configuration enters this context. URL/ref policy belongs to
+// acquisition; command arguments are never interpreted by a shell.
+pub git_command(context: GitContext, arguments: [Str], input: Bytes): Result[Bytes, Str] {
+  match context.repository.to_text() {
+    Error(problem) => Error("Git temporary repository path is not UTF-8"),
+    Ok(repository) => {
+      mut environment: [Str] = [
+        "PATH=/usr/bin:/bin", "HOME=" + context.home, "XDG_CONFIG_HOME=" + context.home,
+        "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_SYSTEM=/dev/null", "GIT_CONFIG_GLOBAL=/dev/null",
+        "GIT_CONFIG_COUNT=0", "GIT_TERMINAL_PROMPT=0", "GIT_ATTR_NOSYSTEM=1",
+        "GIT_NO_REPLACE_OBJECTS=1", "GIT_LITERAL_PATHSPECS=1", "LC_ALL=C"
+      ]
+      mut command: [Str] = [
+        "--no-pager", "--no-replace-objects", "--git-dir=" + repository,
+        "-c", "core.hooksPath=/dev/null", "-c", "credential.helper=",
+        "-c", "credential.interactive=false", "-c", "core.askPass=/usr/bin/false",
+        "-c", "core.attributesFile=/dev/null", "-c", "core.autocrlf=false",
+        "-c", "protocol.allow=never", "-c", "protocol.https.allow=always",
+        "-c", "http.followRedirects=false", "-c", "http.sslVerify=true",
+        "-c", "http.proxy=", "-c", "http.saveCookies=false",
+        "-c", "fetch.recurseSubmodules=false", "-c", "submodule.recurse=false",
+        "-c", "maintenance.auto=false", "-c", "gc.auto=0"
+      ]
+      match context.certificate_file {
+        None() => {},
+        Some(certificate) => { environment = environment.append("GIT_SSL_CAINFO=" + certificate) }
+      }
+      for argument in arguments { command = command.append(argument) }
+      if !context.executable.is_absolute() { Error("Git executable must be an absolute path") }
+      else {
+        match process.run_isolated(context.executable, command, input, context.repository,
+            environment, time.seconds(60), 16777216) {
+          Error(problem) => Error("Git process failed: " + problem.code),
+          Ok(output) => if output.signal != 0 || output.exit_code != 0 {
+            // Git stderr can echo remote URLs and server-controlled text. Keep
+            // diagnostics phase-specific at the caller without exposing it.
+            Error("Git command failed")
+          } else { Ok(output.stdout) }
+        }
+      }
+    }
+  }
+}

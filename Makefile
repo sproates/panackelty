@@ -224,6 +224,7 @@ $(BUILD_DIR)/vm/http_fixture: tests/http_fixture.c
 functional-impl: package-tool $(BUILD_DIR)/vm/static_http_client $(STAGE2_COMPILER) $(BUILD_DIR)/vm/tcp_server $(BUILD_DIR)/vm/tcp_client $(BUILD_DIR)/vm/http_client $(BUILD_DIR)/vm/http_fixture
 	@$(PROFILE) functional/package-dependencies sh tests/package_dependencies.sh
 	@$(PROFILE) functional/package-https sh tests/package_https.sh
+	@$(PROFILE) functional/package-git sh tests/package_git.sh
 	@$(MAKE) --no-print-directory identity-root-audit
 	@$(PROFILE) functional/owned-dispatch-removal sh tests/owned_dispatch_removal.sh
 	@$(PROFILE) functional/owned-dot-dispatch sh tests/owned_dot_dispatch.sh
@@ -443,7 +444,7 @@ $(PACKAGE_TOOL_ARTIFACT): panack-vm $(SEED_COMPILER) $(PACKAGE_TOOL_SOURCES)
 package-tool-check: package-tool native-io-check
 	@PANACK_PROBE_SEED="$(abspath $(SEED_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROBE) tests/runner/package_sha256_unit.panack
 	@PANACK_PROBE_SEED="$(abspath $(SEED_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROBE) tests/runner/resolved_project_unit.panack
-	@PANACK_PROBE_SEED="$(abspath $(SEED_COMPILER))" $(PROBES) tests/runner/package_lock_unit.panack tests/runner/package_tar_unit.panack tests/runner/package_case_fold_unit.panack
+	@PANACK_PROBE_SEED="$(abspath $(SEED_COMPILER))" $(PROBES) tests/runner/package_lock_unit.panack tests/runner/package_tar_unit.panack tests/runner/package_case_fold_unit.panack tests/runner/package_git_unit.panack
 	@PANACK_PROBE_SEED="$(abspath $(SEED_COMPILER))" sh tests/package_archive_stream.sh
 	@sh tests/package_tool_handoff.sh
 

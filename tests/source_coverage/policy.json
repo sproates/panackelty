@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "P03a adds the Panack HTTPS archive acquisition module, explicitly unmeasured.",
-    "basis": "Public CLI TLS fixtures prove acquisition and offline contracts, not source execution coverage percentages.",
-    "scopeChange": "Add src/packages/manifest.panack and src/packages/remote_archive.panack to unmeasured inventory. Preserve eligible sources, execution roots, exclusions and thresholds."
+    "reason": "P03b adds four Panack Git acquisition modules, explicitly unmeasured.",
+    "basis": "Unit and public source/bytecode HTTPS fixtures prove acquisition behaviour, not source-execution coverage percentages.",
+    "scopeChange": "Add git_inventory, git_links, git_process and git_snapshot under src/packages to the unmeasured inventory. Preserve all eligible sources, execution roots, exclusions and thresholds."
   },
-  "manifestHash": "3ad6fbe047e179cde8df7c1487db6b683292ed393e1dbc6b1558e9c662d2b626",
+  "manifestHash": "73d64a2eaa9f044318bdf2771d8e5a925391fe159b7d13d37ecdd3df8946710e",
   "exclusionHash": "773435167944b7750a18a232c06a2697356e8fb853efda5dfcf1a3acd8f10a7e"
 }

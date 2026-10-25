@@ -1535,3 +1535,18 @@ syntax, truncation, size and status. Failed updates preserve the existing lock a
 package files. Unknown manifest fields print their actual names; directory conflicts
 name and preserve the conflicting path. The finite acceptance record is
 [`PACKAGE_DIAGNOSTIC_ACCEPTANCE.md`](../docs/design/PACKAGE_DIAGNOSTIC_ACCEPTANCE.md).
+
+## GI#200 P04b installed package workflow
+
+Release smoke executes package help and local archive lock/update/restore through
+a relocated, symlinked installed command. The launched command has no Git, curl,
+tar or build tools on PATH. It verifies the restored lock is unchanged, compiled
+program output, missing-package-tool failure and bytecode independence. Native
+library inspection rejects missing or non-system runtime dependencies. Existing
+distribution tests retain the complete installed-file inventory.
+
+The HTTP TLS workflow repeats tests/package_https.sh through a relocated install
+on Ubuntu 22.04 and macOS 14 with the same restricted command environment. Real
+TLS, checksum failures, redirects, cache recovery and network-free command
+connection counts retain their existing assertions. P04c mixed-source final
+acceptance remains separate.

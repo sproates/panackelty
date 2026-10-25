@@ -48,12 +48,33 @@ export PANACKELTY_STDLIB_PATH
 PANACKELTY_COMPILER_PATH=$compiler
 export PANACKELTY_COMPILER_PATH
 
-case "${1-}" in
-  deps)
-    if [ ! -f "$package_tool" ]; then
-      echo "panack: package tool not found; run 'make package-tool' in a source checkout or reinstall Panackelty" >&2
-      exit 127
+require_package_tool() {
+  if [ ! -f "$package_tool" ]; then
+    printf '%s\n\n  Missing file: %s\n\n' \
+      'panack: package tool not found. Panack cannot run package or project commands.' \
+      "$package_tool" >&2
+    if [ "$compiler" = "$source_root/bootstrap/compiler-v9.bc" ]; then
+      printf "Run 'make package-tool' in this source checkout:\n\n  %s\n" "$source_root" >&2
+    else
+      printf '%s\n' 'Reinstall the complete Panackelty toolchain from the same release.' >&2
     fi
+    exit 127
+  fi
+}
+
+case "${1-}" in
+  --help|"")
+    "$vm" run "$compiler" "$@" || exit $?
+    printf '\n%s\n' 'Package dependencies:' \
+      '       panack deps lock --project PATH' \
+      '       panack deps update --project PATH [ALIAS...]' \
+      '       panack deps restore --project PATH [--offline]' \
+      '       panack deps --help' \
+      'Project check, compile and run never fetch or restore dependencies.'
+    exit 0
+    ;;
+  deps)
+    require_package_tool
     shift
     exec "$vm" run "$package_tool" deps "$@"
     ;;
@@ -65,10 +86,7 @@ case "${1-}" in
         echo "panack: --project requires a panack.json path" >&2
         exit 2
       fi
-      if [ ! -f "$package_tool" ]; then
-        echo "panack: package tool not found; run 'make package-tool' in a source checkout or reinstall Panackelty" >&2
-        exit 127
-      fi
+      require_package_tool
       shift 3
       descriptor=$(mktemp "${TMPDIR:-/tmp}/panack-resolved.XXXXXX") || {
         echo "panack: cannot create a temporary resolved-project descriptor" >&2

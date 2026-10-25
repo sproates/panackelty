@@ -10,6 +10,9 @@ on:
       - 'tests/package_git*'
       - 'tests/fixtures/package_git/**'
       - 'src/packages/**'
+      - 'bin/panack'
+      - 'Makefile'
+      - 'tests/release_archive_smoke.sh'
       - 'src/project_model/package_manifest.panack'
       - 'src/vm/http_transport.c'
       - 'packages/http/**'
@@ -50,5 +53,10 @@ jobs:
           done
       - name: Exercise HTTPS package acquisition
         run: sh tests/package_https.sh
+      - name: Exercise installed HTTPS packages without Git or build tools
+        run: |
+          make release-smoke
+          mv build/package/panackelty "$RUNNER_TEMP/relocated toolchain"
+          PANACK_INSTALLED_COMMAND="$RUNNER_TEMP/relocated toolchain/bin/panack" sh tests/package_https.sh
       - name: Exercise isolated Git snapshots over HTTPS
         run: sh tests/package_git.sh

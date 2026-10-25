@@ -55,11 +55,12 @@ show custom APIs, Map coexistence and typed callbacks.
 
 The unreleased `next` branch adds [explicit locks and local, archive and Git dependencies](docs/guides/TOOLCHAIN.md#locked-local-dependencies-on-next) through a separate package tool written in Panack.
 [Package diagnostics](docs/design/PACKAGE_DIAGNOSTIC_EXAMPLES.md) explain failures, show dependency context and guide safe recovery.
+Run `panack deps --help` for lock, update and restore guidance, including offline behaviour.
 Its generic host APIs also provide exact-environment process launch and confined
 symbolic-link operations; see the [standard-library contracts](src/stdlib/README.md).
 Git dependencies support pinned HTTPS commits and shared repository subdirectories on `next`.
 Its generic `stdlib/http_stream` transport supports bounded blocking reads for
-command-line consumers. Cross-source acceptance and final packaging remain in progress.
+command-line consumers. The installed package workflow includes both tools; final cross-source acceptance remains in progress.
 
 ## Explore
 

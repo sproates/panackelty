@@ -83,6 +83,14 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
+- **P04b installed package workflow: Pending release and final acceptance.**
+  On alpha.15 promotion, include package help, the separate installed tool,
+  Ubuntu runtime libraries and macOS system/static library requirements. Explain
+  that Git is optional for local and HTTPS archives, and that package commands
+  do not need command-line curl or tar. Keep alpha.14 instructions unchanged.
+  Ownership: core release and website maintainers. Evidence:
+  [installed-workflow acceptance](dependency-management--idea.md#p04b-installed-workflow-acceptance).
+
 - **P04a diagnostics: Pending release and final acceptance.** Promote the new
   package explanations and recovery examples only after P04b/P04c acceptance
   and a matching native release. The examples document is future article source

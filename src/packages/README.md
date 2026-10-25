@@ -87,3 +87,9 @@ P04a's [source audit and acceptance](../../docs/design/PACKAGE_DIAGNOSTIC_ACCEPT
 accounts for every package module and records the completed diagnostic boundary.
 HTTP redirects reject unsupported schemes before another request, distinguish
 known destination failures and never print server-supplied redirect values.
+
+The package entry point owns `panack deps --help` and the equivalent
+lock/update/restore help forms. Help returns before project input is accessed.
+The shell launcher adds package-command discovery to compiler help without
+changing or rebuilding the compiler artifact. Installed workflow acceptance is
+recorded in the [P04b checklist](../../docs/roadmap/records/dependency-management--idea.md#p04b-installed-workflow-acceptance).

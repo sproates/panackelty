@@ -7,6 +7,24 @@ cleanup() { code=$?; if [ "$code" -ne 0 ]; then cat "$work/out" "$work/err" "$wo
 trap cleanup EXIT
 trap 'exit 1' HUP INT TERM
 panack="$root/bin/panack"
+# Reuse the same TLS acceptance against an installed toolchain. Only the
+# launched command gets the restricted PATH; fixture setup keeps its tools.
+if [ -n "${PANACK_INSTALLED_COMMAND:-}" ]; then
+    mkdir -p "$work/runtime-bin"
+    for utility in dirname mktemp rm readlink; do
+        ln -s "$(command -v "$utility")" "$work/runtime-bin/$utility"
+    done
+    PANACK_INSTALLED_RUNTIME_PATH=$work/runtime-bin
+    export PANACK_INSTALLED_COMMAND PANACK_INSTALLED_RUNTIME_PATH
+    cat > "$work/installed-panack" <<'SH'
+#!/bin/sh
+PATH=$PANACK_INSTALLED_RUNTIME_PATH
+export PATH
+exec "$PANACK_INSTALLED_COMMAND" "$@"
+SH
+    chmod +x "$work/installed-panack"
+    panack=$work/installed-panack
+fi
 version=$(sed -n '1p' VERSION)
 mkdir -p "$work/app/src" "$work/archive/src" "$work/other/src"
 cat > "$work/request.cnf" <<'CONF'

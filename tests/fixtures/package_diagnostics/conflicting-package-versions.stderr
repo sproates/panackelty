@@ -1,0 +1,11 @@
+panack: error[PKG_VERSION_CONFLICT]: Cannot resolve the dependencies because package demo.library is declared with conflicting versions.
+
+  Project: <workspace>/app/panack.json
+  Dependency directory: <workspace>/other
+  Dependency name: second
+  Conflicting package: demo.library@2.0.0 in <workspace>/other
+  First package: demo.library@1.0.0 in <workspace>/library
+
+Panack requires one version of each package name throughout the dependency graph. The two package declarations name different versions.
+
+Check the dependency paths and versions in the reported package manifests. Choose compatible dependencies that use the same version of this package, then retry your command.

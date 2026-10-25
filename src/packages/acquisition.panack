@@ -1,4 +1,4 @@
-import project/src/packages/input_diagnostic::{input_problem}
+import project/src/packages/input_diagnostic::{input_problem, input_read_problem}
 pub import project/src/packages/diagnostic::{PackageProblem}
 import project/src/packages/diagnostic::{host_detail, package_problem, problem_context, package_result, problem_label, explain_problem}
 import project/src/packages/manifest::{parse_package_manifest}
@@ -96,7 +96,7 @@ inspect_staged_archive(source: Str, archive: StagedArchive): Result[ArchiveSourc
   match path.from_text(archive.root + "/panack.json") {
     Error(problem) => Error(package_problem("PKG_MANIFEST_INVALID", "invalid staged manifest path")),
     Ok(file) => match filesystem.read(file, 65536) {
-      Error(problem) => Error(package_problem("PKG_MANIFEST_INVALID", "cannot read staged manifest")),
+      Error(problem) => Error(input_read_problem("panack.json", source + "!/panack.json", problem.code, false)),
       Ok(bytes) => match parse_package_manifest(bytes, environment.get("PANACKELTY_VERSION").value_or("")) {
         Error(problem) => Error(problem_label(input_problem("panack.json", bytes, problem, false), "File", source + "!/panack.json")),
         Ok(manifest) => match package_result(sha256_bytes(bytes), "PKG_TOOL") {

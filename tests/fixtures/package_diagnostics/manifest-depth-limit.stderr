@@ -1,0 +1,9 @@
+panack: error[PKG_MANIFEST_INVALID]: Cannot process panack.json because its JSON exceeds Panack's 32-level nesting limit.
+
+  Project: <workspace>/app/panack.json
+  File: <workspace>/app/panack.json
+  Location: line 1, column 34
+
+manifest JSON nesting exceeds 32 levels
+
+Reduce the JSON nesting to at most 32 levels without removing required information, then retry your command.

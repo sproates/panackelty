@@ -22,6 +22,10 @@ pub pure package_problem(code: Str, message: Str): PackageProblem {
     phase = "checking panack.lock.json"
     reason = "The lockfile records the exact dependencies the project uses and belongs alongside panack.json."
     help = "If you have an existing lockfile for this project, restore that file to the expected location. Otherwise, create one by running:"
+  } else if code == "PKG_LOCK_REQUIRED" {
+    phase = "checking selected dependencies"
+    reason = "A selected update needs an existing lockfile so Panack can preserve the dependencies you did not select. Panack has not changed any package files."
+    help = "Restore an existing lockfile for this project, or create an initial lockfile for all dependencies by running:"
   } else if code == "PKG_LOCK_STALE" {
     phase = "checking panack.lock.json"
     reason = "The package definitions no longer match the lockfile. Panack checks the complete manifest files, so formatting changes also require the lockfile to be updated."
@@ -66,6 +70,15 @@ pub pure package_problem(code: Str, message: Str): PackageProblem {
     phase = "checking source directories"
     reason = "These directories overlap, so the same source files could belong to both packages. Panack requires separate source directories for each package."
     help = "Check the source field in each panack.json. Correct the paths or move the source files so neither source directory contains the other.\n\nSee the package manifest specification:\n" + manifest_specification()
+  } else if code == "PKG_DEPENDENCY_CYCLE" {
+    reason = "Following these dependency declarations leads back to a package already being resolved. Panack does not allow circular dependencies."
+    help = "Check the dependency chain and the dependencies sections of those packages' manifests. Remove or redirect the declaration that creates the cycle, then retry your command."
+  } else if code == "PKG_VERSION_CONFLICT" {
+    reason = "Panack requires one version of each package name throughout the dependency graph. The two package declarations name different versions."
+    help = "Check the dependency paths and versions in the reported package manifests. Choose compatible dependencies that use the same version of this package, then retry your command."
+  } else if code == "PKG_IDENTITY_CONFLICT" {
+    reason = "These directories declare the same package name and version, but refer to separate physical package directories. Panack cannot choose which copy to use."
+    help = "Correct the dependency paths so all references to this package use the same directory, then retry your command."
   } else if code == "PKG_LIMIT" {
     phase = "checking size and count limits"
     reason = "Panack stopped because the reported resource limit was exceeded."
@@ -257,7 +270,7 @@ pub pure render_problem(problem: PackageProblem, manifest: Str, operation: Str):
   mut output = "panack: error[" + display_code + "]: " + diagnostic_text(message) + "\n"
   if manifest != "" {
     output = output + "\n  Project: " + diagnostic_text(manifest) + "\n"
-    if problem.code == "PKG_LOCK_MISSING" {
+    if problem.code == "PKG_LOCK_MISSING" || problem.code == "PKG_LOCK_REQUIRED" {
       output = output + "  Missing file: " + diagnostic_text(paths.parent(manifest) + "/panack.lock.json") + "\n"
     } else if problem.code.starts_with_at("PKG_LOCK_", 0) || problem.code.starts_with_at("PKG_CACHE_", 0) || problem.code == "PKG_INTEGRITY" || problem.code == "PKG_ARCHIVE_CHECKSUM" || problem.code == "PKG_DEPENDENCY_UNKNOWN" || problem.code == "PKG_DEPENDENCY_NOT_SELECTED" || problem.code == "PKG_PROJECT_CHANGED" {
       output = output + "  Lockfile: " + diagnostic_text(paths.parent(manifest) + "/panack.lock.json") + "\n"
@@ -281,7 +294,7 @@ pub pure render_problem(problem: PackageProblem, manifest: Str, operation: Str):
 
   if problem.help != "" { output = output + "\n" + problem.help }
   if manifest != "" && diagnostic_text(manifest) == manifest {
-    if problem.code == "PKG_LOCK_MISSING" {
+    if problem.code == "PKG_LOCK_MISSING" || problem.code == "PKG_LOCK_REQUIRED" {
       output = output + "\n\n  panack deps lock --project " + diagnostic_quote(manifest)
     } else if problem.code == "PKG_ARCHIVE_CHECKSUM" {
       output = output + "\n\n  panack deps restore --project " + diagnostic_quote(manifest)
@@ -312,6 +325,7 @@ pub pure host_detail(code: Str): Str {
   else if code == "permission_denied" { "the account running Panack does not have permission (permission_denied)" }
   else if code == "already_exists" { "the destination already exists (already_exists)" }
   else if code == "not_directory" { "a path component is not a directory (not_directory)" }
+  else if code == "not_regular_file" { "the path does not identify a regular file (not_regular_file)" }
   else if code == "is_directory" { "the path is a directory, but a file is required (is_directory)" }
   else if code == "not_empty" { "the directory is not empty (not_empty)" }
   else if code == "symlink_loop" { "the path contains a symbolic-link loop (symlink_loop)" }

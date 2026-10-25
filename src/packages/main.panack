@@ -1,3 +1,4 @@
+import project/src/packages/command_diagnostic::{validate_package_command}
 import project/src/packages/diagnostic::{PackageProblem, package_problem, render_problem}
 import project/src/packages/git_acquisition::{publish_git}
 import project/src/packages/selective_update::{validate_selective_update}
@@ -10,10 +11,6 @@ import stdlib/compiler_paths as paths
 import stdlib/environment as environment
 import stdlib/host as host
 
-package_tool_usage(): Str {
-  "usage: panack-packages prepare --project panack.json | deps lock|update|restore --project panack.json [ALIAS... | --offline]"
-}
-
 package_tool_error(problem: PackageProblem): Nat {
   arguments = host.arguments()
   mut manifest = ""
@@ -21,7 +18,7 @@ package_tool_error(problem: PackageProblem): Nat {
   if arguments.len() > 0 && arguments[0] == "prepare" { operation = "project preparation (network-free)" }
   else if arguments.len() > 1 { operation = "deps " + arguments[1] }
   for index in 0..arguments.len() {
-    if arguments[index] == "--project" && index + 1 < arguments.len() { manifest = paths.resolve(arguments[index + 1]) }
+    if arguments[index] == "--project" && index + 1 < arguments.len() && arguments[index + 1] != "" && !arguments[index + 1].starts_with_at("--", 0) { manifest = paths.resolve(arguments[index + 1]) }
     if arguments[index] == "--offline" { operation = operation + " --offline" }
   }
   host.stderr(render_problem(problem, manifest, operation))
@@ -73,7 +70,7 @@ finish_dependencies(operation: Str, project: ManifestProject, existing: Option[P
       }
       if aliases.len() > 0 {
         match existing {
-          None() => { failure = Some(package_problem("PKG_LOCK_MISSING", "selective update requires a lockfile")) },
+          None() => { failure = Some(package_problem("PKG_LOCK_REQUIRED", "Cannot update selected dependencies because this project has no lockfile.")) },
           Some(previous) => match validate_selective_update(previous, current, aliases) {
             Error(problem) => { failure = Some(problem) },
             Ok(validated) => {}
@@ -108,29 +105,26 @@ finish_dependencies(operation: Str, project: ManifestProject, existing: Option[P
 
 package_tool_dependencies(arguments: [Str]): Nat {
   operation: Str = arguments[1]
-  valid: Bool = (operation == "lock" || operation == "update" || operation == "restore") &&
-    (arguments.len() == 4 || operation == "update" || (operation == "restore" && arguments.len() == 5 && arguments[4] == "--offline"))
-  if !valid { package_tool_error(package_problem("PKG_USAGE", package_tool_usage())) }
-  else {
-    mut aliases: [Str] = []
-    if operation == "update" { for index in 4..arguments.len() { aliases = aliases.append(arguments[index]) } }
-    root: Str = paths.parent(paths.resolve(arguments[3]))
-    match read_local_lock(root) {
-      Error(problem) => package_tool_error(problem),
-      Ok(existing) => if operation == "restore" && existing == None() {
-        package_tool_error(package_problem("PKG_LOCK_MISSING", "missing lockfile"))
-      } else {
-        materialize: Bool = operation != "lock" || existing == None()
-        state = if materialize { Ok(()) }
-          else { match existing { None() => Ok(()), Some(lock) => verify_cache_state(root, lock) } }
-        match state {
+  mut aliases: [Str] = []
+  if operation == "update" { for index in 4..arguments.len() { aliases = aliases.append(arguments[index]) } }
+  root: Str = paths.parent(paths.resolve(arguments[3]))
+  match read_local_lock(root) {
+    Error(problem) => package_tool_error(problem),
+    Ok(existing) => if operation == "restore" && existing == None() {
+      package_tool_error(package_problem("PKG_LOCK_MISSING", "missing lockfile"))
+    } else if aliases.len() > 0 && existing == None() {
+      package_tool_error(package_problem("PKG_LOCK_REQUIRED", "Cannot update selected dependencies because this project has no lockfile."))
+    } else {
+      materialize: Bool = operation != "lock" || existing == None()
+      state = if materialize { Ok(()) }
+        else { match existing { None() => Ok(()), Some(lock) => verify_cache_state(root, lock) } }
+      match state {
+        Error(problem) => package_tool_error(problem),
+        Ok(completed_5) => match read_manifest_project(arguments[3], AcquisitionOptions(root, materialize, existing,
+          arguments.len() == 5 && arguments[4] == "--offline",
+          (operation == "update" && aliases.len() == 0) || existing == None(), aliases, None())) {
           Error(problem) => package_tool_error(problem),
-          Ok(completed_5) => match read_manifest_project(arguments[3], AcquisitionOptions(root, materialize, existing,
-            arguments.len() == 5 && arguments[4] == "--offline",
-            (operation == "update" && aliases.len() == 0) || existing == None(), aliases, None())) {
-            Error(problem) => package_tool_error(problem),
-            Ok(project) => finish_dependencies(operation, project, existing, aliases)
-          }
+          Ok(project) => finish_dependencies(operation, project, existing, aliases)
         }
       }
     }
@@ -138,11 +132,11 @@ package_tool_dependencies(arguments: [Str]): Nat {
 }
 
 package_tool_command(arguments: [Str]): Nat {
-  if arguments.len() == 3 && arguments[0] == "prepare" && arguments[1] == "--project" && arguments[2] != "" {
-    package_tool_prepare(arguments[2])
-  } else if arguments.len() >= 4 && arguments[0] == "deps" && arguments[2] == "--project" {
-    package_tool_dependencies(arguments)
-  } else { package_tool_error(package_problem("PKG_USAGE", package_tool_usage())) }
+  match validate_package_command(arguments) {
+    Error(problem) => package_tool_error(problem),
+    Ok(validated) => if arguments[0] == "prepare" { package_tool_prepare(arguments[2]) }
+      else { package_tool_dependencies(arguments) }
+  }
 }
 
 main(): Void {

@@ -1,4 +1,5 @@
-import project/src/packages/input_diagnostic::{input_problem, encoding_problem}
+import project/src/packages/command_diagnostic::{validate_package_command}
+import project/src/packages/input_diagnostic::{input_problem, encoding_problem, input_read_problem}
 import project/src/packages/manifest::{parse_package_manifest}
 import project/src/packages/diagnostic::{checksum_problem, problem_value}
 import project/src/packages/remote_archive::{http_status_problem}
@@ -48,7 +49,26 @@ main(): Void {
   state = package_problem("PKG_CACHE_STATE_MISSING", "state record missing")
   offline_missing = render_problem(package_problem("PKG_CACHE_MISSING", "missing"), "/app/panack.json", "deps restore --offline")
   invalid_text = input_problem("panack.lock.json", byte_buffer.empty().push(255), PackageManifestError("invalid UTF-8", 0), true)
+  denied = input_read_problem("panack.json", "/app/panack.json", "permission_denied", false)
+  bounded = input_read_problem("panack.lock.json", "/app/panack.lock.json", "output_limit", true)
   results = [
+    testing.expect("lock command accepted", validate_package_command(["deps", "lock", "--project", "/app/panack.json"]) == Ok(()), "valid lock rejected"),
+    testing.expect("selected update accepted", validate_package_command(["deps", "update", "--project", "/app/panack.json", "lib"]) == Ok(()), "valid update rejected"),
+    testing.expect("offline restore accepted", validate_package_command(["deps", "restore", "--project", "/app/panack.json", "--offline"]) == Ok(()), "valid restore rejected"),
+    testing.expect("prepare accepted", validate_package_command(["prepare", "--project", "/app/panack.json"]) == Ok(()), "valid prepare rejected"),
+    testing.equal_str("missing operation is specific", failure_message(validate_package_command(["deps"])), "Cannot run panack deps because no operation was supplied."),
+    testing.equal_str("unsupported operation is specific", failure_message(validate_package_command(["deps", "frobnicate"])), "Cannot run panack deps because the operation is not supported."),
+    testing.equal_str("missing project is specific", failure_message(validate_package_command(["deps", "lock"])), "Cannot run the package command because --project is required after the operation."),
+    testing.equal_str("empty path is rejected", failure_message(validate_package_command(["deps", "lock", "--project", ""])), "Cannot run the package command because --project has no manifest path."),
+    testing.equal_str("option is not a path", failure_message(validate_package_command(["deps", "restore", "--project", "--offline"])), "Cannot run the package command because --project has no manifest path."),
+    testing.equal_str("repeated offline is specific", failure_message(validate_package_command(["deps", "restore", "--project", "/app/panack.json", "--offline", "--offline"])), "Cannot run this command because --offline was supplied more than once."),
+    testing.equal_str("offline update is specific", failure_message(validate_package_command(["deps", "update", "--project", "/app/panack.json", "--offline"])), "Cannot run this command because --offline is only supported by panack deps restore."),
+    testing.equal_str("unknown update option is not a dependency", failure_message(validate_package_command(["deps", "update", "--project", "/app/panack.json", "--mystery"])), "Cannot run the package command because an option is not supported."),
+    testing.equal_str("permission retains filesystem classification", denied.code, "PKG_FILESYSTEM"),
+    testing.equal_str("permission retains the actual path", problem_value(denied, "File"), "/app/panack.json"),
+    testing.equal_str("permission does not invent a missing file", problem_value(denied, "Missing file"), ""),
+    testing.equal_str("lock read size limit is explicit", bounded.message, "Cannot process panack.lock.json because the file exceeds Panack's 1 MiB (1048576 bytes) size limit."),
+    testing.equal_str("lock read bound has no invented location", problem_value(bounded, "Location"), ""),
     testing.equal_str("invalid UTF-8 uses shared encoding guidance", invalid_text.help, encoding_problem("panack.json", false).help),
     testing.equal_str("invalid UTF-8 lock retains its code", invalid_text.code, "PKG_LOCK_INVALID"),
     testing.equal_str("invalid UTF-8 does not invent a text location", problem_value(invalid_text, "Location"), ""),

@@ -130,9 +130,11 @@ while [ "$attempt" -lt 40 ]; do
             'error: cannot verify resolved project package manifest')
                 # read_beneath can reject the changing root before returning an identity.
                 manifest_read_errors=$((manifest_read_errors + 1)) ;;
-            *'cannot read project manifest ('*|*'package manifest was not found: '*)
+            *'cannot read project manifest ('*|*'package manifest was not found: '*|\
+            'panack: error[PKG_FILESYSTEM]: Cannot read panack.json: '*|\
+            'panack: error[PKG_MANIFEST_MISSING]: Cannot load the package because panack.json is missing.'*)
                 manifest_read_errors=$((manifest_read_errors + 1)) ;;
-            'panack: error[PKG_FILESYSTEM]: cannot inspect lockfile: '*)
+            'panack: error[PKG_FILESYSTEM]: Cannot inspect panack.lock.json: '*)
                 # The package tool inspects the optional lock before reading the
                 # manifest. Path lookup can fail during the same root replacement.
                 lock_read_errors=$((lock_read_errors + 1)) ;;

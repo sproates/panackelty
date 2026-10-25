@@ -141,3 +141,5 @@ printf '{broken' > "$lock"
 reject malformed-lock PKG_LOCK_INVALID deps restore --project "$manifest"
 grep -F 'obtain a valid copy' "$work/err" >/dev/null
 printf '%s\n' 'PASS package explanations, transitive context, exact-pin recovery and commands with quoted paths'
+
+sh tests/package_validation_diagnostics.sh

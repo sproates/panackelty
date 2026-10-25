@@ -16,7 +16,7 @@ introduced.
 
 Build with `make package-tool`, then run `sh tests/package_diagnostics.sh`,
 `sh tests/package_https.sh`, `sh tests/package_git.sh` and
-`sh tests/package_archive_diagnostics.sh`. The Git suite includes
+`sh tests/package_archive_diagnostics.sh` and `sh tests/package_validation_diagnostics.sh`. The Git suite includes
 controlled executable tests in `tests/package_git_diagnostics.sh`. The remote tests use
 private local TLS peers, not external services. Optional
 `PANACK_DIAGNOSTICS_RECORD=/absolute/output/directory` captures the observed
@@ -718,4 +718,377 @@ panack: error[PKG_ARCHIVE_PATH_INVALID]: Cannot unpack the archive because an ar
 Panack cannot create a portable package directory from the reported paths.
 
 If you maintain this package, correct the reported paths and recreate the archive. Otherwise, ask the package maintainer for a corrected archive.
+```
+
+## Command, input and graph validation
+
+The following cases are reproduced by `tests/package_validation_diagnostics.sh`,
+which also runs through the ordinary package acceptance suite. Invalid commands
+are rejected before package files are accessed. The selected-update test executes
+the suggested initial-lock command. Filesystem rejection tests preserve the
+existing lock or conflicting entry; permission cases run on non-root POSIX hosts.
+The publication test deliberately denies directory access. The atomic-write API
+reports only `filesystem_error`, so the explanation does not invent a finer cause.
+
+### No dependency operation was supplied
+
+Command: `panack deps`.
+
+```text
+panack: error[PKG_USAGE]: Cannot run panack deps because no operation was supplied.
+
+Panack has not read or changed any package files.
+
+Choose lock, update or restore, followed by --project /path/to/panack.json.
+```
+
+### The project option has no path
+
+Command: `panack deps lock --project`.
+
+```text
+panack: error[PKG_USAGE]: Cannot run the package command because --project has no manifest path.
+
+Panack has not read or changed any package files.
+
+Supply the path to the project's panack.json immediately after --project.
+```
+
+### Offline was requested for an update
+
+Command: `panack deps update --project "<workspace>/app/panack.json" --offline`.
+
+```text
+panack: error[PKG_USAGE]: Cannot run this command because --offline is only supported by panack deps restore.
+
+  Project: <workspace>/app/panack.json
+
+Panack has not read or changed any package files.
+
+Remove --offline to run this operation. To restore recorded packages without network access, use panack deps restore --project /path/to/panack.json --offline.
+```
+
+### A dependency name was passed to restore
+
+Command: `panack deps restore --project "<workspace>/app/panack.json" lib`.
+
+```text
+panack: error[PKG_USAGE]: Cannot run this command because dependency names are only accepted by panack deps update.
+
+  Project: <workspace>/app/panack.json
+  Argument: lib
+
+Panack has not read or changed any package files.
+
+Remove the extra argument. To update selected dependencies, use panack deps update --project /path/to/panack.json followed by their names from the manifest.
+```
+
+### An unsupported package option
+
+Command: `panack deps lock --project "<workspace>/app/panack.json" --unknown`.
+
+```text
+panack: error[PKG_USAGE]: Cannot run the package command because an option is not supported.
+
+  Project: <workspace>/app/panack.json
+  Option: --unknown
+
+Panack has not read or changed any package files.
+
+Remove the unsupported option. Only panack deps restore accepts --offline; panack deps update accepts dependency names after the manifest path.
+```
+
+### A selected update has no baseline lock
+
+Command: `panack deps update --project "<workspace>/app/panack.json" lib`.
+
+```text
+panack: error[PKG_LOCK_REQUIRED]: Cannot update selected dependencies because this project has no lockfile.
+
+  Project: <workspace>/app/panack.json
+  Missing file: <workspace>/app/panack.lock.json
+
+A selected update needs an existing lockfile so Panack can preserve the dependencies you did not select. Panack has not changed any package files.
+
+Restore an existing lockfile for this project, or create an initial lockfile for all dependencies by running:
+
+  panack deps lock --project '<workspace>/app/panack.json'
+```
+
+### The selected manifest has the wrong filename
+
+Command: `panack deps lock --project "<workspace>/app/good.json"`.
+
+```text
+panack: error[PKG_MANIFEST_INVALID]: Cannot use the selected manifest because its filename is not panack.json.
+
+  Project: <workspace>/app/good.json
+  Selected file: <workspace>/app/good.json
+
+Panack requires the package manifest to be named panack.json in the package's root directory.
+
+Pass the path to the package's panack.json using --project. If this is the intended manifest, rename the file to panack.json.
+```
+
+### The manifest path identifies a directory
+
+Command: `panack deps lock --project "<workspace>/app/panack.json"`.
+
+```text
+panack: error[PKG_FILESYSTEM]: Cannot read panack.json: the path does not identify a regular file (not_regular_file).
+
+  Project: <workspace>/app/panack.json
+  File: <workspace>/app/panack.json
+
+Correct the reported filesystem problem, then retry your command. Check access using the account running Panack.
+```
+
+### The manifest exceeds the byte limit
+
+Command: `panack deps lock --project "<workspace>/app/panack.json"`.
+
+```text
+panack: error[PKG_MANIFEST_INVALID]: Cannot process panack.json because the file exceeds Panack's 64 KiB (65536 bytes) size limit.
+
+  Project: <workspace>/app/panack.json
+  File: <workspace>/app/panack.json
+
+Panack stopped reading the file at the size limit. This error does not establish whether the file contains valid JSON.
+
+Reduce the file's size without removing required information, then retry your command. If the project needs a larger file, report this limit with your Panack version.
+```
+
+### JSON exceeds the nesting limit
+
+Command: `panack deps lock --project "<workspace>/app/panack.json"`.
+
+```text
+panack: error[PKG_MANIFEST_INVALID]: Cannot process panack.json because its JSON exceeds Panack's 32-level nesting limit.
+
+  Project: <workspace>/app/panack.json
+  File: <workspace>/app/panack.json
+  Location: line 1, column 34
+
+manifest JSON nesting exceeds 32 levels
+
+Reduce the JSON nesting to at most 32 levels without removing required information, then retry your command.
+```
+
+### The lockfile path identifies a directory
+
+Command: `panack deps restore --project "<workspace>/app/panack.json"`.
+
+```text
+panack: error[PKG_LOCK_INVALID]: Cannot use panack.lock.json because the path identifies a directory.
+
+  Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
+
+Panack requires the lockfile itself to be a regular file.
+
+Preserve any contents you need before moving the conflicting entry elsewhere. Then restore a regular lockfile for this project at the lockfile path.
+```
+
+### The lockfile path identifies a symbolic link
+
+Command: `panack deps restore --project "<workspace>/app/panack.json"`.
+
+```text
+panack: error[PKG_LOCK_INVALID]: Cannot use panack.lock.json because the path identifies a symbolic link.
+
+  Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
+
+Panack requires the lockfile itself to be a regular file.
+
+Preserve any contents you need before moving the conflicting entry elsewhere. Then restore a regular lockfile for this project at the lockfile path.
+```
+
+### The lockfile exceeds the byte limit
+
+Command: `panack deps restore --project "<workspace>/app/panack.json"`.
+
+```text
+panack: error[PKG_LOCK_INVALID]: Cannot process panack.lock.json because the file exceeds Panack's 1 MiB (1048576 bytes) size limit.
+
+  Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
+  File: <workspace>/app/panack.lock.json
+
+Panack stopped reading the file at the size limit. This error does not establish whether the file contains valid JSON.
+
+Reduce the file's size without removing required information, then retry your command. If the project needs a larger file, report this limit with your Panack version.
+```
+
+### Valid JSON contains invalid lock records
+
+Command: `panack deps restore --project "<workspace>/app/panack.json"`.
+
+```text
+panack: error[PKG_LOCK_INVALID]: Cannot use panack.lock.json because its dependency records are invalid.
+
+  Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
+  Location: line 1, column 1
+
+missing required lock field lock_schema
+
+If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.
+
+Creating a new lockfile may select different dependencies.
+```
+
+### An application was selected as a dependency
+
+Command: `panack deps lock --project "<workspace>/app/panack.json"`.
+
+```text
+panack: error[PKG_MANIFEST_INVALID]: Cannot use dependency 'lib' because package 'demo.application' is an application.
+
+  Project: <workspace>/app/panack.json
+  Dependency directory: <workspace>/application
+  Dependency name: lib
+  Dependency manifest: <workspace>/application/panack.json
+
+The package manifest declares an 'entry' file. Panack only accepts library packages as dependencies.
+
+Choose a library package for this dependency. If you maintain this package and intend to provide a library, remove 'entry' and declare the public modules in 'exports'.
+
+See the package manifest specification:
+https://github.com/sproates/panackelty/blob/main/docs/design/MODULE_PACKAGE_DESIGN.md#package-roots-manifest-and-source-distribution
+```
+
+### Two directories declare the same package identity
+
+Command: `panack deps lock --project "<workspace>/app/panack.json"`.
+
+```text
+panack: error[PKG_IDENTITY_CONFLICT]: Cannot resolve the dependencies because package demo.library@1.0.0 was found in two different directories.
+
+  Project: <workspace>/app/panack.json
+  Dependency directory: <workspace>/other
+  Dependency name: second
+  Conflicting package directory: <workspace>/other
+  First package directory: <workspace>/library
+
+These directories declare the same package name and version, but refer to separate physical package directories. Panack cannot choose which copy to use.
+
+Correct the dependency paths so all references to this package use the same directory, then retry your command.
+```
+
+### Two versions of the same package
+
+Command: `panack deps lock --project "<workspace>/app/panack.json"`.
+
+```text
+panack: error[PKG_VERSION_CONFLICT]: Cannot resolve the dependencies because package demo.library is declared with conflicting versions.
+
+  Project: <workspace>/app/panack.json
+  Dependency directory: <workspace>/other
+  Dependency name: second
+  Conflicting package: demo.library@2.0.0 in <workspace>/other
+  First package: demo.library@1.0.0 in <workspace>/library
+
+Panack requires one version of each package name throughout the dependency graph. The two package declarations name different versions.
+
+Check the dependency paths and versions in the reported package manifests. Choose compatible dependencies that use the same version of this package, then retry your command.
+```
+
+### A dependency returns to the project package
+
+Command: `panack deps lock --project "<workspace>/app/panack.json"`.
+
+```text
+panack: error[PKG_DEPENDENCY_CYCLE]: Cannot resolve dependency 'self' because the dependency chain returns to the project package.
+
+  Project: <workspace>/app/panack.json
+  Dependency directory: <workspace>/app
+  Dependency name: self
+  Repeated package directory: <workspace>/app
+
+Following these dependency declarations leads back to a package already being resolved. Panack does not allow circular dependencies.
+
+Check the dependency chain and the dependencies sections of those packages' manifests. Remove or redirect the declaration that creates the cycle, then retry your command.
+```
+
+### A dependency returns to another package in the chain
+
+Command: `panack deps lock --project "<workspace>/app/panack.json"`.
+
+```text
+panack: error[PKG_DEPENDENCY_CYCLE]: Cannot resolve dependency 'self' because the dependency chain returns to a package already in this chain.
+
+  Project: <workspace>/app/panack.json
+  Dependency: demo.app -> lib
+  Dependency: demo.library -> self
+  Dependency directory: <workspace>/library
+  Dependency declared in: <workspace>/library/panack.json
+  Dependency name: self
+  Repeated package directory: <workspace>/library
+
+Following these dependency declarations leads back to a package already being resolved. Panack does not allow circular dependencies.
+
+Check the dependency chain and the dependencies sections of those packages' manifests. Remove or redirect the declaration that creates the cycle, then retry your command.
+```
+
+### Two packages share a source directory through a symbolic link
+
+Command: `panack deps lock --project "<workspace>/app/panack.json"`.
+
+```text
+panack: error[PKG_LAYOUT]: Cannot use dependency lib because its source directory overlaps the project's source directory.
+
+  Project: <workspace>/app/panack.json
+  Dependency directory: <workspace>/library
+  Dependency name: lib
+  Conflicting source directory: <workspace>/library/src
+  First source directory: <workspace>/app/src
+
+These directories overlap, so the same source files could belong to both packages. Panack requires separate source directories for each package.
+
+Check the source field in each panack.json. Correct the paths or move the source files so neither source directory contains the other.
+
+See the package manifest specification:
+https://github.com/sproates/panackelty/blob/main/docs/design/MODULE_PACKAGE_DESIGN.md#package-roots-manifest-and-source-distribution
+```
+
+### The account cannot read the manifest
+
+Command: `panack deps lock --project "<workspace>/app/panack.json"`.
+
+```text
+panack: error[PKG_FILESYSTEM]: Cannot read panack.json: the account running Panack does not have permission (permission_denied).
+
+  Project: <workspace>/app/panack.json
+  File: <workspace>/app/panack.json
+
+Correct the reported filesystem problem, then retry your command. Check access using the account running Panack.
+```
+
+### The account cannot read the lockfile
+
+Command: `panack deps restore --project "<workspace>/app/panack.json"`.
+
+```text
+panack: error[PKG_FILESYSTEM]: Cannot read panack.lock.json: the account running Panack does not have permission (permission_denied).
+
+  Project: <workspace>/app/panack.json
+  File: <workspace>/app/panack.lock.json
+
+Correct the reported filesystem problem, then retry your command. Check access using the account running Panack.
+```
+
+### The initial lockfile cannot be saved
+
+Command: `panack deps lock --project "<workspace>/app/panack.json"`.
+
+```text
+panack: error[PKG_PUBLICATION]: Cannot save panack.lock.json: the filesystem operation failed; no more specific cause was reported (filesystem_error).
+
+  Project: <workspace>/app/panack.json
+  Destination file: <workspace>/app/panack.lock.json
+
+Panack stopped before publishing the prepared packages.
+
+Correct the reported filesystem problem at the destination path, then retry your command. Check access using the account running Panack.
 ```

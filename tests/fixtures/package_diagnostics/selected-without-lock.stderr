@@ -1,0 +1,10 @@
+panack: error[PKG_LOCK_REQUIRED]: Cannot update selected dependencies because this project has no lockfile.
+
+  Project: <workspace>/app/panack.json
+  Missing file: <workspace>/app/panack.lock.json
+
+A selected update needs an existing lockfile so Panack can preserve the dependencies you did not select. Panack has not changed any package files.
+
+Restore an existing lockfile for this project, or create an initial lockfile for all dependencies by running:
+
+  panack deps lock --project '<workspace>/app/panack.json'

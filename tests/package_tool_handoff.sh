@@ -54,20 +54,20 @@ cp -p build/tools/panack-packages.bc "$variant_dir/build/tools/"
 # The native executable has already been validated by the caller. Keep this
 # focused proof on tool/compiler dependencies without rebuilding the VM copy.
 (cd "$variant_dir" && make --no-print-directory -o panack-vm package-tool) > "$work/baseline.out"
-sed 's/panack-packages prepare/panack-packages inspect/' \
-    src/packages/main.panack > "$variant_dir/src/packages/main.panack"
+sed 's/operation is not supported\./operation is not supported by this test build./' \
+    src/packages/command_diagnostic.panack > "$variant_dir/src/packages/command_diagnostic.panack"
 sed 's/archive URL must use HTTPS/package archive URL must use HTTPS/' \
     src/packages/manifest.panack > "$variant_dir/src/packages/manifest.panack"
 # Make the edited source newer even on filesystems with coarse timestamps.
 # Keep the artifact present: otherwise a missing dependency could pass the test.
-touch -t 203001010000 "$variant_dir/src/packages/main.panack"
+touch -t 203001010000 "$variant_dir/src/packages/command_diagnostic.panack"
 (cd "$variant_dir" && VALIDATION_PROFILE_FILE="$work/profile" \
     make --no-print-directory -o panack-vm package-tool) > "$work/rebuild.out"
 grep -F 'package-tool-build' "$work/profile" >/dev/null
 status=0
 ./panack-vm run "$variant_dir/build/tools/panack-packages.bc" invalid > "$work/edited.out" 2> "$work/edited.err" || status=$?
 test "$status" = 1
-grep -F 'panack-packages inspect --project panack.json' "$work/edited.err" >/dev/null
+grep -F 'operation is not supported by this test build.' "$work/edited.err" >/dev/null
 test "$(shasum -a 256 "$variant_dir/$compiler_seed" | awk '{print $1}')" = "$seed_before"
 test ! -e "$variant_dir/$compiler_artifact"
 if grep -E 'bootstrap-build|seed-refresh|src/compiler/main.panack' "$work/profile" "$work/rebuild.out" >/dev/null; then

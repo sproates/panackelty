@@ -140,6 +140,14 @@ package_tool_command(arguments: [Str]): Nat {
 }
 
 main(): Void {
-  status: Nat = package_tool_command(host.arguments())
+  arguments = host.arguments()
+  help: Bool = arguments.len() == 2 && arguments[0] == "deps" && arguments[1] == "--help"
+  operation_help: Bool = arguments.len() == 3 && arguments[0] == "deps"
+    && (arguments[1] == "lock" || arguments[1] == "update" || arguments[1] == "restore")
+    && arguments[2] == "--help"
+  status: Nat = if help || operation_help {
+    print("usage: panack deps lock --project PATH\n       panack deps update --project PATH [ALIAS...]\n       panack deps restore --project PATH [--offline]\n\nPATH is the path to the project's panack.json. The lockfile, panack.lock.json,\nis stored beside that manifest. Cached packages are stored in .panack_modules\nin the same directory.\n\nlock     Create a lockfile and acquire dependencies when no lockfile exists.\n         With an existing lockfile, verify the recorded dependencies without\n         updating the lockfile or repairing the cache.\nupdate   Accept changes to dependency manifests, archives or Git revisions.\n         Supply aliases from the root manifest to update selected dependencies\n         and their required dependencies; omit aliases to update all.\nrestore  Restore the dependencies recorded in the lockfile without changing it.\n         --offline forbids network access: remote packages must already have a\n         verified cache; local archives can still be restored from their paths.\n\nLocal directories, local .tar.gz archives, HTTPS archives and HTTPS Git\nrepositories are supported. Git 2.29 or newer is needed only when acquiring\nGit dependencies. Local and HTTPS archive packages do not require Git.\n\nAfter locking or restoring, use panack check, compile or run --project PATH.\nThese commands never fetch dependencies or repair the package cache.")
+    0
+  } else { package_tool_command(arguments) }
   if status != 0 { host.exit(status) }
 }

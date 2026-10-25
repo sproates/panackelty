@@ -56,8 +56,8 @@ recorded re-estimate.
 | P01 | [Lock and restore contract](https://github.com/sproates/panackelty/issues/566) | — | Done | 15% | 100% | 15 pp |
 | P02 | [Locked local dependencies](https://github.com/sproates/panackelty/issues/567) | P01 | Done | 25% | 100% | 25 pp |
 | P03 | [Pinned remote sources](https://github.com/sproates/panackelty/issues/568) | P01–P02 | Done (PR#582) | 35% | 100% | 35 pp |
-| P04 | [`panack` workflow integration](https://github.com/sproates/panackelty/issues/569) | P01–P03 | P04a complete on merge of the [PR#593](https://github.com/sproates/panackelty/pull/593); P04b–c planned | 25% | 50% | 12.5 pp |
-| **Total on merge of P04a completion** |  |  |  | **100%** | **87.5%** | **87.5 pp** |
+| P04 | [`panack` workflow integration](https://github.com/sproates/panackelty/issues/569) | P01–P03 | P04a complete on merge of the [PR#593](https://github.com/sproates/panackelty/pull/593); P04b complete on merge of installed-workflow delivery; P04c planned | 25% | 75% | 18.75 pp |
+| **Total on merge of P04b completion** |  |  |  | **100%** | **93.75%** | **93.75 pp** |
 
 The [P01 contract](../../design/PACKAGE_MANAGEMENT_CONTRACT.md) was accepted in
 [PR#571](https://github.com/sproates/panackelty/pull/571). It defines the lock,
@@ -158,7 +158,7 @@ acceptance across all sources. Ordinary project commands never restore implicitl
 ### P04 delivery slices
 
 The owner selected this delivery breakdown on 25 October 2026. P04 remains 25%
-of GI#200. P04a completes on merge of the final diagnostic correction; P04b and P04c remain planned. The provisional
+of GI#200. P04a is complete in PR#593; P04b completes on merge of the installed-workflow delivery and P04c remains planned. The provisional
 internal allocation is 50% diagnostics, 25% installed workflow and 25% final
 acceptance, reflecting the larger diagnostic implementation and test surface.
 These are scope weights, not PR counts. The earlier P04a acceptance was reopened after wording review. The final
@@ -169,9 +169,9 @@ bringing the programme to 87.5%. The denominator and all task weights are unchan
 | Slice | Deliverable | Status | Share of P04 | Programme weight | Complete | Earned | Estimated PRs |
 | --- | --- | --- | ---: | ---: | ---: | ---: | --- |
 | P04a: Diagnostics | Preserve causes and dependency context; explain failures and safe recovery; test public messages and document real examples | Complete on merge of final correction | 50% | 12.5% | 100% | 12.5 pp | Final PR |
-| P04b: Installed workflow | Verify both tools and native dependencies are packaged correctly; finish command help and installed-tool behaviour | Planned | 25% | 6.25% | 0% | 0 pp | 1 |
+| P04b: Installed workflow | Verify both tools and native dependencies are packaged correctly; finish command help and installed-tool behaviour | Complete on merge | 25% | 6.25% | 100% | 6.25 pp | 1 |
 | P04c: Final acceptance | Exercise all four source types together, relocation, standalone commands and network-free ordinary builds on supported platforms | Planned | 25% | 6.25% | 0% | 0 pp | 1 |
-| **P04 total** | | **In progress** | **100%** | **25%** | **50%** | **12.5 pp** | **2 further after P04a** |
+| **P04 total** | | **In progress** | **100%** | **25%** | **75%** | **18.75 pp** | **P04c remaining** |
 
 P04a delivers structured errors, labelled dependency context, explanations and
 safe recovery guidance. The [verified examples](../../design/PACKAGE_DIAGNOSTIC_EXAMPLES.md)
@@ -349,3 +349,40 @@ open until the installed workflow and final acceptance are delivered.
 Performance and website impact, verification evidence and the explicitly deferred
 HTTP API detail limitation are recorded in the acceptance document. No compiler,
 native-interface or bootstrap source changes are included.
+
+### P04b installed-workflow acceptance
+
+This slice completes on merge after local and both-platform hosted validation.
+The finite acceptance boundary is:
+
+- Top-level help discovers package commands; package and operation help explain
+  lock, selected update, restore, offline behaviour and manifest-relative paths.
+- The actual release archive supplies compiler and package artifacts. After
+  relocation, a symlinked launcher locks, checks, compiles, runs, updates and
+  restores a local archive with only launcher utilities on PATH. This exercises
+  zlib, OpenSSL checksums and cache publication without Git or external archive tools.
+- The existing HTTPS acceptance suite runs through an installed, relocated
+  toolchain on Linux and macOS, with Git, curl and build tools absent from the
+  launched command's PATH. The fixture still verifies real TLS and connection
+  counts; test setup tools are not product prerequisites.
+- Native library inspection rejects missing libraries and references outside
+  system library directories. Installation guidance distinguishes Ubuntu runtime
+  libraries, source-build development files and statically linked macOS crypto.
+- Removing the installed package artifact prevents package operations with a
+  specific missing path and reinstall guidance; previously compiled bytecode
+  continues to run. Existing installation layout assertions verify both artifacts.
+
+Evidence lives in tests/release_archive_smoke.sh, tests/package_https.sh and the
+existing distribution harness. P04c owns final mixed-source programme acceptance;
+this slice does not reopen diagnostics or change compiler/native interfaces.
+GI#569 and GI#200 remain open. Weights are unchanged.
+
+Performance: only explicit help invokes the new formatting path. Package
+resolution, compilation and runtime algorithms are unchanged. The focused
+release smoke took 18 seconds locally; the prior P04a observation was 17 seconds,
+with different test work, so this is not a controlled performance comparison.
+Historical timing warnings remain under GI#106 reassessment.
+
+Website impact: no current release claim changes. These installation additions
+are explicitly labelled upcoming alpha.15; release promotion must update website
+prerequisites alongside the new release.

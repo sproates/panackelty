@@ -40,7 +40,26 @@ test -x "$temporary/unpacked/panackelty/bin/panack" || \
   fail "archive does not contain panackelty/bin/panack"
 mv "$temporary/unpacked/panackelty" "$temporary/relocated/toolchain"
 
-for utility in dirname mktemp rm; do
+# Release executables must not depend on a developer's Homebrew/build prefix.
+# Linux runtime packages and macOS system libraries remain OS prerequisites.
+native_vm=$temporary/relocated/toolchain/libexec/panackelty/panack-vm
+case "$(uname -s)" in
+  Darwin)
+    otool -L "$native_vm" >"$temporary/libraries"
+    awk 'NR > 1 && $1 !~ /^\/usr\/lib\// && $1 !~ /^\/System\/Library\// { bad=1 }
+      END { exit bad }' "$temporary/libraries" || fail "native library outside macOS system directories"
+    ;;
+  Linux)
+    ldd "$native_vm" >"$temporary/libraries"
+    if grep -F 'not found' "$temporary/libraries" >/dev/null; then
+      fail "native runtime library missing"
+    fi
+    awk '{ for (i=1;i<=NF;i++) if ($i ~ /^\// && $i !~ /^\/(usr\/)?lib(64)?\//) bad=1 }
+      END { exit bad }' "$temporary/libraries" || fail "native library outside Linux system directories"
+    ;;
+esac
+
+for utility in dirname mktemp rm readlink; do
   utility_path=$(command -v "$utility")
   ln -s "$utility_path" "$temporary/runtime-bin/$utility"
 done
@@ -59,6 +78,53 @@ test ! -s version.stderr || fail "--version wrote unexpected stderr"
 run_clean --help >help.stdout 2>help.stderr || fail "--help failed"
 grep 'usage: panack ' help.stdout >/dev/null || fail "--help is missing usage"
 test ! -s help.stderr || fail "--help wrote unexpected stderr"
+grep -F 'panack deps --help' help.stdout >/dev/null || fail "top-level help omits packages"
+
+# The relocated distribution must perform real gzip, checksum and cache work
+# without Git, curl, tar or build tools on the command's PATH.
+for operation in '' lock update restore; do
+  if [ -n "$operation" ]; then
+    run_clean deps "$operation" --help >deps-help.stdout 2>deps-help.stderr
+  else
+    run_clean deps --help >deps-help.stdout 2>deps-help.stderr
+  fi
+  grep -F 'usage: panack deps lock --project PATH' deps-help.stdout >/dev/null || fail "package help missing"
+  grep -F -- '--offline forbids network access' deps-help.stdout >/dev/null || fail "offline help missing"
+  test ! -s deps-help.stderr || fail "package help wrote stderr"
+done
+mkdir -p app/src library/src command-link
+cat >app/panack.json <<EOF
+{"schema":1,"package":"installed.app","version":"1.0.0","language":"modules-v1","toolchain":"$release_version","source":"src","entry":"main.panack","exports":{},"dependencies":{"lib":{"archive":"../library.tar.gz"}}}
+EOF
+cat >library/panack.json <<EOF
+{"schema":1,"package":"installed.library","version":"1.0.0","language":"modules-v1","toolchain":"$release_version","source":"src","exports":{"api":"api.panack"},"dependencies":{}}
+EOF
+printf '%s\n' 'pub pure answer(): Nat { 42 }' >library/src/api.panack
+printf '%s\n' 'import lib/api as lib' 'main(): Void { print(lib.answer()) }' >app/src/main.panack
+COPYFILE_DISABLE=1 tar --format ustar -czf library.tar.gz -C library .
+ln -s "$panack" command-link/panack
+panack=$workspace/command-link/panack
+run_clean deps lock --project app/panack.json >deps.stdout
+cp app/panack.lock.json original.lock
+run_clean run --project app/panack.json >deps.stdout
+test "$(cat deps.stdout)" = 42 || fail "installed archive program output differs"
+rm -r app/.panack_modules
+run_clean deps restore --project app/panack.json --offline >deps.stdout
+cmp original.lock app/panack.lock.json || fail "installed restore changed lock"
+run_clean check --project app/panack.json >deps.stdout
+run_clean compile --project app/panack.json -o dependency.bc >deps.stdout
+run_clean deps update --project app/panack.json lib >deps.stdout
+tool=$temporary/relocated/toolchain/share/panackelty/panack-packages-v1.bc
+mv "$tool" "$tool.saved"
+run_clean run dependency.bc >deps.stdout
+test "$(cat deps.stdout)" = 42 || fail "bytecode needs package tool"
+if run_clean deps --help >deps.stdout 2>deps.stderr; then
+  fail "missing package tool accepted"
+else
+  test "$?" = 127 || fail "missing package tool status differs"
+fi
+grep -F 'package tool not found' deps.stderr >/dev/null || fail "missing tool explanation absent"
+mv "$tool.saved" "$tool"
 
 cat >hello.panack <<'EOF'
 import stdlib/host as host

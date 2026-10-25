@@ -61,7 +61,10 @@ corrections retain specific causes and document real CLI output. The final
 24 package modules, with 100 exact CLI transcripts and no remaining wording batch.
 P04a completes on merge of [PR#593](https://github.com/sproates/panackelty/pull/593) after local and hosted validation,
 bringing weighted programme completion to 87.5%. Weights are unchanged;
-P04b and P04c remain planned. The three tracked slices are:
+P04b completes on merge of the installed-workflow delivery, taking the total to
+93.75%. Its finite acceptance covers package help, relocated archive operations,
+installed HTTPS without Git, native library paths and missing-tool behaviour.
+P04c final acceptance remains planned. The three tracked slices are:
 [P04a diagnostics, P04b installed workflow and P04c final acceptance](docs/roadmap/records/dependency-management--idea.md#p04-delivery-slices). PR#573 reverted the initial P02
 implementation to the P01 baseline. The P01
 [contract](docs/design/PACKAGE_MANAGEMENT_CONTRACT.md) defines lock and restore

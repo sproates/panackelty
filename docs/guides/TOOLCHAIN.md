@@ -74,8 +74,9 @@ Local `.tar.gz` dependencies are verified and extracted under `.panack_modules`.
 Changed manifests or archive bytes require `panack deps update --project
 panack.json`. Add root dependency aliases after the manifest path to restrict an
 update to those dependencies and their required subgraphs. Changes outside that
-selection are refused. Commit the lock with the manifest; exclude the generated
-`.panack_modules` directory from version control.
+selection are refused. The lockfile is stored beside the selected manifest;
+the generated `.panack_modules` cache is stored in that same directory.
+Run `panack deps --help` for the command reference.
 
 `panack deps restore --project panack.json --offline` verifies the locked local
 archives and rebuilds missing or corrupt materialization without rewriting the

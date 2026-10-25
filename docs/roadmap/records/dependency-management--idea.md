@@ -55,9 +55,9 @@ recorded re-estimate.
 | --- | --- | --- | --- | ---: | ---: | ---: |
 | P01 | [Lock and restore contract](https://github.com/sproates/panackelty/issues/566) | — | Done | 15% | 100% | 15 pp |
 | P02 | [Locked local dependencies](https://github.com/sproates/panackelty/issues/567) | P01 | Done | 25% | 100% | 25 pp |
-| P03 | [Pinned remote sources](https://github.com/sproates/panackelty/issues/568) | P01–P02 | Done on merge of PR#582 | 35% | 100% | 35 pp |
-| P04 | [`panack` workflow integration](https://github.com/sproates/panackelty/issues/569) | P01–P03 | P04a complete on merge; P04b–c planned | 25% | 50% | 12.5 pp |
-| **Total on merge of P04a** |  |  |  | **100%** | **87.5%** | **87.5 pp** |
+| P03 | [Pinned remote sources](https://github.com/sproates/panackelty/issues/568) | P01–P02 | Done (PR#582) | 35% | 100% | 35 pp |
+| P04 | [`panack` workflow integration](https://github.com/sproates/panackelty/issues/569) | P01–P03 | P04a corrections in progress; P04b–c planned | 25% | Not reassessed | Not credited pending acceptance |
+| **Verified accepted subtotal** |  |  |  | **100%** | **75%** | **75 pp** |
 
 The [P01 contract](../../design/PACKAGE_MANAGEMENT_CONTRACT.md) was accepted in
 [PR#571](https://github.com/sproates/panackelty/pull/571). It defines the lock,
@@ -152,23 +152,25 @@ the new generic APIs when the matching native release is promoted.
 <a id="rm-161"></a>
 
 **P04 · RM#161: `panack` workflow integration** · [GI#569](https://github.com/sproates/panackelty/issues/569).
-P04a completes on merge; 25% of GI#200 overall. Completes installation, help, diagnostics and end-to-end
+P04 remains in progress and represents 25% of GI#200 overall. Completes installation, help, diagnostics and end-to-end
 acceptance across all sources. Ordinary project commands never restore implicitly.
 
 ### P04 delivery slices
 
 The owner selected this delivery breakdown on 25 October 2026. P04 remains 25%
-of GI#200. P04a completes on merge; P04b and P04c remain planned. The provisional
+of GI#200. P04a corrections are in progress; P04b and P04c remain planned. The provisional
 internal allocation is 50% diagnostics, 25% installed workflow and 25% final
 acceptance, reflecting the larger diagnostic implementation and test surface.
-These are scope weights, not PR counts. Overall programme completion reaches 87.5% on merge of P04a.
+These are scope weights, not PR counts. The previously reported 87.5% included P04a acceptance, now reopened after
+wording review. P01–P03 contribute a verified 75%; P04a partial credit has not
+been reassessed. The denominator and all task weights are unchanged.
 
 | Slice | Deliverable | Status | Share of P04 | Programme weight | Complete | Earned | Estimated PRs |
 | --- | --- | --- | ---: | ---: | ---: | ---: | --- |
-| P04a: Diagnostics | Preserve causes and dependency context; explain failures and safe recovery; test public messages and document real examples | Done on merge | 50% | 12.5% | 100% | 12.5 pp | 1–2 |
+| P04a: Diagnostics | Preserve causes and dependency context; explain failures and safe recovery; test public messages and document real examples | Corrections in progress | 50% | 12.5% | Not reassessed | Pending acceptance | 1–2 further |
 | P04b: Installed workflow | Verify both tools and native dependencies are packaged correctly; finish command help and installed-tool behaviour | Planned | 25% | 6.25% | 0% | 0 pp | 1 |
 | P04c: Final acceptance | Exercise all four source types together, relocation, standalone commands and network-free ordinary builds on supported platforms | Planned | 25% | 6.25% | 0% | 0 pp | 1 |
-| **P04 total** | | **P04a complete on merge** | **100%** | **25%** | **50%** | **12.5 pp** | **3–4** |
+| **P04 total** | | **In progress** | **100%** | **25%** | **Not reassessed** | **Pending acceptance** | **3–4 further** |
 
 P04a delivers structured errors, labelled dependency context, explanations and
 safe recovery guidance. The [verified examples](../../design/PACKAGE_DIAGNOSTIC_EXAMPLES.md)
@@ -213,8 +215,8 @@ implementation updates lock/cache recovery, archive checksum explanations,
 manifest and lockfile JSON errors, selected-update failures and HTTP causes.
 The [verified examples](../../design/PACKAGE_DIAGNOSTIC_EXAMPLES.md) record actual
 output and distinguish this implementation from the remaining reviewed Git and
-archive catalogue. Git version detection and the remaining cause-specific
-messages still need implementation; this correction does not complete P04b/c
+archive catalogue. Git-specific work is covered by the correction below;
+archive and general-validation messages remain outstanding. Neither correction completes P04b/c
 or earn additional programme credit. The installation guide now explicitly says
 Git is optional unless a dependency requires Git acquisition.
 
@@ -230,3 +232,25 @@ Focused evidence includes 30 diagnostic assertions, 61 CLI assertions and twelve
 captured public-command transcripts. These results verify this slice, not the
 outstanding diagnostic catalogue. Timing is one local run, not a paired
 performance comparison; the printed legacy timing budgets remain under GI#106.
+
+### Git diagnostic correction
+
+The next correction preserves structured errors through Git acquisition,
+reference parsing, inventory, link resolution and cache verification. Git version
+2.29 is checked explicitly before acquisition; missing Git, an old release and
+unrecognisable output have separate explanations. Reference lookup distinguishes
+no match, ambiguity and malformed output. Submodules, LFS pointers and invalid
+links retain their specific causes and affected paths instead of becoming a
+catch-all fetch error. Process status remains visible without raw Git stderr.
+
+Acceptance includes 74 Git unit assertions, controlled process-failure CLI tests,
+real HTTPS Git repository tests and six additional documented transcripts. The
+remaining archive/general-validation catalogue must still be completed before
+closing P04a; P04b/c remain planned and GI#569 stays open.
+
+Performance: version detection adds a bounded local Git subprocess when Git is
+selected for acquisition; it adds no network request. Warm builds and verified
+cache reuse still invoke no Git, covered by the existing invocation-count tests.
+Cold-lock timings are recorded by the integration suite, but no paired regression
+claim is made from a single run. Compiler/native interfaces are unchanged.
+Website impact: none; these package diagnostics remain unreleased alpha.15 work.

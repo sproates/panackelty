@@ -1,0 +1,11 @@
+panack: error[PKG_GIT_LFS]: Cannot prepare the Git package because a file is a Git LFS pointer instead of the required contents.
+
+  Project: <workspace>/diagnostic-app/panack.json
+  Repository: https://localhost:<port>/repo.git
+  Dependency name: library
+  Requested commit: <locked-commit>
+  Repository path: lfs
+
+Git LFS stores file contents separately from the Git repository. Panack does not download those contents.
+
+If you maintain this package, provide the required file contents without Git LFS, for example in a complete package archive. Otherwise, ask the package maintainer for a compatible package.

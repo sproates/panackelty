@@ -1,0 +1,11 @@
+panack: error[PKG_GIT_SUBMODULE]: Cannot prepare the Git package because the repository contains a submodule.
+
+  Project: <workspace>/diagnostic-app/panack.json
+  Repository: https://localhost:<port>/repo.git
+  Dependency name: library
+  Requested commit: <locked-commit>
+  Submodule path: submodule
+
+A submodule refers to another Git repository. Panack does not fetch submodule contents for packages.
+
+If you maintain this package, provide the required files without a submodule or declare the other package as a dependency in panack.json. Otherwise, ask the package maintainer for a compatible package.

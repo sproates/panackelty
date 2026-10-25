@@ -1,4 +1,5 @@
-import project/src/packages/diagnostic::{host_detail}
+pub import project/src/packages/diagnostic::{PackageProblem}
+import project/src/packages/diagnostic::{host_detail, package_problem, problem_label, explain_problem}
 import stdlib/process as process
 import stdlib/bytes as byte_buffer
 import stdlib/time as time
@@ -13,9 +14,9 @@ pub record GitContext {
 
 // Only trusted tool configuration enters this context. URL/ref policy belongs to
 // acquisition; command arguments are never interpreted by a shell.
-pub git_command(context: GitContext, arguments: [Str], input: Bytes): Result[Bytes, Str] {
+pub git_command(context: GitContext, arguments: [Str], input: Bytes): Result[Bytes, PackageProblem] {
   match context.repository.to_text() {
-    Error(problem) => Error("Git temporary repository path is not UTF-8"),
+    Error(problem) => Error(package_problem("PKG_FILESYSTEM", "Cannot use the temporary Git directory because its path is not UTF-8 text.")),
     Ok(repository) => {
       mut environment: [Str] = [
         "PATH=/usr/bin:/bin", "HOME=" + context.home, "XDG_CONFIG_HOME=" + context.home,
@@ -39,21 +40,48 @@ pub git_command(context: GitContext, arguments: [Str], input: Bytes): Result[Byt
         Some(certificate) => { environment = environment.append("GIT_SSL_CAINFO=" + certificate) }
       }
       for argument in arguments { command = command.append(argument) }
-      if !context.executable.is_absolute() { Error("Git executable must be an absolute path") }
+      if !context.executable.is_absolute() { Error(package_problem("PKG_GIT_START", "Cannot start Git because its executable path is not absolute.")) }
       else {
         match process.run_isolated(context.executable, command, input, context.repository,
             environment, time.seconds(60), 16777216) {
-          Error(problem) => Error("Git process failed: " + host_detail(problem.code)),
-          Ok(output) => if output.signal != 0 || output.exit_code != 0 {
-            // Git stderr can echo remote URLs and server-controlled text. Keep
-            // diagnostics phase-specific at the caller without exposing it.
-            signal = output.signal
-            status = output.exit_code
-            Error(if signal != 0 { "Git command failed: terminated by signal ${signal}" }
-              else { "Git command failed with exit status ${status}; remote error text withheld to protect credentials" })
-          } else { Ok(output.stdout) }
+          Error(problem) => Error(git_host_problem(problem.code, false)),
+          Ok(output) => git_output(output)
         }
       }
     }
+  }
+}
+
+pub pure git_host_problem(code: Str, version_query: Bool): PackageProblem {
+  if code == "timeout" {
+    if version_query {
+      explain_problem(package_problem("PKG_GIT_TIMEOUT", "Cannot determine the Git version because Git exceeded Panack's 60-second time limit."),
+        "Panack was checking the installed Git version; no repository request was made.",
+        "Check that the listed Git executable responds to --version. Correct the installation or wrapper that is preventing Git from responding, then retry your command.")
+    } else { package_problem("PKG_GIT_TIMEOUT", "Cannot finish the Git operation because Git exceeded Panack's 60-second time limit.") }
+  }
+  else if code == "output_limit" { package_problem("PKG_GIT_OUTPUT_LIMIT", "Cannot finish the Git operation because Git exceeded Panack's process-output limit.") }
+  else { problem_label(package_problem("PKG_GIT_START", "Cannot run Git: " + host_detail(code)), "System error", code) }
+}
+
+pure git_output(output: process.ProcessOutput): Result[Bytes, PackageProblem] {
+  signal = output.signal
+  status = output.exit_code
+  if signal != 0 {
+    Error(problem_label(package_problem("PKG_GIT_INTERRUPTED", "Cannot finish the Git operation because Git was terminated by signal ${signal}."), "Signal", "${signal}"))
+  } else if status != 0 {
+    // Never publish raw stderr: Git and remote servers can echo credentials.
+    Error(problem_label(package_problem("PKG_GIT_FETCH", "Cannot finish the Git operation because Git exited with status ${status}."), "Exit status", "${status}"))
+  } else { Ok(output.stdout) }
+}
+
+pub git_version_output(executable: Path): Result[Bytes, PackageProblem] {
+  match process.run_isolated(executable, ["--version"], byte_buffer.empty(), path.current(),
+      ["PATH=/usr/bin:/bin", "HOME=/nonexistent", "LC_ALL=C", "GIT_CONFIG_NOSYSTEM=1",
+       "GIT_CONFIG_SYSTEM=/dev/null", "GIT_CONFIG_GLOBAL=/dev/null"], time.seconds(60), 4096) {
+    Error(problem) => Error(if problem.code == "output_limit" {
+      package_problem("PKG_GIT_VERSION_UNKNOWN", "Cannot determine the Git version because the version response exceeds 4096 bytes.")
+    } else { git_host_problem(problem.code, true) }),
+    Ok(output) => git_output(output)
   }
 }

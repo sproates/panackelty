@@ -15,7 +15,8 @@ introduced.
 ## How to reproduce and maintain these examples
 
 Build with `make package-tool`, then run `sh tests/package_diagnostics.sh`,
-`sh tests/package_https.sh` and `sh tests/package_git.sh`. The remote tests use
+`sh tests/package_https.sh` and `sh tests/package_git.sh`. The Git suite includes
+controlled executable tests in `tests/package_git_diagnostics.sh`. The remote tests use
 private local TLS peers, not external services. Optional
 `PANACK_DIAGNOSTICS_RECORD=/absolute/output/directory` captures the observed
 messages without skipping assertions or updating expected files.
@@ -256,13 +257,15 @@ Command: `panack deps restore --project <workspace>/app/panack.json`.
 The test replaces the remote repository with an empty reachable repository, so its locked commit is unavailable. Git returns 128. That status alone does not prove the cause; the message gives the repository, commit and safe investigation steps without inventing a diagnosis. Returning the original repository makes restore succeed without changing the pin.
 
 ```text
-panack: error[PKG_GIT_FETCH]: Git command failed with exit status 128; remote error text withheld to protect credentials
+panack: error[PKG_GIT_FETCH]: Cannot finish the Git operation because Git exited with status 128.
 
   Project: <workspace>/app/panack.json
   Package: git.root
   Repository: https://localhost:<port>/sha.git
   Dependency name: left
-  Context: repository https://localhost:<port>/sha.git at commit <locked-commit>
+  Requested commit: <locked-commit>
+  Git operation: fetching the requested commit
+  Exit status: 128
 
 Panack could not prepare the required Git package files. A Git exit status alone does not identify the cause.
 
@@ -331,7 +334,7 @@ the latter does not assert that a cycle has been proved. Lockfile validation
 identifies the failing project field instead of reporting a generic identity
 problem. Existing rejection rules and resource bounds are unchanged.
 
-The 33 diagnostic unit checks and thirteen public transcripts are representative
+The 33 general diagnostic unit checks, 74 Git unit checks and nineteen public transcripts are representative
 regression evidence, not a claim that every low-level failure has its own
 end-to-end fixture. The existing archive, Git, graph, containment and lock tests
 continue to exercise the wider rejection surface. Exact transcript matching
@@ -346,8 +349,9 @@ checksum terminology and warnings before replacement commands. Internal operatio
 and phase labels are omitted from the rendered messages. Line and column locations
 are supplied by the package tool without modifying the shared compiler parser.
 
-This is an intermediate implementation: the wider reviewed Git/archive cause
-catalogue and Git-version detection are not all implemented here. Do not describe
+Git diagnostics now retain process, reference, inventory and symbolic-link causes,
+and check the installed Git version before acquisition. The remaining archive
+and general validation catalogue is still outstanding. Do not describe
 this slice as completion of every agreed diagnostic. P04b/c remain open. HTTP API
 error-detail preservation is tracked separately in issue #586.
 
@@ -371,4 +375,117 @@ panack: error[PKG_MANIFEST_INVALID]: Cannot understand panack.json because the f
   File: <workspace>/Ian's app/panack.json
 
 Save the file using UTF-8 encoding, or obtain a valid copy, then retry your command.
+```
+
+## Installed Git is too old
+
+Command: `panack deps lock --project "<workspace>/app/panack.json"`.
+
+A controlled Git executable reports version 2.28.9. Panack stops before looking up the repository. The failed command leaves no lockfile or published package.
+
+```text
+panack: error[PKG_GIT_VERSION]: Cannot obtain the Git dependency because the installed Git version is older than 2.29.
+
+  Project: <workspace>/app/panack.json
+  Repository: https://example.test/repo.git
+  Dependency name: library
+  Git executable: <workspace>/bin/git
+  Installed Git version: 2.28.9
+
+Install Git 2.29 or newer, or put a supported Git installation earlier on PATH, then retry your command. Git is needed only when Panack must obtain a Git dependency.
+```
+
+## The requested Git reference does not exist
+
+Command: `panack deps lock --project "<workspace>/app/panack.json"`.
+
+A controlled Git executable returns the documented no-matching-reference status (2) from ls-remote. Other command failures do not receive this explanation. The failed command leaves no lockfile or published package.
+
+```text
+panack: error[PKG_GIT_REF_NOT_FOUND]: Cannot select the Git dependency because Git did not find the requested branch or tag.
+
+  Project: <workspace>/app/panack.json
+  Repository: https://example.test/repo.git
+  Dependency name: library
+  Requested reference: release
+
+Check the ref field in the dependency's Git declaration. Use an existing branch, tag or complete commit ID, then retry your command.
+```
+
+## A repository contains a submodule
+
+Command: `panack deps lock --project "<workspace>/diagnostic-app/panack.json"`.
+
+A real HTTPS Git repository contains a submodule. Panack rejects the repository before publishing a package. The failed command leaves no lockfile or published package.
+
+```text
+panack: error[PKG_GIT_SUBMODULE]: Cannot prepare the Git package because the repository contains a submodule.
+
+  Project: <workspace>/diagnostic-app/panack.json
+  Repository: https://localhost:<port>/repo.git
+  Dependency name: library
+  Requested commit: <locked-commit>
+  Submodule path: submodule
+
+A submodule refers to another Git repository. Panack does not fetch submodule contents for packages.
+
+If you maintain this package, provide the required files without a submodule or declare the other package as a dependency in panack.json. Otherwise, ask the package maintainer for a compatible package.
+```
+
+## A repository contains an LFS pointer
+
+Command: `panack deps lock --project "<workspace>/diagnostic-app/panack.json"`.
+
+A real HTTPS Git repository contains a Git LFS pointer. Panack explains that the referenced contents are not downloaded. The failed command leaves no lockfile or published package.
+
+```text
+panack: error[PKG_GIT_LFS]: Cannot prepare the Git package because a file is a Git LFS pointer instead of the required contents.
+
+  Project: <workspace>/diagnostic-app/panack.json
+  Repository: https://localhost:<port>/repo.git
+  Dependency name: library
+  Requested commit: <locked-commit>
+  Repository path: lfs
+
+Git LFS stores file contents separately from the Git repository. Panack does not download those contents.
+
+If you maintain this package, provide the required file contents without Git LFS, for example in a complete package archive. Otherwise, ask the package maintainer for a compatible package.
+```
+
+## A repository link uses an absolute target
+
+Command: `panack deps lock --project "<workspace>/diagnostic-app/panack.json"`.
+
+A real HTTPS Git repository contains a symbolic link to an absolute path. Panack refuses to publish the package. The failed command leaves no lockfile or published package.
+
+```text
+panack: error[PKG_SYMLINK_INVALID]: Cannot prepare the Git package because the target is an absolute path.
+
+  Project: <workspace>/diagnostic-app/panack.json
+  Repository: https://localhost:<port>/repo.git
+  Dependency name: library
+  Requested commit: <locked-commit>
+  Symbolic link: escape
+
+If you maintain this package, correct the symbolic link so its relative target stays inside the repository. Otherwise, ask the package maintainer for a corrected package.
+```
+
+## A repository link chain exceeds the limit
+
+Command: `panack deps lock --project "<workspace>/diagnostic-app/panack.json"`.
+
+A real HTTPS Git repository contains a link cycle. The diagnostic reports the observed 40-link bound without claiming that every such failure proves a cycle. The failed command leaves no lockfile or published package.
+
+```text
+panack: error[PKG_SYMLINK_LIMIT]: Cannot prepare the Git package because resolving a symbolic link exceeded Panack's limit of 40 links.
+
+  Project: <workspace>/diagnostic-app/panack.json
+  Repository: https://localhost:<port>/repo.git
+  Dependency name: library
+  Requested commit: <locked-commit>
+  Symbolic link: loop-one
+
+The limit does not establish that the links form a cycle.
+
+If you maintain this package, shorten the link chain and check for links that point back to each other. Otherwise, ask the package maintainer for a corrected package.
 ```

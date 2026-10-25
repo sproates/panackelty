@@ -1,3 +1,6 @@
+pub import project/src/packages/diagnostic::{PackageProblem}
+import project/src/packages/diagnostic::{package_problem, problem_label, explain_problem}
+
 pure link_components(value: Str): [Str] {
   mut parts: [Str] = []
   mut start: Nat = 0
@@ -31,7 +34,7 @@ pure link_relative_target(value: Str): Bool {
 // Resolve against the complete snapshot's link inventory before creating links.
 // Parent components are handled after link expansion, matching filesystem order.
 // Dangling targets inside the root are allowed; cycles and escapes are not.
-pub pure git_resolve_link(name: Str, target: Str, links: Map[Str, Str]): Result[Str, Str] {
+pub pure git_resolve_link(name: Str, target: Str, links: Map[Str, Str]): Result[Str, PackageProblem] {
   mut resolved: [Str] = []
   original: [Str] = link_components(name)
   for index in 0..original.len() {
@@ -41,15 +44,12 @@ pub pure git_resolve_link(name: Str, target: Str, links: Map[Str, Str]): Result[
   mut position: Nat = 0
   mut hops: Nat = 0
   mut valid: Bool = link_relative_target(target)
-  mut failure = "Git symbolic link target is not a supported relative path: " + name
-  if target == "" { failure = "Git symbolic link has an empty target: " + name }
-  else if target.starts_with_at("/", 0) { failure = "Git symbolic link uses an absolute target: " + name }
-  else if target.encode_utf8().length() > 4096 { failure = "Git symbolic link target exceeds 4096 bytes: " + name }
+  mut failure = link_target_problem(name, target)
   while valid && position < pending.len() {
     component: Str = pending[position]
     position = position + 1
     if component == ".." {
-      if resolved.len() == 0 { valid = false; failure = "Git symbolic link points outside the repository: " + name }
+      if resolved.len() == 0 { valid = false; failure = problem_label(package_problem("PKG_SYMLINK_ESCAPE", "Cannot prepare the Git package because a symbolic link points outside the repository."), "Symbolic link", name) }
       else {
         mut parent: [Str] = []
         for index in 0..resolved.len() {
@@ -62,8 +62,8 @@ pub pure git_resolve_link(name: Str, target: Str, links: Map[Str, Str]): Result[
       if links.has(candidate) {
         hops = hops + 1
         next: Str = links.get(candidate)
-        if hops > 40 { valid = false; failure = "Git symbolic link chain exceeds 40 links: " + name + "; check for links that point back to each other" }
-        else if !link_relative_target(next) { valid = false; failure = "Git symbolic link target is not a supported relative path: " + candidate }
+        if hops > 40 { valid = false; failure = problem_label(explain_problem(package_problem("PKG_SYMLINK_LIMIT", "Cannot prepare the Git package because resolving a symbolic link exceeded Panack's limit of 40 links."), "The limit does not establish that the links form a cycle.", "If you maintain this package, shorten the link chain and check for links that point back to each other. Otherwise, ask the package maintainer for a corrected package."), "Symbolic link", name) }
+        else if !link_relative_target(next) { valid = false; failure = link_target_problem(candidate, next) }
         else {
           mut expanded: [Str] = link_components(next)
           for index in position..pending.len() { expanded = expanded.append(pending[index]) }
@@ -79,4 +79,20 @@ pub pure git_resolve_link(name: Str, target: Str, links: Map[Str, Str]): Result[
 
 pub pure git_link_beneath(name: Str, target: Str, links: Map[Str, Str]): Bool {
   match git_resolve_link(name, target, links) { Ok(value) => true, Error(problem) => false }
+}
+
+pure link_target_problem(name: Str, target: Str): PackageProblem {
+  mut reason = "the target is not a supported relative path"
+  if target == "" { reason = "the target is empty" }
+  else if target.starts_with_at("/", 0) { reason = "the target is an absolute path" }
+  else if target.encode_utf8().length() > 4096 { reason = "the target exceeds Panack's 4096-byte limit" }
+  else {
+    data = target.encode_utf8()
+    for index in 0..data.length() {
+      if data.at(index) == 0 { reason = "the target contains a NUL character" }
+      else if data.at(index) == 92 { reason = "the target contains a backslash" }
+      else if data.at(index) == 58 { reason = "the target contains a colon" }
+    }
+  }
+  problem_label(package_problem("PKG_SYMLINK_INVALID", "Cannot prepare the Git package because " + reason + "."), "Symbolic link", name)
 }

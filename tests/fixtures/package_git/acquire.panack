@@ -13,7 +13,7 @@ main(): Void {
       GitSource(args[1], args[5], args[2]),
       if args[3] == "none" { None() } else { Some(args[3]) }) {
     Error(problem) => {
-      print(problem)
+      print(problem.message)
       host.exit(1)
     },
     Ok(snapshot) => {

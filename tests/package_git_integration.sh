@@ -326,7 +326,7 @@ mv "$work/sha.git" "$work/sha.saved.git"
 /usr/bin/git init -q --bare --template= --object-format=sha256 "$work/sha.git"
 reject deps restore --project "$manifest"
 grep -F 'error[PKG_GIT_FETCH]:' "$work/err" >/dev/null
-grep -F 'at commit' "$work/err" >/dev/null
+grep -F 'Requested commit:' "$work/err" >/dev/null
 grep -F 'A Git exit status alone does not identify the cause' "$work/err" >/dev/null
 node tests/package_diagnostic_capture.cjs git-unavailable "$work/err" "$work" "$port"
 cmp "$lock" "$work/mixed-current.lock"

@@ -55,8 +55,10 @@ completion to 40%. P03a completes on merge of PR#578, taking estimated weighted
 completion to 50.5%. P03b completes on merge of PR#580, taking the total to
 62.75% under the same P03 allocation. P03c completes on merge of PR#581,
 raising the total to 69.75%. [P03d remote-source acceptance](docs/design/PACKAGE_REMOTE_ACCEPTANCE.md)
-completes P03 on merge, taking the total to 75%. P04a diagnostics completes on merge, taking the total
-to 87.5%; P04b and P04c remain planned. The three tracked slices are:
+completed P03, taking the accepted subtotal to 75%. P04a diagnostic corrections
+remain in progress after owner review; the earlier 87.5% included acceptance
+that has since been reopened. P04a partial credit has not been reassessed;
+weights are unchanged. P04b and P04c remain planned. The three tracked slices are:
 [P04a diagnostics, P04b installed workflow and P04c final acceptance](docs/roadmap/records/dependency-management--idea.md#p04-delivery-slices). PR#573 reverted the initial P02
 implementation to the P01 baseline. The P01
 [contract](docs/design/PACKAGE_MANAGEMENT_CONTRACT.md) defines lock and restore

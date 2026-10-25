@@ -1,4 +1,6 @@
-import project/src/packages/tar_header::{tar_normalize_path, tar_number}
+pub import project/src/packages/diagnostic::{PackageProblem}
+import project/src/packages/diagnostic::{package_problem, problem_label}
+import project/src/packages/tar_header::{tar_normalize_path}
 import project/src/packages/case_fold::{CaseFolder, case_folder, fold_path}
 import project/src/project_model/utf8::{valid_utf8}
 import stdlib/bytes as byte_buffer
@@ -54,30 +56,32 @@ pure git_portable_path(value: Str, folder: CaseFolder): Bool {
   }
 }
 
-pure parse_git_entry(record: Bytes, object_length: Nat, folder: CaseFolder): Result[GitEntry, Str] {
+pure parse_git_entry(record: Bytes, object_length: Nat, folder: CaseFolder): Result[GitEntry, PackageProblem] {
   mut tab: Nat = 0
   while tab < record.length() && record.at(tab) != 9 { tab = tab + 1 }
-  if tab == record.length() || !valid_utf8(record) { Error("invalid Git tree record") }
+  if !valid_utf8(record) { Error(package_problem("PKG_GIT_RESPONSE", "Cannot understand Git's file listing because a record is not valid UTF-8 text.")) }
+  else if tab == record.length() { Error(package_problem("PKG_GIT_RESPONSE", "Cannot understand Git's file listing because a record has no tab separator.")) }
   else {
     header: Str = byte_buffer.slice(record, 0, tab).decode_utf8()
     name: Str = byte_buffer.slice(record, tab + 1, record.length()).decode_utf8()
     fields: [Str] = git_header_fields(header)
-    if fields.len() != 4 { count = fields.len(); Error("Git file listing has ${count} fields; expected 4") }
-    else if !git_portable_path(name, folder) { Error("Git file path is not supported in a package: " + name + "; paths must be relative, use forward slashes and contain no .git directory") }
-    else if !git_object_id(fields[2], object_length) { Error("invalid Git tree object identity") }
-    else if fields[0] == "160000" || fields[1] == "commit" { Error("package contains a Git submodule; Panack cannot download submodule contents") }
+    if fields.len() != 4 { count = fields.len(); Error(package_problem("PKG_GIT_RESPONSE", "Cannot understand Git's file listing: a record has ${count} fields; expected 4.")) }
+    else if !git_portable_path(name, folder) { Error(git_invalid_path(name, folder)) }
+    else if !git_object_id(fields[2], object_length) { Error(problem_label(package_problem("PKG_GIT_RESPONSE", "Cannot understand Git's file listing because an entry has an invalid object ID."), "Repository path", name)) }
+    else if fields[0] == "160000" || fields[1] == "commit" { Error(problem_label(package_problem("PKG_GIT_SUBMODULE", "Cannot prepare the Git package because the repository contains a submodule."), "Submodule path", name)) }
     else if fields[0] == "040000" && fields[1] == "tree" && fields[3] == "-" {
       Ok(GitEntry(name, fields[2], "D", 0))
     } else if fields[1] != "blob" ||
         (fields[0] != "100644" && fields[0] != "100755" && fields[0] != "120000") {
-      Error("unsupported Git tree entry")
+      Error(problem_label(package_problem("PKG_GIT_CONTENT", "Cannot prepare the Git package because an entry is not a supported file, directory or symbolic link."), "Repository path", name))
     } else {
       size_bytes: Bytes = fields[3].encode_utf8()
-      match tar_number(size_bytes, 0, size_bytes.length(), 10) {
-        Error(problem) => Error("Git file size could not be read for " + name + ": " + problem),
+      match git_file_size(size_bytes) {
+        Error(problem) => Error(problem_label(problem, "Repository path", name)),
         Ok(size) => {
           kind: Str = if fields[0] == "120000" { "L" } else { "F" }
-          if kind == "L" && (size == 0 || size > 4096) { Error("invalid Git link target size") }
+          if kind == "L" && size == 0 { Error(problem_label(package_problem("PKG_SYMLINK_INVALID", "Cannot prepare the Git package because a symbolic link has an empty target."), "Symbolic link", name)) }
+          else if kind == "L" && size > 4096 { Error(problem_label(package_problem("PKG_SYMLINK_INVALID", "Cannot prepare the Git package because a symbolic link target exceeds Panack's 4096-byte limit."), "Symbolic link", name)) }
           else { Ok(GitEntry(name, fields[2], kind, size)) }
         }
       }
@@ -85,13 +89,13 @@ pure parse_git_entry(record: Bytes, object_length: Nat, folder: CaseFolder): Res
   }
 }
 
-pub pure parse_git_inventory(data: Bytes, object_length: Nat): Result[GitInventory, Str] {
+pub pure parse_git_inventory(data: Bytes, object_length: Nat): Result[GitInventory, PackageProblem] {
   mut entries: [GitEntry] = []
   mut names: Map[Str, Str] = map()
   folder = case_folder()
   mut content_bytes: Nat = 0
   mut start: Nat = 0
-  mut failure: Option[Str] = None()
+  mut failure: Option[PackageProblem] = None()
   for index in 0..data.length() {
     if data.at(index) == 0 && failure == None() {
       match parse_git_entry(byte_buffer.slice(data, start, index), object_length, folder) {
@@ -99,11 +103,12 @@ pub pure parse_git_inventory(data: Bytes, object_length: Nat): Result[GitInvento
         Ok(entry) => {
           key: Str = fold_path(folder, entry.path)
           if names.has(key) {
-            failure = Some(if names.get(key) == entry.path { "Git lists the same file path more than once: " + entry.path }
-              else { "Git paths differ only in letter case: " + names.get(key) + " and " + entry.path })
+            failure = Some(problem_label(package_problem("PKG_GIT_PATH", if names.get(key) == entry.path {
+              "Cannot prepare the Git package because Git listed the same path more than once."
+            } else { "Cannot prepare the Git package because two paths differ only in letter case: " + names.get(key) + " and " + entry.path }), "Repository path", entry.path))
           }
-          else if entries.len() >= 16384 { failure = Some("Git snapshot exceeds 16384 entries") }
-          else if content_bytes + entry.size > 268435456 { failure = Some("Git snapshot exceeds 256 MiB") }
+          else if entries.len() >= 16384 { failure = Some(package_problem("PKG_GIT_LIMIT", "Cannot prepare the Git package because the repository contains more than Panack's limit of 16,384 files, directories and symbolic links.")) }
+          else if content_bytes + entry.size > 268435456 { failure = Some(package_problem("PKG_GIT_LIMIT", "Cannot prepare the Git package because its file contents and link targets exceed Panack's 256 MiB limit.")) }
           else {
             names = names.put(key, entry.path)
             entries = entries.append(entry)
@@ -114,9 +119,51 @@ pub pure parse_git_inventory(data: Bytes, object_length: Nat): Result[GitInvento
       start = index + 1
     }
   }
-  if failure == None() && start != data.length() { failure = Some("truncated Git tree listing") }
+  if failure == None() && start != data.length() { failure = Some(package_problem("PKG_GIT_RESPONSE", "Cannot understand Git's file listing because the final record is incomplete.")) }
   match failure {
     Some(problem) => Error(problem),
     None() => Ok(GitInventory(entries, content_bytes))
   }
+}
+
+pure git_file_size(data: Bytes): Result[Nat, PackageProblem] {
+  mut value: Nat = 0
+  mut valid = data.length() > 0
+  mut oversized = false
+  for index in 0..data.length() {
+    byte = data.at(index)
+    if byte < 48 || byte > 57 { valid = false }
+    else if !oversized {
+      value = value * 10 + (byte - 48)
+      oversized = value > 268435456
+    }
+  }
+  if !valid { Error(package_problem("PKG_GIT_RESPONSE", "Cannot understand Git's file listing because a file size is not a decimal number.")) }
+  else if oversized { Error(package_problem("PKG_GIT_LIMIT", "Cannot prepare the Git package because a file exceeds Panack's 256 MiB limit.")) }
+  else { Ok(value) }
+}
+
+pure git_invalid_path(name: Str, folder: CaseFolder): PackageProblem {
+  mut cause = "a path contains redundant separators or dot components"
+  if name == "" { cause = "an entry has an empty path" }
+  else if name.starts_with_at("/", 0) { cause = "an entry has an absolute path" }
+  else if name.encode_utf8().length() > 4096 { cause = "a path exceeds Panack's 4096-byte limit" }
+  else {
+    data = name.encode_utf8()
+    for index in 0..data.length() {
+      if data.at(index) == 92 { cause = "a path contains a backslash" }
+      else if data.at(index) == 58 { cause = "a path contains a colon" }
+    }
+    folded = fold_path(folder, name)
+    mut start: Nat = 0
+    for index in 0..folded.len() + 1 {
+      if index == folded.len() || folded[index] == "/" {
+        component = folded.slice(start, index)
+        if component == ".git" { cause = "a path contains a .git directory component" }
+        else if component == ".." { cause = "a path contains a parent-directory component (..)" }
+        start = index + 1
+      }
+    }
+  }
+  problem_label(package_problem("PKG_GIT_PATH", "Cannot prepare the Git package because " + cause + "."), "Repository path", name)
 }

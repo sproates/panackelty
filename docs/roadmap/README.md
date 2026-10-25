@@ -35,7 +35,7 @@ Dated plans describe the decision at that time; they do not override published r
 - [Language namespaces — idea](records/language-namespaces--idea.md)
 - [Standard-library module API migration](records/standard-library-module-api-migration.md)
 - [Reusable modules and package structure — idea](records/reusable-modules-and-package-structure--idea.md)
-- [Dependency management — idea](records/dependency-management--idea.md)
+- [Dependency management — complete on P04c merge](records/dependency-management--idea.md)
 - [Review GitHub repository settings and tooling — idea](records/review-github-repository-settings-and-tooling--idea.md)
 - [Panackelty source coverage programme](records/panackelty-source-coverage-programme.md)
 - [Groomed development and engineering work](records/groomed-development-and-engineering-work.md)

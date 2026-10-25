@@ -60,3 +60,5 @@ jobs:
           PANACK_INSTALLED_COMMAND="$RUNNER_TEMP/relocated toolchain/bin/panack" sh tests/package_https.sh
       - name: Exercise isolated Git snapshots over HTTPS
         run: sh tests/package_git.sh
+      - name: Exercise installed four-source final acceptance
+        run: PANACK_INSTALLED_COMMAND="$RUNNER_TEMP/relocated toolchain/bin/panack" sh tests/package_git_integration.sh

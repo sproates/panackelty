@@ -83,6 +83,10 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
+P04c final acceptance completes the package implementation on merge. The package
+follow-ups below still require a matching native release before promotion;
+[final evidence](../../design/PACKAGE_FINAL_ACCEPTANCE.md) records that boundary.
+
 - **P04b installed package workflow: Pending release and final acceptance.**
   On alpha.15 promotion, include package help, the separate installed tool,
   Ubuntu runtime libraries and macOS system/static library requirements. Explain

@@ -7,7 +7,7 @@ cleanup() { status=$?; if [ "$status" -ne 0 ]; then cat "$work/out" "$work/err" 
 trap cleanup EXIT
 trap 'exit 1' HUP INT TERM
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
-panack="$root/bin/panack"
+panack=${PANACK_INSTALLED_COMMAND:-"$root/bin/panack"}
 version=$(cat VERSION)
 mkdir -p "$work/source" "$work/app/src"
 /usr/bin/git -C "$work/source" init -q --template=
@@ -286,7 +286,7 @@ test -n "$cache"
 printf corrupt-git > "$cache"
 printf corrupt-archive > "$work/app/.panack_modules/remote.archive/src/api.panack"
 cache_fingerprint() {
-node - "$work/app/.panack_modules" <<'JS'
+node - "${1:-$work/app/.panack_modules}" <<'JS'
 const fs=require('fs'),crypto=require('crypto'),path=require('path');const h=crypto.createHash('sha256');
 function visit(p,relative){const s=fs.lstatSync(p);h.update(relative+'\0');if(s.isSymbolicLink())h.update('L'+fs.readlinkSync(p));else if(s.isDirectory()){h.update('D');for(const n of fs.readdirSync(p).sort())visit(path.join(p,n),relative+'/'+n)}else {h.update('F');h.update(fs.readFileSync(p))}}
 visit(process.argv[2],'');console.log(h.digest('hex'));
@@ -355,3 +355,134 @@ assert.deepEqual(fs.readdirSync(root).sort(),['.sources','.state','remote.archiv
 assert(fs.readdirSync(root+'/.sources').every(n=>/^[0-9a-f]{64}$/.test(n)));
 JS
 printf '%s\n' 'PASS mixed graph changed archive bytes fail atomically, explicit update succeeds, all staging is cleaned'
+
+# P04c: combine every source form, then relocate the project and take its peers
+# offline. The same suite runs through the source and installed launchers.
+mkdir -p "$work/live/src" "$work/live/child/src" "$work/local-archive/src"
+node - "$work" "$version" <<'JS'
+const fs=require('fs'),[root,version]=process.argv.slice(2);
+const manifest=(name,dependencies={})=>({schema:1,package:name,version:'1.0.0',language:'modules-v1',toolchain:version,source:'src',exports:{api:'api.panack'},dependencies});
+fs.writeFileSync(root+'/live/panack.json',JSON.stringify(manifest('local.live',{child:{path:'child'}})));
+fs.writeFileSync(root+'/live/child/panack.json',JSON.stringify(manifest('local.child')));
+fs.writeFileSync(root+'/local-archive/panack.json',JSON.stringify(manifest('local.archive')));
+const file=root+'/app/panack.json',app=JSON.parse(fs.readFileSync(file));
+app.dependencies.live={path:'../live'};app.dependencies.local={archive:'../local.tar.gz'};
+fs.writeFileSync(file,JSON.stringify(app));
+JS
+printf '%s\n' 'pub pure answer(): Nat { 5 }' > "$work/live/child/src/api.panack"
+printf '%s\n' 'import child/api as child' 'pub pure answer(): Nat { child.answer() }' > "$work/live/src/api.panack"
+printf '%s\n' 'pub pure answer(): Nat { 7 }' > "$work/local-archive/src/api.panack"
+COPYFILE_DISABLE=1 tar --format ustar -czf "$work/local.tar.gz" -C "$work/local-archive" .
+printf '%s\n' 'import left/api as left' 'import archive/api as archive' 'import live/api as live' 'import local/api as local' 'main(): Void { print(left.answer() + archive.answer() + live.answer() + local.answer()) }' > "$work/app/src/main.panack"
+expect ok deps update --project "$manifest"
+expect 55 run --project "$manifest"
+node - "$lock" <<'JS'
+const fs=require('fs'),assert=require('assert'),lock=JSON.parse(fs.readFileSync(process.argv[2]));
+assert.deepEqual(lock.packages.map(p=>p.name).sort(),['git.root','local.archive','local.child','local.live','remote.archive']);
+assert.equal(lock.root.dependencies.left.source.kind,'git');
+assert.equal(lock.root.dependencies.archive.source.kind,'archive');
+assert.equal(lock.root.dependencies.local.source.kind,'archive');
+assert.equal(lock.root.dependencies.live.source.kind,'path');
+JS
+cp "$lock" "$work/four-source.lock"
+# Regenerate the lock from the same source inputs, rather than only testing a no-op.
+rm "$lock"
+expect ok deps lock --project "$manifest"
+cmp "$lock" "$work/four-source.lock"
+count=$(requests)
+cp "$work/git-invocations" "$work/four-source.git"
+original_tree=$(cache_fingerprint)
+# Warm lock must be byte-for-byte reproducible and leave every cache entry alone.
+expect ok deps lock --project "$manifest"
+cmp "$lock" "$work/four-source.lock"
+test "$(cache_fingerprint)" = "$original_tree"
+test "$(requests)" = "$count"
+cmp "$work/git-invocations" "$work/four-source.git"
+
+mkdir "$work/relocated project"
+mv "$work/app" "$work/live" "$work/local.tar.gz" "$work/relocated project/"
+# Fingerprinting and existing helpers continue to address the selected project.
+project="$work/relocated project/app"
+manifest="$project/panack.json"
+lock="$project/panack.lock.json"
+relocated_tree() { cache_fingerprint "$project/.panack_modules"; }
+test "$(relocated_tree)" = "$original_tree"
+# Keep the counting TLS peer alive first: a successful cached run alone would
+# not prove that the ordinary commands made no network requests.
+expect ok check --project "$manifest"
+expect "wrote $work/final.bc" compile --project "$manifest" -o "$work/final.bc"
+expect 55 run --project "$manifest"
+expect ok deps restore --project "$manifest" --offline
+test "$(requests)" = "$count"
+cmp "$work/git-invocations" "$work/four-source.git"
+cmp "$lock" "$work/four-source.lock"
+test "$(relocated_tree)" = "$original_tree"
+kill "$pid"
+wait "$pid" 2>/dev/null || :
+pid=
+# Every ordinary route must work without the network after relocation, without
+# rewriting either the lock or cache. A Git invocation is also an explicit failure.
+expect ok check --project "$manifest"
+expect "wrote $work/final.bc" compile --project "$manifest" -o "$work/final.bc"
+expect 55 run --project "$manifest"
+expect 55 "$work/final.bc"
+expect ok deps restore --project "$manifest" --offline
+cmp "$lock" "$work/four-source.lock"
+test "$(relocated_tree)" = "$original_tree"
+test "$(requests)" = "$count"
+cmp "$work/git-invocations" "$work/four-source.git"
+printf '%s\n' 'PASS all four sources and transitive imports survive relocation with unchanged lock/cache and no network or Git invocation'
+
+# Local directory source stays live, including a transitive package. Changing a
+# manifest instead must fail without implicitly updating the lock.
+printf '%s\n' 'pub pure answer(): Nat { 6 }' > "$work/relocated project/live/child/src/api.panack"
+expect 56 run --project "$manifest"
+cp "$work/relocated project/live/child/panack.json" "$work/child.manifest"
+sed 's/"version":"1.0.0"/"version":"1.0.1"/' "$work/child.manifest" > "$work/relocated project/live/child/panack.json"
+reject check --project "$manifest"
+grep -F 'PKG_LOCK_STALE' "$work/err" >/dev/null
+cmp "$lock" "$work/four-source.lock"
+test "$(relocated_tree)" = "$original_tree"
+cp "$work/child.manifest" "$work/relocated project/live/child/panack.json"
+
+# Missing locks/caches never cause implicit restore. A local archive can be
+# restored offline; a missing remote package cannot, even in this mixed graph.
+mv "$lock" "$work/absent.lock"
+reject check --project "$manifest"
+grep -F 'PKG_LOCK_MISSING' "$work/err" >/dev/null
+test ! -e "$lock"
+test "$(relocated_tree)" = "$original_tree"
+mv "$work/absent.lock" "$lock"
+mv "$project/.panack_modules/local.archive" "$work/local.saved"
+reject run --project "$manifest"
+grep -F 'PKG_CACHE_MISSING' "$work/err" >/dev/null
+test ! -e "$project/.panack_modules/local.archive"
+expect ok deps restore --project "$manifest" --offline
+expect 56 run --project "$manifest"
+test "$(relocated_tree)" = "$original_tree"
+mv "$project/.panack_modules/remote.archive" "$work/remote.saved"
+missing_tree=$(relocated_tree)
+reject compile --project "$manifest" -o "$work/should-not-exist.bc"
+reject deps restore --project "$manifest" --offline
+test ! -e "$work/should-not-exist.bc"
+test "$(relocated_tree)" = "$missing_tree"
+mv "$work/remote.saved" "$project/.panack_modules/remote.archive"
+cmp "$lock" "$work/four-source.lock"
+cp "$project/.panack_modules/remote.archive/src/api.panack" "$work/remote.source"
+printf 'corrupt\n' > "$project/.panack_modules/remote.archive/src/api.panack"
+corrupt_tree=$(relocated_tree)
+reject check --project "$manifest"
+reject deps restore --project "$manifest" --offline
+test "$(relocated_tree)" = "$corrupt_tree"
+cp "$work/remote.source" "$project/.panack_modules/remote.archive/src/api.panack"
+expect 56 run --project "$manifest"
+cmp "$lock" "$work/four-source.lock"
+test "$(relocated_tree)" = "$original_tree"
+test "$(requests)" = "$count"
+cmp "$work/git-invocations" "$work/four-source.git"
+printf '%s\n' 'PASS mixed-source stale/missing locks and missing/corrupt caches fail without mutation; explicit local offline restore recovers'
+
+# Saved bytecode is independent of the complete source/cache tree.
+mv "$work/relocated project" "$work/removed project"
+expect 55 "$work/final.bc"
+printf '%s\n' 'PASS four-source saved bytecode runs after project sources and caches are removed'

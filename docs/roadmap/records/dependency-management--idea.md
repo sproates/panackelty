@@ -10,8 +10,8 @@ checkpoints describe their original context; see the roadmap for current status.
 **RM#44: Dependency management** · [GI#200: Dependency management](https://github.com/sproates/panackelty/issues/200).
 
 On 22 October 2026, the owner selected the full implementation of the package
-management model for Alpha.15. GI#200 remains open through implementation and
-final acceptance. The work is sequenced as four packets: lock and restore
+management model for Alpha.15. GI#200 completes on merge of P04c after local and supported-platform final
+acceptance. The work is sequenced as four packets: lock and restore
 contract, locked local dependencies, pinned remote sources and `panack` workflow
 integration.
 
@@ -56,14 +56,14 @@ recorded re-estimate.
 | P01 | [Lock and restore contract](https://github.com/sproates/panackelty/issues/566) | — | Done | 15% | 100% | 15 pp |
 | P02 | [Locked local dependencies](https://github.com/sproates/panackelty/issues/567) | P01 | Done | 25% | 100% | 25 pp |
 | P03 | [Pinned remote sources](https://github.com/sproates/panackelty/issues/568) | P01–P02 | Done (PR#582) | 35% | 100% | 35 pp |
-| P04 | [`panack` workflow integration](https://github.com/sproates/panackelty/issues/569) | P01–P03 | P04a complete on merge of the [PR#593](https://github.com/sproates/panackelty/pull/593); P04b complete on merge of installed-workflow delivery; P04c planned | 25% | 75% | 18.75 pp |
-| **Total on merge of P04b completion** |  |  |  | **100%** | **93.75%** | **93.75 pp** |
+| P04 | [`panack` workflow integration](https://github.com/sproates/panackelty/issues/569) | P01–P03 | Complete on merge of P04c final acceptance | 25% | 100% | 25 pp |
+| **Total on merge of P04c completion** |  |  |  | **100%** | **100%** | **100 pp** |
 
 The [P01 contract](../../design/PACKAGE_MANAGEMENT_CONTRACT.md) was accepted in
 [PR#571](https://github.com/sproates/panackelty/pull/571). It defines the lock,
 sources, command behaviour, cache safety and acceptance; it does not claim that
-package-management functionality has been implemented. GI#200 remains open
-through the full graph and public-command acceptance in P04.
+package-management functionality has been implemented. P04c supplies the [final installed acceptance](../../design/PACKAGE_FINAL_ACCEPTANCE.md)
+and closes GI#200 on merge.
 
 On 23 October 2026, [PR#573](https://github.com/sproates/panackelty/pull/573)
 reverted the initial P02 archive implementation and restored the P01 tracked
@@ -152,26 +152,26 @@ the new generic APIs when the matching native release is promoted.
 <a id="rm-161"></a>
 
 **P04 · RM#161: `panack` workflow integration** · [GI#569](https://github.com/sproates/panackelty/issues/569).
-P04 remains in progress and represents 25% of GI#200 overall. Completes installation, help, diagnostics and end-to-end
+P04 completes on merge of P04c and represents 25% of GI#200 overall. It completes installation, help, diagnostics and end-to-end
 acceptance across all sources. Ordinary project commands never restore implicitly.
 
 ### P04 delivery slices
 
 The owner selected this delivery breakdown on 25 October 2026. P04 remains 25%
-of GI#200. P04a is complete in PR#593; P04b completes on merge of the installed-workflow delivery and P04c remains planned. The provisional
+of GI#200. P04a is complete in PR#593 and P04b in PR#594; P04c completes final acceptance on merge. The provisional
 internal allocation is 50% diagnostics, 25% installed workflow and 25% final
 acceptance, reflecting the larger diagnostic implementation and test surface.
 These are scope weights, not PR counts. The earlier P04a acceptance was reopened after wording review. The final
 [source audit and acceptance checklist](../../design/PACKAGE_DIAGNOSTIC_ACCEPTANCE.md)
-closes that correction on merge, restoring P04a's 12.5 percentage points and
-bringing the programme to 87.5%. The denominator and all task weights are unchanged.
+closed that correction in PR#593, restoring P04a's 12.5 percentage points and
+bringing the programme to 87.5% at that point. The denominator and all task weights are unchanged.
 
 | Slice | Deliverable | Status | Share of P04 | Programme weight | Complete | Earned | Estimated PRs |
 | --- | --- | --- | ---: | ---: | ---: | ---: | --- |
-| P04a: Diagnostics | Preserve causes and dependency context; explain failures and safe recovery; test public messages and document real examples | Complete on merge of final correction | 50% | 12.5% | 100% | 12.5 pp | Final PR |
-| P04b: Installed workflow | Verify both tools and native dependencies are packaged correctly; finish command help and installed-tool behaviour | Complete on merge | 25% | 6.25% | 100% | 6.25 pp | 1 |
-| P04c: Final acceptance | Exercise all four source types together, relocation, standalone commands and network-free ordinary builds on supported platforms | Planned | 25% | 6.25% | 0% | 0 pp | 1 |
-| **P04 total** | | **In progress** | **100%** | **25%** | **75%** | **18.75 pp** | **P04c remaining** |
+| P04a: Diagnostics | Preserve causes and dependency context; explain failures and safe recovery; test public messages and document real examples | Done (PR#593) | 50% | 12.5% | 100% | 12.5 pp | Final PR |
+| P04b: Installed workflow | Verify both tools and native dependencies are packaged correctly; finish command help and installed-tool behaviour | Done (PR#594) | 25% | 6.25% | 100% | 6.25 pp | 1 |
+| P04c: Final acceptance | Exercise all four source types together, relocation, standalone commands and network-free ordinary builds on supported platforms | Complete on merge | 25% | 6.25% | 100% | 6.25 pp | 1 |
+| **P04 total** | | **Complete on merge** | **100%** | **25%** | **100%** | **25 pp** | **Final PR** |
 
 P04a delivers structured errors, labelled dependency context, explanations and
 safe recovery guidance. The [verified examples](../../design/PACKAGE_DIAGNOSTIC_EXAMPLES.md)
@@ -386,3 +386,24 @@ Historical timing warnings remain under GI#106 reassessment.
 Website impact: no current release claim changes. These installation additions
 are explicitly labelled upcoming alpha.15; release promotion must update website
 prerequisites alongside the new release.
+
+### P04c final acceptance
+
+The [finite final matrix](../../design/PACKAGE_FINAL_ACCEPTANCE.md) closes P04
+and GI#200 on merge after local and exact-head Linux/macOS validation. The
+existing integration fixture now runs a complete four-source project through
+the installed toolchain, regenerates identical lock bytes, relocates relative
+inputs, proves zero TCP/Git activity for ordinary commands, then repeats with
+the peer stopped. Transitive live edits, stale/missing locks, missing/corrupt
+caches, explicit local offline restore and source-independent bytecode are
+verified alongside the existing shared-root and containment cases.
+
+P01–P04 then reach 100% under unchanged weights. No additional package-management
+implementation slice remains. Alpha.15 publication and website promotion remain
+separate release work. Publication atomicity is clarified consistently with the
+existing per-entry implementation, without changing behaviour.
+
+Performance: test/documentation changes only, with no product runtime impact.
+Full validation timings and hosted commit evidence belong to the delivery PR;
+GI#106 timing reassessment remains open. Website: existing follow-ups become
+implementation-ready on merge but still await a matching native release.

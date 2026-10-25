@@ -43,8 +43,8 @@ remain required; scope does not grow through optional candidates.
 
 <a id="rm-44"></a>
 
-**RM#44: Alpha.15 package-management packets P01–P04.** GI#200 remains open
-through final acceptance. [P01: lock and restore contract](docs/roadmap/records/dependency-management--idea.md#p01),
+**RM#44: Alpha.15 package-management packets P01–P04.** Complete on merge of
+P04c final acceptance. [P01: lock and restore contract](docs/roadmap/records/dependency-management--idea.md#p01),
 [P02: locked local dependencies](docs/roadmap/records/dependency-management--idea.md#p02),
 [P03: pinned remote sources](docs/roadmap/records/dependency-management--idea.md#p03),
 and [P04: `panack` workflow integration](docs/roadmap/records/dependency-management--idea.md#p04)
@@ -64,7 +64,10 @@ bringing weighted programme completion to 87.5%. Weights are unchanged;
 P04b completes on merge of the installed-workflow delivery, taking the total to
 93.75%. Its finite acceptance covers package help, relocated archive operations,
 installed HTTPS without Git, native library paths and missing-tool behaviour.
-P04c final acceptance remains planned. The three tracked slices are:
+P04c completes [final installed acceptance](docs/design/PACKAGE_FINAL_ACCEPTANCE.md)
+on merge, closing GI#569 and GI#200 at 100%. The four-source, relocated and
+offline workflow is verified alongside existing failure/containment tests.
+Native release publication remains separate. The three tracked slices are:
 [P04a diagnostics, P04b installed workflow and P04c final acceptance](docs/roadmap/records/dependency-management--idea.md#p04-delivery-slices). PR#573 reverted the initial P02
 implementation to the P01 baseline. The P01
 [contract](docs/design/PACKAGE_MANAGEMENT_CONTRACT.md) defines lock and restore

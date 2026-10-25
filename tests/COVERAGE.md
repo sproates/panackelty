@@ -1465,3 +1465,9 @@ the three new production modules remain explicitly unmeasured in the source
 coverage inventory, with eligible sources and thresholds unchanged.
 P03d still owns the broader cross-source acceptance matrix; P04 owns installed
 all-source workflows. See the [integration record](../docs/design/PACKAGE_GIT_INTEGRATION_ACCEPTANCE.md).
+
+P03d extends `tests/package_git_integration.sh` with mixed Git/HTTPS graphs,
+selective update pin and transport isolation, separate interrupted HTTP/Git
+restores, unavailable locked commits and changed archive bytes. Failure checks
+compare the complete cache tree plus exact lock/state bytes. See the
+[remote-source acceptance matrix](../docs/design/PACKAGE_REMOTE_ACCEPTANCE.md).

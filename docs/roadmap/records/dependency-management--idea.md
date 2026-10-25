@@ -55,9 +55,9 @@ recorded re-estimate.
 | --- | --- | --- | --- | ---: | ---: | ---: |
 | P01 | [Lock and restore contract](https://github.com/sproates/panackelty/issues/566) | — | Done | 15% | 100% | 15 pp |
 | P02 | [Locked local dependencies](https://github.com/sproates/panackelty/issues/567) | P01 | Done | 25% | 100% | 25 pp |
-| P03 | [Pinned remote sources](https://github.com/sproates/panackelty/issues/568) | P01–P02 | P03a–c complete on merge of PR#581; P03d pending | 35% | 85% | 29.75 pp |
+| P03 | [Pinned remote sources](https://github.com/sproates/panackelty/issues/568) | P01–P02 | Done on merge of P03d | 35% | 100% | 35 pp |
 | P04 | [`panack` workflow integration](https://github.com/sproates/panackelty/issues/569) | P01–P03 | Planned | 25% | 0% | 0 pp |
-| **Total on merge of PR#581** |  |  |  | **100%** | **69.75%** | **69.75 pp** |
+| **Total on merge of P03d** |  |  |  | **100%** | **75%** | **75 pp** |
 
 The [P01 contract](../../design/PACKAGE_MANAGEMENT_CONTRACT.md) was accepted in
 [PR#571](https://github.com/sproates/panackelty/pull/571). It defines the lock,
@@ -113,7 +113,7 @@ release, as recorded in the website follow-up register.
 <a id="rm-160"></a>
 
 **P03 · RM#160: Pinned remote sources** · [GI#568](https://github.com/sproates/panackelty/issues/568).
-In progress; 35% of GI#200. Implements Git and remote archive acquisition.
+Done on merge of P03d; 35% of GI#200. Implements Git and remote archive acquisition.
 The owner selected P03a HTTPS archives first, followed by P03b controlled Git
 acquisition, P03c Git graph integration and P03d remote-source acceptance.
 The separate generic streaming HTTP prerequisite merged as PR#576. It resolves
@@ -139,7 +139,11 @@ The prerequisite itself earns no separate credit. P03c completes on merge of
 shared snapshots and sibling/diamond graphs. Its
 [integration record](../../design/PACKAGE_GIT_INTEGRATION_ACCEPTANCE.md) captures
 acceptance and limitations. It earns 7 further percentage points, taking P03 to
-85% and GI#200 to 69.75%. P03d and P04 remain unstarted; GI#568 and GI#200 stay open.
+85% and GI#200 to 69.75%. P03d completes the remaining remote-source acceptance,
+with the [acceptance matrix](../../design/PACKAGE_REMOTE_ACCEPTANCE.md) covering
+mixed Git/HTTPS selective updates, offline verification and failure preservation.
+On merge, P03 is 100% and GI#200 is 75%; GI#568 is complete. P04 remains planned
+and GI#200 stays open.
 Native-interface decoupling remains
 alpha.16 work. Website impact: no change to published alpha.14 claims; document
 the new generic APIs when the matching native release is promoted.

@@ -1,4 +1,7 @@
-import project/src/packages/tar_header::{tar_normalize_path, parse_pax}
+import project/src/packages/diagnostic::{PackageProblem, problem_value}
+import project/src/packages/archive::{gzip_failure}
+import project/packages/http/src/stream as http
+import project/src/packages/tar_header::{tar_normalize_path, parse_pax, tar_number}
 import stdlib/testing as testing
 import stdlib/host as host
 pure safe(path: Str): Bool {
@@ -7,8 +10,31 @@ pure safe(path: Str): Bool {
 pure rejects_pax(value: Str): Bool {
   match parse_pax(value.encode_utf8()) { Error(problem) => true, Ok(header) => false }
 }
+pure failure_code[T](value: Result[T, PackageProblem]): Str {
+  match value { Error(problem) => problem.code, Ok(found) => "unexpected success" }
+}
+pure failure_field[T](value: Result[T, PackageProblem]): Str {
+  match value { Error(problem) => problem_value(problem, "PAX field"), Ok(found) => "unexpected success" }
+}
+record FoldFailure { source: Str, detail: Str }
+pure stop_body(state: Nat, input: Bytes): Result[Nat, FoldFailure] { Error(FoldFailure("consumer", "archive failure")) }
+pure map_transport(problem: http.HttpError): FoldFailure { FoldFailure("transport", "HTTP failure") }
+pure good_body(state: Nat, input: Bytes): Result[Nat, FoldFailure] { Ok(state + input.length()) }
 main(): Void {
   results = [
+    testing.equal_str("invalid gzip is not an HTTP failure", gzip_failure("invalid_gzip").code, "PKG_ARCHIVE_INVALID"),
+    testing.equal_str("expanded limit is distinct", gzip_failure("output_limit").code, "PKG_ARCHIVE_EXPANDED_LIMIT"),
+    testing.equal_str("missing gzip decoder is installation failure", gzip_failure("decoder_unavailable").code, "PKG_TOOL"),
+    testing.equal_str("truncated gzip is incomplete", gzip_failure("truncated_gzip").code, "PKG_ARCHIVE_INCOMPLETE"),
+    testing.equal_str("numeric syntax is not a resource bound", failure_code(tar_number("x".encode_utf8(), 0, 1, 10)), "PKG_ARCHIVE_INVALID"),
+    testing.equal_str("numeric bound is retained", failure_code(tar_number("999999999".encode_utf8(), 0, 9, 10)), "PKG_ARCHIVE_NUMBER_LIMIT"),
+    testing.equal_str("PAX duplicate reports its field", failure_field(parse_pax("10 size=3\n10 size=4\n".encode_utf8())), "size"),
+    testing.equal_str("unsupported PAX field is not corruption", failure_code(parse_pax("13 unknown=x\n".encode_utf8())), "PKG_ARCHIVE_UNSUPPORTED"),
+    testing.expect("sized HTTP body preserves consumer error", http.fold_body_with_errors(http.ResponseStream(0, 200, [], "abc".encode_utf8(), Some(3), false, 0), 0, @stop_body, 100, @map_transport) == Error(FoldFailure("consumer", "archive failure")), "lost consumer failure"),
+    testing.expect("chunked HTTP body preserves consumer error", http.fold_body_with_errors(http.ResponseStream(0, 200, [], "3\r\nabc\r\n0\r\n\r\n".encode_utf8(), None(), true, 0), 0, @stop_body, 100, @map_transport) == Error(FoldFailure("consumer", "archive failure")), "lost chunked failure"),
+    testing.expect("close-delimited HTTP body preserves consumer error", http.fold_body_with_errors(http.ResponseStream(0, 200, [], "abc".encode_utf8(), None(), false, 0), 0, @stop_body, 100, @map_transport) == Error(FoldFailure("consumer", "archive failure")), "lost close-delimited failure"),
+    testing.expect("HTTP framing error uses caller mapper", http.fold_body_with_errors(http.ResponseStream(0, 200, [], "z\r\n".encode_utf8(), None(), true, 0), 0, @good_body, 100, @map_transport) == Error(FoldFailure("transport", "HTTP failure")), "lost HTTP failure"),
+    testing.expect("invalid HTTP bound uses caller mapper", http.fold_body_with_errors(http.ResponseStream(0, 200, [], "".encode_utf8(), None(), false, 0), 0, @good_body, 0, @map_transport) == Error(FoldFailure("transport", "HTTP failure")), "lost bound failure"),
     testing.expect("nested archive path", safe("src/nested/main.panack"), "nested path rejected"),
     testing.expect("parent traversal", !safe("src/../../outside"), "traversal accepted"),
     testing.expect("absolute archive path", !safe("/outside"), "absolute path accepted"),

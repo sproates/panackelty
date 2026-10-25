@@ -1,4 +1,6 @@
-import project/src/packages/diagnostic::{host_detail}
+pub import project/src/packages/diagnostic::{PackageProblem}
+import project/src/packages/diagnostic::{host_detail, package_problem, problem_label, explain_problem, manifest_specification}
+import project/src/packages/tar_header::{archive_problem}
 pub import project/src/packages/case_fold::{CaseFolder}
 import project/src/packages/case_fold::{case_folder, fold_path}
 pub import project/src/packages/tar_header::{TarHeader, PaxHeader}
@@ -33,17 +35,17 @@ pub pure tar_stream_new(): TarStream {
 
 add_archive_entry(
   stage: Nat, index: ArchiveIndex, name: Str, size: Nat, directory: Bool, explicit: Bool
-): Result[ArchiveIndex, Str] {
+): Result[ArchiveIndex, PackageProblem] {
   key: Str = fold_path(index.folder, name)
   if index.keys.has(key) {
       position: Nat = index.keys.get(key)
       entry: ArchiveEntry = index.entries[position]
       if entry.path != name {
-        Error("archive paths differ only in letter case: " + entry.path + " and " + name)
+        Error(problem_label(problem_label(archive_problem("PKG_ARCHIVE_PATH_CONFLICT", "two archive paths differ only in letter case"), "First archive path", entry.path), "Conflicting archive path", name))
       } else if entry.directory != directory {
-        Error("archive uses the same path for both a file and a directory: " + name)
+        Error(problem_label(archive_problem("PKG_ARCHIVE_PATH_CONFLICT", "the archive uses the same path for both a file and a directory"), "Archive entry", name))
       } else if !entry.directory || (entry.explicit && explicit) {
-        Error("archive contains the same path more than once: " + name)
+        Error(problem_label(archive_problem("PKG_ARCHIVE_PATH_CONFLICT", "the archive contains the same path more than once"), "Archive entry", name))
       } else if explicit && !entry.explicit {
         mut entries: [ArchiveEntry] = []
         for cursor in 0..index.entries.len() {
@@ -51,16 +53,16 @@ add_archive_entry(
         }
         Ok(ArchiveIndex(entries, index.keys, index.folder))
       } else { Ok(index) }
-  } else if index.entries.len() >= 16384 { Error("archive exceeds 16384 filesystem entries") }
+  } else if index.entries.len() >= 16384 { Error(archive_problem("PKG_ARCHIVE_ENTRY_LIMIT", "the files and directories, including implicit parent directories, exceed Panack's limit of 16,384 filesystem entries")) }
     else {
       match path.from_text(name) {
-        Error(problem) => Error("invalid archive path"),
+        Error(problem) => Error(archive_problem("PKG_ARCHIVE_PATH_INVALID", "an archive path cannot be represented on this system")),
         Ok(relative) => {
           created = if directory { staging.directory(stage, relative) }
             else if size == 0 { staging.write(stage, relative, byte_buffer.empty(), 0) }
             else { Ok(()) }
           match created {
-            Error(problem) => Error("cannot create a file or directory while unpacking the archive: " + host_detail(problem.code)),
+            Error(problem) => Error(problem_label(package_problem("PKG_FILESYSTEM", "Cannot create an archive entry in the temporary package directory: " + host_detail(problem.code)), "Archive entry", name)),
             Ok(unit) => Ok(ArchiveIndex(index.entries.append(ArchiveEntry(name, size, directory, explicit)),
               index.keys.put(key, index.entries.len()), index.folder))
           }
@@ -69,9 +71,9 @@ add_archive_entry(
     }
 }
 
-prepare_archive_entry(stage: Nat, entries: ArchiveIndex, header: TarHeader): Result[ArchiveIndex, Str] {
+prepare_archive_entry(stage: Nat, entries: ArchiveIndex, header: TarHeader): Result[ArchiveIndex, PackageProblem] {
   mut current: ArchiveIndex = entries
-  mut failure: Option[Str] = None()
+  mut failure: Option[PackageProblem] = None()
   for index in 0..header.path.len() {
     if header.path[index] == "/" && failure == None() {
       match add_archive_entry(stage, current, header.path.slice(0, index), 0, true, false) {
@@ -86,7 +88,7 @@ prepare_archive_entry(stage: Nat, entries: ArchiveIndex, header: TarHeader): Res
   }
 }
 
-pub tar_stream_feed(stage: Nat, state: TarStream, input: Bytes): Result[TarStream, Str] {
+pub tar_stream_feed(stage: Nat, state: TarStream, input: Bytes): Result[TarStream, PackageProblem] {
   mut entries: ArchiveIndex = state.index
   mut mode: Str = state.mode
   mut buffer: Bytes = state.buffer
@@ -98,11 +100,11 @@ pub tar_stream_feed(stage: Nat, state: TarStream, input: Bytes): Result[TarStrea
   mut pax: Option[PaxHeader] = state.pax
   mut root_seen: Bool = state.root_seen
   mut offset: Nat = 0
-  mut failure: Option[Str] = None()
+  mut failure: Option[PackageProblem] = None()
   while offset < input.length() && failure == None() {
     available: Nat = tar_difference(input.length(), offset)
     if mode == "end" {
-      if !tar_zero(byte_buffer.slice(input, offset, input.length())) { failure = Some("archive contains unexpected data after its end marker") }
+      if !tar_zero(byte_buffer.slice(input, offset, input.length())) { failure = Some(archive_problem("PKG_ARCHIVE_INVALID", "the archive contains unexpected data after its end marker")) }
       offset = input.length()
     } else if mode == "header" {
       needed: Nat = tar_difference(512, buffer.length())
@@ -113,8 +115,8 @@ pub tar_stream_feed(stage: Nat, state: TarStream, input: Bytes): Result[TarStrea
         if tar_zero(buffer) {
           zeros = zeros + 1
           if zeros == 2 { mode = "end" }
-        } else if zeros != 0 { failure = Some("archive end marker is incomplete; two empty 512-byte blocks are required") }
-        else if headers >= 16384 { failure = Some("archive exceeds 16384 tar headers") }
+        } else if zeros != 0 { failure = Some(archive_problem("PKG_ARCHIVE_INCOMPLETE", "the end marker is incomplete; two empty 512-byte blocks are required")) }
+        else if headers >= 16384 { failure = Some(archive_problem("PKG_ARCHIVE_HEADER_LIMIT", "the archive exceeds Panack's limit of 16,384 tar headers")) }
         else {
           headers = headers + 1
           match parse_tar_header(buffer) {
@@ -122,8 +124,8 @@ pub tar_stream_feed(stage: Nat, state: TarStream, input: Bytes): Result[TarStrea
             Ok(header) => {
               current = header
               if header.kind == "pax" {
-                if pax != None() { failure = Some("archive contains consecutive PAX metadata entries; each must be followed by the file it describes") }
-                else if header.size > 65536 { failure = Some("archive PAX metadata exceeds the 64 KiB per-entry limit") }
+                if pax != None() { failure = Some(archive_problem("PKG_ARCHIVE_INVALID", "a PAX metadata entry is followed by another metadata entry instead of the file it describes")) }
+                else if header.size > 65536 { failure = Some(archive_problem("PKG_ARCHIVE_METADATA_LIMIT", "a PAX metadata entry exceeds Panack's 64 KiB limit")) }
                 else { mode = "pax" }
               } else {
                 match pax {
@@ -132,8 +134,8 @@ pub tar_stream_feed(stage: Nat, state: TarStream, input: Bytes): Result[TarStrea
                 }
                 pax = None()
                 if current.kind == "directory" && (current.path == "." || current.path == "./") {
-                  if root_seen { failure = Some("archive lists its top-level directory more than once") }
-                  else if current.size != 0 { failure = Some("archive top-level directory incorrectly contains file data") }
+                  if root_seen { failure = Some(archive_problem("PKG_ARCHIVE_PATH_CONFLICT", "the archive lists its top-level directory more than once")) }
+                  else if current.size != 0 { failure = Some(archive_problem("PKG_ARCHIVE_INVALID", "the top-level directory entry contains file data")) }
                   root_seen = true
                   mode = "header"
                 } else {
@@ -141,7 +143,7 @@ pub tar_stream_feed(stage: Nat, state: TarStream, input: Bytes): Result[TarStrea
                   Error(problem) => { failure = Some(problem) },
                   Ok(name) => {
                     current = TarHeader(name, current.size, current.kind)
-                    if current.kind == "directory" && current.size != 0 { failure = Some("archive marks an entry as a directory but also gives it file contents") }
+                    if current.kind == "directory" && current.size != 0 { failure = Some(archive_problem("PKG_ARCHIVE_INVALID", "the archive contains file data for an entry marked as a directory")) }
                     else {
                       match prepare_archive_entry(stage, entries, current) {
                         Error(problem) => { failure = Some(problem) },
@@ -155,7 +157,7 @@ pub tar_stream_feed(stage: Nat, state: TarStream, input: Bytes): Result[TarStrea
               remaining = current.size
               padding = (tar_difference(512, current.size % 512)) % 512
               if remaining == 0 {
-                if mode == "pax" { failure = Some("archive contains an empty PAX metadata entry") }
+                if mode == "pax" { failure = Some(archive_problem("PKG_ARCHIVE_INVALID", "a PAX metadata entry is empty")) }
                 else { mode = "header" }
               }
             }
@@ -165,7 +167,7 @@ pub tar_stream_feed(stage: Nat, state: TarStream, input: Bytes): Result[TarStrea
       }
     } else if mode == "padding" {
       take: Nat = if available < padding { available } else { padding }
-      if !tar_zero(byte_buffer.slice(input, offset, offset + take)) { failure = Some("archive contains nonzero bytes where empty padding is required") }
+      if !tar_zero(byte_buffer.slice(input, offset, offset + take)) { failure = Some(archive_problem("PKG_ARCHIVE_INVALID", "the archive contains nonzero data where padding is required")) }
       offset = offset + take
       padding = tar_difference(padding, take)
       if padding == 0 { mode = "header" }
@@ -175,9 +177,9 @@ pub tar_stream_feed(stage: Nat, state: TarStream, input: Bytes): Result[TarStrea
       if mode == "pax" { buffer = buffer.join(chunk) }
       else {
         match path.from_text(current.path) {
-          Error(problem) => { failure = Some("invalid archive entry path") },
+          Error(problem) => { failure = Some(archive_problem("PKG_ARCHIVE_PATH_INVALID", "an archive entry path cannot be represented on this system")) },
           Ok(relative) => match staging.write(stage, relative, chunk, tar_difference(current.size, remaining)) {
-            Error(problem) => { failure = Some("archive write failed: " + host_detail(problem.code)) },
+            Error(problem) => { failure = Some(problem_label(package_problem("PKG_FILESYSTEM", "Cannot write an extracted package file: " + host_detail(problem.code)), "Archive entry", current.path)) },
             Ok(unit) => {}
           }
         }
@@ -202,16 +204,16 @@ pub tar_stream_feed(stage: Nat, state: TarStream, input: Bytes): Result[TarStrea
   }
 }
 
-pub pure tar_stream_finish(state: TarStream): Result[[ArchiveEntry], Str] {
+pub pure tar_stream_finish(state: TarStream): Result[[ArchiveEntry], PackageProblem] {
   if state.pax != None() {
-    Error("archive ends with PAX metadata but no file for that metadata to describe")
+    Error(archive_problem("PKG_ARCHIVE_INVALID", "the archive ends with PAX metadata that has no following file"))
   } else if state.mode != "end" {
-    Error("archive ended before its contents and end marker were complete")
+    Error(archive_problem("PKG_ARCHIVE_INCOMPLETE", "the archive ended before its contents and end marker were complete"))
   } else {
     mut manifest: Bool = false
     for entry in state.index.entries {
       manifest = manifest || (entry.path == "panack.json" && !entry.directory)
     }
-    if manifest { Ok(state.index.entries) } else { Error("archive has no panack.json at its top level; recreate it with panack.json beside the source directory") }
+    if manifest { Ok(state.index.entries) } else { Error(explain_problem(package_problem("PKG_MANIFEST_MISSING", "Cannot use the archive because the archive has no panack.json at its top level."), "Panack expects panack.json at the archive's top level, alongside the package's source directory.", "If you maintain this package, recreate the archive with that layout. Otherwise, ask the package maintainer for a corrected archive.\n\nSee the package manifest specification:\n" + manifest_specification())) }
   }
 }

@@ -1,0 +1,11 @@
+panack: error[PKG_ARCHIVE_UNSUPPORTED]: Cannot unpack the archive because the archive contains an unsupported entry type.
+
+  Project: <workspace>/app/panack.json
+  Source archive: <workspace>/source.tar.gz
+  Dependency name: lib
+  Archive entry: link
+  Tar entry type: symbolic link
+
+Panack accepts POSIX ustar archives containing ordinary files, directories and supported per-file PAX metadata.
+
+If you maintain this package, recreate the archive using the supported format and entries. Otherwise, ask the package maintainer for a compatible archive.

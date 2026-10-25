@@ -54,15 +54,15 @@ line(reader: Reader): Result[Line, HttpError] {
   } }
 }
 
-copy_bytes[S](reader: Reader, count: Nat, initial: S, consume: Fn[S,Bytes,Result[S,HttpError]]): Result[Copied[S], HttpError] {
+copy_bytes[S,E](reader: Reader, count: Nat, initial: S, consume: Fn[S,Bytes,Result[S,E]], map_error: Fn[HttpError,E]): Result[Copied[S], E] {
   mut state: S = initial
   mut current = reader
   mut copied: Nat = 0
-  mut failure: Option[HttpError] = None()
+  mut failure: Option[E] = None()
   while copied < count && failure == None() {
     if current.buffer.length() == 0 {
-      if current.eof { failure = Some(ProtocolError("truncated HTTP response body")) }
-      else { match more(current) { Error(problem) => { failure = Some(problem) }, Ok(next) => { current = next } } }
+      if current.eof { failure = Some(map_error.call(ProtocolError("truncated HTTP response body"))) }
+      else { match more(current) { Error(problem) => { failure = Some(map_error.call(problem)) }, Ok(next) => { current = next } } }
     } else {
       remaining = remaining_bytes(count, copied)
       amount = if current.buffer.length() < remaining { current.buffer.length() } else { remaining }
@@ -147,40 +147,40 @@ pub close_response(response: ResponseStream): Result[Unit, HttpError] {
   match transport.close(response.handle) { Ok(unit) => Ok(()), Error(problem) => Error(transport_error(problem)) }
 }
 
-pub fold_body[S](response: ResponseStream, initial: S, consume: Fn[S,Bytes,Result[S,HttpError]], body_limit: Nat): Result[S, HttpError] {
+pub fold_body_with_errors[S,E](response: ResponseStream, initial: S, consume: Fn[S,Bytes,Result[S,E]], body_limit: Nat, map_error: Fn[HttpError,E]): Result[S, E] {
   mut state: S = initial
   mut reader = Reader(response.handle, response.buffer, false)
   mut total: Nat = 0
-  mut failure: Option[HttpError] = None()
-  if body_limit == 0 || body_limit > 67108864 { failure = Some(InvalidLimits()) }
+  mut failure: Option[E] = None()
+  if body_limit == 0 || body_limit > 67108864 { failure = Some(map_error.call(InvalidLimits())) }
 
   if failure == None() {
     if response.status == 204 || response.status == 205 || response.status == 304 {
-      match expect_end(reader) { Error(problem) => { failure = Some(problem) }, Ok(unit) => {} }
+      match expect_end(reader) { Error(problem) => { failure = Some(map_error.call(problem)) }, Ok(unit) => {} }
     } else { match response.content_length {
-      Some(length) => if length > body_limit { failure = Some(LimitExceeded("response body")) }
-        else { match copy_bytes(reader, length, state, consume) {
+      Some(length) => if length > body_limit { failure = Some(map_error.call(LimitExceeded("response body"))) }
+        else { match copy_bytes(reader, length, state, consume, map_error) {
           Error(problem) => { failure = Some(problem) },
           Ok(copied) => { state = copied.state; total = copied.count
-            match expect_end(copied.reader) { Error(problem) => { failure = Some(problem) }, Ok(unit) => {} }
+            match expect_end(copied.reader) { Error(problem) => { failure = Some(map_error.call(problem)) }, Ok(unit) => {} }
           }
         } },
       None() => if response.chunked {
         mut finished: Bool = false
         while !finished && failure == None() {
           match line(reader) {
-            Error(problem) => { failure = Some(problem) },
+            Error(problem) => { failure = Some(map_error.call(problem)) },
             Ok(found) => { reader = found.reader
               remaining = remaining_bytes(body_limit, total)
               match parse_chunk_size(found.text, 0, found.text.length(), remaining) {
-                Error(problem) => { failure = Some(problem) },
+                Error(problem) => { failure = Some(map_error.call(problem)) },
                 Ok(size) => if size == 0 { finished = true }
-                  else { match copy_bytes(reader, size, state, consume) {
+                  else { match copy_bytes(reader, size, state, consume, map_error) {
                     Error(problem) => { failure = Some(problem) },
                     Ok(copied) => { state = copied.state; total = total + copied.count
                       match line(copied.reader) {
-                        Error(problem) => { failure = Some(problem) },
-                        Ok(ending) => if ending.text.length() != 0 { failure = Some(ProtocolError("chunk data is missing CRLF")) }
+                        Error(problem) => { failure = Some(map_error.call(problem)) },
+                        Ok(ending) => if ending.text.length() != 0 { failure = Some(map_error.call(ProtocolError("chunk data is missing CRLF"))) }
                           else { reader = ending.reader }
                       }
                     }
@@ -192,26 +192,26 @@ pub fold_body[S](response: ResponseStream, initial: S, consume: Fn[S,Bytes,Resul
         finished = false
         while !finished && failure == None() {
           match parse_trailers(reader.buffer, 0, reader.eof, response.header_bytes) {
-            Error(problem) => { failure = Some(problem) },
+            Error(problem) => { failure = Some(map_error.call(problem)) },
             Ok(end) => match end {
               Some(offset) => { finished = true
                 match expect_end(Reader(reader.handle, byte_buffer.slice(reader.buffer, offset, reader.buffer.length()), reader.eof)) {
-                  Error(problem) => { failure = Some(problem) }, Ok(unit) => {}
+                  Error(problem) => { failure = Some(map_error.call(problem)) }, Ok(unit) => {}
                 }
               },
-              None() => if response.header_bytes + reader.buffer.length() > 65536 { failure = Some(LimitExceeded("response trailers")) }
-                else { match more(reader) { Error(problem) => { failure = Some(problem) }, Ok(next) => { reader = next } } }
+              None() => if response.header_bytes + reader.buffer.length() > 65536 { failure = Some(map_error.call(LimitExceeded("response trailers"))) }
+                else { match more(reader) { Error(problem) => { failure = Some(map_error.call(problem)) }, Ok(next) => { reader = next } } }
             }
           }
         }
       } else {
         while !reader.eof && failure == None() {
           amount = reader.buffer.length()
-          if total + amount > body_limit { failure = Some(LimitExceeded("response body")) }
-          else { match copy_bytes(reader, amount, state, consume) {
+          if total + amount > body_limit { failure = Some(map_error.call(LimitExceeded("response body"))) }
+          else { match copy_bytes(reader, amount, state, consume, map_error) {
             Error(problem) => { failure = Some(problem) },
             Ok(copied) => { state = copied.state; total = total + copied.count
-              match more(copied.reader) { Error(problem) => { failure = Some(problem) }, Ok(next) => { reader = next } }
+              match more(copied.reader) { Error(problem) => { failure = Some(map_error.call(problem)) }, Ok(next) => { reader = next } }
             }
           } }
         }
@@ -219,4 +219,11 @@ pub fold_body[S](response: ResponseStream, initial: S, consume: Fn[S,Bytes,Resul
     } }
   }
   match failure { Some(problem) => Error(problem), None() => Ok(state) }
+}
+
+pure unchanged_error(problem: HttpError): HttpError { problem }
+
+// Existing callers keep their HttpError callback and result.
+pub fold_body[S](response: ResponseStream, initial: S, consume: Fn[S,Bytes,Result[S,HttpError]], body_limit: Nat): Result[S, HttpError] {
+  fold_body_with_errors(response, initial, consume, body_limit, @unchanged_error)
 }

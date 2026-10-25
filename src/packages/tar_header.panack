@@ -1,3 +1,5 @@
+pub import project/src/packages/diagnostic::{PackageProblem}
+import project/src/packages/diagnostic::{package_problem, problem_label, explain_problem}
 import stdlib/bytes as byte_buffer
 import project/src/project_model/utf8::{valid_utf8}
 
@@ -17,52 +19,55 @@ pub pure tar_zero(data: Bytes): Bool {
   zero
 }
 
-pure tar_text(data: Bytes, start: Nat, end: Nat): Result[Str, Str] {
+pure tar_text(data: Bytes, start: Nat, end: Nat, field: Str): Result[Str, PackageProblem] {
   mut stop: Nat = start
   while stop < end && data.at(stop) != 0 { stop = stop + 1 }
   mut padding_valid: Bool = true
   for index in stop..end { padding_valid = padding_valid && data.at(index) == 0 }
   value: Bytes = tar_slice(data, start, stop)
-  if !padding_valid { Error("archive header contains unexpected data after the end of a text field") }
-  else if !valid_utf8(value) { Error("archive contains a file name that is not valid UTF-8 text") }
+  if !padding_valid { Error(problem_label(archive_problem("PKG_ARCHIVE_INVALID", "a tar header contains unexpected data after the end of a text field"), "Archive field", field)) }
+  else if !valid_utf8(value) { Error(problem_label(archive_problem(if field == "format identifier" { "PKG_ARCHIVE_INVALID" } else { "PKG_ARCHIVE_PATH_INVALID" }, "an archive header's text field is not valid UTF-8 text"), "Archive field", field)) }
   else { Ok(value.decode_utf8()) }
 }
 
-pub pure tar_number(data: Bytes, start: Nat, end: Nat, base: Nat): Result[Nat, Str] {
+pub pure tar_number(data: Bytes, start: Nat, end: Nat, base: Nat): Result[Nat, PackageProblem] {
   mut value: Nat = 0
   mut ended: Bool = false
   mut began: Bool = false
-  mut failure: Bool = false
-  mut detail = "archive contains a number with invalid digits or spacing"
+  mut failure: Option[PackageProblem] = None()
   for index in start..end {
-    byte: Nat = data.at(index)
-    if byte == 0 || byte == 32 {
-      if began { ended = true }
-    } else if byte >= 48 && byte < 48 + base && !ended {
-      value = value * base + (byte - 48)
-      began = true
-      if value > 268435456 { failure = true; detail = "archive numeric value exceeds the supported maximum of 268435456" }
-    } else { failure = true }
+    if failure == None() {
+      byte: Nat = data.at(index)
+      if byte == 0 || byte == 32 { if began { ended = true } }
+      else if byte >= 48 && byte < 48 + base && !ended {
+        value = value * base + (byte - 48)
+        began = true
+        if value > 268435456 { failure = Some(archive_problem("PKG_ARCHIVE_NUMBER_LIMIT", "a numeric archive field exceeds Panack's supported maximum of 268435456")) }
+      } else { failure = Some(archive_problem("PKG_ARCHIVE_INVALID", "an archive number contains invalid digits or spacing")) }
+    }
   }
-  if failure { Error(detail) } else { Ok(value) }
+  match failure { Some(problem) => Error(problem), None() => Ok(value) }
 }
 
-pub pure tar_normalize_path(value: Str): Result[Str, Str] {
+pub record PackagePathProblem { message: Str, correction: Str }
+
+pub pure normalize_package_path(value: Str): Result[Str, PackagePathProblem] {
   encoded: Bytes = value.encode_utf8()
   mut valid: Bool = value != "" && !value.starts_with_at("/", 0)
-  mut detail = if value == "" { "archive contains an empty path" } else { "archive contains an absolute path; file paths must be relative to the package directory" }
+  mut detail = if value == "" { "the path is empty" } else { "the path is absolute" }
+  mut remedy = if value == "" { "Give each entry a valid relative path." } else { "Use paths relative to the package directory instead of absolute paths." }
   for index in 0..encoded.length() {
     byte: Nat = encoded.at(index)
-    if byte == 0 { valid = false; detail = "archive path contains a NUL character" }
-    else if byte == 92 { valid = false; detail = "archive path uses a backslash; use forward slashes between directory names" }
-    else if byte == 58 { valid = false; detail = "archive path contains a colon, which is not supported in package paths" }
+    if byte == 0 { valid = false; detail = "the path contains a NUL character"; remedy = "Remove the NUL character from the path." }
+    else if byte == 92 { valid = false; detail = "the path uses a backslash"; remedy = "Use forward slashes between directory names." }
+    else if byte == 58 { valid = false; detail = "the path contains a colon"; remedy = "Rename the path without the colon and update references to that path." }
   }
   mut result: Str = ""
   mut start: Nat = 0
   for index in 0..value.len() + 1 {
     if index == value.len() || value[index] == "/" {
       segment: Str = value.slice(start, index)
-      if segment == ".." { valid = false; detail = "archive path contains a parent-directory component (..); package files must stay inside the archive directory" }
+      if segment == ".." { valid = false; detail = "the path contains a parent-directory component ('..')"; remedy = "Use paths relative to the package directory without parent-directory components ('..')." }
       else if segment != "" && segment != "." {
         if result != "" { result = result + "/" }
         result = result + segment
@@ -70,42 +75,50 @@ pub pure tar_normalize_path(value: Str): Result[Str, Str] {
       start = index + 1
     }
   }
-  if !valid { Error(detail) }
-  else if result == "" { Error("archive path does not name a file or directory") }
-  else if result.encode_utf8().length() > 4096 { Error("archive path exceeds the 4096-byte limit") }
+  if !valid { Error(PackagePathProblem(detail, remedy)) }
+  else if result == "" { Error(PackagePathProblem("the path does not name a file or directory", "Give each entry a valid relative path.")) }
+  else if result.encode_utf8().length() > 4096 { Error(PackagePathProblem("the path exceeds Panack's 4096-byte limit", "Shorten the path and update references to that path.")) }
   else { Ok(result) }
 }
 
-pub pure parse_tar_header(data: Bytes): Result[TarHeader, Str] {
-  if data.length() != 512 { Error("truncated tar header") }
+pub pure tar_normalize_path(value: Str): Result[Str, PackageProblem] {
+  match normalize_package_path(value) {
+    Ok(normalized) => Ok(normalized),
+    Error(problem) => Error(problem_label(explain_problem(archive_problem("PKG_ARCHIVE_PATH_INVALID", problem.message), "",
+      problem.correction + " Recreate the archive after correcting the path. If you do not maintain this package, ask the package maintainer for a corrected archive."), "Archive entry", value))
+  }
+}
+
+pub pure parse_tar_header(data: Bytes): Result[TarHeader, PackageProblem] {
+  if data.length() != 512 { Error(archive_problem("PKG_ARCHIVE_INCOMPLETE", "a tar header is incomplete")) }
   else {
     mut checksum: Nat = 0
     for index in 0..512 {
       checksum = checksum + if index >= 148 && index < 156 { 32 } else { data.at(index) }
     }
     match tar_number(data, 148, 156, 8) {
-      Error(problem) => Error(problem),
-      Ok(expected) => if expected != checksum { Error("tar header checksum mismatch") }
+      Error(problem) => Error(problem_label(problem, "Archive field", "header checksum")),
+      Ok(expected) => if expected != checksum { Error(archive_problem("PKG_ARCHIVE_INVALID", "a tar header's checksum does not match the header data")) }
       else {
-        match tar_text(data, 257, 263) {
+        match tar_text(data, 257, 263, "format identifier") {
           Error(problem) => Error(problem),
-          Ok(magic) => if magic != "ustar" { Error("unsupported tar format; require POSIX ustar or local PAX") }
+          Ok(magic) => if magic != "ustar" { Error(archive_problem("PKG_ARCHIVE_UNSUPPORTED", "the archive does not use a supported tar format")) }
           else {
             type_byte: Nat = data.at(156)
             kind: Str = if type_byte == 0 || type_byte == 48 { "file" }
               else if type_byte == 53 { "directory" }
               else if type_byte == 120 { "pax" }
               else { "unsupported" }
-            if kind == "unsupported" { Error("archive contains an unsupported entry type; packages accept ordinary files, directories and per-file PAX metadata") }
+            if kind == "unsupported" { Error(unsupported_entry(data, type_byte)) }
             else {
-              match tar_text(data, 0, 100) {
+              match tar_text(data, 0, 100, "filename") {
                 Error(problem) => Error(problem),
-                Ok(name) => match tar_text(data, 345, 500) {
+                Ok(name) => match tar_text(data, 345, 500, "filename prefix") {
                   Error(problem) => Error(problem),
                   Ok(prefix) => match tar_number(data, 124, 136, 8) {
-                    Error(problem) => Error(problem),
+                    Error(problem) => Error(problem_label(problem, "Archive field", "entry size")),
                     Ok(size) => if kind == "directory" && size != 0 {
-                      Error("archive marks an entry as a directory but also gives it file contents")
+                      Error(archive_problem("PKG_ARCHIVE_INVALID", "the archive contains file data for an entry marked as a directory"))
                     } else {
                       Ok(TarHeader(if prefix == "" { name } else { prefix + "/" + name }, size, kind))
                     }
@@ -122,53 +135,53 @@ pub pure parse_tar_header(data: Bytes): Result[TarHeader, Str] {
 
 pub record PaxHeader { path: Option[Str], size: Option[Nat] }
 
-pub pure parse_pax(data: Bytes): Result[PaxHeader, Str] {
+pub pure parse_pax(data: Bytes): Result[PaxHeader, PackageProblem] {
   mut cursor: Nat = 0
   mut path: Option[Str] = None()
   mut size: Option[Nat] = None()
   mut seen: Set[Str] = set()
-  mut failure: Option[Str] = None()
+  mut failure: Option[PackageProblem] = None()
   while cursor < data.length() && failure == None() {
     mut split: Nat = cursor
     while split < data.length() && data.at(split) >= 48 && data.at(split) <= 57 { split = split + 1 }
     if split == cursor || split >= data.length() || data.at(split) != 32 {
-      failure = Some("invalid PAX record length")
+      failure = Some(archive_problem("PKG_ARCHIVE_INVALID", "a PAX metadata record has an invalid length"))
     } else {
       match tar_number(data, cursor, split, 10) {
         Error(problem) => { failure = Some(problem) },
         Ok(length) => if length < 4 || cursor + length > data.length() || cursor + length <= split + 1 {
-          failure = Some("archive PAX metadata declares a record length that does not fit its data")
+          failure = Some(archive_problem("PKG_ARCHIVE_INVALID", "a PAX metadata record declares a length that does not fit its data"))
         } else {
           end: Nat = cursor + length
           signed_end: Int = end
           last: Nat = ((signed_end - 1) / 1).nat()
           if data.at(last) != 10 {
-            failure = Some("PAX record must end in newline")
+            failure = Some(archive_problem("PKG_ARCHIVE_INVALID", "a PAX metadata record is missing its terminating newline"))
           } else {
             mut equals: Nat = split + 1
             while equals < last && data.at(equals) != 61 { equals = equals + 1 }
-            if equals == last { failure = Some("archive PAX metadata is missing the = between a field name and its value") }
+            if equals == last { failure = Some(archive_problem("PKG_ARCHIVE_INVALID", "a PAX metadata record is missing the '=' between its field name and value")) }
             else {
               key_bytes: Bytes = tar_slice(data, split + 1, equals)
               value_bytes: Bytes = tar_slice(data, equals + 1, last)
-              if !valid_utf8(key_bytes) || !valid_utf8(value_bytes) { failure = Some("PAX text is not UTF-8") }
+              if !valid_utf8(key_bytes) || !valid_utf8(value_bytes) { failure = Some(archive_problem("PKG_ARCHIVE_INVALID", "PAX metadata contains text that is not valid UTF-8")) }
               else {
                 key: Str = key_bytes.decode_utf8()
                 value: Str = value_bytes.decode_utf8()
-                if seen.has(key) { failure = Some("archive PAX metadata repeats the same field name") }
+                if seen.has(key) { failure = Some(problem_label(archive_problem("PKG_ARCHIVE_INVALID", "PAX metadata repeats a field name"), "PAX field", key)) }
                 else if key == "path" { path = Some(value) }
                 else if key == "size" {
                   mut decimal: Bool = value_bytes.length() > 0
                   for index in 0..value_bytes.length() {
                     decimal = decimal && value_bytes.at(index) >= 48 && value_bytes.at(index) <= 57
                   }
-                  if !decimal { failure = Some("PAX size must contain decimal digits") }
+                  if !decimal { failure = Some(archive_problem("PKG_ARCHIVE_INVALID", "the PAX size field must contain decimal digits only")) }
                   else { match tar_number(value_bytes, 0, value_bytes.length(), 10) {
                     Error(problem) => { failure = Some(problem) },
                     Ok(number) => { size = Some(number) }
                   } }
                 } else if key != "mtime" && key != "atime" && key != "ctime" && key != "uid" && key != "gid" && key != "uname" && key != "gname" {
-                  failure = Some("archive uses an unsupported PAX metadata field: " + key)
+                  failure = Some(problem_label(archive_problem("PKG_ARCHIVE_UNSUPPORTED", "the archive uses an unsupported PAX metadata field"), "PAX field", key))
                 }
                 seen = seen.add(key)
               }
@@ -179,5 +192,26 @@ pub pure parse_pax(data: Bytes): Result[PaxHeader, Str] {
       }
     }
   }
-  match failure { Some(problem) => Error(problem), None() => Ok(PaxHeader(path, size)) }
+  match failure { Some(problem) => Error(explain_problem(problem, "PAX metadata describes the file that follows it in the archive.", problem.help)), None() => Ok(PaxHeader(path, size)) }
+}
+
+pub pure archive_problem(code: Str, detail: Str): PackageProblem {
+  package_problem(code, "Cannot unpack the archive because " + detail + ".")
+}
+
+pure unsupported_entry(data: Bytes, kind: Nat): PackageProblem {
+  description = if kind == 49 { "hard link" } else if kind == 50 { "symbolic link" }
+    else if kind == 51 { "character device" } else if kind == 52 { "block device" }
+    else if kind == 54 { "FIFO (named pipe)" } else if kind == 103 { "global PAX metadata" }
+    else if kind == 76 { "GNU long filename" } else if kind == 75 { "GNU long link target" }
+    else { "unrecognised type byte ${kind}" }
+  mut problem = problem_label(archive_problem("PKG_ARCHIVE_UNSUPPORTED", "the archive contains an unsupported entry type"), "Tar entry type", description)
+  match tar_text(data, 0, 100, "filename") {
+    Error(ignored) => {},
+    Ok(name) => match tar_text(data, 345, 500, "filename prefix") {
+      Error(ignored) => {},
+      Ok(prefix) => { problem = problem_label(problem, "Archive entry", if prefix == "" { name } else { prefix + "/" + name }) }
+    }
+  }
+  problem
 }

@@ -15,7 +15,8 @@ introduced.
 ## How to reproduce and maintain these examples
 
 Build with `make package-tool`, then run `sh tests/package_diagnostics.sh`,
-`sh tests/package_https.sh` and `sh tests/package_git.sh`. The Git suite includes
+`sh tests/package_https.sh`, `sh tests/package_git.sh` and
+`sh tests/package_archive_diagnostics.sh`. The Git suite includes
 controlled executable tests in `tests/package_git_diagnostics.sh`. The remote tests use
 private local TLS peers, not external services. Optional
 `PANACK_DIAGNOSTICS_RECORD=/absolute/output/directory` captures the observed
@@ -334,7 +335,7 @@ the latter does not assert that a cycle has been proved. Lockfile validation
 identifies the failing project field instead of reporting a generic identity
 problem. Existing rejection rules and resource bounds are unchanged.
 
-The 33 general diagnostic unit checks, 74 Git unit checks and nineteen public transcripts are representative
+The 33 general diagnostic unit checks, 74 Git unit checks, 22 archive/stream unit checks and thirty-four public transcripts are representative
 regression evidence, not a claim that every low-level failure has its own
 end-to-end fixture. The existing archive, Git, graph, containment and lock tests
 continue to exercise the wider rejection surface. Exact transcript matching
@@ -350,8 +351,7 @@ and phase labels are omitted from the rendered messages. Line and column locatio
 are supplied by the package tool without modifying the shared compiler parser.
 
 Git diagnostics now retain process, reference, inventory and symbolic-link causes,
-and check the installed Git version before acquisition. The remaining archive
-and general validation catalogue is still outstanding. Do not describe
+and check the installed Git version before acquisition. Archive parsing and extraction now preserve typed causes through local and HTTPS acquisition. The general validation catalogue is still outstanding. Do not describe
 this slice as completion of every agreed diagnostic. P04b/c remain open. HTTP API
 error-detail preservation is tracked separately in issue #586.
 
@@ -488,4 +488,234 @@ panack: error[PKG_SYMLINK_LIMIT]: Cannot prepare the Git package because resolvi
 The limit does not establish that the links form a cycle.
 
 If you maintain this package, shorten the link chain and check for links that point back to each other. Otherwise, ask the package maintainer for a corrected package.
+```
+
+## Archive parsing and extraction examples
+
+Each case below runs `panack deps lock --project <workspace>/app/panack.json`
+against a deliberately constructed local archive. The test asserts status 1, no
+lockfile and no abandoned staging files. These are initial acquisition failures;
+no existing package is replaced. Reproduce with
+`sh tests/package_archive_diagnostics.sh`.
+
+### Archive paths differ only in case
+
+```text
+panack: error[PKG_ARCHIVE_PATH_CONFLICT]: Cannot unpack the archive because two archive paths differ only in letter case.
+
+  Project: <workspace>/app/panack.json
+  Source archive: <workspace>/source.tar.gz
+  Dependency name: lib
+  Conflicting archive path: data
+  First archive path: Data
+
+Panack cannot create a portable package directory from the reported paths.
+
+If you maintain this package, correct the reported paths and recreate the archive. Otherwise, ask the package maintainer for a corrected archive.
+```
+
+### Repeated archive path
+
+```text
+panack: error[PKG_ARCHIVE_PATH_CONFLICT]: Cannot unpack the archive because the archive contains the same path more than once.
+
+  Project: <workspace>/app/panack.json
+  Source archive: <workspace>/source.tar.gz
+  Dependency name: lib
+  Archive entry: data
+
+Panack cannot create a portable package directory from the reported paths.
+
+If you maintain this package, correct the reported paths and recreate the archive. Otherwise, ask the package maintainer for a corrected archive.
+```
+
+### Invalid gzip data
+
+```text
+panack: error[PKG_ARCHIVE_INVALID]: Cannot unpack the archive because the file is not valid gzip data.
+
+  Project: <workspace>/app/panack.json
+  Source archive: <workspace>/source.tar.gz
+  Dependency name: lib
+
+Panack has stopped extraction.
+
+Obtain a valid copy of the archive and retry your command. If a fresh copy produces the same error, ask the package maintainer to recreate the archive. A replacement must still match the checksums in an existing lockfile.
+```
+
+### Corrupt tar header
+
+```text
+panack: error[PKG_ARCHIVE_INVALID]: Cannot unpack the archive because a tar header's checksum does not match the header data.
+
+  Project: <workspace>/app/panack.json
+  Source archive: <workspace>/source.tar.gz
+  Dependency name: lib
+
+Panack has stopped extraction.
+
+Obtain a valid copy of the archive and retry your command. If a fresh copy produces the same error, ask the package maintainer to recreate the archive. A replacement must still match the checksums in an existing lockfile.
+```
+
+### Incomplete tar end marker
+
+```text
+panack: error[PKG_ARCHIVE_INCOMPLETE]: Cannot unpack the archive because the archive ended before its contents and end marker were complete.
+
+  Project: <workspace>/app/panack.json
+  Source archive: <workspace>/source.tar.gz
+  Dependency name: lib
+
+Panack has stopped extraction.
+
+Obtain a valid copy of the archive and retry your command. If a fresh copy produces the same error, ask the package maintainer to recreate the archive. A replacement must still match the checksums in an existing lockfile.
+```
+
+### Missing top-level manifest
+
+```text
+panack: error[PKG_MANIFEST_MISSING]: Cannot use the archive because the archive has no panack.json at its top level.
+
+  Project: <workspace>/app/panack.json
+  Source archive: <workspace>/source.tar.gz
+  Dependency name: lib
+
+Panack expects panack.json at the archive's top level, alongside the package's source directory.
+
+If you maintain this package, recreate the archive with that layout. Otherwise, ask the package maintainer for a corrected archive.
+
+See the package manifest specification:
+https://github.com/sproates/panackelty/blob/main/docs/design/MODULE_PACKAGE_DESIGN.md#package-roots-manifest-and-source-distribution
+```
+
+### Archive numeric bound
+
+```text
+panack: error[PKG_ARCHIVE_NUMBER_LIMIT]: Cannot unpack the archive because a numeric archive field exceeds Panack's supported maximum of 268435456.
+
+  Project: <workspace>/app/panack.json
+  Source archive: <workspace>/source.tar.gz
+  Dependency name: lib
+  Archive field: entry size
+
+Panack has stopped extraction because the reported archive limit was exceeded.
+
+If you maintain this package, reduce the reported value or count and recreate the archive. Otherwise, ask the package maintainer for an archive within Panack's limits.
+```
+
+### Malformed archive number
+
+```text
+panack: error[PKG_ARCHIVE_INVALID]: Cannot unpack the archive because an archive number contains invalid digits or spacing.
+
+  Project: <workspace>/app/panack.json
+  Source archive: <workspace>/source.tar.gz
+  Dependency name: lib
+  Archive field: entry size
+
+Panack has stopped extraction.
+
+Obtain a valid copy of the archive and retry your command. If a fresh copy produces the same error, ask the package maintainer to recreate the archive. A replacement must still match the checksums in an existing lockfile.
+```
+
+### Parent-directory component
+
+```text
+panack: error[PKG_ARCHIVE_PATH_INVALID]: Cannot unpack the archive because the path contains a parent-directory component ('..').
+
+  Project: <workspace>/app/panack.json
+  Source archive: <workspace>/source.tar.gz
+  Dependency name: lib
+  Archive entry: a/../b
+
+Use paths relative to the package directory without parent-directory components ('..'). Recreate the archive after correcting the path. If you do not maintain this package, ask the package maintainer for a corrected archive.
+```
+
+### Repeated PAX field
+
+```text
+panack: error[PKG_ARCHIVE_INVALID]: Cannot unpack the archive because PAX metadata repeats a field name.
+
+  Project: <workspace>/app/panack.json
+  Source archive: <workspace>/source.tar.gz
+  Dependency name: lib
+  PAX field: path
+
+PAX metadata describes the file that follows it in the archive.
+
+Obtain a valid copy of the archive and retry your command. If a fresh copy produces the same error, ask the package maintainer to recreate the archive. A replacement must still match the checksums in an existing lockfile.
+```
+
+### Unsupported PAX field
+
+```text
+panack: error[PKG_ARCHIVE_UNSUPPORTED]: Cannot unpack the archive because the archive uses an unsupported PAX metadata field.
+
+  Project: <workspace>/app/panack.json
+  Source archive: <workspace>/source.tar.gz
+  Dependency name: lib
+  PAX field: unknown
+
+PAX metadata describes the file that follows it in the archive.
+
+If you maintain this package, recreate the archive using the supported format and entries. Otherwise, ask the package maintainer for a compatible archive.
+```
+
+### Malformed PAX size
+
+```text
+panack: error[PKG_ARCHIVE_INVALID]: Cannot unpack the archive because the PAX size field must contain decimal digits only.
+
+  Project: <workspace>/app/panack.json
+  Source archive: <workspace>/source.tar.gz
+  Dependency name: lib
+
+PAX metadata describes the file that follows it in the archive.
+
+Obtain a valid copy of the archive and retry your command. If a fresh copy produces the same error, ask the package maintainer to recreate the archive. A replacement must still match the checksums in an existing lockfile.
+```
+
+### Data after the archive end marker
+
+```text
+panack: error[PKG_ARCHIVE_INVALID]: Cannot unpack the archive because the archive contains unexpected data after its end marker.
+
+  Project: <workspace>/app/panack.json
+  Source archive: <workspace>/source.tar.gz
+  Dependency name: lib
+
+Panack has stopped extraction.
+
+Obtain a valid copy of the archive and retry your command. If a fresh copy produces the same error, ask the package maintainer to recreate the archive. A replacement must still match the checksums in an existing lockfile.
+```
+
+### Unsupported symbolic link entry
+
+```text
+panack: error[PKG_ARCHIVE_UNSUPPORTED]: Cannot unpack the archive because the archive contains an unsupported entry type.
+
+  Project: <workspace>/app/panack.json
+  Source archive: <workspace>/source.tar.gz
+  Dependency name: lib
+  Archive entry: link
+  Tar entry type: symbolic link
+
+Panack accepts POSIX ustar archives containing ordinary files, directories and supported per-file PAX metadata.
+
+If you maintain this package, recreate the archive using the supported format and entries. Otherwise, ask the package maintainer for a compatible archive.
+```
+
+### Invalid UTF-8 filename
+
+```text
+panack: error[PKG_ARCHIVE_PATH_INVALID]: Cannot unpack the archive because an archive header's text field is not valid UTF-8 text.
+
+  Project: <workspace>/app/panack.json
+  Source archive: <workspace>/source.tar.gz
+  Dependency name: lib
+  Archive field: filename
+
+Panack cannot create a portable package directory from the reported paths.
+
+If you maintain this package, correct the reported paths and recreate the archive. Otherwise, ask the package maintainer for a corrected archive.
 ```

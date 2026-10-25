@@ -1,19 +1,24 @@
+import project/src/packages/diagnostic::{PackageProblem, problem_value}
 import project/src/packages/archive::{stage_archive, discard_archive}
-import project/src/packages/tree_digest::{tree_digest, verify_tree_digest}
+import project/src/packages/tree_digest::{tree_digest, verify_tree_problem, ArchiveEntry}
 import stdlib/testing as testing
 import stdlib/host as host
 import stdlib/filesystem as filesystem
 import stdlib/path as path
 
+pure code[T](result: Result[T, PackageProblem]): Str {
+  match result { Error(problem) => problem.code, Ok(found) => "unexpected success" }
+}
+
 main(): Void {
   arguments = host.arguments()
   match stage_archive(arguments[0], arguments[1]) {
-    Error(problem) => { print(problem); host.exit(1) },
+    Error(problem) => { print(problem.message); host.exit(1) },
     Ok(archive) => {
       expected: Str = if arguments.len() == 3 { arguments[2] }
         else { "dc14fa4336cf0b13632c89c8cc0914684e89544f8b16a28d118dc50d8a5d4e29" }
       actual = tree_digest(archive.root, archive.entries)
-      verified = verify_tree_digest(archive.root, expected)
+      verified = verify_tree_problem(archive.root, expected)
       mut changed: Bool = false
       match path.from_text(archive.root + "/nested/example.txt") {
         Error(problem) => {},
@@ -22,9 +27,13 @@ main(): Void {
           Ok(unit) => { changed = true }
         }
       }
-      corrupt = verify_tree_digest(archive.root, expected)
+      corrupt = verify_tree_problem(archive.root, expected)
+      missing = tree_digest(archive.root, [ArchiveEntry("absent", 1, false, true)])
+      resized = tree_digest(archive.root, [ArchiveEntry("nested/example.txt", 1, false, true)])
       cleanup = discard_archive(archive)
       results = [
+        testing.equal_str("missing file retains filesystem cause", code(missing), "PKG_FILESYSTEM"),
+        testing.equal_str("changed file size is not a checksum mismatch", code(resized), "PKG_CHANGED"),
         testing.expect("canonical tree matches independent vector", actual == Ok(expected), "wrong canonical digest"),
         testing.expect("extracted tree verifies", verified == Ok(()), "tree verification failed"),
         testing.expect("changed cache file is rejected", changed && match corrupt {

@@ -1,0 +1,10 @@
+panack: error[PKG_ARCHIVE_PATH_INVALID]: Cannot unpack the archive because an archive header's text field is not valid UTF-8 text.
+
+  Project: <workspace>/app/panack.json
+  Source archive: <workspace>/source.tar.gz
+  Dependency name: lib
+  Archive field: filename
+
+Panack cannot create a portable package directory from the reported paths.
+
+If you maintain this package, correct the reported paths and recreate the archive. Otherwise, ask the package maintainer for a corrected archive.

@@ -254,3 +254,20 @@ cache reuse still invoke no Git, covered by the existing invocation-count tests.
 Cold-lock timings are recorded by the integration suite, but no paired regression
 claim is made from a single run. Compiler/native interfaces are unchanged.
 Website impact: none; these package diagnostics remain unreleased alpha.15 work.
+
+### P04a archive diagnostic correction
+
+This slice preserves structured causes through tar/PAX parsing, gzip extraction,
+local cache verification and HTTPS streaming. Unsupported archive features,
+malformed data, path conflicts, limits and filesystem failures have distinct
+explanations. An extracted-tree mismatch no longer claims that the compressed
+archive bytes changed. Fifteen additional actual CLI transcripts are recorded
+in the diagnostic examples document, bringing the total to 34. The general
+validation catalogue remains before P04a acceptance; P04b/c remain planned.
+Programme weights and the 75% accepted P01–P03 subtotal are unchanged.
+
+Performance: valid archives retain the same streaming bounds, hashing and
+filesystem operations. The generic HTTP fold adds no network calls or buffering;
+error mapping occurs only on failure. Existing cold/warm tests provide timings,
+not a paired regression measurement. Compiler/native interfaces are unchanged.
+Website impact: none; this remains unreleased alpha.15 work.

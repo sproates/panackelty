@@ -85,6 +85,31 @@ cp "$work/original.tar.gz" "$work/library.tar.gz"
 expect ok deps restore --project "$manifest"
 expect 42 run --project "$manifest"
 cmp "$lock" "$work/good.lock"
+# Saved archive packages cannot contain symbolic links. Do not call this a checksum change.
+ln -s missing "$app/.panack_modules/demo.library/added-link"
+status=0
+"$panack" check --project "$manifest" > "$work/out" 2> "$work/err" || status=$?
+test "$status" = 1
+grep -F 'contains a symbolic link.' "$work/err" >/dev/null
+grep -F "Local path: $app/.panack_modules/demo.library/added-link" "$work/err" >/dev/null
+! grep -F 'That checksum does not match' "$work/err"
+expect ok deps restore --project "$manifest"
+test ! -L "$app/.panack_modules/demo.library/added-link"
+cmp "$lock" "$work/good.lock"
+# A package-tree mismatch must not falsely claim that compressed archive bytes changed.
+node - "$lock" <<'JS'
+const fs=require('fs'),file=process.argv[2],lock=JSON.parse(fs.readFileSync(file));lock.packages[0].tree_sha256='0'.repeat(64);fs.writeFileSync(file,JSON.stringify(lock));
+JS
+cp "$lock" "$work/wrong-tree.lock"
+status=0
+"$panack" deps restore --project "$manifest" > "$work/out" 2> "$work/err" || status=$?
+test "$status" = 1
+grep -F "The archive's checksum matched, but the extracted files failed the separate package checksum check." "$work/err" >/dev/null
+grep -F 'Expected package checksum: 00000000' "$work/err" >/dev/null
+cmp "$lock" "$work/wrong-tree.lock"
+cmp "$app/.panack_modules/.state/lock.json" "$work/good.state"
+cp "$work/good.lock" "$lock"
+expect 42 run --project "$manifest"
 node - "$manifest" <<'JS'
 const fs=require('fs'),file=process.argv[2],m=JSON.parse(fs.readFileSync(file));m.dependencies={outer:{path:'../outer'}};fs.writeFileSync(file,JSON.stringify(m));
 JS

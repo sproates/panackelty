@@ -1,13 +1,13 @@
 pub import project/src/packages/diagnostic::{PackageProblem}
-import project/src/packages/diagnostic::{package_problem, problem_label, checksum_problem}
+import project/src/packages/diagnostic::{package_problem, problem_label, checksum_problem, host_detail, package_result}
 pub import project/src/packages/tar_stream::{ArchiveEntry}
-import project/src/packages/tar_header::{tar_normalize_path}
+import project/src/packages/tar_header::{normalize_package_path}
 pub import project/src/packages/sha256::{Sha256}
 import project/src/packages/sha256::{ sha256_new, sha256_feed, sha256_finish, sha256_close}
 import stdlib/bytes as byte_buffer
 import stdlib/path as path
 import stdlib/filesystem as filesystem
-import stdlib/filesystem::{FileKind.Directory, FileKind.RegularFile}
+import stdlib/filesystem::{FileKind.Directory, FileKind.RegularFile, FileKind.SymbolicLink}
 import stdlib/bounded_filesystem as bounded_filesystem
 
 pure tree_entry_less(left: ArchiveEntry, right: ArchiveEntry): Bool { left.path < right.path }
@@ -24,20 +24,20 @@ pub pure tree_length(value: Nat): Bytes {
   result
 }
 
-pub tree_feed_file(state: Sha256, root: Str, entry: ArchiveEntry): Result[Sha256, Str] {
+pub tree_feed_file(state: Sha256, root: Str, entry: ArchiveEntry): Result[Sha256, PackageProblem] {
   match path.from_text(root + "/" + entry.path) {
-    Error(problem) => Error("invalid tree entry path"),
+    Error(problem) => Error(problem_label(package_problem("PKG_FILESYSTEM", "Cannot read the package file because its path cannot be represented on this system."), "File", root + "/" + entry.path)),
     Ok(file) => {
       mut hash: Sha256 = state
       mut offset: Nat = 0
       mut finished: Bool = false
-      mut failure: Option[Str] = None()
+      mut failure: Option[PackageProblem] = None()
       while !finished && failure == None() {
         match bounded_filesystem.read_chunk(file, offset, 65536) {
-          Error(problem) => { failure = Some("cannot read package file: " + entry.path) },
+          Error(problem) => { failure = Some(problem_label(package_problem("PKG_FILESYSTEM", "Cannot read the package file: " + host_detail(problem.code)), "File", root + "/" + entry.path)) },
           Ok(chunk) => {
             offset = offset + chunk.length()
-            if offset > entry.size { failure = Some("package file changed size while Panack was reading it: " + entry.path) }
+            if offset > entry.size { failure = Some(problem_label(package_problem("PKG_CHANGED", "Cannot verify the package because a file changed size while Panack was reading the file."), "File", root + "/" + entry.path)) }
             else { hash = sha256_feed(hash, chunk) }
             finished = chunk.length() == 0
           }
@@ -45,17 +45,17 @@ pub tree_feed_file(state: Sha256, root: Str, entry: ArchiveEntry): Result[Sha256
       }
       match failure {
         Some(problem) => Error(problem),
-        None() => if offset != entry.size { Error("package file changed size while Panack was reading it: " + entry.path) }
+        None() => if offset != entry.size { Error(problem_label(package_problem("PKG_CHANGED", "Cannot verify the package because a file changed size while Panack was reading the file."), "File", root + "/" + entry.path)) }
           else { Ok(hash) }
       }
     }
   }
 }
 
-pub tree_digest(root: Str, entries: [ArchiveEntry]): Result[Str, Str] {
+pub tree_digest(root: Str, entries: [ArchiveEntry]): Result[Str, PackageProblem] {
   mut hash: Sha256 = sha256_feed(sha256_new(), "PANACK-PACKAGE-TREE".encode_utf8().push(0))
   hash = sha256_feed(hash, "v1".encode_utf8().push(0))
-  mut failure: Option[Str] = None()
+  mut failure: Option[PackageProblem] = None()
   sorted = entries.sort_by(@tree_entry_less)
   for entry in sorted {
     if failure == None() {
@@ -74,43 +74,43 @@ pub tree_digest(root: Str, entries: [ArchiveEntry]): Result[Str, Str] {
   }
   match failure {
     Some(problem) => { sha256_close(hash); Error(problem) },
-    None() => sha256_finish(hash)
+    None() => package_result(sha256_finish(hash), "PKG_TOOL")
   }
 }
 
 record TreeInventory { entries: [ArchiveEntry], bytes: Nat }
 
-scan_tree(root: Str, relative: Str, inventory: TreeInventory): Result[TreeInventory, Str] {
+scan_tree(root: Str, relative: Str, inventory: TreeInventory): Result[TreeInventory, PackageProblem] {
   match path.from_text(root + "/" + relative) {
-    Error(problem) => Error("invalid cache directory"),
+    Error(problem) => Error(problem_label(package_problem("PKG_FILESYSTEM", "Cannot list the local package directory because its path cannot be represented on this system."), "Directory", root + "/" + relative)),
     Ok(directory) => match filesystem.list_directory(directory) {
-      Error(problem) => Error("cannot list cache directory"),
+      Error(problem) => Error(problem_label(package_problem("PKG_FILESYSTEM", "Cannot list the local package directory: " + host_detail(problem.code)), "Directory", root + "/" + relative)),
       Ok(children) => {
         mut current: TreeInventory = inventory
-        mut failure: Option[Str] = None()
+        mut failure: Option[PackageProblem] = None()
         for child in children {
           if failure == None() {
             match child.to_text() {
-              Error(problem) => { failure = Some("cache path is not UTF-8") },
+              Error(problem) => { failure = Some(package_problem("PKG_CACHE_INVALID", "Cannot use the local package because a filename is not valid UTF-8 text.")) },
               Ok(name) => {
                 joined: Str = if relative == "" { name } else { relative + "/" + name }
-                match tar_normalize_path(joined) {
-                  Error(problem) => { failure = Some(problem) },
-                  Ok(normalized) => if normalized != joined { failure = Some("saved package contains a path that cannot be used consistently on supported systems") }
+                match normalize_package_path(joined) {
+                  Error(problem) => { failure = Some(problem_label(package_problem("PKG_CACHE_INVALID", "Cannot use the local package because " + problem.message + "."), "Local path", root + "/" + joined)) },
+                  Ok(normalized) => if normalized != joined { failure = Some(problem_label(package_problem("PKG_CACHE_INVALID", "Cannot use the local package because a path contains redundant separators or dot components."), "Local path", root + "/" + joined)) }
                   else {
                     match path.from_text(root + "/" + joined) {
-                      Error(problem) => { failure = Some("invalid cache path") },
+                      Error(problem) => { failure = Some(problem_label(package_problem("PKG_FILESYSTEM", "Cannot inspect the local package entry because its path cannot be represented on this system."), "Local path", root + "/" + joined)) },
                       Ok(file) => match filesystem.metadata(file) {
-                        Error(problem) => { failure = Some("cannot inspect cache entry") },
+                        Error(problem) => { failure = Some(problem_label(package_problem("PKG_FILESYSTEM", "Cannot inspect the local package entry: " + host_detail(problem.code)), "Local path", root + "/" + joined)) },
                         Ok(metadata) => {
                           is_directory: Bool = metadata.kind == Directory()
                           if !is_directory && metadata.kind != RegularFile() {
-                            failure = Some("cache contains a symlink or special file")
+                            failure = Some(problem_label(package_problem("PKG_CACHE_INVALID", if metadata.kind == SymbolicLink() { "Cannot use the local archive package because the package directory contains a symbolic link." } else { "Cannot use the local archive package because the package directory contains a special file." }), "Local path", root + "/" + joined))
                           } else if current.entries.len() >= 16384 {
-                            failure = Some("cache exceeds 16384 entries")
+                            failure = Some(package_problem("PKG_CACHE_INVALID", "Cannot use the local package because its files and directories exceed Panack's limit of 16,384 entries."))
                           } else {
                             total: Nat = current.bytes + if is_directory { 0 } else { metadata.size }
-                            if total > 268435456 { failure = Some("saved package exceeds the 256 MiB uncompressed size limit") }
+                            if total > 268435456 { failure = Some(package_problem("PKG_CACHE_INVALID", "Cannot use the local package because its file contents exceed Panack's 256 MiB limit.")) }
                             else {
                               current = TreeInventory(current.entries.append(
                                 ArchiveEntry(joined, if is_directory { 0 } else { metadata.size }, is_directory, true)), total)
@@ -137,15 +137,11 @@ scan_tree(root: Str, relative: Str, inventory: TreeInventory): Result[TreeInvent
   }
 }
 
-pub verify_tree_digest(root: Str, expected: Str): Result[Unit, Str] {
-  match verify_tree_problem(root, expected) { Error(problem) => Error(problem.message), Ok(done) => Ok(done) }
-}
-
 pub verify_tree_problem(root: Str, expected: Str): Result[Unit, PackageProblem] {
   match scan_tree(root, "", TreeInventory([], 0)) {
-    Error(problem) => Error(problem_label(package_problem("PKG_CACHE_INVALID", problem), "Local package directory", root)),
+    Error(problem) => Error(problem_label(problem, "Local package directory", root)),
     Ok(inventory) => match tree_digest(root, inventory.entries) {
-      Error(problem) => Error(problem_label(package_problem("PKG_CACHE_INVALID", problem), "Local package directory", root)),
+      Error(problem) => Error(problem_label(problem, "Local package directory", root)),
       Ok(actual) => if actual == expected { Ok(()) }
         else { Error(checksum_problem(root)) }
     }

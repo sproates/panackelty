@@ -1,4 +1,6 @@
-import project/src/packages/diagnostic::{host_detail}
+pub import project/src/packages/diagnostic::{PackageProblem}
+import project/src/packages/diagnostic::{host_detail, package_problem, package_result, problem_label, explain_problem}
+import project/src/packages/tar_header::{archive_problem}
 pub import project/src/packages/tar_stream::{ArchiveEntry, TarStream}
 import project/src/packages/tar_stream::{tar_stream_new, tar_stream_feed, tar_stream_finish}
 import project/src/packages/sha256::{Sha256, sha256_new, sha256_feed, sha256_finish, sha256_close}
@@ -27,11 +29,11 @@ pub consume_compressed(
   state: TarStream,
   input: Bytes,
   final: Bool
-): Result[TarStream, Str] {
+): Result[TarStream, PackageProblem] {
   mut current: TarStream = state
   mut offset: Nat = 0
   mut complete: Bool = false
-  mut failure: Option[Str] = None()
+  mut failure: Option[PackageProblem] = None()
   // Empty input with final=true proves that a complete gzip trailer was seen.
   while !complete && failure == None() {
     match gzip.step(decoder, byte_buffer.slice(input, offset, input.length()), final) {
@@ -44,7 +46,7 @@ pub consume_compressed(
         }
         complete = chunk.finished || (!final && offset == input.length() && chunk.data.length() < 65536)
         if !complete && chunk.consumed == 0 && chunk.data.length() == 0 {
-          failure = Some("gzip decompression stopped without producing data or reaching the end of the archive")
+          failure = Some(package_problem("PKG_TOOL", "Cannot unpack the archive because Panack's gzip decoder stopped without producing data or reaching the end of the archive."))
         }
       }
     }
@@ -52,18 +54,18 @@ pub consume_compressed(
   match failure { Some(problem) => Error(problem), None() => Ok(current) }
 }
 
-read_archive_stream(stage: Nat, decoder: Nat, source: Path): Result[ArchiveDecoder, Str] {
+read_archive_stream(stage: Nat, decoder: Nat, source: Path): Result[ArchiveDecoder, PackageProblem] {
   mut state: TarStream = tar_stream_new()
   mut hash: Sha256 = sha256_new()
   mut offset: Nat = 0
   mut finished: Bool = false
-  mut failure: Option[Str] = None()
+  mut failure: Option[PackageProblem] = None()
   while !finished && failure == None() {
     match bounded_filesystem.read_chunk(source, offset, 65536) {
-      Error(problem) => { failure = Some("cannot read archive: " + host_detail(problem.code)) },
+      Error(problem) => { failure = Some(package_problem("PKG_FILESYSTEM", "Cannot read the source archive: " + host_detail(problem.code))) },
       Ok(input) => {
         offset = offset + input.length()
-        if offset > 67108864 { failure = Some("archive exceeds 64 MiB compressed input") }
+        if offset > 67108864 { failure = Some(archive_problem("PKG_ARCHIVE_COMPRESSED_LIMIT", "the source archive exceeds Panack's 64 MiB compressed-size limit")) }
         else {
           hash = sha256_feed(hash, input)
           finished = input.length() == 0
@@ -82,26 +84,26 @@ read_archive_stream(stage: Nat, decoder: Nat, source: Path): Result[ArchiveDecod
   }
 }
 
-extract_archive(stage: Nat, source: Path): Result[StagedArchive, Str] {
+extract_archive(stage: Nat, source: Path): Result[StagedArchive, PackageProblem] {
   match gzip.open(268435456) {
-    Error(problem) => Error("cannot open gzip decoder: " + host_detail(problem.code)),
+    Error(problem) => Error(gzip_failure(problem.code)),
     Ok(decoder) => {
       read = read_archive_stream(stage, decoder, source)
       closed = gzip.close(decoder)
       match read {
         Error(problem) => Error(problem),
         Ok(state) => {
-          hash = sha256_finish(state.digest)
+          hash = package_result(sha256_finish(state.digest), "PKG_TOOL")
           match hash {
             Error(problem) => Error(problem),
             Ok(hash_text) => match closed {
-          Error(problem) => Error("gzip cleanup failed: " + host_detail(problem.code)),
+          Error(problem) => Error(package_problem("PKG_TOOL", "Cannot close Panack's gzip decoder: " + host_detail(problem.code))),
           Ok(unit) => match tar_stream_finish(state.tar) {
             Error(problem) => Error(problem),
             Ok(entries) => match staging.path(stage) {
-              Error(problem) => Error("cannot locate the temporary package directory: " + host_detail(problem.code)),
+              Error(problem) => Error(package_problem("PKG_FILESYSTEM", "Cannot locate the temporary package directory: " + host_detail(problem.code))),
               Ok(root) => match root.to_text() {
-                Error(problem) => Error("temporary package directory name is not valid UTF-8 text"),
+                Error(problem) => Error(package_problem("PKG_FILESYSTEM", "Cannot use the temporary package directory because its path is not valid UTF-8 text.")),
                 Ok(text) => Ok(StagedArchive(stage, text, hash_text, entries))
               }
             }
@@ -114,13 +116,13 @@ extract_archive(stage: Nat, source: Path): Result[StagedArchive, Str] {
   }
 }
 
-pub stage_archive(parent: Str, archive: Str): Result[StagedArchive, Str] {
+pub stage_archive(parent: Str, archive: Str): Result[StagedArchive, PackageProblem] {
   match path.from_text(parent) {
-    Error(problem) => Error("cannot use the parent path for the temporary archive directory"),
+    Error(problem) => Error(package_problem("PKG_FILESYSTEM", "Cannot use the parent path for the temporary archive directory.")),
     Ok(parent_path) => match path.from_text(archive) {
-      Error(problem) => Error("archive file path cannot be represented on this system"),
+      Error(problem) => Error(package_problem("PKG_FILESYSTEM", "Cannot read the source archive because its path cannot be represented on this system.")),
       Ok(source) => match staging.begin(parent_path) {
-        Error(problem) => Error("cannot create a temporary directory to unpack the archive: " + host_detail(problem.code)),
+        Error(problem) => Error(package_problem("PKG_FILESYSTEM", "Cannot create a temporary directory to unpack the archive: " + host_detail(problem.code))),
         Ok(stage) => {
           result = extract_archive(stage, source)
           match result {
@@ -136,17 +138,18 @@ pub stage_archive(parent: Str, archive: Str): Result[StagedArchive, Str] {
   }
 }
 
-pub discard_archive(archive: StagedArchive): Result[Unit, Str] {
+pub discard_archive(archive: StagedArchive): Result[Unit, PackageProblem] {
   match staging.close(archive.handle) {
-    Error(problem) => Error("cannot remove the temporary package directory: " + host_detail(problem.code)),
+    Error(problem) => Error(package_problem("PKG_FILESYSTEM", "Cannot remove the temporary package directory: " + host_detail(problem.code))),
     Ok(unit) => Ok(())
   }
 }
 
-pure gzip_failure(code: Str): Str {
-  if code == "output_limit" { "gzip expanded content exceeds 256 MiB (output_limit)" }
-  else if code == "truncated_gzip" { "gzip archive ended before its compressed contents were complete (truncated_gzip)" }
-  else if code == "invalid_gzip" { "archive is not valid gzip data (invalid_gzip)" }
-  else if code == "decoder_unavailable" || code == "unsupported" { "this Panack installation could not start gzip decompression; check that zlib is installed (" + code + ")" }
-  else { "gzip decompression failed inside Panack (" + code + "); retry the command and report this error if it persists" }
+pub pure gzip_failure(code: Str): PackageProblem {
+  if code == "output_limit" { archive_problem("PKG_ARCHIVE_EXPANDED_LIMIT", "the expanded archive data exceeds Panack's 256 MiB limit") }
+  else if code == "truncated_gzip" { archive_problem("PKG_ARCHIVE_INCOMPLETE", "the gzip archive ended before its compressed contents were complete") }
+  else if code == "invalid_gzip" { archive_problem("PKG_ARCHIVE_INVALID", "the file is not valid gzip data") }
+  else if code == "decoder_unavailable" || code == "unsupported" {
+    explain_problem(package_problem("PKG_TOOL", "Cannot unpack the archive because this Panack installation has no usable gzip decoder."), "", "Check that Panack's required zlib library is installed and available in this environment, then retry your command.")
+  } else { problem_label(package_problem("PKG_TOOL", "Cannot unpack the archive because Panack's gzip decoder failed."), "Decoder error", code) }
 }

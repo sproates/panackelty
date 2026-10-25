@@ -14,8 +14,8 @@ main(): Void {
   arguments = host.arguments()
   match stage_archive(arguments[0], arguments[1]) {
     Error(problem) => {
-      if !contains(problem, arguments[2]) {
-        print("unexpected archive error: " + problem)
+      if !contains(problem.message, arguments[2]) {
+        print("unexpected archive error: " + problem.message)
         host.exit(1)
       }
     },

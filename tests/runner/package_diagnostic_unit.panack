@@ -20,8 +20,8 @@ pure failure_reason(result: Result[Unit, PackageProblem]): Str {
 pure failure_message(result: Result[Unit, PackageProblem]): Str {
   match result { Error(problem) => problem.message, Ok(unit) => "unexpected success" }
 }
-pure text_failure[T](result: Result[T, Str]): Str {
-  match result { Error(problem) => problem, Ok(value) => "unexpected success" }
+pure text_failure[T](result: Result[T, PackageProblem]): Str {
+  match result { Error(problem) => problem.message, Ok(value) => "unexpected success" }
 }
 pure parsed_problem(text: Str): PackageProblem {
   match parse_package_manifest(text.encode_utf8(), "1.0.0") {
@@ -85,13 +85,13 @@ main(): Void {
     testing.equal_str("timeout describes elapsed wait", http_problem(Timeout()).reason,
       "Panack did not receive the complete archive within the time limit. Panack has stopped the download."),
     testing.equal_str("absolute archive path has a specific cause", text_failure(tar_normalize_path("/file")),
-      "archive contains an absolute path; file paths must be relative to the package directory"),
+      "Cannot unpack the archive because the path is absolute."),
     testing.equal_str("parent archive path has a specific cause", text_failure(tar_normalize_path("../file")),
-      "archive path contains a parent-directory component (..); package files must stay inside the archive directory"),
+      "Cannot unpack the archive because the path contains a parent-directory component ('..')."),
     testing.equal_str("archive number syntax is distinct from its bound", text_failure(tar_number("x".encode_utf8(), 0, 1, 10)),
-      "archive contains a number with invalid digits or spacing"),
+      "Cannot unpack the archive because an archive number contains invalid digits or spacing."),
     testing.equal_str("archive number bound is explicit", text_failure(tar_number("999999999".encode_utf8(), 0, 9, 10)),
-      "archive numeric value exceeds the supported maximum of 268435456")
+      "Cannot unpack the archive because a numeric archive field exceeds Panack's supported maximum of 268435456.")
   ]
   if testing.report(results) > 0 { host.exit(1) }
 }

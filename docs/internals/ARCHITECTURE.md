@@ -158,6 +158,10 @@ and OpenSSL EVP digests. Panack modules under `src/packages` own archive
 validation, graph acquisition, lock policy, Unicode collision checks and cache
 verification. HTTPS acquisition uses `packages/http/src/stream.panack` for
 response framing and bounded body folds into the existing gzip/tar pipeline.
+The generic `fold_body_with_errors` preserves the consumer's error type and maps
+HTTP errors separately. Archive extraction failures therefore stop streaming
+with their structured package cause, without being encoded as protocol errors.
+The original `fold_body` interface delegates to the same implementation.
 The package tool owns redirect policy, pin verification and offline decisions.
 Its build depends on the HTTP package sources; compiler sources do not depend
 on this acquisition path. Directory handles and no-follow operations keep writes beneath a

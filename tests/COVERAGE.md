@@ -1473,7 +1473,7 @@ compare the complete cache tree plus exact lock/state bytes. See the
 [remote-source acceptance matrix](../docs/design/PACKAGE_REMOTE_ACCEPTANCE.md).
 
 P04a and its diagnostic follow-up provide 33 diagnostic unit assertions and public-command transcript/recovery
-acceptance in `tests/package_diagnostics.sh`. Nineteen exact
+acceptance in `tests/package_diagnostics.sh`. Thirty-four exact
 transcripts are checked against the examples document. Tests execute suggested
 commands with apostrophes/spaces in the project path, verify complete program
 output and preserve pins after cache repair or rejected content. Existing remote
@@ -1500,3 +1500,14 @@ an absolute symbolic link and the 40-link bound. Controlled Git executables test
 otherwise difficult process failures; real HTTPS repositories test repository
 contents, cache recovery and pin preservation. Raw stderr is excluded, failures
 leave no lockfile or abandoned stage, and ordinary builds still invoke no Git.
+
+The archive diagnostic correction adds 22 archive/stream unit assertions and
+15 exact public CLI transcripts for malformed gzip/tar/PAX data, unsupported
+entries and metadata, invalid paths, conflicts, numeric bounds and absent root
+manifests. Each public rejection checks source context and staging cleanup.
+Typed HTTP callback failures are tested for sized, chunked and close-delimited
+bodies; HTTP framing failures are mapped separately. The real TLS archive suite
+checks that invalid gzip remains an archive error. Existing streamed compressed,
+expanded, entry and header bounds remain exercised. Restore tests distinguish
+matching archive bytes from a mismatched extracted-tree checksum and preserve
+the previous lock, state and usable package.

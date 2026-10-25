@@ -302,6 +302,8 @@ claimed complete. Historical timing budgets remain subject to GI#106 reassessmen
 
 ### P04a lock and publication diagnostic correction
 
+Delivery and final validation results: [PR#592](https://github.com/sproates/panackelty/pull/592).
+
 This intermediate slice explains invalid lock records, including source kinds,
 checksum formats, missing/duplicate packages and conflicting versions. Changed
 project and dependency manifests are identified separately, with the affected

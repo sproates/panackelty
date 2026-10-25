@@ -64,6 +64,24 @@ grep -F 'The lockfile records the exact dependencies' "$work/err" >/dev/null
 recover
 cp "$lock" "$work/good.lock"
 cp "$app/.panack_modules/.state/lock.json" "$work/good.state"
+mv "$app/.panack_modules/demo.library" "$work/publication-backup"
+ln -s "$work/publication-backup" "$app/.panack_modules/demo.library"
+reject package-publication-conflict PKG_PUBLICATION deps restore --project "$manifest"
+cmp "$lock" "$work/good.lock"
+cmp "$app/.panack_modules/.state/lock.json" "$work/good.state"
+cmp "$work/publication-backup/src/api.panack" "$work/library/src/api.panack"
+test -L "$app/.panack_modules/demo.library"
+rm "$app/.panack_modules/demo.library"
+recover
+rm "$app/.panack_modules/.state/lock.json"
+mkdir "$app/.panack_modules/.state/lock.json"
+reject state-publication-conflict PKG_PUBLICATION deps restore --project "$manifest"
+cmp "$lock" "$work/good.lock"
+cmp "$app/.panack_modules/demo.library/src/api.panack" "$work/library/src/api.panack"
+test -d "$app/.panack_modules/.state/lock.json"
+rmdir "$app/.panack_modules/.state/lock.json"
+recover
+cmp "$app/.panack_modules/.state/lock.json" "$work/good.state"
 mv "$app/.panack_modules/demo.library" "$work/cache"
 reject missing-cache PKG_CACHE_MISSING run --project "$manifest"
 grep -F "dependency 'lib' (package 'demo.library')" "$work/err" >/dev/null
@@ -143,3 +161,5 @@ grep -F 'obtain a valid copy' "$work/err" >/dev/null
 printf '%s\n' 'PASS package explanations, transitive context, exact-pin recovery and commands with quoted paths'
 
 sh tests/package_validation_diagnostics.sh
+
+sh tests/package_lock_diagnostics.sh

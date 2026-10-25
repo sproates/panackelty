@@ -16,7 +16,7 @@ introduced.
 
 Build with `make package-tool`, then run `sh tests/package_diagnostics.sh`,
 `sh tests/package_https.sh`, `sh tests/package_git.sh` and
-`sh tests/package_archive_diagnostics.sh` and `sh tests/package_validation_diagnostics.sh`. The Git suite includes
+`sh tests/package_archive_diagnostics.sh` and `sh tests/package_validation_diagnostics.sh` and `sh tests/package_lock_diagnostics.sh`. The Git suite includes
 controlled executable tests in `tests/package_git_diagnostics.sh`. The remote tests use
 private local TLS peers, not external services. Optional
 `PANACK_DIAGNOSTICS_RECORD=/absolute/output/directory` captures the observed
@@ -929,9 +929,8 @@ panack: error[PKG_LOCK_INVALID]: Cannot use panack.lock.json because its depende
 
   Project: <workspace>/app/panack.json
   Lockfile: <workspace>/app/panack.lock.json
-  Location: line 1, column 1
 
-missing required lock field lock_schema
+The lockfile is missing the required 'lock_schema' field.
 
 If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.
 
@@ -1086,9 +1085,362 @@ Command: `panack deps lock --project "<workspace>/app/panack.json"`.
 panack: error[PKG_PUBLICATION]: Cannot save panack.lock.json: the filesystem operation failed; no more specific cause was reported (filesystem_error).
 
   Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
   Destination file: <workspace>/app/panack.lock.json
 
 Panack stopped before publishing the prepared packages.
 
 Correct the reported filesystem problem at the destination path, then retry your command. Check access using the account running Panack.
+```
+
+## Unsupported lockfile schema
+
+Command: `panack deps restore --project "<workspace>/app/panack.json"`.
+
+The lockfile declares schema 2; this tool supports schema 1. The test verifies the rejected lockfile remains byte-for-byte unchanged.
+
+```text
+panack: error[PKG_LOCK_INVALID]: Cannot use panack.lock.json because its dependency records are invalid.
+
+  Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
+
+The 'lock_schema' field must be the integer 1. This Panack version supports lockfile schema 1.
+
+If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.
+
+Creating a new lockfile may select different dependencies.
+```
+
+## Invalid manifest checksum in a lockfile
+
+Command: `panack deps restore --project "<workspace>/app/panack.json"`.
+
+The recorded manifest checksum contains three characters instead of a SHA-256 checksum. The test verifies the rejected lockfile remains byte-for-byte unchanged.
+
+```text
+panack: error[PKG_LOCK_INVALID]: Cannot use panack.lock.json because its dependency records are invalid.
+
+  Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
+
+The 'manifest_sha256' field must contain a SHA-256 checksum written as 64 lowercase hexadecimal characters.
+
+If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.
+
+Creating a new lockfile may select different dependencies.
+```
+
+## Duplicate package record
+
+Command: `panack deps restore --project "<workspace>/app/panack.json"`.
+
+The same package name and version appears twice. The test verifies the rejected lockfile remains byte-for-byte unchanged.
+
+```text
+panack: error[PKG_LOCK_INVALID]: Cannot use panack.lock.json because its dependency records are invalid.
+
+  Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
+
+The lockfile contains more than one record for package 'demo.library@1.0.0'.
+
+If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.
+
+Creating a new lockfile may select different dependencies.
+```
+
+## Multiple versions of one package
+
+Command: `panack deps restore --project "<workspace>/app/panack.json"`.
+
+Two records declare the same package name at different versions. The test verifies the rejected lockfile remains byte-for-byte unchanged.
+
+```text
+panack: error[PKG_LOCK_INVALID]: Cannot use panack.lock.json because its dependency records are invalid.
+
+  Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
+
+The lockfile records multiple versions of package 'demo.library'. Panack requires one version of each package name.
+
+If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.
+
+Creating a new lockfile may select different dependencies.
+```
+
+## Unreachable package record
+
+Command: `panack deps restore --project "<workspace>/app/panack.json"`.
+
+The package record is present, but the project no longer references that package. The test verifies the rejected lockfile remains byte-for-byte unchanged.
+
+```text
+panack: error[PKG_LOCK_INVALID]: Cannot use panack.lock.json because its dependency records are invalid.
+
+  Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
+
+The lockfile contains a record for package 'demo.library@1.0.0', but no dependency chain from the project reaches that package.
+
+If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.
+
+Creating a new lockfile may select different dependencies.
+```
+
+## Missing package record
+
+Command: `panack deps restore --project "<workspace>/app/panack.json"`.
+
+A dependency points to a package that has no record in the lockfile. The test verifies the rejected lockfile remains byte-for-byte unchanged.
+
+```text
+panack: error[PKG_LOCK_INVALID]: Cannot use panack.lock.json because its dependency records are invalid.
+
+  Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
+
+A dependency refers to package 'demo.library@1.0.0', but the lockfile has no record for that package.
+
+If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.
+
+Creating a new lockfile may select different dependencies.
+```
+
+## Checksum on a live directory package
+
+Command: `panack deps restore --project "<workspace>/app/panack.json"`.
+
+The lockfile incorrectly pins a package-content checksum for a live local directory. The test verifies the rejected lockfile remains byte-for-byte unchanged.
+
+```text
+panack: error[PKG_LOCK_INVALID]: Cannot use panack.lock.json because its dependency records are invalid.
+
+  Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
+
+Package 'demo.library@1.0.0' is a live local directory, but its lockfile record contains 'tree_sha256'. Live directory contents are not pinned to a package checksum.
+
+If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.
+
+Creating a new lockfile may select different dependencies.
+```
+
+## Missing package-content checksum
+
+Command: `panack deps restore --project "<workspace>/app/panack.json"`.
+
+An archive dependency has no checksum for its extracted package files. The test verifies the rejected lockfile remains byte-for-byte unchanged.
+
+```text
+panack: error[PKG_LOCK_INVALID]: Cannot use panack.lock.json because its dependency records are invalid.
+
+  Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
+
+Package 'demo.library@1.0.0' is missing 'tree_sha256', the checksum used to verify the package files obtained from its archive or Git repository.
+
+If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.
+
+Creating a new lockfile may select different dependencies.
+```
+
+## Unsupported dependency source in a lockfile
+
+Command: `panack deps restore --project "<workspace>/app/panack.json"`.
+
+The source kind is set to 'registry', which this package model does not support. The test verifies the rejected lockfile remains byte-for-byte unchanged.
+
+```text
+panack: error[PKG_LOCK_INVALID]: Cannot use panack.lock.json because its dependency records are invalid.
+
+  Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
+  Location: line 1, column 248
+
+A dependency source has an unsupported 'kind'. Expected 'path', 'archive' or 'git'.
+
+If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.
+
+Creating a new lockfile may select different dependencies.
+```
+
+## Two locations for one archive source
+
+Command: `panack deps restore --project "<workspace>/app/panack.json"`.
+
+The archive source contains both a local path and an HTTPS URL. The test verifies the rejected lockfile remains byte-for-byte unchanged.
+
+```text
+panack: error[PKG_LOCK_INVALID]: Cannot use panack.lock.json because its dependency records are invalid.
+
+  Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
+  Location: line 1, column 281
+
+An archive source specifies both 'path' and 'url'. Exactly one archive location is allowed.
+
+If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.
+
+Creating a new lockfile may select different dependencies.
+```
+
+## Incomplete Git commit in a lockfile
+
+Command: `panack deps restore --project "<workspace>/app/panack.json"`.
+
+The Git source records an abbreviated commit ID instead of a complete ID. The test verifies the rejected lockfile remains byte-for-byte unchanged.
+
+```text
+panack: error[PKG_LOCK_INVALID]: Cannot use panack.lock.json because its dependency records are invalid.
+
+  Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
+  Location: line 1, column 281
+
+A Git source's 'commit' must contain the complete commit ID: 40 lowercase hexadecimal characters for sha1, or 64 for sha256.
+
+If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.
+
+Creating a new lockfile may select different dependencies.
+```
+
+## Project manifest changed after locking
+
+Command: `panack check --project "<workspace>/app/panack.json"`.
+
+Whitespace is appended to the project manifest. The test verifies rejection preserves the lock, then explicitly updates and successfully checks the project.
+
+```text
+panack: error[PKG_LOCK_STALE]: Cannot use the lockfile because the project manifest has changed since the lockfile was created.
+
+  Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
+
+The package definitions no longer match the lockfile. Panack checks the complete manifest files, so formatting changes also require the lockfile to be updated.
+
+If the change was unintended, restore the previous package definition. Otherwise, review the change before running panack deps update. Updating the lockfile may select different package versions or contents.
+```
+
+## Dependency manifest changed after locking
+
+Command: `panack check --project "<workspace>/app/panack.json"`.
+
+Whitespace is appended to the local library manifest. The test preserves the old lock until an explicit selected update, then successfully checks the project.
+
+```text
+panack: error[PKG_LOCK_STALE]: Cannot use the lockfile because a dependency manifest has changed since the lockfile was created.
+
+  Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
+  Manifest: <workspace>/library/panack.json
+  Package: demo.library@1.0.0
+
+The package definitions no longer match the lockfile. Panack checks the complete manifest files, so formatting changes also require the lockfile to be updated.
+
+If the change was unintended, restore the previous package definition. Otherwise, review the change before running panack deps update. Updating the lockfile may select different package versions or contents.
+```
+
+## Conflicting package destination
+
+Command: `panack deps restore --project "<workspace>/Ian's app/panack.json"`.
+
+A symbolic link occupies the package destination. Panack preserves the link, its target, the lockfile and the previous state record. The test removes the link, executes the suggested restore command and runs the program successfully.
+
+```text
+panack: error[PKG_PUBLICATION]: Cannot save the prepared package directory: the destination is not a replaceable package directory (destination_conflict).
+
+  Project: <workspace>/Ian's app/panack.json
+  Lockfile: <workspace>/Ian's app/panack.lock.json
+  Package: demo.library@1.0.0
+  Destination directory: <workspace>/Ian's app/.panack_modules/demo.library
+
+Panack stopped while saving prepared packages. The lockfile may already have been saved, and other package directories may already have been replaced.
+
+Preserve any contents you need before moving the conflicting destination elsewhere. Then prepare the packages recorded in the lockfile by running:
+
+  panack deps restore --project '<workspace>/Ian'"'"'s app/panack.json'
+
+Running this command will prepare the local packages without changing the lockfile. An internet connection is needed if remote packages must be downloaded.
+```
+
+## Conflicting package state destination
+
+Command: `panack deps restore --project "<workspace>/Ian's app/panack.json"`.
+
+A directory occupies the state-record file path. Package directories have been saved, but the state record cannot be written. The test preserves the lockfile, removes the empty conflicting directory, executes the suggested restore command and runs the program successfully.
+
+```text
+panack: error[PKG_PUBLICATION]: Cannot save the package state record because the destination is not a regular file.
+
+  Project: <workspace>/Ian's app/panack.json
+  Lockfile: <workspace>/Ian's app/panack.lock.json
+  Destination file: <workspace>/Ian's app/.panack_modules/.state/lock.json
+
+Panack saved the package directories, but could not save the state record used to verify those directories against the lockfile.
+
+Preserve any contents you need before moving the conflicting destination elsewhere. Then prepare the packages recorded in the lockfile by running:
+
+  panack deps restore --project '<workspace>/Ian'"'"'s app/panack.json'
+
+Running this command will prepare the local packages without changing the lockfile. An internet connection is needed if remote packages must be downloaded.
+```
+
+## Unsupported lockfile field
+
+Command: `panack deps restore --project "<workspace>/app/panack.json"`.
+
+An extra field named 'unexpected' is present in the lockfile. The test verifies rejection preserves the supplied lockfile.
+
+```text
+panack: error[PKG_LOCK_INVALID]: Cannot use panack.lock.json because its dependency records are invalid.
+
+  Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
+  Location: line 1, column 436
+
+The lockfile record contains an unsupported field: 'unexpected'.
+
+If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.
+
+Creating a new lockfile may select different dependencies.
+```
+
+## Wrong JSON type in a lockfile
+
+Command: `panack deps restore --project "<workspace>/app/panack.json"`.
+
+The project's name is a number instead of a string. The test verifies rejection preserves the supplied lockfile.
+
+```text
+panack: error[PKG_LOCK_INVALID]: Cannot use panack.lock.json because its dependency records are invalid.
+
+  Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
+  Location: line 1, column 370
+
+The lockfile field 'name' must be a JSON string.
+
+If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.
+
+Creating a new lockfile may select different dependencies.
+```
+
+## Wrong JSON type for a lockfile record
+
+Command: `panack deps restore --project "<workspace>/app/panack.json"`.
+
+The project's record is an array instead of an object. The test verifies rejection preserves the supplied lockfile.
+
+```text
+panack: error[PKG_LOCK_INVALID]: Cannot use panack.lock.json because its dependency records are invalid.
+
+  Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
+
+A lockfile record must be a JSON object.
+
+If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.
+
+Creating a new lockfile may select different dependencies.
 ```

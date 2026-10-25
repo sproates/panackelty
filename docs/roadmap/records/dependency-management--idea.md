@@ -299,3 +299,32 @@ checks passed all 50 diagnostic assertions and 61 CLI assertions. The package-to
 mutation test proves that a diagnostic edit rebuilds no compiler or seed artifact.
 The examples and final diff were reviewed; the remaining P04a catalogue is not
 claimed complete. Historical timing budgets remain subject to GI#106 reassessment.
+
+### P04a lock and publication diagnostic correction
+
+Delivery and final validation results: [PR#592](https://github.com/sproates/panackelty/pull/592).
+
+This intermediate slice explains invalid lock records, including source kinds,
+checksum formats, missing/duplicate packages and conflicting versions. Changed
+project and dependency manifests are identified separately, with the affected
+dependency manifest path. Concurrent edits are classified as changing files,
+not as malformed lockfiles. Lock validation uses package-tool wording without
+changing the compiler's shared JSON parser.
+
+Publication errors name the destination and distinguish a failed package save
+from a failed state-record save after package directories were prepared. Recovery
+uses an explicit restore command with the full project path. Tests preserve
+conflicting destinations and existing locks, then execute recovery and run the
+program. Eighteen additional exact transcripts bring the catalogue to 75; focused
+evidence includes 27 lock-parser and 57 diagnostic unit assertions.
+
+The remaining redirect/HTTP response variants still need acceptance before
+closing P04a. P04b/c remain planned; programme weights and the 75% accepted
+P01–P03 subtotal are unchanged. GI#569 and GI#200 remain open.
+
+Performance: successful acquisition and publication retain the same filesystem
+operations. A failed state-record write adds one metadata inspection to identify
+a conflicting file kind. Error explanations and manifest-path context are built
+on failure; lock validation retains its existing bounds. Compiler/native
+interfaces are unchanged. No paired timing improvement is claimed. Website
+impact: none, because this remains unreleased alpha.15 work.

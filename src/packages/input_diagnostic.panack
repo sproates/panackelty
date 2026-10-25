@@ -38,6 +38,7 @@ pure valid_input_problem(filename: Str, data: Bytes, error: PackageManifestError
   code = if lock { "PKG_LOCK_INVALID" } else { "PKG_MANIFEST_INVALID" }
   mut message = "Cannot use " + filename + if lock { " because its dependency records are invalid." } else { " because its package settings are invalid." }
   mut detail = error.message
+  mut syntax_error = false
   mut help = if lock {
     "If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.\n\nCreating a new lockfile may select different dependencies."
   } else {
@@ -46,6 +47,7 @@ pure valid_input_problem(filename: Str, data: Bytes, error: PackageManifestError
   match parse_bounded_json(data, if lock { 1048576 } else { 65536 }) {
     Ok(value) => {},
     Error(syntax) => {
+      syntax_error = true
       message = "Cannot understand " + filename + " because it contains invalid JSON."
       if syntax.message == "manifest JSON nesting exceeds 32 levels" {
         message = "Cannot process " + filename + " because its JSON exceeds Panack's 32-level nesting limit."
@@ -67,5 +69,9 @@ pure valid_input_problem(filename: Str, data: Bytes, error: PackageManifestError
       else if byte < 128 || byte >= 192 { column = column + 1 }
     }
   }
-  problem_label(explain_problem(package_problem(code, message), diagnostic_text(detail), help), "Location", "line ${line}, column ${column}")
+  problem = explain_problem(package_problem(code, message), diagnostic_text(detail), help)
+  // Semantic lock checks often have no source offset. Do not claim that the
+  // offending record is at the first character of the file.
+  if lock && !syntax_error && error.offset == 0 { problem }
+  else { problem_label(problem, "Location", "line ${line}, column ${column}") }
 }

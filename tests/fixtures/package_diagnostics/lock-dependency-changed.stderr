@@ -1,0 +1,10 @@
+panack: error[PKG_LOCK_STALE]: Cannot use the lockfile because a dependency manifest has changed since the lockfile was created.
+
+  Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
+  Manifest: <workspace>/library/panack.json
+  Package: demo.library@1.0.0
+
+The package definitions no longer match the lockfile. Panack checks the complete manifest files, so formatting changes also require the lockfile to be updated.
+
+If the change was unintended, restore the previous package definition. Otherwise, review the change before running panack deps update. Updating the lockfile may select different package versions or contents.

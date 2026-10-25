@@ -1,6 +1,7 @@
 panack: error[PKG_PUBLICATION]: Cannot save panack.lock.json: the filesystem operation failed; no more specific cause was reported (filesystem_error).
 
   Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
   Destination file: <workspace>/app/panack.lock.json
 
 Panack stopped before publishing the prepared packages.

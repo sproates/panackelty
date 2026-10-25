@@ -64,7 +64,7 @@ finish_dependencies(operation: Str, project: ManifestProject, existing: Option[P
           None() => if operation == "lock" { write = true }
             else { failure = Some(package_problem("PKG_LOCK_MISSING", "missing lockfile")) },
           Some(lock) => if !locks_match(lock, current) {
-            failure = Some(lock_mismatch(lock, current, project.archives))
+            failure = Some(lock_mismatch(lock, current, project))
           }
         }
       }
@@ -84,7 +84,7 @@ finish_dependencies(operation: Str, project: ManifestProject, existing: Option[P
         }
       }
       if failure == None() && (operation != "lock" || existing == None()) {
-        match publish_git(project.gits) {
+        match publish_git(project.package_root, project.gits) {
           Error(problem) => { failure = Some(problem) },
           Ok(completed_3) => {}
         }

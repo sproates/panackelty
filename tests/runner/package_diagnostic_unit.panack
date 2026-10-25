@@ -1,7 +1,7 @@
 import project/src/packages/command_diagnostic::{validate_package_command}
 import project/src/packages/input_diagnostic::{input_problem, encoding_problem, input_read_problem}
 import project/src/packages/manifest::{parse_package_manifest}
-import project/src/packages/diagnostic::{checksum_problem, problem_value}
+import project/src/packages/diagnostic::{checksum_problem, problem_value, publication_problem}
 import project/src/packages/remote_archive::{http_status_problem}
 import project/src/packages/diagnostic::{package_problem, problem_context, render_problem, diagnostic_text}
 import stdlib/testing as testing
@@ -51,7 +51,17 @@ main(): Void {
   invalid_text = input_problem("panack.lock.json", byte_buffer.empty().push(255), PackageManifestError("invalid UTF-8", 0), true)
   denied = input_read_problem("panack.json", "/app/panack.json", "permission_denied", false)
   bounded = input_read_problem("panack.lock.json", "/app/panack.lock.json", "output_limit", true)
+  publication = publication_problem("/app/.panack_modules/demo.library", "destination_conflict", false)
+  state_save = publication_problem("/app/.panack_modules/.state/lock.json", "permission_denied", true)
+  unknown_offset = input_problem("panack.lock.json", "{}".encode_utf8(), PackageManifestError("missing field", 0), true)
   results = [
+    testing.equal_str("semantic lock error does not invent a source position", problem_value(unknown_offset, "Location"), ""),
+    testing.equal_str("package publication names its destination", problem_value(publication, "Destination directory"), "/app/.panack_modules/demo.library"),
+    testing.equal_str("publication retains the filesystem cause", publication.message, "Cannot save the prepared package directory: the destination is not a replaceable package directory (destination_conflict)."),
+    testing.equal_str("publication guidance preserves conflicting contents", publication.help, "Preserve any contents you need before moving the conflicting destination elsewhere. Then prepare the packages recorded in the lockfile by running:"),
+    testing.equal_str("state publication explains packages already saved", state_save.reason, "Panack saved the package directories, but could not save the state record used to verify those directories against the lockfile."),
+    testing.equal_str("state publication names its destination", problem_value(state_save, "Destination file"), "/app/.panack_modules/.state/lock.json"),
+    testing.equal_str("publication selects explicit restore recovery", problem_value(publication, "Recovery operation"), "restore"),
     testing.expect("lock command accepted", validate_package_command(["deps", "lock", "--project", "/app/panack.json"]) == Ok(()), "valid lock rejected"),
     testing.expect("selected update accepted", validate_package_command(["deps", "update", "--project", "/app/panack.json", "lib"]) == Ok(()), "valid update rejected"),
     testing.expect("offline restore accepted", validate_package_command(["deps", "restore", "--project", "/app/panack.json", "--offline"]) == Ok(()), "valid restore rejected"),

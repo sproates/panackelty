@@ -1,6 +1,6 @@
 import project/src/packages/input_diagnostic::{input_problem, input_read_problem}
 pub import project/src/packages/diagnostic::{PackageProblem}
-import project/src/packages/diagnostic::{host_detail, package_problem, problem_context, package_result, problem_label, explain_problem}
+import project/src/packages/diagnostic::{publication_problem, host_detail, package_problem, problem_context, package_result, problem_label, explain_problem}
 import project/src/packages/manifest::{parse_package_manifest}
 import project/src/packages/remote_archive::{stage_remote_archive}
 pub import project/src/packages/lock::{PackageLock, PackageLockEdge, PackageLockPackage}
@@ -116,11 +116,11 @@ cached_archive(options: AcquisitionOptions, source: Str, owner: Str, alias: Str)
   match options.locked {
     None() => Error(package_problem("PKG_LOCK_MISSING", "missing lockfile")),
     Some(lock) => match locked_edge(lock, owner, alias) {
-      None() => Error(package_problem("PKG_LOCK_STALE", "dependency is missing from lock")),
+      None() => Error(package_problem("PKG_LOCK_STALE", "Cannot use this archive dependency because the lockfile does not record the dependency.")),
       Some(edge) => match locked_package(lock, edge.package) {
-        None() => Error(package_problem("PKG_LOCK_INVALID", "locked package is missing")),
+        None() => Error(package_problem("PKG_LOCK_INVALID", "Cannot use this dependency because its package record is missing from the lockfile.")),
         Some(package) => match manifest_json_string_field(edge.source, "archive_sha256") {
-          Error(problem) => Error(package_problem("PKG_LOCK_STALE", "locked dependency is not an archive")),
+          Error(problem) => Error(package_problem("PKG_LOCK_STALE", "Cannot use this archive dependency because the lockfile does not record an archive checksum for the dependency.")),
           Ok(expected) => match if source.starts_with_at("https://", 0) { Ok(expected) } else { hash_archive_file(source) } {
             Error(problem) => Error(problem),
             Ok(actual) => if actual != expected { Error(package_problem("PKG_INTEGRITY", "archive contents do not match the SHA-256 checksum in panack.lock.json")) }
@@ -129,7 +129,7 @@ cached_archive(options: AcquisitionOptions, source: Str, owner: Str, alias: Str)
               match ensure_directory(root, false) {
                 Error(problem) => Error(problem),
                 Ok(completed_2) => match package.tree_sha256 {
-                  None() => Error(package_problem("PKG_LOCK_INVALID", "archive lock is missing tree digest")),
+                  None() => Error(package_problem("PKG_LOCK_INVALID", "Cannot verify the archive package files because the lockfile does not record their checksum.")),
                   Some(tree) => match verify_tree_problem(root, tree) {
                     Error(problem) => Error(problem),
                     Ok(completed_3) => Ok(ArchiveSource(source, root, package.name, package.version,
@@ -215,7 +215,7 @@ pub publish_archives(root: Str, sources: [ArchiveSource], lock: PackageLock): Re
             Some(handle) => match path.from_text(source.name) {
               Error(problem) => { failure = Some(package_problem("PKG_GRAPH", "invalid package cache name")) },
               Ok(name) => match staging.publish(handle, name, true) {
-                Error(problem) => { failure = Some(package_problem("PKG_PUBLICATION", "cannot save the unpacked package: " + host_detail(problem.code))) },
+                Error(problem) => { failure = Some(problem_label(publication_problem(root + "/.panack_modules/" + source.name, problem.code, false), "Package", source.name + "@" + source.version)) },
                 Ok(completed_8) => {}
               }
             }
@@ -226,7 +226,16 @@ pub publish_archives(root: Str, sources: [ArchiveSource], lock: PackageLock): Re
           None() => match path.from_text(root + "/.panack_modules/.state/lock.json") {
             Error(problem) => Error(package_problem("PKG_FILESYSTEM", "invalid state path")),
             Ok(file) => match bounded.atomic_write(file, serialize_package_lock(lock).encode_utf8()) {
-              Error(problem) => Error(package_problem("PKG_PUBLICATION", "cannot save the record of prepared local packages: " + host_detail(problem.code))),
+              Error(problem) => {
+                // The generic atomic-write error may not describe a conflicting
+                // file kind. Inspect the destination after failure; never infer
+                // its kind from the host's error text.
+                code = match filesystem.metadata(file) {
+                  Ok(info) => if info.kind != RegularFile() { "destination_conflict" } else { problem.code },
+                  Error(unavailable) => problem.code
+                }
+                Error(publication_problem(root + "/.panack_modules/.state/lock.json", code, true))
+              },
               Ok(completed_9) => Ok(())
             }
           }
@@ -240,10 +249,10 @@ remote_pin(options: AcquisitionOptions, source: Str, owner: Str, alias: Str): Re
   match options.locked {
     None() => Error(package_problem("PKG_LOCK_MISSING", "missing lockfile")),
     Some(lock) => match locked_edge(lock, owner, alias) {
-      None() => Error(package_problem("PKG_LOCK_STALE", "remote dependency is missing from lock")),
+      None() => Error(package_problem("PKG_LOCK_STALE", "Cannot use this HTTPS archive dependency because the lockfile does not record the dependency.")),
       Some(edge) => match manifest_json_string_field(edge.source, "url") {
-        Error(problem) => Error(package_problem("PKG_LOCK_STALE", "remote source changed")),
-        Ok(url) => if url != source { Error(package_problem("PKG_LOCK_STALE", "remote source changed")) }
+        Error(problem) => Error(package_problem("PKG_LOCK_STALE", "Cannot use this HTTPS archive dependency because the lockfile does not record an HTTPS archive URL for the dependency.")),
+        Ok(url) => if url != source { Error(package_problem("PKG_LOCK_STALE", "Cannot use this HTTPS archive dependency because its URL differs from the URL recorded in the lockfile.")) }
           else { match manifest_json_string_field(edge.source, "archive_sha256") {
             Error(problem) => Error(package_problem("PKG_ARCHIVE", "remote archive digest missing")), Ok(hash) => Ok(hash)
           } }

@@ -105,6 +105,9 @@ reject unselected-change PKG_DEPENDENCY_NOT_SELECTED deps update --project "$man
 grep -F 'Your command did not select this dependency.' "$work/err" >/dev/null
 cmp "$lock" "$work/good.lock"
 cp "$manifest" "$work/valid.manifest"
+printf '\377' > "$manifest"
+reject invalid-utf8-manifest PKG_MANIFEST_INVALID deps update --project "$manifest"
+cmp "$lock" "$work/good.lock"
 printf '{broken' > "$manifest"
 reject malformed-manifest PKG_MANIFEST_INVALID deps update --project "$manifest"
 grep -F 'Location: line 1, column 2' "$work/err" >/dev/null

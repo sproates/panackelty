@@ -1,4 +1,4 @@
-import project/src/packages/input_diagnostic::{input_problem}
+import project/src/packages/input_diagnostic::{input_problem, encoding_problem}
 pub import project/src/packages/diagnostic::{PackageProblem}
 import project/src/packages/diagnostic::{package_problem, explain_problem, problem_context, problem_dependency, package_result, problem_label, problem_value, manifest_specification}
 pub import project/src/packages/git_acquisition::{AcquiredGit}
@@ -178,7 +178,7 @@ manifest_project_from_read(
   is_project_manifest: Bool
 ): Result[ManifestPackageDeclaration, PackageProblem] {
   if !valid_utf8(read.contents) {
-    Error(package_problem("PKG_MANIFEST_INVALID", "project manifest is not valid UTF-8"))
+    Error(encoding_problem("panack.json", false))
   } else {
     toolchain: Str = std_environment.get("PANACKELTY_VERSION").value_or("")
     if toolchain == "" {
@@ -186,8 +186,6 @@ manifest_project_from_read(
     } else {
       match parse_package_manifest(read.contents, toolchain) {
         Error(error) => {
-          offset: Nat = error.offset
-          detail: Str = error.message
           Error(input_problem("panack.json", read.contents, error, false))
         },
         Ok(manifest) => match manifest_project_from_manifest(package_root, read.identity, manifest) {

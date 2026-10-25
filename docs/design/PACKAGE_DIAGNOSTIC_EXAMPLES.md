@@ -331,7 +331,7 @@ the latter does not assert that a cycle has been proved. Lockfile validation
 identifies the failing project field instead of reporting a generic identity
 problem. Existing rejection rules and resource bounds are unchanged.
 
-The 30 diagnostic unit checks and twelve public transcripts are representative
+The 33 diagnostic unit checks and thirteen public transcripts are representative
 regression evidence, not a claim that every low-level failure has its own
 end-to-end fixture. The existing archive, Git, graph, containment and lock tests
 continue to exercise the wider rejection surface. Exact transcript matching
@@ -355,3 +355,20 @@ The change affects failure reporting and recovery guidance, not accepted package
 formats or dependency selection. Input failure handling reparses rejected JSON
 to distinguish syntax from package settings; normal successful parsing is unchanged.
 No compiler, native interface or bootstrap source changes are required.
+
+## A manifest is not UTF-8 text
+
+Command: `panack deps update --project "<workspace>/Ian's app/panack.json"`.
+
+The manifest contains the invalid UTF-8 byte `0xff`. Panack rejects the file
+before parsing JSON, explains how to correct its encoding and leaves the lockfile
+unchanged. No line or column is claimed for text Panack cannot decode.
+
+```text
+panack: error[PKG_MANIFEST_INVALID]: Cannot understand panack.json because the file is not valid UTF-8 text.
+
+  Project: <workspace>/Ian's app/panack.json
+  File: <workspace>/Ian's app/panack.json
+
+Save the file using UTF-8 encoding, or obtain a valid copy, then retry your command.
+```

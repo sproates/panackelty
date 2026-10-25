@@ -98,13 +98,15 @@ printf '%s\n' 'PASS live directory edits and stale-manifest selective updates'
 
 mv "$work/app/.panack_modules/.state" "$work/state-backup"
 ln -s "$work/state-backup" "$work/app/.panack_modules/.state"
-reject 'not a directory' deps restore --project "$manifest" --offline
+reject 'Cannot prepare the local packages because a required directory path identifies a different kind of file.' deps restore --project "$manifest" --offline
+grep -F "Required directory: $work/app/.panack_modules/.state" "$work/err" >/dev/null
 cmp "$cache/src/api.panack" "$work/archive/src/api.panack"
 rm "$work/app/.panack_modules/.state"
 mv "$work/state-backup" "$work/app/.panack_modules/.state"
 mv "$cache" "$work/cache-backup"
 ln -s "$work/cache-backup" "$cache"
-reject 'not a directory' check --project "$manifest"
+reject 'Cannot prepare the local packages because a required directory path identifies a different kind of file.' check --project "$manifest"
+grep -F "Required directory: $cache" "$work/err" >/dev/null
 reject 'destination_conflict' deps restore --project "$manifest" --offline
 cmp "$work/cache-backup/src/api.panack" "$work/archive/src/api.panack"
 rm "$cache"

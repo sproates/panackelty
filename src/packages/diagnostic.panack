@@ -70,6 +70,29 @@ pub pure package_problem(code: Str, message: Str): PackageProblem {
     phase = "checking size and count limits"
     reason = "Panack stopped because the reported resource limit was exceeded."
     help = "Reduce the affected size or count to the stated limit. If you do not maintain the package, ask the package maintainer for a package within the limit."
+  } else if code.starts_with_at("PKG_ARCHIVE_", 0) && code != "PKG_ARCHIVE_CHECKSUM" {
+    phase = "unpacking the archive"
+    reason = "Panack has stopped extraction."
+    help = "Obtain a valid copy of the archive and retry your command. If a fresh copy produces the same error, ask the package maintainer to recreate the archive. A replacement must still match the checksums in an existing lockfile."
+    if code == "PKG_ARCHIVE_UNSUPPORTED" {
+      reason = "Panack accepts POSIX ustar archives containing ordinary files, directories and supported per-file PAX metadata."
+      help = "If you maintain this package, recreate the archive using the supported format and entries. Otherwise, ask the package maintainer for a compatible archive."
+    } else if code == "PKG_ARCHIVE_PATH_INVALID" || code == "PKG_ARCHIVE_PATH_CONFLICT" {
+      reason = "Panack cannot create a portable package directory from the reported paths."
+      help = "If you maintain this package, correct the reported paths and recreate the archive. Otherwise, ask the package maintainer for a corrected archive."
+    } else if code == "PKG_ARCHIVE_EXPANDED_LIMIT" {
+      reason = "Panack has stopped decompression because the expanded archive data exceeds 256 MiB. This limit includes file contents, archive headers, padding and metadata."
+      help = "Ask the package maintainer for an archive within this limit."
+    } else if code == "PKG_ARCHIVE_COMPRESSED_LIMIT" {
+      reason = "The source archive exceeds Panack's 64 MiB compressed-size limit."
+      help = "Ask the package maintainer for a smaller archive."
+    } else if code == "PKG_ARCHIVE_METADATA_LIMIT" {
+      reason = "PAX metadata describes an archive entry."
+      help = "Ask the package maintainer to reduce that metadata and recreate the archive."
+    } else if code == "PKG_ARCHIVE_NUMBER_LIMIT" || code == "PKG_ARCHIVE_ENTRY_LIMIT" || code == "PKG_ARCHIVE_HEADER_LIMIT" {
+      reason = "Panack has stopped extraction because the reported archive limit was exceeded."
+      help = "If you maintain this package, reduce the reported value or count and recreate the archive. Otherwise, ask the package maintainer for an archive within Panack's limits."
+    }
   } else if code == "PKG_ARCHIVE" {
     phase = "unpacking the archive"
     reason = "Panack has stopped unpacking the archive."
@@ -131,6 +154,9 @@ pub pure package_problem(code: Str, message: Str): PackageProblem {
     phase = "saving packages"
     reason = "Earlier packages or the lockfile may already have been saved."
     help = "Correct the reported filesystem problem. If a lockfile exists, run panack deps restore to prepare the dependencies recorded in that lockfile. If Panack could not create the initial lockfile, retry your original command."
+  } else if code == "PKG_CHANGED" {
+    reason = "Panack cannot verify a consistent set of package files while those files are changing."
+    help = "Wait for other operations writing these files to finish, then retry your command."
   } else if code == "PKG_FILESYSTEM" {
     phase = "accessing files"
     reason = "The required filesystem operation failed."

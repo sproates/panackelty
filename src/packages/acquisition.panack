@@ -78,7 +78,7 @@ pub hash_archive_file(name: Str): Result[Str, PackageProblem] {
           Error(problem) => { failure = Some(package_problem("PKG_FILESYSTEM", "cannot read archive: " + host_detail(problem.code))) },
           Ok(bytes) => {
             offset = offset + bytes.length()
-            if offset > 67108864 { failure = Some(package_problem("PKG_LIMIT", "archive exceeds 64 MiB compressed input")) }
+            if offset > 67108864 { failure = Some(package_problem("PKG_ARCHIVE_COMPRESSED_LIMIT", "Cannot read the source archive because the archive exceeds Panack's 64 MiB compressed-size limit.")) }
             else { hash = sha256_feed(hash, bytes) }
             done = bytes.length() == 0
           }
@@ -101,7 +101,7 @@ inspect_staged_archive(source: Str, archive: StagedArchive): Result[ArchiveSourc
         Error(problem) => Error(problem_label(input_problem("panack.json", bytes, problem, false), "File", source + "!/panack.json")),
         Ok(manifest) => match package_result(sha256_bytes(bytes), "PKG_TOOL") {
           Error(problem) => Error(problem),
-          Ok(manifest_hash) => match package_result(tree_digest(archive.root, archive.entries), "PKG_ARCHIVE") {
+          Ok(manifest_hash) => match tree_digest(archive.root, archive.entries) {
             Error(problem) => Error(problem),
             Ok(tree_hash) => Ok(ArchiveSource(source, archive.root, manifest.package,
               manifest.version, archive.compressed_sha256, manifest_hash, tree_hash, Some(archive.handle)))
@@ -157,7 +157,7 @@ acquire_local_archive(options: AcquisitionOptions, source: Str, owner: Str, alia
       Error(problem) => Error(problem),
       Ok(completed_4) => if !options.materialize { cached_archive(options, source, owner, alias) }
       else {
-        match package_result(stage_archive(options.root + "/.panack_modules", source), "PKG_ARCHIVE") {
+        match stage_archive(options.root + "/.panack_modules", source) {
           Error(problem) => Error(problem),
           Ok(archive) => {
             result = inspect_staged_archive(source, archive)

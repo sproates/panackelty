@@ -41,11 +41,11 @@ COPYFILE_DISABLE=1 tar --format ustar -czf "$work/rejected.tar.gz" -C "$work/sou
 reject unsupported
 rm "$work/source/link"
 COPYFILE_DISABLE=1 tar --format ustar -czf "$work/rejected.tar.gz" -C "$work/source" panack.json panack.json
-reject 'archive contains the same path more than once: panack.json'
+reject 'the archive contains the same path more than once'
 printf x > "$work/source/Straße"
 printf y > "$work/source/STRASSE"
 COPYFILE_DISABLE=1 tar --format ustar -czf "$work/rejected.tar.gz" -C "$work/source" panack.json Straße STRASSE
-reject 'archive paths differ only in letter case: Straße and STRASSE'
+reject 'two archive paths differ only in letter case'
 printf '%s\n' 'PASS archive corruption, links, duplicate paths, Unicode collisions and cleanup'
 
 # The bound is on real streamed headers, including the archive root header.
@@ -57,7 +57,7 @@ while [ "$index" -lt 16384 ]; do
     index=$((index + 1))
 done
 COPYFILE_DISABLE=1 tar --format ustar -czf "$work/rejected.tar.gz" -C "$work/many" .
-reject 16384
+reject 16,384
 printf '%s\n' 'PASS streamed archive entry/header bound leaves no partial stage'
 
 # A gzip comment can consume input without producing output. Exercise the
@@ -70,5 +70,7 @@ mkdir "$work/expanded"
 printf '{}' > "$work/expanded/panack.json"
 dd if=/dev/zero of="$work/expanded/payload" bs=1 count=1 seek=268435455 2>/dev/null
 COPYFILE_DISABLE=1 tar --format ustar -czf "$work/rejected.tar.gz" -C "$work/expanded" panack.json payload
-reject output_limit
+reject 'expanded archive data'
 printf '%s\n' 'PASS compressed and expanded byte limits leave no partial stage'
+
+sh tests/package_archive_diagnostics.sh

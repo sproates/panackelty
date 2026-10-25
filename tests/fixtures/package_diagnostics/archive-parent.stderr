@@ -1,0 +1,8 @@
+panack: error[PKG_ARCHIVE_PATH_INVALID]: Cannot unpack the archive because the path contains a parent-directory component ('..').
+
+  Project: <workspace>/app/panack.json
+  Source archive: <workspace>/source.tar.gz
+  Dependency name: lib
+  Archive entry: a/../b
+
+Use paths relative to the package directory without parent-directory components ('..'). Recreate the archive after correcting the path. If you do not maintain this package, ask the package maintainer for a corrected archive.

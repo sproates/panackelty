@@ -122,6 +122,14 @@ The callback receives state and a bounded byte chunk and returns a checked next
 state. Always close a successfully opened response, including after callback
 failure. Open errors close their transport automatically.
 
+Callers with their own structured error type can use
+`fold_body_with_errors(response, initial, @consume, body_limit, @map_error)`.
+The consumer returns `Result[State, Error]`; `map_error` converts an HTTP error
+into that same error type. Consumer failures pass through unchanged and stop
+reading immediately. This keeps an application error, such as archive extraction
+failure, separate from an HTTP framing or transport error. Response ownership
+and limits are the same as for `fold_body`.
+
 The module parses Content-Length, chunked bodies and trailers, and bodies ended
 by connection close. Headers/trailers are bounded to 64 KiB, chunk lines to 8 KiB,
 and bodies to 64 MiB. It rejects ambiguous framing, truncation and excess bytes.

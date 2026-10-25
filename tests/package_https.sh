@@ -105,12 +105,16 @@ expect ok deps update --project "$manifest"
 expect 43 run --project "$manifest"
 cp "$lock" "$work/good.lock"
 cp "$cache/src/api.panack" "$work/good-source"
-for endpoint in loop downgrade secret query missing oversize truncated encoded; do
+for endpoint in loop downgrade secret query missing oversize truncated encoded invalid-gzip; do
     manifest_for "$endpoint"
     reject deps update --project "$manifest"
     grep -F 'panack: error[' "$work/err" >/dev/null
     grep -F '  Source archive: ' "$work/err" >/dev/null
     grep -F 'Dependency name: lib' "$work/err" >/dev/null
+    if [ "$endpoint" = invalid-gzip ]; then
+        grep -F "error[PKG_ARCHIVE_INVALID]: Cannot unpack the archive because the file is not valid gzip data." "$work/err" >/dev/null
+        ! grep -F "PKG_HTTP_PROTOCOL" "$work/err"
+    fi
     if [ "$endpoint" = missing ]; then
         grep -F 'error[PKG_HTTP_STATUS]: Cannot download the archive because the server could not find' "$work/err" >/dev/null
         node tests/package_diagnostic_capture.cjs https-missing "$work/err" "$work" "$port"

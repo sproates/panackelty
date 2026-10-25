@@ -3,7 +3,7 @@ import project/src/packages/diagnostic::{package_problem, problem_label, package
 pub import project/src/packages/git_inventory::{GitEntry}
 import project/src/packages/git_links::{git_resolve_link}
 import project/src/packages/tree_digest::{ArchiveEntry, tree_length, tree_feed_file}
-import project/src/packages/tar_header::{tar_normalize_path}
+import project/src/packages/tar_header::{normalize_package_path}
 import project/src/packages/sha256::{sha256_new, sha256_feed, sha256_finish, sha256_close}
 import project/src/project_model/utf8::{valid_utf8}
 import stdlib/filesystem as filesystem
@@ -27,8 +27,8 @@ scan_git_cache(root: Str, relative: Str, inventory: GitCacheInventory): Result[G
             Error(problem) => { failure = Some(package_problem("PKG_CACHE_INVALID", "Cannot use the local Git package because a path is not valid UTF-8 text.")) },
             Ok(name) => {
               joined = if relative == "" { name } else { relative + "/" + name }
-              match package_result(tar_normalize_path(joined), "PKG_CACHE_INVALID") {
-                Error(problem) => { failure = Some(problem) },
+              match normalize_package_path(joined) {
+                Error(problem) => { failure = Some(problem_label(package_problem("PKG_CACHE_INVALID", "Cannot use the local Git package because " + problem.message + "."), "Local path", root + "/" + joined)) },
                 Ok(normalized) => if normalized != joined { failure = Some(package_problem("PKG_CACHE_INVALID", "Cannot use the local Git package because a path cannot be used consistently on supported systems.")) }
                 else {
                   match filesystem.metadata(checked_path(root + "/" + joined)) {
@@ -92,7 +92,7 @@ verify_git_cache_inner(root: Str, expected: Str): Result[Map[Str, Str], PackageP
             }
             hash = sha256_feed(hash, target.encode_utf8())
           } else if entry.kind == "F" {
-            match package_result(tree_feed_file(hash, root, ArchiveEntry(entry.path, entry.size, false, true)), "PKG_CACHE_INVALID") {
+            match tree_feed_file(hash, root, ArchiveEntry(entry.path, entry.size, false, true)) {
               Error(problem) => { failure = Some(problem) }, Ok(next) => { hash = next }
             }
           }

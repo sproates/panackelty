@@ -241,6 +241,14 @@ pub pure lock_mismatch(previous: PackageLock, current: PackageLock, archives: [A
       if old.name == package.name && old.version == package.version {
         if old.tree_sha256 != package.tree_sha256 {
           problem = package_problem("PKG_INTEGRITY", "recorded package contents have changed for " + package.name + "@" + package.version)
+          for archive in archives {
+            if archive.name == package.name && archive.version == package.version {
+              problem = explain_problem(package_problem("PKG_INTEGRITY", "Cannot use the extracted package files because their checksum does not match the checksum recorded in the lockfile."),
+                "The archive's checksum matched, but the extracted files failed the separate package checksum check. Panack has refused to use those files.",
+                "Retry the restore. If the mismatch persists, report this error with your Panack version and the package source. Keep the existing lockfile while investigating.")
+              problem = problem_label(problem_label(problem_label(problem, "Source archive", archive.source), "Expected package checksum", old.tree_sha256.value_or("")), "Extracted package checksum", archive.tree_hash)
+            }
+          }
           for edge in current.dependencies {
             if edge.package == package.name + "@" + package.version {
               problem = problem_dependency(problem, current.root_name + " -> " + edge.alias)

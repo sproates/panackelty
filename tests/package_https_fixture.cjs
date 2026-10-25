@@ -21,6 +21,7 @@ const server = tls.createServer({key:fs.readFileSync(path.join(root,'test.key'))
     if(target==='/query.tar.gz') return reply('302 Found','Location: /forbidden?secret=token\r\nContent-Length: 0\r\n');
     if(target==='/missing.tar.gz') return reply('404 Not Found','Content-Length: 0\r\n');
     if(target==='/oversize.tar.gz') return reply('200 OK','Content-Length: 67108865\r\n');
+    if(target==='/invalid-gzip.tar.gz') return reply('200 OK','Content-Length: 8\r\n',Buffer.from('not gzip'));
     const name = target==='/other.tar.gz'?'other.tar.gz':'lib.tar.gz';
     const data=fs.readFileSync(path.join(root,name));
     if(target==='/truncated.tar.gz') return reply('200 OK',`Content-Length: ${data.length+10}\r\n`,data);

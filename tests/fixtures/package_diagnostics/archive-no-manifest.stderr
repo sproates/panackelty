@@ -1,0 +1,12 @@
+panack: error[PKG_MANIFEST_MISSING]: Cannot use the archive because the archive has no panack.json at its top level.
+
+  Project: <workspace>/app/panack.json
+  Source archive: <workspace>/source.tar.gz
+  Dependency name: lib
+
+Panack expects panack.json at the archive's top level, alongside the package's source directory.
+
+If you maintain this package, recreate the archive with that layout. Otherwise, ask the package maintainer for a corrected archive.
+
+See the package manifest specification:
+https://github.com/sproates/panackelty/blob/main/docs/design/MODULE_PACKAGE_DESIGN.md#package-roots-manifest-and-source-distribution

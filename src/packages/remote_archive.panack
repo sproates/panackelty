@@ -3,9 +3,8 @@ pub import project/packages/http/src/types::{HttpError}
 import project/src/packages/diagnostic::{package_problem, explain_problem, package_result, problem_label}
 import project/packages/http/src/stream as http
 import project/packages/http/src/parser::{lower_ascii}
-import project/packages/http/src/types::{HttpError.ProtocolError}
 pub import project/src/packages/archive::{StagedArchive}
-import project/src/packages/archive::{consume_compressed}
+import project/src/packages/archive::{consume_compressed, gzip_failure}
 import project/src/packages/tar_stream::{TarStream, tar_stream_new, tar_stream_finish}
 import project/src/packages/sha256::{Sha256, sha256_new, sha256_feed, sha256_finish, sha256_close}
 import stdlib/filesystem_stage as staging
@@ -15,9 +14,9 @@ import stdlib/bytes as byte_buffer
 
 record Decoder { stage: Nat, gzip_handle: Nat, tar: TarStream, hash: Sha256 }
 
-consume(state: Decoder, input: Bytes): Result[Decoder, http.HttpError] {
+consume(state: Decoder, input: Bytes): Result[Decoder, PackageProblem] {
   match consume_compressed(state.stage, state.gzip_handle, state.tar, input, false) {
-    Error(problem) => Error(ProtocolError("archive extraction: " + problem)),
+    Error(problem) => Error(problem),
     Ok(tar) => Ok(Decoder(state.stage, state.gzip_handle, tar, sha256_feed(state.hash, input)))
   }
 }
@@ -81,17 +80,17 @@ open_archive(url: Str): Result[http.ResponseStream, PackageProblem] {
 
 extract(stage: Nat, response: http.ResponseStream): Result[StagedArchive, PackageProblem] {
   match gzip.open(268435456) {
-    Error(problem) => Error(package_problem("PKG_ARCHIVE", "cannot open gzip decoder")),
+    Error(problem) => Error(gzip_failure(problem.code)),
     Ok(handle) => {
       hash = sha256_new()
-      decoded = http.fold_body(response, Decoder(stage, handle, tar_stream_new(), hash), @consume, 67108864)
+      decoded = http.fold_body_with_errors(response, Decoder(stage, handle, tar_stream_new(), hash), @consume, 67108864, @http_problem)
       result = match decoded {
-        Error(problem) => { sha256_close(hash); Error(http_problem(problem)) },
+        Error(problem) => { sha256_close(hash); Error(problem) },
         Ok(state) => match consume_compressed(stage, handle, state.tar, byte_buffer.empty(), true) {
-          Error(problem) => { sha256_close(state.hash); Error(package_problem("PKG_ARCHIVE", problem)) },
+          Error(problem) => { sha256_close(state.hash); Error(problem) },
           Ok(tar) => match package_result(sha256_finish(state.hash), "PKG_TOOL") {
             Error(problem) => Error(problem),
-            Ok(digest) => match package_result(tar_stream_finish(tar), "PKG_ARCHIVE") {
+            Ok(digest) => match tar_stream_finish(tar) {
               Error(problem) => Error(problem),
               Ok(entries) => match staging.path(stage) {
                 Error(problem) => Error(package_problem("PKG_FILESYSTEM", "staging path unavailable")),
@@ -142,7 +141,7 @@ pub pure http_problem(problem: HttpError): PackageProblem {
     http.HttpError.Timeout() => explain_problem(package_problem("PKG_HTTP_TIMEOUT", "Cannot download the archive because the request exceeded Panack's 60-second time limit."),
       "Panack did not receive the complete archive within the time limit. Panack has stopped the download.",
       "Retry your command. If the download repeatedly times out, check whether the archive URL is accessible from the same environment and report the problem to the server administrator."),
-    http.HttpError.ProtocolError(detail) => package_problem(if detail.starts_with_at("archive extraction: ", 0) { "PKG_ARCHIVE" } else { "PKG_HTTP_PROTOCOL" }, detail),
+    http.HttpError.ProtocolError(detail) => package_problem("PKG_HTTP_PROTOCOL", "Cannot understand the archive server's HTTP response: " + detail),
     http.HttpError.LimitExceeded(detail) => explain_problem(package_problem("PKG_HTTP_LIMIT", "Cannot finish the download because an HTTP response limit was exceeded: " + detail),
       "Panack has stopped the download.", "Ask the server administrator to check the reported response limit. Panack accepts at most 64 MiB of archive data, 64 KiB of headers or trailers, an 8 KiB chunk-size line and eight informational responses."),
     http.HttpError.Cancelled() => explain_problem(package_problem("PKG_HTTP_CANCELLED", "The archive download was cancelled before completion."),

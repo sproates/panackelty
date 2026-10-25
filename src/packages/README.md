@@ -67,6 +67,12 @@ while other exit statuses do not establish a network or authentication cause. Th
 [verified examples](../../docs/design/PACKAGE_DIAGNOSTIC_EXAMPLES.md) are checked
 against public CLI fixtures, including execution of suggested recovery commands.
 
+Archive parsing, extraction and tree verification also return structured problems.
+The HTTP stream fold accepts a caller-owned error type, so an extraction failure
+stops the download without becoming an HTTP protocol error. Filesystem access
+failures retain their host cause and path; a tree checksum mismatch remains
+distinct from changed compressed archive bytes.
+
 Diagnostic explanations belong at the point that knows the cause. Use
 `explain_problem` when the general error family cannot explain a particular
 failure accurately. Do not list competing known causes in one message or turn

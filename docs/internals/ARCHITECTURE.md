@@ -131,6 +131,14 @@ reports independently. The website owns compatibility coverage landing pages.
 
 ## Compiler pipeline
 
+Package errors carry a `PackageProblem` from acquisition, graph and lock boundaries
+to the command renderer. It retains a code, cause, phase, explanation, recovery
+advice and labelled contexts. Graph traversal prepends declaring edges without
+flattening the leaf cause. Native/transport failures are adapted within the
+package tool; raw Git stderr and remote headers are withheld. Diagnostic rendering
+escapes terminal controls and quotes suggested POSIX commands. It changes neither
+the compiler descriptor nor the bootstrap inputs.
+
 Project package resolution now has a separate Panackelty package tool under
 `src/packages/`, built as `build/tools/panack-packages.bc` from the saved seed.
 The tool and compiler share records, generic JSON/path validation and the strict

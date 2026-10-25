@@ -34,7 +34,7 @@ pub consume_compressed(
   // Empty input with final=true proves that a complete gzip trailer was seen.
   while !complete && failure == None() {
     match gzip.step(decoder, byte_buffer.slice(input, offset, input.length()), final) {
-      Error(problem) => { failure = Some("gzip: " + problem.code) },
+      Error(problem) => { failure = Some(if problem.code == "output_limit" { "gzip expanded content exceeds 256 MiB (output_limit)" } else { "gzip stream could not be decoded; it may be corrupt, truncated or unsupported (" + problem.code + ")" }) },
       Ok(chunk) => {
         offset = offset + chunk.consumed
         match tar_stream_feed(stage, current, chunk.data) {

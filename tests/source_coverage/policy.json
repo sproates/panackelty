@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "P03c adds three Panack Git integration modules, explicitly unmeasured.",
-    "basis": "Unit and public-command HTTPS fixtures assert ref, lock and snapshot graph behaviour, not source-execution coverage percentages.",
-    "scopeChange": "Add git_acquisition, git_cache and git_refs to the unmeasured inventory. Preserve all eligible sources, execution roots, exclusions and thresholds."
+    "reason": "P04a adds the package diagnostic module, explicitly unmeasured.",
+    "basis": "Unit and public-command tests assert explanations, context and recovery, not source-execution coverage percentages.",
+    "scopeChange": "Add diagnostic.panack to the unmeasured inventory. Preserve all eligible sources, roots, exclusions and thresholds."
   },
-  "manifestHash": "39dbc4979494512d7fd5aba240c93e4c5120891fbdaa8245e9da059aa50bb00b",
+  "manifestHash": "8f67d13303ad28c50d8b0e2a7f4e7ffb760d1a14b64b072814a0686a3c488151",
   "exclusionHash": "773435167944b7750a18a232c06a2697356e8fb853efda5dfcf1a3acd8f10a7e"
 }

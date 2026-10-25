@@ -51,6 +51,15 @@ P03c run, with different workloads and machine conditions. The
 [remote acceptance record](../../design/PACKAGE_REMOTE_ACCEPTANCE.md) retains
 that qualification; GI#106 ownership and owner acceptance remain unchanged.
 
+P04a formats diagnostics only on failure and keeps bounded dependency
+context. Successful acquisition and digest algorithms are unchanged; no runtime
+speedup is claimed. Diagnostic acceptance adds transcript comparisons and recovery
+commands to validation. Canonical make check passed in 709 seconds on macOS
+arm64, versus 792 seconds for P03d under different workloads and conditions;
+this is not a matched performance comparison.
+GI#106 validation-latency ownership and owner acceptance remain unchanged. The
+package-tool handoff check continues to prove compiler build independence.
+
 The modules programme remains the principal feature initiative;
 its checked declaration/signature identity slice merged in PR#275 as `0bcf092`;
 bounded body identities merged in PR#284 as `9f8f8a0`. Ordinary expressions and

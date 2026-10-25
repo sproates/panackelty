@@ -1,3 +1,5 @@
+pub import project/src/packages/diagnostic::{PackageProblem}
+import project/src/packages/diagnostic::{package_problem, problem_context, problem_dependency, package_result}
 pub import project/src/packages/git_acquisition::{AcquiredGit}
 import project/src/packages/git_acquisition::{acquire_git, git_containing, git_package_root, git_relative}
 import project/src/packages/manifest::{parse_package_manifest}
@@ -116,20 +118,20 @@ pub pure package_project_from_manifest(
   )
 }
 
-physical_source_roots_overlap(left: Str, right: Str): Result[Bool, Str] {
+physical_source_roots_overlap(left: Str, right: Str): Result[Bool, PackageProblem] {
   match std_path.from_text(left) {
-    Error(error) => Error("invalid source root path"),
+    Error(error) => Error(package_problem("PKG_FILESYSTEM", "invalid source root path")),
     Ok(left_path) => match std_path.from_text(right) {
-      Error(error) => Error("invalid source root path"),
+      Error(error) => Error(package_problem("PKG_FILESYSTEM", "invalid source root path")),
       Ok(right_path) => match std_package_filesystem.directories_overlap(left_path, right_path) {
-        Error(error) => Error("cannot inspect source root directories"),
+        Error(error) => Error(package_problem("PKG_FILESYSTEM", "cannot inspect source root directories")),
         Ok(overlaps) => Ok(overlaps)
       }
     }
   }
 }
 
-pub read_manifest_project(path: Str, options: AcquisitionOptions): Result[ManifestProject, Str] {
+pub read_manifest_project(path: Str, options: AcquisitionOptions): Result[ManifestProject, PackageProblem] {
   match read_manifest_project_file(path, true) {
     Error(message) => Error(message),
     Ok(declaration) => manifest_project_with_dependencies(
@@ -138,26 +140,27 @@ pub read_manifest_project(path: Str, options: AcquisitionOptions): Result[Manife
   }
 }
 
-read_manifest_project_file(path: Str, is_project_manifest: Bool): Result[ManifestPackageDeclaration, Str] {
+read_manifest_project_file(path: Str, is_project_manifest: Bool): Result[ManifestPackageDeclaration, PackageProblem] {
   resolved: Str = path_support.resolve(path)
   package_root: Str = path_support.parent(resolved)
   if resolved != package_root + "/panack.json" {
-    Error("project manifest must be named panack.json")
+    Error(package_problem("PKG_MANIFEST", "project manifest must be named panack.json"))
   } else {
     match std_path.from_text(package_root) {
-      Error(error) => Error("invalid package root path"),
+      Error(error) => Error(package_problem("PKG_FILESYSTEM", "invalid package root path")),
       Ok(root) => match std_path.from_text("panack.json") {
-        Error(error) => Error("invalid manifest path"),
+        Error(error) => Error(package_problem("PKG_MANIFEST", "invalid manifest path")),
         Ok(relative) => match std_package_filesystem.read_beneath(root, relative, package_manifest_byte_limit()) {
           Error(problem) => {
             code: Str = problem.code
-            Error(if is_project_manifest {
-              "cannot read project manifest (${code})"
-            } else {
-              "cannot read local dependency manifest (${code})"
-            })
+            Error(package_problem(if code == "not_found" { "PKG_MANIFEST_MISSING" } else { "PKG_FILESYSTEM" },
+              if code == "not_found" { "package manifest was not found: " + resolved }
+              else { "cannot read project manifest (${code}): " + resolved }))
           },
-          Ok(read) => manifest_project_from_read(package_root, read, is_project_manifest)
+          Ok(read) => match manifest_project_from_read(package_root, read, is_project_manifest) {
+            Error(problem) => Error(problem_context(problem, "manifest " + resolved)),
+            Ok(declaration) => Ok(declaration)
+          }
         }
       }
     }
@@ -168,19 +171,19 @@ manifest_project_from_read(
   package_root: Str,
   read: FilesystemRootRead,
   is_project_manifest: Bool
-): Result[ManifestPackageDeclaration, Str] {
+): Result[ManifestPackageDeclaration, PackageProblem] {
   if !valid_utf8(read.contents) {
-    Error("project manifest is not valid UTF-8")
+    Error(package_problem("PKG_MANIFEST", "project manifest is not valid UTF-8"))
   } else {
     toolchain: Str = std_environment.get("PANACKELTY_VERSION").value_or("")
     if toolchain == "" {
-      Error("running toolchain version is unavailable")
+      Error(package_problem("PKG_GRAPH", "running toolchain version is unavailable"))
     } else {
       match parse_package_manifest(read.contents, toolchain) {
         Error(error) => {
           offset: Nat = error.offset
           detail: Str = error.message
-          Error("invalid project manifest at byte ${offset}: ${detail}")
+          Error(package_problem("PKG_MANIFEST", "invalid project manifest at byte ${offset}: ${detail}"))
         },
         Ok(manifest) => match manifest_project_from_manifest(package_root, read.identity, manifest) {
           Error(message) => Error(message),
@@ -195,11 +198,11 @@ manifest_project_from_manifest(
   package_root: Str,
   root_identity: FilesystemRootIdentity,
   manifest: PackageManifest
-): Result[ManifestProject, Str] {
+): Result[ManifestProject, PackageProblem] {
   source_root: Str = path_support.resolve(path_support.join(package_root, manifest.source))
   match manifest.entry {
     None() => if manifest.exports.len() == 0 {
-      Error("library manifest must export at least one module")
+      Error(package_problem("PKG_MANIFEST", "library manifest must export at least one module"))
     } else {
       mut exports: [Str] = []
       for exported in manifest.exports {
@@ -238,7 +241,7 @@ manifest_project_with_dependencies(
   project: ManifestProject,
   dependencies: [PackageManifestDependency],
   options: AcquisitionOptions
-): Result[ManifestProject, Str] {
+): Result[ManifestProject, PackageProblem] {
   initial: PackageDependencyGraph = PackageDependencyGraph(
     [ManifestPackageDeclaration(project, dependencies)], [], [], []
   )
@@ -264,9 +267,9 @@ resolve_package_dependency_graph(
   ancestry: [FilesystemRootIdentity],
   graph: PackageDependencyGraph,
   options: AcquisitionOptions
-): Result[PackageDependencyGraph, Str] {
+): Result[PackageDependencyGraph, PackageProblem] {
   mut current: PackageDependencyGraph = graph
-  mut failure: Option[Str] = None()
+  mut failure: Option[PackageProblem] = None()
   for dependency in declarations {
     match failure {
       Some(message) => {},
@@ -277,7 +280,7 @@ resolve_package_dependency_graph(
         mut refresh: Bool = options.refresh
         if owner.package_root == options.root { for selected in options.aliases { if selected == alias { refresh = true } } }
         mut child_options = AcquisitionOptions(options.root, options.materialize, options.locked, options.offline, refresh, [], options.boundary)
-        mut source_root: Result[Str, Str] = Ok(declared)
+        mut source_root: Result[Str, PackageProblem] = Ok(declared)
         mut contained: Bool = true
         if !dependency.path.starts_with_at("https://", 0) {
           match options.boundary {
@@ -287,8 +290,8 @@ resolve_package_dependency_graph(
         }
         if !contained {
           source_root = match git_containing(owner.package_root, current.gits) {
-            None() => Error("remote package dependency escapes its archive"),
-            Some(snapshot) => Error("Git package dependency escapes its snapshot")
+            None() => Error(package_problem("PKG_CONTAINMENT", "remote package dependency escapes its archive")),
+            Some(snapshot) => Error(package_problem("PKG_CONTAINMENT", "Git package dependency escapes its snapshot"))
           }
         } else if dependency.kind == "git" {
           match acquire_git(child_options, dependency, package_project_package_id(owner.package, owner.version), current.gits) {
@@ -306,7 +309,7 @@ resolve_package_dependency_graph(
             Some(snapshot) => {
               // Resolve physical symlinks before collapsing parent components.
               relative = git_relative(owner.package_root, snapshot) + "/" + dependency.path
-              if dependency.path.starts_with_at("/", 0) { source_root = Error("Git sibling path must be relative") }
+              if dependency.path.starts_with_at("/", 0) { source_root = Error(package_problem("PKG_CONTAINMENT", "Git sibling path must be relative")) }
               else { source_root = git_package_root(snapshot, relative) }
             }
           }
@@ -333,14 +336,14 @@ resolve_package_dependency_graph(
           Ok(root) => read_manifest_project_file(path_support.join(root, "panack.json"), false)
         }
         match declaration_result {
-          Error(message) => { failure = Some("dependency ${alias}: ${message}") },
+          Error(message) => { failure = Some(message) },
           Ok(declaration) => {
             package: ManifestProject = declaration.project
             match package.entry {
-              Some(entry) => { failure = Some("dependency ${alias} must be a library package") },
+              Some(entry) => { failure = Some(package_problem("PKG_MANIFEST", "dependency ${alias} must be a library package")) },
               None() => {
                 if package.exported_modules.len() == 0 {
-                  failure = Some("dependency ${alias} must export at least one module")
+                  failure = Some(package_problem("PKG_MANIFEST", "dependency ${alias} must export at least one module"))
                 } else {
                   mut cycle: Bool = false
                   for ancestor in ancestry {
@@ -348,48 +351,48 @@ resolve_package_dependency_graph(
                   }
                   if cycle {
                     if package.root_identity == ancestry[0] {
-                      failure = Some("dependency ${alias} resolves to the application package root")
+                      failure = Some(package_problem("PKG_GRAPH", "dependency ${alias} resolves to the application package root"))
                     } else {
-                      failure = Some("dependency ${alias}: package dependency cycle detected")
+                      failure = Some(package_problem("PKG_GRAPH", "dependency ${alias}: package dependency cycle detected"))
                     }
                   } else if current.edges.len() >= package_dependency_graph_max_edges() {
-                    failure = Some("package dependency graph exceeds 256 edges")
+                    failure = Some(package_problem("PKG_LIMIT", "package dependency graph exceeds 256 edges"))
                   } else if ancestry.len() >= package_dependency_graph_max_depth() {
-                    failure = Some("package dependency graph exceeds 32 package levels")
+                    failure = Some(package_problem("PKG_LIMIT", "package dependency graph exceeds 32 package levels"))
                   } else {
-                    mut conflict: Option[Str] = None()
+                    mut conflict: Option[PackageProblem] = None()
                     mut known: Option[ManifestPackageDeclaration] = None()
                     for previous_declaration in current.packages {
                       previous: ManifestProject = previous_declaration.project
                       if previous.root_identity == package.root_identity {
                         if previous.package != package.package || previous.version != package.version {
-                          conflict = Some("one physical package root declares conflicting package identities")
+                          conflict = Some(package_problem("PKG_GRAPH", "one physical package root declares conflicting package identities"))
                         } else if previous.source_root != package.source_root ||
                             previous.exported_modules != package.exported_modules ||
                             previous_declaration.dependencies != declaration.dependencies {
-                          conflict = Some("package manifest changed while resolving dependency graph")
+                          conflict = Some(package_problem("PKG_MANIFEST", "package manifest changed while resolving dependency graph"))
                         } else {
                           known = Some(previous_declaration)
                         }
                       } else if previous.package == package.package {
                         if previous.version != package.version {
                           package_name: Str = package.package
-                          conflict = Some("package ${package_name} is declared with conflicting versions")
+                          conflict = Some(package_problem("PKG_GRAPH", "package ${package_name} is declared with conflicting versions"))
                         } else {
                           package_name: Str = package.package
                           package_version: Str = package.version
-                          conflict = Some("package ${package_name}@${package_version} resolves to multiple physical roots")
+                          conflict = Some(package_problem("PKG_GRAPH", "package ${package_name}@${package_version} resolves to multiple physical roots"))
                         }
                       } else {
                         match physical_source_roots_overlap(previous.source_root, package.source_root) {
-                          Error(message) => { conflict = Some("dependency ${alias}: ${message}") },
+                          Error(message) => { conflict = Some(message) },
                           Ok(overlaps) => {
                             if overlaps {
                               if previous.root_identity == ancestry[0] {
-                                conflict = Some("dependency ${alias} physical source root overlaps the application source root")
+                                conflict = Some(package_problem("PKG_CONTAINMENT", "dependency ${alias} physical source root overlaps the application source root"))
                               } else {
                                 previous_alias: Str = package_graph_first_alias(previous.root_identity, current.edges)
-                                conflict = Some("dependency ${alias} physical source root overlaps dependency ${previous_alias}")
+                                conflict = Some(package_problem("PKG_CONTAINMENT", "dependency ${alias} physical source root overlaps dependency ${previous_alias}"))
                               }
                             }
                           }
@@ -414,7 +417,7 @@ resolve_package_dependency_graph(
                           Some(previous) => {},
                           None() => {
                             if current.packages.len() >= package_dependency_graph_max_packages() {
-                              failure = Some("package dependency graph exceeds 64 packages")
+                              failure = Some(package_problem("PKG_LIMIT", "package dependency graph exceeds 64 packages"))
                             } else {
                               current = PackageDependencyGraph(
                                 current.packages.append(declaration), current.edges, current.archives, current.gits
@@ -425,7 +428,7 @@ resolve_package_dependency_graph(
                                 ancestry.append(package.root_identity),
                                 current, child_options
                               ) {
-                                Error(message) => { failure = Some("dependency ${alias}: ${message}") },
+                                Error(message) => { failure = Some(message) },
                                 Ok(expanded) => { current = expanded }
                               }
                             }
@@ -438,6 +441,10 @@ resolve_package_dependency_graph(
               }
             }
           }
+        }
+        match failure {
+          None() => {},
+          Some(problem) => { failure = Some(problem_dependency(problem, owner.package + " -> " + alias + " (" + declaring_manifest(owner, current) + ")")) }
         }
       }
     }
@@ -461,4 +468,16 @@ pure package_graph_first_alias(
     }
   }
   alias
+}
+
+pure declaring_manifest(owner: ManifestProject, graph: PackageDependencyGraph): Str {
+  mut location = owner.package_root + "/panack.json"
+  for archive in graph.archives {
+    if owner.package_root == archive.root { location = archive.source + "!/panack.json" }
+  }
+  match git_containing(owner.package_root, graph.gits) {
+    None() => {},
+    Some(snapshot) => { location = snapshot.source.url + " @ " + snapshot.source.commit + ":" + git_relative(owner.package_root, snapshot) + "/panack.json" }
+  }
+  location
 }

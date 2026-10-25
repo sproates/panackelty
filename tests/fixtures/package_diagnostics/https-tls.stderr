@@ -1,0 +1,10 @@
+panack: error[PKG_HTTP]: archive TLS connection could not be verified or established
+
+  Project: <workspace>/app/panack.json
+  Operation: deps update
+  Phase: HTTPS acquisition
+  Dependency: test.app -> lib (<workspace>/app/panack.json)
+
+A complete, acceptable HTTPS response was not received. The dependency cannot be verified.
+
+Check connectivity, the source URL and TLS trust, then retry the original command. For an existing lock, deps restore preserves its pins. Do not disable certificate verification.

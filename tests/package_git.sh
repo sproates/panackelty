@@ -86,10 +86,10 @@ run_snapshot "$url" "$commit" "$work/test.crt" /usr/bin/git sha1 inspect
 node tests/fixtures/package_git/expect_snapshot.cjs "$work" "$url" "$commit"
 test -z "$(ls -A "$work/cache")"
 printf '%s\n' 'PASS saved bytecode acquisition and cleanup'
-reject_snapshot 'Git command failed' "$url" "$commit" none /usr/bin/git sha1 plain
+reject_snapshot 'Git command failed with exit status 128; remote error text withheld to protect credentials' "$url" "$commit" none /usr/bin/git sha1 plain
 reject_snapshot 'Git process failed: launch_failed' "$url" "$commit" "$work/test.crt" "$work/no-git" sha1 plain
 reject_snapshot 'Git executable must be an absolute path' "$url" "$commit" "$work/test.crt" git sha1 plain
-reject_snapshot 'Git command failed' "$url" 1111111111111111111111111111111111111111 "$work/test.crt" /usr/bin/git sha1 plain
+reject_snapshot 'Git command failed with exit status 128; remote error text withheld to protect credentials' "$url" 1111111111111111111111111111111111111111 "$work/test.crt" /usr/bin/git sha1 plain
 for invalid in "http://localhost:$port/repo.git" "https://user:secret@localhost:$port/repo.git" "$url?secret=value" "$url#fragment"; do
   reject_snapshot 'Git requires a credential-free HTTPS URL and full commit identity' "$invalid" "$commit" "$work/test.crt" /usr/bin/git sha1 plain
 done
@@ -128,7 +128,7 @@ node tests/fixtures/package_git/expect_snapshot.cjs "$work" "$url" "$commit"
 printf '%s\n' 'PASS escaping/cyclic links, LFS and submodules fail with cleanup; exact commits survive moved branches'
 
 for route in redirect auth interrupt; do
-  reject_snapshot 'Git command failed' "https://localhost:$port/$route/repo.git" "$commit" "$work/test.crt" /usr/bin/git sha1 plain
+  reject_snapshot 'Git command failed with exit status 128; remote error text withheld to protect credentials' "https://localhost:$port/$route/repo.git" "$commit" "$work/test.crt" /usr/bin/git sha1 plain
 done
 printf '%s\n' 'PASS redirects, authentication requests and interrupted transport fail closed'
 # SHA-256 repositories exercise the second full-object identity format.
@@ -184,3 +184,6 @@ printf '%s\n' 'PASS publication preserves links; rejected replacement preserves 
 
 # P03c public manifest, lock and shared-snapshot integration.
 sh tests/package_git_integration.sh
+
+# Diagnostics are part of the package acceptance surface on both native platforms.
+sh tests/package_diagnostics.sh

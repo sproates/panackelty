@@ -1614,6 +1614,12 @@ edges stay within it and become Git lock edges; source imports remain bounded
 by each individual package root. Git redirects fail closed. See the
 [Git integration record](../design/PACKAGE_GIT_INTEGRATION_ACCEPTANCE.md).
 Archive and lock policy do not execute inside the compiler.
+Package-tool failures return status 1 and emit structured human-readable
+diagnostics on stderr: a PKG error-family code, cause, phase, available dependency
+context, explanation and safe recovery guidance. Successful output is unchanged.
+Messages never expose raw Git stderr or remote credentials, and do not infer a
+specific cause from an ambiguous Git exit status. No machine-readable diagnostic
+mode is introduced. See the [verified examples](../design/PACKAGE_DIAGNOSTIC_EXAMPLES.md).
 
 The tool uses generic native modules `stdlib/filesystem_stage`,
 `stdlib/bounded_filesystem`, `stdlib/gzip` and `stdlib/digest`. Their bounded

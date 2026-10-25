@@ -56,8 +56,8 @@ recorded re-estimate.
 | P01 | [Lock and restore contract](https://github.com/sproates/panackelty/issues/566) | — | Done | 15% | 100% | 15 pp |
 | P02 | [Locked local dependencies](https://github.com/sproates/panackelty/issues/567) | P01 | Done | 25% | 100% | 25 pp |
 | P03 | [Pinned remote sources](https://github.com/sproates/panackelty/issues/568) | P01–P02 | Done on merge of PR#582 | 35% | 100% | 35 pp |
-| P04 | [`panack` workflow integration](https://github.com/sproates/panackelty/issues/569) | P01–P03 | Planned | 25% | 0% | 0 pp |
-| **Total on merge of PR#582** |  |  |  | **100%** | **75%** | **75 pp** |
+| P04 | [`panack` workflow integration](https://github.com/sproates/panackelty/issues/569) | P01–P03 | P04a complete on merge; P04b–c planned | 25% | 50% | 12.5 pp |
+| **Total on merge of P04a** |  |  |  | **100%** | **87.5%** | **87.5 pp** |
 
 The [P01 contract](../../design/PACKAGE_MANAGEMENT_CONTRACT.md) was accepted in
 [PR#571](https://github.com/sproates/panackelty/pull/571). It defines the lock,
@@ -152,23 +152,28 @@ the new generic APIs when the matching native release is promoted.
 <a id="rm-161"></a>
 
 **P04 · RM#161: `panack` workflow integration** · [GI#569](https://github.com/sproates/panackelty/issues/569).
-Planned; 25% of GI#200. Completes installation, help, diagnostics and end-to-end
+P04a completes on merge; 25% of GI#200 overall. Completes installation, help, diagnostics and end-to-end
 acceptance across all sources. Ordinary project commands never restore implicitly.
 
 ### P04 delivery slices
 
 The owner selected this delivery breakdown on 25 October 2026. P04 remains 25%
-of GI#200; all three slices are planned and earn no completion yet. The provisional
+of GI#200. P04a completes on merge; P04b and P04c remain planned. The provisional
 internal allocation is 50% diagnostics, 25% installed workflow and 25% final
 acceptance, reflecting the larger diagnostic implementation and test surface.
-These are scope weights, not PR counts. Overall programme completion stays 75%.
+These are scope weights, not PR counts. Overall programme completion reaches 87.5% on merge of P04a.
 
 | Slice | Deliverable | Status | Share of P04 | Programme weight | Complete | Earned | Estimated PRs |
 | --- | --- | --- | ---: | ---: | ---: | ---: | --- |
-| P04a: Diagnostics | Preserve causes and dependency context; explain failures and safe recovery; test public messages and document real examples | Planned | 50% | 12.5% | 0% | 0 pp | 1–2 |
+| P04a: Diagnostics | Preserve causes and dependency context; explain failures and safe recovery; test public messages and document real examples | Done on merge | 50% | 12.5% | 100% | 12.5 pp | 1–2 |
 | P04b: Installed workflow | Verify both tools and native dependencies are packaged correctly; finish command help and installed-tool behaviour | Planned | 25% | 6.25% | 0% | 0 pp | 1 |
 | P04c: Final acceptance | Exercise all four source types together, relocation, standalone commands and network-free ordinary builds on supported platforms | Planned | 25% | 6.25% | 0% | 0 pp | 1 |
-| **P04 total** | | **Planned** | **100%** | **25%** | **0%** | **0 pp** | **3–4** |
+| **P04 total** | | **P04a complete on merge** | **100%** | **25%** | **50%** | **12.5 pp** | **3–4** |
+
+P04a delivers structured errors, labelled dependency context, explanations and
+safe recovery guidance. The [verified examples](../../design/PACKAGE_DIAGNOSTIC_EXAMPLES.md)
+are tested transcripts with reproducible scenarios and pin-preserving recovery.
+No compiler, native interface or bootstrap change is included.
 
 Deliver P04a first, then P04b and P04c. PR counts are estimates, not acceptance
 criteria or permission to expand scope. GI#569 stays open until all three slices

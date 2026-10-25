@@ -1,0 +1,26 @@
+import project/src/packages/diagnostic::{package_problem, problem_context, render_problem, diagnostic_text}
+import stdlib/testing as testing
+import stdlib/host as host
+import stdlib/bytes as byte_buffer
+main(): Void {
+  leaf = package_problem("PKG_INTEGRITY", "digest mismatch")
+  inner = problem_context(leaf, "outer -> inner")
+  outer = problem_context(inner, "app -> outer")
+  rendered = render_problem(package_problem("PKG_CACHE_MISSING", "missing cache"), "/tmp/Ian's app/panack.json", "run")
+  expected_tail = "  panack deps restore --project '/tmp/Ian'\"'\"'s app/panack.json'"
+  control = byte_buffer.empty().push(27).decode_utf8()
+  results = [
+    testing.equal_str("leaf cause survives", outer.message, "digest mismatch"),
+    testing.equal_str("leaf code survives", outer.code, "PKG_INTEGRITY"),
+    testing.equal_str("outer context first", outer.contexts[0].value, "app -> outer"),
+    testing.equal_str("inner context retained", outer.contexts[1].value, "outer -> inner"),
+    testing.equal_str("terminal controls escaped", diagnostic_text("a\nb\rc\td" + control), "a\\nb\\rc\\td?"),
+    testing.equal_str("C1 controls escaped", diagnostic_text(byte_buffer.empty().push(194).push(155).decode_utf8()), "?"),
+    testing.equal_str("Unicode preserved", diagnostic_text("café/日本語"), "café/日本語"),
+    testing.expect("recovery shell quoting", rendered.ends_with(expected_tail), "unsafe shell quoting"),
+    testing.equal_str("missing and corrupt are distinct", package_problem("PKG_CACHE_INVALID", "corrupt").phase, "cache verification"),
+    testing.equal_str("integrity phase", leaf.phase, "content verification"),
+    testing.equal_str("missing manifest phase", package_problem("PKG_MANIFEST_MISSING", "missing").phase, "manifest discovery")
+  ]
+  if testing.report(results) > 0 { host.exit(1) }
+}

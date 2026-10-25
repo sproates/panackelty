@@ -1,6 +1,7 @@
 # P03 remote-source acceptance
 
-P03d completes the pinned remote-source packet when this change merges with its
+[PR#582](https://github.com/sproates/panackelty/pull/582) completes the pinned
+remote-source packet when it merges with its
 Linux and macOS checks green. P04 installation, help, diagnostics and final
 all-source workflow acceptance remain separate. GI#200 stays open through P04.
 

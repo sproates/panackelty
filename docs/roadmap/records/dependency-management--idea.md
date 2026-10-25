@@ -155,6 +155,41 @@ the new generic APIs when the matching native release is promoted.
 Planned; 25% of GI#200. Completes installation, help, diagnostics and end-to-end
 acceptance across all sources. Ordinary project commands never restore implicitly.
 
+### P04 delivery slices
+
+The owner selected this delivery breakdown on 25 October 2026. P04 remains 25%
+of GI#200; all three slices are planned and earn no completion yet. The provisional
+internal allocation is 50% diagnostics, 25% installed workflow and 25% final
+acceptance, reflecting the larger diagnostic implementation and test surface.
+These are scope weights, not PR counts. Overall programme completion stays 75%.
+
+| Slice | Deliverable | Status | Share of P04 | Programme weight | Complete | Earned | Estimated PRs |
+| --- | --- | --- | ---: | ---: | ---: | ---: | --- |
+| P04a: Diagnostics | Preserve causes and dependency context; explain failures and safe recovery; test public messages and document real examples | Planned | 50% | 12.5% | 0% | 0 pp | 1–2 |
+| P04b: Installed workflow | Verify both tools and native dependencies are packaged correctly; finish command help and installed-tool behaviour | Planned | 25% | 6.25% | 0% | 0 pp | 1 |
+| P04c: Final acceptance | Exercise all four source types together, relocation, standalone commands and network-free ordinary builds on supported platforms | Planned | 25% | 6.25% | 0% | 0 pp | 1 |
+| **P04 total** | | **Planned** | **100%** | **25%** | **0%** | **0 pp** | **3–4** |
+
+Deliver P04a first, then P04b and P04c. PR counts are estimates, not acceptance
+criteria or permission to expand scope. GI#569 stays open until all three slices
+are accepted; GI#200 stays open through final programme acceptance.
+
+P04a treats diagnostics as a first-class user experience. Each failure must explain
+what happened, why it prevents the requested operation and, where possible, what
+the user can safely do next. Identify the dependency alias, declaring manifest,
+failed phase and relevant transitive chain. Preserve useful causes without
+exposing secrets; state uncertainty rather than inventing a cause or remedy.
+Recovery advice must distinguish restoring locked content from updating selected
+content, especially after integrity failures. Cryptic messages are unfinished work.
+
+Maintain a diagnostic examples document using actual output from reproducible
+public CLI scenarios. Include the command, triggering context, tested version,
+explanation, recovery guidance and successful recovery where practical. Keep it
+aligned with acceptance tests and distinguish proposed examples from verified
+output. This document supplies material for a later article; writing or publishing
+that article is separate work.
+
+
 The previous design-only Alpha.15 direction and its unresolved product questions
 were superseded by the owner's 22 October decision. PR#240's historic P7 design
 remains context only where it does not conflict with the current contract.

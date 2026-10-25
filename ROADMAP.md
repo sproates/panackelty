@@ -55,7 +55,8 @@ completion to 40%. P03a completes on merge of PR#578, taking estimated weighted
 completion to 50.5%. P03b completes on merge of PR#580, taking the total to
 62.75% under the same P03 allocation. P03c completes on merge of PR#581,
 raising the total to 69.75%. [P03d remote-source acceptance](docs/design/PACKAGE_REMOTE_ACCEPTANCE.md)
-completes P03 on merge, taking the total to 75%; P04 remains planned. PR#573 reverted the initial P02
+completes P03 on merge, taking the total to 75%. P04 remains planned in three tracked slices:
+[P04a diagnostics, P04b installed workflow and P04c final acceptance](docs/roadmap/records/dependency-management--idea.md#p04-delivery-slices). PR#573 reverted the initial P02
 implementation to the P01 baseline. The P01
 [contract](docs/design/PACKAGE_MANAGEMENT_CONTRACT.md) defines lock and restore
 behaviour. The [implementation boundaries](docs/design/PACKAGE_MANAGEMENT_IMPLEMENTATION.md)

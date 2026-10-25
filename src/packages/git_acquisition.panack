@@ -1,5 +1,5 @@
 pub import project/src/packages/diagnostic::{PackageProblem}
-import project/src/packages/diagnostic::{host_detail, package_problem, problem_context, package_result, problem_label, explain_problem}
+import project/src/packages/diagnostic::{publication_problem, host_detail, package_problem, problem_context, package_result, problem_label, explain_problem}
 pub import project/src/packages/acquisition::{AcquisitionOptions}
 import project/src/packages/acquisition::{ensure_directory, locked_edge, locked_package, verify_cache_state}
 pub import project/src/packages/git_snapshot::{GitSource}
@@ -49,14 +49,16 @@ locked_git(options: AcquisitionOptions, declaration: PackageManifestDependency,
   match options.locked {
     None() => Error(package_problem("PKG_LOCK_MISSING", "missing Git lock")),
     Some(lock) => match locked_edge(lock, owner, declaration.alias) {
-      None() => Error(package_problem("PKG_LOCK_STALE", "Git dependency is missing from lock")),
+      None() => Error(package_problem("PKG_LOCK_STALE", "Cannot use this Git dependency because the lockfile does not record the dependency.")),
       Some(edge) => {
         kind = manifest_json_string_field(edge.source, "kind").value_or("")
         url = manifest_json_string_field(edge.source, "url").value_or("")
         format = manifest_json_string_field(edge.source, "object_format").value_or("")
         commit = manifest_json_string_field(edge.source, "commit").value_or("")
-        if kind != "git" || url != declaration.path {
-          Error(package_problem("PKG_LOCK_STALE", "Git source changed"))
+        if kind != "git" {
+          Error(package_problem("PKG_LOCK_STALE", "Cannot use this Git dependency because the lockfile records a different source type for the dependency."))
+        } else if url != declaration.path {
+          Error(package_problem("PKG_LOCK_STALE", "Cannot use this Git dependency because its repository URL differs from the URL recorded in the lockfile."))
         } else { Ok(GitSource(url, format, commit)) }
       }
     }
@@ -173,7 +175,7 @@ pub acquire_git(options: AcquisitionOptions, declaration: PackageManifestDepende
   }
 }
 
-pub publish_git(sources: [AcquiredGit]): Result[Unit, PackageProblem] {
+pub publish_git(root: Str, sources: [AcquiredGit]): Result[Unit, PackageProblem] {
   mut published: Set[Str] = set()
   mut failure: Option[PackageProblem] = None()
   for source in sources {
@@ -181,7 +183,7 @@ pub publish_git(sources: [AcquiredGit]): Result[Unit, PackageProblem] {
       match source.stage {
         None() => {},
         Some(handle) => match staging.publish(handle, checked_path(source.key), true) {
-          Error(problem) => { failure = Some(package_problem("PKG_PUBLICATION", "cannot save the downloaded Git package: " + host_detail(problem.code))) },
+          Error(problem) => { failure = Some(publication_problem(root + "/.panack_modules/.sources/" + source.key, problem.code, false)) },
           Ok(completed_7) => { published = published.add(source.key) }
         }
       }

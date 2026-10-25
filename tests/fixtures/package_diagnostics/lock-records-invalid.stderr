@@ -2,9 +2,8 @@ panack: error[PKG_LOCK_INVALID]: Cannot use panack.lock.json because its depende
 
   Project: <workspace>/app/panack.json
   Lockfile: <workspace>/app/panack.lock.json
-  Location: line 1, column 1
 
-missing required lock field lock_schema
+The lockfile is missing the required 'lock_schema' field.
 
 If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.
 

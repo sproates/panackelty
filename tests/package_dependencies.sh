@@ -86,7 +86,9 @@ expect 49 run --project "$manifest"
 cp "$lock" "$work/before-live.lock"
 sed 's/"version":"1.0.0"/"version":"1.0.1"/' "$work/live/panack.json" > "$work/live/next.json"
 mv "$work/live/next.json" "$work/live/panack.json"
-reject 'the current dependency definitions do not match panack.lock.json' check --project "$manifest"
+reject 'Cannot use the lockfile because a dependency manifest has changed since the lockfile was created.' check --project "$manifest"
+grep -F "Manifest: $work/live/panack.json" "$work/err" >/dev/null
+grep -F 'Package: test.live@1.0.1' "$work/err" >/dev/null
 reject 'PKG_DEPENDENCY_NOT_SELECTED' deps update --project "$manifest" lib
 cmp "$lock" "$work/before-live.lock"
 expect ok deps update --project "$manifest" live

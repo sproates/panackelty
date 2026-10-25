@@ -1,7 +1,7 @@
 pub import project/src/project_model/package_manifest::{ManifestJsonValue, ParsedManifestField, PackageManifestError}
 import project/src/project_model/package_manifest::{ManifestJsonMember}
 import project/src/project_model/package_manifest::{ManifestJsonValue.ManifestJsonNull, ManifestJsonValue.ManifestJsonBool, ManifestJsonValue.ManifestJsonNumber, ManifestJsonValue.ManifestJsonString, ManifestJsonValue.ManifestJsonArray, ManifestJsonValue.ManifestJsonObject}
-import project/src/project_model/package_manifest::{parse_bounded_json, manifest_json_object_field, manifest_json_string_field, manifest_object_unknown_field}
+import project/src/project_model/package_manifest::{parse_bounded_json, manifest_json_object_field}
 import stdlib/bytes as byte_buffer
 import project/src/project_model/package_manifest::{manifest_identifier, manifest_package_name, manifest_semver}
 
@@ -63,19 +63,52 @@ pure lock_error(message: Str, offset: Nat): PackageManifestError {
 
 pure lock_field(value: ManifestJsonValue, key: Str): Result[ManifestJsonValue, PackageManifestError] {
   match manifest_json_object_field(value, key) {
-    None() => Error(lock_error("missing required lock field ${key}", 0)),
+    None() => Error(lock_error("The lockfile is missing the required '${key}' field.", 0)),
     Some(field) => Ok(field.value)
   }
 }
 
 pure lock_string(value: ManifestJsonValue, key: Str): Result[Str, PackageManifestError] {
-  manifest_json_string_field(value, key)
+  match manifest_json_object_field(value, key) {
+    None() => Error(lock_error("The lockfile is missing the required '${key}' string field.", 0)),
+    Some(field) => match field.value {
+      ManifestJsonString(text) => Ok(text),
+      ManifestJsonNull() => Error(lock_error("The lockfile field '${key}' must be a JSON string.", field.offset)),
+      ManifestJsonBool(flag) => Error(lock_error("The lockfile field '${key}' must be a JSON string.", field.offset)),
+      ManifestJsonNumber(number) => Error(lock_error("The lockfile field '${key}' must be a JSON string.", field.offset)),
+      ManifestJsonArray(values) => Error(lock_error("The lockfile field '${key}' must be a JSON string.", field.offset)),
+      ManifestJsonObject(members) => Error(lock_error("The lockfile field '${key}' must be a JSON string.", field.offset))
+    }
+  }
+}
+
+// The JSON representation is shared with manifests; lockfile validation and
+// its vocabulary belong to the package tool.
+pure lock_unknown_field(value: ManifestJsonValue, allowed: [Str]): Option[PackageManifestError] {
+  match value {
+    ManifestJsonObject(members) => {
+      mut failure: Option[PackageManifestError] = None()
+      for member in members {
+        mut known = false
+        for name in allowed { known = known || name == member.key }
+        if !known && failure == None() {
+          failure = Some(lock_error("The lockfile record contains an unsupported field: '" + member.key + "'.", member.offset))
+        }
+      }
+      failure
+    },
+    ManifestJsonNull() => Some(lock_error("A lockfile record must be a JSON object.", 0)),
+    ManifestJsonBool(flag) => Some(lock_error("A lockfile record must be a JSON object.", 0)),
+    ManifestJsonNumber(number) => Some(lock_error("A lockfile record must be a JSON object.", 0)),
+    ManifestJsonString(text) => Some(lock_error("A lockfile record must be a JSON object.", 0)),
+    ManifestJsonArray(values) => Some(lock_error("A lockfile record must be a JSON object.", 0))
+  }
 }
 
 pure lock_nonempty_string(value: ManifestJsonValue, key: Str): Result[Str, PackageManifestError] {
   match lock_string(value, key) {
     Error(error) => Error(error),
-    Ok(text) => if text == "" { Error(lock_error("lock field " + key + " cannot be empty", 0)) } else { Ok(text) }
+    Ok(text) => if text == "" { Error(lock_error("The lockfile field '" + key + "' must contain a nonempty string.", 0)) } else { Ok(text) }
   }
 }
 
@@ -128,11 +161,11 @@ pure lock_parse_edges(value: ManifestJsonValue): Result[[PackageLockEdge], Packa
       mut failure: Option[PackageManifestError] = None()
       for member in members {
         if (!manifest_identifier(member.key) || member.key == "project" || member.key == "stdlib") && failure == None() {
-          failure = Some(lock_error("invalid lock dependency alias", member.offset))
+          failure = Some(lock_error("A dependency name in the lockfile is invalid. Use an identifier other than the reserved names 'project' and 'stdlib'.", member.offset))
         }
         match member.value {
           ManifestJsonObject(fields) => {
-            match manifest_object_unknown_field(member.value, ["package", "source"]) {
+            match lock_unknown_field(member.value, ["package", "source"]) {
               Some(error) => if failure == None() { failure = Some(error) },
               None() => match lock_string(member.value, "package") {
                 Error(error) => if failure == None() { failure = Some(error) },
@@ -141,7 +174,7 @@ pure lock_parse_edges(value: ManifestJsonValue): Result[[PackageLockEdge], Packa
                   Ok(source) => match source {
                     ManifestJsonObject(source_fields) => {
                       match manifest_json_object_field(source, "kind") {
-                        None() => if failure == None() { failure = Some(lock_error("lock source is missing kind", member.offset)) },
+                        None() => if failure == None() { failure = Some(lock_error("A dependency source is missing its 'kind' field. Expected 'path', 'archive' or 'git'.", member.offset)) },
                         Some(kind_field) => match kind_field.value {
                           ManifestJsonString(kind) => {
                             allowed: [Str] = if kind == "path" { ["kind", "path"] }
@@ -149,20 +182,20 @@ pure lock_parse_edges(value: ManifestJsonValue): Result[[PackageLockEdge], Packa
                               else if kind == "git" { ["kind", "url", "subdir", "object_format", "commit"] }
                               else { [] }
                             if allowed.len() == 0 {
-                              if failure == None() { failure = Some(lock_error("unknown lock source kind", kind_field.offset)) }
+                              if failure == None() { failure = Some(lock_error("A dependency source has an unsupported 'kind'. Expected 'path', 'archive' or 'git'.", kind_field.offset)) }
                             } else {
-                              match manifest_object_unknown_field(source, allowed) {
+                              match lock_unknown_field(source, allowed) {
                                 Some(error) => if failure == None() { failure = Some(error) },
                                 None() => {
                                   if kind == "path" {
                                     match lock_nonempty_string(source, "path") {
                                       Error(error) => if failure == None() { failure = Some(error) },
-                                      Ok(path) => if (normalize_dependency_path(path) != path || lock_contains(path, "\\") || lock_contains(path, "".encode_utf8().push(0).decode_utf8())) && failure == None() { failure = Some(lock_error("lockfile dependency path contains unsupported separators or unresolved . or .. components", member.offset)) }
+                                      Ok(path) => if (normalize_dependency_path(path) != path || lock_contains(path, "\\") || lock_contains(path, "".encode_utf8().push(0).decode_utf8())) && failure == None() { failure = Some(lock_error("A dependency path in the lockfile is not in canonical form. Use '/' separators and remove redundant separators and resolvable '.' or '..' components.", member.offset)) }
                                     }
                                   } else if kind == "archive" {
                                     mut archive_sha: Str = ""
                                     match manifest_json_object_field(source, "archive_sha256") {
-                                      None() => if failure == None() { failure = Some(lock_error("archive source is missing archive_sha256", member.offset)) },
+                                      None() => if failure == None() { failure = Some(lock_error("An archive source is missing 'archive_sha256', the checksum of the compressed archive bytes.", member.offset)) },
                                       Some(field) => match field.value {
                                         ManifestJsonString(hash) => { archive_sha = hash },
                                         ManifestJsonNull() => if failure == None() { failure = Some(lock_error("archive_sha256 must be a string", field.offset)) },
@@ -172,21 +205,21 @@ pure lock_parse_edges(value: ManifestJsonValue): Result[[PackageLockEdge], Packa
                                         ManifestJsonObject(nested_members) => if failure == None() { failure = Some(lock_error("archive_sha256 must be a string", field.offset)) }
                                       }
                                     }
-                                    if !lock_sha256(archive_sha) && failure == None() { failure = Some(lock_error("archive_sha256 must be lowercase SHA-256", member.offset)) }
+                                    if !lock_sha256(archive_sha) && failure == None() { failure = Some(lock_error("The 'archive_sha256' field must contain a SHA-256 checksum written as 64 lowercase hexadecimal characters.", member.offset)) }
                                     path_field: Option[ParsedManifestField] = manifest_json_object_field(source, "path")
                                     url_field: Option[ParsedManifestField] = manifest_json_object_field(source, "url")
-                                    if path_field == None() && url_field == None() && failure == None() { failure = Some(lock_error("archive source requires path or url", member.offset)) }
-                                    if path_field != None() && url_field != None() && failure == None() { failure = Some(lock_error("archive source cannot contain both path and url", member.offset)) }
+                                    if path_field == None() && url_field == None() && failure == None() { failure = Some(lock_error("An archive source must specify either 'path' for a local archive or 'url' for an HTTPS archive.", member.offset)) }
+                                    if path_field != None() && url_field != None() && failure == None() { failure = Some(lock_error("An archive source specifies both 'path' and 'url'. Exactly one archive location is allowed.", member.offset)) }
                                     if path_field != None() {
                                       match lock_nonempty_string(source, "path") {
                                         Error(error) => if failure == None() { failure = Some(error) },
-                                        Ok(path) => if (!path.ends_with(".tar.gz") || normalize_dependency_path(path) != path || lock_contains(path, "\\") || lock_contains(path, "".encode_utf8().push(0).decode_utf8())) && failure == None() { failure = Some(lock_error("local archive path must be normalized and end in .tar.gz", member.offset)) }
+                                        Ok(path) => if (!path.ends_with(".tar.gz") || normalize_dependency_path(path) != path || lock_contains(path, "\\") || lock_contains(path, "".encode_utf8().push(0).decode_utf8())) && failure == None() { failure = Some(lock_error("A local archive path must end in '.tar.gz', use '/' separators and contain no redundant separators or resolvable '.' or '..' components.", member.offset)) }
                                       }
                                     }
                                     if url_field != None() {
                                       match lock_nonempty_string(source, "url") {
                                         Error(error) => if failure == None() { failure = Some(error) },
-                                        Ok(url) => if (!lock_https_url(url) || !url.ends_with(".tar.gz")) && failure == None() { failure = Some(lock_error("remote archive URL must be HTTPS and end in .tar.gz", member.offset)) }
+                                        Ok(url) => if (!lock_https_url(url) || !url.ends_with(".tar.gz")) && failure == None() { failure = Some(lock_error("An archive URL must use HTTPS, end in '.tar.gz' and contain no credentials, query string or fragment.", member.offset)) }
                                       }
                                     }
                                   } else {
@@ -203,13 +236,13 @@ pure lock_parse_edges(value: ManifestJsonValue): Result[[PackageLockEdge], Packa
                                         }
                                       }
                                     }
-                                    if git_url != "" && !lock_https_url(git_url) && failure == None() { failure = Some(lock_error("git source URL must be HTTPS", member.offset)) }
-                                    if object_format != "" && object_format != "sha1" && object_format != "sha256" && failure == None() { failure = Some(lock_error("git object_format must be sha1 or sha256", member.offset)) }
-                                    if commit != "" && ((object_format == "sha1" && !lock_lower_hex(commit, 40)) || (object_format == "sha256" && !lock_lower_hex(commit, 64)) || (object_format != "sha1" && object_format != "sha256")) && failure == None() { failure = Some(lock_error("git commit must be a full lowercase object ID", member.offset)) }
+                                    if git_url != "" && !lock_https_url(git_url) && failure == None() { failure = Some(lock_error("A Git URL must use HTTPS and contain no credentials, query string or fragment.", member.offset)) }
+                                    if object_format != "" && object_format != "sha1" && object_format != "sha256" && failure == None() { failure = Some(lock_error("A Git source's 'object_format' must be 'sha1' or 'sha256'.", member.offset)) }
+                                    if commit != "" && ((object_format == "sha1" && !lock_lower_hex(commit, 40)) || (object_format == "sha256" && !lock_lower_hex(commit, 64)) || (object_format != "sha1" && object_format != "sha256")) && failure == None() { failure = Some(lock_error("A Git source's 'commit' must contain the complete commit ID: 40 lowercase hexadecimal characters for sha1, or 64 for sha256.", member.offset)) }
                                     match manifest_json_object_field(source, "subdir") {
                                       None() => {},
                                       Some(field) => match field.value {
-                                        ManifestJsonString(path) => if (path == "" || path[0] == "/" || normalize_dependency_path(path) != path || path == ".." || path.starts_with_at("../", 0) || lock_contains(path, "\\") || lock_contains(path, "".encode_utf8().push(0).decode_utf8())) && failure == None() { failure = Some(lock_error("git subdir must be a normalized repository-relative path", field.offset)) },
+                                        ManifestJsonString(path) => if (path == "" || path[0] == "/" || normalize_dependency_path(path) != path || path == ".." || path.starts_with_at("../", 0) || lock_contains(path, "\\") || lock_contains(path, "".encode_utf8().push(0).decode_utf8())) && failure == None() { failure = Some(lock_error("A Git source's 'subdir' must be a nonempty path relative to the repository, using '/' separators without redundant separators or '.' or '..' components. Use '.' for the repository root.", field.offset)) },
                                         ManifestJsonNull() => if failure == None() { failure = Some(lock_error("git subdir must be a string", field.offset)) },
                                         ManifestJsonBool(flag) => if failure == None() { failure = Some(lock_error("git subdir must be a string", field.offset)) },
                                         ManifestJsonNumber(number) => if failure == None() { failure = Some(lock_error("git subdir must be a string", field.offset)) },
@@ -222,20 +255,20 @@ pure lock_parse_edges(value: ManifestJsonValue): Result[[PackageLockEdge], Packa
                               }
                             }
                           },
-                          ManifestJsonNull() => if failure == None() { failure = Some(lock_error("lock source kind must be a string", kind_field.offset)) },
-                          ManifestJsonBool(flag) => if failure == None() { failure = Some(lock_error("lock source kind must be a string", kind_field.offset)) },
-                          ManifestJsonNumber(number) => if failure == None() { failure = Some(lock_error("lock source kind must be a string", kind_field.offset)) },
-                          ManifestJsonArray(values) => if failure == None() { failure = Some(lock_error("lock source kind must be a string", kind_field.offset)) },
-                          ManifestJsonObject(nested_members) => if failure == None() { failure = Some(lock_error("lock source kind must be a string", kind_field.offset)) }
+                          ManifestJsonNull() => if failure == None() { failure = Some(lock_error("A dependency source's 'kind' must be a JSON string: 'path', 'archive' or 'git'.", kind_field.offset)) },
+                          ManifestJsonBool(flag) => if failure == None() { failure = Some(lock_error("A dependency source's 'kind' must be a JSON string: 'path', 'archive' or 'git'.", kind_field.offset)) },
+                          ManifestJsonNumber(number) => if failure == None() { failure = Some(lock_error("A dependency source's 'kind' must be a JSON string: 'path', 'archive' or 'git'.", kind_field.offset)) },
+                          ManifestJsonArray(values) => if failure == None() { failure = Some(lock_error("A dependency source's 'kind' must be a JSON string: 'path', 'archive' or 'git'.", kind_field.offset)) },
+                          ManifestJsonObject(nested_members) => if failure == None() { failure = Some(lock_error("A dependency source's 'kind' must be a JSON string: 'path', 'archive' or 'git'.", kind_field.offset)) }
                         }
                       }
                       edges = edges.append(PackageLockEdge(member.key, package, source))
                     },
-                    ManifestJsonNull() => if failure == None() { failure = Some(lock_error("lock source must be an object", member.offset)) },
-                    ManifestJsonBool(flag) => if failure == None() { failure = Some(lock_error("lock source must be an object", member.offset)) },
-                    ManifestJsonNumber(number) => if failure == None() { failure = Some(lock_error("lock source must be an object", member.offset)) },
-                    ManifestJsonString(text) => if failure == None() { failure = Some(lock_error("lock source must be an object", member.offset)) },
-                    ManifestJsonArray(values) => if failure == None() { failure = Some(lock_error("lock source must be an object", member.offset)) }
+                    ManifestJsonNull() => if failure == None() { failure = Some(lock_error("A dependency's 'source' must be a JSON object describing a path, archive or Git repository.", member.offset)) },
+                    ManifestJsonBool(flag) => if failure == None() { failure = Some(lock_error("A dependency's 'source' must be a JSON object describing a path, archive or Git repository.", member.offset)) },
+                    ManifestJsonNumber(number) => if failure == None() { failure = Some(lock_error("A dependency's 'source' must be a JSON object describing a path, archive or Git repository.", member.offset)) },
+                    ManifestJsonString(text) => if failure == None() { failure = Some(lock_error("A dependency's 'source' must be a JSON object describing a path, archive or Git repository.", member.offset)) },
+                    ManifestJsonArray(values) => if failure == None() { failure = Some(lock_error("A dependency's 'source' must be a JSON object describing a path, archive or Git repository.", member.offset)) }
                   }
                 }
               }
@@ -250,11 +283,11 @@ pure lock_parse_edges(value: ManifestJsonValue): Result[[PackageLockEdge], Packa
       }
       match failure { Some(error) => Error(error), None() => Ok(edges) }
     },
-    ManifestJsonNull() => Error(lock_error("lock dependencies must be an object", 0)),
-    ManifestJsonBool(flag) => Error(lock_error("lock dependencies must be an object", 0)),
-    ManifestJsonNumber(number) => Error(lock_error("lock dependencies must be an object", 0)),
-    ManifestJsonString(text) => Error(lock_error("lock dependencies must be an object", 0)),
-    ManifestJsonArray(values) => Error(lock_error("lock dependencies must be an object", 0))
+    ManifestJsonNull() => Error(lock_error("The 'dependencies' field must be a JSON object mapping dependency names to package and source records.", 0)),
+    ManifestJsonBool(flag) => Error(lock_error("The 'dependencies' field must be a JSON object mapping dependency names to package and source records.", 0)),
+    ManifestJsonNumber(number) => Error(lock_error("The 'dependencies' field must be a JSON object mapping dependency names to package and source records.", 0)),
+    ManifestJsonString(text) => Error(lock_error("The 'dependencies' field must be a JSON object mapping dependency names to package and source records.", 0)),
+    ManifestJsonArray(values) => Error(lock_error("The 'dependencies' field must be a JSON object mapping dependency names to package and source records.", 0))
   }
 }
 
@@ -369,29 +402,29 @@ pub pure serialize_package_lock(lock: PackageLock): Str {
 pub pure parse_package_lock(data: Bytes): Result[PackageLock, PackageManifestError] {
   match parse_bounded_json(data, 1048576) {
     Error(error) => Error(error),
-    Ok(root) => match manifest_object_unknown_field(root, ["lock_schema", "root", "packages"]) {
+    Ok(root) => match lock_unknown_field(root, ["lock_schema", "root", "packages"]) {
       Some(error) => Error(error),
       None() => {
         mut failure: Option[PackageManifestError] = None()
         match lock_field(root, "lock_schema") {
           Error(error) => { failure = Some(error) },
           Ok(schema) => match schema {
-            ManifestJsonNumber(number) => if number != "1" { failure = Some(lock_error("lock_schema must be the integer 1", 0)) },
-            ManifestJsonNull() => { failure = Some(lock_error("lock_schema must be the integer 1", 0)) },
-            ManifestJsonBool(flag) => { failure = Some(lock_error("lock_schema must be the integer 1", 0)) },
-            ManifestJsonString(text) => { failure = Some(lock_error("lock_schema must be the integer 1", 0)) },
-            ManifestJsonArray(values) => { failure = Some(lock_error("lock_schema must be the integer 1", 0)) },
-            ManifestJsonObject(members) => { failure = Some(lock_error("lock_schema must be the integer 1", 0)) }
+            ManifestJsonNumber(number) => if number != "1" { failure = Some(lock_error("The 'lock_schema' field must be the integer 1. This Panack version supports lockfile schema 1.", 0)) },
+            ManifestJsonNull() => { failure = Some(lock_error("The 'lock_schema' field must be the integer 1. This Panack version supports lockfile schema 1.", 0)) },
+            ManifestJsonBool(flag) => { failure = Some(lock_error("The 'lock_schema' field must be the integer 1. This Panack version supports lockfile schema 1.", 0)) },
+            ManifestJsonString(text) => { failure = Some(lock_error("The 'lock_schema' field must be the integer 1. This Panack version supports lockfile schema 1.", 0)) },
+            ManifestJsonArray(values) => { failure = Some(lock_error("The 'lock_schema' field must be the integer 1. This Panack version supports lockfile schema 1.", 0)) },
+            ManifestJsonObject(members) => { failure = Some(lock_error("The 'lock_schema' field must be the integer 1. This Panack version supports lockfile schema 1.", 0)) }
           }
         }
         root_value: ManifestJsonValue = match lock_field(root, "root") { Error(error) => { if failure == None() { failure = Some(error) }; ManifestJsonNull() }, Ok(value) => value }
-        root_unknown: Option[PackageManifestError] = manifest_object_unknown_field(root_value, ["name", "version", "manifest_sha256", "toolchain", "dependencies"])
+        root_unknown: Option[PackageManifestError] = lock_unknown_field(root_value, ["name", "version", "manifest_sha256", "toolchain", "dependencies"])
         match root_unknown { Some(error) => if failure == None() { failure = Some(error) }, None() => {} }
         name: Str = match lock_string(root_value, "name") { Error(error) => { if failure == None() { failure = Some(error) }; "" }, Ok(value) => value }
         version: Str = match lock_string(root_value, "version") { Error(error) => { if failure == None() { failure = Some(error) }; "" }, Ok(value) => value }
         manifest_hash: Str = match lock_string(root_value, "manifest_sha256") { Error(error) => { if failure == None() { failure = Some(error) }; "" }, Ok(value) => value }
         toolchain: Str = match lock_string(root_value, "toolchain") { Error(error) => { if failure == None() { failure = Some(error) }; "" }, Ok(value) => value }
-        if !lock_sha256(manifest_hash) && failure == None() { failure = Some(lock_error("manifest_sha256 must be lowercase SHA-256", 0)) }
+        if !lock_sha256(manifest_hash) && failure == None() { failure = Some(lock_error("The 'manifest_sha256' field must contain a SHA-256 checksum written as 64 lowercase hexadecimal characters.", 0)) }
         root_deps_value: ManifestJsonValue = match lock_field(root_value, "dependencies") { Error(error) => { if failure == None() { failure = Some(error) }; ManifestJsonNull() }, Ok(value) => value }
         root_deps: [PackageLockEdge] = match lock_parse_edges(root_deps_value) { Error(error) => { if failure == None() { failure = Some(error) }; [] }, Ok(value) => value }
         packages_value: ManifestJsonValue = match lock_field(root, "packages") { Error(error) => { if failure == None() { failure = Some(error) }; ManifestJsonNull() }, Ok(value) => value }
@@ -399,18 +432,18 @@ pub pure parse_package_lock(data: Bytes): Result[PackageLock, PackageManifestErr
         match packages_value {
           ManifestJsonArray(items) => {
             for item in items {
-              match manifest_object_unknown_field(item, ["name", "version", "manifest_sha256", "tree_sha256", "dependencies"]) {
+              match lock_unknown_field(item, ["name", "version", "manifest_sha256", "tree_sha256", "dependencies"]) {
                 Some(error) => if failure == None() { failure = Some(error) },
                 None() => {
                   package_name: Str = match lock_string(item, "name") { Error(error) => { if failure == None() { failure = Some(error) }; "" }, Ok(value) => value }
                   package_version: Str = match lock_string(item, "version") { Error(error) => { if failure == None() { failure = Some(error) }; "" }, Ok(value) => value }
                   package_hash: Str = match lock_string(item, "manifest_sha256") { Error(error) => { if failure == None() { failure = Some(error) }; "" }, Ok(value) => value }
-                  if !lock_sha256(package_hash) && failure == None() { failure = Some(lock_error("manifest_sha256 must be lowercase SHA-256", 0)) }
+                  if !lock_sha256(package_hash) && failure == None() { failure = Some(lock_error("The 'manifest_sha256' field must contain a SHA-256 checksum written as 64 lowercase hexadecimal characters.", 0)) }
                   mut tree_hash: Option[Str] = None()
                   match manifest_json_object_field(item, "tree_sha256") {
                     None() => {},
                     Some(field) => match field.value {
-                      ManifestJsonString(value) => if lock_sha256(value) { tree_hash = Some(value) } else if failure == None() { failure = Some(lock_error("tree_sha256 must be lowercase SHA-256", field.offset)) },
+                      ManifestJsonString(value) => if lock_sha256(value) { tree_hash = Some(value) } else if failure == None() { failure = Some(lock_error("The 'tree_sha256' field must contain a SHA-256 checksum written as 64 lowercase hexadecimal characters.", field.offset)) },
                       ManifestJsonNull() => if failure == None() { failure = Some(lock_error("tree_sha256 must be a string", field.offset)) },
                       ManifestJsonBool(flag) => if failure == None() { failure = Some(lock_error("tree_sha256 must be a string", field.offset)) },
                       ManifestJsonNumber(number) => if failure == None() { failure = Some(lock_error("tree_sha256 must be a string", field.offset)) },
@@ -425,32 +458,32 @@ pub pure parse_package_lock(data: Bytes): Result[PackageLock, PackageManifestErr
               }
             }
           },
-          ManifestJsonNull() => if failure == None() { failure = Some(lock_error("lock packages must be an array", 0)) },
-          ManifestJsonBool(flag) => if failure == None() { failure = Some(lock_error("lock packages must be an array", 0)) },
-          ManifestJsonNumber(number) => if failure == None() { failure = Some(lock_error("lock packages must be an array", 0)) },
-          ManifestJsonString(text) => if failure == None() { failure = Some(lock_error("lock packages must be an array", 0)) },
-          ManifestJsonObject(members) => if failure == None() { failure = Some(lock_error("lock packages must be an array", 0)) }
+          ManifestJsonNull() => if failure == None() { failure = Some(lock_error("The 'packages' field must be a JSON array containing the dependency package records.", 0)) },
+          ManifestJsonBool(flag) => if failure == None() { failure = Some(lock_error("The 'packages' field must be a JSON array containing the dependency package records.", 0)) },
+          ManifestJsonNumber(number) => if failure == None() { failure = Some(lock_error("The 'packages' field must be a JSON array containing the dependency package records.", 0)) },
+          ManifestJsonString(text) => if failure == None() { failure = Some(lock_error("The 'packages' field must be a JSON array containing the dependency package records.", 0)) },
+          ManifestJsonObject(members) => if failure == None() { failure = Some(lock_error("The 'packages' field must be a JSON array containing the dependency package records.", 0)) }
         }
-        if !manifest_package_name(name) && failure == None() { failure = Some(lock_error("lockfile project name is not a valid package name", 0)) }
-        if !manifest_semver(version) && failure == None() { failure = Some(lock_error("lockfile project version is not a valid major.minor.patch version", 0)) }
-        if toolchain == "" && failure == None() { failure = Some(lock_error("lockfile has no Panack toolchain version", 0)) }
-        if packages.len() > 63 && failure == None() { failure = Some(lock_error("lock graph exceeds 64 packages including the root", 0)) }
+        if !manifest_package_name(name) && failure == None() { failure = Some(lock_error("The project name in the lockfile is not a valid package name.", 0)) }
+        if !manifest_semver(version) && failure == None() { failure = Some(lock_error("The project version in the lockfile must use the major.minor.patch format.", 0)) }
+        if toolchain == "" && failure == None() { failure = Some(lock_error("The lockfile does not record a Panack toolchain version.", 0)) }
+        if packages.len() > 63 && failure == None() { failure = Some(lock_error("The lockfile exceeds Panack's limit of 64 packages, including the project itself.", 0)) }
         mut identities: [Str] = []
         mut package_names: [Str] = []
         mut edge_count: Nat = root_deps.len()
         for package in packages {
           edge_count = edge_count + package.dependencies.len()
-          if !manifest_package_name(package.name) && failure == None() { failure = Some(lock_error("lockfile contains an invalid dependency package name", 0)) }
-          if !manifest_semver(package.version) && failure == None() { failure = Some(lock_error("lockfile dependency has an invalid version: " + package.name, 0)) }
-          if package.name == name && failure == None() { failure = Some(lock_error("lockfile dependency has the same package name as the project: " + name, 0)) }
+          if !manifest_package_name(package.name) && failure == None() { failure = Some(lock_error("A dependency package record contains an invalid package name.", 0)) }
+          if !manifest_semver(package.version) && failure == None() { failure = Some(lock_error("A dependency package record has an invalid major.minor.patch version. Package: " + package.name, 0)) }
+          if package.name == name && failure == None() { failure = Some(lock_error("A dependency package record uses the project's own package name: " + name, 0)) }
           identity: Str = lock_package_id(package.name, package.version)
-          for previous in identities { if previous == identity && failure == None() { failure = Some(lock_error("duplicate lock package identity ${identity}", 0)) } }
-          for previous in package_names { if previous == package.name && failure == None() { failure = Some(lock_error("lock contains multiple versions of package ${package.name}", 0)) } }
+          for previous in identities { if previous == identity && failure == None() { failure = Some(lock_error("The lockfile contains more than one record for package '${identity}'.", 0)) } }
+          for previous in package_names { if previous == package.name && failure == None() { failure = Some(lock_error("The lockfile records multiple versions of package '" + package.name + "'. Panack requires one version of each package name.", 0)) } }
           identities = identities.append(identity)
           package_names = package_names.append(package.name)
         }
         if edge_count > 256 && failure == None() {
-          failure = Some(lock_error("lock graph exceeds 256 edges", 0))
+          failure = Some(lock_error("The lockfile exceeds Panack's limit of 256 dependency declarations across the project and its packages.", 0))
         }
         mut referenced: [Str] = []
         for edge in root_deps { referenced = referenced.append(edge.package) }
@@ -470,7 +503,7 @@ pub pure parse_package_lock(data: Bytes): Result[PackageLock, PackageManifestErr
                     depth = depth.put(edge.package, next_depth)
                   }
                   if next_depth > 32 && failure == None() {
-                    failure = Some(lock_error("following lockfile dependencies exceeded 32 levels; check for excessive nesting or a dependency that leads back to itself", 0))
+                    failure = Some(lock_error("Following the lockfile's dependency declarations exceeds Panack's limit of 32 package levels, including the project. A circular dependency also exceeds this limit because the chain never ends.", 0))
                   }
                 }
               }
@@ -481,14 +514,18 @@ pub pure parse_package_lock(data: Bytes): Result[PackageLock, PackageManifestErr
           for package in packages {
             identity: Str = lock_package_id(package.name, package.version)
             if !depth.has(identity) && failure == None() {
-              failure = Some(lock_error("lock contains unreferenced package records", 0))
+              failure = Some(lock_error("The lockfile contains a record for package '${identity}', but no dependency chain from the project reaches that package.", 0))
             }
             for edge in edges {
               if edge.package == identity {
                 match lock_string(edge.source, "kind") {
                   Error(error) => if failure == None() { failure = Some(error) },
                   Ok(kind) => if (kind == "path") != (package.tree_sha256 == None()) && failure == None() {
-                    failure = Some(lock_error("lock tree digest must exist exactly for acquired package sources", 0))
+                    failure = Some(lock_error(if kind == "path" {
+                      "Package '${identity}' is a live local directory, but its lockfile record contains 'tree_sha256'. Live directory contents are not pinned to a package checksum."
+                    } else {
+                      "Package '${identity}' is missing 'tree_sha256', the checksum used to verify the package files obtained from its archive or Git repository."
+                    }, 0))
                   }
                 }
               }
@@ -498,7 +535,7 @@ pub pure parse_package_lock(data: Bytes): Result[PackageLock, PackageManifestErr
         for reference in referenced {
           mut found = false
           for identity in identities { found = found || identity == reference }
-          if !found && failure == None() { failure = Some(lock_error("lock dependency references missing package ${reference}", 0)) }
+          if !found && failure == None() { failure = Some(lock_error("A dependency refers to package '${reference}', but the lockfile has no record for that package.", 0)) }
         }
         match failure {
           Some(error) => Error(error),

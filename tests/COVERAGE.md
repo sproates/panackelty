@@ -1472,8 +1472,8 @@ restores, unavailable locked commits and changed archive bytes. Failure checks
 compare the complete cache tree plus exact lock/state bytes. See the
 [remote-source acceptance matrix](../docs/design/PACKAGE_REMOTE_ACCEPTANCE.md).
 
-P04a and its diagnostic follow-up provide 50 diagnostic unit assertions and public-command transcript/recovery
-acceptance in `tests/package_diagnostics.sh`. Fifty-seven exact
+P04a and its diagnostic follow-up provide 57 diagnostic unit assertions and public-command transcript/recovery
+acceptance in `tests/package_diagnostics.sh`. Seventy-five exact
 transcripts are checked against the examples document. Tests execute suggested
 commands with apostrophes/spaces in the project path, verify complete program
 output and preserve pins after cache repair or rejected content. Existing remote
@@ -1518,3 +1518,13 @@ byte bounds, JSON depth, invalid lock records, application dependencies, cycles,
 conflicting versions/directories and overlapping source roots. The tests check
 no initial lock on rejection, preservation of existing files and execution of
 the suggested initial-lock command. Permission cases run on non-root POSIX hosts.
+
+The lock/publication correction adds 18 exact public transcripts and brings the
+lock parser unit suite to 27 assertions. It covers lock schema, JSON record and
+field types, unsupported fields, checksums, source declarations, missing or
+duplicate packages, multiple versions, and changed project/dependency manifests.
+Every malformed-lock scenario compares the rejected file byte for byte.
+Publication tests preserve a conflicting symlink and its target, distinguish a
+state-record destination conflict, execute the suggested restore commands and
+run the recovered program. Semantic errors without a source offset no longer
+claim line 1, column 1. HTTP redirect/response variants remain outstanding.

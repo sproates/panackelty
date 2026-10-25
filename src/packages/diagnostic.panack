@@ -200,6 +200,20 @@ pub pure checksum_problem(root: Str): PackageProblem {
     "Save any edits you want to keep elsewhere before restoring these files.\n\nTo restore the local package files to the contents identified by the lockfile, run:"), "Local package directory", root)
 }
 
+pub pure publication_problem(destination: Str, code: Str, state_record: Bool): PackageProblem {
+  problem_label(problem_label(explain_problem(package_problem("PKG_PUBLICATION",
+    if state_record && code == "destination_conflict" { "Cannot save the package state record because the destination is not a regular file." }
+    else if state_record { "Cannot save the record of prepared local packages: " + host_detail(code) + "." }
+    else { "Cannot save the prepared package directory: " + host_detail(code) + "." }),
+    if state_record { "Panack saved the package directories, but could not save the state record used to verify those directories against the lockfile." }
+    else { "Panack stopped while saving prepared packages. The lockfile may already have been saved, and other package directories may already have been replaced." },
+    if code == "destination_conflict" {
+      "Preserve any contents you need before moving the conflicting destination elsewhere. Then prepare the packages recorded in the lockfile by running:"
+    } else {
+      "Correct the reported filesystem problem at the destination. Check access using the account running Panack, then prepare the packages recorded in the lockfile by running:"
+    }), if state_record { "Destination file" } else { "Destination directory" }, destination), "Recovery operation", "restore")
+}
+
 pub pure problem_value(problem: PackageProblem, label: Str): Str {
   mut value = ""
   for context in problem.contexts { if context.label == label { value = context.value } }
@@ -272,7 +286,7 @@ pub pure render_problem(problem: PackageProblem, manifest: Str, operation: Str):
     output = output + "\n  Project: " + diagnostic_text(manifest) + "\n"
     if problem.code == "PKG_LOCK_MISSING" || problem.code == "PKG_LOCK_REQUIRED" {
       output = output + "  Missing file: " + diagnostic_text(paths.parent(manifest) + "/panack.lock.json") + "\n"
-    } else if problem.code.starts_with_at("PKG_LOCK_", 0) || problem.code.starts_with_at("PKG_CACHE_", 0) || problem.code == "PKG_INTEGRITY" || problem.code == "PKG_ARCHIVE_CHECKSUM" || problem.code == "PKG_DEPENDENCY_UNKNOWN" || problem.code == "PKG_DEPENDENCY_NOT_SELECTED" || problem.code == "PKG_PROJECT_CHANGED" {
+    } else if problem.code.starts_with_at("PKG_LOCK_", 0) || problem.code.starts_with_at("PKG_CACHE_", 0) || problem.code == "PKG_PUBLICATION" || problem.code == "PKG_INTEGRITY" || problem.code == "PKG_ARCHIVE_CHECKSUM" || problem.code == "PKG_DEPENDENCY_UNKNOWN" || problem.code == "PKG_DEPENDENCY_NOT_SELECTED" || problem.code == "PKG_PROJECT_CHANGED" {
       output = output + "  Lockfile: " + diagnostic_text(paths.parent(manifest) + "/panack.lock.json") + "\n"
     }
   }
@@ -280,7 +294,7 @@ pub pure render_problem(problem: PackageProblem, manifest: Str, operation: Str):
     mut edges: Nat = 0
     for context in problem.contexts { if context.label == "Dependency" { edges = edges + 1 } }
     for context in problem.contexts {
-      display = context.label != "Update dependency" && (!(context.label == "Dependency name" || context.label == "Package") || !(problem.code == "PKG_CACHE_MISSING" || problem.code == "PKG_CACHE_CHECKSUM")) &&
+      display = context.label != "Recovery operation" && context.label != "Update dependency" && (!(context.label == "Dependency name" || context.label == "Package") || !(problem.code == "PKG_CACHE_MISSING" || problem.code == "PKG_CACHE_CHECKSUM")) &&
         !(context.label == "Dependency declared in" && context.value == manifest) &&
         !(context.label == "Dependency" && edges == 1)
       if display { output = output + "  " + context.label + ": " + diagnostic_text(context.value) + "\n" }
@@ -311,6 +325,9 @@ pub pure render_problem(problem: PackageProblem, manifest: Str, operation: Str):
         output = output + "\n\nPanack will check the restored package checksums against the lockfile before using the packages."
       }
       output = output + "\n\nAn internet connection is needed if remote packages must be downloaded."
+    } else if problem.code == "PKG_PUBLICATION" && problem_value(problem, "Recovery operation") == "restore" {
+      output = output + "\n\n  panack deps restore --project " + diagnostic_quote(manifest)
+      output = output + "\n\nRunning this command will prepare the local packages without changing the lockfile. An internet connection is needed if remote packages must be downloaded."
     }
   }
   output

@@ -68,6 +68,11 @@ main(): Void {
   text: Str = serialize_package_lock(valid)
   tail: Str = text.slice(1, text.len())
   mut results = [
+    testing.equal_str("missing record identifies the package", problem(PackageLock("example.app", "1.0.0", hash, "0.1.0-alpha.15", [archive_edge], [])), "A dependency refers to package 'example.lib@1.0.0', but the lockfile has no record for that package."),
+    testing.equal_str("unused record identifies the package", problem(PackageLock("example.app", "1.0.0", hash, "0.1.0-alpha.15", [], [archive_package])), "The lockfile contains a record for package 'example.lib@1.0.0', but no dependency chain from the project reaches that package."),
+    testing.equal_str("missing tree checksum has its own cause", problem(PackageLock("example.app", "1.0.0", hash, "0.1.0-alpha.15", [archive_edge], [missing_tree])), "Package 'example.lib@1.0.0' is missing 'tree_sha256', the checksum used to verify the package files obtained from its archive or Git repository."),
+    testing.equal_str("package limit counts the project", problem(graph(64, hash)), "The lockfile exceeds Panack's limit of 64 packages, including the project itself."),
+    testing.equal_str("depth limit describes the followed chain", problem(graph(32, hash)), "Following the lockfile's dependency declarations exceeds Panack's limit of 32 package levels, including the project. A circular dependency also exceeds this limit because the chain never ends."),
     testing.expect("real manifest digest round-trips", accepted(valid), "valid lock rejected"),
     testing.expect("unknown lock field rejected", rejects_text("{\"extra\":true," + tail), "unknown field accepted"),
     testing.expect("duplicate lock field rejected", rejects_text("{\"lock_schema\":1," + tail), "duplicate field accepted"),

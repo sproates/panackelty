@@ -1,0 +1,9 @@
+panack: error[PKG_GIT_VERSION]: Cannot obtain the Git dependency because the installed Git version is older than 2.29.
+
+  Project: <workspace>/app/panack.json
+  Repository: https://example.test/repo.git
+  Dependency name: library
+  Git executable: <workspace>/bin/git
+  Installed Git version: 2.28.9
+
+Install Git 2.29 or newer, or put a supported Git installation earlier on PATH, then retry your command. Git is needed only when Panack must obtain a Git dependency.

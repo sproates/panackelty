@@ -1,3 +1,5 @@
+pub import project/src/packages/diagnostic::{PackageProblem}
+import project/src/packages/diagnostic::{package_problem, problem_label, explain_problem, package_result, host_detail}
 import project/src/packages/tree_digest::{tree_length}
 import project/src/packages/git_process::{GitContext, git_command}
 import project/src/packages/git_inventory::{GitEntry, GitInventory, git_object_id, parse_git_inventory}
@@ -39,30 +41,32 @@ pub git_source_key(source: GitSource): Result[Str, Str] {
   sha256_finish(hash)
 }
 
-pure git_line(data: Bytes): Result[Str, Str] {
+pure git_line(data: Bytes): Result[Str, PackageProblem] {
   count: Nat = data.length()
   end: Nat = if count > 0 { count - 1 } else { 0 }
   if count == 0 || !valid_utf8(data) || data.at(end) != 10 {
-    Error("invalid Git command response")
+    Error(package_problem("PKG_GIT_RESPONSE", "Cannot understand Git's response because a complete single line of UTF-8 text was expected."))
   } else {
     text: Str = byte_buffer.slice(data, 0, end).decode_utf8()
     mut valid: Bool = true
     for index in 0..end {
       if data.at(index) == 0 || data.at(index) == 10 || data.at(index) == 13 { valid = false }
     }
-    if valid { Ok(text) } else { Error("invalid Git command response") }
+    if valid { Ok(text) } else { Error(package_problem("PKG_GIT_RESPONSE", "Cannot understand Git's response because a complete single line of UTF-8 text was expected.")) }
   }
 }
 
-read_git_links(context: GitContext, inventory: GitInventory): Result[Map[Str, Str], Str] {
+read_git_links(context: GitContext, inventory: GitInventory): Result[Map[Str, Str], PackageProblem] {
   mut links: Map[Str, Str] = map()
-  mut failure: Option[Str] = None()
+  mut failure: Option[PackageProblem] = None()
   for entry in inventory.entries {
     if failure == None() && entry.kind == "L" {
       match git_command(context, ["cat-file", "blob", entry.object_id], byte_buffer.empty()) {
         Error(problem) => { failure = Some(problem) },
-        Ok(target) => if target.length() != entry.size || !valid_utf8(target) {
-          failure = Some("invalid Git symlink target")
+        Ok(target) => if target.length() != entry.size {
+          failure = Some(problem_label(package_problem("PKG_GIT_RESPONSE", "Cannot prepare the Git package because a symbolic link's size differs from Git's file listing."), "Symbolic link", entry.path))
+        } else if !valid_utf8(target) {
+          failure = Some(problem_label(package_problem("PKG_SYMLINK_INVALID", "Cannot prepare the Git package because a symbolic link target is not valid UTF-8 text."), "Symbolic link", entry.path))
         } else { links = links.put(entry.path, target.decode_utf8()) }
       }
     }
@@ -106,7 +110,7 @@ pub pure git_lfs_pointer(data: Bytes): Bool {
 
 // Git expands one blob to a private temporary file without attributes or filters.
 // Panack copies and hashes it in bounded chunks; no full blob is buffered here.
-stage_git_blob(context: GitContext, stage: Nat, entry: GitEntry, state: Sha256): Result[Sha256, Str] {
+stage_git_blob(context: GitContext, stage: Nat, entry: GitEntry, state: Sha256): Result[Sha256, PackageProblem] {
   match git_command(context, ["unpack-file", entry.object_id], byte_buffer.empty()) {
     Error(problem) => Error(problem),
     Ok(output) => match git_line(output) {
@@ -116,24 +120,24 @@ stage_git_blob(context: GitContext, stage: Nat, entry: GitEntry, state: Sha256):
         for index in 0..name.len() {
           if name[index] == "/" || name[index] == "\\" { valid = false }
         }
-        if !valid { Error("unexpected Git blob temporary path") }
+        if !valid { Error(package_problem("PKG_GIT_RESPONSE", "Cannot use Git's file response because the temporary path is not in the expected format.")) }
         else {
           file = context.repository.join(git_path(name)).value_or(context.repository)
           mut hash: Sha256 = state
           mut offset: Nat = 0
-          mut failure: Option[Str] = None()
+          mut failure: Option[PackageProblem] = None()
           mut finished: Bool = false
           while !finished && failure == None() {
             match bounded.read_chunk(file, offset, 65536) {
-              Error(problem) => { failure = Some("cannot read a file downloaded by Git") },
+              Error(problem) => { failure = Some(problem_label(package_problem("PKG_FILESYSTEM", "Panack cannot read a file downloaded by Git: " + host_detail(problem.code)), "Path", entry.path)) },
               Ok(chunk) => {
-                if offset + chunk.length() > entry.size { failure = Some("Git file contains more data than its reported size") }
+                if offset + chunk.length() > entry.size { failure = Some(problem_label(package_problem("PKG_GIT_RESPONSE", "Cannot prepare the Git package because a file contains more bytes than Git reported."), "Repository path", entry.path)) }
                 else {
                   if offset == 0 && git_lfs_pointer(chunk) {
-                    failure = Some("package contains Git LFS pointer files; Panack cannot download their contents")
+                    failure = Some(problem_label(package_problem("PKG_GIT_LFS", "Cannot prepare the Git package because a file is a Git LFS pointer instead of the required contents."), "Repository path", entry.path))
                   } else if chunk.length() > 0 || offset == 0 {
                     match staging.write(stage, git_path(entry.path), chunk, offset) {
-                      Error(problem) => { failure = Some("cannot write a downloaded Git file into the temporary package directory") },
+                      Error(problem) => { failure = Some(problem_label(package_problem("PKG_FILESYSTEM", "Panack cannot write a downloaded Git file into the temporary package directory: " + host_detail(problem.code)), "Path", entry.path)) },
                       Ok(done) => { hash = sha256_feed(hash, chunk) }
                     }
                   }
@@ -146,8 +150,8 @@ stage_git_blob(context: GitContext, stage: Nat, entry: GitEntry, state: Sha256):
           removed = filesystem.remove_file(file)
           match failure {
             Some(problem) => Error(problem),
-            None() => if offset != entry.size { Error("Git file ended before its reported size") }
-              else { match removed { Error(problem) => Error("cannot remove a temporary file created by Git"), Ok(done) => Ok(hash) } }
+            None() => if offset != entry.size { Error(problem_label(package_problem("PKG_GIT_RESPONSE", "Cannot prepare the Git package because a file ended before the size Git reported."), "Repository path", entry.path)) }
+              else { match removed { Error(problem) => Error(problem_label(package_problem("PKG_FILESYSTEM", "Panack cannot remove a temporary file created by Git: " + host_detail(problem.code)), "Path", name)), Ok(done) => Ok(hash) } }
           }
         }
       }
@@ -157,10 +161,10 @@ stage_git_blob(context: GitContext, stage: Nat, entry: GitEntry, state: Sha256):
 
 pure git_entry_less(left: GitEntry, right: GitEntry): Bool { left.path < right.path }
 
-materialize_git(context: GitContext, stage: Nat, inventory: GitInventory, links: Map[Str, Str]): Result[Str, Str] {
+materialize_git(context: GitContext, stage: Nat, inventory: GitInventory, links: Map[Str, Str]): Result[Str, PackageProblem] {
   mut hash = sha256_feed(sha256_new(), "PANACK-PACKAGE-TREE".encode_utf8().push(0))
   hash = sha256_feed(hash, "v1".encode_utf8().push(0))
-  mut failure: Option[Str] = None()
+  mut failure: Option[PackageProblem] = None()
   for entry in inventory.entries.sort_by(@git_entry_less) {
     if failure == None() {
       name = entry.path.encode_utf8()
@@ -170,7 +174,7 @@ materialize_git(context: GitContext, stage: Nat, inventory: GitInventory, links:
       hash = sha256_feed(hash, tree_length(entry.size))
       if entry.kind == "D" {
         match staging.directory(stage, git_path(entry.path)) {
-          Error(problem) => { failure = Some("cannot create a directory for the downloaded Git package") },
+          Error(problem) => { failure = Some(problem_label(package_problem("PKG_FILESYSTEM", "Panack cannot create a directory for the downloaded Git package: " + host_detail(problem.code)), "Path", entry.path)) },
           Ok(done) => {}
         }
       } else if entry.kind == "F" {
@@ -185,7 +189,7 @@ materialize_git(context: GitContext, stage: Nat, inventory: GitInventory, links:
   for entry in inventory.entries {
     if failure == None() && entry.kind == "L" {
       match staging.symlink(stage, git_path(entry.path), git_path(links.get(entry.path))) {
-        Error(problem) => { failure = Some("cannot create a symbolic link in the downloaded Git package") },
+        Error(problem) => { failure = Some(problem_label(package_problem("PKG_FILESYSTEM", "Panack cannot create a symbolic link in the downloaded Git package: " + host_detail(problem.code)), "Path", entry.path)) },
         Ok(done) => {}
       }
     }
@@ -195,21 +199,21 @@ materialize_git(context: GitContext, stage: Nat, inventory: GitInventory, links:
       sha256_close(hash)
       Error(problem)
     },
-    None() => sha256_finish(hash)
+    None() => package_result(sha256_finish(hash), "PKG_TOOL")
   }
 }
 
 snapshot_from_inventory(parent: Path, context: GitContext, source: GitSource,
-    source_key: Str, inventory: GitInventory, links: Map[Str, Str]): Result[StagedGit, Str] {
+    source_key: Str, inventory: GitInventory, links: Map[Str, Str]): Result[StagedGit, PackageProblem] {
   match staging.begin(parent) {
-    Error(problem) => Error("cannot create a temporary directory for the Git package"),
+    Error(problem) => Error(problem_label(package_problem("PKG_FILESYSTEM", "Panack cannot create a temporary directory for the Git package: " + host_detail(problem.code)), "Path", parent.to_text().value_or(""))),
     Ok(handle) => {
       result = match materialize_git(context, handle, inventory, links) {
         Error(problem) => Error(problem),
         Ok(digest) => match staging.path(handle) {
-          Error(problem) => Error("cannot locate the temporary directory for the Git package"),
+          Error(problem) => Error(problem_label(package_problem("PKG_FILESYSTEM", "Panack cannot locate the temporary directory for the Git package: " + host_detail(problem.code)), "Path", parent.to_text().value_or(""))),
           Ok(root) => match root.to_text() {
-            Error(problem) => Error("temporary Git package directory name is not valid UTF-8 text"),
+            Error(problem) => Error(package_problem("PKG_FILESYSTEM", "Cannot use the temporary Git package directory because its path is not valid UTF-8 text.")),
             Ok(text) => Ok(StagedGit(handle, text, source, source_key, digest))
           }
         }
@@ -226,10 +230,10 @@ snapshot_from_inventory(parent: Path, context: GitContext, source: GitSource,
 }
 
 fetch_git_commit(parent: Path, context: GitContext, source: GitSource,
-    source_key: Str): Result[StagedGit, Str] {
+    source_key: Str): Result[StagedGit, PackageProblem] {
   empty = byte_buffer.empty()
   repository: Str = context.repository.to_text().value_or("")
-  mut failure: Option[Str] = None()
+  mut failure: Option[PackageProblem] = None()
   for command in [
     ["init", "--bare", "--template=", "--object-format=" + source.object_format, repository],
     ["-c", "fetch.fsckObjects=true", "fetch", "--quiet", "--no-tags", "--no-recurse-submodules",
@@ -237,24 +241,31 @@ fetch_git_commit(parent: Path, context: GitContext, source: GitSource,
   ] {
     if failure == None() {
       match git_command(context, command, empty) {
-        Error(problem) => { failure = Some(problem) },
+        Error(problem) => {
+          failure = Some(problem_label(if command[0] == "init" {
+            explain_problem(problem, "Git could not initialise the temporary repository.", "Check that the Git installation supports the requested repository object format, then retry your command.")
+          } else { problem }, "Git operation", if command[0] == "init" { "initialising the temporary repository" } else { "fetching the requested commit" }))
+        },
         Ok(output) => {}
       }
     }
   }
   if failure == None() {
     match git_command(context, ["rev-parse", "--verify", "--end-of-options", "FETCH_HEAD^{commit}"], empty) {
-      Error(problem) => { failure = Some("cannot read the requested Git commit: " + problem) },
+      Error(problem) => { failure = Some(problem_label(problem, "Git operation", "reading the requested commit")) },
       Ok(output) => match git_line(output) {
         Error(problem) => { failure = Some(problem) },
-        Ok(actual) => if actual != source.commit { failure = Some("Git returned a different commit from the one recorded in panack.lock.json") }
+        Ok(actual) => match verify_git_commit(actual, source.commit) {
+          Error(problem) => { failure = Some(problem) },
+          Ok(done) => {}
+        }
       }
     }
   }
   match failure {
     Some(problem) => Error(problem),
     None() => match git_command(context, ["ls-tree", "-r", "-t", "-l", "-z", source.commit], empty) {
-      Error(problem) => Error("cannot read the list of files in the requested Git commit: " + problem),
+      Error(problem) => Error(problem_label(problem, "Git operation", "reading the repository file list")),
       Ok(output) => match parse_git_inventory(output, source.commit.len()) {
         Error(problem) => Error(problem),
         Ok(inventory) => match read_git_links(context, inventory) {
@@ -269,20 +280,20 @@ fetch_git_commit(parent: Path, context: GitContext, source: GitSource,
 // P03b accepts an already selected full commit. Manifest/ref resolution and
 // lock integration are P03c; this operation never substitutes a newer commit.
 pub stage_git_commit(parent: Path, executable: Path, source: GitSource,
-    certificate_file: Option[Str]): Result[StagedGit, Str] {
+    certificate_file: Option[Str]): Result[StagedGit, PackageProblem] {
   length: Nat = if source.object_format == "sha1" { 40 } else if source.object_format == "sha256" { 64 } else { 0 }
   if !manifest_https_archive_url(source.url) || !git_object_id(source.commit, length) {
-    Error("Git requires a credential-free HTTPS URL and full commit identity")
+    Error(package_problem("PKG_TOOL", "Cannot acquire the Git package because Panack requires a credential-free HTTPS URL and a complete commit ID."))
   } else {
-    match git_source_key(source) {
+    match package_result(git_source_key(source), "PKG_TOOL") {
       Error(problem) => Error(problem),
       Ok(source_key) => match staging.begin(parent) {
-        Error(problem) => Error("cannot create Git temporary repository"),
+        Error(problem) => Error(problem_label(package_problem("PKG_FILESYSTEM", "Panack cannot create Git temporary repository: " + host_detail(problem.code)), "Path", parent.to_text().value_or(""))),
         Ok(handle) => {
           result = match staging.path(handle) {
-            Error(problem) => Error("cannot locate Git temporary repository"),
+            Error(problem) => Error(problem_label(package_problem("PKG_FILESYSTEM", "Panack cannot locate Git temporary repository: " + host_detail(problem.code)), "Path", parent.to_text().value_or(""))),
             Ok(repository) => match staging.directory(handle, git_path("home")) {
-              Error(problem) => Error("cannot create the temporary directory used to isolate Git configuration"),
+              Error(problem) => Error(problem_label(package_problem("PKG_FILESYSTEM", "Panack cannot create the temporary directory used to isolate Git configuration: " + host_detail(problem.code)), "Path", repository.to_text().value_or(""))),
               Ok(done) => {
                 home = repository.to_text().value_or("") + "/home"
                 context = GitContext(executable, repository, home, certificate_file)
@@ -295,11 +306,22 @@ pub stage_git_commit(parent: Path, executable: Path, source: GitSource,
             Ok(done) => result,
             Error(problem) => {
               match result { Error(failure) => {}, Ok(snapshot) => { closed = staging.close(snapshot.handle) } }
-              Error("cannot clean Git temporary repository")
+              Error(problem_label(package_problem("PKG_FILESYSTEM", "Panack cannot clean Git temporary repository: " + host_detail(problem.code)), "Path", parent.to_text().value_or("")))
             }
           }
         }
       }
     }
   }
+}
+
+pub pure verify_git_commit(actual: Str, expected: Str): Result[Unit, PackageProblem] {
+  if !git_object_id(actual, expected.len()) {
+    Error(package_problem("PKG_GIT_RESPONSE", "Cannot understand Git's commit response because the response is not a complete object ID."))
+  } else if actual != expected {
+    Error(problem_label(problem_label(explain_problem(package_problem("PKG_INTEGRITY", "Cannot use the Git package because Git returned a different commit from the requested commit."),
+      "Panack has refused to use the unexpected commit.",
+      "Check the repository and retry your command. If the mismatch persists, report the expected and returned commit IDs to the repository maintainer."),
+      "Expected commit", expected), "Returned commit", actual))
+  } else { Ok(()) }
 }

@@ -82,16 +82,43 @@ reject_snapshot() {
   test -z "$(ls -A "$work/cache")"
 }
 url="https://localhost:$port/repo.git"
+# Invalid repository contents must retain their specific cause at the public CLI.
+mkdir -p "$work/diagnostic-app/src"
+printf 'main(): Void {}\n' > "$work/diagnostic-app/src/main.panack"
+reject_public() {
+  scenario=$1; code=$2; expected_path=$3
+  node - "$work/diagnostic-app/panack.json" "$(cat VERSION)" "$url" "$bad_commit" <<'JS'
+const fs=require('fs');const [file,version,url,commit]=process.argv.slice(2);
+fs.writeFileSync(file,JSON.stringify({schema:1,package:'git.app',version:'1.0.0',language:'modules-v1',toolchain:version,source:'src',entry:'main.panack',exports:{},dependencies:{library:{git:{url,ref:commit}}}}));
+JS
+  status=0
+  CURL_CA_BUNDLE="$work/test.crt" bin/panack deps lock --project "$work/diagnostic-app/panack.json" > "$work/public.out" 2> "$work/public.err" || status=$?
+  test "$status" = 1
+  test ! -s "$work/public.out"
+  grep -F "error[$code]:" "$work/public.err" >/dev/null
+  grep -F "$expected_path" "$work/public.err" >/dev/null
+  node tests/package_diagnostic_capture.cjs "$scenario" "$work/public.err" "$work" "$port"
+  test ! -e "$work/diagnostic-app/panack.lock.json"
+  test -z "$(find "$work/diagnostic-app/.panack_modules" -type f -print)"
+  if [ -n "${PANACK_DIAGNOSTICS_RECORD:-}" ]; then
+    mkdir -p "$PANACK_DIAGNOSTICS_RECORD"
+    node - "$work/public.err" "$work" "$port" "$PANACK_DIAGNOSTICS_RECORD/$scenario.txt" <<'JS'
+const fs=require('fs');const [file,root,port,out]=process.argv.slice(2);
+fs.writeFileSync(out,fs.readFileSync(file,'utf8').split(root).join('<workspace>').split('localhost:'+port).join('localhost:<port>').replace(/Requested commit: [0-9a-f]{40,64}/g,'Requested commit: <locked-commit>'));
+JS
+  fi
+}
+
 run_snapshot "$url" "$commit" "$work/test.crt" /usr/bin/git sha1 inspect
 node tests/fixtures/package_git/expect_snapshot.cjs "$work" "$url" "$commit"
 test -z "$(ls -A "$work/cache")"
 printf '%s\n' 'PASS saved bytecode acquisition and cleanup'
-reject_snapshot 'Git command failed with exit status 128; remote error text withheld to protect credentials' "$url" "$commit" none /usr/bin/git sha1 plain
-reject_snapshot 'Git process failed: the process could not be started; check that the executable exists and can be run (launch_failed)' "$url" "$commit" "$work/test.crt" "$work/no-git" sha1 plain
-reject_snapshot 'Git executable must be an absolute path' "$url" "$commit" "$work/test.crt" git sha1 plain
-reject_snapshot 'Git command failed with exit status 128; remote error text withheld to protect credentials' "$url" 1111111111111111111111111111111111111111 "$work/test.crt" /usr/bin/git sha1 plain
+reject_snapshot "Cannot finish the Git operation because Git exited with status 128." "$url" "$commit" none /usr/bin/git sha1 plain
+reject_snapshot "Cannot run Git: the process could not be started; check that the executable exists and can be run (launch_failed)" "$url" "$commit" "$work/test.crt" "$work/no-git" sha1 plain
+reject_snapshot "Cannot start Git because its executable path is not absolute." "$url" "$commit" "$work/test.crt" git sha1 plain
+reject_snapshot "Cannot finish the Git operation because Git exited with status 128." "$url" 1111111111111111111111111111111111111111 "$work/test.crt" /usr/bin/git sha1 plain
 for invalid in "http://localhost:$port/repo.git" "https://user:secret@localhost:$port/repo.git" "$url?secret=value" "$url#fragment"; do
-  reject_snapshot 'Git requires a credential-free HTTPS URL and full commit identity' "$invalid" "$commit" "$work/test.crt" /usr/bin/git sha1 plain
+  reject_snapshot "Cannot acquire the Git package because Panack requires a credential-free HTTPS URL and a complete commit ID." "$invalid" "$commit" "$work/test.crt" /usr/bin/git sha1 plain
 done
 printf '%s\n' 'PASS TLS verification, missing Git, exact commit and credential-free URL requirements'
 # Every rejected remote tree must discard both private stages.
@@ -103,32 +130,36 @@ commit_tree() {
 }
 ln -s /etc/passwd "$work/source/escape"
 commit_tree escape
-reject_snapshot 'Git symbolic link uses an absolute target: escape' "$url" "$bad_commit" "$work/test.crt" /usr/bin/git sha1 plain
+reject_snapshot "Cannot prepare the Git package because the target is an absolute path." "$url" "$bad_commit" "$work/test.crt" /usr/bin/git sha1 plain
+reject_public git-absolute-link PKG_SYMLINK_INVALID 'Symbolic link: escape'
 rm "$work/source/escape"
 ln -s loop-two "$work/source/loop-one"
 ln -s loop-one "$work/source/loop-two"
 commit_tree cycle
-reject_snapshot 'Git symbolic link chain exceeds 40 links: loop-one; check for links that point back to each other' "$url" "$bad_commit" "$work/test.crt" /usr/bin/git sha1 plain
+reject_snapshot "Cannot prepare the Git package because resolving a symbolic link exceeded Panack's limit of 40 links." "$url" "$bad_commit" "$work/test.crt" /usr/bin/git sha1 plain
+reject_public git-link-limit PKG_SYMLINK_LIMIT 'Symbolic link: loop-one'
 rm "$work/source/loop-one" "$work/source/loop-two"
 printf 'version https://git-lfs.github.com/spec/v1\noid sha256:0000000000000000000000000000000000000000000000000000000000000000\nsize 1\n' > "$work/source/lfs"
 commit_tree lfs
-reject_snapshot 'package contains Git LFS pointer files; Panack cannot download their contents' "$url" "$bad_commit" "$work/test.crt" /usr/bin/git sha1 plain
+reject_snapshot "Cannot prepare the Git package because a file is a Git LFS pointer instead of the required contents." "$url" "$bad_commit" "$work/test.crt" /usr/bin/git sha1 plain
 printf 'version https://git-lfs.github.com/spec/v1\r\noid sha256:0000000000000000000000000000000000000000000000000000000000000000\r\nsize 1\r\n' > "$work/source/lfs"
+reject_public git-lfs PKG_GIT_LFS 'Repository path: lfs'
 commit_tree lfs-crlf
-reject_snapshot 'package contains Git LFS pointer files; Panack cannot download their contents' "$url" "$bad_commit" "$work/test.crt" /usr/bin/git sha1 plain
+reject_snapshot "Cannot prepare the Git package because a file is a Git LFS pointer instead of the required contents." "$url" "$bad_commit" "$work/test.crt" /usr/bin/git sha1 plain
 rm "$work/source/lfs"
 /usr/bin/git -C "$work/source" update-index --add --cacheinfo "160000,$commit,submodule"
 /usr/bin/git -C "$work/source" -c user.name=sproates -c user.email=218187+sproates@users.noreply.github.com commit -qm submodule
 bad_commit=$(/usr/bin/git -C "$work/source" rev-parse HEAD)
 /usr/bin/git -C "$work/source" push -q "$work/repo.git" HEAD:refs/heads/fixture
-reject_snapshot 'package contains a Git submodule; Panack cannot download submodule contents' "$url" "$bad_commit" "$work/test.crt" /usr/bin/git sha1 plain
+reject_snapshot "Cannot prepare the Git package because the repository contains a submodule." "$url" "$bad_commit" "$work/test.crt" /usr/bin/git sha1 plain
+reject_public git-submodule PKG_GIT_SUBMODULE 'Submodule path: submodule'
 # An earlier exact commit still produces the same snapshot after the branch moves.
 run_snapshot "$url" "$commit" "$work/test.crt" /usr/bin/git sha1 inspect
 node tests/fixtures/package_git/expect_snapshot.cjs "$work" "$url" "$commit"
 printf '%s\n' 'PASS escaping/cyclic links, LFS and submodules fail with cleanup; exact commits survive moved branches'
 
 for route in redirect auth interrupt; do
-  reject_snapshot 'Git command failed with exit status 128; remote error text withheld to protect credentials' "https://localhost:$port/$route/repo.git" "$commit" "$work/test.crt" /usr/bin/git sha1 plain
+  reject_snapshot "Cannot finish the Git operation because Git exited with status 128." "https://localhost:$port/$route/repo.git" "$commit" "$work/test.crt" /usr/bin/git sha1 plain
 done
 printf '%s\n' 'PASS redirects, authentication requests and interrupted transport fail closed'
 # SHA-256 repositories exercise the second full-object identity format.
@@ -187,3 +218,5 @@ sh tests/package_git_integration.sh
 
 # Diagnostics are part of the package acceptance surface on both native platforms.
 sh tests/package_diagnostics.sh
+
+sh tests/package_git_diagnostics.sh

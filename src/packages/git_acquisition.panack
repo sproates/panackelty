@@ -1,5 +1,5 @@
 pub import project/src/packages/diagnostic::{PackageProblem}
-import project/src/packages/diagnostic::{host_detail, package_problem, problem_context, package_result}
+import project/src/packages/diagnostic::{host_detail, package_problem, problem_context, package_result, problem_label, explain_problem}
 pub import project/src/packages/acquisition::{AcquisitionOptions}
 import project/src/packages/acquisition::{ensure_directory, locked_edge, locked_package, verify_cache_state}
 pub import project/src/packages/git_snapshot::{GitSource}
@@ -38,7 +38,7 @@ pub pure git_relative(root: Str, source: AcquiredGit): Str {
 }
 
 pub pure git_package_root(source: AcquiredGit, subdir: Str): Result[Str, PackageProblem] {
-  match package_result(git_package_subdir(subdir, source.links), "PKG_CONTAINMENT") {
+  match git_package_subdir(subdir, source.links) {
     Error(problem) => Error(problem),
     Ok(relative) => Ok(if relative == "." { source.root } else { source.root + "/" + relative })
   }
@@ -99,7 +99,7 @@ acquire_snapshot(options: AcquisitionOptions, source: GitSource, selector: Str,
                 Error(problem) => Error(problem),
                 Ok(completed_2) => match ensure_directory(root, false) {
                   Error(problem) => Error(problem),
-                  Ok(completed_3) => package_result(verify_git_cache(root, expected), "PKG_CACHE_INVALID")
+                  Ok(completed_3) => verify_git_cache(root, expected)
                 }
               }
             }
@@ -113,14 +113,19 @@ acquire_snapshot(options: AcquisitionOptions, source: GitSource, selector: Str,
               Error(problem) => Error(problem),
               Ok(completed_4) => match ensure_directory(parent, true) {
                 Error(problem) => Error(problem),
-                Ok(completed_5) => match package_result(git_executable(), "PKG_GIT_REQUIRED") {
+                Ok(completed_5) => match git_executable() {
                   Error(problem) => Error(problem),
                   Ok(executable) => match stage_git_commit(checked_path(parent), executable, source, environment.get("CURL_CA_BUNDLE")) {
-                    Error(problem) => Error(problem_context(package_problem("PKG_GIT_FETCH", problem), "repository " + source.url + " at commit " + source.commit)),
+                    Error(problem) => Error(problem_label(problem, "Requested commit", source.commit)),
                     Ok(snapshot) => {
-                      result = if expected != "" && snapshot.tree_sha256 != expected { Error(package_problem("PKG_INTEGRITY", "downloaded Git files do not match the checksum in panack.lock.json")) }
-                        else { match package_result(verify_git_cache(snapshot.root, snapshot.tree_sha256), "PKG_INTEGRITY") {
-                          Error(problem) => Error(problem),
+                      result = if expected != "" && snapshot.tree_sha256 != expected { Error(problem_label(problem_label(explain_problem(package_problem("PKG_INTEGRITY", "Cannot use the downloaded Git files because their checksum does not match the lockfile."),
+                        "Panack has refused to use those files.", "Ask the package maintainer to investigate the mismatch. Keep the existing lockfile while investigating; updating the lockfile would accept a new dependency selection."), "Expected checksum", expected), "Downloaded checksum", snapshot.tree_sha256)) }
+                        else { match verify_git_cache(snapshot.root, snapshot.tree_sha256) {
+                          Error(problem) => Error(if problem.code.starts_with_at("PKG_CACHE_", 0) {
+                            explain_problem(package_problem("PKG_INTEGRITY", "Cannot use the prepared Git package because verification failed."),
+                              if problem.code == "PKG_CACHE_CHECKSUM" { "The prepared files do not match the checksum calculated while preparing the Git package. Panack has refused to publish those files." } else { problem.message },
+                              "Retry your command. If the failure persists, report this error with your Panack version and repository URL. Keep the existing lockfile while investigating.")
+                          } else { problem }),
                           Ok(links) => Ok(AcquiredGit(source, selector, options.refresh, snapshot.root, key, snapshot.tree_sha256, links, Some(snapshot.handle)))
                         } }
                       match result {
@@ -152,10 +157,10 @@ pub acquire_git(options: AcquisitionOptions, declaration: PackageManifestDepende
       Some(source) => Ok(source),
       None() => match ensure_directory(options.root + "/.panack_modules", true) {
         Error(problem) => Error(problem),
-        Ok(completed_6) => match package_result(git_executable(), "PKG_GIT_REQUIRED") {
+        Ok(completed_6) => match git_executable() {
           Error(problem) => Error(problem),
-          Ok(executable) => package_result(resolve_git_ref(checked_path(options.root + "/.panack_modules"), executable,
-            declaration.path, declaration.selector, environment.get("CURL_CA_BUNDLE")), "PKG_GIT_RESOLVE")
+          Ok(executable) => resolve_git_ref(checked_path(options.root + "/.panack_modules"), executable,
+            declaration.path, declaration.selector, environment.get("CURL_CA_BUNDLE"))
         }
       }
     } }

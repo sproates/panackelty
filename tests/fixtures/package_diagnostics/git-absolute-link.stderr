@@ -1,0 +1,9 @@
+panack: error[PKG_SYMLINK_INVALID]: Cannot prepare the Git package because the target is an absolute path.
+
+  Project: <workspace>/diagnostic-app/panack.json
+  Repository: https://localhost:<port>/repo.git
+  Dependency name: library
+  Requested commit: <locked-commit>
+  Symbolic link: escape
+
+If you maintain this package, correct the symbolic link so its relative target stays inside the repository. Otherwise, ask the package maintainer for a corrected package.

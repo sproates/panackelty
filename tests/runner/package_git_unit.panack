@@ -1,8 +1,10 @@
-import project/src/packages/git_refs::{parse_git_refs}
+import project/src/packages/git_process::{git_host_problem}
+import project/src/packages/diagnostic::{PackageProblem}
+import project/src/packages/git_refs::{parse_git_refs, check_git_version}
 import project/src/packages/manifest::{manifest_git_ref}
-import project/src/packages/git_snapshot::{git_lfs_pointer}
+import project/src/packages/git_snapshot::{git_lfs_pointer, verify_git_commit}
 import project/src/packages/git_inventory::{parse_git_inventory, git_object_id}
-import project/src/packages/git_links::{git_link_beneath}
+import project/src/packages/git_links::{git_link_beneath, git_resolve_link}
 import stdlib/testing as testing
 import stdlib/host as host
 import stdlib/bytes as byte_buffer
@@ -17,11 +19,42 @@ pure selected_ref(text: Str, selector: Str): Str {
     Error(problem) => "error", Ok(source) => source.object_format + ":" + source.commit
   }
 }
+pure failure_code[T](result: Result[T, PackageProblem]): Str {
+  match result { Ok(value) => "ok", Error(problem) => problem.code }
+}
+
 main(): Void {
   empty: Map[Str, Str] = map()
   sha1 = "0123456789012345678901234567890123456789"
   sha256 = "0123456789012345678901234567890123456789012345678901234567890123"
   results = [
+    testing.equal_str("version timeout does not suggest repository access", git_host_problem("timeout", true).reason, "Panack was checking the installed Git version; no repository request was made."),
+    testing.equal_str("multiline version response rejected", failure_code(check_git_version("git version 2.29.0\nunexpected\n".encode_utf8())), "PKG_GIT_VERSION_UNKNOWN"),
+    testing.equal_str("Git timeout preserves cause", git_host_problem("timeout", false).code, "PKG_GIT_TIMEOUT"),
+    testing.equal_str("Git output bound preserves cause", git_host_problem("output_limit", false).code, "PKG_GIT_OUTPUT_LIMIT"),
+    testing.equal_str("Git launch failure preserves cause", git_host_problem("launch_failed", false).code, "PKG_GIT_START"),
+    testing.equal_str("malformed commit response is not integrity evidence", failure_code(verify_git_commit("unexpected response", sha1)), "PKG_GIT_RESPONSE"),
+    testing.equal_str("different complete commit is integrity failure", failure_code(verify_git_commit("1111111111111111111111111111111111111111", sha1)), "PKG_INTEGRITY"),
+    testing.equal_str("exact commit accepted", failure_code(verify_git_commit(sha1, sha1)), "ok"),
+    testing.equal_str("minimum Git version", failure_code(check_git_version("git version 2.29.0\n".encode_utf8())), "ok"),
+    testing.equal_str("old Git version", failure_code(check_git_version("git version 2.28.9\n".encode_utf8())), "PKG_GIT_VERSION"),
+    testing.equal_str("old major Git version", failure_code(check_git_version("git version 1.99.0\n".encode_utf8())), "PKG_GIT_VERSION"),
+    testing.equal_str("future major Git version", failure_code(check_git_version("git version 3.0.0\n".encode_utf8())), "ok"),
+    testing.equal_str("Apple Git version", failure_code(check_git_version("git version 2.39.5 (Apple Git-154)\n".encode_utf8())), "ok"),
+    testing.equal_str("vendor Git version", failure_code(check_git_version("git version 2.29.0.windows.1\n".encode_utf8())), "ok"),
+    testing.equal_str("unrecognisable version is not old Git", failure_code(check_git_version("wrapper response\n".encode_utf8())), "PKG_GIT_VERSION_UNKNOWN"),
+    testing.equal_str("short version response", failure_code(check_git_version("git version 2.29\n".encode_utf8())), "PKG_GIT_VERSION_UNKNOWN"),
+    testing.equal_str("prerelease version not assumed supported", failure_code(check_git_version("git version 2.29.0-rc0\n".encode_utf8())), "PKG_GIT_VERSION_UNKNOWN"),
+    testing.equal_str("oversized version component", failure_code(check_git_version("git version 9999999.1.0\n".encode_utf8())), "PKG_GIT_VERSION_UNKNOWN"),
+    testing.equal_str("malformed refs preserve cause", failure_code(parse_git_refs("garbage\n".encode_utf8(), "https://example.test/repo", "missing")), "PKG_GIT_RESPONSE"),
+    testing.equal_str("missing reference has distinct code", failure_code(parse_git_refs(byte_buffer.empty(), "https://example.test/repo", "missing")), "PKG_GIT_REF_NOT_FOUND"),
+    testing.equal_str("ambiguous reference has distinct code", failure_code(parse_git_refs((sha1 + "\trefs/heads/v1\n" + sha1 + "\trefs/tags/v1\n").encode_utf8(), "https://example.test/repo", "v1")), "PKG_GIT_REF_AMBIGUOUS"),
+    testing.equal_str("submodule keeps cause", failure_code(parse_git_inventory(row("160000", "commit", "-", "module"), 40)), "PKG_GIT_SUBMODULE"),
+    testing.equal_str("inventory malformed size", failure_code(parse_git_inventory(row("100644", "blob", "abc", "file"), 40)), "PKG_GIT_RESPONSE"),
+    testing.equal_str("inventory oversized size", failure_code(parse_git_inventory(row("100644", "blob", "268435457", "file"), 40)), "PKG_GIT_LIMIT"),
+    testing.equal_str("absolute link cause", failure_code(git_resolve_link("link", "/outside", empty)), "PKG_SYMLINK_INVALID"),
+    testing.equal_str("escaping link cause", failure_code(git_resolve_link("link", "../outside", empty)), "PKG_SYMLINK_ESCAPE"),
+    testing.equal_str("link chain bound does not claim a cycle", failure_code(git_resolve_link("link", "a", empty.put("a", "b").put("b", "a"))), "PKG_SYMLINK_LIMIT"),
     testing.expect("branch selector", manifest_git_ref("feature/packages"), "branch rejected"),
     testing.expect("short commit rejected", !manifest_git_ref("abc123"), "short object accepted"),
     testing.expect("revision expression rejected", !manifest_git_ref("main~1"), "expression accepted"),

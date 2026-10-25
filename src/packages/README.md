@@ -47,7 +47,10 @@ source caches. Package manifest records live here so Git fields do not change
 the compiler's frozen project-model input. Ref resolution occurs only on explicit
 lock/update; restore uses locked commits and prepare verifies existing snapshots.
 
-Git 2.29 or newer is a native-tool dependency for this path. Git receives an exact
+Git 2.29 or newer is a native-tool dependency for this path. Before acquisition,
+Panack queries the selected executable in an isolated environment and checks its
+version; unrecognisable output is distinguished from an old version. Verified
+cached packages and ordinary builds do not query or invoke Git. Git receives an exact
 private environment and no inherited configuration. Raw blobs are extracted
 without checkout filters, then copied and hashed in 64 KiB chunks. The entire
 commit tree is validated before symlinks are created. The limits and acceptance
@@ -57,7 +60,10 @@ fixtures are recorded in `docs/design/PACKAGE_GIT_ACQUISITION_ACCEPTANCE.md`.
 and terminal-safe rendering. Codes are assigned at detection boundaries; the
 command boundary renders the cause, relevant paths, explanation and recovery guidance. Internal phase labels are not displayed. `input_diagnostic.panack` adds package JSON explanations and line/column locations without changing the shared compiler parser.
 Cache verification keeps its original failure instead of collapsing missing and
-corrupt state. Git process status is retained without raw stderr. The
+corrupt state. Git modules return structured package problems so process, reference, content
+and link failures retain their codes and recovery guidance. Git process status
+is retained without raw stderr; ls-remote status 2 means no matching reference,
+while other exit statuses do not establish a network or authentication cause. The
 [verified examples](../../docs/design/PACKAGE_DIAGNOSTIC_EXAMPLES.md) are checked
 against public CLI fixtures, including execution of suggested recovery commands.
 

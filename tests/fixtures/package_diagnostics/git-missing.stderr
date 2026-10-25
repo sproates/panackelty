@@ -1,0 +1,8 @@
+panack: error[PKG_GIT_REF_NOT_FOUND]: Cannot select the Git dependency because Git did not find the requested branch or tag.
+
+  Project: <workspace>/app/panack.json
+  Repository: https://example.test/repo.git
+  Dependency name: library
+  Requested reference: release
+
+Check the ref field in the dependency's Git declaration. Use an existing branch, tag or complete commit ID, then retry your command.

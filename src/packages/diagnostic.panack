@@ -17,6 +17,7 @@ pub pure package_problem(code: Str, message: Str): PackageProblem {
   mut phase = "finding dependencies"
   mut reason = "Panack could not finish loading the dependencies."
   mut help = "Correct the reported dependency problem, then retry your command."
+  if code.starts_with_at("PKG_GIT_", 0) || code.starts_with_at("PKG_SYMLINK_", 0) { reason = "" }
   if code == "PKG_LOCK_MISSING" {
     phase = "checking panack.lock.json"
     reason = "The lockfile records the exact dependencies the project uses and belongs alongside panack.json."
@@ -85,6 +86,35 @@ pub pure package_problem(code: Str, message: Str): PackageProblem {
     phase = "following a download redirect"
     reason = "Panack could not follow the archive server's redirect."
     help = "Use a direct HTTPS archive URL, or ask the server administrator to correct the redirect."
+  } else if code == "PKG_GIT_VERSION" {
+    help = "Install Git 2.29 or newer, or put a supported Git installation earlier on PATH, then retry your command. Git is needed only when Panack must obtain a Git dependency."
+  } else if code == "PKG_GIT_VERSION_UNKNOWN" {
+    help = "Check the Git executable by running git --version. Use a Git 2.29 or newer installation that reports its version in the standard Git format, then retry your command."
+  } else if code == "PKG_GIT_START" {
+    help = "Check that the Git executable exists and can be run by the account running Panack. Correct the reported system error, then retry your command."
+  } else if code == "PKG_GIT_INTERRUPTED" {
+    reason = "The signal alone does not identify why the process was terminated."
+    help = "Check why Git was terminated in this environment, then retry your command."
+  } else if code == "PKG_GIT_TIMEOUT" {
+    help = "Retry your command. If Git repeatedly exceeds Panack's 60-second time limit, check access to the repository from this environment and report the problem to the repository administrator."
+  } else if code == "PKG_GIT_OUTPUT_LIMIT" {
+    help = "Git produced more than Panack's 16 MiB process-output limit. If you maintain the package, reduce the repository's file listing or diagnostic output. Otherwise, report this error to the package maintainer."
+  } else if code == "PKG_GIT_RESPONSE" {
+    help = "Retry your command. If the problem persists, report this error with your Git and Panack versions."
+  } else if code == "PKG_GIT_REF_NOT_FOUND" {
+    help = "Check the ref field in the dependency's Git declaration. Use an existing branch, tag or complete commit ID, then retry your command."
+  } else if code == "PKG_GIT_REF_AMBIGUOUS" {
+    help = "Set ref to the full branch name (refs/heads/...) or tag name (refs/tags/...) to identify which reference you want, then retry your command."
+  } else if code == "PKG_GIT_SUBMODULE" {
+    reason = "A submodule refers to another Git repository. Panack does not fetch submodule contents for packages."
+    help = "If you maintain this package, provide the required files without a submodule or declare the other package as a dependency in panack.json. Otherwise, ask the package maintainer for a compatible package."
+  } else if code == "PKG_GIT_LFS" {
+    reason = "Git LFS stores file contents separately from the Git repository. Panack does not download those contents."
+    help = "If you maintain this package, provide the required file contents without Git LFS, for example in a complete package archive. Otherwise, ask the package maintainer for a compatible package."
+  } else if code == "PKG_GIT_PATH" || code == "PKG_GIT_CONTENT" || code == "PKG_GIT_LIMIT" {
+    help = "If you maintain this package, correct the reported repository contents. Otherwise, ask the package maintainer for a compatible package."
+  } else if code == "PKG_SYMLINK_INVALID" || code == "PKG_SYMLINK_ESCAPE" || code == "PKG_SYMLINK_LIMIT" {
+    help = "If you maintain this package, correct the symbolic link so its relative target stays inside the repository. Otherwise, ask the package maintainer for a corrected package."
   } else if code == "PKG_GIT_RESOLVE" {
     phase = "looking up a Git branch or tag"
     reason = "Panack could not select a Git commit for this dependency."

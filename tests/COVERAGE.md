@@ -1473,7 +1473,7 @@ compare the complete cache tree plus exact lock/state bytes. See the
 [remote-source acceptance matrix](../docs/design/PACKAGE_REMOTE_ACCEPTANCE.md).
 
 P04a and its diagnostic follow-up provide 33 diagnostic unit assertions and public-command transcript/recovery
-acceptance in `tests/package_diagnostics.sh`. Ten local and three remote exact
+acceptance in `tests/package_diagnostics.sh`. Nineteen exact
 transcripts are checked against the examples document. Tests execute suggested
 commands with apostrophes/spaces in the project path, verify complete program
 output and preserve pins after cache repair or rejected content. Existing remote
@@ -1491,3 +1491,12 @@ The follow-up also checks JSON line/column reporting, syntax versus package-sett
 The PR#587 UTF-8 regression exercises the public manifest-loading path with an
 invalid byte and asserts the complete encoding diagnostic and unchanged lockfile.
 Unit checks also cover shared lockfile encoding guidance and absent text location.
+
+The Git diagnostic correction adds 74 Git unit assertions and public-command
+checks for version detection, missing/default/ambiguous references, malformed
+responses, launch failure, signal termination and nonzero exit. Six additional
+exact transcripts cover old Git, a missing reference, submodules, LFS pointers,
+an absolute symbolic link and the 40-link bound. Controlled Git executables test
+otherwise difficult process failures; real HTTPS repositories test repository
+contents, cache recovery and pin preservation. Raw stderr is excluded, failures
+leave no lockfile or abandoned stage, and ordinary builds still invoke no Git.

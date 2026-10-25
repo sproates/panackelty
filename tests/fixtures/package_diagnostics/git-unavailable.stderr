@@ -1,10 +1,12 @@
-panack: error[PKG_GIT_FETCH]: Git command failed with exit status 128; remote error text withheld to protect credentials
+panack: error[PKG_GIT_FETCH]: Cannot finish the Git operation because Git exited with status 128.
 
   Project: <workspace>/app/panack.json
   Package: git.root
   Repository: https://localhost:<port>/sha.git
   Dependency name: left
-  Context: repository https://localhost:<port>/sha.git at commit <locked-commit>
+  Requested commit: <locked-commit>
+  Git operation: fetching the requested commit
+  Exit status: 128
 
 Panack could not prepare the required Git package files. A Git exit status alone does not identify the cause.
 

@@ -60,7 +60,7 @@ Its generic host APIs also provide exact-environment process launch and confined
 symbolic-link operations; see the [standard-library contracts](src/stdlib/README.md).
 Git dependencies support pinned HTTPS commits and shared repository subdirectories on `next`.
 Its generic `stdlib/http_stream` transport supports bounded blocking reads for
-command-line consumers. The installed package workflow includes both tools; final cross-source acceptance remains in progress.
+command-line consumers. The installed package workflow includes both tools; [final acceptance](docs/design/PACKAGE_FINAL_ACCEPTANCE.md) covers all four source forms together, relocation and offline builds.
 
 ## Explore
 

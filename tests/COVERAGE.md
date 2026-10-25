@@ -1550,3 +1550,16 @@ on Ubuntu 22.04 and macOS 14 with the same restricted command environment. Real
 TLS, checksum failures, redirects, cache recovery and network-free command
 connection counts retain their existing assertions. P04c mixed-source final
 acceptance remains separate.
+
+## GI#200 P04c final acceptance
+
+The [final matrix](../docs/design/PACKAGE_FINAL_ACCEPTANCE.md) maps the completed
+contract to executable evidence. tests/package_git_integration.sh now combines
+all four sources and transitive imports, independently regenerates identical
+locks, relocates the tree, observes zero TCP/Git activity and unchanged lock/cache
+bytes for ordinary routes, then repeats with the peer stopped. Local source
+edits remain live; stale/missing locks and missing/corrupt caches fail without
+implicit repair. Explicit local offline restore and bytecode without sources
+are verified. The HTTP TLS workflow repeats the integration suite through the
+installed toolchain on Linux/macOS, retaining Git diamond and containment tests.
+No production-source coverage classification or threshold changes.

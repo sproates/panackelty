@@ -289,8 +289,13 @@ and tree digest to each package identity. Symlinked cache or state paths, or
 paths escaping `.panack_modules`, are rejected. A missing cache is built in a
 temporary sibling and atomically installed only after source, manifest and tree
 verification. Mismatched or corrupt entries are never used; restore replaces
-the generated entry atomically after successful reacquisition. Failure leaves
-the previous cache untouched, and the compiler cannot see partial output.
+the generated entry atomically after successful reacquisition. Acquisition or
+validation failure leaves the previous cache untouched. Publication is atomic
+per entry, not a transaction across the graph and lockfile: update writes the
+validated lock first, so a later publication failure can require an explicit
+restore. Ordinary project commands reject incomplete or inconsistent cache
+state. See the [publication contract](PACKAGE_MANAGEMENT_IMPLEMENTATION.md#archive-and-remote-implementation-choices)
+for the implementation boundary.
 
 Archive acquisition is bounded to 64 MiB compressed input, 256 MiB expanded
 content (including tar headers, padding and metadata) and 16,384 total
@@ -315,8 +320,10 @@ rather than compiling incomplete sources.
 Diagnostics name the dependency alias, owning manifest and failed phase. They
 distinguish missing/stale lock, invalid source, missing/corrupt cache, unavailable
 network or commit, digest mismatch, unsupported archive, resource-bound breach
-and containment rejection. Lock and cache writes are atomic; failures leave no
-partial lock or package and do not expose credentials.
+and containment rejection. Each lockfile and cache-entry replacement is atomic;
+failures leave no partially written lockfile or package entry and do not expose
+credentials. A late failure can leave some complete entries published and others
+still requiring restore, as described above.
 
 ## Implementation sequence and evidence
 
@@ -330,5 +337,4 @@ Acceptance covers all four source forms; lock reproducibility; missing/stale
 locks and caches; changed archive/remote content; unavailable offline sources;
 path-safe extraction; useful diagnostics; and full programs executed through
 `panack`. P01 defines this contract; it does not claim acquisition or package
-management implementation is complete. GI#200 remains open through P04 and final
-end-to-end acceptance.
+management implementation is complete. P04c completes that acceptance on merge after the required local and supported-platform checks pass; see the [final evidence](PACKAGE_FINAL_ACCEPTANCE.md).

@@ -1,3 +1,5 @@
+pub import project/src/packages/diagnostic::{PackageProblem}
+import project/src/packages/diagnostic::{package_problem, problem_label, checksum_problem}
 pub import project/src/packages/tar_stream::{ArchiveEntry}
 import project/src/packages/tar_header::{tar_normalize_path}
 pub import project/src/packages/sha256::{Sha256}
@@ -136,12 +138,16 @@ scan_tree(root: Str, relative: Str, inventory: TreeInventory): Result[TreeInvent
 }
 
 pub verify_tree_digest(root: Str, expected: Str): Result[Unit, Str] {
+  match verify_tree_problem(root, expected) { Error(problem) => Error(problem.message), Ok(done) => Ok(done) }
+}
+
+pub verify_tree_problem(root: Str, expected: Str): Result[Unit, PackageProblem] {
   match scan_tree(root, "", TreeInventory([], 0)) {
-    Error(problem) => Error(problem),
+    Error(problem) => Error(problem_label(package_problem("PKG_CACHE_INVALID", problem), "Local package directory", root)),
     Ok(inventory) => match tree_digest(root, inventory.entries) {
-      Error(problem) => Error(problem),
+      Error(problem) => Error(problem_label(package_problem("PKG_CACHE_INVALID", problem), "Local package directory", root)),
       Ok(actual) => if actual == expected { Ok(()) }
-        else { Error("saved package files do not match their recorded checksum") }
+        else { Error(checksum_problem(root)) }
     }
   }
 }

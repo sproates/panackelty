@@ -1,10 +1,19 @@
-panack: error[PKG_INTEGRITY]: archive contents do not match the SHA-256 checksum in panack.lock.json
+panack: error[PKG_INTEGRITY]: Cannot restore dependency 'lib' (package 'demo.library') because its source archive's checksum does not match the lockfile.
 
   Project: <workspace>/Ian's app/panack.json
-  Operation: deps restore
-  Phase: checking package contents
-  Dependency: demo.app -> lib
+  Lockfile: <workspace>/Ian's app/panack.lock.json
+  Package: demo.library
+  Source archive: <workspace>/library.tar.gz
+  Dependency name: lib
 
-This package has different contents from those recorded in panack.lock.json. Panack has refused to use it.
+Panack tried to restore the local files originally extracted from the source archive, but the archive's checksum does not match the checksum recorded in the lockfile. The archive bytes differ from the bytes used to calculate that checksum. Panack has refused to use that archive.
 
-Ask the package maintainer why the contents changed, or restore the original package contents. Use panack deps update only after you have reviewed and accepted the new contents.
+To restore the recorded dependency, obtain the original archive, put that archive at the source archive path, then run:
+
+  panack deps restore --project '<workspace>/Ian'"'"'s app/panack.json'
+
+If you intend to use the changed archive instead, review its contents before running:
+
+  panack deps update --project '<workspace>/Ian'"'"'s app/panack.json' 'lib'
+
+Running this update will change the lockfile to record the new dependency selection and checksums.

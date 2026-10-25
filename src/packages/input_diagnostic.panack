@@ -1,0 +1,48 @@
+// Keep package input explanations outside the compiler's shared JSON parser.
+pub import project/src/packages/diagnostic::{PackageProblem}
+import project/src/packages/diagnostic::{package_problem, explain_problem, problem_label, manifest_specification, diagnostic_text}
+pub import project/src/project_model/package_manifest::{PackageManifestError}
+import project/src/project_model/package_manifest::{parse_bounded_json}
+import project/src/project_model/utf8::{valid_utf8}
+
+pub pure input_problem(filename: Str, data: Bytes, error: PackageManifestError, lock: Bool): PackageProblem {
+  code = if lock { "PKG_LOCK_INVALID" } else { "PKG_MANIFEST_INVALID" }
+  mut message = "Cannot use " + filename + " because its package settings are invalid."
+  mut detail = error.message
+  mut help = if lock {
+    "If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.\n\nCreating a new lockfile may select different dependencies."
+  } else {
+    "Correct the reported setting, then retry your command.\n\nSee the package manifest specification:\n" + manifest_specification()
+  }
+  if !valid_utf8(data) {
+    message = "Cannot understand " + filename + " because the file is not valid UTF-8 text."
+    detail = ""
+    help = "Save the file using UTF-8 encoding, or obtain a valid copy, then retry your command."
+  } else {
+    match parse_bounded_json(data, if lock { 1048576 } else { 65536 }) {
+      Ok(value) => {},
+      Error(syntax) => {
+        message = "Cannot understand " + filename + " because it contains invalid JSON."
+        if data.length() > (if lock { 1048576 } else { 65536 }) {
+          message = "Cannot process " + filename + " because the file exceeds Panack's input size limit."
+        } else if syntax.message == "manifest JSON nesting exceeds 32 levels" {
+          message = "Cannot process " + filename + " because its JSON exceeds Panack's 32-level nesting limit."
+        }
+        if detail == "expected JSON string" {
+          detail = "JSON property names must be enclosed in double quotes. Panack expected an opening double quote at this location."
+        }
+        if !lock { help = "Correct the reported JSON problem, then retry your command." }
+      }
+    }
+  }
+  mut line: Nat = 1
+  mut column: Nat = 1
+  for index in 0..error.offset {
+    if index < data.length() {
+      byte = data.at(index)
+      if byte == 10 { line = line + 1; column = 1 }
+      else if byte < 128 || byte >= 192 { column = column + 1 }
+    }
+  }
+  problem_label(explain_problem(package_problem(code, message), diagnostic_text(detail), help), "Location", "line ${line}, column ${column}")
+}

@@ -1,10 +1,11 @@
+import project/src/packages/input_diagnostic::{input_problem}
 pub import project/src/packages/diagnostic::{PackageProblem}
-import project/src/packages/diagnostic::{package_problem, explain_problem, problem_context, problem_dependency, package_result}
+import project/src/packages/diagnostic::{package_problem, explain_problem, problem_context, problem_dependency, package_result, problem_label, problem_value, manifest_specification}
 pub import project/src/packages/git_acquisition::{AcquiredGit}
 import project/src/packages/git_acquisition::{acquire_git, git_containing, git_package_root, git_relative}
 import project/src/packages/manifest::{parse_package_manifest}
 pub import project/src/packages/acquisition::{ArchiveSource, AcquisitionOptions}
-import project/src/packages/acquisition::{acquire_archive}
+import project/src/packages/acquisition::{acquire_archive, locked_edge, locked_package}
 import stdlib/compiler_paths as path_support
 import stdlib/path as std_path
 import stdlib/package_filesystem as std_package_filesystem
@@ -144,25 +145,25 @@ read_manifest_project_file(path: Str, is_project_manifest: Bool): Result[Manifes
   resolved: Str = path_support.resolve(path)
   package_root: Str = path_support.parent(resolved)
   if resolved != package_root + "/panack.json" {
-    Error(package_problem("PKG_MANIFEST", "project manifest must be named panack.json"))
+    Error(package_problem("PKG_MANIFEST_INVALID", "project manifest must be named panack.json"))
   } else {
     match std_path.from_text(package_root) {
       Error(error) => Error(package_problem("PKG_FILESYSTEM", "invalid package root path")),
       Ok(root) => match std_path.from_text("panack.json") {
-        Error(error) => Error(package_problem("PKG_MANIFEST", "invalid manifest path")),
+        Error(error) => Error(package_problem("PKG_MANIFEST_INVALID", "invalid manifest path")),
         Ok(relative) => match std_package_filesystem.read_beneath(root, relative, package_manifest_byte_limit()) {
           Error(problem) => {
             code: Str = problem.code
             missing = package_problem(if code == "not_found" { "PKG_MANIFEST_MISSING" } else { "PKG_FILESYSTEM" },
-              if code == "not_found" { "package manifest was not found: " + resolved }
+              if code == "not_found" { "Cannot load the package because panack.json is missing." }
               else { "cannot read project manifest (${code}): " + resolved })
             Error(if is_project_manifest && code == "not_found" {
-              explain_problem(missing, "Panack could not find the project's panack.json at the location shown above.",
+              explain_problem(problem_label(missing, "Missing file", resolved), "Panack could not find the project's panack.json at the expected location.",
                 "Check the path passed to --project. Point it to the project's panack.json, or restore that file if it was removed.")
-            } else { missing })
+            } else { problem_label(missing, "Missing file", resolved) })
           },
           Ok(read) => match manifest_project_from_read(package_root, read, is_project_manifest) {
-            Error(problem) => Error(problem_context(problem, "manifest " + resolved)),
+            Error(problem) => Error(problem_label(problem, "File", resolved)),
             Ok(declaration) => Ok(declaration)
           }
         }
@@ -177,7 +178,7 @@ manifest_project_from_read(
   is_project_manifest: Bool
 ): Result[ManifestPackageDeclaration, PackageProblem] {
   if !valid_utf8(read.contents) {
-    Error(package_problem("PKG_MANIFEST", "project manifest is not valid UTF-8"))
+    Error(package_problem("PKG_MANIFEST_INVALID", "project manifest is not valid UTF-8"))
   } else {
     toolchain: Str = std_environment.get("PANACKELTY_VERSION").value_or("")
     if toolchain == "" {
@@ -187,7 +188,7 @@ manifest_project_from_read(
         Error(error) => {
           offset: Nat = error.offset
           detail: Str = error.message
-          Error(package_problem("PKG_MANIFEST", "invalid project manifest at byte ${offset}: ${detail}"))
+          Error(input_problem("panack.json", read.contents, error, false))
         },
         Ok(manifest) => match manifest_project_from_manifest(package_root, read.identity, manifest) {
           Error(message) => Error(message),
@@ -206,7 +207,7 @@ manifest_project_from_manifest(
   source_root: Str = path_support.resolve(path_support.join(package_root, manifest.source))
   match manifest.entry {
     None() => if manifest.exports.len() == 0 {
-      Error(explain_problem(package_problem("PKG_MANIFEST", "library manifest must export at least one module"), "This package has no entry field, so Panack treats it as a library. Its exports section is empty, leaving other packages nothing to import.", "For a library, add at least one module to exports in panack.json. If this is an application, add an entry field naming its main source file instead."))
+      Error(explain_problem(package_problem("PKG_MANIFEST_INVALID", "Cannot use package '" + manifest.package + "' because it exports no modules."), "This package has no 'entry' field, so Panack treats the package as a library. The 'exports' section is empty, leaving other packages with no modules to import.", "If this package is a library, add at least one module to 'exports' in panack.json.\n\nIf this package is an application, add an 'entry' field identifying the main source file. Applications cannot be used as dependencies.\n\nSee the package manifest specification:\n" + manifest_specification()))
     } else {
       mut exports: [Str] = []
       for exported in manifest.exports {
@@ -344,10 +345,10 @@ resolve_package_dependency_graph(
           Ok(declaration) => {
             package: ManifestProject = declaration.project
             match package.entry {
-              Some(entry) => { failure = Some(package_problem("PKG_MANIFEST", "dependency ${alias} must be a library package")) },
+              Some(entry) => { failure = Some(package_problem("PKG_MANIFEST_INVALID", "dependency ${alias} must be a library package")) },
               None() => {
                 if package.exported_modules.len() == 0 {
-                  failure = Some(package_problem("PKG_MANIFEST", "dependency ${alias} must export at least one module"))
+                  failure = Some(package_problem("PKG_MANIFEST_INVALID", "dependency ${alias} must export at least one module"))
                 } else {
                   mut cycle: Bool = false
                   for ancestor in ancestry {
@@ -374,7 +375,7 @@ resolve_package_dependency_graph(
                         } else if previous.source_root != package.source_root ||
                             previous.exported_modules != package.exported_modules ||
                             previous_declaration.dependencies != declaration.dependencies {
-                          conflict = Some(package_problem("PKG_MANIFEST", "panack.json changed while Panack was reading the dependencies; stop the process editing it and retry"))
+                          conflict = Some(package_problem("PKG_MANIFEST_INVALID", "panack.json changed while Panack was reading the dependencies; stop the process editing it and retry"))
                         } else {
                           known = Some(previous_declaration)
                         }
@@ -448,7 +449,26 @@ resolve_package_dependency_graph(
         }
         match failure {
           None() => {},
-          Some(problem) => { failure = Some(problem_dependency(problem, owner.package + " -> " + alias + " (" + declaring_manifest(owner, current) + ")")) }
+          Some(problem) => {
+            mut contextual = problem
+            if problem_value(problem, "Dependency name") == "" {
+              contextual = problem_label(contextual, "Dependency name", alias)
+              contextual = problem_label(contextual, "Dependency declared in", declaring_manifest(owner, current))
+              contextual = problem_label(contextual, if dependency.kind == "git" { "Repository" } else if dependency.kind == "archive" { "Source archive" } else { "Dependency directory" }, declared)
+              match options.locked {
+                None() => {},
+                Some(lock) => match locked_edge(lock, package_project_package_id(owner.package, owner.version), alias) {
+                  None() => {},
+                  Some(edge) => match locked_package(lock, edge.package) {
+                    None() => {},
+                    Some(package) => { contextual = problem_label(contextual, "Package", package.name) }
+                  }
+                }
+              }
+            }
+            failure = Some(problem_dependency(contextual, owner.package + " -> " + alias))
+          }
+
         }
       }
     }

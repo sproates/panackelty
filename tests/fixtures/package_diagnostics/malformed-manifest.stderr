@@ -1,10 +1,9 @@
-panack: error[PKG_MANIFEST]: invalid project manifest at byte 1: expected JSON string
+panack: error[PKG_MANIFEST_INVALID]: Cannot understand panack.json because it contains invalid JSON.
 
   Project: <workspace>/Ian's app/panack.json
-  Operation: deps update
-  Phase: reading panack.json
-  Context: manifest <workspace>/Ian's app/panack.json
+  File: <workspace>/Ian's app/panack.json
+  Location: line 1, column 2
 
-Panack cannot load this package until the problem above is corrected.
+JSON property names must be enclosed in double quotes. Panack expected an opening double quote at this location.
 
-Fix the reported problem in panack.json, then retry the command. If this is someone else's package, send them this error so they can fix it.
+Correct the reported JSON problem, then retry your command.

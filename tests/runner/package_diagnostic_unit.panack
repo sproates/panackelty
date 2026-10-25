@@ -1,3 +1,7 @@
+import project/src/packages/input_diagnostic::{input_problem}
+import project/src/packages/manifest::{parse_package_manifest}
+import project/src/packages/diagnostic::{checksum_problem, problem_value}
+import project/src/packages/remote_archive::{http_status_problem}
 import project/src/packages/diagnostic::{package_problem, problem_context, render_problem, diagnostic_text}
 import stdlib/testing as testing
 import stdlib/host as host
@@ -19,6 +23,13 @@ pure failure_message(result: Result[Unit, PackageProblem]): Str {
 pure text_failure[T](result: Result[T, Str]): Str {
   match result { Error(problem) => problem, Ok(value) => "unexpected success" }
 }
+pure parsed_problem(text: Str): PackageProblem {
+  match parse_package_manifest(text.encode_utf8(), "1.0.0") {
+    Error(error) => input_problem("panack.json", text.encode_utf8(), error, false),
+    Ok(value) => package_problem("UNEXPECTED", "unexpected success")
+  }
+}
+
 main(): Void {
   leaf = package_problem("PKG_INTEGRITY", "digest mismatch")
   inner = problem_context(leaf, "outer -> inner")
@@ -31,7 +42,21 @@ main(): Void {
   changed = PackageLockEdge("other", "pkg.other@2.0.0", ManifestJsonObject([]))
   before = PackageLock("app", "1.0.0", "", "test", [chosen, other], [])
   after = PackageLock("app", "1.0.0", "", "test", [chosen, changed], [])
+  syntax = parsed_problem("{\n broken")
+  shape = parsed_problem("{}")
+  permission = package_problem("PKG_CACHE_INVALID", "cannot inspect cache entry")
+  state = package_problem("PKG_CACHE_STATE_MISSING", "state record missing")
+  offline_missing = render_problem(package_problem("PKG_CACHE_MISSING", "missing"), "/app/panack.json", "deps restore --offline")
   results = [
+    testing.expect("restore failure does not claim a build failed", offline_missing.starts_with_at("panack: error[PKG_CACHE_MISSING]: Cannot restore the dependencies", 0), "wrong operation in diagnostic"),
+    testing.equal_str("JSON syntax has its own explanation", syntax.message, "Cannot understand panack.json because it contains invalid JSON."),
+    testing.equal_str("JSON location uses line and column", problem_value(syntax, "Location"), "line 2, column 2"),
+    testing.equal_str("valid JSON with missing settings is not called invalid JSON", shape.message, "Cannot use panack.json because its package settings are invalid."),
+    testing.expect("state errors do not claim changed package bytes", state.reason != checksum_problem("/cache").reason, "state was called a checksum failure"),
+    testing.expect("unverifiable cache does not claim a checksum mismatch", permission.reason != checksum_problem("/cache").reason, "access failure was called a checksum mismatch"),
+    testing.equal_str("HTTP 401 explains authentication", http_status_problem(401).message, "Cannot download the archive because the server requires authentication."),
+    testing.equal_str("HTTP 429 explains rate limiting", http_status_problem(429).message, "Cannot download the archive because the server is limiting requests."),
+    testing.equal_str("HTTP 500 explains server failure", http_status_problem(500).message, "Cannot download the archive because the server reported an error."),
     testing.equal_str("leaf cause survives", outer.message, "digest mismatch"),
     testing.equal_str("leaf code survives", outer.code, "PKG_INTEGRITY"),
     testing.equal_str("outer context first", outer.contexts[0].value, "app -> outer"),
@@ -39,22 +64,22 @@ main(): Void {
     testing.equal_str("terminal controls escaped", diagnostic_text("a\nb\rc\td" + control), "a\\nb\\rc\\td?"),
     testing.equal_str("C1 controls escaped", diagnostic_text(byte_buffer.empty().push(194).push(155).decode_utf8()), "?"),
     testing.equal_str("Unicode preserved", diagnostic_text("café/日本語"), "café/日本語"),
-    testing.expect("recovery shell quoting", rendered.ends_with(expected_tail), "unsafe shell quoting"),
+    testing.expect("recovery shell quoting", rendered.ends_with(expected_tail + "\n\nRunning this command will restore the local packages without changing the lockfile.\n\nAn internet connection is needed if remote packages must be downloaded."), "unsafe shell quoting"),
     testing.equal_str("missing and corrupt are distinct", package_problem("PKG_CACHE_INVALID", "corrupt").phase, "checking saved packages"),
     testing.equal_str("integrity phase", leaf.phase, "checking package contents"),
     testing.equal_str("missing manifest phase", package_problem("PKG_MANIFEST_MISSING", "missing").phase, "finding panack.json"),
     testing.equal_str("unknown name explains lookup failure", failure_reason(validate_selective_update(before, after, ["absent"])),
-      "The name above is not a direct dependency in this project or its existing lockfile. The lockfile has not been changed."),
+      "Panack could not find this dependency name in panack.json or in the existing lockfile. Panack has not changed the lockfile."),
     testing.equal_str("unselected change explains scope refusal", failure_reason(validate_selective_update(before, after, ["chosen"])),
-      "This update would also change the dependency named above, but you did not select it. The lockfile has not been changed."),
+      "Your command did not select this dependency. Panack has stopped because the update would also change this dependency. Panack has not changed the lockfile."),
     testing.equal_str("changed project version is identified", failure_message(validate_selective_update(before,
-      PackageLock("app", "2.0.0", "", "test", [chosen, other], []), ["chosen"])), "the project's version has changed"),
+      PackageLock("app", "2.0.0", "", "test", [chosen, other], []), ["chosen"])), "Cannot update only the selected dependencies because the project's version has changed."),
     testing.equal_str("DNS advice addresses hostname", http_problem(DnsFailure()).help,
-      "Check the hostname in panack.json and your network or VPN connection, then retry the command."),
-    testing.equal_str("TLS advice retains verification", http_problem(TlsFailure()).help,
-      "Check your system clock and trusted certificates. If they are correct, ask the server administrator to check its HTTPS configuration. Do not disable certificate verification."),
+      "Check the hostname in the dependency's archive URL. If the hostname is correct, check network connectivity and DNS configuration in the environment running Panack, then retry your command."),
+    testing.equal_str("TLS advice does not guess a certificate cause", http_problem(TlsFailure()).help,
+      "Check whether the archive URL is accessible over HTTPS from the same environment. If you manage the server, check its HTTPS configuration and certificate; otherwise, report the failure to the server administrator."),
     testing.equal_str("timeout describes elapsed wait", http_problem(Timeout()).reason,
-      "Panack stopped waiting before it had a complete download."),
+      "Panack did not receive the complete archive within the time limit. Panack has stopped the download."),
     testing.equal_str("absolute archive path has a specific cause", text_failure(tar_normalize_path("/file")),
       "archive contains an absolute path; file paths must be relative to the package directory"),
     testing.equal_str("parent archive path has a specific cause", text_failure(tar_normalize_path("../file")),

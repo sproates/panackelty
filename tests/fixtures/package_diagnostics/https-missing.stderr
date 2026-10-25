@@ -1,10 +1,11 @@
-panack: error[PKG_HTTP_STATUS]: archive server returned HTTP 404; expected 200
+panack: error[PKG_HTTP_STATUS]: Cannot download the archive because the server could not find the requested archive.
 
   Project: <workspace>/app/panack.json
-  Operation: deps update
-  Phase: checking the download response
-  Dependency: test.app -> lib (<workspace>/app/panack.json)
+  Package: test.archive
+  Source archive: https://localhost:<port>/missing.tar.gz
+  Dependency name: lib
+  Server response: HTTP 404
 
-The server returned the HTTP status shown above instead of the requested archive.
+Check the archive URL in panack.json. If the URL is incorrect, correct the URL and retry your command.
 
-Check the archive URL in panack.json. It must be directly downloadable without signing in. Ask the package maintainer to correct a missing or inaccessible download.
+If the URL is correct, ask the package maintainer where the archive is available.

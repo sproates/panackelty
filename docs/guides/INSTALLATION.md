@@ -37,6 +37,14 @@ adjacent `.sha256` file from the Releases page:
 
 Windows and other architectures are not part of the initial preview.
 
+### Package dependencies in the upcoming alpha.15 release
+
+Git is optional. Git 2.29 or newer is required to fetch Git dependencies,
+including indirect dependencies. Local packages and HTTPS archive packages do
+not otherwise require Git. Verified cached Git packages can be used without
+invoking Git. This package workflow is currently available on `next`; the
+alpha.14 installation described here does not include it.
+
 ### Optional: install with one command
 
 This is an additional route for readers who prefer an installer. The manual

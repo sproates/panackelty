@@ -1,11 +1,13 @@
-panack: error[PKG_MANIFEST_MISSING]: package manifest was not found: <workspace>/missing/panack.json
+panack: error[PKG_MANIFEST_MISSING]: Cannot load the package because panack.json is missing.
 
   Project: <workspace>/Ian's app/panack.json
-  Operation: deps update
-  Phase: finding panack.json
-  Dependency: demo.app -> outer (<workspace>/Ian's app/panack.json)
-  Dependency: demo.outer -> inner (<workspace>/outer/panack.json)
+  Dependency: demo.app -> outer
+  Dependency: demo.outer -> inner
+  Dependency directory: <workspace>/missing
+  Dependency declared in: <workspace>/outer/panack.json
+  Dependency name: inner
+  Missing file: <workspace>/missing/panack.json
 
-Panack looked for panack.json at the location shown above and could not find it. It needs that file to read the package definition.
+Panack needs panack.json to read the package's name, version and dependencies.
 
-Check the dependency path in the declaring panack.json and make sure the package contains panack.json at the location shown above.
+Check the dependency path in the declaring manifest. If the path is wrong, correct the path. If the path is right, restore the missing panack.json or obtain a complete copy of the package.

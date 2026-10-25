@@ -45,7 +45,7 @@ pack
 manifest="$work/app/panack.json"
 lock="$work/app/panack.lock.json"
 cache="$work/app/.panack_modules/test.archive"
-reject 'missing lockfile' check --project "$manifest"
+reject 'lockfile is missing' check --project "$manifest"
 expect ok deps lock --project "$manifest"
 expect 47 run --project "$manifest"
 cp "$lock" "$work/initial.lock"
@@ -59,7 +59,7 @@ cmp "$work/app/.panack_modules/.state/lock.json" "$work/initial.state"
 printf '%s\n' 'PASS archive lock, check, compile, run and lock no-op'
 
 printf '%s\n' 'damaged source' > "$cache/src/api.panack"
-reject 'saved package files do not match their recorded checksum' run --project "$manifest"
+reject 'That checksum does not match the checksum recorded in the lockfile.' run --project "$manifest"
 expect ok deps restore --project "$manifest" --offline
 expect 47 run --project "$manifest"
 cmp "$lock" "$work/initial.lock"
@@ -75,7 +75,7 @@ cp "$work/original.tar.gz" "$work/lib.tar.gz"
 
 printf '%s\n' 'pub pure answer(): Nat { 43 }' > "$work/archive/src/api.panack"
 pack
-reject 'unselected' deps update --project "$manifest" live
+reject 'PKG_DEPENDENCY_NOT_SELECTED' deps update --project "$manifest" live
 cmp "$lock" "$work/initial.lock"
 expect ok deps update --project "$manifest" lib
 expect 48 run --project "$manifest"
@@ -87,11 +87,11 @@ cp "$lock" "$work/before-live.lock"
 sed 's/"version":"1.0.0"/"version":"1.0.1"/' "$work/live/panack.json" > "$work/live/next.json"
 mv "$work/live/next.json" "$work/live/panack.json"
 reject 'the current dependency definitions do not match panack.lock.json' check --project "$manifest"
-reject 'unselected' deps update --project "$manifest" lib
+reject 'PKG_DEPENDENCY_NOT_SELECTED' deps update --project "$manifest" lib
 cmp "$lock" "$work/before-live.lock"
 expect ok deps update --project "$manifest" live
 expect 49 run --project "$manifest"
-reject 'unknown dependency alias' deps update --project "$manifest" absent
+reject 'this project has no dependency with that name.' deps update --project "$manifest" absent
 printf '%s\n' 'PASS live directory edits and stale-manifest selective updates'
 
 mv "$work/app/.panack_modules/.state" "$work/state-backup"

@@ -109,10 +109,10 @@ for endpoint in loop downgrade secret query missing oversize truncated encoded; 
     manifest_for "$endpoint"
     reject deps update --project "$manifest"
     grep -F 'panack: error[' "$work/err" >/dev/null
-    grep -F '  Phase: ' "$work/err" >/dev/null
-    grep -F 'test.app -> lib' "$work/err" >/dev/null
+    grep -F '  Source archive: ' "$work/err" >/dev/null
+    grep -F 'Dependency name: lib' "$work/err" >/dev/null
     if [ "$endpoint" = missing ]; then
-        grep -F 'error[PKG_HTTP_STATUS]: archive server returned HTTP 404' "$work/err" >/dev/null
+        grep -F 'error[PKG_HTTP_STATUS]: Cannot download the archive because the server could not find' "$work/err" >/dev/null
         node tests/package_diagnostic_capture.cjs https-missing "$work/err" "$work" "$port"
     fi
     cmp "$lock" "$work/good.lock"
@@ -184,8 +184,8 @@ manifest_for lib
 reject_env_status=0
 env -u CURL_CA_BUNDLE "$panack" deps update --project "$manifest" > "$work/out" 2> "$work/err" || reject_env_status=$?
 test "$reject_env_status" = 1
-grep -F 'error[PKG_HTTP]: could not establish a trusted HTTPS connection' "$work/err" >/dev/null
-grep -F 'Do not disable certificate verification' "$work/err" >/dev/null
+grep -F 'error[PKG_HTTPS_CONNECTION]: Cannot download the archive because Panack could not establish a secure HTTPS connection' "$work/err" >/dev/null
+grep -F 'The HTTP API has not provided enough detail for Panack to identify the cause.' "$work/err" >/dev/null
 node tests/package_diagnostic_capture.cjs https-tls "$work/err" "$work" "$port"
 test "$(requests)" = "$before"
 for source in 'http://localhost/a.tar.gz' 'https://user:password@localhost/a.tar.gz' 'https://localhost/a.tar.gz?secret=token' 'https://localhost/a.tar.gz#fragment'; do

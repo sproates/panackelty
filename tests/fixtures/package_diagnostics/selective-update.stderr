@@ -1,9 +1,8 @@
-panack: error[PKG_SELECTIVE]: unknown dependency alias: absent
+panack: error[PKG_DEPENDENCY_UNKNOWN]: Cannot update dependency 'absent' because this project has no dependency with that name.
 
   Project: <workspace>/Ian's app/panack.json
-  Operation: deps update
-  Phase: checking selected dependencies
+  Lockfile: <workspace>/Ian's app/panack.lock.json
 
-The name above is not a direct dependency in this project or its existing lockfile. The lockfile has not been changed.
+Panack could not find this dependency name in panack.json or in the existing lockfile. Panack has not changed the lockfile.
 
-Use a name from the dependencies section of your project panack.json, then retry. Use the declaration name, which may differ from the package name.
+Check the name in your command. Use the dependency name declared in panack.json, which may differ from the package's own name.

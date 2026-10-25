@@ -1,11 +1,12 @@
+import project/src/packages/input_diagnostic::{input_problem}
 pub import project/src/packages/diagnostic::{PackageProblem}
-import project/src/packages/diagnostic::{host_detail, package_problem, problem_context, package_result}
+import project/src/packages/diagnostic::{host_detail, package_problem, problem_context, package_result, problem_label, explain_problem}
 import project/src/packages/manifest::{parse_package_manifest}
 import project/src/packages/remote_archive::{stage_remote_archive}
 pub import project/src/packages/lock::{PackageLock, PackageLockEdge, PackageLockPackage}
 import project/src/packages/lock::{lock_package_id, serialize_package_lock}
 import project/src/packages/archive::{StagedArchive, stage_archive, discard_archive}
-import project/src/packages/tree_digest::{tree_digest, verify_tree_digest}
+import project/src/packages/tree_digest::{tree_digest, verify_tree_problem}
 import project/src/packages/sha256::{Sha256, sha256_new, sha256_feed, sha256_finish, sha256_bytes, sha256_close}
 import project/src/project_model/package_manifest::{manifest_json_string_field}
 import stdlib/path as path
@@ -58,7 +59,7 @@ pub ensure_directory(name: Str, create: Bool): Result[Unit, PackageProblem] {
           Error(creation_error) => Error(package_problem("PKG_FILESYSTEM", "cannot create cache directory: " + host_detail(creation_error.code))),
           Ok(completed_1) => ensure_directory(name, false)
         }
-      } else if problem.code == "not_found" { Error(package_problem("PKG_CACHE_MISSING", "missing cache: " + name)) }
+      } else if problem.code == "not_found" { Error(problem_label(package_problem("PKG_CACHE_MISSING", "Cannot use the package because its local directory is missing."), "Missing directory", name)) }
       else { Error(package_problem("PKG_FILESYSTEM", "cannot inspect cache: " + host_detail(problem.code))) }
     }
   }
@@ -93,11 +94,11 @@ pub hash_archive_file(name: Str): Result[Str, PackageProblem] {
 
 inspect_staged_archive(source: Str, archive: StagedArchive): Result[ArchiveSource, PackageProblem] {
   match path.from_text(archive.root + "/panack.json") {
-    Error(problem) => Error(package_problem("PKG_MANIFEST", "invalid staged manifest path")),
+    Error(problem) => Error(package_problem("PKG_MANIFEST_INVALID", "invalid staged manifest path")),
     Ok(file) => match filesystem.read(file, 65536) {
-      Error(problem) => Error(package_problem("PKG_MANIFEST", "cannot read staged manifest")),
+      Error(problem) => Error(package_problem("PKG_MANIFEST_INVALID", "cannot read staged manifest")),
       Ok(bytes) => match parse_package_manifest(bytes, environment.get("PANACKELTY_VERSION").value_or("")) {
-        Error(problem) => Error(package_problem("PKG_MANIFEST", "invalid archive manifest in " + source + ": " + problem.message)),
+        Error(problem) => Error(problem_label(input_problem("panack.json", bytes, problem, false), "File", source + "!/panack.json")),
         Ok(manifest) => match package_result(sha256_bytes(bytes), "PKG_TOOL") {
           Error(problem) => Error(problem),
           Ok(manifest_hash) => match package_result(tree_digest(archive.root, archive.entries), "PKG_ARCHIVE") {
@@ -129,7 +130,7 @@ cached_archive(options: AcquisitionOptions, source: Str, owner: Str, alias: Str)
                 Error(problem) => Error(problem),
                 Ok(completed_2) => match package.tree_sha256 {
                   None() => Error(package_problem("PKG_LOCK_INVALID", "archive lock is missing tree digest")),
-                  Some(tree) => match package_result(verify_tree_digest(root, tree), "PKG_CACHE_INVALID") {
+                  Some(tree) => match verify_tree_problem(root, tree) {
                     Error(problem) => Error(problem),
                     Ok(completed_3) => Ok(ArchiveSource(source, root, package.name, package.version,
                       actual, package.manifest_sha256, tree, None()))
@@ -172,7 +173,7 @@ acquire_local_archive(options: AcquisitionOptions, source: Str, owner: Str, alia
 }
 }
 
-pub verify_cache_state(root: Str, lock: PackageLock): Result[Unit, PackageProblem] {
+verify_cache_state_inner(root: Str, lock: PackageLock): Result[Unit, PackageProblem] {
   mut archives: Bool = false
   for package in lock.packages { if package.tree_sha256 != None() { archives = true } }
   if !archives { Ok(()) } else {
@@ -183,12 +184,12 @@ pub verify_cache_state(root: Str, lock: PackageLock): Result[Unit, PackageProble
         Ok(completed_6) => match path.from_text(root + "/.panack_modules/.state/lock.json") {
           Error(problem) => Error(package_problem("PKG_FILESYSTEM", "invalid state path")),
           Ok(file) => match filesystem.metadata(file) {
-            Error(problem) => Error(if problem.code == "not_found" { package_problem("PKG_CACHE_MISSING", "the record of prepared local packages is missing") } else { package_problem("PKG_FILESYSTEM", "cannot inspect cache state: " + host_detail(problem.code)) }),
-            Ok(info) => if info.kind != RegularFile() { Error(package_problem("PKG_CACHE_INVALID", "the record of prepared local packages must be an ordinary file")) }
+            Error(problem) => Error(if problem.code == "not_found" { package_problem("PKG_CACHE_STATE_MISSING", "Cannot verify the local packages because Panack's package state record is missing.") } else { package_problem("PKG_FILESYSTEM", "cannot inspect cache state: " + host_detail(problem.code)) }),
+            Ok(info) => if info.kind != RegularFile() { Error(package_problem("PKG_FILESYSTEM", "Cannot use the package state record because the path is not an ordinary file.")) }
             else { match filesystem.read(file, 1048576) {
-              Error(problem) => Error(package_problem("PKG_CACHE_INVALID", "cannot read the record of prepared local packages")),
+              Error(problem) => Error(package_problem("PKG_FILESYSTEM", "Cannot read the package state record: " + host_detail(problem.code))),
               Ok(bytes) => if bytes == serialize_package_lock(lock).encode_utf8() { Ok(()) }
-                else { Error(package_problem("PKG_CACHE_INVALID", "the record of prepared local packages does not match panack.lock.json")) }
+                else { Error(package_problem("PKG_CACHE_STATE_INVALID", "Cannot verify the local packages because Panack's package state record does not match the lockfile.")) }
             } }
           }
         }
@@ -294,5 +295,12 @@ pub acquire_archive(options: AcquisitionOptions, source: Str, owner: Str, alias:
         }
       }
     }
+  }
+}
+
+pub verify_cache_state(root: Str, lock: PackageLock): Result[Unit, PackageProblem] {
+  match verify_cache_state_inner(root, lock) {
+    Error(problem) => Error(problem_label(problem, "Package state file", root + "/.panack_modules/.state/lock.json")),
+    Ok(done) => Ok(done)
   }
 }

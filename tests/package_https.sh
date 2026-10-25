@@ -108,6 +108,13 @@ cp "$cache/src/api.panack" "$work/good-source"
 for endpoint in loop downgrade secret query missing oversize truncated encoded; do
     manifest_for "$endpoint"
     reject deps update --project "$manifest"
+    grep -F 'panack: error[' "$work/err" >/dev/null
+    grep -F '  Phase: ' "$work/err" >/dev/null
+    grep -F 'test.app -> lib' "$work/err" >/dev/null
+    if [ "$endpoint" = missing ]; then
+        grep -F 'error[PKG_HTTP_STATUS]: archive server returned HTTP 404' "$work/err" >/dev/null
+        node tests/package_diagnostic_capture.cjs https-missing "$work/err" "$work" "$port"
+    fi
     cmp "$lock" "$work/good.lock"
     cmp "$cache/src/api.panack" "$work/good-source"
     ! grep -Eq "password|secret=token" "$work/err"
@@ -177,6 +184,9 @@ manifest_for lib
 reject_env_status=0
 env -u CURL_CA_BUNDLE "$panack" deps update --project "$manifest" > "$work/out" 2> "$work/err" || reject_env_status=$?
 test "$reject_env_status" = 1
+grep -F 'error[PKG_HTTP]: archive TLS connection' "$work/err" >/dev/null
+grep -F 'Do not disable certificate verification' "$work/err" >/dev/null
+node tests/package_diagnostic_capture.cjs https-tls "$work/err" "$work" "$port"
 test "$(requests)" = "$before"
 for source in 'http://localhost/a.tar.gz' 'https://user:password@localhost/a.tar.gz' 'https://localhost/a.tar.gz?secret=token' 'https://localhost/a.tar.gz#fragment'; do
     node - "$manifest" "$source" <<'JS'

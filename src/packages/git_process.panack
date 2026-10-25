@@ -46,7 +46,10 @@ pub git_command(context: GitContext, arguments: [Str], input: Bytes): Result[Byt
           Ok(output) => if output.signal != 0 || output.exit_code != 0 {
             // Git stderr can echo remote URLs and server-controlled text. Keep
             // diagnostics phase-specific at the caller without exposing it.
-            Error("Git command failed")
+            signal = output.signal
+            status = output.exit_code
+            Error(if signal != 0 { "Git command failed: terminated by signal ${signal}" }
+              else { "Git command failed with exit status ${status}; remote error text withheld to protect credentials" })
           } else { Ok(output.stdout) }
         }
       }

@@ -325,6 +325,10 @@ mv "$work/app/.panack_modules/.sources" "$work/mixed-sources"
 mv "$work/sha.git" "$work/sha.saved.git"
 /usr/bin/git init -q --bare --template= --object-format=sha256 "$work/sha.git"
 reject deps restore --project "$manifest"
+grep -F 'error[PKG_GIT_FETCH]:' "$work/err" >/dev/null
+grep -F 'at commit' "$work/err" >/dev/null
+grep -F 'this message does not establish which' "$work/err" >/dev/null
+node tests/package_diagnostic_capture.cjs git-unavailable "$work/err" "$work" "$port"
 cmp "$lock" "$work/mixed-current.lock"
 cmp "$work/app/.panack_modules/.state/lock.json" "$work/mixed-current.state"
 test "$(cat "$work/app/.panack_modules/remote.archive/src/api.panack")" = 'pub pure answer(): Nat { 11 }'

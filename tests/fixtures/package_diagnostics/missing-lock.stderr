@@ -1,0 +1,12 @@
+panack: error[PKG_LOCK_MISSING]: missing lockfile
+
+  Project: <workspace>/Ian's app/panack.json
+  Operation: project preparation (network-free)
+  Phase: lock verification
+  Dependency: demo.app -> lib (<workspace>/Ian's app/panack.json)
+
+Dependencies need a lockfile so the selected packages can be reproduced.
+
+Create the initial lock with the lock command below. This selects dependency content.
+
+  panack deps lock --project '<workspace>/Ian'"'"'s app/panack.json'

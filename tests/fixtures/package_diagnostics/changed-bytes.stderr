@@ -1,0 +1,10 @@
+panack: error[PKG_INTEGRITY]: archive digest mismatch
+
+  Project: <workspace>/Ian's app/panack.json
+  Operation: deps restore
+  Phase: content verification
+  Dependency: demo.app -> lib
+
+The supplied bytes do not match the content recorded in the lockfile. Accepting them would change the dependency you agreed to use.
+
+Check the source with its maintainer or restore the original bytes. Only use deps update after deliberately reviewing and accepting the changed content.

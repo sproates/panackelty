@@ -667,3 +667,8 @@ handoff regression remains the check that edits do not trigger a compiler build.
 P03c adds manifest/ref, lock and shared-snapshot integration entirely in the
 Panack package tool. Its package-owned manifest records do not alter the frozen
 compiler parser, saved seed, native operations or resolved-project schema.
+
+P04a package diagnostics remain in the independent Panack package tool. Structured
+problems and rendering change no compiler/native source, descriptor schema or
+saved bootstrap artifact. The package-tool handoff and canonical bootstrap checks
+remain the required build-independence evidence.

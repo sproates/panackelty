@@ -1,3 +1,5 @@
+pub import project/src/packages/diagnostic::{PackageProblem}
+import project/src/packages/diagnostic::{package_problem, problem_context, package_result}
 pub import project/src/packages/acquisition::{AcquisitionOptions}
 import project/src/packages/acquisition::{ensure_directory, locked_edge, locked_package, verify_cache_state}
 pub import project/src/packages/git_snapshot::{GitSource}
@@ -35,41 +37,41 @@ pub pure git_relative(root: Str, source: AcquiredGit): Str {
   if root == source.root { "." } else { root.slice(source.root.len() + 1, root.len()) }
 }
 
-pub pure git_package_root(source: AcquiredGit, subdir: Str): Result[Str, Str] {
-  match git_package_subdir(subdir, source.links) {
+pub pure git_package_root(source: AcquiredGit, subdir: Str): Result[Str, PackageProblem] {
+  match package_result(git_package_subdir(subdir, source.links), "PKG_CONTAINMENT") {
     Error(problem) => Error(problem),
     Ok(relative) => Ok(if relative == "." { source.root } else { source.root + "/" + relative })
   }
 }
 
 locked_git(options: AcquisitionOptions, declaration: PackageManifestDependency,
-    owner: Str): Result[GitSource, Str] {
+    owner: Str): Result[GitSource, PackageProblem] {
   match options.locked {
-    None() => Error("missing Git lock; run panack deps lock"),
+    None() => Error(package_problem("PKG_LOCK_MISSING", "missing Git lock")),
     Some(lock) => match locked_edge(lock, owner, declaration.alias) {
-      None() => Error("Git dependency is missing from lock; run panack deps update"),
+      None() => Error(package_problem("PKG_LOCK_STALE", "Git dependency is missing from lock")),
       Some(edge) => {
         kind = manifest_json_string_field(edge.source, "kind").value_or("")
         url = manifest_json_string_field(edge.source, "url").value_or("")
         format = manifest_json_string_field(edge.source, "object_format").value_or("")
         commit = manifest_json_string_field(edge.source, "commit").value_or("")
         if kind != "git" || url != declaration.path {
-          Error("Git source changed; run panack deps update")
+          Error(package_problem("PKG_LOCK_STALE", "Git source changed"))
         } else { Ok(GitSource(url, format, commit)) }
       }
     }
   }
 }
 
-expected_tree(options: AcquisitionOptions, owner: Str, alias: Str): Result[Str, Str] {
+expected_tree(options: AcquisitionOptions, owner: Str, alias: Str): Result[Str, PackageProblem] {
   match options.locked {
-    None() => Error("missing Git lock"),
+    None() => Error(package_problem("PKG_LOCK_MISSING", "missing Git lock")),
     Some(lock) => match locked_edge(lock, owner, alias) {
-      None() => Error("missing Git edge"),
+      None() => Error(package_problem("PKG_GRAPH", "missing Git edge")),
       Some(edge) => match locked_package(lock, edge.package) {
-        None() => Error("missing Git package"),
+        None() => Error(package_problem("PKG_GRAPH", "missing Git package")),
         Some(package) => match package.tree_sha256 {
-          None() => Error("missing Git tree digest"), Some(tree) => Ok(tree)
+          None() => Error(package_problem("PKG_GRAPH", "missing Git tree digest")), Some(tree) => Ok(tree)
         }
       }
     }
@@ -77,27 +79,27 @@ expected_tree(options: AcquisitionOptions, owner: Str, alias: Str): Result[Str, 
 }
 
 acquire_snapshot(options: AcquisitionOptions, source: GitSource, selector: Str,
-    expected: Str, previous: [AcquiredGit]): Result[AcquiredGit, Str] {
+    expected: Str, previous: [AcquiredGit]): Result[AcquiredGit, PackageProblem] {
   mut known: Option[AcquiredGit] = None()
   for candidate in previous { if candidate.source == source { known = Some(candidate) } }
   match known {
-    Some(candidate) => if expected != "" && candidate.tree != expected { Error("conflicting Git snapshot digests") }
+    Some(candidate) => if expected != "" && candidate.tree != expected { Error(package_problem("PKG_GRAPH", "conflicting Git snapshot digests")) }
       else { Ok(AcquiredGit(source, selector, options.refresh, candidate.root, candidate.key, candidate.tree, candidate.links, candidate.stage)) },
-    None() => match git_source_key(source) {
+    None() => match package_result(git_source_key(source), "PKG_FILESYSTEM") {
       Error(problem) => Error(problem),
       Ok(key) => {
         parent = options.root + "/.panack_modules/.sources"
         root = parent + "/" + key
-        cached = if expected == "" { Error("Git refresh requires acquisition") }
+        cached = if expected == "" { Error(package_problem("PKG_GRAPH", "Git refresh requires acquisition")) }
           else {
-            state = match options.locked { None() => Error("missing lock"), Some(lock) => verify_cache_state(options.root, lock) }
+            state = match options.locked { None() => Error(package_problem("PKG_LOCK_MISSING", "missing lock")), Some(lock) => verify_cache_state(options.root, lock) }
             match state {
               Error(problem) => Error(problem),
               Ok(completed_1) => match ensure_directory(parent, false) {
                 Error(problem) => Error(problem),
                 Ok(completed_2) => match ensure_directory(root, false) {
                   Error(problem) => Error(problem),
-                  Ok(completed_3) => verify_git_cache(root, expected)
+                  Ok(completed_3) => package_result(verify_git_cache(root, expected), "PKG_CACHE_INVALID")
                 }
               }
             }
@@ -105,19 +107,19 @@ acquire_snapshot(options: AcquisitionOptions, source: GitSource, selector: Str,
         match cached {
           Ok(links) => Ok(AcquiredGit(source, selector, options.refresh, root, key, expected, links, None())),
           Error(cache_problem) => if !options.materialize || options.offline {
-            Error("Git cache unavailable or invalid; run panack deps restore online")
+            Error(problem_context(cache_problem, "Git cache; this command cannot download replacement content"))
           } else {
             match ensure_directory(options.root + "/.panack_modules", true) {
               Error(problem) => Error(problem),
               Ok(completed_4) => match ensure_directory(parent, true) {
                 Error(problem) => Error(problem),
-                Ok(completed_5) => match git_executable() {
+                Ok(completed_5) => match package_result(git_executable(), "PKG_GIT_REQUIRED") {
                   Error(problem) => Error(problem),
                   Ok(executable) => match stage_git_commit(checked_path(parent), executable, source, environment.get("CURL_CA_BUNDLE")) {
-                    Error(problem) => Error("Git acquisition for " + source.url + ": " + problem),
+                    Error(problem) => Error(problem_context(package_problem("PKG_GIT_FETCH", problem), "repository " + source.url + " at commit " + source.commit)),
                     Ok(snapshot) => {
-                      result = if expected != "" && snapshot.tree_sha256 != expected { Error("Git snapshot digest mismatch") }
-                        else { match verify_git_cache(snapshot.root, snapshot.tree_sha256) {
+                      result = if expected != "" && snapshot.tree_sha256 != expected { Error(package_problem("PKG_INTEGRITY", "Git snapshot digest mismatch")) }
+                        else { match package_result(verify_git_cache(snapshot.root, snapshot.tree_sha256), "PKG_INTEGRITY") {
                           Error(problem) => Error(problem),
                           Ok(links) => Ok(AcquiredGit(source, selector, options.refresh, snapshot.root, key, snapshot.tree_sha256, links, Some(snapshot.handle)))
                         } }
@@ -138,7 +140,7 @@ acquire_snapshot(options: AcquisitionOptions, source: GitSource, selector: Str,
 }
 
 pub acquire_git(options: AcquisitionOptions, declaration: PackageManifestDependency,
-    owner: Str, previous: [AcquiredGit]): Result[AcquiredGit, Str] {
+    owner: Str, previous: [AcquiredGit]): Result[AcquiredGit, PackageProblem] {
   mut known: Option[GitSource] = None()
   for candidate in previous {
     if candidate.refreshed && candidate.source.url == declaration.path && candidate.selector == declaration.selector {
@@ -150,10 +152,10 @@ pub acquire_git(options: AcquisitionOptions, declaration: PackageManifestDepende
       Some(source) => Ok(source),
       None() => match ensure_directory(options.root + "/.panack_modules", true) {
         Error(problem) => Error(problem),
-        Ok(completed_6) => match git_executable() {
+        Ok(completed_6) => match package_result(git_executable(), "PKG_GIT_REQUIRED") {
           Error(problem) => Error(problem),
-          Ok(executable) => resolve_git_ref(checked_path(options.root + "/.panack_modules"), executable,
-            declaration.path, declaration.selector, environment.get("CURL_CA_BUNDLE"))
+          Ok(executable) => package_result(resolve_git_ref(checked_path(options.root + "/.panack_modules"), executable,
+            declaration.path, declaration.selector, environment.get("CURL_CA_BUNDLE")), "PKG_GIT_RESOLVE")
         }
       }
     } }
@@ -166,15 +168,15 @@ pub acquire_git(options: AcquisitionOptions, declaration: PackageManifestDepende
   }
 }
 
-pub publish_git(sources: [AcquiredGit]): Result[Unit, Str] {
+pub publish_git(sources: [AcquiredGit]): Result[Unit, PackageProblem] {
   mut published: Set[Str] = set()
-  mut failure: Option[Str] = None()
+  mut failure: Option[PackageProblem] = None()
   for source in sources {
     if failure == None() && !published.has(source.key) {
       match source.stage {
         None() => {},
         Some(handle) => match staging.publish(handle, checked_path(source.key), true) {
-          Error(problem) => { failure = Some("cannot publish Git snapshot: " + problem.code) },
+          Error(problem) => { failure = Some(package_problem("PKG_PUBLICATION", "cannot publish Git snapshot: " + problem.code)) },
           Ok(completed_7) => { published = published.add(source.key) }
         }
       }

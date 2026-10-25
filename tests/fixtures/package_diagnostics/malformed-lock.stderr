@@ -1,0 +1,9 @@
+panack: error[PKG_LOCK_INVALID]: invalid lockfile: expected JSON string
+
+  Project: <workspace>/Ian's app/panack.json
+  Operation: deps restore
+  Phase: lock verification
+
+The lockfile cannot provide a trustworthy dependency selection.
+
+Restore a valid lockfile from version control. Do not delete it merely to bypass this failure.

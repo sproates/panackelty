@@ -99,7 +99,7 @@ pub verify_git_cache(root: Str, expected: Str): Result[Map[Str, Str], Str] {
         Some(problem) => { sha256_close(hash); Error(problem) },
         None() => match sha256_finish(hash) {
           Error(problem) => Error(problem),
-          Ok(actual) => if actual != expected { Error("Git cache tree digest mismatch; run panack deps restore") }
+          Ok(actual) => if actual != expected { Error("Git cache tree digest mismatch") }
             else { Ok(inventory.links) }
         }
       }

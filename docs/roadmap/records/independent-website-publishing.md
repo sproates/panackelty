@@ -83,6 +83,12 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
+- **P04a diagnostics: Pending release and final acceptance.** Promote the new
+  package explanations and recovery examples only after P04b/P04c acceptance
+  and a matching native release. The examples document is future article source
+  material, not an instruction to publish an article. Ownership: core release
+  and website maintainers. Evidence: [verified examples](../../design/PACKAGE_DIAGNOSTIC_EXAMPLES.md).
+
 - **P03c Git dependencies: Pending release and final acceptance.** Add HTTPS Git
   manifests, full-commit locks, Git 2.29+ installation, sibling/shared snapshot
   examples, offline requirements and direct-URL/no-redirect limitations after

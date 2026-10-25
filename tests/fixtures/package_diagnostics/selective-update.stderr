@@ -1,0 +1,9 @@
+panack: error[PKG_SELECTIVE]: unknown dependency alias: absent
+
+  Project: <workspace>/Ian's app/panack.json
+  Operation: deps update
+  Phase: selective update validation
+
+This update would change a dependency outside the selected aliases, or the selection is invalid.
+
+Check the root aliases and shared dependencies. Select all affected aliases together, or review an explicit update of the whole graph.

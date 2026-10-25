@@ -444,7 +444,7 @@ $(PACKAGE_TOOL_ARTIFACT): panack-vm $(SEED_COMPILER) $(PACKAGE_TOOL_SOURCES)
 package-tool-check: package-tool native-io-check
 	@PANACK_PROBE_SEED="$(abspath $(SEED_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROBE) tests/runner/package_sha256_unit.panack
 	@PANACK_PROBE_SEED="$(abspath $(SEED_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROBE) tests/runner/resolved_project_unit.panack
-	@PANACK_PROBE_SEED="$(abspath $(SEED_COMPILER))" $(PROBES) tests/runner/package_lock_unit.panack tests/runner/package_tar_unit.panack tests/runner/package_case_fold_unit.panack tests/runner/package_git_unit.panack
+	@PANACK_PROBE_SEED="$(abspath $(SEED_COMPILER))" $(PROBES) tests/runner/package_lock_unit.panack tests/runner/package_tar_unit.panack tests/runner/package_case_fold_unit.panack tests/runner/package_git_unit.panack tests/runner/package_diagnostic_unit.panack
 	@PANACK_PROBE_SEED="$(abspath $(SEED_COMPILER))" sh tests/package_archive_stream.sh
 	@sh tests/package_tool_handoff.sh
 

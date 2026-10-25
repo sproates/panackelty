@@ -1,0 +1,163 @@
+// Package diagnostics are data until the public command boundary. Codes are
+// assigned where a failure is detected, never inferred from rendered prose.
+pub record ProblemContext { label: Str, value: Str }
+
+pub record PackageProblem {
+  code: Str,
+  message: Str,
+  phase: Str,
+  reason: Str,
+  help: Str,
+  contexts: [ProblemContext]
+}
+
+pub pure package_problem(code: Str, message: Str): PackageProblem {
+  mut phase = "dependency resolution"
+  mut reason = "The dependency graph could not be verified, so it cannot be used safely."
+  mut help = "Check the dependency declarations and the details above before trying again."
+  if code == "PKG_LOCK_MISSING" {
+    phase = "lock verification"
+    reason = "Dependencies need a lockfile so the selected packages can be reproduced."
+    help = "Create the initial lock with the lock command below. This selects dependency content."
+  } else if code == "PKG_LOCK_STALE" {
+    phase = "lock verification"
+    reason = "The declarations no longer match the recorded dependency selection."
+    help = "Restore the intended manifest, or review the changes and explicitly update the lock. An update can select different dependency content."
+  } else if code == "PKG_LOCK_INVALID" {
+    phase = "lock verification"
+    reason = "The lockfile cannot provide a trustworthy dependency selection."
+    help = "Restore a valid lockfile from version control. Do not delete it merely to bypass this failure."
+  } else if code == "PKG_CACHE_MISSING" {
+    phase = "cache verification"
+    reason = "The locked dependency content is not available in this project's cache."
+    help = "Run the restore command below. Remote sources require a connection; restore preserves the existing pins."
+  } else if code == "PKG_CACHE_INVALID" {
+    phase = "cache verification"
+    reason = "The cached content or its state does not match the verified dependency selection. It will not be used."
+    help = "Run the restore command below to reacquire and verify the locked content. Do not update the lock to conceal cache corruption."
+  } else if code == "PKG_INTEGRITY" {
+    phase = "content verification"
+    reason = "The supplied bytes do not match the content recorded in the lockfile. Accepting them would change the dependency you agreed to use."
+    help = "Check the source with its maintainer or restore the original bytes. Only use deps update after deliberately reviewing and accepting the changed content."
+  } else if code == "PKG_MANIFEST_MISSING" {
+    phase = "manifest discovery"
+    reason = "Every package needs a panack.json at its declared root. That manifest or one of its parent directories could not be found."
+    help = "Check the dependency path in the declaring manifest and make sure the package exists at the location shown above."
+  } else if code == "PKG_MANIFEST" {
+    phase = "manifest validation"
+    reason = "This manifest cannot describe a valid package for the current toolchain."
+    help = "Correct the indicated field or location in panack.json, then retry. For a third-party package, report the manifest problem to its maintainer."
+  } else if code == "PKG_CONTAINMENT" {
+    phase = "path verification"
+    reason = "The dependency would access files outside its permitted package or repository boundary."
+    help = "Correct the declared path or ask the package maintainer to fix it. Do not disable containment checks."
+  } else if code == "PKG_LIMIT" {
+    phase = "resource limits"
+    reason = "The package exceeds a supported resource bound and cannot be processed safely."
+    help = "Reduce the package or dependency graph to the stated limit, or ask its maintainer for a smaller supported package."
+  } else if code == "PKG_ARCHIVE" {
+    phase = "archive extraction"
+    reason = "The archive could not be read as a supported, safely extractable package."
+    help = "Check the archive details above. Ask its maintainer for a valid .tar.gz with panack.json at its root and supported entries."
+  } else if code == "PKG_HTTP" {
+    phase = "HTTPS acquisition"
+    reason = "A complete, acceptable HTTPS response was not received. The dependency cannot be verified."
+    help = "Check connectivity, the source URL and TLS trust, then retry the original command. For an existing lock, deps restore preserves its pins. Do not disable certificate verification."
+  } else if code == "PKG_HTTP_STATUS" {
+    phase = "HTTPS response validation"
+    reason = "The server did not return the downloadable archive required by this dependency."
+    help = "Check that the URL points to an available .tar.gz, rather than a web page or login. Package retrieval does not prompt for credentials; ask the source maintainer for an accessible HTTPS archive."
+  } else if code == "PKG_REDIRECT" {
+    phase = "HTTPS redirect validation"
+    reason = "The redirect does not meet the package transport policy. Its destination has not been accepted."
+    help = "Use a direct HTTPS archive URL without credentials, query strings or fragments, or ask the server maintainer to correct the redirect."
+  } else if code == "PKG_GIT_RESOLVE" {
+    phase = "Git ref resolution"
+    reason = "The requested Git selector could not be resolved to one complete commit."
+    help = "Check the repository URL and branch or tag. If the name is ambiguous, use refs/heads/<name> or refs/tags/<name>."
+  } else if code == "PKG_GIT_FETCH" {
+    phase = "Git snapshot acquisition"
+    reason = "Git could not produce a verified snapshot of the requested commit. The cause may be connectivity, server access, an unavailable commit or unsupported repository content; this message does not establish which."
+    help = "Check connectivity and TLS trust, then ask the repository maintainer whether the recorded commit is available over the direct HTTPS URL. Retry the original command once corrected. For an existing lock, deps restore keeps the same pin."
+  } else if code == "PKG_GIT_REQUIRED" {
+    phase = "Git discovery"
+    reason = "Acquiring a Git dependency requires the external Git executable. Verified cached dependencies do not."
+    help = "Install Git 2.29 or newer and make it available on PATH, then retry."
+  } else if code == "PKG_PUBLICATION" {
+    phase = "cache publication"
+    reason = "The requested lock or cache entry could not be installed. Publication is atomic per entry, not across the whole dependency graph."
+    help = "Check filesystem permissions and available space. Some entries or the lock may already have changed; run restore after correcting the problem."
+  } else if code == "PKG_FILESYSTEM" {
+    phase = "filesystem access"
+    reason = "A required path could not be accessed with the expected type and permissions."
+    help = "Check the path, permissions and the details above. Do not replace a protected path with a symlink to bypass verification."
+  } else if code == "PKG_SELECTIVE" {
+    phase = "selective update validation"
+    reason = "This update would change a dependency outside the selected aliases, or the selection is invalid."
+    help = "Check the root aliases and shared dependencies. Select all affected aliases together, or review an explicit update of the whole graph."
+  } else if code == "PKG_USAGE" {
+    phase = "command arguments"
+    reason = "The supplied arguments do not match a supported package command."
+    help = "Use panack deps lock, panack deps update [ALIAS...] or panack deps restore [--offline], with --project panack.json."
+  }
+  PackageProblem(code, message, phase, reason, help, [])
+}
+
+pub pure problem_context(problem: PackageProblem, context: Str): PackageProblem {
+  problem_label(problem, "Context", context)
+}
+
+pub pure problem_dependency(problem: PackageProblem, context: Str): PackageProblem {
+  problem_label(problem, "Dependency", context)
+}
+
+pure problem_label(problem: PackageProblem, label: Str, context: Str): PackageProblem {
+  mut contexts = [ProblemContext(label, context)]
+  for existing in problem.contexts { contexts = contexts.append(existing) }
+  PackageProblem(problem.code, problem.message, problem.phase, problem.reason, problem.help, contexts)
+}
+
+// Escape terminal controls in paths and supplied text. Do not render raw Git
+// stderr or HTTP headers: those can contain server-controlled credentials.
+pub pure diagnostic_text(text: Str): Str {
+  mut safe = ""
+  for index in 0..text.len() {
+    character = text.slice(index, index + 1)
+    encoded = character.encode_utf8()
+    if character == "\n" { safe = safe + "\\n" }
+    else if character == "\r" { safe = safe + "\\r" }
+    else if character == "\t" { safe = safe + "\\t" }
+    else if encoded.at(0) < 32 || encoded.at(0) == 127 || (encoded.length() == 2 && encoded.at(0) == 194 && encoded.at(1) >= 128 && encoded.at(1) <= 159) { safe = safe + "?" }
+    else { safe = safe + character }
+  }
+  safe
+}
+
+pure diagnostic_quote(text: Str): Str {
+  mut quoted = "'"
+  for index in 0..text.len() {
+    character = text.slice(index, index + 1)
+    quoted = quoted + if character == "'" { "'\"'\"'" } else { character }
+  }
+  quoted + "'"
+}
+
+pub pure render_problem(problem: PackageProblem, manifest: Str, operation: Str): Str {
+  mut output = "panack: error[" + problem.code + "]: " + diagnostic_text(problem.message) + "\n"
+  if manifest != "" { output = output + "\n  Project: " + diagnostic_text(manifest) + "\n" }
+  output = output + "  Operation: " + diagnostic_text(operation) + "\n  Phase: " + problem.phase + "\n"
+  for context in problem.contexts { output = output + "  " + context.label + ": " + diagnostic_text(context.value) + "\n" }
+  output = output + "\n" + problem.reason + "\n\n" + problem.help
+  if manifest != "" && diagnostic_text(manifest) == manifest {
+    if problem.code == "PKG_LOCK_MISSING" {
+      output = output + "\n\n  panack deps lock --project " + diagnostic_quote(manifest)
+    } else if problem.code == "PKG_CACHE_MISSING" || problem.code == "PKG_CACHE_INVALID" {
+      output = output + "\n\n  panack deps restore --project " + diagnostic_quote(manifest)
+    }
+  }
+  output
+}
+
+pub pure package_result[T](result: Result[T, Str], code: Str): Result[T, PackageProblem] {
+  match result { Error(message) => Error(package_problem(code, message)), Ok(value) => Ok(value) }
+}

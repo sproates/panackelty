@@ -1,3 +1,5 @@
+pub import project/src/packages/diagnostic::{PackageProblem}
+import project/src/packages/diagnostic::{package_problem, problem_context}
 pub import project/src/packages/lock::{PackageLock, PackageLockPackage, PackageLockEdge, lock_package_id, serialize_package_lock}
 
 pure selected_alias(aliases: [Str], alias: Str): Bool {
@@ -29,29 +31,29 @@ pure edge_signature(edge: PackageLockEdge): Str {
   serialize_package_lock(PackageLock("root", "1.0.0", "", "", [edge], []))
 }
 
-pub pure validate_selective_update(previous: PackageLock, current: PackageLock, aliases: [Str]): Result[Unit, Str] {
-  mut failure: Option[Str] = None()
+pub pure validate_selective_update(previous: PackageLock, current: PackageLock, aliases: [Str]): Result[Unit, PackageProblem] {
+  mut failure: Option[PackageProblem] = None()
   if previous.root_name != current.root_name || previous.root_version != current.root_version || previous.toolchain != current.toolchain {
-    failure = Some("root identity or toolchain changed; run deps update without aliases")
+    failure = Some(package_problem("PKG_SELECTIVE", "root identity or toolchain changed; run deps update without aliases"))
   }
   for alias in aliases {
     mut found: Bool = false
     for edge in previous.dependencies { found = found || edge.alias == alias }
     for edge in current.dependencies { found = found || edge.alias == alias }
-    if !found { failure = Some("unknown dependency alias: " + alias) }
+    if !found && failure == None() { failure = Some(package_problem("PKG_SELECTIVE", "unknown dependency alias: " + alias)) }
   }
   for edge in previous.dependencies {
     if !selected_alias(aliases, edge.alias) {
       mut found: Bool = false
       for candidate in current.dependencies { found = found || edge_signature(candidate) == edge_signature(edge) }
-      if !found { failure = Some("unselected dependency changed: " + edge.alias) }
+      if !found && failure == None() { failure = Some(package_problem("PKG_SELECTIVE", "unselected dependency changed: " + edge.alias)) }
     }
   }
   for edge in current.dependencies {
     if !selected_alias(aliases, edge.alias) {
       mut found: Bool = false
       for candidate in previous.dependencies { found = found || edge_signature(candidate) == edge_signature(edge) }
-      if !found { failure = Some("unselected dependency changed: " + edge.alias) }
+      if !found && failure == None() { failure = Some(package_problem("PKG_SELECTIVE", "unselected dependency changed: " + edge.alias)) }
     }
   }
   old_selected: Set[Str] = selected_packages(previous, aliases)
@@ -61,7 +63,7 @@ pub pure validate_selective_update(previous: PackageLock, current: PackageLock, 
     if !old_selected.has(id) && !new_selected.has(id) {
       mut found: Bool = false
       for candidate in current.packages { found = found || package_signature(candidate) == package_signature(package) }
-      if !found { failure = Some("unselected package changed: " + id) }
+      if !found && failure == None() { failure = Some(package_problem("PKG_SELECTIVE", "unselected package changed: " + id)) }
     }
   }
   for package in current.packages {
@@ -69,7 +71,7 @@ pub pure validate_selective_update(previous: PackageLock, current: PackageLock, 
     if !old_selected.has(id) && !new_selected.has(id) {
       mut found: Bool = false
       for candidate in previous.packages { found = found || package_signature(candidate) == package_signature(package) }
-      if !found { failure = Some("unselected package changed: " + id) }
+      if !found && failure == None() { failure = Some(package_problem("PKG_SELECTIVE", "unselected package changed: " + id)) }
     }
   }
   match failure { Some(problem) => Error(problem), None() => Ok(()) }

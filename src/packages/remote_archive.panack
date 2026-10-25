@@ -1,3 +1,5 @@
+pub import project/src/packages/diagnostic::{PackageProblem}
+import project/src/packages/diagnostic::{package_problem, problem_context, package_result}
 import project/packages/http/src/stream as http
 import project/packages/http/src/parser::{lower_ascii}
 import project/packages/http/src/types::{HttpError.ProtocolError}
@@ -43,57 +45,57 @@ pure redirect_url(current: Str, location: Str): Str {
   }
 }
 
-open_archive(url: Str): Result[http.ResponseStream, Str] {
+open_archive(url: Str): Result[http.ResponseStream, PackageProblem] {
   mut current = url
   mut hops: Nat = 0
   mut response: Option[http.ResponseStream] = None()
-  mut failure: Option[Str] = None()
+  mut failure: Option[PackageProblem] = None()
   while response == None() && failure == None() {
-    if !safe_url(current) { failure = Some("unsafe archive URL or redirect") }
+    if !safe_url(current) { failure = Some(package_problem("PKG_REDIRECT", "unsafe archive URL or redirect")) }
     else { match http.open_response(current, 60000, 67108864) {
-      Error(problem) => { failure = Some("archive HTTP connection or response failed") },
+      Error(problem) => { failure = Some(http_problem(problem)) },
       Ok(opened) => {
         if opened.status == 200 {
           mut encoding: Bool = false
           for header in opened.headers { if lower_ascii(header.name) == "content-encoding" && lower_ascii(header.value) != "identity" { encoding = true } }
-          if encoding { closed = http.close_response(opened); failure = Some("archive HTTP content encoding is unsupported") }
+          if encoding { closed = http.close_response(opened); failure = Some(package_problem("PKG_HTTP", "archive HTTP content encoding is unsupported")) }
           else { response = Some(opened) }
         } else {
           closed = http.close_response(opened)
           if opened.status == 301 || opened.status == 302 || opened.status == 303 || opened.status == 307 || opened.status == 308 {
             mut locations: [Str] = []
             for header in opened.headers { if lower_ascii(header.name) == "location" { locations = locations.append(header.value) } }
-            if hops >= 5 { failure = Some("archive redirect limit exceeded") }
-            else if locations.len() != 1 || locations[0] == "" { failure = Some("archive redirect requires one Location") }
-            else if !safe_url("https://placeholder/" + locations[0]) { failure = Some("unsafe archive redirect") }
-            else if locations[0].starts_with_at("http:", 0) { failure = Some("archive redirect requires HTTPS") }
+            if hops >= 5 { failure = Some(package_problem("PKG_REDIRECT", "archive redirect limit exceeded")) }
+            else if locations.len() != 1 || locations[0] == "" { failure = Some(package_problem("PKG_REDIRECT", "archive redirect requires one Location")) }
+            else if !safe_url("https://placeholder/" + locations[0]) { failure = Some(package_problem("PKG_REDIRECT", "unsafe archive redirect")) }
+            else if locations[0].starts_with_at("http:", 0) { failure = Some(package_problem("PKG_REDIRECT", "archive redirect requires HTTPS")) }
             else { current = redirect_url(current, locations[0]); hops = hops + 1 }
-          } else { failure = Some("archive HTTP response must be 200") }
+          } else { status = opened.status; failure = Some(package_problem("PKG_HTTP_STATUS", "archive server returned HTTP ${status}; expected 200")) }
         }
       }
     } }
   }
-  match failure { Some(problem) => Error(problem), None() => match response { Some(value) => Ok(value), None() => Error("missing HTTP response") } }
+  match failure { Some(problem) => Error(problem), None() => match response { Some(value) => Ok(value), None() => Error(package_problem("PKG_HTTP", "missing HTTP response")) } }
 }
 
-extract(stage: Nat, response: http.ResponseStream): Result[StagedArchive, Str] {
+extract(stage: Nat, response: http.ResponseStream): Result[StagedArchive, PackageProblem] {
   match gzip.open(268435456) {
-    Error(problem) => Error("cannot open gzip decoder"),
+    Error(problem) => Error(package_problem("PKG_ARCHIVE", "cannot open gzip decoder")),
     Ok(handle) => {
       hash = sha256_new()
       decoded = http.fold_body(response, Decoder(stage, handle, tar_stream_new(), hash), @consume, 67108864)
       result = match decoded {
-        Error(problem) => { sha256_close(hash); Error("archive download or extraction failed") },
+        Error(problem) => { sha256_close(hash); Error(http_problem(problem)) },
         Ok(state) => match consume_compressed(stage, handle, state.tar, byte_buffer.empty(), true) {
-          Error(problem) => { sha256_close(state.hash); Error(problem) },
-          Ok(tar) => match sha256_finish(state.hash) {
+          Error(problem) => { sha256_close(state.hash); Error(package_problem("PKG_ARCHIVE", problem)) },
+          Ok(tar) => match package_result(sha256_finish(state.hash), "PKG_FILESYSTEM") {
             Error(problem) => Error(problem),
-            Ok(digest) => match tar_stream_finish(tar) {
+            Ok(digest) => match package_result(tar_stream_finish(tar), "PKG_ARCHIVE") {
               Error(problem) => Error(problem),
               Ok(entries) => match staging.path(stage) {
-                Error(problem) => Error("staging path unavailable"),
+                Error(problem) => Error(package_problem("PKG_FILESYSTEM", "staging path unavailable")),
                 Ok(root) => match root.to_text() {
-                  Error(problem) => Error("staging path is not UTF-8"),
+                  Error(problem) => Error(package_problem("PKG_FILESYSTEM", "staging path is not UTF-8")),
                   Ok(text) => Ok(StagedArchive(stage, text, digest, entries))
                 }
               }
@@ -107,11 +109,11 @@ extract(stage: Nat, response: http.ResponseStream): Result[StagedArchive, Str] {
   }
 }
 
-pub stage_remote_archive(parent: Str, url: Str): Result[StagedArchive, Str] {
+pub stage_remote_archive(parent: Str, url: Str): Result[StagedArchive, PackageProblem] {
   match path.from_text(parent) {
-    Error(problem) => Error("invalid archive staging parent"),
+    Error(problem) => Error(package_problem("PKG_FILESYSTEM", "invalid archive staging parent")),
     Ok(parent_path) => match staging.begin(parent_path) {
-      Error(problem) => Error("cannot create archive staging directory"),
+      Error(problem) => Error(package_problem("PKG_FILESYSTEM", "cannot create archive staging directory")),
       Ok(stage) => {
         result = match open_archive(url) {
           Error(problem) => Error(problem),
@@ -120,5 +122,26 @@ pub stage_remote_archive(parent: Str, url: Str): Result[StagedArchive, Str] {
         match result { Ok(archive) => Ok(archive), Error(problem) => { closed = staging.close(stage); Error(problem) } }
       }
     }
+  }
+}
+
+pure http_problem(problem: http.HttpError): PackageProblem {
+  match problem {
+    http.HttpError.InvalidUrl(detail) => package_problem("PKG_HTTP", "archive URL is invalid"),
+    http.HttpError.InvalidLimits() => package_problem("PKG_LIMIT", "archive transport limits are invalid"),
+    http.HttpError.DnsFailure() => package_problem("PKG_HTTP", "archive hostname could not be resolved"),
+    http.HttpError.ConnectFailure() => package_problem("PKG_HTTP", "could not connect to the archive server"),
+    http.HttpError.TlsFailure() => package_problem("PKG_HTTP", "archive TLS connection could not be verified or established"),
+    http.HttpError.Timeout() => package_problem("PKG_HTTP", "archive request exceeded its 60-second timeout"),
+    http.HttpError.ProtocolError(detail) => package_problem(if detail.starts_with_at("archive extraction: ", 0) { "PKG_ARCHIVE" } else { "PKG_HTTP" }, detail),
+    http.HttpError.LimitExceeded(detail) => package_problem("PKG_LIMIT", "archive transport limit exceeded: " + detail + " (body: 64 MiB; headers/trailers: 64 KiB; chunk line: 8 KiB; informational responses: 8)"),
+    http.HttpError.Cancelled() => package_problem("PKG_HTTP", "archive request was cancelled"),
+    http.HttpError.UnsupportedHost() => package_problem("PKG_HTTP", "HTTPS transport is unavailable on this host"),
+    http.HttpError.UnsupportedMethod(detail) => package_problem("PKG_HTTP", "unsupported archive request method"),
+    http.HttpError.UnsupportedVersion(detail) => package_problem("PKG_HTTP", "unsupported archive HTTP version"),
+    http.HttpError.UnsupportedTransferEncoding() => package_problem("PKG_HTTP", "unsupported archive transfer encoding"),
+    http.HttpError.InvalidRequest() => package_problem("PKG_HTTP", "invalid archive request"),
+    http.HttpError.InvalidResponse() => package_problem("PKG_HTTP", "invalid archive response"),
+    http.HttpError.TransportFailure(detail) => package_problem("PKG_HTTP", "archive transport failed before a complete response was received")
   }
 }

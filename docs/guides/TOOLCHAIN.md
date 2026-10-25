@@ -83,6 +83,22 @@ lock. Ordinary check, compile and run commands verify the existing lock and cach
 they never extract archives or repair a cache implicitly. A project without
 dependencies needs no lock.
 
+### Package diagnostics on next
+
+Package failures explain what happened, why the operation cannot proceed and
+what to check or do next. They include an error-family code, the project,
+operation, failed phase and available dependency context. Transitive failures
+show the declaring chain. Failures go to stderr with status 1; successful command
+output is unchanged.
+
+A missing or corrupt cache normally calls for `deps restore`, which preserves
+pins. An integrity mismatch is different: investigate the source or recover the
+original content before deliberately accepting an update. Git failures include
+exit status and the requested identity, but do not expose raw stderr or pretend
+an ambiguous failure proves a particular server problem. See the
+[verified diagnostic examples](../design/PACKAGE_DIAGNOSTIC_EXAMPLES.md) for real
+messages and tested recovery commands.
+
 ### HTTPS archives on next
 
 Use an HTTPS archive declaration such as

@@ -1,0 +1,12 @@
+panack: error[PKG_CACHE_INVALID]: cache tree digest mismatch
+
+  Project: <workspace>/Ian's app/panack.json
+  Operation: project preparation (network-free)
+  Phase: cache verification
+  Dependency: demo.app -> lib (<workspace>/Ian's app/panack.json)
+
+The cached content or its state does not match the verified dependency selection. It will not be used.
+
+Run the restore command below to reacquire and verify the locked content. Do not update the lock to conceal cache corruption.
+
+  panack deps restore --project '<workspace>/Ian'"'"'s app/panack.json'

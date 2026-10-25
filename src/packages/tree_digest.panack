@@ -141,7 +141,7 @@ pub verify_tree_digest(root: Str, expected: Str): Result[Unit, Str] {
     Ok(inventory) => match tree_digest(root, inventory.entries) {
       Error(problem) => Error(problem),
       Ok(actual) => if actual == expected { Ok(()) }
-        else { Error("cache tree digest mismatch; run panack deps restore") }
+        else { Error("cache tree digest mismatch") }
     }
   }
 }

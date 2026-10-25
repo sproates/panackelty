@@ -41,11 +41,11 @@ COPYFILE_DISABLE=1 tar --format ustar -czf "$work/rejected.tar.gz" -C "$work/sou
 reject unsupported
 rm "$work/source/link"
 COPYFILE_DISABLE=1 tar --format ustar -czf "$work/rejected.tar.gz" -C "$work/source" panack.json panack.json
-reject duplicate
+reject 'archive contains the same path more than once: panack.json'
 printf x > "$work/source/Straße"
 printf y > "$work/source/STRASSE"
 COPYFILE_DISABLE=1 tar --format ustar -czf "$work/rejected.tar.gz" -C "$work/source" panack.json Straße STRASSE
-reject case-colliding
+reject 'archive paths differ only in letter case: Straße and STRASSE'
 printf '%s\n' 'PASS archive corruption, links, duplicate paths, Unicode collisions and cleanup'
 
 # The bound is on real streamed headers, including the archive root header.

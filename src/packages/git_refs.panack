@@ -39,7 +39,7 @@ pub pure parse_git_refs(data: Bytes, url: Str, selector: Str): Result[GitSource,
   mut tag: Str = ""
   mut peeled: Str = ""
   mut head: Str = ""
-  if !valid_utf8(data) { failure = Some("Git ref response is not UTF-8") }
+  if !valid_utf8(data) { failure = Some("Git returned branch or tag names that are not valid UTF-8 text") }
   text = data.decode_utf8()
   mut start: Nat = 0
   for index in 0..text.len() {
@@ -47,12 +47,12 @@ pub pure parse_git_refs(data: Bytes, url: Str, selector: Str): Result[GitSource,
       line = text.slice(start, index)
       mut tab: Nat = line.len()
       for cursor in 0..line.len() { if line[cursor] == "\t" && tab == line.len() { tab = cursor } }
-      if tab == line.len() { failure = Some("invalid Git ref response") }
+      if tab == line.len() { failure = Some("Git returned a branch or tag listing in an unreadable format") }
       else {
         object = line.slice(0, tab)
         name = line.slice(tab + 1, line.len())
         if !git_object_id(object, 40) && !git_object_id(object, 64) {
-          failure = Some("invalid Git ref object ID")
+          failure = Some("Git returned a branch or tag without a complete commit ID")
         } else {
           if name == "HEAD" { head = object }
           if name == selector || name == "refs/heads/" + selector {
@@ -70,7 +70,7 @@ pub pure parse_git_refs(data: Bytes, url: Str, selector: Str): Result[GitSource,
   if branch != "" && tag != "" { failure = Some("ambiguous Git branch/tag; use a full ref name") }
   selected = if selector == "" { head } else if branch != "" { branch }
     else if peeled != "" { peeled } else { tag }
-  if selected == "" { failure = Some("Git ref is unavailable") }
+  if selected == "" { failure = Some("Git did not return the requested branch, tag or default branch") }
   match failure {
     Some(problem) => Error(problem),
     None() => Ok(GitSource(url, if selected.len() == 40 { "sha1" } else { "sha256" }, selected))
@@ -83,10 +83,10 @@ pub resolve_git_ref(parent: Path, executable: Path, url: Str, selector: Str,
     Ok(GitSource(url, if selector.len() == 40 { "sha1" } else { "sha256" }, selector))
   } else {
     match staging.begin(parent) {
-      Error(problem) => Error("cannot stage Git ref resolution"),
+      Error(problem) => Error("cannot create a temporary directory to look up the Git branch or tag"),
       Ok(handle) => {
         result = match staging.path(handle) {
-          Error(problem) => Error("cannot locate Git ref stage"),
+          Error(problem) => Error("cannot locate the temporary directory used to look up the Git branch or tag"),
           Ok(repository) => {
             context = GitContext(executable, repository, repository.to_text().value_or(""), certificate)
             patterns = if selector == "" { ["HEAD"] }
@@ -101,7 +101,7 @@ pub resolve_git_ref(parent: Path, executable: Path, url: Str, selector: Str,
           }
         }
         closed = staging.close(handle)
-        match closed { Error(problem) => Error("cannot clean Git ref stage"), Ok(done) => result }
+        match closed { Error(problem) => Error("cannot remove the temporary directory used to look up the Git branch or tag"), Ok(done) => result }
       }
     }
   }

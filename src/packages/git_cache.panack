@@ -1,5 +1,5 @@
 pub import project/src/packages/git_inventory::{GitEntry}
-import project/src/packages/git_links::{git_link_beneath, git_resolve_link}
+import project/src/packages/git_links::{git_resolve_link}
 import project/src/packages/tree_digest::{ArchiveEntry, tree_length, tree_feed_file}
 import project/src/packages/tar_header::{tar_normalize_path}
 import project/src/packages/sha256::{sha256_new, sha256_feed, sha256_finish, sha256_close}
@@ -27,7 +27,7 @@ scan_git_cache(root: Str, relative: Str, inventory: GitCacheInventory): Result[G
               joined = if relative == "" { name } else { relative + "/" + name }
               match tar_normalize_path(joined) {
                 Error(problem) => { failure = Some(problem) },
-                Ok(normalized) => if normalized != joined { failure = Some("noncanonical Git cache path") }
+                Ok(normalized) => if normalized != joined { failure = Some("saved Git package contains a path that cannot be used consistently on supported systems") }
                 else {
                   match filesystem.metadata(checked_path(root + "/" + joined)) {
                     Error(problem) => { failure = Some("cannot inspect Git cache entry") },
@@ -46,9 +46,8 @@ scan_git_cache(root: Str, relative: Str, inventory: GitCacheInventory): Result[G
                             }
                         }
                       }
-                      if current.entries.len() >= 16384 || current.bytes + size > 268435456 {
-                        failure = Some("Git cache exceeds snapshot limits")
-                      }
+                      if current.entries.len() >= 16384 { failure = Some("saved Git package contains more than 16384 files and directories") }
+                      else if current.bytes + size > 268435456 { failure = Some("saved Git package exceeds the 256 MiB size limit") }
                       if failure == None() {
                         current = GitCacheInventory(current.entries.append(GitEntry(joined, "", kind, size)), current.links, current.bytes + size)
                         if kind == "D" {
@@ -86,7 +85,9 @@ pub verify_git_cache(root: Str, expected: Str): Result[Map[Str, Str], Str] {
           hash = sha256_feed(hash, tree_length(entry.size))
           if entry.kind == "L" {
             target = inventory.links.get(entry.path)
-            if !git_link_beneath(entry.path, target, inventory.links) { failure = Some("Git cache link escapes snapshot") }
+            match git_resolve_link(entry.path, target, inventory.links) {
+              Error(problem) => { failure = Some(problem) }, Ok(resolved) => {}
+            }
             hash = sha256_feed(hash, target.encode_utf8())
           } else if entry.kind == "F" {
             match tree_feed_file(hash, root, ArchiveEntry(entry.path, entry.size, false, true)) {
@@ -99,7 +100,7 @@ pub verify_git_cache(root: Str, expected: Str): Result[Map[Str, Str], Str] {
         Some(problem) => { sha256_close(hash); Error(problem) },
         None() => match sha256_finish(hash) {
           Error(problem) => Error(problem),
-          Ok(actual) => if actual != expected { Error("Git cache tree digest mismatch") }
+          Ok(actual) => if actual != expected { Error("saved Git files do not match their recorded checksum") }
             else { Ok(inventory.links) }
         }
       }

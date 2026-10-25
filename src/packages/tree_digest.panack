@@ -32,10 +32,10 @@ pub tree_feed_file(state: Sha256, root: Str, entry: ArchiveEntry): Result[Sha256
       mut failure: Option[Str] = None()
       while !finished && failure == None() {
         match bounded_filesystem.read_chunk(file, offset, 65536) {
-          Error(problem) => { failure = Some("cannot read tree entry: " + entry.path) },
+          Error(problem) => { failure = Some("cannot read package file: " + entry.path) },
           Ok(chunk) => {
             offset = offset + chunk.length()
-            if offset > entry.size { failure = Some("tree entry changed size: " + entry.path) }
+            if offset > entry.size { failure = Some("package file changed size while Panack was reading it: " + entry.path) }
             else { hash = sha256_feed(hash, chunk) }
             finished = chunk.length() == 0
           }
@@ -43,7 +43,7 @@ pub tree_feed_file(state: Sha256, root: Str, entry: ArchiveEntry): Result[Sha256
       }
       match failure {
         Some(problem) => Error(problem),
-        None() => if offset != entry.size { Error("tree entry changed size: " + entry.path) }
+        None() => if offset != entry.size { Error("package file changed size while Panack was reading it: " + entry.path) }
           else { Ok(hash) }
       }
     }
@@ -94,7 +94,7 @@ scan_tree(root: Str, relative: Str, inventory: TreeInventory): Result[TreeInvent
                 joined: Str = if relative == "" { name } else { relative + "/" + name }
                 match tar_normalize_path(joined) {
                   Error(problem) => { failure = Some(problem) },
-                  Ok(normalized) => if normalized != joined { failure = Some("noncanonical cache path") }
+                  Ok(normalized) => if normalized != joined { failure = Some("saved package contains a path that cannot be used consistently on supported systems") }
                   else {
                     match path.from_text(root + "/" + joined) {
                       Error(problem) => { failure = Some("invalid cache path") },
@@ -108,7 +108,7 @@ scan_tree(root: Str, relative: Str, inventory: TreeInventory): Result[TreeInvent
                             failure = Some("cache exceeds 16384 entries")
                           } else {
                             total: Nat = current.bytes + if is_directory { 0 } else { metadata.size }
-                            if total > 268435456 { failure = Some("cache exceeds expanded content limit") }
+                            if total > 268435456 { failure = Some("saved package exceeds the 256 MiB uncompressed size limit") }
                             else {
                               current = TreeInventory(current.entries.append(
                                 ArchiveEntry(joined, if is_directory { 0 } else { metadata.size }, is_directory, true)), total)
@@ -141,7 +141,7 @@ pub verify_tree_digest(root: Str, expected: Str): Result[Unit, Str] {
     Ok(inventory) => match tree_digest(root, inventory.entries) {
       Error(problem) => Error(problem),
       Ok(actual) => if actual == expected { Ok(()) }
-        else { Error("cache tree digest mismatch") }
+        else { Error("saved package files do not match their recorded checksum") }
     }
   }
 }

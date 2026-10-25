@@ -2,10 +2,10 @@ panack: error[PKG_MANIFEST_MISSING]: package manifest was not found: <workspace>
 
   Project: <workspace>/Ian's app/panack.json
   Operation: deps update
-  Phase: manifest discovery
+  Phase: finding panack.json
   Dependency: demo.app -> outer (<workspace>/Ian's app/panack.json)
   Dependency: demo.outer -> inner (<workspace>/outer/panack.json)
 
-Every package needs a panack.json at its declared root. That manifest or one of its parent directories could not be found.
+Panack looked for panack.json at the location shown above and could not find it. It needs that file to read the package definition.
 
-Check the dependency path in the declaring manifest and make sure the package exists at the location shown above.
+Check the dependency path in the declaring panack.json and make sure the package contains panack.json at the location shown above.

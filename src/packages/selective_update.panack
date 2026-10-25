@@ -1,5 +1,5 @@
 pub import project/src/packages/diagnostic::{PackageProblem}
-import project/src/packages/diagnostic::{package_problem, problem_context}
+import project/src/packages/diagnostic::{package_problem, explain_problem}
 pub import project/src/packages/lock::{PackageLock, PackageLockPackage, PackageLockEdge, lock_package_id, serialize_package_lock}
 
 pure selected_alias(aliases: [Str], alias: Str): Bool {
@@ -33,27 +33,27 @@ pure edge_signature(edge: PackageLockEdge): Str {
 
 pub pure validate_selective_update(previous: PackageLock, current: PackageLock, aliases: [Str]): Result[Unit, PackageProblem] {
   mut failure: Option[PackageProblem] = None()
-  if previous.root_name != current.root_name || previous.root_version != current.root_version || previous.toolchain != current.toolchain {
-    failure = Some(package_problem("PKG_SELECTIVE", "root identity or toolchain changed; run deps update without aliases"))
-  }
+  if previous.root_name != current.root_name { failure = Some(project_change("package name")) }
+  else if previous.root_version != current.root_version { failure = Some(project_change("version")) }
+  else if previous.toolchain != current.toolchain { failure = Some(project_change("toolchain version")) }
   for alias in aliases {
     mut found: Bool = false
     for edge in previous.dependencies { found = found || edge.alias == alias }
     for edge in current.dependencies { found = found || edge.alias == alias }
-    if !found && failure == None() { failure = Some(package_problem("PKG_SELECTIVE", "unknown dependency alias: " + alias)) }
+    if !found && failure == None() { failure = Some(explain_problem(package_problem("PKG_SELECTIVE", "unknown dependency alias: " + alias), "The name above is not a direct dependency in this project or its existing lockfile. The lockfile has not been changed.", "Use a name from the dependencies section of your project panack.json, then retry. Use the declaration name, which may differ from the package name.")) }
   }
   for edge in previous.dependencies {
     if !selected_alias(aliases, edge.alias) {
       mut found: Bool = false
       for candidate in current.dependencies { found = found || edge_signature(candidate) == edge_signature(edge) }
-      if !found && failure == None() { failure = Some(package_problem("PKG_SELECTIVE", "unselected dependency changed: " + edge.alias)) }
+      if !found && failure == None() { failure = Some(explain_problem(package_problem("PKG_SELECTIVE", "unselected dependency changed: " + edge.alias), "This update would also change the dependency named above, but you did not select it. The lockfile has not been changed.", "Check its declaration in panack.json. Undo the unintended change, or include this dependency name in the update command if you intend to update it too.")) }
     }
   }
   for edge in current.dependencies {
     if !selected_alias(aliases, edge.alias) {
       mut found: Bool = false
       for candidate in previous.dependencies { found = found || edge_signature(candidate) == edge_signature(edge) }
-      if !found && failure == None() { failure = Some(package_problem("PKG_SELECTIVE", "unselected dependency changed: " + edge.alias)) }
+      if !found && failure == None() { failure = Some(explain_problem(package_problem("PKG_SELECTIVE", "unselected dependency changed: " + edge.alias), "This update would also change the dependency named above, but you did not select it. The lockfile has not been changed.", "Check its declaration in panack.json. Undo the unintended change, or include this dependency name in the update command if you intend to update it too.")) }
     }
   }
   old_selected: Set[Str] = selected_packages(previous, aliases)
@@ -63,7 +63,7 @@ pub pure validate_selective_update(previous: PackageLock, current: PackageLock, 
     if !old_selected.has(id) && !new_selected.has(id) {
       mut found: Bool = false
       for candidate in current.packages { found = found || package_signature(candidate) == package_signature(package) }
-      if !found && failure == None() { failure = Some(package_problem("PKG_SELECTIVE", "unselected package changed: " + id)) }
+      if !found && failure == None() { failure = Some(explain_problem(package_problem("PKG_SELECTIVE", "unselected package changed: " + id), "This update would also change a package outside the dependencies you selected. The lockfile has not been changed.", "Check which project dependency uses the package named above. Undo the unintended change, or include that dependency in the update command if you intend to update it too.")) }
     }
   }
   for package in current.packages {
@@ -71,8 +71,14 @@ pub pure validate_selective_update(previous: PackageLock, current: PackageLock, 
     if !old_selected.has(id) && !new_selected.has(id) {
       mut found: Bool = false
       for candidate in previous.packages { found = found || package_signature(candidate) == package_signature(package) }
-      if !found && failure == None() { failure = Some(package_problem("PKG_SELECTIVE", "unselected package changed: " + id)) }
+      if !found && failure == None() { failure = Some(explain_problem(package_problem("PKG_SELECTIVE", "unselected package changed: " + id), "This update would also change a package outside the dependencies you selected. The lockfile has not been changed.", "Check which project dependency uses the package named above. Undo the unintended change, or include that dependency in the update command if you intend to update it too.")) }
     }
   }
   match failure { Some(problem) => Error(problem), None() => Ok(()) }
+}
+
+pure project_change(field: Str): PackageProblem {
+  explain_problem(package_problem("PKG_SELECTIVE", "the project's " + field + " has changed"),
+    "Updating only the named dependencies cannot record changes to the project itself. The lockfile has not been changed.",
+    "Check this change in panack.json. If it is intended, review it before running panack deps update without dependency names. That command updates the whole lock.")
 }

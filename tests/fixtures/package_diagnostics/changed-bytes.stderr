@@ -1,10 +1,10 @@
-panack: error[PKG_INTEGRITY]: archive digest mismatch
+panack: error[PKG_INTEGRITY]: archive contents do not match the SHA-256 checksum in panack.lock.json
 
   Project: <workspace>/Ian's app/panack.json
   Operation: deps restore
-  Phase: content verification
+  Phase: checking package contents
   Dependency: demo.app -> lib
 
-The supplied bytes do not match the content recorded in the lockfile. Accepting them would change the dependency you agreed to use.
+This package has different contents from those recorded in panack.lock.json. Panack has refused to use it.
 
-Check the source with its maintainer or restore the original bytes. Only use deps update after deliberately reviewing and accepting the changed content.
+Ask the package maintainer why the contents changed, or restore the original package contents. Use panack deps update only after you have reviewed and accepted the new contents.

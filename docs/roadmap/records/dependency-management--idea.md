@@ -200,3 +200,10 @@ were superseded by the owner's 22 October decision. PR#240's historic P7 design
 remains context only where it does not conflict with the current contract.
 
 [Roadmap index](../README.md) · [Current release and next work](../../../ROADMAP.md)
+
+P04a owner review after [PR#584](https://github.com/sproates/panackelty/pull/584)
+found vague manifest prose and a selective-update explanation that combined
+different causes. The follow-up reviews all package diagnostic producers,
+rewrites internal terminology, separates known causes and checks distinct
+recovery advice. This is a correction within P04a; weights and P04b/c scope
+are unchanged.

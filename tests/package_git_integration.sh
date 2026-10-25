@@ -174,7 +174,7 @@ JS
 /usr/bin/git -C "$work/source" push -q "$work/repo.git" main
 manifest_for main
 reject deps update --project "$manifest"
-grep 'escapes' "$work/err" >/dev/null
+grep 'points outside the downloaded Git repository' "$work/err" >/dev/null
 cmp "$lock" "$work/good.lock"
 cmp "$work/app/.panack_modules/.state/lock.json" "$work/good.state"
 cp "$work/good.manifest" "$manifest"
@@ -327,7 +327,7 @@ mv "$work/sha.git" "$work/sha.saved.git"
 reject deps restore --project "$manifest"
 grep -F 'error[PKG_GIT_FETCH]:' "$work/err" >/dev/null
 grep -F 'at commit' "$work/err" >/dev/null
-grep -F 'this message does not establish which' "$work/err" >/dev/null
+grep -F 'that status alone does not identify the cause' "$work/err" >/dev/null
 node tests/package_diagnostic_capture.cjs git-unavailable "$work/err" "$work" "$port"
 cmp "$lock" "$work/mixed-current.lock"
 cmp "$work/app/.panack_modules/.state/lock.json" "$work/mixed-current.state"

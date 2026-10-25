@@ -2,8 +2,8 @@ panack: error[PKG_LOCK_INVALID]: invalid lockfile: expected JSON string
 
   Project: <workspace>/Ian's app/panack.json
   Operation: deps restore
-  Phase: lock verification
+  Phase: checking panack.lock.json
 
-The lockfile cannot provide a trustworthy dependency selection.
+Panack cannot read a valid dependency record from panack.lock.json, so it cannot determine which packages to use.
 
-Restore a valid lockfile from version control. Do not delete it merely to bypass this failure.
+Restore panack.lock.json from version control or obtain a valid copy from the project maintainer. Deleting it and creating a new lock may select different packages.

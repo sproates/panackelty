@@ -1779,3 +1779,9 @@ one physical snapshot per URL/object-format/commit and turns sibling path edges
 into Git lock edges. The package manifest types evolve within `src/packages`;
 the frozen compiler parser and resolved descriptor remain unchanged. Neither
 P03b nor P03c introduces a compiler or native operation.
+
+Package diagnostic detection sites may replace family-level explanations with
+the known cause and matching recovery advice. Native filesystem codes receive
+plain-language descriptions; unknown codes remain explicit. Archive and Git
+validation retain the same bounds while distinguishing path, metadata and link
+failures in their explanations.

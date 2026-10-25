@@ -59,7 +59,7 @@ cmp "$work/app/.panack_modules/.state/lock.json" "$work/initial.state"
 printf '%s\n' 'PASS archive lock, check, compile, run and lock no-op'
 
 printf '%s\n' 'damaged source' > "$cache/src/api.panack"
-reject 'cache tree digest mismatch' run --project "$manifest"
+reject 'saved package files do not match their recorded checksum' run --project "$manifest"
 expect ok deps restore --project "$manifest" --offline
 expect 47 run --project "$manifest"
 cmp "$lock" "$work/initial.lock"
@@ -67,7 +67,7 @@ printf '%s\n' 'PASS offline restore repairs tampering without changing lock'
 
 cp "$work/lib.tar.gz" "$work/original.tar.gz"
 printf '%s' trailing-garbage >> "$work/lib.tar.gz"
-reject 'archive digest mismatch' check --project "$manifest"
+reject 'archive contents do not match the SHA-256 checksum in panack.lock.json' check --project "$manifest"
 reject 'gzip' deps restore --project "$manifest" --offline
 cmp "$lock" "$work/initial.lock"
 cmp "$cache/src/api.panack" "$work/archive/src/api.panack"
@@ -86,7 +86,7 @@ expect 49 run --project "$manifest"
 cp "$lock" "$work/before-live.lock"
 sed 's/"version":"1.0.0"/"version":"1.0.1"/' "$work/live/panack.json" > "$work/live/next.json"
 mv "$work/live/next.json" "$work/live/panack.json"
-reject 'lockfile is stale' check --project "$manifest"
+reject 'the current dependency definitions do not match panack.lock.json' check --project "$manifest"
 reject 'unselected' deps update --project "$manifest" lib
 cmp "$lock" "$work/before-live.lock"
 expect ok deps update --project "$manifest" live

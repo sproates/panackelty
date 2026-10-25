@@ -2,11 +2,11 @@ panack: error[PKG_CACHE_MISSING]: missing cache: <workspace>/Ian's app/.panack_m
 
   Project: <workspace>/Ian's app/panack.json
   Operation: project preparation (network-free)
-  Phase: cache verification
+  Phase: checking saved packages
   Dependency: demo.app -> lib (<workspace>/Ian's app/panack.json)
 
-The locked dependency content is not available in this project's cache.
+Panack cannot find all the saved files needed to use the dependencies in panack.lock.json.
 
-Run the restore command below. Remote sources require a connection; restore preserves the existing pins.
+Run the command below to obtain the missing package without changing the versions or contents recorded in panack.lock.json. An internet connection is needed for remote packages.
 
   panack deps restore --project '<workspace>/Ian'"'"'s app/panack.json'

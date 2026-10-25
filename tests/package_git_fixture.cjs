@@ -8,6 +8,16 @@ const backend = path.join(execFileSync('/usr/bin/git', ['--exec-path'], {encodin
 const server = https.createServer({key: fs.readFileSync(root + '/test.key'), cert: fs.readFileSync(root + '/test.crt')}, (req, res) => {
   fs.appendFileSync(root + '/requests', req.method + ' ' + req.url + '\n');
   const url = new URL(req.url, 'https://localhost');
+  // Switch failures without changing the locked URL, as a real outage would.
+  if (fs.existsSync(root + '/interrupt-peer') &&
+      (fs.readFileSync(root + '/interrupt-peer', 'utf8').trim() !== 'git' || url.pathname.startsWith('/sha.git/'))) {
+    req.socket.destroy(); return;
+  }
+  if (url.pathname === '/package.tar.gz') {
+    const data = fs.readFileSync(root + '/package.tar.gz');
+    res.writeHead(200, {'Content-Length': data.length});
+    return res.end(data);
+  }
   if (url.pathname.startsWith('/redirect/')) { res.writeHead(302, {Location: '/repo.git/info/refs?service=git-upload-pack'}); return res.end(); }
   if (url.pathname.startsWith('/auth/')) { res.writeHead(401, {'WWW-Authenticate': 'Basic realm="fixture"'}); return res.end(); }
   if (url.pathname.startsWith('/interrupt/')) { req.socket.destroy(); return; }

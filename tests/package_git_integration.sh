@@ -223,3 +223,131 @@ count=$(requests)
 expect ok deps restore --project "$manifest" --offline
 test "$(requests)" = "$count"
 printf '%s\n' 'PASS SHA-256 Git root package, omitted selector/subdir and repeated aliases'
+# P03d: one graph with both remote source kinds. Each selective update must
+# preserve the other source even when both remote versions have changed.
+mkdir -p "$work/archive/src"
+node - "$work/archive/panack.json" "$version" "$manifest" "$port" <<'JS'
+const fs=require('fs');const [file,version,app,port]=process.argv.slice(2);
+fs.writeFileSync(file,JSON.stringify({schema:1,package:'remote.archive',version:'1.0.0',language:'modules-v1',toolchain:version,source:'src',exports:{api:'api.panack'},dependencies:{}}));
+const m=JSON.parse(fs.readFileSync(app));delete m.dependencies.right;m.dependencies.archive={archive:`https://localhost:${port}/package.tar.gz`};fs.writeFileSync(app,JSON.stringify(m));
+JS
+printf 'pub pure answer(): Nat { 10 }\n' > "$work/archive/src/api.panack"
+pack_remote() { COPYFILE_DISABLE=1 tar --format ustar -czf "$work/package.tar.gz" -C "$work/archive" .; }
+pack_remote
+printf '%s\n' 'import left/api as left' 'import archive/api as archive' 'main(): Void { print(left.answer() + archive.answer()) }' > "$work/app/src/main.panack"
+expect ok deps update --project "$manifest"
+expect 40 run --project "$manifest"
+cp "$lock" "$work/mixed.lock"
+printf 'pub pure answer(): Nat { 31 }\n' > "$work/source256/src/api.panack"
+/usr/bin/git -C "$work/source256" add .
+/usr/bin/git -C "$work/source256" -c user.name=sproates -c user.email=218187+sproates@users.noreply.github.com commit -qm advanced
+/usr/bin/git -C "$work/source256" push -q "$work/sha.git" HEAD
+printf 'pub pure answer(): Nat { 11 }\n' > "$work/archive/src/api.panack"
+pack_remote
+cp "$work/git-invocations" "$work/before-archive.git"
+count=$(requests)
+expect ok deps update --project "$manifest" archive
+test "$(requests)" = "$((count + 1))"
+cmp "$work/git-invocations" "$work/before-archive.git"
+node - "$lock" "$work/mixed.lock" <<'JS'
+const fs=require('fs'),assert=require('assert');const [a,b]=process.argv.slice(2).map(f=>JSON.parse(fs.readFileSync(f)));
+assert.deepEqual(a.root.dependencies.left,b.root.dependencies.left);assert.deepEqual(a.packages.find(p=>p.name==='git.root'),b.packages.find(p=>p.name==='git.root'));
+assert.notDeepEqual(a.root.dependencies.archive,b.root.dependencies.archive);
+JS
+expect 41 run --project "$manifest"
+cp "$lock" "$work/archive-updated.lock"
+archive_requests=$(grep -c 'GET /package.tar.gz' "$work/requests")
+expect ok deps update --project "$manifest" left
+test "$(grep -c 'GET /package.tar.gz' "$work/requests")" = "$archive_requests"
+node - "$lock" "$work/archive-updated.lock" <<'JS'
+const fs=require('fs'),assert=require('assert');const [a,b]=process.argv.slice(2).map(f=>JSON.parse(fs.readFileSync(f)));
+assert.deepEqual(a.root.dependencies.archive,b.root.dependencies.archive);assert.deepEqual(a.packages.find(p=>p.name==='remote.archive'),b.packages.find(p=>p.name==='remote.archive'));
+assert.notDeepEqual(a.root.dependencies.left,b.root.dependencies.left);
+JS
+expect 42 run --project "$manifest"
+cp "$lock" "$work/mixed-current.lock"
+cp "$work/app/.panack_modules/.state/lock.json" "$work/mixed-current.state"
+cp "$work/git-invocations" "$work/mixed-current.git"
+count=$(requests)
+expect ok check --project "$manifest"
+expect "wrote $work/mixed.bc" compile --project "$manifest" -o "$work/mixed.bc"
+expect 42 "$work/mixed.bc"
+expect ok deps restore --project "$manifest" --offline
+expect ok deps restore --project "$manifest"
+test "$(requests)" = "$count"
+cmp "$work/git-invocations" "$work/mixed-current.git"
+cmp "$lock" "$work/mixed-current.lock"
+cmp "$work/app/.panack_modules/.state/lock.json" "$work/mixed-current.state"
+printf '%s\n' 'PASS mixed remote graph selective updates preserve unselected pins and avoid the unselected transport'
+# Corrupt both caches. Neither ordinary commands nor offline restore may repair
+# implicitly. An interrupted online acquisition must preserve every cache byte.
+cache=$(find "$work/app/.panack_modules/.sources" -path '*/src/api.panack' -exec grep -l '31' {} \;)
+test -n "$cache"
+printf corrupt-git > "$cache"
+printf corrupt-archive > "$work/app/.panack_modules/remote.archive/src/api.panack"
+cache_fingerprint() {
+node - "$work/app/.panack_modules" <<'JS'
+const fs=require('fs'),crypto=require('crypto'),path=require('path');const h=crypto.createHash('sha256');
+function visit(p,relative){const s=fs.lstatSync(p);h.update(relative+'\0');if(s.isSymbolicLink())h.update('L'+fs.readlinkSync(p));else if(s.isDirectory()){h.update('D');for(const n of fs.readdirSync(p).sort())visit(path.join(p,n),relative+'/'+n)}else {h.update('F');h.update(fs.readFileSync(p))}}
+visit(process.argv[2],'');console.log(h.digest('hex'));
+JS
+}
+corrupt_tree=$(cache_fingerprint)
+count=$(requests)
+reject run --project "$manifest"
+reject deps restore --project "$manifest" --offline
+test "$(requests)" = "$count"
+cmp "$work/git-invocations" "$work/mixed-current.git"
+touch "$work/interrupt-peer"
+reject deps restore --project "$manifest"
+test "$(cache_fingerprint)" = "$corrupt_tree"
+cmp "$lock" "$work/mixed-current.lock"
+cmp "$work/app/.panack_modules/.state/lock.json" "$work/mixed-current.state"
+rm "$work/interrupt-peer"
+expect ok deps restore --project "$manifest"
+expect 42 run --project "$manifest"
+printf '%s\n' 'PASS mixed corrupt-cache and interrupted acquisition preserve lock, state and complete cache tree'
+# Exercise Git interruption independently, after the archive has been repaired.
+printf corrupt-git > "$cache"
+corrupt_tree=$(cache_fingerprint)
+printf 'git\n' > "$work/interrupt-peer"
+reject deps restore --project "$manifest"
+test "$(cache_fingerprint)" = "$corrupt_tree"
+cmp "$lock" "$work/mixed-current.lock"
+cmp "$work/app/.panack_modules/.state/lock.json" "$work/mixed-current.state"
+rm "$work/interrupt-peer"
+expect ok deps restore --project "$manifest"
+expect 42 run --project "$manifest"
+printf '%s\n' 'PASS interrupted Git restore preserves mixed cache and recovers using the existing pin'
+# Make only the locked commit unavailable while leaving the HTTPS repository
+# reachable. Restore must not fall forward to another commit or rewrite the pin.
+mv "$work/app/.panack_modules/.sources" "$work/mixed-sources"
+mv "$work/sha.git" "$work/sha.saved.git"
+/usr/bin/git init -q --bare --template= --object-format=sha256 "$work/sha.git"
+reject deps restore --project "$manifest"
+cmp "$lock" "$work/mixed-current.lock"
+cmp "$work/app/.panack_modules/.state/lock.json" "$work/mixed-current.state"
+test "$(cat "$work/app/.panack_modules/remote.archive/src/api.panack")" = 'pub pure answer(): Nat { 11 }'
+mv "$work/sha.git" "$work/sha.empty.git"
+mv "$work/sha.saved.git" "$work/sha.git"
+expect ok deps restore --project "$manifest"
+expect 42 run --project "$manifest"
+printf '%s\n' 'PASS public restore rejects unavailable locked Git commit and recovers without changing the pin'
+# Changed archive bytes at the locked URL are rejected after Git is verified.
+# This is a digest failure, not a transport outage.
+printf 'pub pure answer(): Nat { 12 }\n' > "$work/archive/src/api.panack"
+pack_remote
+printf corrupt > "$work/app/.panack_modules/remote.archive/src/api.panack"
+corrupt_tree=$(cache_fingerprint)
+reject deps restore --project "$manifest"
+test "$(cache_fingerprint)" = "$corrupt_tree"
+cmp "$lock" "$work/mixed-current.lock"
+cmp "$work/app/.panack_modules/.state/lock.json" "$work/mixed-current.state"
+expect ok deps update --project "$manifest" archive
+expect 43 run --project "$manifest"
+node - "$work/app/.panack_modules" <<'JS'
+const fs=require('fs'),assert=require('assert'),root=process.argv[2];
+assert.deepEqual(fs.readdirSync(root).sort(),['.sources','.state','remote.archive']);
+assert(fs.readdirSync(root+'/.sources').every(n=>/^[0-9a-f]{64}$/.test(n)));
+JS
+printf '%s\n' 'PASS mixed graph changed archive bytes fail atomically, explicit update succeeds, all staging is cleaned'

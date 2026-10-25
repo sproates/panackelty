@@ -86,7 +86,9 @@ remain unscheduled/deferred in the website backlog.
 - **P03c Git dependencies: Pending release and final acceptance.** Add HTTPS Git
   manifests, full-commit locks, Git 2.29+ installation, sibling/shared snapshot
   examples, offline requirements and direct-URL/no-redirect limitations after
-  P03d/P04 and a matching native release. Keep published alpha.14 claims unchanged.
+  P04 and a matching native release. P03d remote-source acceptance is complete
+  on merge; its mixed-source evidence does not claim installed-workflow acceptance.
+  Keep published alpha.14 claims unchanged.
   Ownership: core release and website maintainers; evidence:
   [Git integration acceptance](../../design/PACKAGE_GIT_INTEGRATION_ACCEPTANCE.md).
 

@@ -43,6 +43,14 @@ baseline and bounded improvements, with owner acceptance still required. No
 new speed threshold, waived assertion or completed performance milestone is
 claimed. See [P03c evidence](../../design/PACKAGE_GIT_INTEGRATION_ACCEPTANCE.md).
 
+P03d adds mixed remote-source acceptance tests without changing production
+code, so there is no package runtime performance impact. Validation includes
+additional selective updates and failure recovery against private TLS peers.
+Canonical `make check` passed in 792 seconds versus the previous 699-second
+P03c run, with different workloads and machine conditions. The
+[remote acceptance record](../../design/PACKAGE_REMOTE_ACCEPTANCE.md) retains
+that qualification; GI#106 ownership and owner acceptance remain unchanged.
+
 The modules programme remains the principal feature initiative;
 its checked declaration/signature identity slice merged in PR#275 as `0bcf092`;
 bounded body identities merged in PR#284 as `9f8f8a0`. Ordinary expressions and

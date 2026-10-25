@@ -242,7 +242,7 @@ additional programme completion is claimed.
 | P03a: HTTPS archives | Reuse P02 extraction and cache verification. Deliver lock/update/restore with bounded downloads, safe redirects, changed-byte rejection and verified offline reuse. |
 | P03b: controlled Git acquisition | Isolate Git configuration and acquire an exact complete commit snapshot. Prove disabled hooks/filters/helpers, containment, symlink handling and cleanup before package graph integration. |
 | P03c: Git package integration | Connect snapshots to locks, subdirectories and transitive dependencies. Prove shared snapshot identity, siblings and diamond roots through public commands. |
-| P03d: remote-source acceptance | Verify moved refs, unavailable commits, changed bytes, corrupt caches, interrupted acquisition, selective updates and offline behaviour on supported native platforms. |
+| P03d: remote-source acceptance | Implemented with the [remote acceptance matrix](PACKAGE_REMOTE_ACCEPTANCE.md). Verify moved refs, unavailable commits, changed bytes, corrupt caches, interrupted acquisition, selective updates and offline behaviour on supported native platforms. |
 | P04: final integration | Install/package both artifacts and native dependencies; finish help and diagnostics; validate all four source forms together, existing standalone routes, relocation and supported native platforms. Prove ordinary project commands remain network-free and never restore implicitly. |
 
 P02c must include independently calculated SHA-256 and tree-digest fixtures,

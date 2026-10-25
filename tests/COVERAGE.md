@@ -1472,8 +1472,8 @@ restores, unavailable locked commits and changed archive bytes. Failure checks
 compare the complete cache tree plus exact lock/state bytes. See the
 [remote-source acceptance matrix](../docs/design/PACKAGE_REMOTE_ACCEPTANCE.md).
 
-P04a and its diagnostic follow-up provide 57 diagnostic unit assertions and public-command transcript/recovery
-acceptance in `tests/package_diagnostics.sh`. Seventy-five exact
+P04a and its diagnostic follow-up provide 74 diagnostic unit assertions and public-command transcript/recovery
+acceptance in `tests/package_diagnostics.sh`. One hundred exact
 transcripts are checked against the examples document. Tests execute suggested
 commands with apostrophes/spaces in the project path, verify complete program
 output and preserve pins after cache repair or rejected content. Existing remote
@@ -1528,3 +1528,10 @@ Publication tests preserve a conflicting symlink and its target, distinguish a
 state-record destination conflict, execute the suggested restore commands and
 run the recovered program. Semantic errors without a source offset no longer
 claim line 1, column 1. HTTP redirect/response variants remain outstanding.
+
+P04a completion audits all 24 package modules. HTTPS transcript cases distinguish
+redirect destinations, downgrade/scheme policy, content/transfer encoding, response
+syntax, truncation, size and status. Failed updates preserve the existing lock and
+package files. Unknown manifest fields print their actual names; directory conflicts
+name and preserve the conflicting path. The finite acceptance record is
+[`PACKAGE_DIAGNOSTIC_ACCEPTANCE.md`](../docs/design/PACKAGE_DIAGNOSTIC_ACCEPTANCE.md).

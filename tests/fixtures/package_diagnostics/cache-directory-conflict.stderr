@@ -1,0 +1,9 @@
+panack: error[PKG_FILESYSTEM]: Cannot prepare the local packages because a required directory path identifies a different kind of file.
+
+  Project: <workspace>/Ian's app/panack.json
+  Package state file: <workspace>/Ian's app/.panack_modules/.state/lock.json
+  Required directory: <workspace>/Ian's app/.panack_modules/.state
+
+Panack has not replaced the conflicting path.
+
+Preserve any contents you need before moving the conflicting path elsewhere, then retry your command.

@@ -1,3 +1,4 @@
+import project/src/packages/diagnostic::{host_detail}
 import stdlib/digest as digest
 import stdlib/bytes as byte_buffer
 
@@ -7,7 +8,7 @@ pub record Sha256 { context: Result[Nat, Str] }
 
 pub sha256_new(): Sha256 {
   match digest.sha256_open() {
-    Error(problem) => Sha256(Error("cannot initialise SHA-256: " + problem.code)),
+    Error(problem) => Sha256(Error("Cannot calculate package checksums because Panack could not initialise SHA-256: " + host_detail(problem.code))),
     Ok(handle) => Sha256(Ok(handle))
   }
 }
@@ -23,7 +24,7 @@ pub sha256_feed(state: Sha256, data: Bytes): Sha256 {
         Ok(unit) => {},
         Error(problem) => {
           closed = digest.close(handle)
-          current = Sha256(Error("cannot update SHA-256: " + problem.code))
+          current = Sha256(Error("Cannot calculate the package checksum because the SHA-256 operation failed: " + host_detail(problem.code)))
         }
       }
     }
@@ -47,7 +48,7 @@ pub sha256_finish(state: Sha256): Result[Str, Str] {
   match state.context {
     Error(problem) => Error(problem),
     Ok(handle) => match digest.finish(handle) {
-      Error(problem) => Error("cannot finish SHA-256: " + problem.code),
+      Error(problem) => Error("Cannot obtain the package checksum because the SHA-256 operation failed: " + host_detail(problem.code)),
       Ok(bytes) => Ok(digest_hex(bytes))
     }
   }

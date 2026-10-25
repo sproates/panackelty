@@ -82,6 +82,14 @@ test -d "$app/.panack_modules/.state/lock.json"
 rmdir "$app/.panack_modules/.state/lock.json"
 recover
 cmp "$app/.panack_modules/.state/lock.json" "$work/good.state"
+mv "$app/.panack_modules/.state" "$work/saved-state-directory"
+printf preserve > "$app/.panack_modules/.state"
+reject cache-directory-conflict PKG_FILESYSTEM run --project "$manifest"
+test "$(cat "$app/.panack_modules/.state")" = preserve
+cmp "$lock" "$work/good.lock"
+rm "$app/.panack_modules/.state"
+mv "$work/saved-state-directory" "$app/.panack_modules/.state"
+expect 42 run --project "$manifest"
 mv "$app/.panack_modules/demo.library" "$work/cache"
 reject missing-cache PKG_CACHE_MISSING run --project "$manifest"
 grep -F "dependency 'lib' (package 'demo.library')" "$work/err" >/dev/null

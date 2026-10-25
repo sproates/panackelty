@@ -69,11 +69,11 @@ expected_tree(options: AcquisitionOptions, owner: Str, alias: Str): Result[Str, 
   match options.locked {
     None() => Error(package_problem("PKG_LOCK_MISSING", "missing Git lock")),
     Some(lock) => match locked_edge(lock, owner, alias) {
-      None() => Error(package_problem("PKG_GRAPH", "missing Git edge")),
+      None() => Error(package_problem("PKG_LOCK_INVALID", "Cannot verify the Git package because the lockfile has no record of this dependency.")),
       Some(edge) => match locked_package(lock, edge.package) {
-        None() => Error(package_problem("PKG_GRAPH", "missing Git package")),
+        None() => Error(package_problem("PKG_LOCK_INVALID", "Cannot verify the Git package because its package record is missing from the lockfile.")),
         Some(package) => match package.tree_sha256 {
-          None() => Error(package_problem("PKG_GRAPH", "missing Git tree digest")), Some(tree) => Ok(tree)
+          None() => Error(package_problem("PKG_LOCK_INVALID", "Cannot verify the Git package because its file checksum is missing from the lockfile.")), Some(tree) => Ok(tree)
         }
       }
     }
@@ -85,7 +85,7 @@ acquire_snapshot(options: AcquisitionOptions, source: GitSource, selector: Str,
   mut known: Option[AcquiredGit] = None()
   for candidate in previous { if candidate.source == source { known = Some(candidate) } }
   match known {
-    Some(candidate) => if expected != "" && candidate.tree != expected { Error(package_problem("PKG_GRAPH", "the lockfile records different checksums for the same Git commit")) }
+    Some(candidate) => if expected != "" && candidate.tree != expected { Error(package_problem("PKG_LOCK_INVALID", "Cannot use the Git packages because the lockfile records different checksums for the same repository and commit.")) }
       else { Ok(AcquiredGit(source, selector, options.refresh, candidate.root, candidate.key, candidate.tree, candidate.links, candidate.stage)) },
     None() => match package_result(git_source_key(source), "PKG_FILESYSTEM") {
       Error(problem) => Error(problem),

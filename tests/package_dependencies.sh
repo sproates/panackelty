@@ -67,7 +67,7 @@ printf '%s\n' 'PASS offline restore repairs tampering without changing lock'
 
 cp "$work/lib.tar.gz" "$work/original.tar.gz"
 printf '%s' trailing-garbage >> "$work/lib.tar.gz"
-reject 'archive contents do not match the SHA-256 checksum in panack.lock.json' check --project "$manifest"
+reject 'Cannot use the source archive because its SHA-256 checksum does not match the checksum recorded in the lockfile.' check --project "$manifest"
 reject 'gzip' deps restore --project "$manifest" --offline
 cmp "$lock" "$work/initial.lock"
 cmp "$cache/src/api.panack" "$work/archive/src/api.panack"

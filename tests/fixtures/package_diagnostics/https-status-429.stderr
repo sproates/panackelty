@@ -1,0 +1,9 @@
+panack: error[PKG_HTTP_STATUS]: Cannot download the archive because the server is limiting requests.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/status-429.tar.gz
+  Dependency name: lib
+  Server response: HTTP 429
+
+Wait before retrying. If the server continues to reject the request, contact the server administrator.

@@ -30,9 +30,9 @@ record LockedManifest {
 
 read_locked_manifest(package: ResolvedPackage, toolchain: Str): Result[LockedManifest, PackageProblem] {
   match path.from_text(package.package_root) {
-    Error(problem) => Error(package_problem("PKG_GRAPH", "invalid package root")),
+    Error(problem) => Error(problem_label(package_problem("PKG_FILESYSTEM", "Cannot read the package because its directory path cannot be represented on this system."), "Directory", package.package_root)),
     Ok(root) => match path.from_text("panack.json") {
-      Error(problem) => Error(package_problem("PKG_MANIFEST_INVALID", "invalid manifest name")),
+      Error(problem) => Error(package_problem("PKG_TOOL", "Cannot read panack.json because Panack could not construct the manifest filename.")),
       Ok(relative) => match package_filesystem.read_beneath(root, relative, 65536) {
         Error(problem) => Error(input_read_problem("panack.json", package.package_root + "/panack.json", problem.code, false)),
         Ok(read) => if read.identity != package.identity {
@@ -249,7 +249,7 @@ pub pure lock_mismatch(previous: PackageLock, current: PackageLock, project: Man
           problem = problem_label(package_problem("PKG_LOCK_STALE", "Cannot use the lockfile because a dependency manifest has changed since the lockfile was created."), "Package", package.name + "@" + package.version)
         }
         if old.version == package.version && old.tree_sha256 != package.tree_sha256 {
-          problem = package_problem("PKG_INTEGRITY", "recorded package contents have changed for " + package.name + "@" + package.version)
+          problem = package_problem("PKG_INTEGRITY", "Cannot use package '" + package.name + "@" + package.version + "' because its file checksum does not match the checksum recorded in the lockfile.")
           for archive in archives {
             if archive.name == package.name && archive.version == package.version {
               problem = explain_problem(package_problem("PKG_INTEGRITY", "Cannot use the extracted package files because their checksum does not match the checksum recorded in the lockfile."),

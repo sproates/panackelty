@@ -1,0 +1,9 @@
+panack: error[PKG_HTTP_STATUS]: Cannot download the archive because the server returned HTTP 204 instead of the archive.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/status-204.tar.gz
+  Dependency name: lib
+  Server response: HTTP 204
+
+Check that the URL provides a direct archive download. If the URL is correct, report the archive URL and HTTP status to the server administrator.

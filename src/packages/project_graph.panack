@@ -121,9 +121,9 @@ pub pure package_project_from_manifest(
 
 physical_source_roots_overlap(left: Str, right: Str): Result[Bool, PackageProblem] {
   match std_path.from_text(left) {
-    Error(error) => Error(package_problem("PKG_FILESYSTEM", "invalid source root path")),
+    Error(error) => Error(package_problem("PKG_FILESYSTEM", "Cannot compare package source directories because a path cannot be represented on this system.")),
     Ok(left_path) => match std_path.from_text(right) {
-      Error(error) => Error(package_problem("PKG_FILESYSTEM", "invalid source root path")),
+      Error(error) => Error(package_problem("PKG_FILESYSTEM", "Cannot compare package source directories because a path cannot be represented on this system.")),
       Ok(right_path) => match std_package_filesystem.directories_overlap(left_path, right_path) {
         Error(error) => Error(problem_label(problem_label(package_problem("PKG_FILESYSTEM", "Cannot compare the package source directories: " + host_detail(error.code) + "."), "First source directory", left), "Second source directory", right)),
         Ok(overlaps) => Ok(overlaps)
@@ -150,9 +150,9 @@ read_manifest_project_file(path: Str, is_project_manifest: Bool): Result[Manifes
       "Pass the path to the package's panack.json using --project. If this is the intended manifest, rename the file to panack.json."), "Selected file", resolved))
   } else {
     match std_path.from_text(package_root) {
-      Error(error) => Error(package_problem("PKG_FILESYSTEM", "invalid package root path")),
+      Error(error) => Error(package_problem("PKG_FILESYSTEM", "Cannot load the package because its directory path cannot be represented on this system.")),
       Ok(root) => match std_path.from_text("panack.json") {
-        Error(error) => Error(package_problem("PKG_MANIFEST_INVALID", "invalid manifest path")),
+        Error(error) => Error(package_problem("PKG_MANIFEST_INVALID", "Cannot read panack.json because its path cannot be represented on this system.")),
         Ok(relative) => match std_package_filesystem.read_beneath(root, relative, package_manifest_byte_limit()) {
           Error(problem) => {
             code: Str = problem.code
@@ -293,8 +293,8 @@ resolve_package_dependency_graph(
         }
         if !contained {
           source_root = match git_containing(owner.package_root, current.gits) {
-            None() => Error(package_problem("PKG_CONTAINMENT", "dependency path points outside the downloaded archive directory")),
-            Some(snapshot) => Error(package_problem("PKG_CONTAINMENT", "dependency path points outside the downloaded Git repository"))
+            None() => Error(package_problem("PKG_CONTAINMENT", "Cannot resolve the dependencies because the dependency path points outside the downloaded archive directory.")),
+            Some(snapshot) => Error(package_problem("PKG_CONTAINMENT", "Cannot resolve the dependencies because the dependency path points outside the downloaded Git repository."))
           }
         } else if dependency.kind == "git" {
           match acquire_git(child_options, dependency, package_project_package_id(owner.package, owner.version), current.gits) {
@@ -312,7 +312,7 @@ resolve_package_dependency_graph(
             Some(snapshot) => {
               // Resolve physical symlinks before collapsing parent components.
               relative = git_relative(owner.package_root, snapshot) + "/" + dependency.path
-              if dependency.path.starts_with_at("/", 0) { source_root = Error(package_problem("PKG_CONTAINMENT", "dependency path inside a Git repository must be relative to its declaring package")) }
+              if dependency.path.starts_with_at("/", 0) { source_root = Error(package_problem("PKG_CONTAINMENT", "Cannot resolve the dependencies because the dependency path inside a Git repository must be relative to its declaring package.")) }
               else { source_root = git_package_root(snapshot, relative) }
             }
           }
@@ -350,7 +350,7 @@ resolve_package_dependency_graph(
                 "Choose a library package for this dependency. If you maintain this package and intend to provide a library, remove 'entry' and declare the public modules in 'exports'.\n\nSee the package manifest specification:\n" + manifest_specification()), "Dependency manifest", package.package_root + "/panack.json")) },
               None() => {
                 if package.exported_modules.len() == 0 {
-                  failure = Some(package_problem("PKG_MANIFEST_INVALID", "dependency ${alias} must export at least one module"))
+                  failure = Some(package_problem("PKG_MANIFEST_INVALID", "Cannot use dependency '${alias}' because the package exports no modules."))
                 } else {
                   mut cycle: Bool = false
                   for ancestor in ancestry {
@@ -363,9 +363,9 @@ resolve_package_dependency_graph(
                       failure = Some(problem_label(package_problem("PKG_DEPENDENCY_CYCLE", "Cannot resolve dependency '" + alias + "' because the dependency chain returns to a package already in this chain."), "Repeated package directory", package.package_root))
                     }
                   } else if current.edges.len() >= package_dependency_graph_max_edges() {
-                    failure = Some(package_problem("PKG_LIMIT", "dependencies contain more than 256 package-to-package references"))
+                    failure = Some(package_problem("PKG_LIMIT", "Cannot resolve the dependencies because dependencies contain more than 256 package-to-package references."))
                   } else if ancestry.len() >= package_dependency_graph_max_depth() {
-                    failure = Some(package_problem("PKG_LIMIT", "dependencies are nested more than 32 packages deep"))
+                    failure = Some(package_problem("PKG_LIMIT", "Cannot resolve the dependencies because dependencies are nested more than 32 packages deep."))
                   } else {
                     mut conflict: Option[PackageProblem] = None()
                     mut known: Option[ManifestPackageDeclaration] = None()
@@ -430,7 +430,7 @@ resolve_package_dependency_graph(
                           Some(previous) => {},
                           None() => {
                             if current.packages.len() >= package_dependency_graph_max_packages() {
-                              failure = Some(package_problem("PKG_LIMIT", "project and its dependencies contain more than 64 packages"))
+                              failure = Some(package_problem("PKG_LIMIT", "Cannot resolve the dependencies because the project and its dependencies contain more than 64 packages."))
                             } else {
                               current = PackageDependencyGraph(
                                 current.packages.append(declaration), current.edges, current.archives, current.gits

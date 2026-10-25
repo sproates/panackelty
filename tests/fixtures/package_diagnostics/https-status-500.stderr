@@ -1,0 +1,9 @@
+panack: error[PKG_HTTP_STATUS]: Cannot download the archive because the server reported an error.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/status-500.tar.gz
+  Dependency name: lib
+  Server response: HTTP 500
+
+Retry later. If the error continues, report the archive URL and HTTP status to the server administrator.

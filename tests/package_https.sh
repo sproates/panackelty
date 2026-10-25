@@ -105,7 +105,7 @@ expect ok deps update --project "$manifest"
 expect 43 run --project "$manifest"
 cp "$lock" "$work/good.lock"
 cp "$cache/src/api.panack" "$work/good-source"
-for endpoint in loop downgrade secret query missing oversize truncated encoded invalid-gzip; do
+for endpoint in loop downgrade secret query missing oversize truncated encoded invalid-gzip no-location empty-location two-locations scheme fragment space backslash status-401 status-403 status-407 status-429 status-500 status-204 bad-header transfer; do
     manifest_for "$endpoint"
     reject deps update --project "$manifest"
     grep -F 'panack: error[' "$work/err" >/dev/null
@@ -119,6 +119,10 @@ for endpoint in loop downgrade secret query missing oversize truncated encoded i
         grep -F 'error[PKG_HTTP_STATUS]: Cannot download the archive because the server could not find' "$work/err" >/dev/null
         node tests/package_diagnostic_capture.cjs https-missing "$work/err" "$work" "$port"
     fi
+    case "$endpoint" in
+        missing|invalid-gzip) ;;
+        *) node tests/package_diagnostic_capture.cjs "https-$endpoint" "$work/err" "$work" "$port" ;;
+    esac
     cmp "$lock" "$work/good.lock"
     cmp "$cache/src/api.panack" "$work/good-source"
     ! grep -Eq "password|secret=token" "$work/err"

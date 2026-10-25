@@ -56,12 +56,12 @@ completion to 50.5%. P03b completes on merge of PR#580, taking the total to
 62.75% under the same P03 allocation. P03c completes on merge of PR#581,
 raising the total to 69.75%. [P03d remote-source acceptance](docs/design/PACKAGE_REMOTE_ACCEPTANCE.md)
 completed P03, taking the accepted subtotal to 75%. Git and archive diagnostic
-corrections retain specific causes and document real CLI output. Lock-record and
-publication corrections add explicit destination paths and tested recovery,
-bringing the diagnostic catalogue to 75 transcripts. P04a diagnostic corrections
-remain in progress after owner review; the earlier 87.5% included acceptance
-that has since been reopened. P04a partial credit has not been reassessed;
-weights are unchanged. P04b and P04c remain planned. The three tracked slices are:
+corrections retain specific causes and document real CLI output. The final
+[P04a diagnostic audit](docs/design/PACKAGE_DIAGNOSTIC_ACCEPTANCE.md) covers all
+24 package modules, with 100 exact CLI transcripts and no remaining wording batch.
+P04a completes on merge of this correction after local and hosted validation,
+bringing weighted programme completion to 87.5%. Weights are unchanged;
+P04b and P04c remain planned. The three tracked slices are:
 [P04a diagnostics, P04b installed workflow and P04c final acceptance](docs/roadmap/records/dependency-management--idea.md#p04-delivery-slices). PR#573 reverted the initial P02
 implementation to the P01 baseline. The P01
 [contract](docs/design/PACKAGE_MANAGEMENT_CONTRACT.md) defines lock and restore

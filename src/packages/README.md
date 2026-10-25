@@ -82,3 +82,8 @@ a failed Git exit status into an invented network diagnosis.
 files are accessed. A selected update requires an existing lock before resolving
 dependencies. Input reads retain filesystem causes and explicit byte limits;
 graph conflicts carry both package locations and versions where available.
+
+P04a's [source audit and acceptance](../../docs/design/PACKAGE_DIAGNOSTIC_ACCEPTANCE.md)
+accounts for every package module and records the completed diagnostic boundary.
+HTTP redirects reject unsupported schemes before another request, distinguish
+known destination failures and never print server-supplied redirect values.

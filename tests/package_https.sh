@@ -162,7 +162,7 @@ JS
 pack
 cp "$lock" "$work/before-escape.lock"
 reject deps update --project "$manifest" lib
-grep -q 'escapes its archive' "$work/err"
+grep -q 'points outside the downloaded archive directory' "$work/err"
 cmp "$lock" "$work/before-escape.lock"
 # Replace that declaration with a transitive HTTPS archive dependency.
 node - "$work/archive/panack.json" "$port" <<'JS'
@@ -184,7 +184,7 @@ manifest_for lib
 reject_env_status=0
 env -u CURL_CA_BUNDLE "$panack" deps update --project "$manifest" > "$work/out" 2> "$work/err" || reject_env_status=$?
 test "$reject_env_status" = 1
-grep -F 'error[PKG_HTTP]: archive TLS connection' "$work/err" >/dev/null
+grep -F 'error[PKG_HTTP]: could not establish a trusted HTTPS connection' "$work/err" >/dev/null
 grep -F 'Do not disable certificate verification' "$work/err" >/dev/null
 node tests/package_diagnostic_capture.cjs https-tls "$work/err" "$work" "$port"
 test "$(requests)" = "$before"
@@ -229,7 +229,7 @@ COPYFILE_DISABLE=1 tar --format ustar -czf "$work/archive/inner.tar.gz" -C "$wor
 pack
 cp "$lock" "$work/before-nested.lock"
 reject deps update --project "$manifest"
-grep -q 'escapes its archive' "$work/err"
+grep -q 'points outside the downloaded archive directory' "$work/err"
 cmp "$lock" "$work/before-nested.lock"
 test -z "$(find "$work/app/.panack_modules" -maxdepth 1 -name '.panack-stage-*' -print)"
 node - "$work/inner/panack.json" <<'JS'

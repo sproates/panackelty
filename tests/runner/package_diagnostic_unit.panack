@@ -2,6 +2,23 @@ import project/src/packages/diagnostic::{package_problem, problem_context, rende
 import stdlib/testing as testing
 import stdlib/host as host
 import stdlib/bytes as byte_buffer
+import project/src/packages/diagnostic::{PackageProblem}
+import project/src/packages/selective_update::{validate_selective_update}
+import project/src/packages/lock::{PackageLock, PackageLockEdge}
+import project/src/project_model/package_manifest::{ManifestJsonValue.ManifestJsonObject}
+import project/src/packages/remote_archive::{http_problem}
+import project/packages/http/src/types::{HttpError.DnsFailure, HttpError.TlsFailure, HttpError.Timeout}
+import project/src/packages/tar_header::{tar_normalize_path, tar_number}
+
+pure failure_reason(result: Result[Unit, PackageProblem]): Str {
+  match result { Error(problem) => problem.reason, Ok(unit) => "unexpected success" }
+}
+pure failure_message(result: Result[Unit, PackageProblem]): Str {
+  match result { Error(problem) => problem.message, Ok(unit) => "unexpected success" }
+}
+pure text_failure[T](result: Result[T, Str]): Str {
+  match result { Error(problem) => problem, Ok(value) => "unexpected success" }
+}
 main(): Void {
   leaf = package_problem("PKG_INTEGRITY", "digest mismatch")
   inner = problem_context(leaf, "outer -> inner")
@@ -9,6 +26,11 @@ main(): Void {
   rendered = render_problem(package_problem("PKG_CACHE_MISSING", "missing cache"), "/tmp/Ian's app/panack.json", "run")
   expected_tail = "  panack deps restore --project '/tmp/Ian'\"'\"'s app/panack.json'"
   control = byte_buffer.empty().push(27).decode_utf8()
+  chosen = PackageLockEdge("chosen", "pkg.chosen@1.0.0", ManifestJsonObject([]))
+  other = PackageLockEdge("other", "pkg.other@1.0.0", ManifestJsonObject([]))
+  changed = PackageLockEdge("other", "pkg.other@2.0.0", ManifestJsonObject([]))
+  before = PackageLock("app", "1.0.0", "", "test", [chosen, other], [])
+  after = PackageLock("app", "1.0.0", "", "test", [chosen, changed], [])
   results = [
     testing.equal_str("leaf cause survives", outer.message, "digest mismatch"),
     testing.equal_str("leaf code survives", outer.code, "PKG_INTEGRITY"),
@@ -18,9 +40,29 @@ main(): Void {
     testing.equal_str("C1 controls escaped", diagnostic_text(byte_buffer.empty().push(194).push(155).decode_utf8()), "?"),
     testing.equal_str("Unicode preserved", diagnostic_text("café/日本語"), "café/日本語"),
     testing.expect("recovery shell quoting", rendered.ends_with(expected_tail), "unsafe shell quoting"),
-    testing.equal_str("missing and corrupt are distinct", package_problem("PKG_CACHE_INVALID", "corrupt").phase, "cache verification"),
-    testing.equal_str("integrity phase", leaf.phase, "content verification"),
-    testing.equal_str("missing manifest phase", package_problem("PKG_MANIFEST_MISSING", "missing").phase, "manifest discovery")
+    testing.equal_str("missing and corrupt are distinct", package_problem("PKG_CACHE_INVALID", "corrupt").phase, "checking saved packages"),
+    testing.equal_str("integrity phase", leaf.phase, "checking package contents"),
+    testing.equal_str("missing manifest phase", package_problem("PKG_MANIFEST_MISSING", "missing").phase, "finding panack.json"),
+    testing.equal_str("unknown name explains lookup failure", failure_reason(validate_selective_update(before, after, ["absent"])),
+      "The name above is not a direct dependency in this project or its existing lockfile. The lockfile has not been changed."),
+    testing.equal_str("unselected change explains scope refusal", failure_reason(validate_selective_update(before, after, ["chosen"])),
+      "This update would also change the dependency named above, but you did not select it. The lockfile has not been changed."),
+    testing.equal_str("changed project version is identified", failure_message(validate_selective_update(before,
+      PackageLock("app", "2.0.0", "", "test", [chosen, other], []), ["chosen"])), "the project's version has changed"),
+    testing.equal_str("DNS advice addresses hostname", http_problem(DnsFailure()).help,
+      "Check the hostname in panack.json and your network or VPN connection, then retry the command."),
+    testing.equal_str("TLS advice retains verification", http_problem(TlsFailure()).help,
+      "Check your system clock and trusted certificates. If they are correct, ask the server administrator to check its HTTPS configuration. Do not disable certificate verification."),
+    testing.equal_str("timeout describes elapsed wait", http_problem(Timeout()).reason,
+      "Panack stopped waiting before it had a complete download."),
+    testing.equal_str("absolute archive path has a specific cause", text_failure(tar_normalize_path("/file")),
+      "archive contains an absolute path; file paths must be relative to the package directory"),
+    testing.equal_str("parent archive path has a specific cause", text_failure(tar_normalize_path("../file")),
+      "archive path contains a parent-directory component (..); package files must stay inside the archive directory"),
+    testing.equal_str("archive number syntax is distinct from its bound", text_failure(tar_number("x".encode_utf8(), 0, 1, 10)),
+      "archive contains a number with invalid digits or spacing"),
+    testing.equal_str("archive number bound is explicit", text_failure(tar_number("999999999".encode_utf8(), 0, 9, 10)),
+      "archive numeric value exceeds the supported maximum of 268435456")
   ]
   if testing.report(results) > 0 { host.exit(1) }
 }

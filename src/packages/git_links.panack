@@ -41,11 +41,15 @@ pub pure git_resolve_link(name: Str, target: Str, links: Map[Str, Str]): Result[
   mut position: Nat = 0
   mut hops: Nat = 0
   mut valid: Bool = link_relative_target(target)
+  mut failure = "Git symbolic link target is not a supported relative path: " + name
+  if target == "" { failure = "Git symbolic link has an empty target: " + name }
+  else if target.starts_with_at("/", 0) { failure = "Git symbolic link uses an absolute target: " + name }
+  else if target.encode_utf8().length() > 4096 { failure = "Git symbolic link target exceeds 4096 bytes: " + name }
   while valid && position < pending.len() {
     component: Str = pending[position]
     position = position + 1
     if component == ".." {
-      if resolved.len() == 0 { valid = false }
+      if resolved.len() == 0 { valid = false; failure = "Git symbolic link points outside the repository: " + name }
       else {
         mut parent: [Str] = []
         for index in 0..resolved.len() {
@@ -58,7 +62,8 @@ pub pure git_resolve_link(name: Str, target: Str, links: Map[Str, Str]): Result[
       if links.has(candidate) {
         hops = hops + 1
         next: Str = links.get(candidate)
-        if hops > 40 || !link_relative_target(next) { valid = false }
+        if hops > 40 { valid = false; failure = "Git symbolic link chain exceeds 40 links: " + name + "; check for links that point back to each other" }
+        else if !link_relative_target(next) { valid = false; failure = "Git symbolic link target is not a supported relative path: " + candidate }
         else {
           mut expanded: [Str] = link_components(next)
           for index in position..pending.len() { expanded = expanded.append(pending[index]) }
@@ -69,7 +74,7 @@ pub pure git_resolve_link(name: Str, target: Str, links: Map[Str, Str]): Result[
     }
   }
   if valid { Ok(if resolved.len() == 0 { "." } else { join_components(resolved) }) }
-  else { Error("Git path escapes snapshot or contains a link cycle") }
+  else { Error(failure) }
 }
 
 pub pure git_link_beneath(name: Str, target: Str, links: Map[Str, Str]): Bool {

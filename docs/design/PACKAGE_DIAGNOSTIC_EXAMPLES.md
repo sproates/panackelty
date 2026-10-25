@@ -43,12 +43,12 @@ panack: error[PKG_LOCK_MISSING]: missing lockfile
 
   Project: <workspace>/Ian's app/panack.json
   Operation: project preparation (network-free)
-  Phase: lock verification
+  Phase: checking panack.lock.json
   Dependency: demo.app -> lib (<workspace>/Ian's app/panack.json)
 
-Dependencies need a lockfile so the selected packages can be reproduced.
+panack.lock.json records the exact dependencies this project uses. Panack needs that record before it can build the project.
 
-Create the initial lock with the lock command below. This selects dependency content.
+Run the command below to select the dependencies and create panack.lock.json. Review and commit that file with the project.
 
   panack deps lock --project '<workspace>/Ian'"'"'s app/panack.json'
 ```
@@ -64,12 +64,12 @@ panack: error[PKG_CACHE_MISSING]: missing cache: <workspace>/Ian's app/.panack_m
 
   Project: <workspace>/Ian's app/panack.json
   Operation: project preparation (network-free)
-  Phase: cache verification
+  Phase: checking saved packages
   Dependency: demo.app -> lib (<workspace>/Ian's app/panack.json)
 
-The locked dependency content is not available in this project's cache.
+Panack cannot find all the saved files needed to use the dependencies in panack.lock.json.
 
-Run the restore command below. Remote sources require a connection; restore preserves the existing pins.
+Run the command below to obtain the missing package without changing the versions or contents recorded in panack.lock.json. An internet connection is needed for remote packages.
 
   panack deps restore --project '<workspace>/Ian'"'"'s app/panack.json'
 ```
@@ -81,16 +81,16 @@ Command: `panack run --project "<workspace>/Ian's app/panack.json"`.
 A cached source file was overwritten. It is refused before compilation. The suggested restore repairs it, and the complete program runs successfully with the same lock.
 
 ```text
-panack: error[PKG_CACHE_INVALID]: cache tree digest mismatch
+panack: error[PKG_CACHE_INVALID]: saved package files do not match their recorded checksum
 
   Project: <workspace>/Ian's app/panack.json
   Operation: project preparation (network-free)
-  Phase: cache verification
+  Phase: checking saved packages
   Dependency: demo.app -> lib (<workspace>/Ian's app/panack.json)
 
-The cached content or its state does not match the verified dependency selection. It will not be used.
+Panack could not verify the saved local packages against panack.lock.json. It will not use them for this build.
 
-Run the restore command below to reacquire and verify the locked content. Do not update the lock to conceal cache corruption.
+Run the command below to restore and check the packages recorded in panack.lock.json. Keep the lockfile unchanged so the repair uses the same package contents.
 
   panack deps restore --project '<workspace>/Ian'"'"'s app/panack.json'
 ```
@@ -102,16 +102,16 @@ Command: `panack deps restore --project "<workspace>/Ian's app/panack.json"`.
 The local archive was replaced with different content. The failure preserves the lock, cache state and old cached program. Restoring the exact original archive bytes makes restore and run succeed. An update is a deliberate trust decision, not the default remedy.
 
 ```text
-panack: error[PKG_INTEGRITY]: archive digest mismatch
+panack: error[PKG_INTEGRITY]: archive contents do not match the SHA-256 checksum in panack.lock.json
 
   Project: <workspace>/Ian's app/panack.json
   Operation: deps restore
-  Phase: content verification
+  Phase: checking package contents
   Dependency: demo.app -> lib
 
-The supplied bytes do not match the content recorded in the lockfile. Accepting them would change the dependency you agreed to use.
+This package has different contents from those recorded in panack.lock.json. Panack has refused to use it.
 
-Check the source with its maintainer or restore the original bytes. Only use deps update after deliberately reviewing and accepting the changed content.
+Ask the package maintainer why the contents changed, or restore the original package contents. Use panack deps update only after you have reviewed and accepted the new contents.
 ```
 
 ## A dependency of a dependency is missing
@@ -125,13 +125,13 @@ panack: error[PKG_MANIFEST_MISSING]: package manifest was not found: <workspace>
 
   Project: <workspace>/Ian's app/panack.json
   Operation: deps update
-  Phase: manifest discovery
+  Phase: finding panack.json
   Dependency: demo.app -> outer (<workspace>/Ian's app/panack.json)
   Dependency: demo.outer -> inner (<workspace>/outer/panack.json)
 
-Every package needs a panack.json at its declared root. That manifest or one of its parent directories could not be found.
+Panack looked for panack.json at the location shown above and could not find it. It needs that file to read the package definition.
 
-Check the dependency path in the declaring manifest and make sure the package exists at the location shown above.
+Check the dependency path in the declaring panack.json and make sure the package contains panack.json at the location shown above.
 ```
 
 ## A manifest is not valid JSON
@@ -145,12 +145,12 @@ panack: error[PKG_MANIFEST]: invalid project manifest at byte 1: expected JSON s
 
   Project: <workspace>/Ian's app/panack.json
   Operation: deps update
-  Phase: manifest validation
+  Phase: reading panack.json
   Context: manifest <workspace>/Ian's app/panack.json
 
-This manifest cannot describe a valid package for the current toolchain.
+Panack cannot load this package until the problem above is corrected.
 
-Correct the indicated field or location in panack.json, then retry. For a third-party package, report the manifest problem to its maintainer.
+Fix the reported problem in panack.json, then retry the command. If this is someone else's package, send them this error so they can fix it.
 ```
 
 ## A lockfile is not valid JSON
@@ -164,11 +164,11 @@ panack: error[PKG_LOCK_INVALID]: invalid lockfile: expected JSON string
 
   Project: <workspace>/Ian's app/panack.json
   Operation: deps restore
-  Phase: lock verification
+  Phase: checking panack.lock.json
 
-The lockfile cannot provide a trustworthy dependency selection.
+Panack cannot read a valid dependency record from panack.lock.json, so it cannot determine which packages to use.
 
-Restore a valid lockfile from version control. Do not delete it merely to bypass this failure.
+Restore panack.lock.json from version control or obtain a valid copy from the project maintainer. Deleting it and creating a new lock may select different packages.
 ```
 
 ## An update names an unknown alias
@@ -182,11 +182,11 @@ panack: error[PKG_SELECTIVE]: unknown dependency alias: absent
 
   Project: <workspace>/Ian's app/panack.json
   Operation: deps update
-  Phase: selective update validation
+  Phase: checking selected dependencies
 
-This update would change a dependency outside the selected aliases, or the selection is invalid.
+The name above is not a direct dependency in this project or its existing lockfile. The lockfile has not been changed.
 
-Check the root aliases and shared dependencies. Select all affected aliases together, or review an explicit update of the whole graph.
+Use a name from the dependencies section of your project panack.json, then retry. Use the declaration name, which may differ from the package name.
 ```
 
 ## The archive server returns 404
@@ -200,12 +200,12 @@ panack: error[PKG_HTTP_STATUS]: archive server returned HTTP 404; expected 200
 
   Project: <workspace>/app/panack.json
   Operation: deps update
-  Phase: HTTPS response validation
+  Phase: checking the download response
   Dependency: test.app -> lib (<workspace>/app/panack.json)
 
-The server did not return the downloadable archive required by this dependency.
+The server returned the HTTP status shown above instead of the requested archive.
 
-Check that the URL points to an available .tar.gz, rather than a web page or login. Package retrieval does not prompt for credentials; ask the source maintainer for an accessible HTTPS archive.
+Check the archive URL in panack.json. It must be directly downloadable without signing in. Ask the package maintainer to correct a missing or inaccessible download.
 ```
 
 ## The HTTPS connection fails verification
@@ -215,16 +215,16 @@ Command: `panack deps update --project <workspace>/app/panack.json`.
 The test removes trust in its private certificate. No HTTP request reaches the peer. The diagnostic does not recommend disabling certificate checks or imply that every TLS failure is an expired certificate.
 
 ```text
-panack: error[PKG_HTTP]: archive TLS connection could not be verified or established
+panack: error[PKG_HTTP]: could not establish a trusted HTTPS connection to the archive server
 
   Project: <workspace>/app/panack.json
   Operation: deps update
-  Phase: HTTPS acquisition
+  Phase: downloading the archive
   Dependency: test.app -> lib (<workspace>/app/panack.json)
 
-A complete, acceptable HTTPS response was not received. The dependency cannot be verified.
+The secure connection failed before the archive could be downloaded. This error alone does not identify a particular certificate problem.
 
-Check connectivity, the source URL and TLS trust, then retry the original command. For an existing lock, deps restore preserves its pins. Do not disable certificate verification.
+Check your system clock and trusted certificates. If they are correct, ask the server administrator to check its HTTPS configuration. Do not disable certificate verification.
 ```
 
 ## A locked Git commit cannot be acquired
@@ -238,13 +238,13 @@ panack: error[PKG_GIT_FETCH]: Git command failed with exit status 128; remote er
 
   Project: <workspace>/app/panack.json
   Operation: deps restore
-  Phase: Git snapshot acquisition
+  Phase: preparing files from Git
   Dependency: git.app -> left (<workspace>/app/panack.json)
   Context: repository https://localhost:<port>/sha.git at commit <locked-commit>
 
-Git could not produce a verified snapshot of the requested commit. The cause may be connectivity, server access, an unavailable commit or unsupported repository content; this message does not establish which.
+Panack could not prepare the package files from this Git commit. The failure reported above is the information available from this operation.
 
-Check connectivity and TLS trust, then ask the repository maintainer whether the recorded commit is available over the direct HTTPS URL. Retry the original command once corrected. For an existing lock, deps restore keeps the same pin.
+If the message identifies a problem with the repository contents, ask its maintainer to fix it. If Git only reports a failed command, check connectivity and repository access; that status alone does not identify the cause. Retry the same command and keep the existing lockfile.
 ```
 
 ## Boundaries and acceptance
@@ -268,3 +268,51 @@ unexpected content.
 
 P04b installed workflow/help and P04c all-source final acceptance remain open.
 Website promotion and an article remain separate work.
+
+## An update would change an unselected dependency
+
+Command: `panack deps update --project "<workspace>/Ian's app/panack.json" other`.
+
+The project has removed its previous `lib` declaration and added `other`, but the command selects only `other`. Panack identifies `lib` as the additional change and leaves the lockfile unchanged. This is a different explanation from an unknown dependency name.
+
+```text
+panack: error[PKG_SELECTIVE]: unselected dependency changed: lib
+
+  Project: <workspace>/Ian's app/panack.json
+  Operation: deps update
+  Phase: checking selected dependencies
+
+This update would also change the dependency named above, but you did not select it. The lockfile has not been changed.
+
+Check its declaration in panack.json. Undo the unintended change, or include this dependency name in the update command if you intend to update it too.
+```
+
+## Diagnostic review scope
+
+The wording review covers every package module that emits errors: command
+arguments, manifest and lock parsing, graph validation, local and remote
+acquisition, selective updates, archive headers and extraction, Git refs,
+file inventories, symbolic links, saved packages and checksum operations.
+The shared JSON parser remains compiler input; its existing syntax details
+are retained beneath the package explanation without changing compiler code.
+
+Messages report the detected failure, not all the ways their error family can
+fail. An unknown dependency name and an unselected change have separate advice.
+A changed project name, version or toolchain version is identified individually.
+DNS, timeout and TLS failures have different recovery guidance. A Git command
+exit status does not establish whether the cause is networking, permissions or
+server configuration; the message states that limitation.
+
+Archive errors distinguish duplicate paths, case conflicts, file/directory
+conflicts, invalid paths, size bounds and incomplete metadata. Symbolic-link
+errors identify an absolute target, an escape or the observed 40-link limit;
+the latter does not assert that a cycle has been proved. Lockfile validation
+identifies the failing project field instead of reporting a generic identity
+problem. Existing rejection rules and resource bounds are unchanged.
+
+The 21 diagnostic unit checks and twelve public transcripts are representative
+regression evidence, not a claim that every low-level failure has its own
+end-to-end fixture. The existing archive, Git, graph, containment and lock tests
+continue to exercise the wider rejection surface. Exact transcript matching
+keeps this document current; human review is still needed to judge whether an
+explanation is useful.

@@ -71,7 +71,7 @@ pure manifest_git_dependency(alias: Str, value: ManifestJsonValue): Result[Packa
             Error(problem) => { failure = Some(problem) },
             Ok(text) => if name == "ref" {
               selector = text
-              if !manifest_git_ref(text) { failure = Some(manifest_error("invalid Git ref or abbreviated object ID", 0)) }
+              if !manifest_git_ref(text) { failure = Some(manifest_error("Git ref must be a valid branch or tag name, or a complete 40- or 64-digit hexadecimal commit ID", 0)) }
             } else {
               subdir = normalize_dependency_path(text)
               match manifest_relative_path_error(text, true, false, 0) {
@@ -100,7 +100,7 @@ pure manifest_manifest_exports(value: ManifestJsonValue): Result[[PackageManifes
       mut failure: Option[PackageManifestError] = None()
       for member in members {
         if !manifest_logical_path(member.key) && failure == None() {
-          failure = Some(manifest_error("export keys must be slash-separated identifiers", member.offset))
+          failure = Some(manifest_error("export names must use identifiers separated by forward slashes, for example geometry/shapes", member.offset))
         }
         match member.value {
           ManifestJsonString(path) => match manifest_relative_path_error(path, false, true, member.offset) {
@@ -134,7 +134,7 @@ pure manifest_manifest_dependencies(value: ManifestJsonValue): Result[[PackageMa
       mut failure: Option[PackageManifestError] = None()
       for member in members {
         if (!manifest_identifier(member.key) || member.key == "project" || member.key == "stdlib") && failure == None() {
-          failure = Some(manifest_error("dependency aliases must be identifiers other than project or stdlib", member.offset))
+          failure = Some(manifest_error("dependency names must be identifiers; project and stdlib are reserved names", member.offset))
         }
         if failure == None() && manifest_json_object_field(member.value, "git") != None() {
           match manifest_object_unknown_field(member.value, ["git"]) {
@@ -155,8 +155,10 @@ pure manifest_manifest_dependencies(value: ManifestJsonValue): Result[[PackageMa
             None() => match manifest_json_string_field(member.value, kind) {
               Error(error) => { failure = Some(error) },
               Ok(path) => {
-                if path == "" || (kind == "archive" && !path.ends_with(".tar.gz")) {
-                  failure = Some(manifest_error("dependency source is empty or archive does not end in .tar.gz", member.offset))
+                if path == "" {
+                  failure = Some(manifest_error("dependency " + member.key + " has an empty " + kind + " field", member.offset))
+                } else if kind == "archive" && !path.ends_with(".tar.gz") {
+                  failure = Some(manifest_error("dependency " + member.key + " archive path must end in .tar.gz", member.offset))
                 } else if path.starts_with_at("https://", 0) || path.starts_with_at("http://", 0) {
                   if kind != "archive" || !manifest_https_archive_url(path) {
                     failure = Some(manifest_error("archive URL must use HTTPS without credentials, query or fragment", member.offset))
@@ -243,7 +245,7 @@ pub pure parse_package_manifest(data: Bytes, supported_toolchain: Str): Result[P
           Ok(value) => value
         }
         if failure == None() && !manifest_package_name(package) {
-          failure = Some(manifest_error("package must be a dotted ASCII identifier", 0))
+          failure = Some(manifest_error("package name must use ASCII letters, digits and underscores, with dots between components, for example example.geometry", 0))
         }
         if failure == None() && !manifest_semver(version) {
           failure = Some(manifest_error("package version must be exact major.minor.patch with an optional prerelease", 0))
@@ -251,8 +253,10 @@ pub pure parse_package_manifest(data: Bytes, supported_toolchain: Str): Result[P
         if failure == None() && language != "modules-v1" {
           failure = Some(manifest_error("unsupported manifest language; expected modules-v1", 0))
         }
-        if failure == None() && (supported_toolchain == "" || toolchain != supported_toolchain) {
-          failure = Some(manifest_error("manifest toolchain must exactly match the supported release", 0))
+        if failure == None() && supported_toolchain == "" {
+          failure = Some(manifest_error("Panack could not determine its own version; check the Panack installation", 0))
+        } else if failure == None() && toolchain != supported_toolchain {
+          failure = Some(manifest_error("panack.json requires Panack " + toolchain + ", but this command is running Panack " + supported_toolchain + "; use the required Panack version", 0))
         }
         match manifest_json_object_field(root, "source") {
           Some(field) => match manifest_relative_path_error(source, false, false, field.offset) {

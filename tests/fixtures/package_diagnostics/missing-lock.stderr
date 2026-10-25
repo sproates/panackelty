@@ -2,11 +2,11 @@ panack: error[PKG_LOCK_MISSING]: missing lockfile
 
   Project: <workspace>/Ian's app/panack.json
   Operation: project preparation (network-free)
-  Phase: lock verification
+  Phase: checking panack.lock.json
   Dependency: demo.app -> lib (<workspace>/Ian's app/panack.json)
 
-Dependencies need a lockfile so the selected packages can be reproduced.
+panack.lock.json records the exact dependencies this project uses. Panack needs that record before it can build the project.
 
-Create the initial lock with the lock command below. This selects dependency content.
+Run the command below to select the dependencies and create panack.lock.json. Review and commit that file with the project.
 
   panack deps lock --project '<workspace>/Ian'"'"'s app/panack.json'

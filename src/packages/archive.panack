@@ -1,3 +1,4 @@
+import project/src/packages/diagnostic::{host_detail}
 pub import project/src/packages/tar_stream::{ArchiveEntry, TarStream}
 import project/src/packages/tar_stream::{tar_stream_new, tar_stream_feed, tar_stream_finish}
 import project/src/packages/sha256::{Sha256, sha256_new, sha256_feed, sha256_finish, sha256_close}
@@ -34,7 +35,7 @@ pub consume_compressed(
   // Empty input with final=true proves that a complete gzip trailer was seen.
   while !complete && failure == None() {
     match gzip.step(decoder, byte_buffer.slice(input, offset, input.length()), final) {
-      Error(problem) => { failure = Some(if problem.code == "output_limit" { "gzip expanded content exceeds 256 MiB (output_limit)" } else { "gzip stream could not be decoded; it may be corrupt, truncated or unsupported (" + problem.code + ")" }) },
+      Error(problem) => { failure = Some(gzip_failure(problem.code)) },
       Ok(chunk) => {
         offset = offset + chunk.consumed
         match tar_stream_feed(stage, current, chunk.data) {
@@ -43,7 +44,7 @@ pub consume_compressed(
         }
         complete = chunk.finished || (!final && offset == input.length() && chunk.data.length() < 65536)
         if !complete && chunk.consumed == 0 && chunk.data.length() == 0 {
-          failure = Some("gzip decoder made no progress")
+          failure = Some("gzip decompression stopped without producing data or reaching the end of the archive")
         }
       }
     }
@@ -59,7 +60,7 @@ read_archive_stream(stage: Nat, decoder: Nat, source: Path): Result[ArchiveDecod
   mut failure: Option[Str] = None()
   while !finished && failure == None() {
     match bounded_filesystem.read_chunk(source, offset, 65536) {
-      Error(problem) => { failure = Some("cannot read archive: " + problem.code) },
+      Error(problem) => { failure = Some("cannot read archive: " + host_detail(problem.code)) },
       Ok(input) => {
         offset = offset + input.length()
         if offset > 67108864 { failure = Some("archive exceeds 64 MiB compressed input") }
@@ -83,7 +84,7 @@ read_archive_stream(stage: Nat, decoder: Nat, source: Path): Result[ArchiveDecod
 
 extract_archive(stage: Nat, source: Path): Result[StagedArchive, Str] {
   match gzip.open(268435456) {
-    Error(problem) => Error("cannot open gzip decoder: " + problem.code),
+    Error(problem) => Error("cannot open gzip decoder: " + host_detail(problem.code)),
     Ok(decoder) => {
       read = read_archive_stream(stage, decoder, source)
       closed = gzip.close(decoder)
@@ -94,13 +95,13 @@ extract_archive(stage: Nat, source: Path): Result[StagedArchive, Str] {
           match hash {
             Error(problem) => Error(problem),
             Ok(hash_text) => match closed {
-          Error(problem) => Error("gzip cleanup failed: " + problem.code),
+          Error(problem) => Error("gzip cleanup failed: " + host_detail(problem.code)),
           Ok(unit) => match tar_stream_finish(state.tar) {
             Error(problem) => Error(problem),
             Ok(entries) => match staging.path(stage) {
-              Error(problem) => Error("staging path unavailable: " + problem.code),
+              Error(problem) => Error("cannot locate the temporary package directory: " + host_detail(problem.code)),
               Ok(root) => match root.to_text() {
-                Error(problem) => Error("staging root is not UTF-8"),
+                Error(problem) => Error("temporary package directory name is not valid UTF-8 text"),
                 Ok(text) => Ok(StagedArchive(stage, text, hash_text, entries))
               }
             }
@@ -115,11 +116,11 @@ extract_archive(stage: Nat, source: Path): Result[StagedArchive, Str] {
 
 pub stage_archive(parent: Str, archive: Str): Result[StagedArchive, Str] {
   match path.from_text(parent) {
-    Error(problem) => Error("invalid archive staging parent"),
+    Error(problem) => Error("cannot use the parent path for the temporary archive directory"),
     Ok(parent_path) => match path.from_text(archive) {
-      Error(problem) => Error("invalid archive source path"),
+      Error(problem) => Error("archive file path cannot be represented on this system"),
       Ok(source) => match staging.begin(parent_path) {
-        Error(problem) => Error("cannot create archive staging directory: " + problem.code),
+        Error(problem) => Error("cannot create a temporary directory to unpack the archive: " + host_detail(problem.code)),
         Ok(stage) => {
           result = extract_archive(stage, source)
           match result {
@@ -137,7 +138,15 @@ pub stage_archive(parent: Str, archive: Str): Result[StagedArchive, Str] {
 
 pub discard_archive(archive: StagedArchive): Result[Unit, Str] {
   match staging.close(archive.handle) {
-    Error(problem) => Error("cannot remove staging directory: " + problem.code),
+    Error(problem) => Error("cannot remove the temporary package directory: " + host_detail(problem.code)),
     Ok(unit) => Ok(())
   }
+}
+
+pure gzip_failure(code: Str): Str {
+  if code == "output_limit" { "gzip expanded content exceeds 256 MiB (output_limit)" }
+  else if code == "truncated_gzip" { "gzip archive ended before its compressed contents were complete (truncated_gzip)" }
+  else if code == "invalid_gzip" { "archive is not valid gzip data (invalid_gzip)" }
+  else if code == "decoder_unavailable" || code == "unsupported" { "this Panack installation could not start gzip decompression; check that zlib is installed (" + code + ")" }
+  else { "gzip decompression failed inside Panack (" + code + "); retry the command and report this error if it persists" }
 }

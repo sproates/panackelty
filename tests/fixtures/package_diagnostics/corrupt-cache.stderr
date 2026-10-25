@@ -1,12 +1,12 @@
-panack: error[PKG_CACHE_INVALID]: cache tree digest mismatch
+panack: error[PKG_CACHE_INVALID]: saved package files do not match their recorded checksum
 
   Project: <workspace>/Ian's app/panack.json
   Operation: project preparation (network-free)
-  Phase: cache verification
+  Phase: checking saved packages
   Dependency: demo.app -> lib (<workspace>/Ian's app/panack.json)
 
-The cached content or its state does not match the verified dependency selection. It will not be used.
+Panack could not verify the saved local packages against panack.lock.json. It will not use them for this build.
 
-Run the restore command below to reacquire and verify the locked content. Do not update the lock to conceal cache corruption.
+Run the command below to restore and check the packages recorded in panack.lock.json. Keep the lockfile unchanged so the repair uses the same package contents.
 
   panack deps restore --project '<workspace>/Ian'"'"'s app/panack.json'

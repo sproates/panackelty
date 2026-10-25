@@ -87,7 +87,7 @@ node tests/fixtures/package_git/expect_snapshot.cjs "$work" "$url" "$commit"
 test -z "$(ls -A "$work/cache")"
 printf '%s\n' 'PASS saved bytecode acquisition and cleanup'
 reject_snapshot 'Git command failed with exit status 128; remote error text withheld to protect credentials' "$url" "$commit" none /usr/bin/git sha1 plain
-reject_snapshot 'Git process failed: launch_failed' "$url" "$commit" "$work/test.crt" "$work/no-git" sha1 plain
+reject_snapshot 'Git process failed: the process could not be started; check that the executable exists and can be run (launch_failed)' "$url" "$commit" "$work/test.crt" "$work/no-git" sha1 plain
 reject_snapshot 'Git executable must be an absolute path' "$url" "$commit" "$work/test.crt" git sha1 plain
 reject_snapshot 'Git command failed with exit status 128; remote error text withheld to protect credentials' "$url" 1111111111111111111111111111111111111111 "$work/test.crt" /usr/bin/git sha1 plain
 for invalid in "http://localhost:$port/repo.git" "https://user:secret@localhost:$port/repo.git" "$url?secret=value" "$url#fragment"; do
@@ -103,25 +103,25 @@ commit_tree() {
 }
 ln -s /etc/passwd "$work/source/escape"
 commit_tree escape
-reject_snapshot 'Git symlink escapes the snapshot or contains a cycle' "$url" "$bad_commit" "$work/test.crt" /usr/bin/git sha1 plain
+reject_snapshot 'Git symbolic link uses an absolute target: escape' "$url" "$bad_commit" "$work/test.crt" /usr/bin/git sha1 plain
 rm "$work/source/escape"
 ln -s loop-two "$work/source/loop-one"
 ln -s loop-one "$work/source/loop-two"
 commit_tree cycle
-reject_snapshot 'Git symlink escapes the snapshot or contains a cycle' "$url" "$bad_commit" "$work/test.crt" /usr/bin/git sha1 plain
+reject_snapshot 'Git symbolic link chain exceeds 40 links: loop-one; check for links that point back to each other' "$url" "$bad_commit" "$work/test.crt" /usr/bin/git sha1 plain
 rm "$work/source/loop-one" "$work/source/loop-two"
 printf 'version https://git-lfs.github.com/spec/v1\noid sha256:0000000000000000000000000000000000000000000000000000000000000000\nsize 1\n' > "$work/source/lfs"
 commit_tree lfs
-reject_snapshot 'Git LFS content is unsupported' "$url" "$bad_commit" "$work/test.crt" /usr/bin/git sha1 plain
+reject_snapshot 'package contains Git LFS pointer files; Panack cannot download their contents' "$url" "$bad_commit" "$work/test.crt" /usr/bin/git sha1 plain
 printf 'version https://git-lfs.github.com/spec/v1\r\noid sha256:0000000000000000000000000000000000000000000000000000000000000000\r\nsize 1\r\n' > "$work/source/lfs"
 commit_tree lfs-crlf
-reject_snapshot 'Git LFS content is unsupported' "$url" "$bad_commit" "$work/test.crt" /usr/bin/git sha1 plain
+reject_snapshot 'package contains Git LFS pointer files; Panack cannot download their contents' "$url" "$bad_commit" "$work/test.crt" /usr/bin/git sha1 plain
 rm "$work/source/lfs"
 /usr/bin/git -C "$work/source" update-index --add --cacheinfo "160000,$commit,submodule"
 /usr/bin/git -C "$work/source" -c user.name=sproates -c user.email=218187+sproates@users.noreply.github.com commit -qm submodule
 bad_commit=$(/usr/bin/git -C "$work/source" rev-parse HEAD)
 /usr/bin/git -C "$work/source" push -q "$work/repo.git" HEAD:refs/heads/fixture
-reject_snapshot 'Git submodules are unsupported' "$url" "$bad_commit" "$work/test.crt" /usr/bin/git sha1 plain
+reject_snapshot 'package contains a Git submodule; Panack cannot download submodule contents' "$url" "$bad_commit" "$work/test.crt" /usr/bin/git sha1 plain
 # An earlier exact commit still produces the same snapshot after the branch moves.
 run_snapshot "$url" "$commit" "$work/test.crt" /usr/bin/git sha1 inspect
 node tests/fixtures/package_git/expect_snapshot.cjs "$work" "$url" "$commit"

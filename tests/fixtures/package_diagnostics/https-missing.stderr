@@ -2,9 +2,9 @@ panack: error[PKG_HTTP_STATUS]: archive server returned HTTP 404; expected 200
 
   Project: <workspace>/app/panack.json
   Operation: deps update
-  Phase: HTTPS response validation
+  Phase: checking the download response
   Dependency: test.app -> lib (<workspace>/app/panack.json)
 
-The server did not return the downloadable archive required by this dependency.
+The server returned the HTTP status shown above instead of the requested archive.
 
-Check that the URL points to an available .tar.gz, rather than a web page or login. Package retrieval does not prompt for credentials; ask the source maintainer for an accessible HTTPS archive.
+Check the archive URL in panack.json. It must be directly downloadable without signing in. Ask the package maintainer to correct a missing or inaccessible download.

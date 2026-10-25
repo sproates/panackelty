@@ -2,10 +2,10 @@ panack: error[PKG_GIT_FETCH]: Git command failed with exit status 128; remote er
 
   Project: <workspace>/app/panack.json
   Operation: deps restore
-  Phase: Git snapshot acquisition
+  Phase: preparing files from Git
   Dependency: git.app -> left (<workspace>/app/panack.json)
   Context: repository https://localhost:<port>/sha.git at commit <locked-commit>
 
-Git could not produce a verified snapshot of the requested commit. The cause may be connectivity, server access, an unavailable commit or unsupported repository content; this message does not establish which.
+Panack could not prepare the package files from this Git commit. The failure reported above is the information available from this operation.
 
-Check connectivity and TLS trust, then ask the repository maintainer whether the recorded commit is available over the direct HTTPS URL. Retry the original command once corrected. For an existing lock, deps restore keeps the same pin.
+If the message identifies a problem with the repository contents, ask its maintainer to fix it. If Git only reports a failed command, check connectivity and repository access; that status alone does not identify the cause. Retry the same command and keep the existing lockfile.

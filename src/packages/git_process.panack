@@ -1,3 +1,4 @@
+import project/src/packages/diagnostic::{host_detail}
 import stdlib/process as process
 import stdlib/bytes as byte_buffer
 import stdlib/time as time
@@ -42,7 +43,7 @@ pub git_command(context: GitContext, arguments: [Str], input: Bytes): Result[Byt
       else {
         match process.run_isolated(context.executable, command, input, context.repository,
             environment, time.seconds(60), 16777216) {
-          Error(problem) => Error("Git process failed: " + problem.code),
+          Error(problem) => Error("Git process failed: " + host_detail(problem.code)),
           Ok(output) => if output.signal != 0 || output.exit_code != 0 {
             // Git stderr can echo remote URLs and server-controlled text. Keep
             // diagnostics phase-specific at the caller without exposing it.

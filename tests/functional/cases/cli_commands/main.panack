@@ -329,7 +329,7 @@ main(): Void {
         Ok(output) => {
           results = results.append(std_testing.expect("package source roots cannot overlap the app root",
             output.exit_code == 1 && output.signal == 0 &&
-              contains(output.stderr.decode_utf8(), "physical source root overlaps the application source root"),
+              contains(output.stderr.decode_utf8(), "overlaps the application's source directory"),
             "a dependency source root nested in the application source root was accepted"))
         }
       }
@@ -359,7 +359,7 @@ main(): Void {
         Ok(output) => {
           results = results.append(std_testing.expect("nested dependency roots cannot overlap their parent",
             output.exit_code == 1 && output.signal == 0 &&
-              contains(output.stderr.decode_utf8(), "physical source root overlaps dependency geometry"),
+              contains(output.stderr.decode_utf8(), "overlaps dependency geometry"),
             "a nested dependency source root overlapped its declaring package"))
         }
       }
@@ -385,7 +385,7 @@ main(): Void {
               output.stdout.length() == 0 &&
               contains(output.stderr.decode_utf8(), "error[PKG_MANIFEST_MISSING]: package manifest was not found:") &&
               contains(output.stderr.decode_utf8(), " -> geometry (") &&
-              contains(output.stderr.decode_utf8(), "Check the dependency path in the declaring manifest"),
+              contains(output.stderr.decode_utf8(), "Check the dependency path in the declaring panack.json"),
             "a missing dependency manifest was accepted"))
         }
       }
@@ -618,7 +618,7 @@ main(): Void {
       std_filesystem.write(library_manifest, empty_library_manifest.encode_utf8())
       results = results.append(std_testing_commands.run_command("manifest-only library requires an export",
         source_compiler_command(["check", "--project", library_manifest_text], toolchain_version),
-        ProcessOutput(1, 0, byte_buffer.empty(), "panack: error[PKG_MANIFEST]: library manifest must export at least one module\n\n  Project: ${library_manifest_text}\n  Operation: project preparation (network-free)\n  Phase: manifest validation\n  Context: manifest ${library_manifest_text}\n\nThis manifest cannot describe a valid package for the current toolchain.\n\nCorrect the indicated field or location in panack.json, then retry. For a third-party package, report the manifest problem to its maintainer.\n".encode_utf8())))
+        ProcessOutput(1, 0, byte_buffer.empty(), "panack: error[PKG_MANIFEST]: library manifest must export at least one module\n\n  Project: ${library_manifest_text}\n  Operation: project preparation (network-free)\n  Phase: reading panack.json\n  Context: manifest ${library_manifest_text}\n\nThis package has no entry field, so Panack treats it as a library. Its exports section is empty, leaving other packages nothing to import.\n\nFor a library, add at least one module to exports in panack.json. If this is an application, add an entry field naming its main source file instead.\n".encode_utf8())))
       std_filesystem.write(library_manifest, library_manifest_text_value.encode_utf8())
       std_filesystem.write(library_extra, "import project/api as api\npub pure next_answer(): Nat { true }\n".encode_utf8())
       match std_process.run(path("./bin/panack"),

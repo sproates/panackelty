@@ -60,3 +60,8 @@ Cache verification keeps its original failure instead of collapsing missing and
 corrupt state. Git process status is retained without raw stderr. The
 [verified examples](../../docs/design/PACKAGE_DIAGNOSTIC_EXAMPLES.md) are checked
 against public CLI fixtures, including execution of suggested recovery commands.
+
+Diagnostic explanations belong at the point that knows the cause. Use
+`explain_problem` when the general error family cannot explain a particular
+failure accurately. Do not list competing known causes in one message or turn
+a failed Git exit status into an invented network diagnosis.

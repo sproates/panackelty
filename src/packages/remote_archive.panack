@@ -1,5 +1,6 @@
 pub import project/src/packages/diagnostic::{PackageProblem}
-import project/src/packages/diagnostic::{package_problem, problem_context, package_result}
+pub import project/packages/http/src/types::{HttpError}
+import project/src/packages/diagnostic::{package_problem, explain_problem, package_result}
 import project/packages/http/src/stream as http
 import project/packages/http/src/parser::{lower_ascii}
 import project/packages/http/src/types::{HttpError.ProtocolError}
@@ -51,24 +52,24 @@ open_archive(url: Str): Result[http.ResponseStream, PackageProblem] {
   mut response: Option[http.ResponseStream] = None()
   mut failure: Option[PackageProblem] = None()
   while response == None() && failure == None() {
-    if !safe_url(current) { failure = Some(package_problem("PKG_REDIRECT", "unsafe archive URL or redirect")) }
+    if !safe_url(current) { failure = Some(package_problem("PKG_REDIRECT", "archive download address is not an allowed HTTPS URL")) }
     else { match http.open_response(current, 60000, 67108864) {
       Error(problem) => { failure = Some(http_problem(problem)) },
       Ok(opened) => {
         if opened.status == 200 {
           mut encoding: Bool = false
           for header in opened.headers { if lower_ascii(header.name) == "content-encoding" && lower_ascii(header.value) != "identity" { encoding = true } }
-          if encoding { closed = http.close_response(opened); failure = Some(package_problem("PKG_HTTP", "archive HTTP content encoding is unsupported")) }
+          if encoding { closed = http.close_response(opened); failure = Some(package_problem("PKG_HTTP", "archive server applied an unsupported Content-Encoding; serve the .tar.gz bytes directly")) }
           else { response = Some(opened) }
         } else {
           closed = http.close_response(opened)
           if opened.status == 301 || opened.status == 302 || opened.status == 303 || opened.status == 307 || opened.status == 308 {
             mut locations: [Str] = []
             for header in opened.headers { if lower_ascii(header.name) == "location" { locations = locations.append(header.value) } }
-            if hops >= 5 { failure = Some(package_problem("PKG_REDIRECT", "archive redirect limit exceeded")) }
-            else if locations.len() != 1 || locations[0] == "" { failure = Some(package_problem("PKG_REDIRECT", "archive redirect requires one Location")) }
+            if hops >= 5 { failure = Some(package_problem("PKG_REDIRECT", "archive server redirected the download more than 5 times")) }
+            else if locations.len() != 1 || locations[0] == "" { failure = Some(package_problem("PKG_REDIRECT", "archive server returned a redirect without exactly one nonempty Location header")) }
             else if !safe_url("https://placeholder/" + locations[0]) { failure = Some(package_problem("PKG_REDIRECT", "unsafe archive redirect")) }
-            else if locations[0].starts_with_at("http:", 0) { failure = Some(package_problem("PKG_REDIRECT", "archive redirect requires HTTPS")) }
+            else if locations[0].starts_with_at("http:", 0) { failure = Some(package_problem("PKG_REDIRECT", "archive server redirected the download to HTTP; HTTPS is required")) }
             else { current = redirect_url(current, locations[0]); hops = hops + 1 }
           } else { status = opened.status; failure = Some(package_problem("PKG_HTTP_STATUS", "archive server returned HTTP ${status}; expected 200")) }
         }
@@ -88,7 +89,7 @@ extract(stage: Nat, response: http.ResponseStream): Result[StagedArchive, Packag
         Error(problem) => { sha256_close(hash); Error(http_problem(problem)) },
         Ok(state) => match consume_compressed(stage, handle, state.tar, byte_buffer.empty(), true) {
           Error(problem) => { sha256_close(state.hash); Error(package_problem("PKG_ARCHIVE", problem)) },
-          Ok(tar) => match package_result(sha256_finish(state.hash), "PKG_FILESYSTEM") {
+          Ok(tar) => match package_result(sha256_finish(state.hash), "PKG_TOOL") {
             Error(problem) => Error(problem),
             Ok(digest) => match package_result(tar_stream_finish(tar), "PKG_ARCHIVE") {
               Error(problem) => Error(problem),
@@ -111,9 +112,9 @@ extract(stage: Nat, response: http.ResponseStream): Result[StagedArchive, Packag
 
 pub stage_remote_archive(parent: Str, url: Str): Result[StagedArchive, PackageProblem] {
   match path.from_text(parent) {
-    Error(problem) => Error(package_problem("PKG_FILESYSTEM", "invalid archive staging parent")),
+    Error(problem) => Error(package_problem("PKG_FILESYSTEM", "cannot use the parent path for the temporary archive directory")),
     Ok(parent_path) => match staging.begin(parent_path) {
-      Error(problem) => Error(package_problem("PKG_FILESYSTEM", "cannot create archive staging directory")),
+      Error(problem) => Error(package_problem("PKG_FILESYSTEM", "cannot create a temporary directory to unpack the archive")),
       Ok(stage) => {
         result = match open_archive(url) {
           Error(problem) => Error(problem),
@@ -125,23 +126,34 @@ pub stage_remote_archive(parent: Str, url: Str): Result[StagedArchive, PackagePr
   }
 }
 
-pure http_problem(problem: http.HttpError): PackageProblem {
+pub pure http_problem(problem: HttpError): PackageProblem {
   match problem {
     http.HttpError.InvalidUrl(detail) => package_problem("PKG_HTTP", "archive URL is invalid"),
     http.HttpError.InvalidLimits() => package_problem("PKG_LIMIT", "archive transport limits are invalid"),
-    http.HttpError.DnsFailure() => package_problem("PKG_HTTP", "archive hostname could not be resolved"),
-    http.HttpError.ConnectFailure() => package_problem("PKG_HTTP", "could not connect to the archive server"),
-    http.HttpError.TlsFailure() => package_problem("PKG_HTTP", "archive TLS connection could not be verified or established"),
-    http.HttpError.Timeout() => package_problem("PKG_HTTP", "archive request exceeded its 60-second timeout"),
+    http.HttpError.DnsFailure() => explain_problem(package_problem("PKG_HTTP", "could not find the archive server's network address (DNS lookup failed)"),
+      "Panack could not turn the hostname in the archive URL into a network address, so it could not contact the server.",
+      "Check the hostname in panack.json and your network or VPN connection, then retry the command."),
+    http.HttpError.ConnectFailure() => explain_problem(package_problem("PKG_HTTP", "could not connect to the archive server"),
+      "The connection failed before Panack could download the archive. This does not tell us whether the server is down or the connection is blocked.",
+      "Check your network or VPN connection and whether the server is reachable. Retry the same command once access is restored."),
+    http.HttpError.TlsFailure() => explain_problem(package_problem("PKG_HTTP", "could not establish a trusted HTTPS connection to the archive server"),
+      "The secure connection failed before the archive could be downloaded. This error alone does not identify a particular certificate problem.",
+      "Check your system clock and trusted certificates. If they are correct, ask the server administrator to check its HTTPS configuration. Do not disable certificate verification."),
+    http.HttpError.Timeout() => explain_problem(package_problem("PKG_HTTP", "archive request did not finish within 60 seconds"),
+      "Panack stopped waiting before it had a complete download.",
+      "Check your connection and retry the same command. If it repeatedly times out, ask the package maintainer to check the download server."),
     http.HttpError.ProtocolError(detail) => package_problem(if detail.starts_with_at("archive extraction: ", 0) { "PKG_ARCHIVE" } else { "PKG_HTTP" }, detail),
     http.HttpError.LimitExceeded(detail) => package_problem("PKG_LIMIT", "archive transport limit exceeded: " + detail + " (body: 64 MiB; headers/trailers: 64 KiB; chunk line: 8 KiB; informational responses: 8)"),
-    http.HttpError.Cancelled() => package_problem("PKG_HTTP", "archive request was cancelled"),
-    http.HttpError.UnsupportedHost() => package_problem("PKG_HTTP", "HTTPS transport is unavailable on this host"),
+    http.HttpError.Cancelled() => explain_problem(package_problem("PKG_HTTP", "archive request was cancelled"),
+      "The download stopped before it finished.", "Run the same command again when you are ready to continue."),
+    http.HttpError.UnsupportedHost() => explain_problem(package_problem("PKG_HTTP", "this Panack installation cannot make HTTPS requests"),
+      "The required native HTTPS support is unavailable in this installation.",
+      "Use a supported native Panack release with libcurl installed. Reinstall Panack if this installation should already provide HTTPS support."),
     http.HttpError.UnsupportedMethod(detail) => package_problem("PKG_HTTP", "unsupported archive request method"),
     http.HttpError.UnsupportedVersion(detail) => package_problem("PKG_HTTP", "unsupported archive HTTP version"),
     http.HttpError.UnsupportedTransferEncoding() => package_problem("PKG_HTTP", "unsupported archive transfer encoding"),
     http.HttpError.InvalidRequest() => package_problem("PKG_HTTP", "invalid archive request"),
     http.HttpError.InvalidResponse() => package_problem("PKG_HTTP", "invalid archive response"),
-    http.HttpError.TransportFailure(detail) => package_problem("PKG_HTTP", "archive transport failed before a complete response was received")
+    http.HttpError.TransportFailure(detail) => package_problem("PKG_HTTP", "connection to the archive server failed before the download finished")
   }
 }

@@ -12,95 +12,109 @@ pub record PackageProblem {
 }
 
 pub pure package_problem(code: Str, message: Str): PackageProblem {
-  mut phase = "dependency resolution"
-  mut reason = "The dependency graph could not be verified, so it cannot be used safely."
-  mut help = "Check the dependency declarations and the details above before trying again."
+  mut phase = "finding dependencies"
+  mut reason = "Panack could not finish checking the dependencies. It has stopped before using them."
+  mut help = "Check the named dependencies in panack.json and correct the problem reported above, then retry the command."
   if code == "PKG_LOCK_MISSING" {
-    phase = "lock verification"
-    reason = "Dependencies need a lockfile so the selected packages can be reproduced."
-    help = "Create the initial lock with the lock command below. This selects dependency content."
+    phase = "checking panack.lock.json"
+    reason = "panack.lock.json records the exact dependencies this project uses. Panack needs that record before it can build the project."
+    help = "Run the command below to select the dependencies and create panack.lock.json. Review and commit that file with the project."
   } else if code == "PKG_LOCK_STALE" {
-    phase = "lock verification"
-    reason = "The declarations no longer match the recorded dependency selection."
-    help = "Restore the intended manifest, or review the changes and explicitly update the lock. An update can select different dependency content."
+    phase = "checking panack.lock.json"
+    reason = "The dependencies described by panack.json no longer match panack.lock.json."
+    help = "If the edit was accidental, restore the previous panack.json. If it was intentional, review it before running panack deps update. Updating can select different package contents."
   } else if code == "PKG_LOCK_INVALID" {
-    phase = "lock verification"
-    reason = "The lockfile cannot provide a trustworthy dependency selection."
-    help = "Restore a valid lockfile from version control. Do not delete it merely to bypass this failure."
+    phase = "checking panack.lock.json"
+    reason = "Panack cannot read a valid dependency record from panack.lock.json, so it cannot determine which packages to use."
+    help = "Restore panack.lock.json from version control or obtain a valid copy from the project maintainer. Deleting it and creating a new lock may select different packages."
   } else if code == "PKG_CACHE_MISSING" {
-    phase = "cache verification"
-    reason = "The locked dependency content is not available in this project's cache."
-    help = "Run the restore command below. Remote sources require a connection; restore preserves the existing pins."
+    phase = "checking saved packages"
+    reason = "Panack cannot find all the saved files needed to use the dependencies in panack.lock.json."
+    help = "Run the command below to obtain the missing package without changing the versions or contents recorded in panack.lock.json. An internet connection is needed for remote packages."
   } else if code == "PKG_CACHE_INVALID" {
-    phase = "cache verification"
-    reason = "The cached content or its state does not match the verified dependency selection. It will not be used."
-    help = "Run the restore command below to reacquire and verify the locked content. Do not update the lock to conceal cache corruption."
+    phase = "checking saved packages"
+    reason = "Panack could not verify the saved local packages against panack.lock.json. It will not use them for this build."
+    help = "Run the command below to restore and check the packages recorded in panack.lock.json. Keep the lockfile unchanged so the repair uses the same package contents."
   } else if code == "PKG_INTEGRITY" {
-    phase = "content verification"
-    reason = "The supplied bytes do not match the content recorded in the lockfile. Accepting them would change the dependency you agreed to use."
-    help = "Check the source with its maintainer or restore the original bytes. Only use deps update after deliberately reviewing and accepting the changed content."
+    phase = "checking package contents"
+    reason = "This package has different contents from those recorded in panack.lock.json. Panack has refused to use it."
+    help = "Ask the package maintainer why the contents changed, or restore the original package contents. Use panack deps update only after you have reviewed and accepted the new contents."
   } else if code == "PKG_MANIFEST_MISSING" {
-    phase = "manifest discovery"
-    reason = "Every package needs a panack.json at its declared root. That manifest or one of its parent directories could not be found."
-    help = "Check the dependency path in the declaring manifest and make sure the package exists at the location shown above."
+    phase = "finding panack.json"
+    reason = "Panack looked for panack.json at the location shown above and could not find it. It needs that file to read the package definition."
+    help = "Check the dependency path in the declaring panack.json and make sure the package contains panack.json at the location shown above."
   } else if code == "PKG_MANIFEST" {
-    phase = "manifest validation"
-    reason = "This manifest cannot describe a valid package for the current toolchain."
-    help = "Correct the indicated field or location in panack.json, then retry. For a third-party package, report the manifest problem to its maintainer."
+    phase = "reading panack.json"
+    reason = "Panack cannot load this package until the problem above is corrected."
+    help = "Fix the reported problem in panack.json, then retry the command. If this is someone else's package, send them this error so they can fix it."
   } else if code == "PKG_CONTAINMENT" {
-    phase = "path verification"
-    reason = "The dependency would access files outside its permitted package or repository boundary."
-    help = "Correct the declared path or ask the package maintainer to fix it. Do not disable containment checks."
+    phase = "checking package paths"
+    reason = "The path would let this package read files outside the directory it is allowed to use. Panack has rejected it."
+    help = "Change the dependency path so it stays inside its containing archive or Git repository. If the path belongs to a downloaded package, ask its maintainer to correct it."
+  } else if code == "PKG_LAYOUT" {
+    phase = "checking source directories"
+    reason = "These packages would share source files because their source directories overlap. Panack requires a separate source directory for each package."
+    help = "Check the source fields in the named packages' panack.json files. Move the source files or correct those fields so neither source directory contains the other."
   } else if code == "PKG_LIMIT" {
-    phase = "resource limits"
-    reason = "The package exceeds a supported resource bound and cannot be processed safely."
-    help = "Reduce the package or dependency graph to the stated limit, or ask its maintainer for a smaller supported package."
+    phase = "checking size and count limits"
+    reason = "Panack stopped because the operation exceeded the limit shown above."
+    help = "Reduce the number or size of the affected files or dependencies to the stated limit. For a downloaded package, ask its maintainer for a smaller package."
   } else if code == "PKG_ARCHIVE" {
-    phase = "archive extraction"
-    reason = "The archive could not be read as a supported, safely extractable package."
-    help = "Check the archive details above. Ask its maintainer for a valid .tar.gz with panack.json at its root and supported entries."
+    phase = "unpacking the archive"
+    reason = "Panack stopped while unpacking the archive. The specific failure is shown above."
+    help = "Correct the reported problem before retrying the same command. If the archive needs to be replaced, obtain it from the package maintainer and review the changed contents before updating the lockfile."
   } else if code == "PKG_HTTP" {
-    phase = "HTTPS acquisition"
-    reason = "A complete, acceptable HTTPS response was not received. The dependency cannot be verified."
-    help = "Check connectivity, the source URL and TLS trust, then retry the original command. For an existing lock, deps restore preserves its pins. Do not disable certificate verification."
+    phase = "downloading the archive"
+    reason = "Panack could not download the archive. No downloaded package has been accepted."
+    help = "Check the failure above and retry the same command after correcting it. Keep panack.lock.json unchanged when restoring existing dependencies."
   } else if code == "PKG_HTTP_STATUS" {
-    phase = "HTTPS response validation"
-    reason = "The server did not return the downloadable archive required by this dependency."
-    help = "Check that the URL points to an available .tar.gz, rather than a web page or login. Package retrieval does not prompt for credentials; ask the source maintainer for an accessible HTTPS archive."
+    phase = "checking the download response"
+    reason = "The server returned the HTTP status shown above instead of the requested archive."
+    help = "Check the archive URL in panack.json. It must be directly downloadable without signing in. Ask the package maintainer to correct a missing or inaccessible download."
   } else if code == "PKG_REDIRECT" {
-    phase = "HTTPS redirect validation"
-    reason = "The redirect does not meet the package transport policy. Its destination has not been accepted."
-    help = "Use a direct HTTPS archive URL without credentials, query strings or fragments, or ask the server maintainer to correct the redirect."
+    phase = "following a download redirect"
+    reason = "The server tried to send Panack to another address, but Panack could not follow that redirect."
+    help = "Use a direct HTTPS download URL. It must not contain a username, password, query string (after ?) or fragment (after #). Ask the server maintainer to fix the redirect if the URL is already correct."
   } else if code == "PKG_GIT_RESOLVE" {
-    phase = "Git ref resolution"
-    reason = "The requested Git selector could not be resolved to one complete commit."
-    help = "Check the repository URL and branch or tag. If the name is ambiguous, use refs/heads/<name> or refs/tags/<name>."
+    phase = "looking up a Git branch or tag"
+    reason = "Panack could not find a single Git commit for the requested branch, tag or commit ID."
+    help = "Check the repository URL and the ref field in panack.json. To distinguish a branch from a tag with the same name, use refs/heads/<name> for a branch or refs/tags/<name> for a tag."
   } else if code == "PKG_GIT_FETCH" {
-    phase = "Git snapshot acquisition"
-    reason = "Git could not produce a verified snapshot of the requested commit. The cause may be connectivity, server access, an unavailable commit or unsupported repository content; this message does not establish which."
-    help = "Check connectivity and TLS trust, then ask the repository maintainer whether the recorded commit is available over the direct HTTPS URL. Retry the original command once corrected. For an existing lock, deps restore keeps the same pin."
+    phase = "preparing files from Git"
+    reason = "Panack could not prepare the package files from this Git commit. The failure reported above is the information available from this operation."
+    help = "If the message identifies a problem with the repository contents, ask its maintainer to fix it. If Git only reports a failed command, check connectivity and repository access; that status alone does not identify the cause. Retry the same command and keep the existing lockfile."
   } else if code == "PKG_GIT_REQUIRED" {
-    phase = "Git discovery"
-    reason = "Acquiring a Git dependency requires the external Git executable. Verified cached dependencies do not."
-    help = "Install Git 2.29 or newer and make it available on PATH, then retry."
+    phase = "finding Git"
+    reason = "Panack needs Git to download this dependency. It could not find a supported Git installation."
+    help = "Install Git 2.29 or newer and make sure git --version works in this terminal, then retry the command."
   } else if code == "PKG_PUBLICATION" {
-    phase = "cache publication"
-    reason = "The requested lock or cache entry could not be installed. Publication is atomic per entry, not across the whole dependency graph."
-    help = "Check filesystem permissions and available space. Some entries or the lock may already have changed; run restore after correcting the problem."
+    phase = "saving packages"
+    reason = "Panack could not save the file or package named above. Earlier packages or the lockfile may already have been saved."
+    help = "Check the reported filesystem error and available disk space. After fixing it, run panack deps restore to finish preparing the packages recorded in panack.lock.json."
   } else if code == "PKG_FILESYSTEM" {
-    phase = "filesystem access"
-    reason = "A required path could not be accessed with the expected type and permissions."
-    help = "Check the path, permissions and the details above. Do not replace a protected path with a symlink to bypass verification."
+    phase = "accessing files"
+    reason = "Panack could not access the file or directory needed for this operation."
+    help = "Check that the path exists and that your account can access it. Follow the specific filesystem error above; if it is a permission error, ask the directory owner to grant the required access."
   } else if code == "PKG_SELECTIVE" {
-    phase = "selective update validation"
-    reason = "This update would change a dependency outside the selected aliases, or the selection is invalid."
-    help = "Check the root aliases and shared dependencies. Select all affected aliases together, or review an explicit update of the whole graph."
+    phase = "checking selected dependencies"
+    reason = "The requested update has been stopped. The lockfile has not been changed."
+    help = "Check the dependency named above before retrying."
+  } else if code == "PKG_TOOL" {
+    phase = "checking the Panack installation"
+    reason = "Panack could not complete an internal operation needed to verify this package."
+    help = "Check that Panack and its required native libraries are installed correctly. Retry the command; if the problem persists, report this error with your Panack version and operating system."
   } else if code == "PKG_USAGE" {
-    phase = "command arguments"
-    reason = "The supplied arguments do not match a supported package command."
-    help = "Use panack deps lock, panack deps update [ALIAS...] or panack deps restore [--offline], with --project panack.json."
+    phase = "reading the command"
+    reason = "Panack could not understand this package command."
+    help = "Use panack deps lock to create a lock, panack deps update to accept dependency changes, or panack deps restore to restore recorded packages. Add --project /path/to/panack.json to select the project. Only restore accepts --offline."
   }
   PackageProblem(code, message, phase, reason, help, [])
+}
+
+// Use the known cause at the detection site, rather than listing all possible
+// failures in the same error family.
+pub pure explain_problem(problem: PackageProblem, reason: Str, help: Str): PackageProblem {
+  PackageProblem(problem.code, problem.message, problem.phase, reason, help, problem.contexts)
 }
 
 pub pure problem_context(problem: PackageProblem, context: Str): PackageProblem {
@@ -160,4 +174,29 @@ pub pure render_problem(problem: PackageProblem, manifest: Str, operation: Str):
 
 pub pure package_result[T](result: Result[T, Str], code: Str): Result[T, PackageProblem] {
   match result { Error(message) => Error(package_problem(code, message)), Ok(value) => Ok(value) }
+}
+
+pub pure host_detail(code: Str): Str {
+  if code == "not_found" { "the path does not exist (not_found)" }
+  else if code == "permission_denied" { "your account does not have permission (permission_denied)" }
+  else if code == "already_exists" { "the destination already exists (already_exists)" }
+  else if code == "not_directory" { "a path component is not a directory (not_directory)" }
+  else if code == "is_directory" { "the path is a directory, but a file is required (is_directory)" }
+  else if code == "not_empty" { "the directory is not empty (not_empty)" }
+  else if code == "symlink_loop" { "the path contains a symbolic-link loop (symlink_loop)" }
+  else if code == "io_error" { "the operating system could not complete the file operation (io_error)" }
+  else if code == "launch_failed" { "the process could not be started; check that the executable exists and can be run (launch_failed)" }
+  else if code == "invalid_path" { "the path is not valid for this operation (invalid_path)" }
+  else if code == "invalid_parent" { "the parent directory could not be opened safely (invalid_parent)" }
+  else if code == "parent_changed" { "the parent directory was replaced during this command (parent_changed)" }
+  else if code == "stage_changed" { "the temporary package directory was replaced during this command (stage_changed)" }
+  else if code == "destination_conflict" { "the destination is not a replaceable package directory (destination_conflict)" }
+  else if code == "publication_failed" { "the filesystem could not move the prepared package into its destination (publication_failed)" }
+  else if code == "cleanup_failed" { "the filesystem could not remove temporary files (cleanup_failed)" }
+  else if code == "create_failed" { "the filesystem could not create the temporary directory (create_failed)" }
+  else if code == "open_failed" { "the filesystem could not open the temporary directory (open_failed)" }
+  else if code == "resource_limit" { "the operation reached a system resource limit (resource_limit)" }
+  else if code == "unsupported" || code == "unsupported_host" { "this operation is not supported by this Panack installation (" + code + ")" }
+  else if code == "filesystem_error" { "the filesystem operation failed; no more specific cause was reported (filesystem_error)" }
+  else { "the system reported " + code }
 }

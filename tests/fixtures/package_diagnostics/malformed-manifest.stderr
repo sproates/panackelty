@@ -2,9 +2,9 @@ panack: error[PKG_MANIFEST]: invalid project manifest at byte 1: expected JSON s
 
   Project: <workspace>/Ian's app/panack.json
   Operation: deps update
-  Phase: manifest validation
+  Phase: reading panack.json
   Context: manifest <workspace>/Ian's app/panack.json
 
-This manifest cannot describe a valid package for the current toolchain.
+Panack cannot load this package until the problem above is corrected.
 
-Correct the indicated field or location in panack.json, then retry. For a third-party package, report the manifest problem to its maintainer.
+Fix the reported problem in panack.json, then retry the command. If this is someone else's package, send them this error so they can fix it.

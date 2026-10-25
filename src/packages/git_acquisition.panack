@@ -1,5 +1,5 @@
 pub import project/src/packages/diagnostic::{PackageProblem}
-import project/src/packages/diagnostic::{package_problem, problem_context, package_result}
+import project/src/packages/diagnostic::{host_detail, package_problem, problem_context, package_result}
 pub import project/src/packages/acquisition::{AcquisitionOptions}
 import project/src/packages/acquisition::{ensure_directory, locked_edge, locked_package, verify_cache_state}
 pub import project/src/packages/git_snapshot::{GitSource}
@@ -83,7 +83,7 @@ acquire_snapshot(options: AcquisitionOptions, source: GitSource, selector: Str,
   mut known: Option[AcquiredGit] = None()
   for candidate in previous { if candidate.source == source { known = Some(candidate) } }
   match known {
-    Some(candidate) => if expected != "" && candidate.tree != expected { Error(package_problem("PKG_GRAPH", "conflicting Git snapshot digests")) }
+    Some(candidate) => if expected != "" && candidate.tree != expected { Error(package_problem("PKG_GRAPH", "the lockfile records different checksums for the same Git commit")) }
       else { Ok(AcquiredGit(source, selector, options.refresh, candidate.root, candidate.key, candidate.tree, candidate.links, candidate.stage)) },
     None() => match package_result(git_source_key(source), "PKG_FILESYSTEM") {
       Error(problem) => Error(problem),
@@ -118,7 +118,7 @@ acquire_snapshot(options: AcquisitionOptions, source: GitSource, selector: Str,
                   Ok(executable) => match stage_git_commit(checked_path(parent), executable, source, environment.get("CURL_CA_BUNDLE")) {
                     Error(problem) => Error(problem_context(package_problem("PKG_GIT_FETCH", problem), "repository " + source.url + " at commit " + source.commit)),
                     Ok(snapshot) => {
-                      result = if expected != "" && snapshot.tree_sha256 != expected { Error(package_problem("PKG_INTEGRITY", "Git snapshot digest mismatch")) }
+                      result = if expected != "" && snapshot.tree_sha256 != expected { Error(package_problem("PKG_INTEGRITY", "downloaded Git files do not match the checksum in panack.lock.json")) }
                         else { match package_result(verify_git_cache(snapshot.root, snapshot.tree_sha256), "PKG_INTEGRITY") {
                           Error(problem) => Error(problem),
                           Ok(links) => Ok(AcquiredGit(source, selector, options.refresh, snapshot.root, key, snapshot.tree_sha256, links, Some(snapshot.handle)))
@@ -176,7 +176,7 @@ pub publish_git(sources: [AcquiredGit]): Result[Unit, PackageProblem] {
       match source.stage {
         None() => {},
         Some(handle) => match staging.publish(handle, checked_path(source.key), true) {
-          Error(problem) => { failure = Some(package_problem("PKG_PUBLICATION", "cannot publish Git snapshot: " + problem.code)) },
+          Error(problem) => { failure = Some(package_problem("PKG_PUBLICATION", "cannot save the downloaded Git package: " + host_detail(problem.code))) },
           Ok(completed_7) => { published = published.add(source.key) }
         }
       }

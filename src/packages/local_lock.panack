@@ -1,5 +1,5 @@
 pub import project/src/packages/diagnostic::{PackageProblem}
-import project/src/packages/diagnostic::{package_problem, problem_context, problem_dependency, package_result}
+import project/src/packages/diagnostic::{host_detail, package_problem, problem_dependency, package_result}
 import project/src/packages/git_acquisition::{AcquiredGit, git_containing, git_relative, git_package_root}
 import project/src/packages/manifest::{parse_package_manifest, PackageManifest, PackageManifestDependency}
 import stdlib/compiler_paths as paths
@@ -35,7 +35,7 @@ read_locked_manifest(package: ResolvedPackage, toolchain: Str): Result[LockedMan
       Ok(relative) => match package_filesystem.read_beneath(root, relative, 65536) {
         Error(problem) => Error(package_problem("PKG_MANIFEST", "cannot read dependency manifest: " + package.package_root)),
         Ok(read) => if read.identity != package.identity {
-          Error(package_problem("PKG_LOCK_INVALID", "package root changed while reading its lock identity"))
+          Error(package_problem("PKG_LOCK_INVALID", "package directory was replaced while Panack was reading panack.json; stop the process changing it and retry"))
         } else {
           match parse_package_manifest(read.contents, toolchain) {
             Error(problem) => Error(package_problem("PKG_MANIFEST", problem.message)),
@@ -46,9 +46,9 @@ read_locked_manifest(package: ResolvedPackage, toolchain: Str): Result[LockedMan
                 None() => package.entry != None(),
                 Some(entry) => package.entry != Some(paths.resolve(paths.join(package.source_root, entry)))
               } {
-              Error(package_problem("PKG_GRAPH", "package identity changed while resolving dependencies"))
+              Error(package_problem("PKG_GRAPH", "package name, version or source configuration changed during this command; stop the process editing panack.json and retry"))
             } else {
-              match package_result(sha256_bytes(read.contents), "PKG_FILESYSTEM") {
+              match package_result(sha256_bytes(read.contents), "PKG_TOOL") {
                 Error(problem) => Error(problem),
                 Ok(hash) => Ok(LockedManifest(manifest, hash))
               }
@@ -148,11 +148,11 @@ pub current_local_lock(project: ManifestProject): Result[PackageLock, PackagePro
                 }
               }
             }
-            if !agrees { failure = Some(package_problem("PKG_LOCK_STALE", "dependency source changed while resolving graph")) }
+            if !agrees { failure = Some(package_problem("PKG_LOCK_STALE", "dependency source changed during this command; stop the process editing panack.json and retry")) }
           }
           edges: [PackageLockEdge] = local_edges(package, read.manifest.dependencies, project.archives, project.gits, resolved.packages)
           if edges.len() != package.dependencies.len() {
-            failure = Some(package_problem("PKG_LOCK_INVALID", "package manifest changed while constructing lock graph"))
+            failure = Some(package_problem("PKG_LOCK_INVALID", "panack.json changed while Panack was preparing the lockfile; stop the process editing it and retry"))
           } else if package.id == resolved.root {
             root_hash = read.digest
             root_edges = edges
@@ -180,12 +180,12 @@ pub read_local_lock(root: Str): Result[Option[PackageLock], PackageProblem] {
   match path.from_text(root + "/panack.lock.json") {
     Error(problem) => Error(package_problem("PKG_LOCK_INVALID", "invalid lock path")),
     Ok(lock_path) => match filesystem.metadata(lock_path) {
-      Error(problem) => if problem.code == "not_found" { Ok(None()) } else { Error(package_problem("PKG_FILESYSTEM", "cannot inspect lockfile: " + problem.code)) },
+      Error(problem) => if problem.code == "not_found" { Ok(None()) } else { Error(package_problem("PKG_FILESYSTEM", "cannot inspect lockfile: " + host_detail(problem.code))) },
       Ok(metadata) => if metadata.kind != RegularFile() {
         Error(package_problem("PKG_LOCK_INVALID", "lockfile must be a regular file, not a symlink"))
       } else {
         match filesystem.read(lock_path, 1048576) {
-          Error(problem) => Error(package_problem("PKG_FILESYSTEM", "cannot read lockfile: " + problem.code)),
+          Error(problem) => Error(package_problem("PKG_FILESYSTEM", "cannot read lockfile: " + host_detail(problem.code))),
           Ok(data) => match parse_package_lock(data) {
             Error(problem) => Error(package_problem("PKG_LOCK_INVALID", "invalid lockfile: " + problem.message)),
             Ok(lock) => Ok(Some(lock))
@@ -200,7 +200,7 @@ pub write_local_lock(root: Str, lock: PackageLock): Result[Unit, PackageProblem]
   match path.from_text(root + "/panack.lock.json") {
     Error(problem) => Error(package_problem("PKG_LOCK_INVALID", "invalid lock path")),
     Ok(destination) => match bounded_filesystem.atomic_write(destination, serialize_package_lock(lock).encode_utf8()) {
-      Error(problem) => Error(package_problem("PKG_PUBLICATION", "cannot atomically publish lockfile: " + problem.code)),
+      Error(problem) => Error(package_problem("PKG_PUBLICATION", "cannot save panack.lock.json: " + host_detail(problem.code))),
       Ok(unit) => Ok(())
     }
   }
@@ -234,12 +234,12 @@ pub verify_local_lock(project: ManifestProject): Result[Unit, PackageProblem] {
 // Compare verified data, not diagnostic text, to separate a changed declaration
 // from changed content. The caller already established that the locks differ.
 pub pure lock_mismatch(previous: PackageLock, current: PackageLock): PackageProblem {
-  mut problem = package_problem("PKG_LOCK_STALE", "lockfile is stale: dependency declarations or source identities changed")
+  mut problem = package_problem("PKG_LOCK_STALE", "the current dependency definitions do not match panack.lock.json")
   for package in current.packages {
     for old in previous.packages {
       if old.name == package.name && old.version == package.version {
         if old.tree_sha256 != package.tree_sha256 {
-          problem = package_problem("PKG_INTEGRITY", "archive or snapshot content changed for " + package.name + "@" + package.version)
+          problem = package_problem("PKG_INTEGRITY", "recorded package contents have changed for " + package.name + "@" + package.version)
           for edge in current.dependencies {
             if edge.package == package.name + "@" + package.version {
               problem = problem_dependency(problem, current.root_name + " -> " + edge.alias)
@@ -251,19 +251,19 @@ pub pure lock_mismatch(previous: PackageLock, current: PackageLock): PackageProb
   }
   match changed_archive_edge(previous.dependencies, current.dependencies) {
     None() => {},
-    Some(alias) => { problem = problem_dependency(package_problem("PKG_INTEGRITY", "archive digest mismatch"), current.root_name + " -> " + alias) }
+    Some(alias) => { problem = problem_dependency(package_problem("PKG_INTEGRITY", "archive contents do not match the SHA-256 checksum in panack.lock.json"), current.root_name + " -> " + alias) }
   }
   for package in current.packages { for old in previous.packages {
     if package.name == old.name && package.version == old.version {
       match changed_archive_edge(old.dependencies, package.dependencies) {
         None() => {},
-        Some(alias) => { problem = problem_dependency(package_problem("PKG_INTEGRITY", "archive digest mismatch"), package.name + " -> " + alias) }
+        Some(alias) => { problem = problem_dependency(package_problem("PKG_INTEGRITY", "archive contents do not match the SHA-256 checksum in panack.lock.json"), package.name + " -> " + alias) }
       }
     }
   } }
   if previous.root_manifest_sha256 != current.root_manifest_sha256 {
 
-    problem = package_problem("PKG_LOCK_STALE", "lockfile is stale: the project manifest changed")
+    problem = package_problem("PKG_LOCK_STALE", "the project panack.json has changed since panack.lock.json was created")
   }
   problem
 }

@@ -59,7 +59,7 @@ recover() {
     expect 42 run --project "$manifest"
 }
 reject missing-lock PKG_LOCK_MISSING check --project "$manifest"
-grep -F 'dependency' "$work/err" >/dev/null
+grep -F 'panack.lock.json records the exact dependencies' "$work/err" >/dev/null
 recover
 cp "$lock" "$work/good.lock"
 cp "$app/.panack_modules/.state/lock.json" "$work/good.state"
@@ -70,13 +70,13 @@ recover
 cmp "$lock" "$work/good.lock"
 printf corrupt > "$app/.panack_modules/demo.library/src/api.panack"
 reject corrupt-cache PKG_CACHE_INVALID run --project "$manifest"
-grep -F 'It will not be used' "$work/err" >/dev/null
+grep -F 'It will not use them for this build.' "$work/err" >/dev/null
 recover
 cmp "$lock" "$work/good.lock"
 printf 'pub pure answer(): Nat { 99 }\n' > "$work/library/src/api.panack"
 pack
 reject changed-bytes PKG_INTEGRITY deps restore --project "$manifest"
-grep -F 'Only use deps update after deliberately reviewing' "$work/err" >/dev/null
+grep -F 'Use panack deps update only after you have reviewed and accepted the new contents.' "$work/err" >/dev/null
 ! grep -E '^  panack deps update' "$work/err"
 cmp "$lock" "$work/good.lock"
 cmp "$app/.panack_modules/.state/lock.json" "$work/good.state"
@@ -96,6 +96,13 @@ const fs=require('fs'),file=process.argv[2],m=JSON.parse(fs.readFileSync(file));
 JS
 reject selective-update PKG_SELECTIVE deps update --project "$manifest" absent
 grep -F 'unknown dependency alias: absent' "$work/err" >/dev/null
+cmp "$lock" "$work/good.lock"
+node - "$manifest" <<'JS'
+const fs=require('fs'),file=process.argv[2],m=JSON.parse(fs.readFileSync(file));m.dependencies={other:{path:'../library'}};fs.writeFileSync(file,JSON.stringify(m));
+JS
+reject unselected-change PKG_SELECTIVE deps update --project "$manifest" other
+grep -F 'but you did not select it' "$work/err" >/dev/null
+cmp "$lock" "$work/good.lock"
 cp "$manifest" "$work/valid.manifest"
 printf '{broken' > "$manifest"
 reject malformed-manifest PKG_MANIFEST deps update --project "$manifest"

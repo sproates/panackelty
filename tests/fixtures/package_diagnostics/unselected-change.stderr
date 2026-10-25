@@ -1,0 +1,9 @@
+panack: error[PKG_SELECTIVE]: unselected dependency changed: lib
+
+  Project: <workspace>/Ian's app/panack.json
+  Operation: deps update
+  Phase: checking selected dependencies
+
+This update would also change the dependency named above, but you did not select it. The lockfile has not been changed.
+
+Check its declaration in panack.json. Undo the unintended change, or include this dependency name in the update command if you intend to update it too.

@@ -1,7 +1,7 @@
 import project/src/packages/tree_digest::{tree_length}
 import project/src/packages/git_process::{GitContext, git_command}
 import project/src/packages/git_inventory::{GitEntry, GitInventory, git_object_id, parse_git_inventory}
-import project/src/packages/git_links::{git_link_beneath}
+import project/src/packages/git_links::{git_resolve_link}
 import project/src/packages/manifest::{manifest_https_archive_url}
 import project/src/packages/sha256::{Sha256, sha256_new, sha256_feed, sha256_finish, sha256_close}
 import project/src/project_model/utf8::{valid_utf8}
@@ -68,8 +68,10 @@ read_git_links(context: GitContext, inventory: GitInventory): Result[Map[Str, St
     }
   }
   for entry in inventory.entries {
-    if failure == None() && entry.kind == "L" && !git_link_beneath(entry.path, links.get(entry.path), links) {
-      failure = Some("Git symlink escapes the snapshot or contains a cycle")
+    if failure == None() && entry.kind == "L" {
+      match git_resolve_link(entry.path, links.get(entry.path), links) {
+        Error(problem) => { failure = Some(problem) }, Ok(target) => {}
+      }
     }
   }
   match failure { Some(problem) => Error(problem), None() => Ok(links) }
@@ -123,15 +125,15 @@ stage_git_blob(context: GitContext, stage: Nat, entry: GitEntry, state: Sha256):
           mut finished: Bool = false
           while !finished && failure == None() {
             match bounded.read_chunk(file, offset, 65536) {
-              Error(problem) => { failure = Some("cannot read Git blob") },
+              Error(problem) => { failure = Some("cannot read a file downloaded by Git") },
               Ok(chunk) => {
-                if offset + chunk.length() > entry.size { failure = Some("Git blob exceeds declared size") }
+                if offset + chunk.length() > entry.size { failure = Some("Git file contains more data than its reported size") }
                 else {
                   if offset == 0 && git_lfs_pointer(chunk) {
-                    failure = Some("Git LFS content is unsupported")
+                    failure = Some("package contains Git LFS pointer files; Panack cannot download their contents")
                   } else if chunk.length() > 0 || offset == 0 {
                     match staging.write(stage, git_path(entry.path), chunk, offset) {
-                      Error(problem) => { failure = Some("cannot stage Git blob") },
+                      Error(problem) => { failure = Some("cannot write a downloaded Git file into the temporary package directory") },
                       Ok(done) => { hash = sha256_feed(hash, chunk) }
                     }
                   }
@@ -144,8 +146,8 @@ stage_git_blob(context: GitContext, stage: Nat, entry: GitEntry, state: Sha256):
           removed = filesystem.remove_file(file)
           match failure {
             Some(problem) => Error(problem),
-            None() => if offset != entry.size { Error("Git blob is truncated") }
-              else { match removed { Error(problem) => Error("cannot clean Git blob"), Ok(done) => Ok(hash) } }
+            None() => if offset != entry.size { Error("Git file ended before its reported size") }
+              else { match removed { Error(problem) => Error("cannot remove a temporary file created by Git"), Ok(done) => Ok(hash) } }
           }
         }
       }
@@ -168,7 +170,7 @@ materialize_git(context: GitContext, stage: Nat, inventory: GitInventory, links:
       hash = sha256_feed(hash, tree_length(entry.size))
       if entry.kind == "D" {
         match staging.directory(stage, git_path(entry.path)) {
-          Error(problem) => { failure = Some("cannot stage Git directory") },
+          Error(problem) => { failure = Some("cannot create a directory for the downloaded Git package") },
           Ok(done) => {}
         }
       } else if entry.kind == "F" {
@@ -183,7 +185,7 @@ materialize_git(context: GitContext, stage: Nat, inventory: GitInventory, links:
   for entry in inventory.entries {
     if failure == None() && entry.kind == "L" {
       match staging.symlink(stage, git_path(entry.path), git_path(links.get(entry.path))) {
-        Error(problem) => { failure = Some("cannot stage Git symlink") },
+        Error(problem) => { failure = Some("cannot create a symbolic link in the downloaded Git package") },
         Ok(done) => {}
       }
     }
@@ -200,14 +202,14 @@ materialize_git(context: GitContext, stage: Nat, inventory: GitInventory, links:
 snapshot_from_inventory(parent: Path, context: GitContext, source: GitSource,
     source_key: Str, inventory: GitInventory, links: Map[Str, Str]): Result[StagedGit, Str] {
   match staging.begin(parent) {
-    Error(problem) => Error("cannot create Git snapshot stage"),
+    Error(problem) => Error("cannot create a temporary directory for the Git package"),
     Ok(handle) => {
       result = match materialize_git(context, handle, inventory, links) {
         Error(problem) => Error(problem),
         Ok(digest) => match staging.path(handle) {
-          Error(problem) => Error("cannot locate Git snapshot stage"),
+          Error(problem) => Error("cannot locate the temporary directory for the Git package"),
           Ok(root) => match root.to_text() {
-            Error(problem) => Error("Git snapshot path is not UTF-8"),
+            Error(problem) => Error("temporary Git package directory name is not valid UTF-8 text"),
             Ok(text) => Ok(StagedGit(handle, text, source, source_key, digest))
           }
         }
@@ -242,17 +244,17 @@ fetch_git_commit(parent: Path, context: GitContext, source: GitSource,
   }
   if failure == None() {
     match git_command(context, ["rev-parse", "--verify", "--end-of-options", "FETCH_HEAD^{commit}"], empty) {
-      Error(problem) => { failure = Some("Git commit is unavailable") },
+      Error(problem) => { failure = Some("cannot read the requested Git commit: " + problem) },
       Ok(output) => match git_line(output) {
         Error(problem) => { failure = Some(problem) },
-        Ok(actual) => if actual != source.commit { failure = Some("Git fetched a different commit") }
+        Ok(actual) => if actual != source.commit { failure = Some("Git returned a different commit from the one recorded in panack.lock.json") }
       }
     }
   }
   match failure {
     Some(problem) => Error(problem),
     None() => match git_command(context, ["ls-tree", "-r", "-t", "-l", "-z", source.commit], empty) {
-      Error(problem) => Error("cannot inspect Git commit tree"),
+      Error(problem) => Error("cannot read the list of files in the requested Git commit: " + problem),
       Ok(output) => match parse_git_inventory(output, source.commit.len()) {
         Error(problem) => Error(problem),
         Ok(inventory) => match read_git_links(context, inventory) {
@@ -280,7 +282,7 @@ pub stage_git_commit(parent: Path, executable: Path, source: GitSource,
           result = match staging.path(handle) {
             Error(problem) => Error("cannot locate Git temporary repository"),
             Ok(repository) => match staging.directory(handle, git_path("home")) {
-              Error(problem) => Error("cannot create Git private home"),
+              Error(problem) => Error("cannot create the temporary directory used to isolate Git configuration"),
               Ok(done) => {
                 home = repository.to_text().value_or("") + "/home"
                 context = GitContext(executable, repository, home, certificate_file)

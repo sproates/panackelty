@@ -1472,11 +1472,16 @@ restores, unavailable locked commits and changed archive bytes. Failure checks
 compare the complete cache tree plus exact lock/state bytes. See the
 [remote-source acceptance matrix](../docs/design/PACKAGE_REMOTE_ACCEPTANCE.md).
 
-P04a adds eleven diagnostic unit assertions and public-command transcript/recovery
-acceptance in `tests/package_diagnostics.sh`. Eight local and three remote exact
+P04a adds 21 diagnostic unit assertions and public-command transcript/recovery
+acceptance in `tests/package_diagnostics.sh`. Nine local and three remote exact
 transcripts are checked against the examples document. Tests execute suggested
 commands with apostrophes/spaces in the project path, verify complete program
 output and preserve pins after cache repair or rejected content. Existing remote
 fixtures assert safe TLS/status/Git explanations and secret rejection on Linux
 and macOS. The new diagnostic module is explicitly unmeasured by the bounded
 source-coverage corpus; this makes no source coverage percentage claim.
+
+The P04a wording review tests distinct causes for unknown dependency names,
+unselected changes, changed project versions, DNS/TLS/timeouts and archive path
+and numeric bounds. Existing archive and Git rejection tests retain their
+assertions and now check cause-specific explanations for unsafe links.

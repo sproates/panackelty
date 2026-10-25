@@ -243,3 +243,12 @@ Governance acceptance was recorded in PR#264. The build baseline adds repeated
 correctness-checked evidence and independent review of scope, budget applicability
 and the outstanding remediation disposition. Website impact: no public feature,
 artifact, page or release pin changes; this is contributor tooling and policy.
+
+The P04a wording correction retains acquisition algorithms and all existing
+resource bounds. Git collision checks retain the conflicting path name for the
+error message, within the existing entry/path limits. No new network or file
+operations are added and no performance improvement is claimed. Validation
+includes the expanded cause-specific tests. Canonical make check passed in
+784 seconds on macOS arm64, compared with the earlier 709-second P04a run.
+The workload and machine conditions differ; these are observations, not a
+matched performance comparison.

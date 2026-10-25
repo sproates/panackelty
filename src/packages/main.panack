@@ -42,7 +42,7 @@ package_tool_prepare(manifest: Str): Nat {
             Error(problem) => package_tool_error(problem),
             Ok(completed_2) => {
               toolchain: Str = environment.get("PANACKELTY_VERSION").value_or("")
-              if toolchain == "" { package_tool_error(package_problem("PKG_MANIFEST", "running toolchain version is unavailable")) }
+              if toolchain == "" { package_tool_error(package_problem("PKG_TOOL", "Panack could not determine its own version")) }
               else {
                 resolved: ResolvedProject = package_project_from_manifest(project, project.dependencies, toolchain)
                 host.stdout(serialize_resolved_project(resolved))

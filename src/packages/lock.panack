@@ -157,7 +157,7 @@ pure lock_parse_edges(value: ManifestJsonValue): Result[[PackageLockEdge], Packa
                                   if kind == "path" {
                                     match lock_nonempty_string(source, "path") {
                                       Error(error) => if failure == None() { failure = Some(error) },
-                                      Ok(path) => if (normalize_dependency_path(path) != path || lock_contains(path, "\\") || lock_contains(path, "".encode_utf8().push(0).decode_utf8())) && failure == None() { failure = Some(lock_error("lock path source is not normalized", member.offset)) }
+                                      Ok(path) => if (normalize_dependency_path(path) != path || lock_contains(path, "\\") || lock_contains(path, "".encode_utf8().push(0).decode_utf8())) && failure == None() { failure = Some(lock_error("lockfile dependency path contains unsupported separators or unresolved . or .. components", member.offset)) }
                                     }
                                   } else if kind == "archive" {
                                     mut archive_sha: Str = ""
@@ -241,11 +241,11 @@ pure lock_parse_edges(value: ManifestJsonValue): Result[[PackageLockEdge], Packa
               }
             }
           },
-          ManifestJsonNull() => if failure == None() { failure = Some(lock_error("lock dependency edge must be an object", member.offset)) },
-          ManifestJsonBool(flag) => if failure == None() { failure = Some(lock_error("lock dependency edge must be an object", member.offset)) },
-          ManifestJsonNumber(number) => if failure == None() { failure = Some(lock_error("lock dependency edge must be an object", member.offset)) },
-          ManifestJsonString(text) => if failure == None() { failure = Some(lock_error("lock dependency edge must be an object", member.offset)) },
-          ManifestJsonArray(values) => if failure == None() { failure = Some(lock_error("lock dependency edge must be an object", member.offset)) }
+          ManifestJsonNull() => if failure == None() { failure = Some(lock_error("each dependency in the lockfile must be a JSON object", member.offset)) },
+          ManifestJsonBool(flag) => if failure == None() { failure = Some(lock_error("each dependency in the lockfile must be a JSON object", member.offset)) },
+          ManifestJsonNumber(number) => if failure == None() { failure = Some(lock_error("each dependency in the lockfile must be a JSON object", member.offset)) },
+          ManifestJsonString(text) => if failure == None() { failure = Some(lock_error("each dependency in the lockfile must be a JSON object", member.offset)) },
+          ManifestJsonArray(values) => if failure == None() { failure = Some(lock_error("each dependency in the lockfile must be a JSON object", member.offset)) }
         }
       }
       match failure { Some(error) => Error(error), None() => Ok(edges) }
@@ -431,18 +431,18 @@ pub pure parse_package_lock(data: Bytes): Result[PackageLock, PackageManifestErr
           ManifestJsonString(text) => if failure == None() { failure = Some(lock_error("lock packages must be an array", 0)) },
           ManifestJsonObject(members) => if failure == None() { failure = Some(lock_error("lock packages must be an array", 0)) }
         }
-        if (!manifest_package_name(name) || !manifest_semver(version) || toolchain == "") && failure == None() {
-          failure = Some(lock_error("invalid lock root identity or toolchain", 0))
-        }
+        if !manifest_package_name(name) && failure == None() { failure = Some(lock_error("lockfile project name is not a valid package name", 0)) }
+        if !manifest_semver(version) && failure == None() { failure = Some(lock_error("lockfile project version is not a valid major.minor.patch version", 0)) }
+        if toolchain == "" && failure == None() { failure = Some(lock_error("lockfile has no Panack toolchain version", 0)) }
         if packages.len() > 63 && failure == None() { failure = Some(lock_error("lock graph exceeds 64 packages including the root", 0)) }
         mut identities: [Str] = []
         mut package_names: [Str] = []
         mut edge_count: Nat = root_deps.len()
         for package in packages {
           edge_count = edge_count + package.dependencies.len()
-          if (!manifest_package_name(package.name) || !manifest_semver(package.version) || package.name == name) && failure == None() {
-            failure = Some(lock_error("invalid or conflicting dependency identity", 0))
-          }
+          if !manifest_package_name(package.name) && failure == None() { failure = Some(lock_error("lockfile contains an invalid dependency package name", 0)) }
+          if !manifest_semver(package.version) && failure == None() { failure = Some(lock_error("lockfile dependency has an invalid version: " + package.name, 0)) }
+          if package.name == name && failure == None() { failure = Some(lock_error("lockfile dependency has the same package name as the project: " + name, 0)) }
           identity: Str = lock_package_id(package.name, package.version)
           for previous in identities { if previous == identity && failure == None() { failure = Some(lock_error("duplicate lock package identity ${identity}", 0)) } }
           for previous in package_names { if previous == package.name && failure == None() { failure = Some(lock_error("lock contains multiple versions of package ${package.name}", 0)) } }
@@ -470,7 +470,7 @@ pub pure parse_package_lock(data: Bytes): Result[PackageLock, PackageManifestErr
                     depth = depth.put(edge.package, next_depth)
                   }
                   if next_depth > 32 && failure == None() {
-                    failure = Some(lock_error("lock dependency graph contains a cycle or exceeds depth 32", 0))
+                    failure = Some(lock_error("following lockfile dependencies exceeded 32 levels; check for excessive nesting or a dependency that leads back to itself", 0))
                   }
                 }
               }

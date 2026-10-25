@@ -23,8 +23,8 @@ pure tar_text(data: Bytes, start: Nat, end: Nat): Result[Str, Str] {
   mut padding_valid: Bool = true
   for index in stop..end { padding_valid = padding_valid && data.at(index) == 0 }
   value: Bytes = tar_slice(data, start, stop)
-  if !padding_valid { Error("nonzero bytes after tar text terminator") }
-  else if !valid_utf8(value) { Error("archive path is not UTF-8") }
+  if !padding_valid { Error("archive header contains unexpected data after the end of a text field") }
+  else if !valid_utf8(value) { Error("archive contains a file name that is not valid UTF-8 text") }
   else { Ok(value.decode_utf8()) }
 }
 
@@ -33,6 +33,7 @@ pub pure tar_number(data: Bytes, start: Nat, end: Nat, base: Nat): Result[Nat, S
   mut ended: Bool = false
   mut began: Bool = false
   mut failure: Bool = false
+  mut detail = "archive contains a number with invalid digits or spacing"
   for index in start..end {
     byte: Nat = data.at(index)
     if byte == 0 || byte == 32 {
@@ -40,25 +41,28 @@ pub pure tar_number(data: Bytes, start: Nat, end: Nat, base: Nat): Result[Nat, S
     } else if byte >= 48 && byte < 48 + base && !ended {
       value = value * base + (byte - 48)
       began = true
-      failure = failure || value > 268435456
+      if value > 268435456 { failure = true; detail = "archive numeric value exceeds the supported maximum of 268435456" }
     } else { failure = true }
   }
-  if failure { Error("invalid or overflowing tar numeric field") } else { Ok(value) }
+  if failure { Error(detail) } else { Ok(value) }
 }
 
 pub pure tar_normalize_path(value: Str): Result[Str, Str] {
   encoded: Bytes = value.encode_utf8()
   mut valid: Bool = value != "" && !value.starts_with_at("/", 0)
+  mut detail = if value == "" { "archive contains an empty path" } else { "archive contains an absolute path; file paths must be relative to the package directory" }
   for index in 0..encoded.length() {
     byte: Nat = encoded.at(index)
-    valid = valid && byte != 0 && byte != 92 && byte != 58
+    if byte == 0 { valid = false; detail = "archive path contains a NUL character" }
+    else if byte == 92 { valid = false; detail = "archive path uses a backslash; use forward slashes between directory names" }
+    else if byte == 58 { valid = false; detail = "archive path contains a colon, which is not supported in package paths" }
   }
   mut result: Str = ""
   mut start: Nat = 0
   for index in 0..value.len() + 1 {
     if index == value.len() || value[index] == "/" {
       segment: Str = value.slice(start, index)
-      if segment == ".." { valid = false }
+      if segment == ".." { valid = false; detail = "archive path contains a parent-directory component (..); package files must stay inside the archive directory" }
       else if segment != "" && segment != "." {
         if result != "" { result = result + "/" }
         result = result + segment
@@ -66,9 +70,10 @@ pub pure tar_normalize_path(value: Str): Result[Str, Str] {
       start = index + 1
     }
   }
-  if !valid || result == "" || result.encode_utf8().length() > 4096 {
-    Error("archive path escapes its root or is not portable")
-  } else { Ok(result) }
+  if !valid { Error(detail) }
+  else if result == "" { Error("archive path does not name a file or directory") }
+  else if result.encode_utf8().length() > 4096 { Error("archive path exceeds the 4096-byte limit") }
+  else { Ok(result) }
 }
 
 pub pure parse_tar_header(data: Bytes): Result[TarHeader, Str] {
@@ -91,7 +96,7 @@ pub pure parse_tar_header(data: Bytes): Result[TarHeader, Str] {
               else if type_byte == 53 { "directory" }
               else if type_byte == 120 { "pax" }
               else { "unsupported" }
-            if kind == "unsupported" { Error("unsupported archive link, special file or tar extension") }
+            if kind == "unsupported" { Error("archive contains an unsupported entry type; packages accept ordinary files, directories and per-file PAX metadata") }
             else {
               match tar_text(data, 0, 100) {
                 Error(problem) => Error(problem),
@@ -100,7 +105,7 @@ pub pure parse_tar_header(data: Bytes): Result[TarHeader, Str] {
                   Ok(prefix) => match tar_number(data, 124, 136, 8) {
                     Error(problem) => Error(problem),
                     Ok(size) => if kind == "directory" && size != 0 {
-                      Error("directory tar entry has a payload")
+                      Error("archive marks an entry as a directory but also gives it file contents")
                     } else {
                       Ok(TarHeader(if prefix == "" { name } else { prefix + "/" + name }, size, kind))
                     }
@@ -132,7 +137,7 @@ pub pure parse_pax(data: Bytes): Result[PaxHeader, Str] {
       match tar_number(data, cursor, split, 10) {
         Error(problem) => { failure = Some(problem) },
         Ok(length) => if length < 4 || cursor + length > data.length() || cursor + length <= split + 1 {
-          failure = Some("PAX record exceeds its payload")
+          failure = Some("archive PAX metadata declares a record length that does not fit its data")
         } else {
           end: Nat = cursor + length
           signed_end: Int = end
@@ -142,7 +147,7 @@ pub pure parse_pax(data: Bytes): Result[PaxHeader, Str] {
           } else {
             mut equals: Nat = split + 1
             while equals < last && data.at(equals) != 61 { equals = equals + 1 }
-            if equals == last { failure = Some("PAX record has no value") }
+            if equals == last { failure = Some("archive PAX metadata is missing the = between a field name and its value") }
             else {
               key_bytes: Bytes = tar_slice(data, split + 1, equals)
               value_bytes: Bytes = tar_slice(data, equals + 1, last)
@@ -150,7 +155,7 @@ pub pure parse_pax(data: Bytes): Result[PaxHeader, Str] {
               else {
                 key: Str = key_bytes.decode_utf8()
                 value: Str = value_bytes.decode_utf8()
-                if seen.has(key) { failure = Some("duplicate PAX key") }
+                if seen.has(key) { failure = Some("archive PAX metadata repeats the same field name") }
                 else if key == "path" { path = Some(value) }
                 else if key == "size" {
                   mut decimal: Bool = value_bytes.length() > 0
@@ -163,7 +168,7 @@ pub pure parse_pax(data: Bytes): Result[PaxHeader, Str] {
                     Ok(number) => { size = Some(number) }
                   } }
                 } else if key != "mtime" && key != "atime" && key != "ctime" && key != "uid" && key != "gid" && key != "uname" && key != "gname" {
-                  failure = Some("unsupported PAX key: " + key)
+                  failure = Some("archive uses an unsupported PAX metadata field: " + key)
                 }
                 seen = seen.add(key)
               }

@@ -93,7 +93,12 @@ root-relative, scheme-relative and absolute HTTPS redirects remain supported.
 
 ## Validation and impact
 
-Final local and hosted results are recorded here before completion.
+Delivery: [PR#593](https://github.com/sproates/panackelty/pull/593).
+
+The focused run passes 74 diagnostic assertions, the local-TLS HTTPS workflow
+and `make docs`. The final full `make check` result and exact-head hosted checks
+are recorded in the delivery PR. P04a completion takes effect only when those
+checks pass and the PR merges.
 
 Successful package operations retain their filesystem, hashing and network work.
 Redirect validation adds a bounded scan of the already limited Location value;

@@ -56,7 +56,7 @@ recorded re-estimate.
 | P01 | [Lock and restore contract](https://github.com/sproates/panackelty/issues/566) | — | Done | 15% | 100% | 15 pp |
 | P02 | [Locked local dependencies](https://github.com/sproates/panackelty/issues/567) | P01 | Done | 25% | 100% | 25 pp |
 | P03 | [Pinned remote sources](https://github.com/sproates/panackelty/issues/568) | P01–P02 | Done (PR#582) | 35% | 100% | 35 pp |
-| P04 | [`panack` workflow integration](https://github.com/sproates/panackelty/issues/569) | P01–P03 | P04a complete on merge of the completion PR; P04b–c planned | 25% | 50% | 12.5 pp |
+| P04 | [`panack` workflow integration](https://github.com/sproates/panackelty/issues/569) | P01–P03 | P04a complete on merge of the [PR#593](https://github.com/sproates/panackelty/pull/593); P04b–c planned | 25% | 50% | 12.5 pp |
 | **Total on merge of P04a completion** |  |  |  | **100%** | **87.5%** | **87.5 pp** |
 
 The [P01 contract](../../design/PACKAGE_MANAGEMENT_CONTRACT.md) was accepted in
@@ -331,6 +331,8 @@ interfaces are unchanged. No paired timing improvement is claimed. Website
 impact: none, because this remains unreleased alpha.15 work.
 
 ### P04a completion
+
+Delivery: [PR#593](https://github.com/sproates/panackelty/pull/593).
 
 The [finite source audit](../../design/PACKAGE_DIAGNOSTIC_ACCEPTANCE.md) covers
 all 24 package modules and their shared input/HTTP error boundaries. This final

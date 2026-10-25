@@ -59,7 +59,7 @@ completed P03, taking the accepted subtotal to 75%. Git and archive diagnostic
 corrections retain specific causes and document real CLI output. The final
 [P04a diagnostic audit](docs/design/PACKAGE_DIAGNOSTIC_ACCEPTANCE.md) covers all
 24 package modules, with 100 exact CLI transcripts and no remaining wording batch.
-P04a completes on merge of this correction after local and hosted validation,
+P04a completes on merge of [PR#593](https://github.com/sproates/panackelty/pull/593) after local and hosted validation,
 bringing weighted programme completion to 87.5%. Weights are unchanged;
 P04b and P04c remain planned. The three tracked slices are:
 [P04a diagnostics, P04b installed workflow and P04c final acceptance](docs/roadmap/records/dependency-management--idea.md#p04-delivery-slices). PR#573 reverted the initial P02

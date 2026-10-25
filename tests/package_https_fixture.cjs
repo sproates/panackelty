@@ -19,6 +19,20 @@ const server = tls.createServer({key:fs.readFileSync(path.join(root,'test.key'))
     if(target==='/downgrade.tar.gz') return reply('302 Found','Location: http://localhost/forbidden\r\nContent-Length: 0\r\n');
     if(target==='/secret.tar.gz') return reply('302 Found','Location: https://secret:password@localhost/forbidden\r\nContent-Length: 0\r\n');
     if(target==='/query.tar.gz') return reply('302 Found','Location: /forbidden?secret=token\r\nContent-Length: 0\r\n');
+    const redirectFailures = {
+      '/no-location.tar.gz': '',
+      '/empty-location.tar.gz': 'Location: \r\n',
+      '/two-locations.tar.gz': 'Location: /lib.tar.gz\r\nLocation: /other.tar.gz\r\n',
+      '/scheme.tar.gz': 'Location: ftp://localhost/forbidden\r\n',
+      '/fragment.tar.gz': 'Location: /forbidden#secret=token\r\n',
+      '/space.tar.gz': 'Location: /forbidden path\r\n',
+      '/backslash.tar.gz': 'Location: /forbidden\\path\r\n'
+    };
+    if (target in redirectFailures) return reply('302 Found', redirectFailures[target]+'Content-Length: 0\r\n');
+    const status = /^\/status-(\d+)\.tar\.gz$/.exec(target);
+    if (status) return reply(status[1]+' Test', 'Content-Length: 0\r\n');
+    if(target==='/bad-header.tar.gz') return reply('200 OK','Not a header\r\nContent-Length: 0\r\n');
+    if(target==='/transfer.tar.gz') return reply('200 OK','Transfer-Encoding: gzip\r\n');
     if(target==='/missing.tar.gz') return reply('404 Not Found','Content-Length: 0\r\n');
     if(target==='/oversize.tar.gz') return reply('200 OK','Content-Length: 67108865\r\n');
     if(target==='/invalid-gzip.tar.gz') return reply('200 OK','Content-Length: 8\r\n',Buffer.from('not gzip'));

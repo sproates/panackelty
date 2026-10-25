@@ -5,7 +5,7 @@ pub import project/src/project_model/package_manifest::{PackageManifestError, Pa
 import project/src/packages/lock::{normalize_dependency_path}
 import project/src/project_model/package_manifest::{ManifestJsonValue, ParsedManifestField,
   parse_manifest_json, manifest_json_object_field, manifest_json_string_field,
-  manifest_object_unknown_field, manifest_identifier, manifest_logical_path,
+  manifest_identifier, manifest_logical_path,
   manifest_package_name, manifest_semver, manifest_relative_path_error}
 import project/src/project_model/package_manifest::{ManifestJsonValue.ManifestJsonNull, ManifestJsonValue.ManifestJsonBool,
   ManifestJsonValue.ManifestJsonNumber, ManifestJsonValue.ManifestJsonString,
@@ -312,4 +312,31 @@ pub pure manifest_https_archive_url(value: Str): Bool {
     if byte <= 32 || byte == 127 || byte == 64 || byte == 63 || byte == 35 || byte == 92 { valid = false }
   }
   valid
+}
+
+pure manifest_name_is_allowed(allowed: [Str], name: Str): Bool {
+  mut found = false
+  for candidate in allowed {
+    if candidate == name { found = true }
+  }
+  found
+}
+
+pure manifest_object_unknown_field(value: ManifestJsonValue, allowed: [Str]): Option[PackageManifestError] {
+  match value {
+    ManifestJsonObject(members) => {
+      mut failure: Option[PackageManifestError] = None()
+      for member in members {
+        if !manifest_name_is_allowed(allowed, member.key) && failure == None() {
+          failure = Some(manifest_error("Unknown manifest field: '" + member.key + "'.", member.offset))
+        }
+      }
+      failure
+    },
+    ManifestJsonNull() => Some(manifest_error("manifest must be a JSON object", 0)),
+    ManifestJsonBool(flag) => Some(manifest_error("manifest must be a JSON object", 0)),
+    ManifestJsonNumber(number) => Some(manifest_error("manifest must be a JSON object", 0)),
+    ManifestJsonString(text) => Some(manifest_error("manifest must be a JSON object", 0)),
+    ManifestJsonArray(values) => Some(manifest_error("manifest must be a JSON object", 0))
+  }
 }

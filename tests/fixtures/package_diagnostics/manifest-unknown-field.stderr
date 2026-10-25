@@ -1,0 +1,12 @@
+panack: error[PKG_MANIFEST_INVALID]: Cannot use panack.json because its package settings are invalid.
+
+  Project: <workspace>/app/panack.json
+  File: <workspace>/app/panack.json
+  Location: line 1, column 169
+
+Unknown manifest field: 'unrecognised'.
+
+Correct the reported setting, then retry your command.
+
+See the package manifest specification:
+https://github.com/sproates/panackelty/blob/main/docs/design/MODULE_PACKAGE_DESIGN.md#package-roots-manifest-and-source-distribution

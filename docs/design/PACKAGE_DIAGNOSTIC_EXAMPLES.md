@@ -12,6 +12,10 @@ returns status 1; successful command output is unchanged. Codes identify error
 families, while the explanation remains essential. No JSON diagnostic mode is
 introduced.
 
+The [P04a source audit](PACKAGE_DIAGNOSTIC_ACCEPTANCE.md) records the finite
+completion checklist and verification boundaries. The catalogue contains 100
+actual transcripts; transcript count is evidence, not the acceptance criterion.
+
 ## How to reproduce and maintain these examples
 
 Build with `make package-tool`, then run `sh tests/package_diagnostics.sh`,
@@ -1443,4 +1447,477 @@ A lockfile record must be a JSON object.
 If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.
 
 Creating a new lockfile may select different dependencies.
+```
+
+## A file blocks a required package directory
+
+Command: `panack run --project "<workspace>/Ian's app/panack.json"`.
+
+The package state directory is replaced with a regular file. Panack preserves the file and the lock. The test moves the conflict away, restores the directory and runs the program successfully.
+
+```text
+panack: error[PKG_FILESYSTEM]: Cannot prepare the local packages because a required directory path identifies a different kind of file.
+
+  Project: <workspace>/Ian's app/panack.json
+  Package state file: <workspace>/Ian's app/.panack_modules/.state/lock.json
+  Required directory: <workspace>/Ian's app/.panack_modules/.state
+
+Panack has not replaced the conflicting path.
+
+Preserve any contents you need before moving the conflicting path elsewhere, then retry your command.
+```
+
+## A redirect destination contains a backslash
+
+Command: `panack deps update --project "<workspace>/app/panack.json"`.
+
+The local TLS peer serves `/backslash.tar.gz` with this response. The failed update preserves the existing lockfile and local package contents. Rejected redirect destinations are never requested or printed.
+
+```text
+panack: error[PKG_REDIRECT]: Cannot download the archive because the redirect destination contains a backslash.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/backslash.tar.gz
+  Dependency name: lib
+
+Panack stopped before following this redirect. The rejected destination is omitted because server-provided URLs can contain secrets.
+
+Ask the server administrator to correct the redirect or the package maintainer to provide a direct HTTPS archive URL. Retry your command once the download is available.
+```
+
+## An HTTP header is malformed
+
+Command: `panack deps update --project "<workspace>/app/panack.json"`.
+
+The local TLS peer serves `/bad-header.tar.gz` with this response. The failed update preserves the existing lockfile and local package contents. Rejected redirect destinations are never requested or printed.
+
+```text
+panack: error[PKG_HTTP_PROTOCOL]: Cannot finish downloading the archive because the server's HTTP response is incorrectly formatted.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/bad-header.tar.gz
+  Dependency name: lib
+  Response detail: HTTP header is missing a colon
+
+Panack cannot safely determine the complete archive contents from this response.
+
+Retry your command. If the same error continues, report the archive URL and response detail to the server administrator.
+```
+
+## A redirect would use unencrypted HTTP
+
+Command: `panack deps update --project "<workspace>/app/panack.json"`.
+
+The local TLS peer serves `/downgrade.tar.gz` with this response. The failed update preserves the existing lockfile and local package contents. Rejected redirect destinations are never requested or printed.
+
+```text
+panack: error[PKG_REDIRECT]: Cannot download the archive because the server redirected the download to an unencrypted HTTP address.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/downgrade.tar.gz
+  Dependency name: lib
+
+Panack stopped before following this redirect. The rejected destination is omitted because server-provided URLs can contain secrets.
+
+Ask the server administrator to correct the redirect or the package maintainer to provide a direct HTTPS archive URL. Retry your command once the download is available.
+```
+
+## A redirect has an empty destination
+
+Command: `panack deps update --project "<workspace>/app/panack.json"`.
+
+The local TLS peer serves `/empty-location.tar.gz` with this response. The failed update preserves the existing lockfile and local package contents. Rejected redirect destinations are never requested or printed.
+
+```text
+panack: error[PKG_REDIRECT]: Cannot download the archive because the server sent an empty redirect destination (Location header).
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/empty-location.tar.gz
+  Dependency name: lib
+
+Panack stopped before following this redirect. The rejected destination is omitted because server-provided URLs can contain secrets.
+
+Ask the server administrator to correct the redirect or the package maintainer to provide a direct HTTPS archive URL. Retry your command once the download is available.
+```
+
+## The server applies an additional content encoding
+
+Command: `panack deps update --project "<workspace>/app/panack.json"`.
+
+The local TLS peer serves `/encoded.tar.gz` with this response. The failed update preserves the existing lockfile and local package contents. Rejected redirect destinations are never requested or printed.
+
+```text
+panack: error[PKG_HTTP]: Cannot use the download because the server applied an additional content encoding.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/encoded.tar.gz
+  Dependency name: lib
+
+Panack needs the original .tar.gz bytes to verify the archive checksum. HTTP Content-Encoding would change the representation being checked.
+
+Ask the server administrator to serve the .tar.gz file directly, without HTTP Content-Encoding, or with Content-Encoding: identity. Then retry your command.
+```
+
+## A redirect destination contains a fragment
+
+Command: `panack deps update --project "<workspace>/app/panack.json"`.
+
+The local TLS peer serves `/fragment.tar.gz` with this response. The failed update preserves the existing lockfile and local package contents. Rejected redirect destinations are never requested or printed.
+
+```text
+panack: error[PKG_REDIRECT]: Cannot download the archive because the redirect destination contains a fragment, which Panack does not allow in package URLs.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/fragment.tar.gz
+  Dependency name: lib
+
+Panack stopped before following this redirect. The rejected destination is omitted because server-provided URLs can contain secrets.
+
+Ask the server administrator to correct the redirect or the package maintainer to provide a direct HTTPS archive URL. Retry your command once the download is available.
+```
+
+## The server exceeds the redirect limit
+
+Command: `panack deps update --project "<workspace>/app/panack.json"`.
+
+The local TLS peer serves `/loop.tar.gz` with this response. The failed update preserves the existing lockfile and local package contents. Rejected redirect destinations are never requested or printed.
+
+```text
+panack: error[PKG_REDIRECT]: Cannot download the archive because the server exceeded Panack's limit of five redirects.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/loop.tar.gz
+  Dependency name: lib
+
+Panack stopped before following this redirect. The rejected destination is omitted because server-provided URLs can contain secrets.
+
+Ask the server administrator to correct the redirect or the package maintainer to provide a direct HTTPS archive URL. Retry your command once the download is available.
+```
+
+## A redirect has no destination
+
+Command: `panack deps update --project "<workspace>/app/panack.json"`.
+
+The local TLS peer serves `/no-location.tar.gz` with this response. The failed update preserves the existing lockfile and local package contents. Rejected redirect destinations are never requested or printed.
+
+```text
+panack: error[PKG_REDIRECT]: Cannot download the archive because the server sent a redirect without a destination (Location header).
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/no-location.tar.gz
+  Dependency name: lib
+
+Panack stopped before following this redirect. The rejected destination is omitted because server-provided URLs can contain secrets.
+
+Ask the server administrator to correct the redirect or the package maintainer to provide a direct HTTPS archive URL. Retry your command once the download is available.
+```
+
+## The download exceeds the archive size limit
+
+Command: `panack deps update --project "<workspace>/app/panack.json"`.
+
+The local TLS peer serves `/oversize.tar.gz` with this response. The failed update preserves the existing lockfile and local package contents. Rejected redirect destinations are never requested or printed.
+
+```text
+panack: error[PKG_HTTP_LIMIT]: Cannot finish downloading the archive because the archive exceeds Panack's 64 MiB download limit.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/oversize.tar.gz
+  Dependency name: lib
+  Response detail: response body
+
+Panack stopped the download at the response limit.
+
+Ask the package maintainer for an archive within this limit.
+```
+
+## A redirect destination contains a query
+
+Command: `panack deps update --project "<workspace>/app/panack.json"`.
+
+The local TLS peer serves `/query.tar.gz` with this response. The failed update preserves the existing lockfile and local package contents. Rejected redirect destinations are never requested or printed.
+
+```text
+panack: error[PKG_REDIRECT]: Cannot download the archive because the redirect destination contains a query, which Panack does not allow in package URLs.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/query.tar.gz
+  Dependency name: lib
+
+Panack stopped before following this redirect. The rejected destination is omitted because server-provided URLs can contain secrets.
+
+Ask the server administrator to correct the redirect or the package maintainer to provide a direct HTTPS archive URL. Retry your command once the download is available.
+```
+
+## A redirect uses an unsupported URL scheme
+
+Command: `panack deps update --project "<workspace>/app/panack.json"`.
+
+The local TLS peer serves `/scheme.tar.gz` with this response. The failed update preserves the existing lockfile and local package contents. Rejected redirect destinations are never requested or printed.
+
+```text
+panack: error[PKG_REDIRECT]: Cannot download the archive because the redirect destination uses an unsupported URL scheme; Panack requires HTTPS.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/scheme.tar.gz
+  Dependency name: lib
+
+Panack stopped before following this redirect. The rejected destination is omitted because server-provided URLs can contain secrets.
+
+Ask the server administrator to correct the redirect or the package maintainer to provide a direct HTTPS archive URL. Retry your command once the download is available.
+```
+
+## A redirect destination contains forbidden credential syntax
+
+Command: `panack deps update --project "<workspace>/app/panack.json"`.
+
+The local TLS peer serves `/secret.tar.gz` with this response. The failed update preserves the existing lockfile and local package contents. Rejected redirect destinations are never requested or printed.
+
+```text
+panack: error[PKG_REDIRECT]: Cannot download the archive because the redirect destination contains an '@' character, which Panack forbids to exclude credentials.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/secret.tar.gz
+  Dependency name: lib
+
+Panack stopped before following this redirect. The rejected destination is omitted because server-provided URLs can contain secrets.
+
+Ask the server administrator to correct the redirect or the package maintainer to provide a direct HTTPS archive URL. Retry your command once the download is available.
+```
+
+## A redirect destination contains a space
+
+Command: `panack deps update --project "<workspace>/app/panack.json"`.
+
+The local TLS peer serves `/space.tar.gz` with this response. The failed update preserves the existing lockfile and local package contents. Rejected redirect destinations are never requested or printed.
+
+```text
+panack: error[PKG_REDIRECT]: Cannot download the archive because the redirect destination contains a space.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/space.tar.gz
+  Dependency name: lib
+
+Panack stopped before following this redirect. The rejected destination is omitted because server-provided URLs can contain secrets.
+
+Ask the server administrator to correct the redirect or the package maintainer to provide a direct HTTPS archive URL. Retry your command once the download is available.
+```
+
+## The server returns no archive
+
+Command: `panack deps update --project "<workspace>/app/panack.json"`.
+
+The local TLS peer serves `/status-204.tar.gz` with this response. The failed update preserves the existing lockfile and local package contents. Rejected redirect destinations are never requested or printed.
+
+```text
+panack: error[PKG_HTTP_STATUS]: Cannot download the archive because the server returned HTTP 204 instead of the archive.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/status-204.tar.gz
+  Dependency name: lib
+  Server response: HTTP 204
+
+Check that the URL provides a direct archive download. If the URL is correct, report the archive URL and HTTP status to the server administrator.
+```
+
+## The archive requires authentication
+
+Command: `panack deps update --project "<workspace>/app/panack.json"`.
+
+The local TLS peer serves `/status-401.tar.gz` with this response. The failed update preserves the existing lockfile and local package contents. Rejected redirect destinations are never requested or printed.
+
+```text
+panack: error[PKG_HTTP_STATUS]: Cannot download the archive because the server requires authentication.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/status-401.tar.gz
+  Dependency name: lib
+  Server response: HTTP 401
+
+Panack requires an archive URL that can be downloaded without signing in. Ask the package maintainer for a suitable download URL.
+```
+
+## The server refuses access
+
+Command: `panack deps update --project "<workspace>/app/panack.json"`.
+
+The local TLS peer serves `/status-403.tar.gz` with this response. The failed update preserves the existing lockfile and local package contents. Rejected redirect destinations are never requested or printed.
+
+```text
+panack: error[PKG_HTTP_STATUS]: Cannot download the archive because the server refused access.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/status-403.tar.gz
+  Dependency name: lib
+  Server response: HTTP 403
+
+Check the archive URL. If the URL is correct, ask the server administrator why access was refused. Panack requires an archive URL that can be downloaded without signing in.
+```
+
+## The proxy requires authentication
+
+Command: `panack deps update --project "<workspace>/app/panack.json"`.
+
+The local TLS peer serves `/status-407.tar.gz` with this response. The failed update preserves the existing lockfile and local package contents. Rejected redirect destinations are never requested or printed.
+
+```text
+panack: error[PKG_HTTP_STATUS]: Cannot download the archive because the proxy requires authentication.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/status-407.tar.gz
+  Dependency name: lib
+  Server response: HTTP 407
+
+Check the proxy access requirements in the environment running Panack. Ask the network administrator how to make this download accessible.
+```
+
+## The server limits requests
+
+Command: `panack deps update --project "<workspace>/app/panack.json"`.
+
+The local TLS peer serves `/status-429.tar.gz` with this response. The failed update preserves the existing lockfile and local package contents. Rejected redirect destinations are never requested or printed.
+
+```text
+panack: error[PKG_HTTP_STATUS]: Cannot download the archive because the server is limiting requests.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/status-429.tar.gz
+  Dependency name: lib
+  Server response: HTTP 429
+
+Wait before retrying. If the server continues to reject the request, contact the server administrator.
+```
+
+## The server reports an error
+
+Command: `panack deps update --project "<workspace>/app/panack.json"`.
+
+The local TLS peer serves `/status-500.tar.gz` with this response. The failed update preserves the existing lockfile and local package contents. Rejected redirect destinations are never requested or printed.
+
+```text
+panack: error[PKG_HTTP_STATUS]: Cannot download the archive because the server reported an error.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/status-500.tar.gz
+  Dependency name: lib
+  Server response: HTTP 500
+
+Retry later. If the error continues, report the archive URL and HTTP status to the server administrator.
+```
+
+## The server uses unsupported transfer encoding
+
+Command: `panack deps update --project "<workspace>/app/panack.json"`.
+
+The local TLS peer serves `/transfer.tar.gz` with this response. The failed update preserves the existing lockfile and local package contents. Rejected redirect destinations are never requested or printed.
+
+```text
+panack: error[PKG_HTTP_PROTOCOL]: Cannot download the archive because the server response uses an unsupported transfer encoding.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/transfer.tar.gz
+  Dependency name: lib
+
+Ask the server administrator to send the archive using either one Transfer-Encoding: chunked header or a Content-Length header without Transfer-Encoding. Then retry your command.
+```
+
+## The HTTP response ends early
+
+Command: `panack deps update --project "<workspace>/app/panack.json"`.
+
+The local TLS peer serves `/truncated.tar.gz` with this response. The failed update preserves the existing lockfile and local package contents. Rejected redirect destinations are never requested or printed.
+
+```text
+panack: error[PKG_HTTP_PROTOCOL]: Cannot finish downloading the archive because the HTTP response ended before Panack received all the required data.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/truncated.tar.gz
+  Dependency name: lib
+  Response detail: truncated HTTP response body
+
+Panack cannot safely determine the complete archive contents from this response.
+
+Retry your command. If the same error continues, report the archive URL and response detail to the server administrator.
+```
+
+## A redirect has multiple destinations
+
+Command: `panack deps update --project "<workspace>/app/panack.json"`.
+
+The local TLS peer serves `/two-locations.tar.gz` with this response. The failed update preserves the existing lockfile and local package contents. Rejected redirect destinations are never requested or printed.
+
+```text
+panack: error[PKG_REDIRECT]: Cannot download the archive because the server sent more than one redirect destination (Location header).
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/two-locations.tar.gz
+  Dependency name: lib
+
+Panack stopped before following this redirect. The rejected destination is omitted because server-provided URLs can contain secrets.
+
+Ask the server administrator to correct the redirect or the package maintainer to provide a direct HTTPS archive URL. Retry your command once the download is available.
+```
+
+## An unknown dependency field
+
+Command: `panack deps lock --project "<workspace>/app/panack.json"`.
+
+A dependency declaration contains an unsupported field. The location identifies that field in the declaring manifest.
+
+```text
+panack: error[PKG_MANIFEST_INVALID]: Cannot use panack.json because its package settings are invalid.
+
+  Project: <workspace>/app/panack.json
+  File: <workspace>/app/panack.json
+  Location: line 1, column 194
+
+Unknown manifest field: 'typo'.
+
+Correct the reported setting, then retry your command.
+
+See the package manifest specification:
+https://github.com/sproates/panackelty/blob/main/docs/design/MODULE_PACKAGE_DESIGN.md#package-roots-manifest-and-source-distribution
+```
+
+## An unknown manifest field
+
+Command: `panack deps lock --project "<workspace>/app/panack.json"`.
+
+The manifest contains an unsupported top-level field. The message names that field rather than printing an interpolation expression.
+
+```text
+panack: error[PKG_MANIFEST_INVALID]: Cannot use panack.json because its package settings are invalid.
+
+  Project: <workspace>/app/panack.json
+  File: <workspace>/app/panack.json
+  Location: line 1, column 169
+
+Unknown manifest field: 'unrecognised'.
+
+Correct the reported setting, then retry your command.
+
+See the package manifest specification:
+https://github.com/sproates/panackelty/blob/main/docs/design/MODULE_PACKAGE_DESIGN.md#package-roots-manifest-and-source-distribution
 ```

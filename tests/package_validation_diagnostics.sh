@@ -48,6 +48,16 @@ test "$(cat "$work/out")" = ok
 test ! -s "$work/err"
 test -f "$lock"
 rm "$lock"
+node - "$manifest" <<'JSCASE'
+const fs=require('fs');const p=process.argv[2],m=JSON.parse(fs.readFileSync(p));m.unrecognised=true;fs.writeFileSync(p,JSON.stringify(m));
+JSCASE
+reject manifest-unknown-field PKG_MANIFEST_INVALID deps lock --project "$manifest"
+cp "$work/app/good.json" "$manifest"
+node - "$manifest" <<'JSCASE'
+const fs=require('fs');const p=process.argv[2],m=JSON.parse(fs.readFileSync(p));m.dependencies={lib:{path:'../library',typo:true}};fs.writeFileSync(p,JSON.stringify(m));
+JSCASE
+reject manifest-unknown-dependency-field PKG_MANIFEST_INVALID deps lock --project "$manifest"
+cp "$work/app/good.json" "$manifest"
 reject manifest-wrong-name PKG_MANIFEST_INVALID deps lock --project "$work/app/good.json"
 mv "$manifest" "$work/saved.json"
 mkdir "$manifest"

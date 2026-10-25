@@ -1,0 +1,9 @@
+panack: error[PKG_HTTP_STATUS]: Cannot download the archive because the server refused access.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/status-403.tar.gz
+  Dependency name: lib
+  Server response: HTTP 403
+
+Check the archive URL. If the URL is correct, ask the server administrator why access was refused. Panack requires an archive URL that can be downloaded without signing in.

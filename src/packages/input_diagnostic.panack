@@ -70,8 +70,8 @@ pure valid_input_problem(filename: Str, data: Bytes, error: PackageManifestError
     }
   }
   problem = explain_problem(package_problem(code, message), diagnostic_text(detail), help)
-  // Semantic lock checks often have no source offset. Do not claim that the
+  // Semantic input checks often have no source offset. Do not claim that the
   // offending record is at the first character of the file.
-  if lock && !syntax_error && error.offset == 0 { problem }
+  if !syntax_error && error.offset == 0 { problem }
   else { problem_label(problem, "Location", "line ${line}, column ${column}") }
 }

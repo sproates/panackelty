@@ -2,7 +2,7 @@ import project/src/packages/command_diagnostic::{validate_package_command}
 import project/src/packages/input_diagnostic::{input_problem, encoding_problem, input_read_problem}
 import project/src/packages/manifest::{parse_package_manifest}
 import project/src/packages/diagnostic::{checksum_problem, problem_value, publication_problem}
-import project/src/packages/remote_archive::{http_status_problem}
+import project/src/packages/remote_archive::{http_status_problem, http_limit_problem, archive_redirect}
 import project/src/packages/diagnostic::{package_problem, problem_context, render_problem, diagnostic_text}
 import stdlib/testing as testing
 import stdlib/host as host
@@ -12,7 +12,7 @@ import project/src/packages/selective_update::{validate_selective_update}
 import project/src/packages/lock::{PackageLock, PackageLockEdge}
 import project/src/project_model/package_manifest::{ManifestJsonValue.ManifestJsonObject, PackageManifestError}
 import project/src/packages/remote_archive::{http_problem}
-import project/packages/http/src/types::{HttpError.DnsFailure, HttpError.TlsFailure, HttpError.Timeout}
+import project/packages/http/src/types::{HttpError.DnsFailure, HttpError.TlsFailure, HttpError.Timeout, HttpError.ProtocolError}
 import project/src/packages/tar_header::{tar_normalize_path, tar_number}
 
 pure failure_reason(result: Result[Unit, PackageProblem]): Str {
@@ -55,6 +55,23 @@ main(): Void {
   state_save = publication_problem("/app/.panack_modules/.state/lock.json", "permission_denied", true)
   unknown_offset = input_problem("panack.lock.json", "{}".encode_utf8(), PackageManifestError("missing field", 0), true)
   results = [
+    testing.equal_str("archive download limit is specific", http_limit_problem("response body").message, "Cannot finish downloading the archive because the archive exceeds Panack's 64 MiB download limit."),
+    testing.equal_str("chunk line limit is specific", http_limit_problem("chunk line").message, "Cannot finish downloading the archive because a chunk-size line exceeds Panack's 8 KiB limit."),
+    testing.equal_str("header limit includes trailers", http_limit_problem("response trailers").message, "Cannot finish downloading the archive because the HTTP headers and trailers exceed Panack's combined 64 KiB limit."),
+    testing.equal_str("informational response count is specific", http_limit_problem("informational responses").message, "Cannot finish downloading the archive because the server sent more than Panack's limit of eight informational responses before the archive response."),
+    testing.equal_str("unknown manifest field names the actual field", parsed_problem("{\"typo\":true}").reason, "Unknown manifest field: 'typo'."),
+    testing.expect("relative redirect accepted", archive_redirect("https://example.test/path/lib.tar.gz", ["next.tar.gz"], 0) == Ok("https://example.test/path/next.tar.gz"), "relative redirect rejected"),
+    testing.expect("root redirect accepted", archive_redirect("https://example.test/path/lib.tar.gz", ["/lib.tar.gz"], 0) == Ok("https://example.test/lib.tar.gz"), "root redirect rejected"),
+    testing.expect("network path redirect accepted", archive_redirect("https://example.test/lib.tar.gz", ["//cdn.test/lib.tar.gz"], 0) == Ok("https://cdn.test/lib.tar.gz"), "network redirect rejected"),
+    testing.expect("absolute HTTPS redirect accepted", archive_redirect("https://example.test/lib.tar.gz", ["https://cdn.test/lib.tar.gz"], 4) == Ok("https://cdn.test/lib.tar.gz"), "fifth redirect rejected"),
+    testing.equal_str("sixth redirect refused", text_failure(archive_redirect("https://example.test/lib.tar.gz", ["/lib.tar.gz"], 5)), "Cannot download the archive because the server exceeded Panack's limit of five redirects."),
+    testing.equal_str("empty redirect is not missing", text_failure(archive_redirect("https://example.test/lib.tar.gz", [""], 0)), "Cannot download the archive because the server sent an empty redirect destination (Location header)."),
+    testing.equal_str("missing redirect is explicit", text_failure(archive_redirect("https://example.test/lib.tar.gz", [], 0)), "Cannot download the archive because the server sent a redirect without a destination (Location header)."),
+    testing.equal_str("duplicate redirects are explicit", text_failure(archive_redirect("https://example.test/lib.tar.gz", ["/one", "/two"], 0)), "Cannot download the archive because the server sent more than one redirect destination (Location header)."),
+    testing.equal_str("HTTP downgrade refused", text_failure(archive_redirect("https://example.test/lib.tar.gz", ["http://example.test/lib.tar.gz"], 0)), "Cannot download the archive because the server redirected the download to an unencrypted HTTP address."),
+    testing.equal_str("other schemes are not relative paths", text_failure(archive_redirect("https://example.test/lib.tar.gz", ["ftp://example.test/lib.tar.gz"], 0)), "Cannot download the archive because the redirect destination uses an unsupported URL scheme; Panack requires HTTPS."),
+    testing.equal_str("truncation distinguishes incomplete response", http_problem(ProtocolError("truncated HTTP response body")).message, "Cannot finish downloading the archive because the HTTP response ended before Panack received all the required data."),
+    testing.equal_str("framing distinguishes malformed response", http_problem(ProtocolError("duplicate Content-Length")).message, "Cannot finish downloading the archive because the server's HTTP response is incorrectly formatted."),
     testing.equal_str("semantic lock error does not invent a source position", problem_value(unknown_offset, "Location"), ""),
     testing.equal_str("package publication names its destination", problem_value(publication, "Destination directory"), "/app/.panack_modules/demo.library"),
     testing.equal_str("publication retains the filesystem cause", publication.message, "Cannot save the prepared package directory: the destination is not a replaceable package directory (destination_conflict)."),

@@ -56,8 +56,8 @@ recorded re-estimate.
 | P01 | [Lock and restore contract](https://github.com/sproates/panackelty/issues/566) | — | Done | 15% | 100% | 15 pp |
 | P02 | [Locked local dependencies](https://github.com/sproates/panackelty/issues/567) | P01 | Done | 25% | 100% | 25 pp |
 | P03 | [Pinned remote sources](https://github.com/sproates/panackelty/issues/568) | P01–P02 | Done (PR#582) | 35% | 100% | 35 pp |
-| P04 | [`panack` workflow integration](https://github.com/sproates/panackelty/issues/569) | P01–P03 | P04a corrections in progress; P04b–c planned | 25% | Not reassessed | Not credited pending acceptance |
-| **Verified accepted subtotal** |  |  |  | **100%** | **75%** | **75 pp** |
+| P04 | [`panack` workflow integration](https://github.com/sproates/panackelty/issues/569) | P01–P03 | P04a complete on merge of the [PR#593](https://github.com/sproates/panackelty/pull/593); P04b–c planned | 25% | 50% | 12.5 pp |
+| **Total on merge of P04a completion** |  |  |  | **100%** | **87.5%** | **87.5 pp** |
 
 The [P01 contract](../../design/PACKAGE_MANAGEMENT_CONTRACT.md) was accepted in
 [PR#571](https://github.com/sproates/panackelty/pull/571). It defines the lock,
@@ -158,19 +158,20 @@ acceptance across all sources. Ordinary project commands never restore implicitl
 ### P04 delivery slices
 
 The owner selected this delivery breakdown on 25 October 2026. P04 remains 25%
-of GI#200. P04a corrections are in progress; P04b and P04c remain planned. The provisional
+of GI#200. P04a completes on merge of the final diagnostic correction; P04b and P04c remain planned. The provisional
 internal allocation is 50% diagnostics, 25% installed workflow and 25% final
 acceptance, reflecting the larger diagnostic implementation and test surface.
-These are scope weights, not PR counts. The previously reported 87.5% included P04a acceptance, now reopened after
-wording review. P01–P03 contribute a verified 75%; P04a partial credit has not
-been reassessed. The denominator and all task weights are unchanged.
+These are scope weights, not PR counts. The earlier P04a acceptance was reopened after wording review. The final
+[source audit and acceptance checklist](../../design/PACKAGE_DIAGNOSTIC_ACCEPTANCE.md)
+closes that correction on merge, restoring P04a's 12.5 percentage points and
+bringing the programme to 87.5%. The denominator and all task weights are unchanged.
 
 | Slice | Deliverable | Status | Share of P04 | Programme weight | Complete | Earned | Estimated PRs |
 | --- | --- | --- | ---: | ---: | ---: | ---: | --- |
-| P04a: Diagnostics | Preserve causes and dependency context; explain failures and safe recovery; test public messages and document real examples | Corrections in progress | 50% | 12.5% | Not reassessed | Pending acceptance | 1–2 further |
+| P04a: Diagnostics | Preserve causes and dependency context; explain failures and safe recovery; test public messages and document real examples | Complete on merge of final correction | 50% | 12.5% | 100% | 12.5 pp | Final PR |
 | P04b: Installed workflow | Verify both tools and native dependencies are packaged correctly; finish command help and installed-tool behaviour | Planned | 25% | 6.25% | 0% | 0 pp | 1 |
 | P04c: Final acceptance | Exercise all four source types together, relocation, standalone commands and network-free ordinary builds on supported platforms | Planned | 25% | 6.25% | 0% | 0 pp | 1 |
-| **P04 total** | | **In progress** | **100%** | **25%** | **Not reassessed** | **Pending acceptance** | **3–4 further** |
+| **P04 total** | | **In progress** | **100%** | **25%** | **50%** | **12.5 pp** | **2 further after P04a** |
 
 P04a delivers structured errors, labelled dependency context, explanations and
 safe recovery guidance. The [verified examples](../../design/PACKAGE_DIAGNOSTIC_EXAMPLES.md)
@@ -328,3 +329,23 @@ a conflicting file kind. Error explanations and manifest-path context are built
 on failure; lock validation retains its existing bounds. Compiler/native
 interfaces are unchanged. No paired timing improvement is claimed. Website
 impact: none, because this remains unreleased alpha.15 work.
+
+### P04a completion
+
+Delivery: [PR#593](https://github.com/sproates/panackelty/pull/593).
+
+The [finite source audit](../../design/PACKAGE_DIAGNOSTIC_ACCEPTANCE.md) covers
+all 24 package modules and their shared input/HTTP error boundaries. This final
+correction distinguishes HTTP and redirect causes, provides limit-specific
+guidance, identifies filesystem conflicts, fixes unknown-field interpolation and
+removes terse internal wording from public failures. The examples now contain
+100 exact CLI transcripts. There is no outstanding P04a wording batch.
+
+P04a completes on merge after full local validation and the applicable exact-head
+hosted checks pass. P04b and P04c remain planned. P04 is then 50% complete and
+GI#200 is 87.5% complete under the unchanged weights. GI#569 and GI#200 remain
+open until the installed workflow and final acceptance are delivered.
+
+Performance and website impact, verification evidence and the explicitly deferred
+HTTP API detail limitation are recorded in the acceptance document. No compiler,
+native-interface or bootstrap source changes are included.

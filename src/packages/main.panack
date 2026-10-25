@@ -67,7 +67,7 @@ finish_dependencies(operation: Str, project: ManifestProject, existing: Option[P
           None() => if operation == "lock" { write = true }
             else { failure = Some(package_problem("PKG_LOCK_MISSING", "missing lockfile")) },
           Some(lock) => if !locks_match(lock, current) {
-            failure = Some(lock_mismatch(lock, current))
+            failure = Some(lock_mismatch(lock, current, project.archives))
           }
         }
       }

@@ -1,9 +1,8 @@
-panack: error[PKG_SELECTIVE]: unselected dependency changed: lib
+panack: error[PKG_DEPENDENCY_NOT_SELECTED]: Cannot complete this update without also changing dependency 'lib'.
 
   Project: <workspace>/Ian's app/panack.json
-  Operation: deps update
-  Phase: checking selected dependencies
+  Lockfile: <workspace>/Ian's app/panack.lock.json
 
-This update would also change the dependency named above, but you did not select it. The lockfile has not been changed.
+Your command did not select this dependency. Panack has stopped because the update would also change this dependency. Panack has not changed the lockfile.
 
-Check its declaration in panack.json. Undo the unintended change, or include this dependency name in the update command if you intend to update it too.
+If you intend to update this dependency too, include its declaration name in your update command. Otherwise, undo the change to this dependency in panack.json and retry your original command.

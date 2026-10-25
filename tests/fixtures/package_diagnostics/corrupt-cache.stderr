@@ -1,12 +1,20 @@
-panack: error[PKG_CACHE_INVALID]: saved package files do not match their recorded checksum
+panack: error[PKG_CACHE_INVALID]: Cannot build this project because the local copy of dependency 'lib' (package 'demo.library') has changed.
 
   Project: <workspace>/Ian's app/panack.json
-  Operation: project preparation (network-free)
-  Phase: checking saved packages
-  Dependency: demo.app -> lib (<workspace>/Ian's app/panack.json)
+  Lockfile: <workspace>/Ian's app/panack.lock.json
+  Source archive: <workspace>/library.tar.gz
+  Local package directory: <workspace>/Ian's app/.panack_modules/demo.library
 
-Panack could not verify the saved local packages against panack.lock.json. It will not use them for this build.
+Panack calculated a checksum for the local package files. That checksum does not match the checksum recorded in the lockfile.
 
-Run the command below to restore and check the packages recorded in panack.lock.json. Keep the lockfile unchanged so the repair uses the same package contents.
+Save any edits you want to keep elsewhere before restoring these files.
+
+To restore the local package files to the contents identified by the lockfile, run:
 
   panack deps restore --project '<workspace>/Ian'"'"'s app/panack.json'
+
+Running this command will replace the local copy without changing the lockfile.
+
+Panack will check the restored package checksums against the lockfile before using the packages.
+
+An internet connection is needed if remote packages must be downloaded.

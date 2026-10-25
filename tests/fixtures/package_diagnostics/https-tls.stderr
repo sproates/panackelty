@@ -1,10 +1,10 @@
-panack: error[PKG_HTTP]: could not establish a trusted HTTPS connection to the archive server
+panack: error[PKG_HTTPS_CONNECTION]: Cannot download the archive because Panack could not establish a secure HTTPS connection to the archive server.
 
   Project: <workspace>/app/panack.json
-  Operation: deps update
-  Phase: downloading the archive
-  Dependency: test.app -> lib (<workspace>/app/panack.json)
+  Package: test.archive
+  Source archive: https://localhost:<port>/lib.tar.gz
+  Dependency name: lib
 
-The secure connection failed before the archive could be downloaded. This error alone does not identify a particular certificate problem.
+The HTTP API has not provided enough detail for Panack to identify the cause.
 
-Check your system clock and trusted certificates. If they are correct, ask the server administrator to check its HTTPS configuration. Do not disable certificate verification.
+Check whether the archive URL is accessible over HTTPS from the same environment. If you manage the server, check its HTTPS configuration and certificate; otherwise, report the failure to the server administrator.

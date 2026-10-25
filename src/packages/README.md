@@ -55,7 +55,7 @@ fixtures are recorded in `docs/design/PACKAGE_GIT_ACQUISITION_ACCEPTANCE.md`.
 
 `diagnostic.panack` owns structured package problems, labelled dependency context
 and terminal-safe rendering. Codes are assigned at detection boundaries; the
-command boundary renders the cause, phase, explanation and recovery guidance.
+command boundary renders the cause, relevant paths, explanation and recovery guidance. Internal phase labels are not displayed. `input_diagnostic.panack` adds package JSON explanations and line/column locations without changing the shared compiler parser.
 Cache verification keeps its original failure instead of collapsing missing and
 corrupt state. Git process status is retained without raw stderr. The
 [verified examples](../../docs/design/PACKAGE_DIAGNOSTIC_EXAMPLES.md) are checked

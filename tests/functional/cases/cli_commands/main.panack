@@ -383,9 +383,9 @@ main(): Void {
           results = results.append(std_testing.expect("declared package path must contain a manifest",
             output.exit_code == 1 && output.signal == 0 &&
               output.stdout.length() == 0 &&
-              contains(output.stderr.decode_utf8(), "error[PKG_MANIFEST_MISSING]: package manifest was not found:") &&
-              contains(output.stderr.decode_utf8(), " -> geometry (") &&
-              contains(output.stderr.decode_utf8(), "Check the dependency path in the declaring panack.json"),
+              contains(output.stderr.decode_utf8(), "error[PKG_MANIFEST_MISSING]: Cannot load the package because panack.json is missing.") &&
+              contains(output.stderr.decode_utf8(), "Dependency name: geometry") &&
+              contains(output.stderr.decode_utf8(), "Check the dependency path in the declaring manifest"),
             "a missing dependency manifest was accepted"))
         }
       }
@@ -618,7 +618,7 @@ main(): Void {
       std_filesystem.write(library_manifest, empty_library_manifest.encode_utf8())
       results = results.append(std_testing_commands.run_command("manifest-only library requires an export",
         source_compiler_command(["check", "--project", library_manifest_text], toolchain_version),
-        ProcessOutput(1, 0, byte_buffer.empty(), "panack: error[PKG_MANIFEST]: library manifest must export at least one module\n\n  Project: ${library_manifest_text}\n  Operation: project preparation (network-free)\n  Phase: reading panack.json\n  Context: manifest ${library_manifest_text}\n\nThis package has no entry field, so Panack treats it as a library. Its exports section is empty, leaving other packages nothing to import.\n\nFor a library, add at least one module to exports in panack.json. If this is an application, add an entry field naming its main source file instead.\n".encode_utf8())))
+        ProcessOutput(1, 0, byte_buffer.empty(), "panack: error[PKG_MANIFEST_INVALID]: Cannot use package 'example.geometry' because it exports no modules.\n\n  Project: ${library_manifest_text}\n  File: ${library_manifest_text}\n\nThis package has no 'entry' field, so Panack treats the package as a library. The 'exports' section is empty, leaving other packages with no modules to import.\n\nIf this package is a library, add at least one module to 'exports' in panack.json.\n\nIf this package is an application, add an 'entry' field identifying the main source file. Applications cannot be used as dependencies.\n\nSee the package manifest specification:\nhttps://github.com/sproates/panackelty/blob/main/docs/design/MODULE_PACKAGE_DESIGN.md#package-roots-manifest-and-source-distribution\n".encode_utf8())))
       std_filesystem.write(library_manifest, library_manifest_text_value.encode_utf8())
       std_filesystem.write(library_extra, "import project/api as api\npub pure next_answer(): Nat { true }\n".encode_utf8())
       match std_process.run(path("./bin/panack"),

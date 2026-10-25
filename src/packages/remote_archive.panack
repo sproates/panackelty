@@ -1,6 +1,6 @@
 pub import project/src/packages/diagnostic::{PackageProblem}
 pub import project/packages/http/src/types::{HttpError}
-import project/src/packages/diagnostic::{package_problem, explain_problem, package_result}
+import project/src/packages/diagnostic::{package_problem, explain_problem, package_result, problem_label}
 import project/packages/http/src/stream as http
 import project/packages/http/src/parser::{lower_ascii}
 import project/packages/http/src/types::{HttpError.ProtocolError}
@@ -71,7 +71,7 @@ open_archive(url: Str): Result[http.ResponseStream, PackageProblem] {
             else if !safe_url("https://placeholder/" + locations[0]) { failure = Some(package_problem("PKG_REDIRECT", "unsafe archive redirect")) }
             else if locations[0].starts_with_at("http:", 0) { failure = Some(package_problem("PKG_REDIRECT", "archive server redirected the download to HTTP; HTTPS is required")) }
             else { current = redirect_url(current, locations[0]); hops = hops + 1 }
-          } else { status = opened.status; failure = Some(package_problem("PKG_HTTP_STATUS", "archive server returned HTTP ${status}; expected 200")) }
+          } else { status = opened.status; failure = Some(http_status_problem(status)) }
         }
       }
     } }
@@ -128,32 +128,58 @@ pub stage_remote_archive(parent: Str, url: Str): Result[StagedArchive, PackagePr
 
 pub pure http_problem(problem: HttpError): PackageProblem {
   match problem {
-    http.HttpError.InvalidUrl(detail) => package_problem("PKG_HTTP", "archive URL is invalid"),
-    http.HttpError.InvalidLimits() => package_problem("PKG_LIMIT", "archive transport limits are invalid"),
-    http.HttpError.DnsFailure() => explain_problem(package_problem("PKG_HTTP", "could not find the archive server's network address (DNS lookup failed)"),
-      "Panack could not turn the hostname in the archive URL into a network address, so it could not contact the server.",
-      "Check the hostname in panack.json and your network or VPN connection, then retry the command."),
-    http.HttpError.ConnectFailure() => explain_problem(package_problem("PKG_HTTP", "could not connect to the archive server"),
-      "The connection failed before Panack could download the archive. This does not tell us whether the server is down or the connection is blocked.",
-      "Check your network or VPN connection and whether the server is reachable. Retry the same command once access is restored."),
-    http.HttpError.TlsFailure() => explain_problem(package_problem("PKG_HTTP", "could not establish a trusted HTTPS connection to the archive server"),
-      "The secure connection failed before the archive could be downloaded. This error alone does not identify a particular certificate problem.",
-      "Check your system clock and trusted certificates. If they are correct, ask the server administrator to check its HTTPS configuration. Do not disable certificate verification."),
-    http.HttpError.Timeout() => explain_problem(package_problem("PKG_HTTP", "archive request did not finish within 60 seconds"),
-      "Panack stopped waiting before it had a complete download.",
-      "Check your connection and retry the same command. If it repeatedly times out, ask the package maintainer to check the download server."),
-    http.HttpError.ProtocolError(detail) => package_problem(if detail.starts_with_at("archive extraction: ", 0) { "PKG_ARCHIVE" } else { "PKG_HTTP" }, detail),
-    http.HttpError.LimitExceeded(detail) => package_problem("PKG_LIMIT", "archive transport limit exceeded: " + detail + " (body: 64 MiB; headers/trailers: 64 KiB; chunk line: 8 KiB; informational responses: 8)"),
-    http.HttpError.Cancelled() => explain_problem(package_problem("PKG_HTTP", "archive request was cancelled"),
-      "The download stopped before it finished.", "Run the same command again when you are ready to continue."),
-    http.HttpError.UnsupportedHost() => explain_problem(package_problem("PKG_HTTP", "this Panack installation cannot make HTTPS requests"),
-      "The required native HTTPS support is unavailable in this installation.",
-      "Use a supported native Panack release with libcurl installed. Reinstall Panack if this installation should already provide HTTPS support."),
-    http.HttpError.UnsupportedMethod(detail) => package_problem("PKG_HTTP", "unsupported archive request method"),
-    http.HttpError.UnsupportedVersion(detail) => package_problem("PKG_HTTP", "unsupported archive HTTP version"),
-    http.HttpError.UnsupportedTransferEncoding() => package_problem("PKG_HTTP", "unsupported archive transfer encoding"),
-    http.HttpError.InvalidRequest() => package_problem("PKG_HTTP", "invalid archive request"),
-    http.HttpError.InvalidResponse() => package_problem("PKG_HTTP", "invalid archive response"),
-    http.HttpError.TransportFailure(detail) => package_problem("PKG_HTTP", "connection to the archive server failed before the download finished")
+    http.HttpError.InvalidUrl(detail) => explain_problem(package_problem("PKG_HTTP_URL", "Cannot download the archive because its URL is invalid."), "", "Check that the dependency specifies a direct HTTPS archive URL, then retry your command."),
+    http.HttpError.InvalidLimits() => package_problem("PKG_TOOL", "Panack supplied invalid HTTP transport limits."),
+    http.HttpError.DnsFailure() => explain_problem(package_problem("PKG_HTTP_DNS", "Cannot download the archive because Panack could not find the server's network address."),
+      "The DNS lookup failed, so Panack could not contact the archive server. This failure does not establish whether the hostname is incorrect or the DNS service is unavailable.",
+      "Check the hostname in the dependency's archive URL. If the hostname is correct, check network connectivity and DNS configuration in the environment running Panack, then retry your command."),
+    http.HttpError.ConnectFailure() => explain_problem(package_problem("PKG_HTTP_CONNECT", "Cannot download the archive because Panack could not connect to the archive server."),
+      "Panack could not establish a connection. The reported error does not identify whether the server is unavailable or something is blocking the connection.",
+      "Check whether the archive URL is accessible from the environment running Panack. Check network access and any firewall or proxy restrictions. If the server remains unreachable, report the problem to the server administrator.\n\nRetry your command once connectivity is restored."),
+    http.HttpError.TlsFailure() => explain_problem(package_problem("PKG_HTTPS_CONNECTION", "Cannot download the archive because Panack could not establish a secure HTTPS connection to the archive server."),
+      "The HTTP API has not provided enough detail for Panack to identify the cause.",
+      "Check whether the archive URL is accessible over HTTPS from the same environment. If you manage the server, check its HTTPS configuration and certificate; otherwise, report the failure to the server administrator."),
+    http.HttpError.Timeout() => explain_problem(package_problem("PKG_HTTP_TIMEOUT", "Cannot download the archive because the request exceeded Panack's 60-second time limit."),
+      "Panack did not receive the complete archive within the time limit. Panack has stopped the download.",
+      "Retry your command. If the download repeatedly times out, check whether the archive URL is accessible from the same environment and report the problem to the server administrator."),
+    http.HttpError.ProtocolError(detail) => package_problem(if detail.starts_with_at("archive extraction: ", 0) { "PKG_ARCHIVE" } else { "PKG_HTTP_PROTOCOL" }, detail),
+    http.HttpError.LimitExceeded(detail) => explain_problem(package_problem("PKG_HTTP_LIMIT", "Cannot finish the download because an HTTP response limit was exceeded: " + detail),
+      "Panack has stopped the download.", "Ask the server administrator to check the reported response limit. Panack accepts at most 64 MiB of archive data, 64 KiB of headers or trailers, an 8 KiB chunk-size line and eight informational responses."),
+    http.HttpError.Cancelled() => explain_problem(package_problem("PKG_HTTP_CANCELLED", "The archive download was cancelled before completion."),
+      "", "Run your command again when you are ready to continue."),
+    http.HttpError.UnsupportedHost() => explain_problem(package_problem("PKG_HTTPS_UNAVAILABLE", "Cannot download the archive because this Panack installation has no usable HTTPS support."),
+      "", "Use a supported native Panack installation with its required libcurl support. Check the installation instructions for this environment."),
+    http.HttpError.UnsupportedMethod(detail) => package_problem("PKG_TOOL", "Panack requested an unsupported HTTP method."),
+    http.HttpError.UnsupportedVersion(detail) => explain_problem(package_problem("PKG_HTTP_PROTOCOL", "Cannot download the archive because the server response uses an unsupported HTTP version."), "", "Ask the server administrator to provide a response supported by Panack."),
+    http.HttpError.UnsupportedTransferEncoding() => explain_problem(package_problem("PKG_HTTP_PROTOCOL", "Cannot download the archive because the server response uses an unsupported transfer encoding."), "", "Ask the server administrator to provide a response supported by Panack."),
+    http.HttpError.InvalidRequest() => package_problem("PKG_TOOL", "Panack constructed an invalid HTTP request."),
+    http.HttpError.InvalidResponse() => explain_problem(package_problem("PKG_HTTP_PROTOCOL", "Cannot understand the archive server's HTTP response."), "", "Retry your command. If the response remains invalid, report the error and archive URL to the server administrator."),
+    http.HttpError.TransportFailure(detail) => explain_problem(package_problem("PKG_HTTP_TRANSPORT", "Cannot finish downloading the archive because the connection failed."),
+      "Panack did not receive a complete archive. The HTTP API has not provided enough detail to identify the cause.", "Check connectivity from the environment running Panack, then retry your command.")
   }
+}
+
+pub pure http_status_problem(status: Nat): PackageProblem {
+  mut message = "Cannot download the archive because the server returned HTTP ${status} instead of the archive."
+  mut help = "Check that the URL provides a direct archive download. If the URL is correct, report the archive URL and HTTP status to the server administrator."
+  if status == 404 {
+    message = "Cannot download the archive because the server could not find the requested archive."
+    help = "Check the archive URL in panack.json. If the URL is incorrect, correct the URL and retry your command.\n\nIf the URL is correct, ask the package maintainer where the archive is available."
+  } else if status == 401 {
+    message = "Cannot download the archive because the server requires authentication."
+    help = "Panack requires an archive URL that can be downloaded without signing in. Ask the package maintainer for a suitable download URL."
+  } else if status == 403 {
+    message = "Cannot download the archive because the server refused access."
+    help = "Check the archive URL. If the URL is correct, ask the server administrator why access was refused. Panack requires an archive URL that can be downloaded without signing in."
+  } else if status == 407 {
+    message = "Cannot download the archive because the proxy requires authentication."
+    help = "Check the proxy access requirements in the environment running Panack. Ask the network administrator how to make this download accessible."
+  } else if status == 429 {
+    message = "Cannot download the archive because the server is limiting requests."
+    help = "Wait before retrying. If the server continues to reject the request, contact the server administrator."
+  } else if status >= 500 && status < 600 {
+    message = "Cannot download the archive because the server reported an error."
+    help = "Retry later. If the error continues, report the archive URL and HTTP status to the server administrator."
+  }
+  problem_label(explain_problem(package_problem("PKG_HTTP_STATUS", message), "", help), "Server response", "HTTP ${status}")
 }

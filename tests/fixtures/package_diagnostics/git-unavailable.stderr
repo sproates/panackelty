@@ -1,11 +1,11 @@
 panack: error[PKG_GIT_FETCH]: Git command failed with exit status 128; remote error text withheld to protect credentials
 
   Project: <workspace>/app/panack.json
-  Operation: deps restore
-  Phase: preparing files from Git
-  Dependency: git.app -> left (<workspace>/app/panack.json)
+  Package: git.root
+  Repository: https://localhost:<port>/sha.git
+  Dependency name: left
   Context: repository https://localhost:<port>/sha.git at commit <locked-commit>
 
-Panack could not prepare the package files from this Git commit. The failure reported above is the information available from this operation.
+Panack could not prepare the required Git package files. A Git exit status alone does not identify the cause.
 
-If the message identifies a problem with the repository contents, ask its maintainer to fix it. If Git only reports a failed command, check connectivity and repository access; that status alone does not identify the cause. Retry the same command and keep the existing lockfile.
+Check that the repository is accessible from the environment running Panack and that the required commit is available. Correct the reported problem, then retry your command.

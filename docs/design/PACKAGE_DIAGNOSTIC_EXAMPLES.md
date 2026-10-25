@@ -39,16 +39,14 @@ Command: `panack check --project "<workspace>/Ian's app/panack.json"`.
 The app declares a local archive, but has no lockfile. The test executes the suggested initial lock command, then runs the program successfully. Creating a lock selects content; it is not described as a pin-preserving repair.
 
 ```text
-panack: error[PKG_LOCK_MISSING]: missing lockfile
+panack: error[PKG_LOCK_MISSING]: Cannot build this project because its lockfile is missing.
 
   Project: <workspace>/Ian's app/panack.json
-  Operation: project preparation (network-free)
-  Phase: checking panack.lock.json
-  Dependency: demo.app -> lib (<workspace>/Ian's app/panack.json)
+  Missing file: <workspace>/Ian's app/panack.lock.json
 
-panack.lock.json records the exact dependencies this project uses. Panack needs that record before it can build the project.
+The lockfile records the exact dependencies the project uses and belongs alongside panack.json.
 
-Run the command below to select the dependencies and create panack.lock.json. Review and commit that file with the project.
+If you have an existing lockfile for this project, restore that file to the expected location. Otherwise, create one by running:
 
   panack deps lock --project '<workspace>/Ian'"'"'s app/panack.json'
 ```
@@ -60,18 +58,22 @@ Command: `panack run --project "<workspace>/Ian's app/panack.json"`.
 The package cache entry was moved aside while the lock and cache state remained. The suggested restore command recreates it and preserves the lock.
 
 ```text
-panack: error[PKG_CACHE_MISSING]: missing cache: <workspace>/Ian's app/.panack_modules/demo.library
+panack: error[PKG_CACHE_MISSING]: Cannot build this project because dependency 'lib' (package 'demo.library') is missing locally.
 
   Project: <workspace>/Ian's app/panack.json
-  Operation: project preparation (network-free)
-  Phase: checking saved packages
-  Dependency: demo.app -> lib (<workspace>/Ian's app/panack.json)
+  Lockfile: <workspace>/Ian's app/panack.lock.json
+  Source archive: <workspace>/library.tar.gz
+  Missing directory: <workspace>/Ian's app/.panack_modules/demo.library
 
-Panack cannot find all the saved files needed to use the dependencies in panack.lock.json.
+The lockfile records this dependency, but Panack cannot find its local files.
 
-Run the command below to obtain the missing package without changing the versions or contents recorded in panack.lock.json. An internet connection is needed for remote packages.
+Restore the packages identified by the lockfile by running:
 
   panack deps restore --project '<workspace>/Ian'"'"'s app/panack.json'
+
+Running this command will restore the local packages without changing the lockfile.
+
+An internet connection is needed if remote packages must be downloaded.
 ```
 
 ## Cached content was modified
@@ -81,18 +83,26 @@ Command: `panack run --project "<workspace>/Ian's app/panack.json"`.
 A cached source file was overwritten. It is refused before compilation. The suggested restore repairs it, and the complete program runs successfully with the same lock.
 
 ```text
-panack: error[PKG_CACHE_INVALID]: saved package files do not match their recorded checksum
+panack: error[PKG_CACHE_INVALID]: Cannot build this project because the local copy of dependency 'lib' (package 'demo.library') has changed.
 
   Project: <workspace>/Ian's app/panack.json
-  Operation: project preparation (network-free)
-  Phase: checking saved packages
-  Dependency: demo.app -> lib (<workspace>/Ian's app/panack.json)
+  Lockfile: <workspace>/Ian's app/panack.lock.json
+  Source archive: <workspace>/library.tar.gz
+  Local package directory: <workspace>/Ian's app/.panack_modules/demo.library
 
-Panack could not verify the saved local packages against panack.lock.json. It will not use them for this build.
+Panack calculated a checksum for the local package files. That checksum does not match the checksum recorded in the lockfile.
 
-Run the command below to restore and check the packages recorded in panack.lock.json. Keep the lockfile unchanged so the repair uses the same package contents.
+Save any edits you want to keep elsewhere before restoring these files.
+
+To restore the local package files to the contents identified by the lockfile, run:
 
   panack deps restore --project '<workspace>/Ian'"'"'s app/panack.json'
+
+Running this command will replace the local copy without changing the lockfile.
+
+Panack will check the restored package checksums against the lockfile before using the packages.
+
+An internet connection is needed if remote packages must be downloaded.
 ```
 
 ## The archive changed after it was locked
@@ -102,16 +112,25 @@ Command: `panack deps restore --project "<workspace>/Ian's app/panack.json"`.
 The local archive was replaced with different content. The failure preserves the lock, cache state and old cached program. Restoring the exact original archive bytes makes restore and run succeed. An update is a deliberate trust decision, not the default remedy.
 
 ```text
-panack: error[PKG_INTEGRITY]: archive contents do not match the SHA-256 checksum in panack.lock.json
+panack: error[PKG_INTEGRITY]: Cannot restore dependency 'lib' (package 'demo.library') because its source archive's checksum does not match the lockfile.
 
   Project: <workspace>/Ian's app/panack.json
-  Operation: deps restore
-  Phase: checking package contents
-  Dependency: demo.app -> lib
+  Lockfile: <workspace>/Ian's app/panack.lock.json
+  Package: demo.library
+  Source archive: <workspace>/library.tar.gz
+  Dependency name: lib
 
-This package has different contents from those recorded in panack.lock.json. Panack has refused to use it.
+Panack tried to restore the local files originally extracted from the source archive, but the archive's checksum does not match the checksum recorded in the lockfile. The archive bytes differ from the bytes used to calculate that checksum. Panack has refused to use that archive.
 
-Ask the package maintainer why the contents changed, or restore the original package contents. Use panack deps update only after you have reviewed and accepted the new contents.
+To restore the recorded dependency, obtain the original archive, put that archive at the source archive path, then run:
+
+  panack deps restore --project '<workspace>/Ian'"'"'s app/panack.json'
+
+If you intend to use the changed archive instead, review its contents before running:
+
+  panack deps update --project '<workspace>/Ian'"'"'s app/panack.json' 'lib'
+
+Running this update will change the lockfile to record the new dependency selection and checksums.
 ```
 
 ## A dependency of a dependency is missing
@@ -121,17 +140,19 @@ Command: `panack deps update --project "<workspace>/Ian's app/panack.json"`.
 The app depends on outer, whose inner dependency points to a missing directory. Both declaring edges and the missing manifest path are shown.
 
 ```text
-panack: error[PKG_MANIFEST_MISSING]: package manifest was not found: <workspace>/missing/panack.json
+panack: error[PKG_MANIFEST_MISSING]: Cannot load the package because panack.json is missing.
 
   Project: <workspace>/Ian's app/panack.json
-  Operation: deps update
-  Phase: finding panack.json
-  Dependency: demo.app -> outer (<workspace>/Ian's app/panack.json)
-  Dependency: demo.outer -> inner (<workspace>/outer/panack.json)
+  Dependency: demo.app -> outer
+  Dependency: demo.outer -> inner
+  Dependency directory: <workspace>/missing
+  Dependency declared in: <workspace>/outer/panack.json
+  Dependency name: inner
+  Missing file: <workspace>/missing/panack.json
 
-Panack looked for panack.json at the location shown above and could not find it. It needs that file to read the package definition.
+Panack needs panack.json to read the package's name, version and dependencies.
 
-Check the dependency path in the declaring panack.json and make sure the package contains panack.json at the location shown above.
+Check the dependency path in the declaring manifest. If the path is wrong, correct the path. If the path is right, restore the missing panack.json or obtain a complete copy of the package.
 ```
 
 ## A manifest is not valid JSON
@@ -141,34 +162,35 @@ Command: `panack deps update --project "<workspace>/Ian's app/panack.json"`.
 The manifest contains {broken. The parser location and manifest path identify what must be corrected.
 
 ```text
-panack: error[PKG_MANIFEST]: invalid project manifest at byte 1: expected JSON string
+panack: error[PKG_MANIFEST_INVALID]: Cannot understand panack.json because it contains invalid JSON.
 
   Project: <workspace>/Ian's app/panack.json
-  Operation: deps update
-  Phase: reading panack.json
-  Context: manifest <workspace>/Ian's app/panack.json
+  File: <workspace>/Ian's app/panack.json
+  Location: line 1, column 2
 
-Panack cannot load this package until the problem above is corrected.
+JSON property names must be enclosed in double quotes. Panack expected an opening double quote at this location.
 
-Fix the reported problem in panack.json, then retry the command. If this is someone else's package, send them this error so they can fix it.
+Correct the reported JSON problem, then retry your command.
 ```
 
 ## A lockfile is not valid JSON
 
 Command: `panack deps restore --project "<workspace>/Ian's app/panack.json"`.
 
-The lock contains {broken. Guidance favours recovering the known selection from version control rather than discarding it.
+The lock contains {broken. Guidance explains the JSON error and favours recovering a valid copy of the existing lockfile; creating a new lockfile may select different dependencies.
 
 ```text
-panack: error[PKG_LOCK_INVALID]: invalid lockfile: expected JSON string
+panack: error[PKG_LOCK_INVALID]: Cannot understand panack.lock.json because it contains invalid JSON.
 
   Project: <workspace>/Ian's app/panack.json
-  Operation: deps restore
-  Phase: checking panack.lock.json
+  Lockfile: <workspace>/Ian's app/panack.lock.json
+  Location: line 1, column 2
 
-Panack cannot read a valid dependency record from panack.lock.json, so it cannot determine which packages to use.
+JSON property names must be enclosed in double quotes. Panack expected an opening double quote at this location.
 
-Restore panack.lock.json from version control or obtain a valid copy from the project maintainer. Deleting it and creating a new lock may select different packages.
+If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.
+
+Creating a new lockfile may select different dependencies.
 ```
 
 ## An update names an unknown alias
@@ -178,15 +200,14 @@ Command: `panack deps update --project "<workspace>/Ian's app/panack.json" absen
 The selected alias does not occur in either graph. The first selection error is preserved instead of being overwritten by later consequences.
 
 ```text
-panack: error[PKG_SELECTIVE]: unknown dependency alias: absent
+panack: error[PKG_DEPENDENCY_UNKNOWN]: Cannot update dependency 'absent' because this project has no dependency with that name.
 
   Project: <workspace>/Ian's app/panack.json
-  Operation: deps update
-  Phase: checking selected dependencies
+  Lockfile: <workspace>/Ian's app/panack.lock.json
 
-The name above is not a direct dependency in this project or its existing lockfile. The lockfile has not been changed.
+Panack could not find this dependency name in panack.json or in the existing lockfile. Panack has not changed the lockfile.
 
-Use a name from the dependencies section of your project panack.json, then retry. Use the declaration name, which may differ from the package name.
+Check the name in your command. Use the dependency name declared in panack.json, which may differ from the package's own name.
 ```
 
 ## The archive server returns 404
@@ -196,16 +217,17 @@ Command: `panack deps update --project <workspace>/app/panack.json`.
 The local TLS peer returns 404. The message preserves the status and explains that a downloadable archive is required.
 
 ```text
-panack: error[PKG_HTTP_STATUS]: archive server returned HTTP 404; expected 200
+panack: error[PKG_HTTP_STATUS]: Cannot download the archive because the server could not find the requested archive.
 
   Project: <workspace>/app/panack.json
-  Operation: deps update
-  Phase: checking the download response
-  Dependency: test.app -> lib (<workspace>/app/panack.json)
+  Package: test.archive
+  Source archive: https://localhost:<port>/missing.tar.gz
+  Dependency name: lib
+  Server response: HTTP 404
 
-The server returned the HTTP status shown above instead of the requested archive.
+Check the archive URL in panack.json. If the URL is incorrect, correct the URL and retry your command.
 
-Check the archive URL in panack.json. It must be directly downloadable without signing in. Ask the package maintainer to correct a missing or inaccessible download.
+If the URL is correct, ask the package maintainer where the archive is available.
 ```
 
 ## The HTTPS connection fails verification
@@ -215,16 +237,16 @@ Command: `panack deps update --project <workspace>/app/panack.json`.
 The test removes trust in its private certificate. No HTTP request reaches the peer. The diagnostic does not recommend disabling certificate checks or imply that every TLS failure is an expired certificate.
 
 ```text
-panack: error[PKG_HTTP]: could not establish a trusted HTTPS connection to the archive server
+panack: error[PKG_HTTPS_CONNECTION]: Cannot download the archive because Panack could not establish a secure HTTPS connection to the archive server.
 
   Project: <workspace>/app/panack.json
-  Operation: deps update
-  Phase: downloading the archive
-  Dependency: test.app -> lib (<workspace>/app/panack.json)
+  Package: test.archive
+  Source archive: https://localhost:<port>/lib.tar.gz
+  Dependency name: lib
 
-The secure connection failed before the archive could be downloaded. This error alone does not identify a particular certificate problem.
+The HTTP API has not provided enough detail for Panack to identify the cause.
 
-Check your system clock and trusted certificates. If they are correct, ask the server administrator to check its HTTPS configuration. Do not disable certificate verification.
+Check whether the archive URL is accessible over HTTPS from the same environment. If you manage the server, check its HTTPS configuration and certificate; otherwise, report the failure to the server administrator.
 ```
 
 ## A locked Git commit cannot be acquired
@@ -237,14 +259,14 @@ The test replaces the remote repository with an empty reachable repository, so i
 panack: error[PKG_GIT_FETCH]: Git command failed with exit status 128; remote error text withheld to protect credentials
 
   Project: <workspace>/app/panack.json
-  Operation: deps restore
-  Phase: preparing files from Git
-  Dependency: git.app -> left (<workspace>/app/panack.json)
+  Package: git.root
+  Repository: https://localhost:<port>/sha.git
+  Dependency name: left
   Context: repository https://localhost:<port>/sha.git at commit <locked-commit>
 
-Panack could not prepare the package files from this Git commit. The failure reported above is the information available from this operation.
+Panack could not prepare the required Git package files. A Git exit status alone does not identify the cause.
 
-If the message identifies a problem with the repository contents, ask its maintainer to fix it. If Git only reports a failed command, check connectivity and repository access; that status alone does not identify the cause. Retry the same command and keep the existing lockfile.
+Check that the repository is accessible from the environment running Panack and that the required commit is available. Correct the reported problem, then retry your command.
 ```
 
 ## Boundaries and acceptance
@@ -276,15 +298,14 @@ Command: `panack deps update --project "<workspace>/Ian's app/panack.json" other
 The project has removed its previous `lib` declaration and added `other`, but the command selects only `other`. Panack identifies `lib` as the additional change and leaves the lockfile unchanged. This is a different explanation from an unknown dependency name.
 
 ```text
-panack: error[PKG_SELECTIVE]: unselected dependency changed: lib
+panack: error[PKG_DEPENDENCY_NOT_SELECTED]: Cannot complete this update without also changing dependency 'lib'.
 
   Project: <workspace>/Ian's app/panack.json
-  Operation: deps update
-  Phase: checking selected dependencies
+  Lockfile: <workspace>/Ian's app/panack.lock.json
 
-This update would also change the dependency named above, but you did not select it. The lockfile has not been changed.
+Your command did not select this dependency. Panack has stopped because the update would also change this dependency. Panack has not changed the lockfile.
 
-Check its declaration in panack.json. Undo the unintended change, or include this dependency name in the update command if you intend to update it too.
+If you intend to update this dependency too, include its declaration name in your update command. Otherwise, undo the change to this dependency in panack.json and retry your original command.
 ```
 
 ## Diagnostic review scope
@@ -310,9 +331,44 @@ the latter does not assert that a cycle has been proved. Lockfile validation
 identifies the failing project field instead of reporting a generic identity
 problem. Existing rejection rules and resource bounds are unchanged.
 
-The 21 diagnostic unit checks and twelve public transcripts are representative
+The 33 diagnostic unit checks and thirteen public transcripts are representative
 regression evidence, not a claim that every low-level failure has its own
 end-to-end fixture. The existing archive, Git, graph, containment and lock tests
 continue to exercise the wider rejection surface. Exact transcript matching
 keeps this document current; human review is still needed to judge whether an
 explanation is useful.
+
+## Diagnostic implementation follow-up
+
+The current follow-up applies the reviewed presentation to lock/cache recovery,
+manifest JSON, selected updates and HTTP failures, including full relevant paths,
+checksum terminology and warnings before replacement commands. Internal operation
+and phase labels are omitted from the rendered messages. Line and column locations
+are supplied by the package tool without modifying the shared compiler parser.
+
+This is an intermediate implementation: the wider reviewed Git/archive cause
+catalogue and Git-version detection are not all implemented here. Do not describe
+this slice as completion of every agreed diagnostic. P04b/c remain open. HTTP API
+error-detail preservation is tracked separately in issue #586.
+
+The change affects failure reporting and recovery guidance, not accepted package
+formats or dependency selection. Input failure handling reparses rejected JSON
+to distinguish syntax from package settings; normal successful parsing is unchanged.
+No compiler, native interface or bootstrap source changes are required.
+
+## A manifest is not UTF-8 text
+
+Command: `panack deps update --project "<workspace>/Ian's app/panack.json"`.
+
+The manifest contains the invalid UTF-8 byte `0xff`. Panack rejects the file
+before parsing JSON, explains how to correct its encoding and leaves the lockfile
+unchanged. No line or column is claimed for text Panack cannot decode.
+
+```text
+panack: error[PKG_MANIFEST_INVALID]: Cannot understand panack.json because the file is not valid UTF-8 text.
+
+  Project: <workspace>/Ian's app/panack.json
+  File: <workspace>/Ian's app/panack.json
+
+Save the file using UTF-8 encoding, or obtain a valid copy, then retry your command.
+```

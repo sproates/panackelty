@@ -207,3 +207,26 @@ different causes. The follow-up reviews all package diagnostic producers,
 rewrites internal terminology, separates known causes and checks distinct
 recovery advice. This is a correction within P04a; weights and P04b/c scope
 are unchanged.
+
+The 25 October wording correction is being delivered incrementally. The first
+implementation updates lock/cache recovery, archive checksum explanations,
+manifest and lockfile JSON errors, selected-update failures and HTTP causes.
+The [verified examples](../../design/PACKAGE_DIAGNOSTIC_EXAMPLES.md) record actual
+output and distinguish this implementation from the remaining reviewed Git and
+archive catalogue. Git version detection and the remaining cause-specific
+messages still need implementation; this correction does not complete P04b/c
+or earn additional programme credit. The installation guide now explicitly says
+Git is optional unless a dependency requires Git acquisition.
+
+Performance impact is confined to failure reporting: rejected JSON is parsed
+again to distinguish syntax errors from invalid package settings. Successful
+parsing and dependency selection are unchanged. No compiler or native-interface
+changes are included. Website impact: none; these diagnostics belong to
+unreleased alpha.15, and the live alpha.14 claims remain unchanged.
+
+Validation for this first correction: full `make check` passed on 25 October
+in 761 seconds, including unit, bootstrap, functional and release-smoke checks.
+Focused evidence includes 30 diagnostic assertions, 61 CLI assertions and twelve
+captured public-command transcripts. These results verify this slice, not the
+outstanding diagnostic catalogue. Timing is one local run, not a paired
+performance comparison; the printed legacy timing budgets remain under GI#106.

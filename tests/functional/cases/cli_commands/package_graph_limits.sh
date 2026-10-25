@@ -82,7 +82,7 @@ run_rejected 'nested version conflict' "$app/panack.json" \
 write_app "$app" \
     '{"geometry":{"path":"../geometry"},"math_direct":{"path":"../math-v1-copy"}}'
 run_rejected 'nested package identity resolves to multiple roots' "$app/panack.json" \
-    'package example.math_support@1.0.0 resolves to multiple physical roots'
+    'package example.math_support@1.0.0 was found in two different directories'
 
 packages="$work/packages"
 i=1

@@ -1,6 +1,6 @@
-import project/src/packages/input_diagnostic::{input_problem, encoding_problem}
+import project/src/packages/input_diagnostic::{input_problem, encoding_problem, input_read_problem}
 pub import project/src/packages/diagnostic::{PackageProblem}
-import project/src/packages/diagnostic::{package_problem, explain_problem, problem_context, problem_dependency, package_result, problem_label, problem_value, manifest_specification}
+import project/src/packages/diagnostic::{host_detail, package_problem, explain_problem, problem_context, problem_dependency, package_result, problem_label, problem_value, manifest_specification}
 pub import project/src/packages/git_acquisition::{AcquiredGit}
 import project/src/packages/git_acquisition::{acquire_git, git_containing, git_package_root, git_relative}
 import project/src/packages/manifest::{parse_package_manifest}
@@ -125,7 +125,7 @@ physical_source_roots_overlap(left: Str, right: Str): Result[Bool, PackageProble
     Ok(left_path) => match std_path.from_text(right) {
       Error(error) => Error(package_problem("PKG_FILESYSTEM", "invalid source root path")),
       Ok(right_path) => match std_package_filesystem.directories_overlap(left_path, right_path) {
-        Error(error) => Error(package_problem("PKG_FILESYSTEM", "cannot inspect the packages' source directories")),
+        Error(error) => Error(problem_label(problem_label(package_problem("PKG_FILESYSTEM", "Cannot compare the package source directories: " + host_detail(error.code) + "."), "First source directory", left), "Second source directory", right)),
         Ok(overlaps) => Ok(overlaps)
       }
     }
@@ -145,7 +145,9 @@ read_manifest_project_file(path: Str, is_project_manifest: Bool): Result[Manifes
   resolved: Str = path_support.resolve(path)
   package_root: Str = path_support.parent(resolved)
   if resolved != package_root + "/panack.json" {
-    Error(package_problem("PKG_MANIFEST_INVALID", "project manifest must be named panack.json"))
+    Error(problem_label(explain_problem(package_problem("PKG_MANIFEST_INVALID", "Cannot use the selected manifest because its filename is not panack.json."),
+      "Panack requires the package manifest to be named panack.json in the package's root directory.",
+      "Pass the path to the package's panack.json using --project. If this is the intended manifest, rename the file to panack.json."), "Selected file", resolved))
   } else {
     match std_path.from_text(package_root) {
       Error(error) => Error(package_problem("PKG_FILESYSTEM", "invalid package root path")),
@@ -154,13 +156,11 @@ read_manifest_project_file(path: Str, is_project_manifest: Bool): Result[Manifes
         Ok(relative) => match std_package_filesystem.read_beneath(root, relative, package_manifest_byte_limit()) {
           Error(problem) => {
             code: Str = problem.code
-            missing = package_problem(if code == "not_found" { "PKG_MANIFEST_MISSING" } else { "PKG_FILESYSTEM" },
-              if code == "not_found" { "Cannot load the package because panack.json is missing." }
-              else { "cannot read project manifest (${code}): " + resolved })
+            missing = input_read_problem("panack.json", resolved, code, false)
             Error(if is_project_manifest && code == "not_found" {
-              explain_problem(problem_label(missing, "Missing file", resolved), "Panack could not find the project's panack.json at the expected location.",
+              explain_problem(missing, "Panack could not find the project's panack.json at the expected location.",
                 "Check the path passed to --project. Point it to the project's panack.json, or restore that file if it was removed.")
-            } else { problem_label(missing, "Missing file", resolved) })
+            } else { missing })
           },
           Ok(read) => match manifest_project_from_read(package_root, read, is_project_manifest) {
             Error(problem) => Error(problem_label(problem, "File", resolved)),
@@ -343,7 +343,11 @@ resolve_package_dependency_graph(
           Ok(declaration) => {
             package: ManifestProject = declaration.project
             match package.entry {
-              Some(entry) => { failure = Some(package_problem("PKG_MANIFEST_INVALID", "dependency ${alias} must be a library package")) },
+              Some(entry) => if package.root_identity == ancestry[0] {
+                failure = Some(problem_label(package_problem("PKG_DEPENDENCY_CYCLE", "Cannot resolve dependency '" + alias + "' because the dependency chain returns to the project package."), "Repeated package directory", package.package_root))
+              } else { failure = Some(problem_label(explain_problem(package_problem("PKG_MANIFEST_INVALID", "Cannot use dependency '" + alias + "' because package '" + package.package + "' is an application."),
+                "The package manifest declares an 'entry' file. Panack only accepts library packages as dependencies.",
+                "Choose a library package for this dependency. If you maintain this package and intend to provide a library, remove 'entry' and declare the public modules in 'exports'.\n\nSee the package manifest specification:\n" + manifest_specification()), "Dependency manifest", package.package_root + "/panack.json")) },
               None() => {
                 if package.exported_modules.len() == 0 {
                   failure = Some(package_problem("PKG_MANIFEST_INVALID", "dependency ${alias} must export at least one module"))
@@ -354,9 +358,9 @@ resolve_package_dependency_graph(
                   }
                   if cycle {
                     if package.root_identity == ancestry[0] {
-                      failure = Some(package_problem("PKG_GRAPH", "dependency ${alias} resolves to the application package root"))
+                      failure = Some(problem_label(package_problem("PKG_DEPENDENCY_CYCLE", "Cannot resolve dependency '" + alias + "' because the dependency chain returns to the project package."), "Repeated package directory", package.package_root))
                     } else {
-                      failure = Some(package_problem("PKG_GRAPH", "dependency ${alias}: package dependency cycle detected"))
+                      failure = Some(problem_label(package_problem("PKG_DEPENDENCY_CYCLE", "Cannot resolve dependency '" + alias + "' because the dependency chain returns to a package already in this chain."), "Repeated package directory", package.package_root))
                     }
                   } else if current.edges.len() >= package_dependency_graph_max_edges() {
                     failure = Some(package_problem("PKG_LIMIT", "dependencies contain more than 256 package-to-package references"))
@@ -369,22 +373,24 @@ resolve_package_dependency_graph(
                       previous: ManifestProject = previous_declaration.project
                       if previous.root_identity == package.root_identity {
                         if previous.package != package.package || previous.version != package.version {
-                          conflict = Some(package_problem("PKG_GRAPH", "the same package directory was read with different names or versions during this command"))
+                          conflict = Some(problem_label(package_problem("PKG_CHANGED", "Cannot finish loading the package because its name or version changed during this command."), "File", package.package_root + "/panack.json"))
                         } else if previous.source_root != package.source_root ||
                             previous.exported_modules != package.exported_modules ||
                             previous_declaration.dependencies != declaration.dependencies {
-                          conflict = Some(package_problem("PKG_MANIFEST_INVALID", "panack.json changed while Panack was reading the dependencies; stop the process editing it and retry"))
+                          conflict = Some(problem_label(package_problem("PKG_CHANGED", "Cannot finish loading the package because its manifest changed during this command."), "File", package.package_root + "/panack.json"))
                         } else {
                           known = Some(previous_declaration)
                         }
                       } else if previous.package == package.package {
                         if previous.version != package.version {
                           package_name: Str = package.package
-                          conflict = Some(package_problem("PKG_GRAPH", "package ${package_name} is declared with conflicting versions"))
+                          conflict = Some(problem_label(problem_label(package_problem("PKG_VERSION_CONFLICT", "Cannot resolve the dependencies because package " + package_name + " is declared with conflicting versions."),
+                            "First package", previous.package + "@" + previous.version + " in " + previous.package_root), "Conflicting package", package.package + "@" + package.version + " in " + package.package_root))
                         } else {
                           package_name: Str = package.package
                           package_version: Str = package.version
-                          conflict = Some(package_problem("PKG_GRAPH", "package ${package_name}@${package_version} resolves to multiple physical roots"))
+                          conflict = Some(problem_label(problem_label(package_problem("PKG_IDENTITY_CONFLICT", "Cannot resolve the dependencies because package " + package_name + "@" + package_version + " was found in two different directories."),
+                            "First package directory", previous.package_root), "Conflicting package directory", package.package_root))
                         }
                       } else {
                         match physical_source_roots_overlap(previous.source_root, package.source_root) {
@@ -392,10 +398,14 @@ resolve_package_dependency_graph(
                           Ok(overlaps) => {
                             if overlaps {
                               if previous.root_identity == ancestry[0] {
-                                conflict = Some(package_problem("PKG_LAYOUT", "source directory for dependency ${alias} overlaps the application's source directory"))
+                                conflict = Some(package_problem("PKG_LAYOUT", "Cannot use dependency ${alias} because its source directory overlaps the project's source directory."))
                               } else {
                                 previous_alias: Str = package_graph_first_alias(previous.root_identity, current.edges)
-                                conflict = Some(package_problem("PKG_LAYOUT", "source directory for dependency ${alias} overlaps dependency ${previous_alias}"))
+                                conflict = Some(package_problem("PKG_LAYOUT", "Cannot use dependency ${alias} because its source directory overlaps dependency ${previous_alias}."))
+                              }
+                              match conflict {
+                                None() => {},
+                                Some(problem) => { conflict = Some(problem_label(problem_label(problem, "First source directory", previous.source_root), "Conflicting source directory", package.source_root)) }
                               }
                             }
                           }

@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Package input diagnostics are explicitly unmeasured by the bounded source corpus.",
+    "reason": "Package command diagnostics are explicitly unmeasured by the bounded source corpus.",
     "basis": "Unit and public-command tests assert explanations, context and recovery, not source-execution coverage percentages.",
-    "scopeChange": "Add input_diagnostic.panack to the unmeasured inventory; retain eligible sources, exclusions and thresholds."
+    "scopeChange": "Add command_diagnostic.panack to the unmeasured inventory; retain eligible sources, exclusions and thresholds."
   },
-  "manifestHash": "a65267b211ba7e77e2093140db038b1d160dd0a9b8b702bfb92079982ac80fe8",
+  "manifestHash": "47491a16bc0394de7f0c86c1dd20e95004865e5f461f86dfd70f7bcb3c09de95",
   "exclusionHash": "773435167944b7750a18a232c06a2697356e8fb853efda5dfcf1a3acd8f10a7e"
 }

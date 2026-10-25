@@ -1,0 +1,11 @@
+panack: error[PKG_IDENTITY_CONFLICT]: Cannot resolve the dependencies because package demo.library@1.0.0 was found in two different directories.
+
+  Project: <workspace>/app/panack.json
+  Dependency directory: <workspace>/other
+  Dependency name: second
+  Conflicting package directory: <workspace>/other
+  First package directory: <workspace>/library
+
+These directories declare the same package name and version, but refer to separate physical package directories. Panack cannot choose which copy to use.
+
+Correct the dependency paths so all references to this package use the same directory, then retry your command.

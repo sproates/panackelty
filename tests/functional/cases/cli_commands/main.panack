@@ -303,7 +303,7 @@ main(): Void {
         Ok(output) => {
           results = results.append(std_testing.expect("package identity cannot come from multiple roots",
             output.exit_code == 1 && output.signal == 0 &&
-              contains(output.stderr.decode_utf8(), "resolves to multiple physical roots"),
+              contains(output.stderr.decode_utf8(), "was found in two different directories"),
             "duplicate physical package identities were accepted"))
         }
       }
@@ -329,7 +329,7 @@ main(): Void {
         Ok(output) => {
           results = results.append(std_testing.expect("package source roots cannot overlap the app root",
             output.exit_code == 1 && output.signal == 0 &&
-              contains(output.stderr.decode_utf8(), "overlaps the application's source directory"),
+              contains(output.stderr.decode_utf8(), "overlaps the project's source directory"),
             "a dependency source root nested in the application source root was accepted"))
         }
       }
@@ -457,7 +457,7 @@ main(): Void {
         Ok(output) => {
           results = results.append(std_testing.expect("nested package dependency cycle is rejected",
             output.exit_code == 1 && output.signal == 0 &&
-              contains(output.stderr.decode_utf8(), "package dependency cycle detected"),
+              contains(output.stderr.decode_utf8(), "the dependency chain returns to a package already in this chain."),
             "a cyclic package graph was accepted"))
         }
       }

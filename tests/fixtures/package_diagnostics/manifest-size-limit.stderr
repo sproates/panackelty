@@ -1,0 +1,8 @@
+panack: error[PKG_MANIFEST_INVALID]: Cannot process panack.json because the file exceeds Panack's 64 KiB (65536 bytes) size limit.
+
+  Project: <workspace>/app/panack.json
+  File: <workspace>/app/panack.json
+
+Panack stopped reading the file at the size limit. This error does not establish whether the file contains valid JSON.
+
+Reduce the file's size without removing required information, then retry your command. If the project needs a larger file, report this limit with your Panack version.

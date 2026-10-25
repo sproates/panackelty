@@ -20,6 +20,7 @@
     "src/stdlib/time.panack"
   ],
   "unmeasured": [
+    {"path":"src/packages/command_diagnostic.panack","reason":"Package command validation is exercised by unit and public CLI tests outside the bounded source-execution corpus; no coverage percentage is claimed."},
     {"path":"src/packages/diagnostic.panack","reason":"P04a diagnostic rendering is tested by unit and public CLI acceptance outside the bounded source-execution corpus; no coverage percentage is claimed."},
     {"path":"src/packages/input_diagnostic.panack","reason":"P04a diagnostic rendering is tested by unit and public CLI acceptance outside the bounded source-execution corpus; no coverage percentage is claimed."},
     {"path":"src/packages/git_acquisition.panack","reason":"P03c Git integration is asserted by unit and public-command HTTPS fixtures outside the bounded source-execution corpus; no coverage percentage is claimed."},

@@ -1,0 +1,14 @@
+panack: error[PKG_LAYOUT]: Cannot use dependency lib because its source directory overlaps the project's source directory.
+
+  Project: <workspace>/app/panack.json
+  Dependency directory: <workspace>/library
+  Dependency name: lib
+  Conflicting source directory: <workspace>/library/src
+  First source directory: <workspace>/app/src
+
+These directories overlap, so the same source files could belong to both packages. Panack requires separate source directories for each package.
+
+Check the source field in each panack.json. Correct the paths or move the source files so neither source directory contains the other.
+
+See the package manifest specification:
+https://github.com/sproates/panackelty/blob/main/docs/design/MODULE_PACKAGE_DESIGN.md#package-roots-manifest-and-source-distribution

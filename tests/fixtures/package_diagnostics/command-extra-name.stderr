@@ -1,0 +1,8 @@
+panack: error[PKG_USAGE]: Cannot run this command because dependency names are only accepted by panack deps update.
+
+  Project: <workspace>/app/panack.json
+  Argument: lib
+
+Panack has not read or changed any package files.
+
+Remove the extra argument. To update selected dependencies, use panack deps update --project /path/to/panack.json followed by their names from the manifest.

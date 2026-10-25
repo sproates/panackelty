@@ -77,3 +77,8 @@ Diagnostic explanations belong at the point that knows the cause. Use
 `explain_problem` when the general error family cannot explain a particular
 failure accurately. Do not list competing known causes in one message or turn
 a failed Git exit status into an invented network diagnosis.
+
+`command_diagnostic.panack` validates operations and arguments before package
+files are accessed. A selected update requires an existing lock before resolving
+dependencies. Input reads retain filesystem causes and explicit byte limits;
+graph conflicts carry both package locations and versions where available.

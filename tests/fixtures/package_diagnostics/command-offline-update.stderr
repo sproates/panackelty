@@ -1,0 +1,7 @@
+panack: error[PKG_USAGE]: Cannot run this command because --offline is only supported by panack deps restore.
+
+  Project: <workspace>/app/panack.json
+
+Panack has not read or changed any package files.
+
+Remove --offline to run this operation. To restore recorded packages without network access, use panack deps restore --project /path/to/panack.json --offline.

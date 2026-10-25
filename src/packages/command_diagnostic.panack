@@ -1,0 +1,57 @@
+pub import project/src/packages/diagnostic::{PackageProblem}
+import project/src/packages/diagnostic::{package_problem, explain_problem, problem_label}
+
+pure command_problem(message: Str, help: Str): PackageProblem {
+  explain_problem(package_problem("PKG_USAGE", message), "Panack has not read or changed any package files.", help)
+}
+
+pub pure validate_package_command(arguments: [Str]): Result[Unit, PackageProblem] {
+  mut failure: Option[PackageProblem] = None()
+  mut project_index: Nat = 0
+  if arguments.len() == 0 {
+    failure = Some(command_problem("Cannot run the package command because no operation was supplied.",
+      "Use panack deps lock, panack deps update or panack deps restore, followed by --project /path/to/panack.json."))
+  } else if arguments[0] == "prepare" { project_index = 1 }
+  else if arguments[0] != "deps" {
+    failure = Some(problem_label(command_problem("Cannot run the package command because the operation is not supported.",
+      "Use panack deps lock, panack deps update or panack deps restore, followed by --project /path/to/panack.json."), "Operation", arguments[0]))
+  } else if arguments.len() < 2 {
+    failure = Some(command_problem("Cannot run panack deps because no operation was supplied.",
+      "Choose lock, update or restore, followed by --project /path/to/panack.json."))
+  } else if arguments[1] != "lock" && arguments[1] != "update" && arguments[1] != "restore" {
+    failure = Some(problem_label(command_problem("Cannot run panack deps because the operation is not supported.",
+      "Choose lock, update or restore, followed by --project /path/to/panack.json."), "Operation", arguments[1]))
+  } else { project_index = 2 }
+  if failure == None() {
+    if arguments.len() <= project_index || arguments[project_index] != "--project" {
+      failure = Some(command_problem("Cannot run the package command because --project is required after the operation.",
+        "Add --project /path/to/panack.json immediately after the operation name."))
+    } else if arguments.len() <= project_index + 1 || arguments[project_index + 1] == "" || arguments[project_index + 1].starts_with_at("--", 0) {
+      failure = Some(command_problem("Cannot run the package command because --project has no manifest path.",
+        "Supply the path to the project's panack.json immediately after --project."))
+    } else {
+      for index in (project_index + 2)..arguments.len() {
+        if failure == None() {
+          argument = arguments[index]
+          if argument == "--offline" {
+            if arguments[0] != "deps" || arguments[1] != "restore" {
+              failure = Some(command_problem("Cannot run this command because --offline is only supported by panack deps restore.",
+                "Remove --offline to run this operation. To restore recorded packages without network access, use panack deps restore --project /path/to/panack.json --offline."))
+            } else if index != project_index + 2 {
+              failure = Some(command_problem("Cannot run this command because --offline was supplied more than once.", "Supply --offline once, after the manifest path."))
+            }
+          } else if argument.starts_with_at("-", 0) {
+            failure = Some(problem_label(command_problem("Cannot run the package command because an option is not supported.",
+              "Remove the unsupported option. Only panack deps restore accepts --offline; panack deps update accepts dependency names after the manifest path."), "Option", argument))
+          } else if arguments[0] != "deps" || arguments[1] != "update" {
+            failure = Some(problem_label(command_problem("Cannot run this command because dependency names are only accepted by panack deps update.",
+              "Remove the extra argument. To update selected dependencies, use panack deps update --project /path/to/panack.json followed by their names from the manifest."), "Argument", argument))
+          } else if argument == "" {
+            failure = Some(command_problem("Cannot update the selected dependencies because a dependency name is empty.", "Supply the dependency names used in the manifest's dependencies section."))
+          }
+        }
+      }
+    }
+  }
+  match failure { Some(problem) => Error(problem), None() => Ok(()) }
+}

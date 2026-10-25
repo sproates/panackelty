@@ -1,0 +1,13 @@
+panack: error[PKG_MANIFEST_INVALID]: Cannot use dependency 'lib' because package 'demo.application' is an application.
+
+  Project: <workspace>/app/panack.json
+  Dependency directory: <workspace>/application
+  Dependency name: lib
+  Dependency manifest: <workspace>/application/panack.json
+
+The package manifest declares an 'entry' file. Panack only accepts library packages as dependencies.
+
+Choose a library package for this dependency. If you maintain this package and intend to provide a library, remove 'entry' and declare the public modules in 'exports'.
+
+See the package manifest specification:
+https://github.com/sproates/panackelty/blob/main/docs/design/MODULE_PACKAGE_DESIGN.md#package-roots-manifest-and-source-distribution

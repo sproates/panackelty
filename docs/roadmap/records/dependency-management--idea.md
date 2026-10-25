@@ -271,3 +271,31 @@ filesystem operations. The generic HTTP fold adds no network calls or buffering;
 error mapping occurs only on failure. Existing cold/warm tests provide timings,
 not a paired regression measurement. Compiler/native interfaces are unchanged.
 Website impact: none; this remains unreleased alpha.15 work.
+
+### P04a command, input and graph correction
+
+This intermediate slice distinguishes unsupported commands/options, selected
+updates without a baseline lock, input read failures, file kinds and byte/depth
+limits. Graph errors explain application dependencies, cycles and conflicting
+versions/directories, with both affected locations. Saving the initial lock
+reports that publication has not begun. Fifty diagnostic unit assertions and
+23 additional public transcripts cover these changes, bringing the example
+catalogue to 57. Suggested initial-lock recovery is executed by the tests.
+
+Remaining P04a acceptance includes the wider stale-lock/record validation,
+publication and redirect/HTTP response catalogue. P04b/c remain planned; weights
+and the 75% accepted P01–P03 subtotal are unchanged. This delivery does not close
+GI#569 or GI#200.
+
+Performance: command validation adds one argument scan before existing
+work. Successful graph resolution and acquisition retain their operations;
+additional context is constructed on failure. No compiler/native change or
+paired performance claim is made. Website impact: none, because these changes
+remain part of the unreleased alpha.15 package workflow.
+
+Validation: full `make check` passed on 25 October in 718 seconds, including
+unit, functional, bootstrap, release relocation and quick-start checks. Focused
+checks passed all 50 diagnostic assertions and 61 CLI assertions. The package-tool
+mutation test proves that a diagnostic edit rebuilds no compiler or seed artifact.
+The examples and final diff were reviewed; the remaining P04a catalogue is not
+claimed complete. Historical timing budgets remain subject to GI#106 reassessment.

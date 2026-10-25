@@ -1472,13 +1472,13 @@ restores, unavailable locked commits and changed archive bytes. Failure checks
 compare the complete cache tree plus exact lock/state bytes. See the
 [remote-source acceptance matrix](../docs/design/PACKAGE_REMOTE_ACCEPTANCE.md).
 
-P04a and its diagnostic follow-up provide 33 diagnostic unit assertions and public-command transcript/recovery
-acceptance in `tests/package_diagnostics.sh`. Thirty-four exact
+P04a and its diagnostic follow-up provide 50 diagnostic unit assertions and public-command transcript/recovery
+acceptance in `tests/package_diagnostics.sh`. Fifty-seven exact
 transcripts are checked against the examples document. Tests execute suggested
 commands with apostrophes/spaces in the project path, verify complete program
 output and preserve pins after cache repair or rejected content. Existing remote
 fixtures assert safe TLS/status/Git explanations and secret rejection on Linux
-and macOS. The diagnostic and input-diagnostic modules are explicitly unmeasured by the bounded
+and macOS. The diagnostic, input-diagnostic and command-diagnostic modules are explicitly unmeasured by the bounded
 source-coverage corpus; this makes no source coverage percentage claim.
 
 The P04a wording review tests distinct causes for unknown dependency names,
@@ -1511,3 +1511,10 @@ checks that invalid gzip remains an archive error. Existing streamed compressed,
 expanded, entry and header bounds remain exercised. Restore tests distinguish
 matching archive bytes from a mismatched extracted-tree checksum and preserve
 the previous lock, state and usable package.
+
+The general-validation correction adds 23 exact public transcripts for command
+arguments, selected updates without a lock, file kinds and access, manifest/lock
+byte bounds, JSON depth, invalid lock records, application dependencies, cycles,
+conflicting versions/directories and overlapping source roots. The tests check
+no initial lock on rejection, preservation of existing files and execution of
+the suggested initial-lock command. Permission cases run on non-root POSIX hosts.

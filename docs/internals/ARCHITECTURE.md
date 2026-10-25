@@ -1789,3 +1789,9 @@ the known cause and matching recovery advice. Native filesystem codes receive
 plain-language descriptions; unknown codes remain explicit. Archive and Git
 validation retain the same bounds while distinguishing path, metadata and link
 failures in their explanations.
+
+Package command validation runs before filesystem or acquisition work. Selected
+updates require an existing lock before graph resolution. Input diagnostics
+distinguish read failures and byte bounds from JSON/record validation; graph
+errors retain conflicting directories, versions and dependency chains. These
+changes remain within the independently compiled Panack package tool.

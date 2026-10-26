@@ -36,6 +36,8 @@ jobs:
         run: sh tests/unit/harness/layout.sh
       - name: Run CI routing contracts
         run: node --test tests/source_coverage/route.test.cjs
+      - name: Test artifact network diagnostics
+        run: node --test .github/actions/artifact-network/index.test.cjs
 
   changes:
     name: Classify and check documentation

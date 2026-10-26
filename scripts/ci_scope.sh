@@ -14,6 +14,8 @@ ci_static_validation_path() {
     # deleting CI-only code must not select product validation.
     case "$1" in
         .github/workflows/*.yml|.github/workflows/*.yaml|\
+        .github/actions/upload-with-diagnostics/action.yml|.github/actions/artifact-network/action.yml|\
+        .github/actions/artifact-network/index.cjs|.github/actions/artifact-network/index.test.cjs|\
         scripts/ci_scope.sh|scripts/validate_change.sh|scripts/ci_gate.sh|scripts/ci_package_gate.sh|\
         scripts/ci_next_integration.sh|scripts/source_coverage_route.cjs|scripts/release_source_coverage.cjs|\
         scripts/validation_components.sh|scripts/ci_docs.sh|scripts/check_docs.sh|\

@@ -617,8 +617,9 @@ and release workflows, not a claim that arbitrary program equivalence is decidab
 Deliver six constraints across three families, with explicit static construction
 and runtime validation. This supersedes the earlier representative-outcome list.
 The guard binding and validation-call contract below are also owner-agreed.
-Remaining detailed design is listed explicitly; no implementation starts with
-this record.
+The [consolidated contract](../../design/VALIDATED_DOMAIN_TYPES.md) supplies the
+final syntax proposal, concrete errors, Unicode pin and finite acceptance cases
+for review. No implementation starts with this record.
 
 | Constraint | Agreed semantics |
 | --- | --- |
@@ -641,11 +642,13 @@ constraints, combined with `&&`. Formatting and parentheses do not expand the
 six agreed constraint forms or permit arbitrary predicates and method calls.
 Keep the explicit programmer-chosen binding. Report failed conjuncts in written
 left-to-right order, including inside parentheses; line breaks do not change this.
-Exact constraint API spellings remain to be agreed; illustrative `length()`,
-`isNonBlank()` and `hasNoControlCharacters()` names are not approved APIs.
+The final syntax proposal uses existing `len()` and new `is_non_blank()` and
+`has_no_control_characters()` methods. Earlier illustrative spellings are superseded.
 
-Guard alternatives using `||` are explicitly scheduled for alpha.16, outside
-alpha.15. Define their static proof rules, interaction with conjunction/grouping,
+Existing numeric guards already support `||`; preserve that behaviour and its
+bounded proof rules during the binding migration. Alpha.16 covers extending
+alternatives to the new string, collection and record-relationship constraints.
+Define the extension's static proof rules, interaction with conjunction/grouping,
 and structured and rendered failures before implementation. A rejected value
 must receive an explanation of the alternatives as alternatives, rather than
 presenting every failed branch as a separately mandatory condition. This does
@@ -692,7 +695,8 @@ target type, affected value/field location (both fields for a relationship),
 constraint and relevant facts such as actual length and permitted bounds. Programs
 can inspect the facts; rendering a human-readable message is optional. The error
 must not automatically retain or print the original potentially sensitive input.
-Concrete record/enum fields and rendering entry points remain to be designed.
+Concrete records/enums and the pure `ValidationError.render(): Str` method are
+specified for review in the consolidated contract.
 
 Report all failed constraints in declaration order, reading conjunctions left to
 right. For records, report field failures in field declaration order, followed by
@@ -707,10 +711,10 @@ minimum 1, actual 0. Its human-readable rendering is:
 >
 > Label requires at least 1 Unicode scalar value, but the string is empty.
 
-This example specifies failure facts and presentation, not a final Label
-declaration. The proposed `text.length()` spelling for scalar counting still
-needs confirmation against the existing string API. Agree other constraint and
-record declarations and failure examples before implementing their output.
+This example applies to a declaration with only length bounds. The consolidated
+Label also requires non-blank text and therefore reports both failures for empty
+input. The existing scalar-counting method is `text.len()`, not `text.length()`.
+Full declarations and failure examples appear in the consolidated contract.
 
 #### Establishing and preserving guarantees
 
@@ -731,7 +735,8 @@ the constraint or produce an ordinary collection that can be explicitly validate
 again. Never retain a guarded type after invalidating its guarantee. Construction
 of a guarded record must establish all its invariants. Updating it must prove or
 validate the complete resulting record, without exposing an intermediate invalid
-guarded state. Exact update syntax/API remains part of the next design review.
+guarded state. The final proposal constructs a complete ordinary base record and proves or
+explicitly validates the replacement; it adds no record-update syntax.
 
 Carry established guarantees through typed code without repeated validation unless
 an operation can invalidate them. Acceptance includes construction, copying,
@@ -772,11 +777,11 @@ predicate families remain for later explicit selection, including alpha.19 work.
 JSON parsing and schema export remain separate under [RM#73](#rm-73) and
 [RM#74](#rm-74); reference/example coordination remains under GI#552.
 
-Next design step: settle remaining constraint/composition and record-update
-syntax, the concrete structured failure schema and rendering API, the pinned
-Unicode version and remaining output examples. The explicit binding, validate
-call/result contract and failure ordering above are settled. Then derive delivery
-slices, migration steps and estimates. If a selected constraint cannot
+The final consolidated proposal supplies constraint and replacement syntax, the
+error schema/rendering method, Unicode 17.0.0 classification, output examples and
+five proposed delivery slices. Review these together; do not restart individual
+already-agreed decisions. The explicit binding, validate call/result contract,
+condition layout and failure ordering remain settled. If a selected constraint cannot
 fit safely, seek an explicit scope/release decision rather than silently dropping
 it. This is working-feature scope, not merely an assessment. No website or runtime
 behaviour changes through this planning update.

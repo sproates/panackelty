@@ -256,6 +256,45 @@ baseline; its Alpha.15 packet weights are a separate GI#200 planning baseline.
 Installer/default and website promotion remain separate; their public-artifact
 prerequisite is satisfied. No alpha.14 implementation is included.
 
+### Alpha.15 explanation, provenance and domain-type clarification
+
+Owner agreement, 26 October 2026. This defines acceptance requirements, not a
+claim that current implementations already meet them, and starts no implementation.
+
+- **GI#134:** complete coverage of every relevant type, effect and proof decision
+  made while checking a function remains the target, with delivery prioritising
+  completeness as soon as practicable. The inventory must make remaining work
+  finite and visible, not select attractive examples and defer the rest. Each
+  decision exposes what was checked, the requirement, actual outcome, supporting
+  checker facts and relevant source locations. Unavailable means checking could
+  not reach the decision, with a reason; missing implementation is a coverage gap.
+- **GI#173:** every emitted instruction must have accurate attribution to its
+  responsible source construct, including imported code and generated instructions
+  implementing a source construct. Where no corresponding source location genuinely
+  exists, identify the compiler-generated origin explicitly. No unexplained holes
+  and no fabricated source locations. In the reverse direction, explain constructs
+  producing several instructions, shared instruction mappings or no executable
+  instructions. Connect checking and transformations to actual emitted bytecode;
+  source mapping alone is not complete provenance. Inventory decisions and
+  transformations, reconcile existing coverage and derive finite delivery slices.
+- **GI#435:** string constraints, collection constraints and cross-field invariants
+  remain selected categories, not an exact implementation specification. Agree the
+  precise constraints, semantics, syntax/validation API, static proof rules,
+  runtime validation failures and explanation behaviour before implementation.
+  The representative examples in RM#153 do not settle that exact list.
+- New GI#435 proof decisions shipped in alpha.15 must also have GI#134 explanations.
+  Define that integration once, without counting its delivery twice. Agree example
+  transcripts before implementing output, including failure and unavailable cases.
+  Use realistic multi-module, generic, guard and effect examples plus maintained
+  code for acceptance; preserve ordinary compilation and bootstrap correctness,
+  and measure query latency and ordinary compilation overhead.
+
+Runtime value tracing, change-impact prediction and automatically deriving fixes
+remain outside the selected GI#180 alpha.15 workstreams. A debugger, interactive
+compiler visualiser and stable public compiler-IR API are not selected. Detailed
+inventories, acceptance examples and effort estimates remain planning work; if
+scope is too large, seek an explicit release decision rather than redefine complete.
+
 ### Compiler understanding and correctness: now alpha.15
 
 <a id="rm-151"></a>

@@ -195,8 +195,8 @@ and installation instructions are unchanged.
 
 Post-merge nightly acceptance passed 16 of 17 jobs. The isolated Linux compiler
 job then repeated a separate 90-second timeout in the spaced-checkout
-distribution fixture. That fixture now prepares the native VM, package tool
-and HTTP server before running archive and release checks. Both commands retain
+distribution fixture. That fixture now prepares the native VM and package tool
+before running archive and release checks. Both commands retain
 90-second safety limits; all checksum, installation, relocation and shared-VM
 assertions remain. This separates build preparation from the release check
 without changing product performance criteria. The follow-up PR records local

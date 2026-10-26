@@ -39,47 +39,43 @@ jobs:
         if: always()
         uses: ./tests/experiments/nightly-diagnostics/dns
   compiler:
-    name: Compiler fixture (${{ matrix.variant }})
+    name: Compiler progress watchdog
     runs-on: macos-14
     timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        variant: [baseline, traced]
     env:
-      DIAGNOSTIC_VARIANT: ${{ matrix.variant }}
+      DIAGNOSTIC_VARIANT: watchdog
       PANACKELTY_BOOTSTRAP_ROOT: .
       VALIDATION_JOBS: 1
     steps:
       - uses: actions/checkout@v6
-      - name: Prepare native VM and the selected fixture runner
+      - name: Prepare native VM and concurrent workload
         run: |
           make native native-module-build native-fault-build
           mkdir -p diagnostics
-          ./bin/panack compile tests/runner/main.panack -o diagnostics/runner.bc
-          # The nightly reuses its verified stage-two artifact in the compile
-          # subcase. Prepare a current compiler once; the source subcase still
-          # compiles the real source itself, with its original 90-second limit.
+          # Used only by the concurrent sibling suite.
           ./bin/panack compile src/compiler/main.panack -o diagnostics/compiler.bc
           echo "PANACK_TEST_COMPILER=$PWD/diagnostics/compiler.bc" >> "$GITHUB_ENV"
           sw_vers
           sysctl hw.ncpu hw.memsize
       - name: Apply temporary phase timing instrumentation
-        if: matrix.variant == 'traced'
         run: |
           ruby tests/experiments/nightly-diagnostics/instrument.rb
           make native
-      - name: Run the real fixture alone
+      - name: Prove progress accounting and forced cleanup
+        run: node --test tests/experiments/nightly-diagnostics/watchdog.test.cjs
+      - name: Prove real compiler stalls are detected
+        run: node tests/experiments/nightly-diagnostics/compiler-watchdog.cjs faults
+      - name: Run the compiler source command alone
         id: alone
-        run: node tests/experiments/nightly-diagnostics/compiler.cjs alone
-      - name: Run the real fixture alongside runtime probes
+        run: node tests/experiments/nightly-diagnostics/compiler-watchdog.cjs alone
+      - name: Run the compiler source command alongside runtime probes
         if: always() && steps.alone.outcome != 'skipped'
-        run: node tests/experiments/nightly-diagnostics/compiler.cjs concurrent
+        run: node tests/experiments/nightly-diagnostics/compiler-watchdog.cjs concurrent
       - name: Preserve diagnostic evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: compiler-diagnostics-${{ matrix.variant }}-${{ github.run_id }}
+          name: compiler-watchdog-${{ github.run_id }}
           path: |
             diagnostics/**/result.json
             diagnostics/**/*.log

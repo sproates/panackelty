@@ -14,30 +14,51 @@ answers, never credentials or signed upload URLs. A successful attempt does
 not establish the cause of the earlier intermittent failure. Runner image
 versions and the original job's elapsed age may differ.
 
-The compiler jobs use the unchanged selected fixture:
-`tests/runner/main.panack --case compiler_skeleton`. Its source subcase still
-executes `./bin/panack run src/compiler/main.panack` through Panack's process
-API, with the existing 90-second deadline and exact output assertions.
-Preparation compiles the fixture runner and a current compiler artifact once.
-The latter stands in for the nightly's already-built stage-two artifact only
-in the compile/bytecode subcases; it does not bypass the source subcase.
+The original baseline experiment is retained in `compiler.cjs`. Run 40316511166
+passed the selected fixture with its original 90-second deadline: 76.9/79.2s
+alone/concurrent on the baseline machine and 53.7/56.1s on the traced machine.
+Different machines prevent attributing that difference to instrumentation.
 
-Baseline and instrumented jobs each run alone and with the real sibling
-`unit-runtime-probes` workload, with one worker as in the nightly. The sibling
-is stopped after the selected fixture. Its exit status is recorded but is not
-reported as a suite pass. This recreates the command, bounds and competing
-workload, not the complete nightly's prior scheduling or cache state.
+The current workflow experiments with a progress watchdog. It directly runs
+the failing source subcase's command, `./bin/panack run src/compiler/main.panack`,
+and compares its exit status, stdout and stderr against the existing fixture.
+It deliberately bypasses the test runner's aggregate 90-second process timeout.
+This is a prototype supervisor, not a production process-API change. The
+compile/bytecode subcases are not exercised by this experiment.
 
-The Ruby script adds temporary native VM observation of coarse Panack compiler
-function entry/return. It does not alter the seed or compiler source. Timings
-are inclusive, with monotonic elapsed and process CPU seconds; nested rows
-must not be summed. An unmatched entry identifies a phase still active when
-the process was stopped. Output goes to a separate trace file so diagnostics
-cannot change the fixture's stdout/stderr contracts. Process CPU and resident
-memory snapshots are recorded every two seconds. Baseline results provide a
-check on instrumentation overhead; different hosted machines remain a
-comparison limitation. The outer 240-second watchdog bounds the experiment;
-it does not replace or extend the fixture's 90-second deadline.
+Each module's lexing, parsing, signature checking, guard checking and body
+checking has its own 90-second allowance. Function observations identify the
+last body encountered, but do not renew the module allowance. Loading and
+preparation account separately for work outside those module passes; code
+generation, effect checking and serialisation have bounded stages. A parent
+stage's clock pauses during explicitly bounded child stages, then resumes its
+remaining allowance. Startup and gaps between stages are also bounded. The
+90-second allowance is a conservative hang safeguard inherited for this
+experiment, not an agreed performance target. The ten-minute CI job limit
+remains the final backstop against endless sequences of apparently valid work.
+
+`instrument.rb` temporarily observes execution of the existing seed in the VM.
+It does not change the seed or compiler source. Trace rows record process ID,
+entry/return, compiler operation, monotonic time, process CPU time, inclusive
+elapsed/CPU durations, module path and function name. Function rows measure
+binding of the root block, not every subsequent constraint check. The watchdog
+therefore reports the **last function observed**, not an unproven active function.
+Nested timings overlap and must not be summed. Output is written separately
+from compiler stdout/stderr. Missing or malformed progress fails the experiment.
+
+`watchdog.test.cjs` proves that healthy module work may exceed the former total
+deadline, function activity cannot hide a stuck module, late completions still
+fail, and startup, missing evidence and unresponsive processes are handled.
+`compiler-watchdog.cjs faults` injects real compiler stalls in signature/body
+checking, a named function, code generation and serialisation. These tests use
+a two-second allowance, assert the reported location, and then run a healthy
+compile to verify recovery. Termination escalates to killing the process group.
+
+The current workflow runs the source command alone and alongside the actual
+`unit-runtime-probes` sibling workload with one worker. The sibling is stopped
+after the command and its status is not presented as a suite pass. Preparation
+builds a current compiler for the sibling's final probe only. These experiments
+do not recreate the nightly's preceding scheduling, cache state or runner age.
 
 Evidence is printed in job logs and saved as artifacts. Production workflows,
 compiler deadlines, package behaviour and release documentation are unchanged.

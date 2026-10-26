@@ -19,7 +19,7 @@ and linked issues retain the detailed requirements and decisions.
 | [GI#180 Compiler understanding](https://github.com/sproates/panackelty/issues/180) | Completion scope agreed: complete checker explanations and truthful instruction/source provenance, two checked inventories, five slices and realistic acceptance. PR#619 is merged into main; implementation has not started. | 20/95 | Unassessed | Unknown |
 | [GI#435 Validated domain types](https://github.com/sproates/panackelty/issues/435) | Six-constraint semantics agreed: four string constraints, bounded arrays/maps/sets and ordered record-field relationships. Explicit guard binding, validate call/result, failure order and multiline/parenthesised conjunctions agreed. Final consolidated contract approved and merged into main in PR#616: constraint APIs, error schema/rendering, Unicode pin, examples and delivery slices. Existing numeric alternatives are preserved; implementation has not started. | 20/95 | 0% | 0 |
 | [GI#409 Compiler/stdlib boundary](https://github.com/sproates/panackelty/issues/409) | Assessment scope agreed: complete dependency map, five evidenced change cases and recommendation. PR#621 is merged into main. Assessment not started; no refactor selected. | 5/95 | 0% | 0 |
-| [RM#154 Faster coverage](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154) | Planned. Validated plan reuse, cold/warm measurements and invalidation/equivalence acceptance remain. Required test executions stay fresh. | 5/95 | 0% | 0 |
+| [RM#154 Faster coverage](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154) | Scope agreed and merged into main in PR#624: four measured workloads, target approval before cache implementation, validated persistent plan reuse and fresh executions. Profiling and implementation not started. | 5/95 | 0% | 0 |
 | [RM#155 Authoring friction](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-155) | Partial. Example inventory preflight and contributor/interpolation guidance delivered (PR#565 for guidance). Final selected-item reconciliation and acceptance remain. | 5/95 | Unquantified | Unknown |
 | [RM#157 Performance review](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-157) | Open. Holistic measurements, prioritised findings and bounded quick wins remain to be assessed. | 5/95 | Unassessed | Unknown |
 | [GI#106 Validation speed](https://github.com/sproates/panackelty/issues/106) | Scope agreed, 26 October: five baseline workloads, at most three selected improvements and measured owner acceptance. Baseline not started. Earlier repairs (PR#596–598) remain delivered; the bounded milestone is not complete. | 5/95 | Unquantified | Unknown |
@@ -122,8 +122,18 @@ This is agreed direction, not implementation progress; weights are unchanged.
   requires every case and dependency accounted for. Small to medium, 1–2 assessment
   PRs. No refactor; GI#106: Validation speed and alpha.16 native coupling stay separate.
   Scope is agreed; assessment not started.
-- RM#154: agree measured workloads and improvement target after profiling; retain
-  the existing cache correctness, fresh execution and equivalence requirements.
+- **RM#154: Faster coverage:** [scope agreed, PR#624](https://github.com/sproates/panackelty/pull/624),
+  merged into main after owner approval. Measure empty cache, unchanged repeat, reporting-only
+  change and measured-source/dependency change, separating preparation, execution,
+  aggregation and publication. Agree a numerical improvement target after profiling
+  and before cache implementation. Reuse only validated plans matching compiler,
+  VM, exporter, transitive sources, schema and settings; explain hits/rebuilds and
+  safely regenerate invalid entries. Every test/assertion executes afresh with new
+  sessions and counters. Require cached/fresh equivalence, complete invalidation
+  and corruption tests, and material measured repeat-run improvement. Medium,
+  about three implementation PRs. Schedule, corpus and report-integrity policy
+  stay unchanged; GI#106: Validation speed remains separate. Profiling and
+  implementation have not started.
 - RM#155: settle the finite selected-item list and evidence for each, reconciling
   improvements already delivered with remaining work.
 - RM#157: bound review workloads and selected quick wins, with explicit completion
@@ -136,8 +146,8 @@ This is agreed direction, not implementation progress; weights are unchanged.
   GI#435's consolidated contract is approved and merged in PR#616; its design
   baseline is settled. Do not restart those decisions. GI#180: Compiler understanding now also has an agreed completion boundary
   in PR#619. GI#409: Compiler/stdlib boundary assessment is also scoped in PR#621.
-  Remaining release definition covers RM#154: Faster coverage, RM#155: Authoring
-  friction and RM#157: Performance review. Implementation ordering follows scope definition;
+  RM#154: Faster coverage is also scoped in PR#624. Remaining release definition
+  covers RM#155: Authoring friction and RM#157: Performance review. Implementation ordering follows scope definition;
   no implementation is started by this record.
 - Promotion, package/install release checks and owner publication approval remain.
   Complete product acceptance on next does not mean a feature has shipped.

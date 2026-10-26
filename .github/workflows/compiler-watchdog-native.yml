@@ -1,0 +1,34 @@
+name: Native compiler watchdog validation
+on:
+  push:
+    branches: [ci/compiler-watchdog-native-validation]
+permissions:
+  contents: read
+jobs:
+  watchdog:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-22.04, macos-14]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Prepare Linux libraries
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes libcurl4-openssl-dev zlib1g-dev libssl-dev
+      - name: Prove native watchdog contracts and compiler stalls
+        run: make compiler-watchdog-check
+      - name: Exercise full compiler-source command
+        run: |
+          sh tests/compiler_watchdog/run.sh run src/compiler/main.panack > /tmp/compiler.stdout 2> /tmp/compiler.stderr
+          cmp tests/functional/cases/compiler_skeleton/expected.stdout /tmp/compiler.stdout
+          test ! -s /tmp/compiler.stderr
+      - name: Preserve evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: native-watchdog-${{ matrix.runner }}
+          path: build/validation/compiler-watchdog/**

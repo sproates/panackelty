@@ -23,7 +23,7 @@ and linked issues retain the detailed requirements and decisions.
 | [RM#154 Faster coverage](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154) | Planned. Validated plan reuse, cold/warm measurements and invalidation/equivalence acceptance remain. Required test executions stay fresh. | 5% | 0% | 0 |
 | [RM#155 Authoring friction](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-155) | Partial. Example inventory preflight and contributor/interpolation guidance delivered (PR#565 for guidance). Final selected-item reconciliation and acceptance remain. | 5% | Unquantified | Unknown |
 | [RM#157 Performance review](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-157) | Open. Holistic measurements, prioritised findings and bounded quick wins remain to be assessed. | 5% | Unassessed | Unknown |
-| [GI#106 Validation speed](https://github.com/sproates/panackelty/issues/106) | Partial. Tool preparation/reuse and compiler watchdog repairs delivered (PR#596–598). Comparable speed evidence and explicit owner acceptance remain. CI repairs alone do not complete this milestone. | 5% | Unquantified | Unknown |
+| [GI#106 Validation speed](https://github.com/sproates/panackelty/issues/106) | Scope agreed, 26 October: five baseline workloads, at most three selected improvements and measured owner acceptance. Baseline not started. Earlier repairs (PR#596–598) remain delivered; the bounded milestone is not complete. | 5% | Unquantified | Unknown |
 | **Total** | **30 confirmed points; overall completion remains unquantified.** | **100%** | **Unknown** | **30 known** |
 
 Weights preserve the provisional baseline reported on 26 October 2026; they are
@@ -31,6 +31,29 @@ not owner-approved estimates. Packages and the two large compiler workstreams
 carry most of the weight. Unknown contributions are not zero. Do not describe
 the known subtotal as an exact overall completion percentage or count child
 programme deliveries again. Explain any future baseline change.
+
+## GI#106: agreed alpha.15 boundary
+
+[Roadmap scope PR#603](https://github.com/sproates/panackelty/pull/603) records the
+owner-agreed boundary; main-branch integration is awaiting approval. GI#106 remains
+open. This planning update earns no additional completion credit.
+
+- Baseline five workloads: clean full validation, unchanged repeat, a small
+  compiler edit with focused checks, a small package-tool edit with focused checks,
+  and a documentation-only edit. Separate compilation, fixture setup, assertions
+  and CI queueing; use comparable local and hosted before/after measurements.
+- Bring one consolidated proposal for at most three improvements and numerical
+  targets after the baseline. Candidates: remove duplicate preparation, reuse
+  correctly invalidated build artifacts, and dependable focused development checks.
+- Preserve assertions and existing merge/nightly/release requirements. Any cadence
+  change needs explicit owner agreement with a coverage/risk map. Tests execute
+  afresh; passing outcomes cannot be cached.
+- Finish with replayable measurements, invalidation/failure regressions and owner
+  acceptance. Keep wider GI#106 concerns separate. No alpha.16 native coupling,
+  separate compilation, major redesign, RM#154 caching or RM#157 runtime review.
+- Estimate: three to five PRs, subject to baseline evidence. Measurements and
+  implementation have not started. The next GI#106 action is the baseline when
+  authorised; no active work is implied by this scope record.
 
 ## Release readiness and next action
 

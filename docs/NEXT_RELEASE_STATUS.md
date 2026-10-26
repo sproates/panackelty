@@ -153,6 +153,32 @@ This is agreed direction, not implementation progress; weights are unchanged.
   onboarding guidance remain completed work. Fixed list, medium, about three
   implementation PRs; no additional implementation has started.
 
+## Agreed delivery order
+
+Owner agreement, 26 October. [PR#632: Alpha.15 delivery order](https://github.com/sproates/panackelty/pull/632)
+records the detailed sequencing and awaits main merge.
+
+1. **GI#409: Compiler/stdlib boundary assessment** — dependency map, five change
+   cases and recommendation; no refactor.
+2. **GI#106: Validation speed** — baseline, agreed targets and bounded improvements,
+   then owner acceptance.
+3. **RM#154: Faster coverage** — baseline, agreed target, safe plan reuse and acceptance.
+4. **GI#180: Compiler understanding foundations** — two inventories and missing
+   evidence, explanation and instruction/source-attribution mechanisms.
+5. **GI#435: Validated domain types** — approved contract with explanations and
+   provenance included as new checking/proof decisions are introduced.
+6. **RM#155: Authoring friction** — three remaining improvements and reconciliation;
+   independent documentation may happen earlier.
+7. **Integrated acceptance** — finish compiler-understanding completeness against
+   the new domain-type decisions and complete combined feature/release acceptance.
+
+The first three are practical sequencing, not hard technical prerequisites. A
+substantial coverage obstacle need not block feature work; make any adjustment
+explicit with evidence. GI#180 foundations precede GI#435, with final acceptance
+covering both. Keep tests and required validation in every slice. Integrated
+acceptance adds no independently weighted task and does not duplicate credit.
+No implementation starts with this record; all scope and weights remain unchanged.
+
 ## Release readiness and next action
 
 - Remaining work is the open acceptance in the table. No release date is committed.
@@ -161,8 +187,8 @@ This is agreed direction, not implementation progress; weights are unchanged.
   baseline is settled. Do not restart those decisions. GI#180: Compiler understanding now also has an agreed completion boundary
   in PR#619. GI#409: Compiler/stdlib boundary assessment is also scoped in PR#621.
   RM#154: Faster coverage is scoped in PR#624 and RM#155: Authoring friction in
-  PR#626. RM#157: Performance review belongs to alpha.16. The next planning step
-  is implementation ordering within the agreed alpha.15 boundaries;
+  PR#626. RM#157: Performance review belongs to alpha.16. Delivery order is agreed
+  above. Next is GI#409: Compiler/stdlib boundary assessment (1–2 assessment PRs);
   no implementation is started by this record.
 - Promotion, package/install release checks and owner publication approval remain.
   Complete product acceptance on next does not mean a feature has shipped.

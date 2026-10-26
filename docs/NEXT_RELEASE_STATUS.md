@@ -16,7 +16,7 @@ and linked issues retain the detailed requirements and decisions.
 | Item | Current state and remaining acceptance | Weight | Complete | Earned |
 | --- | --- | ---: | ---: | ---: |
 | [GI#200 Packages](https://github.com/sproates/panackelty/issues/200) | Accepted on next: local folders/archives, HTTPS archives, pinned Git, diagnostics and installed acceptance. [P04c evidence](design/PACKAGE_FINAL_ACCEPTANCE.md), PR#595. Not yet released. | 30/95 | 100% | 30/95 |
-| [GI#180 Compiler understanding](https://github.com/sproates/panackelty/issues/180) | Acceptance clarified: complete relevant checker explanations and truthful attribution for every instruction, including generated origins and reverse mappings. Inventories, transcripts and slices remain. | 20/95 | Unassessed | Unknown |
+| [GI#180 Compiler understanding](https://github.com/sproates/panackelty/issues/180) | Completion scope agreed: complete checker explanations and truthful instruction/source provenance, two checked inventories, five slices and realistic acceptance. PR#619 is merged into main; implementation has not started. | 20/95 | Unassessed | Unknown |
 | [GI#435 Validated domain types](https://github.com/sproates/panackelty/issues/435) | Six-constraint semantics agreed: four string constraints, bounded arrays/maps/sets and ordered record-field relationships. Explicit guard binding, validate call/result, failure order and multiline/parenthesised conjunctions agreed. Final consolidated contract approved and merged into main in PR#616: constraint APIs, error schema/rendering, Unicode pin, examples and delivery slices. Existing numeric alternatives are preserved; implementation has not started. | 20/95 | 0% | 0 |
 | [GI#409 Compiler/stdlib boundary](https://github.com/sproates/panackelty/issues/409) | Pending dependency and coupling assessment with recommendation; no reorganisation selected. | 5/95 | 0% | 0 |
 | [RM#154 Faster coverage](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154) | Planned. Validated plan reuse, cold/warm measurements and invalidation/equivalence acceptance remain. Required test executions stay fresh. | 5/95 | 0% | 0 |
@@ -73,10 +73,20 @@ owner agreement on GI#134 completeness, GI#173 comprehensive truthful attributio
 and exact GI#435 constraints before implementation. It is merged into main. GI#180, GI#134, GI#173 and GI#435 issues carry the same clarification.
 This is agreed direction, not implementation progress; weights are unchanged.
 
-- GI#180: reconcile decision/transformation inventories; agree transcripts,
-  realistic acceptance cases, delivery slices and effort. Missing implementation
-  is not unavailable evidence. Instructions with no genuine source location need
-  an explicit generated origin; source with no executable output needs explanation.
+- **GI#180: Compiler understanding:** [completion scope agreed, PR#619](https://github.com/sproates/panackelty/pull/619),
+  merged into main after owner approval. GI#134: Compiler explanations must expose every
+  relevant function-checking requirement, outcome, supporting facts and source,
+  with specific reasons for genuinely unreached decisions. GI#173: Compilation
+  provenance must connect actual checking/transformations to every instruction
+  and reverse source mapping, including generated origins, shared instructions
+  and no executable output. Reconcile two checked inventories; no unexplained
+  gaps or fabricated attribution. Five delivery slices: checker evidence,
+  explanations, instruction attribution, compilation journey, integrated acceptance.
+  Large; provisionally 5–7 implementation PRs, with tests in every slice, realistic
+  examples and retention on/off cost evidence. Existing inference explanations
+  remain included; new inference, runtime tracing and debugger/IR tooling do not.
+  Inventories and representative transcripts precede implementation; this is an
+  agreed completion boundary, not completed delivery.
 - GI#435: [six-constraint semantic agreement, PR#607](https://github.com/sproates/panackelty/pull/607).
   Non-empty/non-blank/bounded-length strings count Unicode scalars; non-blank uses
   pinned Unicode White_Space. Control exclusion is U+0000–001F and U+007F–009F.
@@ -115,8 +125,9 @@ This is agreed direction, not implementation progress; weights are unchanged.
 - Remaining work is the open acceptance in the table. No release date is committed.
   Current planning work: define remaining alpha.15 commitments one at a time.
   GI#435's consolidated contract is approved and merged in PR#616; its design
-  baseline is settled. Do not restart those decisions. Remaining release definition covers GI#180,
-  GI#409, RM#154, RM#155 and RM#157. Implementation ordering follows scope definition;
+  baseline is settled. Do not restart those decisions. GI#180: Compiler understanding now also has an agreed completion boundary
+  in PR#619. Remaining release definition covers GI#409: Compiler/stdlib boundary,
+  RM#154: Faster coverage, RM#155: Authoring friction and RM#157: Performance review. Implementation ordering follows scope definition;
   no implementation is started by this record.
 - Promotion, package/install release checks and owner publication approval remain.
   Complete product acceptance on next does not mean a feature has shipped.

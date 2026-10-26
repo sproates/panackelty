@@ -36,6 +36,11 @@ its new proof decisions also require explanations.
 has an agreed dependency-map, five-case change-impact and recommendation deliverable.
 No refactor is included; the assessment has not started.
 
+[RM#154: Faster coverage](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154)
+has an agreed four-workload baseline, safely reusable plans and fresh-execution
+acceptance. Agree the measured target before cache implementation. Profiling
+and implementation remain unstarted.
+
 GI#106's [bounded validation-speed milestone](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#alpha15-validation-speed)
 now has an agreed scope: five baseline workloads, at most three selected
 improvements, preserved validation requirements and measured owner acceptance.

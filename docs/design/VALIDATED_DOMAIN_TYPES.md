@@ -62,12 +62,15 @@ bootstrap together; no implicit `value` compatibility mode remains afterwards.
 | `text.len() >= minimum`, `text.len() <= maximum` | Inclusive, non-negative compile-time constant bounds in Unicode scalar values. Either bound or both. |
 | `text.is_non_blank()` | New pure `Str` method returning `Bool`. At least one scalar outside the pinned whitespace set. Empty text returns false. |
 | `text.has_no_control_characters()` | New pure `Str` method returning `Bool`. No U+0000–U+001F or U+007F–U+009F. Empty text returns true. |
-| `items.len() >= minimum`, `items.len() <= maximum` | Existing count operation on arrays, maps and sets, using the same bound rules. Map counts entries; Set counts distinct elements. |
+| `items.len() >= minimum`, `items.len() <= maximum` | Existing array count operation; add pure `len(): Nat` methods to Map and Set using the same bound rules. Map counts entries; Set counts distinct elements. |
 | `record.left < record.right`, `record.left <= record.right` | Two direct fields of the same record with the same underlying ordered numeric type. No nested traversal, arithmetic or separate-argument relationships. |
 
 Use `len()`, not the previously illustrated `length()`. The current string API
 counts code points and rejects surrogate code points in valid UTF-8, giving the
-agreed scalar-value semantics. Existing collection count spellings stay intact.
+agreed scalar-value semantics. Arrays already expose `len()`. Map and Set currently lack a public count method
+in the owned-intrinsic registry; their new `len(): Nat` methods are an explicit
+prerequisite within this scope, available outside guards as well. Bytes retains
+its separate existing `length()` API and is not a selected guard family.
 The two new predicates are ordinary usable methods outside guards as well.
 They must have one shared definition used by runtime validation and static proof;
 do not maintain divergent compiler and library character classifications.
@@ -233,8 +236,8 @@ No implementation is authorised by this planning record. When scheduled:
 1. Migrate explicit bindings while preserving existing numeric proofs, including
    accepted and rejected `||` cases; test parentheses, multiline parsing, name
    scope, diagnostics and bootstrap. No new arbitrary expression support.
-2. Add the shared text predicates, string and collection guard forms and proof
-   facts. Verify static acceptance, static rejection and unknown-input missing
+2. Add the shared text predicates, Map/Set count methods, string and collection
+   guard forms and proof facts. Verify static acceptance, static rejection and unknown-input missing
    proof for each form; preserve scalar/count semantics across host platforms.
 3. Add explicit runtime validation, the error schema and renderer. Exercise every
    constraint, multi-failure ordering, sensitive-input omission, numeric guards,

@@ -137,64 +137,96 @@ scope does not complete reproducible dependencies or the whole GI#233 programme.
 
 ### Alpha.15: faster validation without weakening tests
 
-**RM#28 / GI#106: Planned release milestone; implementation not started.** On
-20 October 2026 the owner requested a concrete upcoming-release outcome because
-validation takes too long, while explicitly wanting to harden and expand tests.
-Alpha.15 carries this bounded milestone. This reopens the work after alpha.13's
-accepted outcome; it does not reopen that release or replace the separate coverage-speed work now also allocated to alpha.15.
+**RM#28 / GI#106: Scope agreed, 26 October 2026. Baseline and selected
+implementation remain to be started.** The alpha.15 commitment is a bounded
+improvement to the validation workflow: make a normal change, get useful feedback
+quickly and establish confidence without repeatedly doing unnecessary work.
+This replaces the broader milestone description agreed on 20 October. Alpha.13's
+accepted outcome remains accepted; the wider GI#106 issue remains an umbrella.
 
-The delivery must improve the time from an edit to trustworthy feedback, rather
-than only producing another timing report. The implementation owner will:
+#### V1: Establish the baseline and agree the improvements
 
-- Establish a repeatable baseline for representative compiler, stdlib, runtime
-  and package edits: first failing test, focused green rerun, warm full validation,
-  clean full validation and hosted PR feedback. Separate compilation, fixture
-  setup, assertion execution, queueing and repeated work; record cache state,
-  host/resources, revisions, repetitions and variability.
-- Identify and remove measured avoidable costs, evaluating dependency-correct
-  build/probe reuse, fixture setup, bounded parallel execution and duplicate
-  validation. Cached build artifacts must invalidate correctly; cached passing
-  test outcomes are not evidence that assertions ran.
-- Define and demonstrate a documented focused red/green workflow with deliberate
-  representative faults. Show that dependency changes select the necessary
-  tests and that restored code passes; changes spanning components and unknown
-  impact must retain a full-validation fallback.
-- Preserve existing assertions and required safety, failure, compiler/bootstrap,
-  package and release coverage. Add meaningful regression tests for changed
-  validation machinery and identified gaps. No speedup may depend on deleting
-  difficult cases, weakening checks, reducing test scope or increasing timeouts.
-  Any change to validation cadence requires an explicit coverage/risk map and
-  owner agreement; it cannot silently move necessary checks out of PR acceptance.
-- Demonstrate materially faster representative local and hosted feedback with
-  comparable before/after measurements. Report all measured paths, including
-  unchanged or slower ones, and explain how adding tests affects the critical
-  path. Use the baseline to propose concrete latency targets for owner agreement;
-  neither historical timings nor an arbitrary new target establish success.
+Measure these five workloads at the same revision on the same named machine:
 
-Acceptance requires implemented improvements, executed regression evidence,
-replayable before/after results and the owner's explicit acceptance of the
-resulting workflow. A report alone does not complete the milestone. Keep GI#106
-open until its owner acceptance is recorded; distinguish this release outcome
-from other work still tracked by the broad issue. The delivery maintainer owns
-measurement and implementation, with unresolved costs and next actions recorded
-under [RM#123](standing-performance-engineering--ongoing.md#rm-123).
+| Workload | Question |
+| --- | --- |
+| Clean full validation | What does validation cost with no prepared build artifacts? |
+| Unchanged repeat of full validation | What work repeats when the inputs have not changed? |
+| Small compiler change with focused checks | How quickly does compiler development get useful feedback? |
+| Small package-tool change with focused checks | Does package development pay unrelated compiler costs? |
+| Documentation-only change | Does the lightweight route remain lightweight? |
 
-Scope is the developer build/test and CI feedback cycle. Application throughput,
-HTTP load testing (GI#553), a testing-framework rewrite and numerical release
-performance claims are separate. Effort is provisionally medium to large;
-profile first and select bounded changes rather than promising a scheduler or
-build architecture before evidence. No implementation begins through this
-planning update.
+Record elapsed time, actual compilation counts, fixture preparation and assertion
+execution. Record the exact revision, commands, representative edits, host and
+cache conditions. Use a few repeated samples where variation matters. For
+representative hosted runs, separate runner queueing from execution and compare
+before/after on comparable runner configurations; do not compare local and hosted
+numbers as though they were the same environment.
 
-For GI#106, inspect which builds and tests run during local red/green work,
-focused and full checks, pull requests, post-merge pushes and releases; what each
-protects; how changes cross compiler, standard-library, bytecode, VM/runtime,
-package and CI boundaries; and how much elapsed time is execution, queueing or
-other waiting. Use the evidence to offer replacement NFRs, test selection and
-cadence, and possible build improvements for the user's decision. Do not set
-numeric targets or a test-frequency policy in advance. Preserve regression-risk
-coverage and execute selected tests; never reuse test outcomes as cache entries.
-GI#106 is complete only when the user says they are happy with the result.
+The output is a short table explaining the dominant avoidable costs. Bring the
+owner one consolidated proposal selecting **at most three improvements**, their
+numeric latency targets and acceptance cases. Targets follow the evidence and
+owner agreement, not historical timing thresholds. No telemetry platform or
+exhaustive benchmark programme is selected.
+
+#### V2: Implement the fixed selection
+
+Evaluate these remedies in order of preference, without assuming the baseline
+will establish any particular cause:
+
+1. Remove duplicated preparation and compilation within a validation run.
+2. Reuse valid build artifacts across unchanged repeat runs, with correct input
+   invalidation and fresh assertion execution on every run.
+3. Provide a dependable, documented focused development route for compiler and
+   package-tool changes.
+
+The agreed implementation list may substitute a better evidenced remedy; do not
+silently add a fourth improvement. Further opportunities become follow-ups.
+Dependency-aware caching across arbitrary source graphs is not automatically
+included: if it requires substantial compiler work, bring a separate scope
+proposal rather than expanding this milestone.
+
+For each supported change category, document the development command, what it
+checks and does not establish, the pre-merge requirements, and the nightly and
+release requirements. Retain existing merge, nightly and release requirements.
+Any cadence or selection change that moves required coverage needs a separate,
+explicit owner decision supported by a coverage/risk map. Shared or unknown
+impact must retain a conservative full-validation fallback.
+
+#### V3: Demonstrate the result and accept the milestone
+
+Repeat the five workloads under comparable conditions. Report what became faster,
+by how much and why; which compilations or preparation steps disappeared; and
+any unchanged or slower paths. Demonstrate that relevant changes invalidate the
+right artifacts, assertions still execute, deliberate failures still surface and
+restored code passes. Add meaningful regressions for changed validation machinery.
+Preserve existing assertions, safety and failure coverage, bootstrap, platform,
+package and release checks. Never cache passing test outcomes, weaken checks or
+increase timeouts as a speed solution.
+
+Completion requires the selected improvements, replayable before/after evidence,
+passed applicable validation and explicit owner acceptance of the resulting
+workflow. A report or timeout repair alone does not complete the milestone.
+Record milestone acceptance separately from closure of the wider GI#106 issue;
+other open concerns do not keep this accepted release outcome unfinished.
+The delivery maintainer owns implementation, measurements and recording unresolved
+costs under [RM#123](standing-performance-engineering--ongoing.md#rm-123).
+
+#### Boundaries and delivery estimate
+
+Outside this milestone: alpha.16 native-adapter/compiler coupling work; separate
+compilation, a linker or major compiler redesign; RM#154 coverage-plan caching;
+RM#157 general runtime/HTTP performance; and a broad overhaul of agent context
+usage or reporting. Coordinate overlapping evidence without counting delivery
+twice. Existing tool-preparation/reuse and watchdog repairs remain delivered but
+do not substitute for the agreed measurements and acceptance.
+
+Provisionally three to five PRs: baseline and agreed plan, one to three selected
+improvements, and final acceptance documentation folded into the last delivery
+where practical. Re-estimate after the baseline if necessary, without silently
+expanding the fixed selection. This records scope only; measurements and
+implementation have not been started by this update. Website impact: none;
+release claims and published installation guidance are unchanged.
 
 When alpha.13 was planned, GI#180's owner-requested pause remained in effect;
 that decision did not restart explanation implementation. On 2026-10-14 the

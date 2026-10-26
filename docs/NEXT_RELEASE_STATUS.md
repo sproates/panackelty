@@ -15,22 +15,33 @@ and linked issues retain the detailed requirements and decisions.
 
 | Item | Current state and remaining acceptance | Weight | Complete | Earned |
 | --- | --- | ---: | ---: | ---: |
-| [GI#200 Packages](https://github.com/sproates/panackelty/issues/200) | Accepted on next: local folders/archives, HTTPS archives, pinned Git, diagnostics and installed acceptance. [P04c evidence](design/PACKAGE_FINAL_ACCEPTANCE.md), PR#595. Not yet released. | 30% | 100% | 30 |
-| [GI#180 Compiler understanding](https://github.com/sproates/panackelty/issues/180) | Acceptance clarified: complete relevant checker explanations and truthful attribution for every instruction, including generated origins and reverse mappings. Inventories, transcripts and slices remain. | 20% | Unassessed | Unknown |
-| [GI#435 Validated domain types](https://github.com/sproates/panackelty/issues/435) | Six-constraint semantics agreed: four string constraints, bounded arrays/maps/sets and ordered record-field relationships. Explicit guard binding, validate call/result and failure order agreed. Remaining constraint syntax, concrete errors, Unicode version and examples precede implementation. | 20% | 0% | 0 |
-| [GI#170 Inference assessment](https://github.com/sproates/panackelty/issues/170) | Pending assessment of inference limits and diagnostics; no inference implementation selected. | 5% | 0% | 0 |
-| [GI#409 Compiler/stdlib boundary](https://github.com/sproates/panackelty/issues/409) | Pending dependency and coupling assessment with recommendation; no reorganisation selected. | 5% | 0% | 0 |
-| [RM#154 Faster coverage](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154) | Planned. Validated plan reuse, cold/warm measurements and invalidation/equivalence acceptance remain. Required test executions stay fresh. | 5% | 0% | 0 |
-| [RM#155 Authoring friction](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-155) | Partial. Example inventory preflight and contributor/interpolation guidance delivered (PR#565 for guidance). Final selected-item reconciliation and acceptance remain. | 5% | Unquantified | Unknown |
-| [RM#157 Performance review](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-157) | Open. Holistic measurements, prioritised findings and bounded quick wins remain to be assessed. | 5% | Unassessed | Unknown |
-| [GI#106 Validation speed](https://github.com/sproates/panackelty/issues/106) | Scope agreed, 26 October: five baseline workloads, at most three selected improvements and measured owner acceptance. Baseline not started. Earlier repairs (PR#596–598) remain delivered; the bounded milestone is not complete. | 5% | Unquantified | Unknown |
-| **Total** | **30 confirmed points; overall completion remains unquantified.** | **100%** | **Unknown** | **30 known** |
+| [GI#200 Packages](https://github.com/sproates/panackelty/issues/200) | Accepted on next: local folders/archives, HTTPS archives, pinned Git, diagnostics and installed acceptance. [P04c evidence](design/PACKAGE_FINAL_ACCEPTANCE.md), PR#595. Not yet released. | 30/95 | 100% | 30/95 |
+| [GI#180 Compiler understanding](https://github.com/sproates/panackelty/issues/180) | Acceptance clarified: complete relevant checker explanations and truthful attribution for every instruction, including generated origins and reverse mappings. Inventories, transcripts and slices remain. | 20/95 | Unassessed | Unknown |
+| [GI#435 Validated domain types](https://github.com/sproates/panackelty/issues/435) | Six-constraint semantics agreed: four string constraints, bounded arrays/maps/sets and ordered record-field relationships. Explicit guard binding, validate call/result and failure order agreed. Remaining constraint syntax, concrete errors, Unicode version and examples precede implementation. | 20/95 | 0% | 0 |
+| [GI#409 Compiler/stdlib boundary](https://github.com/sproates/panackelty/issues/409) | Pending dependency and coupling assessment with recommendation; no reorganisation selected. | 5/95 | 0% | 0 |
+| [RM#154 Faster coverage](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154) | Planned. Validated plan reuse, cold/warm measurements and invalidation/equivalence acceptance remain. Required test executions stay fresh. | 5/95 | 0% | 0 |
+| [RM#155 Authoring friction](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-155) | Partial. Example inventory preflight and contributor/interpolation guidance delivered (PR#565 for guidance). Final selected-item reconciliation and acceptance remain. | 5/95 | Unquantified | Unknown |
+| [RM#157 Performance review](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-157) | Open. Holistic measurements, prioritised findings and bounded quick wins remain to be assessed. | 5/95 | Unassessed | Unknown |
+| [GI#106 Validation speed](https://github.com/sproates/panackelty/issues/106) | Scope agreed, 26 October: five baseline workloads, at most three selected improvements and measured owner acceptance. Baseline not started. Earlier repairs (PR#596–598) remain delivered; the bounded milestone is not complete. | 5/95 | Unquantified | Unknown |
+| **Total** | **30/95 known contribution (about 32%); overall completion unquantified.** | **100%** | **Unknown** | **30/95 known** |
 
-Weights preserve the provisional baseline reported on 26 October 2026; they are
-not owner-approved estimates. Packages and the two large compiler workstreams
-carry most of the weight. Unknown contributions are not zero. Do not describe
-the known subtotal as an exact overall completion percentage or count child
-programme deliveries again. Explain any future baseline change.
+Weights retain the original provisional relative sizes but exclude GI#170's five
+points following its explicit move to alpha.16. The remaining denominator is 95;
+fractions in the Weight column sum to 100%. No remaining task was re-estimated.
+The known contribution changes from 30/100 to 30/95 (about 32%) solely because
+scope moved, not because more work was completed. Unknown contributions are not
+zero; overall completion remains unquantified. These are provisional weights,
+not owner-approved effort estimates.
+
+## Deferred to the following release
+
+Owner decision, 26 October: [GI#170 inference/diagnostics assessment](https://github.com/sproates/panackelty/issues/170)
+moves explicitly from alpha.15 to **alpha.16**, retaining its assessment scope.
+It is not unscheduled. [PR#611](https://github.com/sproates/panackelty/pull/611)
+records both release allocations. GI#134 explanations of existing inference
+remain in alpha.15. No other item moves. Future deferrals go to the following
+release unless the owner explicitly chooses a different destination; update both
+release allocations, the issue and this summary together.
 
 ## GI#106: agreed alpha.15 boundary
 
@@ -81,8 +92,6 @@ This is agreed direction, not implementation progress; weights are unchanged.
   left to right; record fields precede cross-field constraints. Remaining constraint
   syntax, concrete error schema/rendering API, Unicode version and further examples
   need design. No implementation started; count integration once.
-- GI#170: fix the assessment questions, representative inference/diagnostic cases
-  and report acceptance; separate assessment from any later implementation.
 - GI#409: define the assessment deliverable and representative dependency/change
   cases. The compiler/stdlib boundary assessment is already reasonably bounded;
   it must not absorb alpha.16 coupling implementation.

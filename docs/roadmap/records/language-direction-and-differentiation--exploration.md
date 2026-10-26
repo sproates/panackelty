@@ -621,6 +621,12 @@ between fields of a record. This supersedes the non-empty-string-only slice.
 Implementation has not started; semantics and syntax must be settled before code
 is changed, but the outcome is working guards, not only an assessment report.
 
+Owner clarification, 26 October 2026: agree the exact supported constraint list,
+semantics, validation API, static proof boundary, failure output and explanation
+behaviour before implementation. The examples below describe candidate outcomes
+within selected families; they are not the final constraint specification.
+New proof decisions shipped in alpha.15 must also be covered by GI#134.
+
 | Selected family | Representative outcomes |
 | --- | --- |
 | String constraints | Express non-empty/non-blank text, bounded length and a bounded content rule such as excluding control characters. Define whether length counts bytes or Unicode units and exactly what blank/control means. |

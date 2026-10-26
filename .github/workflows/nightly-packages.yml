@@ -123,6 +123,7 @@ jobs:
           name: nightly-validation-${{ matrix.target }}-${{ matrix.suite }}-${{ github.run_id }}
           path: |
             validation-profile.tsv
+            build/**/validation/compiler-watchdog/**
             validation-timings.tsv
           if-no-files-found: warn
           retention-days: 14
@@ -209,6 +210,7 @@ jobs:
           name: nightly-linux-validation-${{ matrix.suite }}-${{ github.run_id }}
           path: |
             validation-profile.tsv
+            build/**/validation/compiler-watchdog/**
             validation-timings.tsv
           if-no-files-found: warn
           retention-days: 14

@@ -277,11 +277,13 @@ claim that current implementations already meet them, and starts no implementati
   instructions. Connect checking and transformations to actual emitted bytecode;
   source mapping alone is not complete provenance. Inventory decisions and
   transformations, reconcile existing coverage and derive finite delivery slices.
-- **GI#435:** string constraints, collection constraints and cross-field invariants
-  remain selected categories, not an exact implementation specification. Agree the
-  precise constraints, semantics, syntax/validation API, static proof rules,
-  runtime validation failures and explanation behaviour before implementation.
-  The representative examples in RM#153 do not settle that exact list.
+- **GI#435:** the owner subsequently agreed the exact six-constraint semantic
+  scope on 26 October, recorded in [RM#153](language-direction-and-differentiation--exploration.md#rm-153):
+  non-empty/non-blank/bounded-length/control-free strings, bounded arrays/maps/sets,
+  and ordered same-record numeric field relationships. Static proof, explicit
+  runtime validation, invariant preservation and deterministic failure reporting
+  are included. Concrete syntax, API, Unicode version and output remain design work
+  before implementation; the old representative list no longer defines selection.
 - New GI#435 proof decisions shipped in alpha.15 must also have GI#134 explanations.
   Define that integration once, without counting its delivery twice. Agree example
   transcripts before implementing output, including failure and unavailable cases.

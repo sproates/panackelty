@@ -1,6 +1,6 @@
 # Next release status
 
-Updated: 26 October 2026. Release: **v0.1.0-alpha.15**. Integration branch: **next**.
+Updated: 27 October 2026. Release: **v0.1.0-alpha.15**. Integration branch: **next**.
 Latest published release: **v0.1.0-alpha.14**. Publication date: not agreed.
 
 **Packages are accepted on next. The release still has substantial foundation
@@ -18,18 +18,18 @@ and linked issues retain the detailed requirements and decisions.
 | [GI#200 Packages](https://github.com/sproates/panackelty/issues/200) | Accepted on next: local folders/archives, HTTPS archives, pinned Git, diagnostics and installed acceptance. [P04c evidence](design/PACKAGE_FINAL_ACCEPTANCE.md), PR#595. Not yet released. | 30/90 | 100% | 30/90 |
 | [GI#180 Compiler understanding](https://github.com/sproates/panackelty/issues/180) | Completion scope agreed: complete checker explanations and truthful instruction/source provenance, two checked inventories, five slices and realistic acceptance. PR#619 is merged into main; implementation has not started. | 20/90 | Unassessed | Unknown |
 | [GI#435 Validated domain types](https://github.com/sproates/panackelty/issues/435) | Six-constraint semantics agreed: four string constraints, bounded arrays/maps/sets and ordered record-field relationships. Explicit guard binding, validate call/result, failure order and multiline/parenthesised conjunctions agreed. Final consolidated contract approved and merged into main in PR#616: constraint APIs, error schema/rendering, Unicode pin, examples and delivery slices. Existing numeric alternatives are preserved; implementation has not started. | 20/90 | 0% | 0 |
-| [GI#409 Compiler/stdlib boundary](https://github.com/sproates/panackelty/issues/409) | Assessment scope agreed: complete dependency map, five evidenced change cases and recommendation. PR#621 is merged into main. Assessment not started; no refactor selected. | 5/90 | 0% | 0 |
+| [GI#409 Compiler/stdlib boundary](https://github.com/sproates/panackelty/issues/409) | Assessment complete on merge of this delivery: 42-file closure verified, five change cases evidenced, recommendation to retain source organisation and assess narrower build dependencies in GI#106. [Evidence](COMPILER_STDLIB_BOUNDARY_ASSESSMENT.md). No refactor. | 5/90 | 100% | 5/90 |
 | [RM#154 Faster coverage](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154) | Scope agreed and merged into main in PR#624: four measured workloads, target approval before cache implementation, validated persistent plan reuse and fresh executions. Profiling and implementation not started. | 5/90 | 0% | 0 |
 | [RM#155 Authoring friction](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-155) | Partial. Inventory preflight and contributor/interpolation guidance delivered (PR#545 and PR#565). Remaining scope agreed: unsupported-interpolation diagnostics, tested API examples and public-signature visibility guidance. Roadmap PR#626 is merged into main; no additional implementation started. | 5/90 | Unquantified | Unknown |
 | [GI#106 Validation speed](https://github.com/sproates/panackelty/issues/106) | Scope agreed, 26 October: five baseline workloads, at most three selected improvements and measured owner acceptance. Baseline not started. Earlier repairs (PR#596–598) remain delivered; the bounded milestone is not complete. | 5/90 | Unquantified | Unknown |
-| **Total** | **30/90 known contribution (about 33%); overall completion unquantified.** | **100%** | **Unknown** | **30/90 known** |
+| **Total** | **35/90 known contribution (about 39%); overall completion unquantified.** | **100%** | **Unknown** | **35/90 known** |
 
 Weights retain the original provisional relative sizes, excluding the five points
 for GI#170: Inference assessment and the five for RM#157: Performance review,
 now allocated to alpha.16. The remaining denominator is 90; the Weight column
-sums to 100%. No remaining task was re-estimated. Known contribution is 30/90
-(about 33%); the increase from 30/95 reflects reduced scope, not additional
-completed work. Unknown contributions are not zero; overall completion remains
+sums to 100%. No remaining task was re-estimated. Known contribution is 35/90
+(about 39%) on merge of the GI#409 assessment, up from 30/90 through delivery of
+its five-point scope. Earlier denominator reductions reflected deferrals only. Unknown contributions are not zero; overall completion remains
 unquantified. These are provisional weights, not owner-approved effort estimates.
 
 ## Deferred to the following release
@@ -118,18 +118,13 @@ This is agreed direction, not implementation progress; weights are unchanged.
   blanket deferral wording was incorrect. Alpha.15 new constraints support
   multiline and parenthesised `&&`. No implementation or extra completion credit.
 
-- **GI#409: Compiler/stdlib boundary assessment:** [scope agreed, PR#621](https://github.com/sproates/panackelty/pull/621),
-  merged into main after owner approval. Deliver the complete direct/transitive/implicit
-  compiler-library dependency map, separating source, bootstrap, native interface
-  and release/version coupling. Evidence five change cases: unused application
-  library, compiler-used helper, implicit core type/method, new host capability,
-  and packaging/version metadata. Explain current rebuilds, necessary rebuilds
-  and required validation with source/build rules and reproducible probes. Compare
-  retaining the arrangement, tightening dependencies/build rules and introducing
-  a compiler-support boundary; recommend the smallest justified step. Completion
-  requires every case and dependency accounted for. Small to medium, 1–2 assessment
-  PRs. No refactor; GI#106: Validation speed and alpha.16 native coupling stay separate.
-  Scope is agreed; assessment not started.
+- **GI#409: Compiler/stdlib boundary assessment:** complete on merge of this
+  delivery. [Assessment and reproducible evidence](COMPILER_STDLIB_BOUNDARY_ASSESSMENT.md)
+  verify the compiler's 42-file closure, including nine stdlib modules and implicit
+  core, and account for all five change cases. Real cache probes distinguish a
+  repeated recipe from actual recompilation. Retain source organisation; consider
+  narrower package-tool prerequisites at GI#106's measured-selection checkpoint.
+  Native-operation registry coupling stays with alpha.16. No refactor delivered.
 - **RM#154: Faster coverage:** [scope agreed, PR#624](https://github.com/sproates/panackelty/pull/624),
   merged into main after owner approval. Measure empty cache, unchanged repeat, reporting-only
   change and measured-source/dependency change, separating preparation, execution,
@@ -177,7 +172,7 @@ substantial coverage obstacle need not block feature work; make any adjustment
 explicit with evidence. GI#180 foundations precede GI#435, with final acceptance
 covering both. Keep tests and required validation in every slice. Integrated
 acceptance adds no independently weighted task and does not duplicate credit.
-No implementation starts with this record; all scope and weights remain unchanged.
+The order and scope weights remain unchanged. GI#409 assessment delivery is recorded above; later work has not started.
 
 ## Release readiness and next action
 
@@ -188,8 +183,9 @@ No implementation starts with this record; all scope and weights remain unchange
   in PR#619. GI#409: Compiler/stdlib boundary assessment is also scoped in PR#621.
   RM#154: Faster coverage is scoped in PR#624 and RM#155: Authoring friction in
   PR#626. RM#157: Performance review belongs to alpha.16. Delivery order is agreed
-  above. Next is GI#409: Compiler/stdlib boundary assessment (1–2 assessment PRs);
-  no implementation is started by this record.
+  above. GI#409 assessment is complete on merge of this delivery. Next is
+  GI#106: Validation speed, starting with its five-workload baseline; that work
+  has not started.
 - Promotion, package/install release checks and owner publication approval remain.
   Complete product acceptance on next does not mean a feature has shipped.
 - Latest supporting repair: [PR#601](https://github.com/sproates/panackelty/pull/601)

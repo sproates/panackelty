@@ -6272,11 +6272,11 @@ The scheduled upload failure remains unexplained. Transient DNS failure is a
 hypothesis; successful later probes do not establish the original cause.
 Nightly package, coverage and validation-report uploads now use the same bounded
 wrapper: at most three attempts, with 10 and 30 seconds between attempts and a
-10-minute ceiling per upload attempt. Ordinary successful uploads incur no
+10-minute ceiling for the complete upload operation. Ordinary successful uploads incur no
 probe or backoff cost. Retention and missing-file policies remain unchanged.
 Retry artifacts have `-retry-2` or `-retry-3` appended to the original name, so a
 partially successful earlier upload cannot cause a duplicate-name conflict.
-The job summary records recovery or exhaustion. Exhaustion fails the upload;
+The job summary records recovery or exhaustion. An external timeout or job cancellation can interrupt diagnostic collection. Exhaustion fails the upload;
 recovery does not turn an earlier validation failure into a successful job.
 
 After every failed attempt, a JavaScript action reads the runner-provided
@@ -6285,7 +6285,7 @@ system DNS lookup, A/AAAA records with TTLs and CNAME lookup, with `api.github.c
 as a control. Records include UTC time, probe duration and error codes, configured
 resolvers, platform resolver/routing configuration, runner image/version, Node
 version and proxy hostnames. An unauthenticated HTTPS HEAD request checks DNS,
-TCP/TLS and HTTP reachability of the results service. An HTTP error response can
+TCP/TLS and HTTP reachability of the results service directly, without using proxy environment variables. An HTTP error response can
 still demonstrate connectivity. This probe does not reproduce an authenticated
 CreateArtifact request or test a later blob-storage endpoint.
 

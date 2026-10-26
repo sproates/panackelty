@@ -96,9 +96,9 @@ jobs:
           sparse-checkout: .github/actions
           persist-credentials: false
 
-
       - name: Upload nightly package
         if: matrix.suite == 'conformance-bytecode' && success()
+        timeout-minutes: 10
         uses: ./.nightly-ci/.github/actions/upload-with-diagnostics
         with:
           name: panackelty-${{ matrix.target }}-${{ steps.source.outputs.sha }}
@@ -129,6 +129,7 @@ jobs:
 
       - name: Archive validation profile
         if: always()
+        timeout-minutes: 10
         uses: ./.nightly-ci/.github/actions/upload-with-diagnostics
         with:
           name: nightly-validation-${{ matrix.target }}-${{ matrix.suite }}-${{ github.run_id }}
@@ -198,9 +199,9 @@ jobs:
           sparse-checkout: .github/actions
           persist-credentials: false
 
-
       - name: Archive native coverage
         if: matrix.suite == 'coverage'
+        timeout-minutes: 10
         uses: ./.nightly-ci/.github/actions/upload-with-diagnostics
         with:
           name: nightly-native-coverage-${{ github.run_id }}
@@ -228,6 +229,7 @@ jobs:
 
       - name: Archive validation profile
         if: always()
+        timeout-minutes: 10
         uses: ./.nightly-ci/.github/actions/upload-with-diagnostics
         with:
           name: nightly-linux-validation-${{ matrix.suite }}-${{ github.run_id }}

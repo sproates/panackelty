@@ -24,7 +24,6 @@ runs:
       id: attempt1
       if: ${{ !cancelled() }}
       continue-on-error: true
-      timeout-minutes: 10
       uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
       with:
         name: ${{ inputs.name }}
@@ -46,7 +45,6 @@ runs:
       id: attempt2
       if: ${{ !cancelled() && steps.attempt1.outcome == 'failure' }}
       continue-on-error: true
-      timeout-minutes: 10
       uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
       with:
         name: ${{ inputs.name }}-retry-2
@@ -68,7 +66,6 @@ runs:
       id: attempt3
       if: ${{ !cancelled() && steps.attempt2.outcome == 'failure' }}
       continue-on-error: true
-      timeout-minutes: 10
       uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
       with:
         name: ${{ inputs.name }}-retry-3
@@ -103,4 +100,3 @@ runs:
         echo "attempt=$attempt" >> "$GITHUB_OUTPUT"
         printf 'Artifact upload recovered on attempt %s. Artifact: %s-retry-%s\n' "$attempt" "$ARTIFACT_NAME" "$attempt"
         printf 'Artifact upload recovered on attempt %s; the artifact has the corresponding retry suffix. Network evidence is in the job log.\n' "$attempt" >> "$GITHUB_STEP_SUMMARY"
-

@@ -290,6 +290,16 @@ work proceed independently. This is an assessment: any implementation or
 reorganization requires a later scope decision based on the findings.
 
 
+**GI#409: Compiler/stdlib boundary assessment — complete on merge, 27 October 2026.**
+The [assessment](../../COMPILER_STDLIB_BOUNDARY_ASSESSMENT.md) verifies all 42 loaded
+sources and the nine-module stdlib closure against Panack's own inventory. Five
+change cases separate actual cache compilation, Make dry-run scheduling, source
+semantics, native registry contracts and release metadata. Retain the existing
+source boundary; investigate the demonstrated package-tool dependency overreach
+within GI#106: Validation speed. No new compiler-support layer or refactor is
+selected. Native coupling remains separate alpha.16 work. All assessment
+acceptance is covered; optimisation is not required to close this assessment.
+
 <a id="rm-154"></a>
 
 **RM#154: Incremental coverage collection: alpha.15 requirement.**

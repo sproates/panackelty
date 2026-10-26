@@ -175,6 +175,24 @@ records its limits. Runtime performance uses existing direct calls; extra work i
 confined to parsing and checking arrow calls. Website: no current-release claim
 changes are needed for this unreleased experiment; reassess at release selection.
 
+## Nightly package-tool preparation repair: 26 October 2026
+
+Nightly run `40176587642` failed package-aware CLI assertions because isolated
+compiler, runtime, conformance, sanitizer and coverage suites had not built
+`build/tools/panack-packages.bc`. The full `make check` prepared that artifact,
+so its successful results did not expose the missing standalone prerequisites.
+The affected entry points now prepare the separate package tool before tests
+run. Instrumented suites prepare the ordinary CLI artifact before switching
+build directories; `make native` remains independent of package management.
+
+Regression checks cover the expanded Make dependency graph and sanitizer
+preparation order. Completion requires full local validation and the affected
+hosted nightly suites, with results recorded in the delivery PR. No issue was
+created solely for this repair. No product behaviour, compiler or seed changes
+are included. Performance impact is limited to building the required package
+tool once in an otherwise unprepared suite. Website: no impact; released APIs
+and installation instructions are unchanged.
+
 ## Nightly HTTP fixture repair — 2026-10-19
 
 The 18 October macOS runtime nightly failed its oversized-header HTTP 431

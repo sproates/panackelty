@@ -517,6 +517,11 @@ functional runner. `tests/ci_sanitize.sh` compares standalone and partitioned
 operation multiplicity and injects compile, verify, execution, stderr and output
 failures; invalid selections fail before executing the VM. The standalone
 sanitizer and coverage targets execute all three shared implementations.
+`tests/ci_scope.sh` checks Make's expanded prerequisite graph so standalone
+package-aware suites prepare the separate package tool even in a clean build,
+while the native VM build remains independent. `tests/ci_sanitize.sh` also
+checks that ordinary CLI/package-tool preparation precedes each instrumented
+suite, whose artifacts live in a separate build directory.
 Distribution regressions also retain the shared VM inode and bytes while
 building and installing from an isolated checkout, detecting accidental relinks
 that can disrupt concurrent compiler commands.

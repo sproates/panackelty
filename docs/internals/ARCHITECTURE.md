@@ -1795,3 +1795,13 @@ updates require an existing lock before graph resolution. Input diagnostics
 distinguish read failures and byte bounds from JSON/record validation; graph
 errors retain conflicting directories, versions and dependency chains. These
 changes remain within the independently compiled Panack package tool.
+
+### Compiler validation progress observation
+
+The compiler-source fixture uses a native supervisor and a separately linked
+test VM to observe module checking and compilation stages. Compile-time test
+hooks in VM execution are absent from normal builds; compiler-specific observation
+and deadline policy live under `tests/compiler_watchdog`. This does not add a
+compiler host capability or change the seed. Module passes have independent hang
+allowances, with an outer process backstop and saved failure evidence. See the
+[watchdog guide](../../tests/compiler_watchdog/README.md).

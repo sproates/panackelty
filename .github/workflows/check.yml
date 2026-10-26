@@ -149,6 +149,7 @@ jobs:
           name: validation-profile-${{ matrix.target }}-${{ matrix.suite }}-${{ github.run_id }}
           path: |
             validation-profile.tsv
+            build/**/validation/compiler-watchdog/**
             validation-timings.tsv
           if-no-files-found: warn
 
@@ -281,6 +282,7 @@ jobs:
           path: |
             validation-timings.tsv
             validation-profile.tsv
+            build/**/validation/compiler-watchdog/**
           if-no-files-found: warn
 
   # Only these short compatibility gates use always(). Expensive jobs retain

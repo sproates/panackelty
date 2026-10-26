@@ -201,6 +201,10 @@ before running archive and release checks. Both commands retain
 assertions remain. This separates build preparation from the release check
 without changing product performance criteria. The follow-up PR records local
 validation and the final hosted rerun.
+The HTTP-server bytecode target also now depends on the package-tool artifact,
+not its phony convenience target. Installation reuses prepared bytecode while
+source, seed, VM and package-tool changes still invalidate it. The distribution
+fixture asserts that a prepared installation does not invoke compilation.
 Manual nightly dispatch accepts a branch name so repairs can be tested before
 merge. Scheduled runs still select `next`, and workflow permissions remain
 read-only.

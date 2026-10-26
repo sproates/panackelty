@@ -109,7 +109,11 @@ pass
 case_name=installed-files-and-logical-imports
 cd "$checkout"
 destination=$work/'installation with spaces (test)'
+# The custom BUILD_DIR archive relinked this checkout's VM. Prepare its default
+# tool artifacts before timing installation, which must reuse their bytecode.
+capture 0 90 make native package-tool build/tools/http-server.bc
 capture 0 30 make install "DESTDIR=$destination" PREFIX=/usr/local
+absent "$work/stdout" './bin/panack compile'
 installed=$destination/usr/local
 (cd "$installed" && find . -type f | sed 's|^./||' | sort) > "$work/files"
 equal_files "$work/files" "$root/tests/unit/harness/installed-files.txt"

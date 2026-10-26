@@ -17,6 +17,11 @@ issue was created for this repair. Completion evidence is recorded in the PR.
 
 ## Next: alpha.15
 
+GI#106's [bounded validation-speed milestone](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#alpha15-validation-speed)
+now has an agreed scope: five baseline workloads, at most three selected
+improvements, preserved validation requirements and measured owner acceptance.
+Baseline and implementation have not started; the wider issue remains separate.
+
 Alpha.14 delivers type-owned methods and dot notation (GI#525), the routed HTTP
 server framework (GI#518), and the HTTP reference and runnable examples slice of
 GI#552. Alpha.15 takes forward the remaining foundation work under the agreed

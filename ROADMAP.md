@@ -16,13 +16,13 @@ uploads add no diagnostics or backoff; failed uploads have explicit bounds. No
 issue was created for this repair. Completion evidence is recorded in the PR.
 
 ## Next: alpha.15
+
 The owner-agreed [delivery order](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#agreed-alpha15-delivery-order--26-october-2026)
 is GI#409: Compiler/stdlib boundary assessment; GI#106: Validation speed;
 RM#154: Faster coverage; GI#180: Compiler understanding foundations;
 GI#435: Validated domain types; RM#155: Authoring friction; integrated acceptance.
 Compiler-understanding acceptance includes the new domain-type decisions.
 Implementation has not started; the next delivery is the GI#409 assessment.
-
 
 The [26 October clarification](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#alpha15-explanation-provenance-and-domain-type-clarification)
 requires complete function-checker explanations and comprehensive, truthful

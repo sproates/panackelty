@@ -95,7 +95,7 @@ This is agreed direction, not implementation progress; weights are unchanged.
   supported `&&` fragment; formatting does not permit arbitrary predicates/calls.
   Guard alternatives (`||`) are explicitly scheduled for alpha.16, with proof
   rules and diagnostics that explain alternatives together. See [PR#613](https://github.com/sproates/panackelty/pull/613),
-  awaiting main merge approval. Illustrative method names and validated-type reuse
+  merged into main after owner approval. Illustrative method names and validated-type reuse
   are not agreed APIs. No implementation started; count integration once.
 - GI#409: define the assessment deliverable and representative dependency/change
   cases. The compiler/stdlib boundary assessment is already reasonably bounded;

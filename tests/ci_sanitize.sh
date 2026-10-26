@@ -111,4 +111,19 @@ if make -s native-sanitize SANITIZE_SUITE=unknown MAKE=false > "$work/output" 2>
     fail 'accepted unknown sanitizer suite'
 fi
 grep -F 'unknown sanitizer suite' "$work/output" >/dev/null || fail 'built before validating suite'
+# Record recursive Make calls without compiling. The ordinary public CLI and
+# package tool must be ready before entering the separate instrumented tree.
+cat > "$work/make-recorder" <<'MAKE'
+#!/bin/sh
+printf '%s\n' "$*" >> "$CI_SANITIZE_MAKE_CALLS"
+MAKE
+chmod +x "$work/make-recorder"
+export CI_SANITIZE_MAKE_CALLS="$work/make-calls"
+for suite in all vm oracle runner; do
+    : > "$CI_SANITIZE_MAKE_CALLS"
+    make -s native-sanitize SANITIZE_SUITE="$suite" MAKE="$work/make-recorder"
+    [ "$(wc -l < "$CI_SANITIZE_MAKE_CALLS")" -eq 2 ] || fail 'unexpected sanitizer preparation calls'
+    head -n 1 "$CI_SANITIZE_MAKE_CALLS" | grep -Fx -- '--no-print-directory native package-tool' >/dev/null || fail 'ordinary package tool not prepared first'
+    tail -n 1 "$CI_SANITIZE_MAKE_CALLS" | grep -F "native-instrumented-$suite" >/dev/null || fail 'instrumented suite not invoked'
+done
 echo 'Sanitizer oracle partition equivalence and failure controls passed.'

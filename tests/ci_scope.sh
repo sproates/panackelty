@@ -487,6 +487,43 @@ grep -F 'CI_PACKAGE_SMOKE_TARGETS := quick-start' Makefile >/dev/null || fail 'n
 grep -F 'ci-bootstrap: bootstrap-check $(CI_PACKAGE_SMOKE_TARGETS)' Makefile >/dev/null || fail 'bootstrap package smoke is not branch-gated'
 grep -F 'ci-conformance-bytecode: ci-conformance-bytecode-check $(CI_PACKAGE_SMOKE_TARGETS)' Makefile >/dev/null || fail 'bytecode package smoke is not branch-gated'
 grep -F 'ci-conformance-bytecode-check: native $(STAGE2_COMPILER)' Makefile >/dev/null || fail 'missing package-free bytecode conformance target'
+# Inspect Make's expanded dependency graph without running a recipe. Standalone
+# suites must prepare the package tool before invoking package-aware CLI tests;
+# a warm developer build must not be able to hide a missing prerequisite.
+database_status=0
+make -qp > "$work/make-database" || database_status=$?
+[[ "$database_status" -le 1 ]] || fail 'could not inspect Make prerequisites'
+awk '
+function reaches(target, wanted, count, parts, i) {
+    if (target == wanted) return 1
+    if (seen[target]++) return 0
+    count = split(edges[target], parts, " ")
+    for (i = 1; i <= count; i++) if (reaches(parts[i], wanted)) return 1
+    return 0
+}
+/^[^# \t][^=]*:/ {
+    target = $1
+    if (target !~ /:$/) next
+    sub(/:$/, "", target)
+    $1 = ""
+    edges[target] = edges[target] " " $0
+}
+END {
+    count = split("check-compiler check-bytecode check-vm unit-harness unit-runtime harness native-oracle-contracts native-check native-coverage ci-compiler ci-runtime ci-conformance-source ci-conformance-bytecode-check", targets, " ")
+    for (i = 1; i <= count; i++) {
+        for (key in seen) delete seen[key]
+        if (!reaches(targets[i], "package-tool")) {
+            print "missing package tool prerequisite: " targets[i]
+            bad = 1
+        }
+    }
+    for (key in seen) delete seen[key]
+    if (reaches("native", "package-tool")) {
+        print "native VM build must remain independent of the package tool"
+        bad = 1
+    }
+    exit bad
+}' "$work/make-database" || fail 'standalone package CLI preparation'
 grep -F 'cron: "17 3 * * *"' .github/workflows/nightly-packages.yml >/dev/null || fail 'missing nightly schedule'
 grep -F "ref: \${{ inputs.branch || 'next' }}" .github/workflows/nightly-packages.yml >/dev/null || fail 'nightly does not check out next by default'
 grep -F 'suite: [compiler, runtime, bootstrap, conformance-source, conformance-bytecode]' .github/workflows/nightly-packages.yml >/dev/null || fail 'nightly matrix is incomplete'

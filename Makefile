@@ -89,7 +89,7 @@ check-phases:
 
 test: check
 
-check-compiler: native
+check-compiler: native package-tool
 	@$(TIMED) check-compiler $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory check-compiler-impl
 
 check-compiler-impl: $(STAGE2_COMPILER) compiler-integration-probe
@@ -127,7 +127,7 @@ check-compiler-impl: $(STAGE2_COMPILER) compiler-integration-probe
 compiler-integration-probe: native $(STAGE2_COMPILER)
 	@PANACK_PROBE_SEED="$(abspath $(STAGE2_COMPILER))" PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROFILE) probe-prepare/compiler-integration_unit $(PROBE) --compile $(COMPILER_INTEGRATION_SOURCE) "$(BUILD_DIR)/compiler-integration-unit.bc"
 
-check-bytecode: native native-module-build
+check-bytecode: native native-module-build package-tool
 	@$(TIMED) check-bytecode $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory check-bytecode-impl
 
 check-bytecode-impl:
@@ -137,7 +137,7 @@ check-bytecode-impl:
 	@$(PROFILE) functional/case/cli_check_disasm $(PROBE) tests/runner/main.panack --case cli_check_disasm
 	@$(PROFILE) functional/case/cli_commands $(PROBE) tests/runner/main.panack --case cli_commands
 
-check-vm: native native-module-build native-fault-build
+check-vm: native native-module-build native-fault-build package-tool
 	@$(TIMED) check-vm $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory check-vm-impl
 
 check-vm-impl:
@@ -155,12 +155,12 @@ unit-impl:
 	@$(MAKE) --no-print-directory unit-runtime
 
 .PHONY: unit-harness unit-runtime unit-compiler
-unit-harness: native $(STAGE2_COMPILER)
+unit-harness: native $(STAGE2_COMPILER) package-tool
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" $(PROFILE) harness sh tests/harness.sh
 	@$(PROFILE) probe/report_capture_unit $(PROBE) tests/runner/report_capture_unit.panack
 	@$(PROFILE) seed-refresh/failure-contracts sh tests/seed_refresh.sh
 
-unit-runtime: native native-module-build native-fault-build $(STAGE2_COMPILER)
+unit-runtime: native native-module-build native-fault-build $(STAGE2_COMPILER) package-tool
 	@sh tests/run_suites.sh $(MAKE) unit-runtime-native unit-runtime-probes
 
 .PHONY: unit-runtime-native unit-runtime-probes
@@ -320,7 +320,7 @@ native-vm-contracts: $(BUILD_DIR)/vm/panack-vm native-module-build native-fault-
 native-oracle-artifacts: $(BUILD_DIR)/vm/panack-vm
 	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" SEED_COMPILER="$(SEED_COMPILER)" $(PROFILE) native-oracle sh tests/native_oracle_contracts.sh artifacts
 
-native-oracle-contracts: native
+native-oracle-contracts: native package-tool
 	@$(MAKE) --no-print-directory native-oracle-contracts-impl
 
 native-oracle-contracts-impl: $(BUILD_DIR)/vm/panack-vm native-module-build $(STAGE2_COMPILER)
@@ -329,12 +329,14 @@ native-oracle-contracts-impl: $(BUILD_DIR)/vm/panack-vm native-module-build $(ST
 # Keep instrumentation isolated from ordinary build artifacts and the CLI binary.
 # Corpus programs call the public CLI too. Build that ordinary binary before
 # recursing with instrumentation, without replacing it with an instrumented VM.
+# The public CLI also needs the ordinary build/tools package tool, even when
+# instrumented artifacts use a different BUILD_DIR.
 SANITIZE_SUITE ?= all
 
 # Reject unknown suites before performing any build.
 native-sanitize:
 	@case "$(SANITIZE_SUITE)" in all|vm|oracle|runner) ;; *) echo "unknown sanitizer suite" >&2; exit 2 ;; esac
-	@$(MAKE) --no-print-directory native
+	@$(MAKE) --no-print-directory native package-tool
 	$(MAKE) BUILD_DIR=build/sanitize CFLAGS="-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined" LDFLAGS="-fsanitize=address,undefined" native-instrumented-$(SANITIZE_SUITE)
 
 # The serial standalone/coverage target and CI shards share implementations.
@@ -360,7 +362,7 @@ LLVM_CC ?= clang
 LLVM_COV ?= $(shell command -v llvm-cov 2>/dev/null || xcrun --find llvm-cov 2>/dev/null)
 LLVM_PROFDATA ?= $(shell command -v llvm-profdata 2>/dev/null || xcrun --find llvm-profdata 2>/dev/null)
 .PHONY: native-coverage
-native-coverage: native
+native-coverage: native package-tool
 	@test -n "$(LLVM_COV)" -a -n "$(LLVM_PROFDATA)" || { echo "LLVM coverage tools are required" >&2; exit 1; }
 	@mkdir -p build/coverage
 	@rm -f build/coverage/*.profraw
@@ -427,7 +429,7 @@ bootstrap-fixed-point: $(STAGE3_COMPILER) $(STAGE1_STDLIB) $(STAGE2_STDLIB) $(ST
 bootstrap-seed-refresh:
 	$(PROFILE) seed-refresh/native-staging sh tests/seed_refresh.sh --native
 
-native-check: bootstrap-check
+native-check: bootstrap-check package-tool
 	sh tests/native_conformance.sh
 
 PACKAGE_TOOL_ARTIFACT := $(BUILD_DIR)/tools/panack-packages.bc
@@ -516,7 +518,7 @@ clean:
 	rm -rf build
 
 .PHONY: harness
-harness: native $(STAGE2_COMPILER)
+harness: native $(STAGE2_COMPILER) package-tool
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" $(TIMED) harness $(INCREMENTAL_BUDGET_SECONDS) sh tests/harness.sh
 
 .PHONY: docs ci-check policy check-no-interpreter
@@ -540,11 +542,11 @@ check-no-interpreter:
 # CI partitions use the same targets as the canonical check. Each runs in a
 # fresh checkout; only runtime + functional share a session-local observation.
 .PHONY: ci-compiler ci-runtime ci-runtime-phases ci-bootstrap ci-conformance-source ci-conformance-bytecode ci-conformance-bytecode-check ci-next-smoke
-ci-compiler: policy native
+ci-compiler: policy native package-tool
 	@$(MAKE) --no-print-directory $(STAGE2_COMPILER)
 	@sh tests/run_suites.sh $(MAKE) unit-harness unit-compiler
 
-ci-runtime:
+ci-runtime: package-tool
 	@sh tests/check.sh $(MAKE) --no-print-directory ci-runtime-phases
 
 ci-runtime-phases: unit-runtime functional
@@ -562,10 +564,10 @@ endif
 
 ci-bootstrap: bootstrap-check $(CI_PACKAGE_SMOKE_TARGETS)
 
-ci-conformance-source: native $(STAGE2_COMPILER)
+ci-conformance-source: native $(STAGE2_COMPILER) package-tool
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" $(PROFILE) native-conformance/source sh tests/native_conformance.sh source
 
-ci-conformance-bytecode-check: native $(STAGE2_COMPILER)
+ci-conformance-bytecode-check: native $(STAGE2_COMPILER) package-tool
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" $(PROFILE) native-conformance/bytecode sh tests/native_conformance.sh bytecode
 
 ci-conformance-bytecode: ci-conformance-bytecode-check $(CI_PACKAGE_SMOKE_TARGETS)

@@ -34,6 +34,14 @@ selected success cases, twenty-five examples, and forty-one expected failures.
 `make functional` also checks the self-hosted compiler driver and exercises
 `runner_smoke` from source and saved bytecode.
 
+The complete compiler-source fixture uses a [module progress watchdog](compiler_watchdog/README.md)
+instead of an aggregate compilation deadline. Module passes and other compiler
+stages each have a 90-second hang allowance; the enclosing 600-second process
+limit is a final backstop. Failure evidence is retained under
+`build/validation/compiler-watchdog` and archived by hosted validation.
+`make compiler-watchdog-check` exercises deliberate stalls and recovery using
+native test helpers, without changing the installed compiler or its seed.
+
 `make semantic-impact-experiment` runs the bounded compiler-evidence prediction
 experiment with Node 24+. It runs in pull-request Linux/macOS compiler CI; the
 post-merge push keeps the full product suite and skips this same-tree experiment.

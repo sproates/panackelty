@@ -29,6 +29,11 @@
 
 /* Stack-machine execution. Frames own stack slots and local references. */
 
+/* Optional test-build observation. Normal and packaged VMs have no observer. */
+#ifdef PANACK_VM_TEST_OBSERVER
+#include PANACK_VM_TEST_OBSERVER
+#endif
+
 typedef struct {
     char *name;
     Value *value;
@@ -36,6 +41,9 @@ typedef struct {
 
 typedef struct {
     Function *function;
+#ifdef PANACK_VM_TEST_OBSERVER
+    VM_TEST_FRAME_FIELDS
+#endif
     size_t coverage_function, coverage_pending_pc;
     bool coverage_pending;
     size_t pc, stack_count, stack_capacity, local_count, local_capacity;
@@ -139,6 +147,9 @@ static bool local_put(Frame *frame, const char *name, Value *value)
 
 static void frame_free(Frame *frame)
 {
+#ifdef PANACK_VM_TEST_OBSERVER
+    VM_TEST_FRAME_FREE(frame);
+#endif
     for (size_t i = 0; i < frame->stack_count; i++) {
         release(frame->stack[i]);
     }
@@ -204,6 +215,9 @@ static bool frame_push(VMExecution *execution, Function *function, Value **argum
     }
     Frame *frame = &execution->frames[execution->frame_count++];
     *frame = (Frame){.function = function};
+#ifdef PANACK_VM_TEST_OBSERVER
+    VM_TEST_FRAME_ENTER(frame, function, arguments);
+#endif
     for (size_t i = 0; i < function->param_count; i++) {
         if (!arguments[i]) {
             execution->vm->error = "VM trap: invalid function argument";
@@ -1128,6 +1142,9 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
                 vm->error = "VM trap: async main must return Unit";
                 break;
             }
+#ifdef PANACK_VM_TEST_OBSERVER
+            VM_TEST_FRAME_RETURN(frame, function);
+#endif
             frame_free(frame);
             execution->frame_count--;
             if (!execution->frame_count) {

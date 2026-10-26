@@ -175,6 +175,26 @@ records its limits. Runtime performance uses existing direct calls; extra work i
 confined to parsing and checking arrow calls. Website: no current-release claim
 changes are needed for this unreleased experiment; reassess at release selection.
 
+## Compiler fixture progress deadlines: 26 October 2026
+
+The compiler-source fixture now detects stalled module passes and compiler
+stages instead of applying one 90-second deadline to a complete compilation.
+Function activity does not renew module deadlines. The enclosing process bound
+remains a final backstop. A native test supervisor and separately instrumented
+test VM retain paths, function observations, timings and original output for
+the next investigation; production compiler policy and the seed are unchanged.
+
+Done: normal runtime validation includes progress-budget contracts, deliberate
+compiler stalls and recovery; the existing source/bytecode fixture assertions
+remain. Hosted workflows retain failure evidence. Full local and hosted
+validation results are recorded in the delivery PR. No issue was created solely
+for this repair. The original scheduled timeout's cause remains unconfirmed;
+focused measurements support cumulative healthy work as a hypothesis only.
+This changes hang detection, not the performance acceptance criteria under
+GI#106. Performance cost is confined to native test observation and bounded
+fault tests. Website impact: none; installation and language behaviour are
+unchanged. See [watchdog contracts and evidence](tests/compiler_watchdog/README.md).
+
 ## Nightly package-tool preparation repair: 26 October 2026
 
 Nightly run `40176587642` failed package-aware CLI assertions because isolated

@@ -164,8 +164,9 @@ unit-runtime: native native-module-build native-fault-build $(STAGE2_COMPILER) p
 	@sh tests/run_suites.sh $(MAKE) unit-runtime-native unit-runtime-probes
 
 .PHONY: unit-runtime-native unit-runtime-probes
-unit-runtime-native: $(BUILD_DIR)/experiments/runtime-provenance-vm
+unit-runtime-native: $(BUILD_DIR)/experiments/runtime-provenance-vm compiler-watchdog-build
 	@$(BUILD_DIR)/experiments/runtime-provenance-vm --self-test
+	@$(PROFILE) compiler-watchdog sh tests/compiler_watchdog/check.sh
 	@$(PROFILE) native-contracts $(MAKE) --no-print-directory native-vm-contracts native-oracle-contracts
 
 unit-runtime-probes:
@@ -273,6 +274,29 @@ panack-vm: $(VM_OBJECTS)
 $(BUILD_DIR)/vm/%.o: src/vm/%.c
 	@mkdir -p "$(@D)"
 	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -MMD -MP -c $< -o $@
+
+# Test-only compiler observation; neither helper is installed or packaged.
+export PANACK_COMPILER_WATCHDOG_BINARY := $(abspath $(BUILD_DIR))/vm/compiler-watchdog
+export PANACK_COMPILER_WATCHDOG_VM := $(abspath $(BUILD_DIR))/vm/compiler-observer-vm
+export PANACK_COMPILER_WATCHDOG_DIR := $(abspath $(BUILD_DIR))/validation/compiler-watchdog
+.PHONY: compiler-watchdog-build compiler-watchdog-check
+compiler-watchdog-build: $(BUILD_DIR)/vm/compiler-watchdog $(BUILD_DIR)/vm/compiler-observer-vm
+
+$(BUILD_DIR)/vm/compiler-watchdog: tests/compiler_watchdog/main.c tests/compiler_watchdog/budget.h src/vm/platform.h
+	@mkdir -p "$(@D)"
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< -o $@
+
+$(BUILD_DIR)/vm/compiler-observer.o: src/vm/execute.c tests/compiler_watchdog/observer.h
+	@mkdir -p "$(@D)"
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -DPANACK_VM_TEST_OBSERVER='"../../tests/compiler_watchdog/observer.h"' -MMD -MP -c $< -o $@
+
+$(BUILD_DIR)/vm/compiler-observer-vm: $(BUILD_DIR)/vm/compiler-observer.o $(filter-out $(BUILD_DIR)/vm/execute.o,$(VM_OBJECTS))
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+
+compiler-watchdog-check: compiler-watchdog-build
+	@sh tests/compiler_watchdog/check.sh
+
+-include $(BUILD_DIR)/vm/compiler-observer.d
 
 $(BUILD_DIR)/vm/test_modules: tests/unit/vm/native_modules.c tests/unit/vm/resumable.c tests/unit/vm/coverage.c tests/unit/vm/coverage_session.c tests/unit/vm/tasks.c tests/unit/vm/async.c tests/unit/vm/tcp.c tests/unit/vm/http.c tests/unit/vm/http_state.c tests/unit/vm/root_read.c tests/unit/vm/console_write.c tests/unit/vm/tcp_server.c $(VM_LIBRARY_OBJECTS)
 	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< tests/unit/vm/resumable.c tests/unit/vm/coverage.c tests/unit/vm/coverage_session.c tests/unit/vm/tasks.c tests/unit/vm/async.c tests/unit/vm/tcp.c tests/unit/vm/http.c tests/unit/vm/http_state.c tests/unit/vm/root_read.c tests/unit/vm/console_write.c tests/unit/vm/tcp_server.c $(VM_LIBRARY_OBJECTS) -o $@ $(LDLIBS)

@@ -1573,3 +1573,13 @@ implicit repair. Explicit local offline restore and bytecode without sources
 are verified. The HTTP TLS workflow repeats the integration suite through the
 installed toolchain on Linux/macOS, retaining Git diamond and containment tests.
 No production-source coverage classification or threshold changes.
+
+## Compiler progress watchdog
+
+The complete compiler-source fixture retains byte-exact output assertions while
+using per-module/per-stage hang bounds. Native budget and subprocess contracts
+cover cumulative healthy work, non-renewing function activity, silent children,
+forced cleanup, missing/partial progress, launch failure, five injected compiler
+stalls and recovery. The separate observer VM and native supervisor are test-only;
+normal VM frame layout and the compiler seed are unchanged. See
+[the watchdog guide](compiler_watchdog/README.md) for evidence locations and limits.

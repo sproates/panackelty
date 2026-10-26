@@ -17,7 +17,7 @@ and linked issues retain the detailed requirements and decisions.
 | --- | --- | ---: | ---: | ---: |
 | [GI#200 Packages](https://github.com/sproates/panackelty/issues/200) | Accepted on next: local folders/archives, HTTPS archives, pinned Git, diagnostics and installed acceptance. [P04c evidence](design/PACKAGE_FINAL_ACCEPTANCE.md), PR#595. Not yet released. | 30% | 100% | 30 |
 | [GI#180 Compiler understanding](https://github.com/sproates/panackelty/issues/180) | Acceptance clarified: complete relevant checker explanations and truthful attribution for every instruction, including generated origins and reverse mappings. Inventories, transcripts and slices remain. | 20% | Unassessed | Unknown |
-| [GI#435 Validated domain types](https://github.com/sproates/panackelty/issues/435) | Selected families: strings, collections and cross-field invariants. Exact constraints, semantics, validation API, proof limits, failures and explanations must be agreed before implementation. | 20% | 0% | 0 |
+| [GI#435 Validated domain types](https://github.com/sproates/panackelty/issues/435) | Six-constraint semantics agreed: four string constraints, bounded arrays/maps/sets and ordered record-field relationships. Syntax, validation API, pinned Unicode version and example output remain before implementation. | 20% | 0% | 0 |
 | [GI#170 Inference assessment](https://github.com/sproates/panackelty/issues/170) | Pending assessment of inference limits and diagnostics; no inference implementation selected. | 5% | 0% | 0 |
 | [GI#409 Compiler/stdlib boundary](https://github.com/sproates/panackelty/issues/409) | Pending dependency and coupling assessment with recommendation; no reorganisation selected. | 5% | 0% | 0 |
 | [RM#154 Faster coverage](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154) | Planned. Validated plan reuse, cold/warm measurements and invalidation/equivalence acceptance remain. Required test executions stay fresh. | 5% | 0% | 0 |
@@ -66,8 +66,15 @@ This is agreed direction, not implementation progress; weights are unchanged.
   realistic acceptance cases, delivery slices and effort. Missing implementation
   is not unavailable evidence. Instructions with no genuine source location need
   an explicit generated origin; source with no executable output needs explanation.
-- GI#435: agree the exact constraint list and semantics, then proof/validation,
-  failures and explanations. Count its GI#134 integration once.
+- GI#435: [six-constraint semantic agreement, PR#607](https://github.com/sproates/panackelty/pull/607).
+  Non-empty/non-blank/bounded-length strings count Unicode scalars; non-blank uses
+  pinned Unicode White_Space. Control exclusion is U+0000–001F and U+007F–009F.
+  Array/Map/Set size uses inclusive constant bounds. Same-record numeric fields
+  support < or ≤ and conjunctions. Static proof or explicit runtime validation
+  establishes guarantees; updates must preserve them. Validation preserves inputs
+  and reports all failed constraints deterministically. New proof decisions need
+  GI#134 explanations. Syntax, API/error shape, Unicode version and transcripts
+  remain for agreement. No implementation started; count integration once.
 - GI#170: fix the assessment questions, representative inference/diagnostic cases
   and report acceptance; separate assessment from any later implementation.
 - GI#409: define the assessment deliverable and representative dependency/change
@@ -84,7 +91,7 @@ This is agreed direction, not implementation progress; weights are unchanged.
 
 - Remaining work is the open acceptance in the table. No release date is committed.
   Current planning work: define remaining alpha.15 commitments one at a time.
-  Next proposed discussion: the exact GI#435 constraint list. Implementation
+  Next proposed discussion: GI#435 syntax, validation API and example output. Implementation
   ordering follows scope definition; no implementation is started by this record.
 - Promotion, package/install release checks and owner publication approval remain.
   Complete product acceptance on next does not mean a feature has shipped.

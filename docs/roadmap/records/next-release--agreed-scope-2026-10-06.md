@@ -607,33 +607,66 @@ the task identifier.
 
 <a id="rm-155"></a>
 
-**RM#155: Review the friction log and implement selected improvements: alpha.15.**
+**RM#155: Authoring friction: alpha.15.**
 
-Current allocation: alpha.15 after the 20 October rebalance.
+**Completion scope agreed by the owner, 26 October 2026.** The selected list is
+fixed. Distinguish intended behaviour that needs better explanation from a
+behaviour change; reproduce each remaining case before implementing its remedy.
 
-**Planned by owner direction, 2026-10-15; clarified 2026-10-16.** Review the
-recorded authoring-friction log, identify concrete improvements, and select a
-bounded, prioritised set to implement during Alpha.14. Candidate improvements may
-address language/compiler behaviour, diagnostics, API discoverability,
-documentation, examples or development tooling. Distinguish confirmed defects
-from confusing intended behaviour and unverified suggestions; reproduce each
-selected case before choosing its remedy.
+Already delivered on next:
 
-Acceptance requires an explicit list of selected items and their intended
-outcomes, a demonstrated before/after improvement for each, appropriate regression
-tests for behaviour changes, and updated guidance where discovery or explanation
-is the problem. Record resolved, deferred and still-unverified cases with evidence.
-Coordinate overlapping work with [RM#64: Inference and diagnostics](language-direction-and-differentiation--exploration.md#rm-64),
-[RM#48: Compiler explanations](groomed-development-and-engineering-work.md#rm-48) and [RM#154: Incremental coverage
-collection](#rm-154) rather than counting the same delivery twice.
+- [PR#545: Example-inventory preflight](https://github.com/sproates/panackelty/pull/545)
+  detects inventory drift before expensive validation.
+- [PR#565: Contributor and interpolation guidance](https://github.com/sproates/panackelty/pull/565)
+  links existing onboarding guides and explains binding an expression to a local
+  name before interpolation. This remains completed work, not a new deliverable.
 
-The release commitment is to review the log, identify concrete improvements,
-and implement the selected prioritised items; it is not to implement every logged
-suggestion. Confirm the selected items and estimate their combined effort during
-Alpha.14 planning; scope and effort remain provisional until that review. Preserve
-existing correctness and compatibility contracts,
-and document any deliberately selected changes. This roadmap addition starts no
-implementation and adds no gate to the ongoing Alpha.13 release.
+Three remaining improvements:
+
+1. **Diagnose unsupported interpolation.** Unsupported expressions such as
+   `${package.name}` must produce a source-located, actionable compiler error
+   instead of silently appearing unchanged in output. Explain how to bind the
+   expression to a local name first. Preserve supported local-name interpolation;
+   full expression interpolation is outside scope. This is a deliberate
+   compatibility change for programs relying on literal unsupported forms:
+   document and test how to write literal `${…}` text deliberately, and migrate
+   affected maintained examples. Do not imply that currently unsupported escapes
+   already provide that mechanism or expand this into a string-syntax redesign.
+2. **Provide a bounded set of tested API examples.** Cover strings and bytes,
+   collection access, reporting test results, and filesystem/process failure
+   handling. Show the actual API names and relevant limitations. Link the examples
+   from existing guides and reuse the authoritative reference rather than adding
+   a competing API manual. These four groups are the selected documentation scope.
+3. **Explain public-signature type visibility.** Provide a worked example showing
+   why a privately imported type cannot appear in a public function signature and
+   how `pub import` makes the exposed type accessible. Check the rejected and
+   corrected examples. Preserve the existing visibility rules; this item requires
+   guidance, not a change to type accessibility.
+
+Acceptance requires a reproducible before/after example for each remaining
+improvement, regression tests for changed compiler behaviour, and checked
+executable documentation examples. Verify useful diagnostics, continued supported
+interpolation and deliberate literal text. Reconcile the recorded findings with
+this selected list and its evidence; distinguish resolved, unselected and
+unverified observations. New observations do not automatically expand alpha.15.
+An actual deferral of selected work requires an explicit following-release
+allocation rather than silently dropping it into the backlog.
+
+Keep GI#134: Compiler explanations, GI#170: Inference assessment, RM#154: Faster
+coverage and GI#106: Validation speed separately accounted for. Native coupling
+and a comprehensive API-reference project are outside this selected list. Do not
+count the same delivery twice or treat authoring mistakes as compiler defects.
+
+The remaining work is provisionally medium, about three implementation PRs:
+interpolation diagnostics and compatibility; API examples; visibility guidance
+and final evidence reconciliation. Each slice includes its own relevant tests.
+No additional implementation starts with this scope record. No dedicated GitHub
+issue was found for this roadmap item; none is created solely for bookkeeping.
+
+This scope-only update has no runtime or performance impact. Implementation must
+record proportionate performance evidence for compiler changes. Existing broad
+website claims remain accurate; no immediate website change is needed. Publish
+changed syntax guidance with the corresponding verified implementation/release.
 
 <a id="rm-156"></a>
 

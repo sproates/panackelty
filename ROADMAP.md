@@ -41,6 +41,12 @@ has an agreed four-workload baseline, safely reusable plans and fresh-execution
 acceptance. Agree the measured target before cache implementation. Profiling
 and implementation remain unstarted.
 
+[RM#155: Authoring friction](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-155)
+has a fixed remaining list: diagnose unsupported interpolation, provide tested
+API examples, and explain public-signature type visibility. Inventory preflight
+and onboarding/interpolation guidance are already delivered on next. The three
+remaining improvements are agreed scope, not started implementation.
+
 GI#106's [bounded validation-speed milestone](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#alpha15-validation-speed)
 now has an agreed scope: five baseline workloads, at most three selected
 improvements, preserved validation requirements and measured owner acceptance.

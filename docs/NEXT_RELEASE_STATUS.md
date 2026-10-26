@@ -17,7 +17,7 @@ and linked issues retain the detailed requirements and decisions.
 | --- | --- | ---: | ---: | ---: |
 | [GI#200 Packages](https://github.com/sproates/panackelty/issues/200) | Accepted on next: local folders/archives, HTTPS archives, pinned Git, diagnostics and installed acceptance. [P04c evidence](design/PACKAGE_FINAL_ACCEPTANCE.md), PR#595. Not yet released. | 30% | 100% | 30 |
 | [GI#180 Compiler understanding](https://github.com/sproates/panackelty/issues/180) | Acceptance clarified: complete relevant checker explanations and truthful attribution for every instruction, including generated origins and reverse mappings. Inventories, transcripts and slices remain. | 20% | Unassessed | Unknown |
-| [GI#435 Validated domain types](https://github.com/sproates/panackelty/issues/435) | Six-constraint semantics agreed: four string constraints, bounded arrays/maps/sets and ordered record-field relationships. Syntax, validation API, pinned Unicode version and example output remain before implementation. | 20% | 0% | 0 |
+| [GI#435 Validated domain types](https://github.com/sproates/panackelty/issues/435) | Six-constraint semantics agreed: four string constraints, bounded arrays/maps/sets and ordered record-field relationships. Explicit guard binding, validate call/result and failure order agreed. Remaining constraint syntax, concrete errors, Unicode version and examples precede implementation. | 20% | 0% | 0 |
 | [GI#170 Inference assessment](https://github.com/sproates/panackelty/issues/170) | Pending assessment of inference limits and diagnostics; no inference implementation selected. | 5% | 0% | 0 |
 | [GI#409 Compiler/stdlib boundary](https://github.com/sproates/panackelty/issues/409) | Pending dependency and coupling assessment with recommendation; no reorganisation selected. | 5% | 0% | 0 |
 | [RM#154 Faster coverage](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154) | Planned. Validated plan reuse, cold/warm measurements and invalidation/equivalence acceptance remain. Required test executions stay fresh. | 5% | 0% | 0 |
@@ -73,8 +73,14 @@ This is agreed direction, not implementation progress; weights are unchanged.
   support < or ≤ and conjunctions. Static proof or explicit runtime validation
   establishes guarantees; updates must preserve them. Validation preserves inputs
   and reports all failed constraints deterministically. New proof decisions need
-  GI#134 explanations. Syntax, API/error shape, Unicode version and transcripts
-  remain for agreement. No implementation started; count integration once.
+  GI#134 explanations. [Binding/API agreement, PR#609](https://github.com/sproates/panackelty/pull/609):
+  `type Name = Base where binding => condition`, no implicit value; migrate numeric
+  guards. `validate[Type](input)` returns `Result[Type, ValidationError]` without
+  printing or retaining original input automatically. Structured failures identify
+  type, location, constraint and useful facts. Order by declaration, conjunctions
+  left to right; record fields precede cross-field constraints. Remaining constraint
+  syntax, concrete error schema/rendering API, Unicode version and further examples
+  need design. No implementation started; count integration once.
 - GI#170: fix the assessment questions, representative inference/diagnostic cases
   and report acceptance; separate assessment from any later implementation.
 - GI#409: define the assessment deliverable and representative dependency/change
@@ -91,7 +97,7 @@ This is agreed direction, not implementation progress; weights are unchanged.
 
 - Remaining work is the open acceptance in the table. No release date is committed.
   Current planning work: define remaining alpha.15 commitments one at a time.
-  Next proposed discussion: GI#435 syntax, validation API and example output. Implementation
+  Next proposed discussion: remaining GI#435 constraint syntax and error schema. Implementation
   ordering follows scope definition; no implementation is started by this record.
 - Promotion, package/install release checks and owner publication approval remain.
   Complete product acceptance on next does not mean a feature has shipped.

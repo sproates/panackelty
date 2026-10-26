@@ -17,7 +17,7 @@ and linked issues retain the detailed requirements and decisions.
 | --- | --- | ---: | ---: | ---: |
 | [GI#200 Packages](https://github.com/sproates/panackelty/issues/200) | Accepted on next: local folders/archives, HTTPS archives, pinned Git, diagnostics and installed acceptance. [P04c evidence](design/PACKAGE_FINAL_ACCEPTANCE.md), PR#595. Not yet released. | 30/95 | 100% | 30/95 |
 | [GI#180 Compiler understanding](https://github.com/sproates/panackelty/issues/180) | Acceptance clarified: complete relevant checker explanations and truthful attribution for every instruction, including generated origins and reverse mappings. Inventories, transcripts and slices remain. | 20/95 | Unassessed | Unknown |
-| [GI#435 Validated domain types](https://github.com/sproates/panackelty/issues/435) | Six-constraint semantics agreed: four string constraints, bounded arrays/maps/sets and ordered record-field relationships. Explicit guard binding, validate call/result, failure order and multiline/parenthesised conjunctions agreed. Final consolidated contract proposed in PR#616: constraint APIs, error schema/rendering, Unicode pin, examples and delivery slices. Existing numeric alternatives are preserved; implementation has not started. | 20/95 | 0% | 0 |
+| [GI#435 Validated domain types](https://github.com/sproates/panackelty/issues/435) | Six-constraint semantics agreed: four string constraints, bounded arrays/maps/sets and ordered record-field relationships. Explicit guard binding, validate call/result, failure order and multiline/parenthesised conjunctions agreed. Final consolidated contract approved and merged into main in PR#616: constraint APIs, error schema/rendering, Unicode pin, examples and delivery slices. Existing numeric alternatives are preserved; implementation has not started. | 20/95 | 0% | 0 |
 | [GI#409 Compiler/stdlib boundary](https://github.com/sproates/panackelty/issues/409) | Pending dependency and coupling assessment with recommendation; no reorganisation selected. | 5/95 | 0% | 0 |
 | [RM#154 Faster coverage](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154) | Planned. Validated plan reuse, cold/warm measurements and invalidation/equivalence acceptance remain. Required test executions stay fresh. | 5/95 | 0% | 0 |
 | [RM#155 Authoring friction](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-155) | Partial. Example inventory preflight and contributor/interpolation guidance delivered (PR#565 for guidance). Final selected-item reconciliation and acceptance remain. | 5/95 | Unquantified | Unknown |
@@ -91,8 +91,8 @@ This is agreed direction, not implementation progress; weights are unchanged.
   type, location, constraint and useful facts. Order by declaration, conjunctions
   left to right; record fields precede cross-field constraints. Remaining constraint
   APIs, concrete errors, rendering, Unicode 17.0.0 and transcripts are consolidated
-  in the final [design proposal, PR#616](https://github.com/sproates/panackelty/pull/616),
-  awaiting review and main merge approval. It specifies `.len()` for Str/Array,
+  in the [approved contract, PR#616](https://github.com/sproates/panackelty/pull/616),
+  merged into main after owner approval and passing lightweight checks. It specifies `.len()` for Str/Array,
   new Map/Set count methods, two named text predicates, complete-record replacement
   and five delivery slices. Existing numeric `||` is already supported and must
   be preserved. Only extension to new string, collection and record-relationship
@@ -114,8 +114,8 @@ This is agreed direction, not implementation progress; weights are unchanged.
 
 - Remaining work is the open acceptance in the table. No release date is committed.
   Current planning work: define remaining alpha.15 commitments one at a time.
-  GI#435 now has one consolidated final contract for review in PR#616; do not
-  restart its settled syntax decisions. Remaining release definition covers GI#180,
+  GI#435's consolidated contract is approved and merged in PR#616; its design
+  baseline is settled. Do not restart those decisions. Remaining release definition covers GI#180,
   GI#409, RM#154, RM#155 and RM#157. Implementation ordering follows scope definition;
   no implementation is started by this record.
 - Promotion, package/install release checks and owner publication approval remain.

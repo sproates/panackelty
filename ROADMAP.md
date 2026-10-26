@@ -21,7 +21,8 @@ The [26 October clarification](docs/roadmap/records/next-release--agreed-scope-2
 requires complete function-checker explanations and comprehensive, truthful
 instruction/source attribution. GI#435's six-constraint semantic scope is now agreed in
 [RM#153](docs/roadmap/records/language-direction-and-differentiation--exploration.md#rm-153).
-Concrete syntax, validation API and output remain to be agreed before implementation;
+Explicit guard bindings, `validate[Type](input)` and ordered structured failures
+are agreed; remaining constraint syntax and concrete error schema need design;
 its new proof decisions also require explanations.
 
 GI#106's [bounded validation-speed milestone](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#alpha15-validation-speed)

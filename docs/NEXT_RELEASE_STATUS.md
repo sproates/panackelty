@@ -16,8 +16,8 @@ and linked issues retain the detailed requirements and decisions.
 | Item | Current state and remaining acceptance | Weight | Complete | Earned |
 | --- | --- | ---: | ---: | ---: |
 | [GI#200 Packages](https://github.com/sproates/panackelty/issues/200) | Accepted on next: local folders/archives, HTTPS archives, pinned Git, diagnostics and installed acceptance. [P04c evidence](design/PACKAGE_FINAL_ACCEPTANCE.md), PR#595. Not yet released. | 30% | 100% | 30 |
-| [GI#180 Compiler understanding](https://github.com/sproates/panackelty/issues/180) | Remaining GI#173 provenance and GI#134 explanation coverage open. Earlier accepted outcomes remain accepted; the remaining release scope needs bounded delivery slices. | 20% | Unassessed | Unknown |
-| [GI#435 Validated domain types](https://github.com/sproates/panackelty/issues/435) | Planned. Settle semantics and implement string, collection and cross-field guards with static proof and runtime validation. | 20% | 0% | 0 |
+| [GI#180 Compiler understanding](https://github.com/sproates/panackelty/issues/180) | Acceptance clarified: complete relevant checker explanations and truthful attribution for every instruction, including generated origins and reverse mappings. Inventories, transcripts and slices remain. | 20% | Unassessed | Unknown |
+| [GI#435 Validated domain types](https://github.com/sproates/panackelty/issues/435) | Selected families: strings, collections and cross-field invariants. Exact constraints, semantics, validation API, proof limits, failures and explanations must be agreed before implementation. | 20% | 0% | 0 |
 | [GI#170 Inference assessment](https://github.com/sproates/panackelty/issues/170) | Pending assessment of inference limits and diagnostics; no inference implementation selected. | 5% | 0% | 0 |
 | [GI#409 Compiler/stdlib boundary](https://github.com/sproates/panackelty/issues/409) | Pending dependency and coupling assessment with recommendation; no reorganisation selected. | 5% | 0% | 0 |
 | [RM#154 Faster coverage](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154) | Planned. Validated plan reuse, cold/warm measurements and invalidation/equivalence acceptance remain. Required test executions stay fresh. | 5% | 0% | 0 |
@@ -55,11 +55,38 @@ open. This planning update earns no additional completion credit.
   implementation have not started. The next GI#106 action is the baseline when
   authorised; no active work is implied by this scope record.
 
+## Scope definition still required
+
+[PR#605](https://github.com/sproates/panackelty/pull/605) records the 26 October
+owner agreement on GI#134 completeness, GI#173 comprehensive truthful attribution,
+and exact GI#435 constraints before implementation. It has separate main merge
+approval. GI#180, GI#134, GI#173 and GI#435 issues carry the same clarification.
+This is agreed direction, not implementation progress; weights are unchanged.
+
+- GI#180: reconcile decision/transformation inventories; agree transcripts,
+  realistic acceptance cases, delivery slices and effort. Missing implementation
+  is not unavailable evidence. Instructions with no genuine source location need
+  an explicit generated origin; source with no executable output needs explanation.
+- GI#435: agree the exact constraint list and semantics, then proof/validation,
+  failures and explanations. Count its GI#134 integration once.
+- GI#170: fix the assessment questions, representative inference/diagnostic cases
+  and report acceptance; separate assessment from any later implementation.
+- GI#409: define the assessment deliverable and representative dependency/change
+  cases. The compiler/stdlib boundary assessment is already reasonably bounded;
+  it must not absorb alpha.16 coupling implementation.
+- RM#154: agree measured workloads and improvement target after profiling; retain
+  the existing cache correctness, fresh execution and equivalence requirements.
+- RM#155: settle the finite selected-item list and evidence for each, reconciling
+  improvements already delivered with remaining work.
+- RM#157: bound review workloads and selected quick wins, with explicit completion
+  criteria and boundaries against GI#106 and RM#154.
+
 ## Release readiness and next action
 
 - Remaining work is the open acceptance in the table. No release date is committed.
-  Suggested next planning action: bound the remaining compiler-understanding
-  work into delivery slices. This is a recommendation, not new authorisation.
+  Current planning work: define remaining alpha.15 commitments one at a time.
+  Next proposed discussion: the exact GI#435 constraint list. Implementation
+  ordering follows scope definition; no implementation is started by this record.
 - Promotion, package/install release checks and owner publication approval remain.
   Complete product acceptance on next does not mean a feature has shipped.
 - Latest supporting repair: [PR#601](https://github.com/sproates/panackelty/pull/601)

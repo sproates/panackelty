@@ -25,6 +25,11 @@ done
 # Builds must own the executable they relink; a symlink shares the live root VM.
 cp "$root/panack-vm" "$checkout/panack-vm"
 cd "$checkout"
+# Prepare the copied toolchain separately from archive and release checks.
+# The package tool and HTTP server are independently compiled Panack programs;
+# their clean builds must not consume the release-check command's whole limit.
+# Both commands remain bounded, and the copied checkout owns every artifact.
+capture 0 90 make native package-tool build/tools/http-server.bc
 capture 0 90 make quick-start
 set -- "$checkout"/build/panackelty-*.tar.gz
 test "$#" = 1 && test -f "$1" || fail 'expected exactly one archive'

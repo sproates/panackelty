@@ -525,6 +525,9 @@ suite, whose artifacts live in a separate build directory.
 Distribution regressions also retain the shared VM inode and bytes while
 building and installing from an isolated checkout, detecting accidental relinks
 that can disrupt concurrent compiler commands.
+The spaced-checkout fixture gives clean toolchain preparation and archive/release
+checks separate bounded commands, retaining the same content and relocation
+assertions without sharing one timeout across compilation and acceptance.
 
 `tests/ci_partition.sh` executes the actual canonical unit recipe with stubbed
 suites at one, two and three workers. It checks exact suite multiplicity, worker

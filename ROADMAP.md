@@ -193,6 +193,18 @@ are included. Performance impact is limited to building the required package
 tool once in an otherwise unprepared suite. Website: no impact; released APIs
 and installation instructions are unchanged.
 
+Post-merge nightly acceptance passed 16 of 17 jobs. The isolated Linux compiler
+job then repeated a separate 90-second timeout in the spaced-checkout
+distribution fixture. That fixture now prepares the native VM, package tool
+and HTTP server before running archive and release checks. Both commands retain
+90-second safety limits; all checksum, installation, relocation and shared-VM
+assertions remain. This separates build preparation from the release check
+without changing product performance criteria. The follow-up PR records local
+validation and the final hosted rerun.
+Manual nightly dispatch accepts a branch name so repairs can be tested before
+merge. Scheduled runs still select `next`, and workflow permissions remain
+read-only.
+
 ## Nightly HTTP fixture repair — 2026-10-19
 
 The 18 October macOS runtime nightly failed its oversized-header HTTP 431

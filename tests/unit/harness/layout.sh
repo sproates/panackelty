@@ -67,6 +67,9 @@ contains .github/workflows/profile.yml 'libcurl4-openssl-dev'
 pass
 case_name=nightly-package-workflow-targets-next
 contains .github/workflows/nightly-packages.yml 'schedule:'
+contains .github/workflows/nightly-packages.yml 'type: string'
+contains .github/workflows/nightly-packages.yml 'default: next'
+contains .github/workflows/nightly-packages.yml 'contents: read'
 contains .github/workflows/nightly-packages.yml "ref: \${{ inputs.branch || 'next' }}"
 contains .github/workflows/nightly-packages.yml 'suite: [compiler, runtime, bootstrap, conformance-source, conformance-bytecode]'
 contains .github/workflows/nightly-packages.yml 'make check-no-interpreter CI_SUITE=${{ matrix.suite }}'

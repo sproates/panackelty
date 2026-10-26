@@ -187,7 +187,9 @@ clean suite partitions on Linux and macOS plus all seven Linux validation
 lanes. It builds and uploads one distribution per platform in the
 `conformance-bytecode` partition; the bootstrap lane retains fixed-point and
 seed-refresh checks without repeating package creation. Manual runs can select
-`next` or `main`. Full Check runs targeting `main` retain the complete matrices
+a branch, including a repair branch before merge; `next` is the default. Select
+the workflow revision containing this input when testing an unmerged change.
+Full Check runs targeting `main` retain the complete matrices
 and package checks. GitHub only starts scheduled workflows defined on the
 repository's default branch, so the nightly workflow must be present on `main`
 even though its scheduled job checks out `next`. CI uses these shared targets:

@@ -29,6 +29,43 @@ Implementation and release publication remain separate decisions.
 | alpha.18: interactive and connected applications | GI#165 browser event handlers; GI#142 bounded service/library contract testing. | Contract design follows concrete use cases; no general DOM/UI framework. Docker toolchain images (GI#146) and Linux ARM64 releases (GI#145) remain optional. |
 | alpha.19: improve language ergonomics | GI#274 error propagation and further GI#435 guard families, subject to design/evidence. | Beyond alpha.15's strings, collection sizes and cross-field records. Targeted inference and remaining stdlib discoverability may support the release; they are not automatic gates. |
 
+### Agreed alpha.15 delivery order — 26 October 2026
+
+The owner has agreed the following order within the existing scope boundaries.
+This fixes delivery sequencing; it starts no implementation, changes no acceptance
+criteria and earns no additional completion credit. GI#200: Packages remains
+accepted on next, subject to release integration and publication checks.
+
+| Order | Work | Purpose and handoff |
+| --- | --- | --- |
+| 1 | GI#409: Compiler/stdlib boundary assessment | Complete the dependency map, five change cases and recommendation. Inform subsequent build/validation decisions; no refactor is authorised. |
+| 2 | GI#106: Validation speed | Measure the agreed baseline, agree targets and the bounded improvement selection, then deliver and obtain owner acceptance. Faster trustworthy checks benefit later work. |
+| 3 | RM#154: Faster coverage | Measure and agree the target, implement validated plan reuse with fresh executions, and complete its acceptance. Later compiler changes must exercise the invalidation rules. |
+| 4 | GI#180: Compiler understanding — foundations | Complete the two inventories and establish missing checker evidence, explanation and instruction/source-attribution mechanisms. Keep final completeness acceptance open for the new domain-type decisions. |
+| 5 | GI#435: Validated domain types | Deliver the approved contract using those mechanisms. Include explanations and provenance as new checking/proof decisions are introduced; do not add them as a later retrofit. |
+| 6 | RM#155: Authoring friction | Deliver the three agreed remaining improvements against the resulting compiler and reconcile their evidence. Its independent documentation work may happen earlier. |
+| 7 | Integrated acceptance | Finish GI#180 completeness, verify the combined features and complete release acceptance, including package/install checks. This is acceptance within existing scopes, not another independently weighted feature. |
+
+The first three steps are a practical delivery order, not newly invented hard
+technical prerequisites. In particular, a substantial obstacle in RM#154: Faster
+coverage need not block feature work: report the evidence and make any sequencing
+adjustment explicit. Do not silently change release scope or substitute alpha.16
+native coupling or RM#157: Performance review for these bounded tasks.
+
+The integration dependency is between GI#180: Compiler understanding and GI#435:
+Validated domain types. The mechanisms precede the new feature, and final
+understanding acceptance includes all new checking/proof decisions and source
+attribution. Existing GI#180 delivery slices remain the implementation structure;
+the foundations/final-acceptance split does not replace their requirements or
+count their work twice. Every delivery includes its own tests and required
+validation; the final acceptance step does not defer those checks.
+
+Next delivery: GI#409: Compiler/stdlib boundary assessment. Its agreed scope is
+small to medium, provisionally one to two assessment PRs. No assessment starts
+with this planning record. The other existing estimates and release weights are
+unchanged. This documentation-only sequencing decision has no runtime/performance
+impact and changes no website capability or release claims.
+
 ### Alpha.14 finishing scope
 
 The HTTP slice of GI#552 must provide browsable reference pages for server types,

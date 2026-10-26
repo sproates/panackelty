@@ -137,7 +137,31 @@ Historical snapshots may retain their original status when clearly labelled as
 historical. Existing duplicated or stale entries should be reconciled during
 the roadmap refresh, not silently treated as current commitments.
 
+## Next-release status
+
+[NEXT_RELEASE_STATUS.md](../NEXT_RELEASE_STATUS.md) is the lightweight source of
+truth for current release status. Read the integration-branch copy first when
+answering a release-status question. Detailed scope and acceptance remain in the
+roadmap, issues and programme records; ordinary status reporting does not require
+reconstructing those records or querying every issue.
+
+Update the summary whenever release work is added, started, changed, reviewed,
+completed, reopened, removed or deferred, and when acceptance or publication
+changes. Update affected detailed records in the same delivery. Missing status
+maintenance means the delivery is unfinished. Distinguish pending merge from
+accepted work and verify the resulting state after merge.
+
+Keep the file short: release identity, date, all workstreams and their current
+state, stable weights where available, evidence links, remaining acceptance and
+next action. Record scope removals with their decision and baseline effect.
+Resolve known discrepancies at the source; do not conceal uncertainty. Preserve
+a final snapshot with release acceptance, then reuse the same path for the next
+agreed release. See the file's maintenance rules for the reporting fast path.
+
 ## Programme tracking
+
+For a release, the current summary and release weight baseline live in
+[NEXT_RELEASE_STATUS.md](../NEXT_RELEASE_STATUS.md).
 
 Apply these rules when planning a programme, reporting progress, and at every
 programme task delivery or completion. `ROADMAP.md` owns the programme scope, baseline and concise current

@@ -5,6 +5,9 @@ and [acceptance evidence](docs/releases/ALPHA14_RELEASE_ACCEPTANCE.md).
 
 ## Next: alpha.15
 
+For the current release summary, read [Next release status](docs/NEXT_RELEASE_STATUS.md).
+Keep that summary current alongside the detailed records when release work changes.
+
 Alpha.14 delivers type-owned methods and dot notation (GI#525), the routed HTTP
 server framework (GI#518), and the HTTP reference and runnable examples slice of
 GI#552. Alpha.15 takes forward the remaining foundation work under the agreed

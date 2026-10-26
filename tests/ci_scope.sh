@@ -76,6 +76,18 @@ commit; route docs
 plan=$(bash "$root/scripts/ci_scope.sh" --plan "$base" "$head")
 [[ "$plan" == $'route=docs\ncomponents=documentation\nchecks=documents,links,whitespace' ]] || fail 'README positioning plan'
 bash "$root/scripts/check_docs.sh" >/dev/null
+# The current README uses Get started as its protected package boundary.
+fixture
+sed 's/^## Exact fractions and Unit$/## Get started/' README.md > "$work/readme"
+mv "$work/readme" README.md
+git add README.md
+git commit -qm 'current README layout'
+base=$(git rev-parse HEAD)
+sed 's/^Positioning copy\.$/| Workflow | Branch | Status |/' README.md > "$work/readme"
+mv "$work/readme" README.md
+commit; route docs
+printf '\nChanged installation guidance\n' >> README.md
+commit; route full
 # A historical README without markers may add the bounded markers and edit the
 # preamble in one change; content from the first executable section onward must
 # still remain byte-identical.

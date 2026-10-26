@@ -1,13 +1,13 @@
 <!-- validation:positioning-copy-begin -->
 # Panackelty
 
-| Workflow | Status |
-| --- | --- |
-| Core CI · `main` | [![Check status](https://github.com/sproates/panackelty/actions/workflows/check.yml/badge.svg?branch=main)](https://github.com/sproates/panackelty/actions/workflows/check.yml) |
-| Core CI · `next` | [![Check status](https://github.com/sproates/panackelty/actions/workflows/check.yml/badge.svg?branch=next)](https://github.com/sproates/panackelty/actions/workflows/check.yml) |
-| Nightly package build · `next` | [![Nightly status](https://github.com/sproates/panackelty/actions/workflows/nightly-packages.yml/badge.svg?branch=main&event=schedule)](https://github.com/sproates/panackelty/actions/workflows/nightly-packages.yml?query=event%3Aschedule) |
-| Browser CI · `main` | [![Check status](https://github.com/sproates/panackelty-browser/actions/workflows/check.yml/badge.svg?branch=main)](https://github.com/sproates/panackelty-browser/actions/workflows/check.yml) |
-| Coverage checks · `main` | [![Coverage status](https://github.com/sproates/panackelty-coverage/actions/workflows/check.yml/badge.svg?branch=main)](https://github.com/sproates/panackelty-coverage/actions/workflows/check.yml) |
+| Workflow | Branch | Status |
+| --- | --- | --- |
+| Core CI | `main` | [![Check status](https://github.com/sproates/panackelty/actions/workflows/check.yml/badge.svg?branch=main)](https://github.com/sproates/panackelty/actions/workflows/check.yml) |
+| Core CI | `next` | [![Check status](https://github.com/sproates/panackelty/actions/workflows/check.yml/badge.svg?branch=next)](https://github.com/sproates/panackelty/actions/workflows/check.yml) |
+| Nightly package build | `next` | [![Nightly status](https://github.com/sproates/panackelty/actions/workflows/nightly-packages.yml/badge.svg?branch=main&event=schedule)](https://github.com/sproates/panackelty/actions/workflows/nightly-packages.yml?query=event%3Aschedule) |
+| Browser CI | `main` | [![Check status](https://github.com/sproates/panackelty-browser/actions/workflows/check.yml/badge.svg?branch=main)](https://github.com/sproates/panackelty-browser/actions/workflows/check.yml) |
+| Coverage checks | `main` | [![Coverage status](https://github.com/sproates/panackelty-coverage/actions/workflows/check.yml/badge.svg?branch=main)](https://github.com/sproates/panackelty-coverage/actions/workflows/check.yml) |
 
 **Exact arithmetic. Guarded types. Compiler explanations. Self hosted.**
 

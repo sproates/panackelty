@@ -32,6 +32,10 @@ contract](docs/design/VALIDATED_DOMAIN_TYPES.md), approved in PR#616, defines sy
 error structures, Unicode rules, examples and delivery boundaries;
 its new proof decisions also require explanations.
 
+[GI#409: Compiler/stdlib boundary assessment](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-152)
+has an agreed dependency-map, five-case change-impact and recommendation deliverable.
+No refactor is included; the assessment has not started.
+
 GI#106's [bounded validation-speed milestone](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#alpha15-validation-speed)
 now has an agreed scope: five baseline workloads, at most three selected
 improvements, preserved validation requirements and measured owner acceptance.

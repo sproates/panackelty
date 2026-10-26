@@ -86,9 +86,20 @@ jobs:
             echo "runner_image_version=${ImageVersion:-unknown}"
           } >"${archive}.provenance"
 
+      # Use tooling from the workflow revision, independently of the tested branch.
+      - name: Check out nightly CI tooling
+        if: ${{ !cancelled() }}
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .nightly-ci
+          sparse-checkout: .github/actions
+          persist-credentials: false
+
+
       - name: Upload nightly package
         if: matrix.suite == 'conformance-bytecode' && success()
-        uses: actions/upload-artifact@v6
+        uses: ./.nightly-ci/.github/actions/upload-with-diagnostics
         with:
           name: panackelty-${{ matrix.target }}-${{ steps.source.outputs.sha }}
           path: |
@@ -118,11 +129,12 @@ jobs:
 
       - name: Archive validation profile
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: ./.nightly-ci/.github/actions/upload-with-diagnostics
         with:
           name: nightly-validation-${{ matrix.target }}-${{ matrix.suite }}-${{ github.run_id }}
           path: |
             validation-profile.tsv
+            artifact-upload-diagnostics/*.jsonl
             build/**/validation/compiler-watchdog/**
             validation-timings.tsv
           if-no-files-found: warn
@@ -176,9 +188,20 @@ jobs:
         if: matrix.suite == 'coverage'
         run: make native-coverage LLVM_CC=/usr/bin/clang-18 LLVM_COV=/usr/bin/llvm-cov-18 LLVM_PROFDATA=/usr/bin/llvm-profdata-18
 
+      # Use tooling from the workflow revision, independently of the tested branch.
+      - name: Check out nightly CI tooling
+        if: ${{ !cancelled() }}
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .nightly-ci
+          sparse-checkout: .github/actions
+          persist-credentials: false
+
+
       - name: Archive native coverage
         if: matrix.suite == 'coverage'
-        uses: actions/upload-artifact@v6
+        uses: ./.nightly-ci/.github/actions/upload-with-diagnostics
         with:
           name: nightly-native-coverage-${{ github.run_id }}
           retention-days: 90
@@ -205,11 +228,12 @@ jobs:
 
       - name: Archive validation profile
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: ./.nightly-ci/.github/actions/upload-with-diagnostics
         with:
           name: nightly-linux-validation-${{ matrix.suite }}-${{ github.run_id }}
           path: |
             validation-profile.tsv
+            artifact-upload-diagnostics/*.jsonl
             build/**/validation/compiler-watchdog/**
             validation-timings.tsv
           if-no-files-found: warn

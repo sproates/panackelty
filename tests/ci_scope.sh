@@ -47,6 +47,12 @@ fixture
 printf '\nNext step\n' >> ROADMAP.md
 commit; route docs
 bash "$root/scripts/check_docs.sh" >/dev/null
+fixture
+mkdir -p .github/actions/artifact-network
+printf '// CI diagnostics\n' > .github/actions/artifact-network/index.cjs
+commit; route workflow
+printf 'int changed;\n' >> src/main.c
+commit; route full
 # The package design is an informational document: edits use the documentation
 # route while its local links and formatting remain checked.
 fixture
@@ -308,13 +314,14 @@ PATH="$work/forbidden:$PATH" bash scripts/validate_change.sh --run "$base" > "$w
 # The workflow route runs the focused configuration contracts and never falls
 # through to make docs or the full compiler suite.
 fixture
-mkdir -p scripts .github/workflows tests/unit/harness tests/source_coverage
+mkdir -p scripts .github/workflows tests/unit/harness tests/source_coverage .github/actions/artifact-network
 cp "$root"/scripts/{ci_docs.sh,ci_scope.sh,validation_components.sh,validate_change.sh,check_docs.sh,doc_links.awk} scripts/
 cp "$root"/Makefile .
 printf '%s\n' 'printf "ci_scope\\n" >> "$VALIDATION_CALLS"' > tests/ci_scope.sh
 printf '%s\n' 'printf "workflow_yaml\\n" >> "$VALIDATION_CALLS"' > tests/workflow_yaml.sh
 printf '%s\n' 'printf "layout\\n" >> "$VALIDATION_CALLS"' > tests/unit/harness/layout.sh
 printf '%s\n' "require('node:test')('workflow route contract dispatch', () => require('node:fs').appendFileSync(process.env.VALIDATION_CALLS, 'route\\n'));" > tests/source_coverage/route.test.cjs
+printf '%s\n' "require('node:test')('network contract dispatch', () => require('node:fs').appendFileSync(process.env.VALIDATION_CALLS, 'network\\n'));" > .github/actions/artifact-network/index.test.cjs
 printf 'name: Check\non: {}\njobs: {}\n' > .github/workflows/check.yml
 git add .
 git commit -qm baseline
@@ -327,7 +334,7 @@ chmod +x "$work/no-make/make"
 export VALIDATION_CALLS="$work/validation-calls"
 : > "$VALIDATION_CALLS"
 PATH="$work/no-make:$PATH" bash scripts/validate_change.sh --run "$base" > "$work/output" 2>&1 || { cat "$work/output"; fail 'local workflow route'; }
-printf 'ci_scope\nworkflow_yaml\nlayout\nroute\n' > "$work/expected-calls"
+printf 'ci_scope\nworkflow_yaml\nlayout\nnetwork\nroute\n' > "$work/expected-calls"
 cmp "$VALIDATION_CALLS" "$work/expected-calls" || fail 'workflow route ran the wrong focused checks'
 unset VALIDATION_CALLS
 printf '\n[broken](absent.md)\n' >> ROADMAP.md

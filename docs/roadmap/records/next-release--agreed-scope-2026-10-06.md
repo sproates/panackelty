@@ -455,12 +455,57 @@ attention to HTTP server performance and source coverage instrumentation time.
 **RM#152: Assess the compiler-facing standard-library boundary** ·
 [GI#409: Assess the compiler-facing standard-library boundary](https://github.com/sproates/panackelty/issues/409).
 
-For Alpha.15, document the compiler's direct and transitive standard-library
-dependencies and distinguish source dependencies, compiler-seed/bootstrap
-rebuilds, VM/runtime ABI coupling, and package versioning. Recommend whether an
-explicit compiler-facing library boundary would help app-facing standard-library
-work proceed independently. This is an assessment: any implementation or
-reorganization requires a later scope decision based on the findings.
+Owner agreement, 26 October 2026: the alpha.15 outcome is an evidence-backed
+assessment and recommendation, not a refactor. Establish which library changes
+genuinely require rebuilding the compiler and which rebuilds result from source
+organisation or broad build rules. Distinguish that question from needing to
+edit the compiler/VM interface when adding a native host capability.
+
+The assessment has three deliverables:
+
+1. **Dependency map.** Account for the compiler's direct, transitive and implicit
+   standard-library dependencies. Distinguish Panack source dependencies,
+   compiler-seed/bootstrap requirements, native interfaces and release/version
+   coupling. Identify dependency paths and why the compiler consumes them;
+   an import list alone is insufficient.
+2. **Change-impact table.** Cover each of the five cases below. Identify what
+   currently rebuilds, why, what must rebuild for correctness and what validation
+   remains necessary. Support conclusions with source/build-rule evidence and
+   small reproducible probes, recording the revision and commands. Separate
+   observed behaviour from inferred necessity; do not treat a broad validation
+   run as proof that every component needs rebuilding.
+3. **Recommendation.** Compare retaining the current arrangement, tightening
+   dependency/build rules and introducing an explicit compiler-support library
+   boundary. Explain benefits, costs, bootstrap implications and concrete
+   follow-up work. Recommend the smallest justified next step; moving modules
+   or adding an abstraction layer is not a predetermined outcome.
+
+| Change case | Question the evidence must answer |
+| --- | --- |
+| Application-facing library code the compiler does not use | Does this rebuild the compiler despite having no source dependency, and which rule causes it? |
+| A library helper used by the compiler | Which dependency path requires rebuilding, and which artifacts are affected? |
+| An implicit core type or method | Which compiler, bootstrap and runtime contracts depend on it? |
+| A new host capability, such as a filesystem or process operation | Which source dependencies and native/compiler interfaces change, and why? |
+| Packaging or version metadata without changed behaviour | Which rebuilds arise from artifact identity or release policy rather than changed compiler behaviour? |
+
+**Completion:** all five cases are accounted for, the dependency map covers the
+compiler's complete library closure, and the recommendation identifies the
+smallest justified next step with supporting evidence. A recommendation to make
+no organisational change is valid if supported. Unverified dependencies or
+unexplained rebuilds must remain visible and prevent claiming the assessment
+complete. Small probes are evidence gathering, not production refactoring.
+
+Keep **GI#106: Validation speed** separate: that task delivers faster developer
+feedback. The alpha.16 native-coupling work may change the architecture; this
+assessment can inform it but does not implement it. Do not add compiler, VM,
+standard-library or packaging redesign, separate compilation, or independent
+component releases to alpha.15 through this assessment.
+
+Effort is provisionally small to medium, approximately one to two assessment PRs
+including evidence and documentation. Scope agreement does not start the
+assessment or claim findings. This planning update has no runtime/performance
+impact. The website already describes a library-boundary assessment in alpha.15;
+that remains accurate and needs no immediate edit.
 
 
 <a id="rm-154"></a>

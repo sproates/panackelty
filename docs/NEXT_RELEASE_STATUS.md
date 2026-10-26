@@ -45,7 +45,7 @@ release allocations, the issue and this summary together.
 Owner decision, 26 October: **RM#157: Performance review** is allocated explicitly
 to **alpha.16**, retaining its holistic review and bounded-improvement remit.
 [PR#629: Performance review allocation](https://github.com/sproates/panackelty/pull/629)
-records the roadmap change and awaits main merge. Detailed workloads, targets and
+records the roadmap change and is merged into main after owner approval. Detailed workloads, targets and
 selected improvements still need agreement; no review or implementation has
 started. GI#106: Validation speed and RM#154: Faster coverage remain in alpha.15.
 Website release descriptions make no alpha.15 performance-review commitment and

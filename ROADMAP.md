@@ -73,9 +73,9 @@ through alpha.19 remain planned. See the
   were not included.
 - **alpha.15:** remaining foundation work: package-management implementation, compiler
   understanding, validated domain types, inference/stdlib assessments, faster
-  coverage, selected friction/performance work, and the GI#106 test-speed milestone.
+  coverage, selected friction improvements, and the GI#106 test-speed milestone.
 - **alpha.16:** build useful programs: typed service exchanges, file discovery,
-  subprocess examples, a tiny build tool and tested guides.
+  subprocess examples, a tiny build tool, tested guides and RM#157: Performance review.
 - **alpha.17:** everyday development: one editor, source-aware runtime errors and
   Homebrew installation.
 - **alpha.18:** interactive/connected applications: browser event handlers and

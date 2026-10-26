@@ -25,6 +25,11 @@ done
 # Builds must own the executable they relink; a symlink shares the live root VM.
 cp "$root/panack-vm" "$checkout/panack-vm"
 cd "$checkout"
+# Prepare the copied VM and package tool before archive and release checks.
+# Their clean builds must not consume the release-check command's whole limit.
+# Packaging builds the HTTP server itself. Both commands remain bounded, and
+# the copied checkout owns every artifact.
+capture 0 90 make native package-tool
 capture 0 90 make quick-start
 set -- "$checkout"/build/panackelty-*.tar.gz
 test "$#" = 1 && test -f "$1" || fail 'expected exactly one archive'
@@ -104,7 +109,11 @@ pass
 case_name=installed-files-and-logical-imports
 cd "$checkout"
 destination=$work/'installation with spaces (test)'
+# The custom BUILD_DIR archive relinked this checkout's VM. Prepare its default
+# tool artifacts before timing installation, which must reuse their bytecode.
+capture 0 90 make native package-tool build/tools/http-server.bc
 capture 0 30 make install "DESTDIR=$destination" PREFIX=/usr/local
+absent "$work/stdout" './bin/panack compile'
 installed=$destination/usr/local
 (cd "$installed" && find . -type f | sed 's|^./||' | sort) > "$work/files"
 equal_files "$work/files" "$root/tests/unit/harness/installed-files.txt"

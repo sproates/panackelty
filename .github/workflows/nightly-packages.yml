@@ -10,8 +10,7 @@ on:
       branch:
         description: Branch to validate and package
         required: true
-        type: choice
-        options: [next, main]
+        type: string
         default: next
 
 permissions:

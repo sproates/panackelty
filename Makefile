@@ -450,7 +450,7 @@ package-tool-check: package-tool native-io-check
 	@PANACK_PROBE_SEED="$(abspath $(SEED_COMPILER))" sh tests/package_archive_stream.sh
 	@sh tests/package_tool_handoff.sh
 
-$(BUILD_DIR)/tools/http-server.bc: package-tool panack-vm $(SEED_COMPILER) tools/http-server/panack.json tools/http-server/panack.lock.json tools/http-server/src/main.panack $(wildcard packages/static_http/src/*.panack) packages/static_http/panack.json $(wildcard packages/http/src/*.panack) packages/http/panack.json $(wildcard src/stdlib/*.panack)
+$(BUILD_DIR)/tools/http-server.bc: $(PACKAGE_TOOL_ARTIFACT) panack-vm $(SEED_COMPILER) tools/http-server/panack.json tools/http-server/panack.lock.json tools/http-server/src/main.panack $(wildcard packages/static_http/src/*.panack) packages/static_http/panack.json $(wildcard packages/http/src/*.panack) packages/http/panack.json $(wildcard src/stdlib/*.panack)
 	@mkdir -p "$(@D)"
 	./bin/panack compile --project tools/http-server/panack.json -o "$@"
 

@@ -15,23 +15,22 @@ and linked issues retain the detailed requirements and decisions.
 
 | Item | Current state and remaining acceptance | Weight | Complete | Earned |
 | --- | --- | ---: | ---: | ---: |
-| [GI#200 Packages](https://github.com/sproates/panackelty/issues/200) | Accepted on next: local folders/archives, HTTPS archives, pinned Git, diagnostics and installed acceptance. [P04c evidence](design/PACKAGE_FINAL_ACCEPTANCE.md), PR#595. Not yet released. | 30/95 | 100% | 30/95 |
-| [GI#180 Compiler understanding](https://github.com/sproates/panackelty/issues/180) | Completion scope agreed: complete checker explanations and truthful instruction/source provenance, two checked inventories, five slices and realistic acceptance. PR#619 is merged into main; implementation has not started. | 20/95 | Unassessed | Unknown |
-| [GI#435 Validated domain types](https://github.com/sproates/panackelty/issues/435) | Six-constraint semantics agreed: four string constraints, bounded arrays/maps/sets and ordered record-field relationships. Explicit guard binding, validate call/result, failure order and multiline/parenthesised conjunctions agreed. Final consolidated contract approved and merged into main in PR#616: constraint APIs, error schema/rendering, Unicode pin, examples and delivery slices. Existing numeric alternatives are preserved; implementation has not started. | 20/95 | 0% | 0 |
-| [GI#409 Compiler/stdlib boundary](https://github.com/sproates/panackelty/issues/409) | Assessment scope agreed: complete dependency map, five evidenced change cases and recommendation. PR#621 is merged into main. Assessment not started; no refactor selected. | 5/95 | 0% | 0 |
-| [RM#154 Faster coverage](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154) | Scope agreed and merged into main in PR#624: four measured workloads, target approval before cache implementation, validated persistent plan reuse and fresh executions. Profiling and implementation not started. | 5/95 | 0% | 0 |
-| [RM#155 Authoring friction](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-155) | Partial. Inventory preflight and contributor/interpolation guidance delivered (PR#545 and PR#565). Remaining scope agreed: unsupported-interpolation diagnostics, tested API examples and public-signature visibility guidance. Roadmap PR#626 is merged into main; no additional implementation started. | 5/95 | Unquantified | Unknown |
-| [RM#157 Performance review](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-157) | Open. Holistic measurements, prioritised findings and bounded quick wins remain to be assessed. | 5/95 | Unassessed | Unknown |
-| [GI#106 Validation speed](https://github.com/sproates/panackelty/issues/106) | Scope agreed, 26 October: five baseline workloads, at most three selected improvements and measured owner acceptance. Baseline not started. Earlier repairs (PR#596–598) remain delivered; the bounded milestone is not complete. | 5/95 | Unquantified | Unknown |
-| **Total** | **30/95 known contribution (about 32%); overall completion unquantified.** | **100%** | **Unknown** | **30/95 known** |
+| [GI#200 Packages](https://github.com/sproates/panackelty/issues/200) | Accepted on next: local folders/archives, HTTPS archives, pinned Git, diagnostics and installed acceptance. [P04c evidence](design/PACKAGE_FINAL_ACCEPTANCE.md), PR#595. Not yet released. | 30/90 | 100% | 30/90 |
+| [GI#180 Compiler understanding](https://github.com/sproates/panackelty/issues/180) | Completion scope agreed: complete checker explanations and truthful instruction/source provenance, two checked inventories, five slices and realistic acceptance. PR#619 is merged into main; implementation has not started. | 20/90 | Unassessed | Unknown |
+| [GI#435 Validated domain types](https://github.com/sproates/panackelty/issues/435) | Six-constraint semantics agreed: four string constraints, bounded arrays/maps/sets and ordered record-field relationships. Explicit guard binding, validate call/result, failure order and multiline/parenthesised conjunctions agreed. Final consolidated contract approved and merged into main in PR#616: constraint APIs, error schema/rendering, Unicode pin, examples and delivery slices. Existing numeric alternatives are preserved; implementation has not started. | 20/90 | 0% | 0 |
+| [GI#409 Compiler/stdlib boundary](https://github.com/sproates/panackelty/issues/409) | Assessment scope agreed: complete dependency map, five evidenced change cases and recommendation. PR#621 is merged into main. Assessment not started; no refactor selected. | 5/90 | 0% | 0 |
+| [RM#154 Faster coverage](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154) | Scope agreed and merged into main in PR#624: four measured workloads, target approval before cache implementation, validated persistent plan reuse and fresh executions. Profiling and implementation not started. | 5/90 | 0% | 0 |
+| [RM#155 Authoring friction](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-155) | Partial. Inventory preflight and contributor/interpolation guidance delivered (PR#545 and PR#565). Remaining scope agreed: unsupported-interpolation diagnostics, tested API examples and public-signature visibility guidance. Roadmap PR#626 is merged into main; no additional implementation started. | 5/90 | Unquantified | Unknown |
+| [GI#106 Validation speed](https://github.com/sproates/panackelty/issues/106) | Scope agreed, 26 October: five baseline workloads, at most three selected improvements and measured owner acceptance. Baseline not started. Earlier repairs (PR#596–598) remain delivered; the bounded milestone is not complete. | 5/90 | Unquantified | Unknown |
+| **Total** | **30/90 known contribution (about 33%); overall completion unquantified.** | **100%** | **Unknown** | **30/90 known** |
 
-Weights retain the original provisional relative sizes but exclude GI#170's five
-points following its explicit move to alpha.16. The remaining denominator is 95;
-fractions in the Weight column sum to 100%. No remaining task was re-estimated.
-The known contribution changes from 30/100 to 30/95 (about 32%) solely because
-scope moved, not because more work was completed. Unknown contributions are not
-zero; overall completion remains unquantified. These are provisional weights,
-not owner-approved effort estimates.
+Weights retain the original provisional relative sizes, excluding the five points
+for GI#170: Inference assessment and the five for RM#157: Performance review,
+now allocated to alpha.16. The remaining denominator is 90; the Weight column
+sums to 100%. No remaining task was re-estimated. Known contribution is 30/90
+(about 33%); the increase from 30/95 reflects reduced scope, not additional
+completed work. Unknown contributions are not zero; overall completion remains
+unquantified. These are provisional weights, not owner-approved effort estimates.
 
 ## Deferred to the following release
 
@@ -39,9 +38,18 @@ Owner decision, 26 October: [GI#170 inference/diagnostics assessment](https://gi
 moves explicitly from alpha.15 to **alpha.16**, retaining its assessment scope.
 It is not unscheduled. [PR#611](https://github.com/sproates/panackelty/pull/611)
 records both release allocations. GI#134 explanations of existing inference
-remain in alpha.15. No other item moves. Future deferrals go to the following
+remain in alpha.15. The later RM#157 decision is recorded below. Future deferrals go to the following
 release unless the owner explicitly chooses a different destination; update both
 release allocations, the issue and this summary together.
+
+Owner decision, 26 October: **RM#157: Performance review** is allocated explicitly
+to **alpha.16**, retaining its holistic review and bounded-improvement remit.
+[PR#629: Performance review allocation](https://github.com/sproates/panackelty/pull/629)
+records the roadmap change and awaits main merge. Detailed workloads, targets and
+selected improvements still need agreement; no review or implementation has
+started. GI#106: Validation speed and RM#154: Faster coverage remain in alpha.15.
+Website release descriptions make no alpha.15 performance-review commitment and
+remain accurate without an edit.
 
 ## GI#106: agreed alpha.15 boundary
 
@@ -66,7 +74,7 @@ open. This planning update earns no additional completion credit.
   implementation have not started. The next GI#106 action is the baseline when
   authorised; no active work is implied by this scope record.
 
-## Scope definition still required
+## Agreed alpha.15 scope boundaries
 
 [PR#605](https://github.com/sproates/panackelty/pull/605) records the 26 October
 owner agreement on GI#134 completeness, GI#173 comprehensive truthful attribution,
@@ -144,18 +152,17 @@ This is agreed direction, not implementation progress; weights are unchanged.
   regression tests and checked documentation examples. Inventory preflight and
   onboarding guidance remain completed work. Fixed list, medium, about three
   implementation PRs; no additional implementation has started.
-- RM#157: bound review workloads and selected quick wins, with explicit completion
-  criteria and boundaries against GI#106 and RM#154.
 
 ## Release readiness and next action
 
 - Remaining work is the open acceptance in the table. No release date is committed.
-  Current planning work: define remaining alpha.15 commitments one at a time.
+  The remaining alpha.15 items now have agreed scope boundaries.
   GI#435's consolidated contract is approved and merged in PR#616; its design
   baseline is settled. Do not restart those decisions. GI#180: Compiler understanding now also has an agreed completion boundary
   in PR#619. GI#409: Compiler/stdlib boundary assessment is also scoped in PR#621.
-  RM#154: Faster coverage is also scoped in PR#624. Remaining release definition
-  covers only RM#157: Performance review; RM#155: Authoring friction is now agreed in PR#626. Implementation ordering follows scope definition;
+  RM#154: Faster coverage is scoped in PR#624 and RM#155: Authoring friction in
+  PR#626. RM#157: Performance review belongs to alpha.16. The next planning step
+  is implementation ordering within the agreed alpha.15 boundaries;
   no implementation is started by this record.
 - Promotion, package/install release checks and owner publication approval remain.
   Complete product acceptance on next does not mean a feature has shipped.

@@ -18,7 +18,7 @@ and linked issues retain the detailed requirements and decisions.
 | [GI#200 Packages](https://github.com/sproates/panackelty/issues/200) | Accepted on next: local folders/archives, HTTPS archives, pinned Git, diagnostics and installed acceptance. [P04c evidence](design/PACKAGE_FINAL_ACCEPTANCE.md), PR#595. Not yet released. | 30/95 | 100% | 30/95 |
 | [GI#180 Compiler understanding](https://github.com/sproates/panackelty/issues/180) | Completion scope agreed: complete checker explanations and truthful instruction/source provenance, two checked inventories, five slices and realistic acceptance. PR#619 is merged into main; implementation has not started. | 20/95 | Unassessed | Unknown |
 | [GI#435 Validated domain types](https://github.com/sproates/panackelty/issues/435) | Six-constraint semantics agreed: four string constraints, bounded arrays/maps/sets and ordered record-field relationships. Explicit guard binding, validate call/result, failure order and multiline/parenthesised conjunctions agreed. Final consolidated contract approved and merged into main in PR#616: constraint APIs, error schema/rendering, Unicode pin, examples and delivery slices. Existing numeric alternatives are preserved; implementation has not started. | 20/95 | 0% | 0 |
-| [GI#409 Compiler/stdlib boundary](https://github.com/sproates/panackelty/issues/409) | Assessment scope agreed: complete dependency map, five evidenced change cases and recommendation. PR#621 records the decision. Assessment not started; no refactor selected. | 5/95 | 0% | 0 |
+| [GI#409 Compiler/stdlib boundary](https://github.com/sproates/panackelty/issues/409) | Assessment scope agreed: complete dependency map, five evidenced change cases and recommendation. PR#621 is merged into main. Assessment not started; no refactor selected. | 5/95 | 0% | 0 |
 | [RM#154 Faster coverage](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154) | Planned. Validated plan reuse, cold/warm measurements and invalidation/equivalence acceptance remain. Required test executions stay fresh. | 5/95 | 0% | 0 |
 | [RM#155 Authoring friction](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-155) | Partial. Example inventory preflight and contributor/interpolation guidance delivered (PR#565 for guidance). Final selected-item reconciliation and acceptance remain. | 5/95 | Unquantified | Unknown |
 | [RM#157 Performance review](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-157) | Open. Holistic measurements, prioritised findings and bounded quick wins remain to be assessed. | 5/95 | Unassessed | Unknown |
@@ -111,7 +111,7 @@ This is agreed direction, not implementation progress; weights are unchanged.
   multiline and parenthesised `&&`. No implementation or extra completion credit.
 
 - **GI#409: Compiler/stdlib boundary assessment:** [scope agreed, PR#621](https://github.com/sproates/panackelty/pull/621),
-  awaiting main merge approval. Deliver the complete direct/transitive/implicit
+  merged into main after owner approval. Deliver the complete direct/transitive/implicit
   compiler-library dependency map, separating source, bootstrap, native interface
   and release/version coupling. Evidence five change cases: unused application
   library, compiler-used helper, implicit core type/method, new host capability,

@@ -35,7 +35,7 @@ programme deliveries again. Explain any future baseline change.
 ## GI#106: agreed alpha.15 boundary
 
 [Roadmap scope PR#603](https://github.com/sproates/panackelty/pull/603) records the
-owner-agreed boundary; main-branch integration is awaiting approval. GI#106 remains
+owner-agreed boundary and is merged into main. GI#106 remains
 open. This planning update earns no additional completion credit.
 
 - Baseline five workloads: clean full validation, unchanged repeat, a small

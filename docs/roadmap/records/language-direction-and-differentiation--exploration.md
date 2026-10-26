@@ -616,8 +616,9 @@ and release workflows, not a claim that arbitrary program equivalence is decidab
 **Alpha.15 semantic scope agreed by the owner, 26 October 2026.**
 Deliver six constraints across three families, with explicit static construction
 and runtime validation. This supersedes the earlier representative-outcome list.
-Syntax, concrete validation API/error types and example output remain to be
-agreed before implementation. No implementation starts with this record.
+The guard binding and validation-call contract below are also owner-agreed.
+Remaining detailed design is listed explicitly; no implementation starts with
+this record.
 
 | Constraint | Agreed semantics |
 | --- | --- |
@@ -632,6 +633,61 @@ String constraints may be combined by conjunction, for example non-blank text
 of at most 80 scalar values without control characters. Arbitrary Boolean
 predicates are not selected. Explain the scalar-counting rule, including displayed
 characters consisting of multiple scalar values, in documentation and diagnostics.
+
+#### Guard syntax and validation API agreed on 26 October
+
+All guarded types must declare a programmer-chosen binding:
+
+```panackelty
+type NonEmptyText = Str where text => text != ""
+type Positive = Int where number => number > 0
+```
+
+The candidate binding exists only inside the guard; the condition produces a
+Boolean. There is no implicit `value`. Apply this consistently to numeric and
+new guarded types, including migration of existing numeric declarations,
+documentation and fixtures. This is an agreed future language change, not syntax
+already supported by the released compiler. Account for migration and bootstrap
+in the implementation plan; do not leave compatibility behaviour implicit.
+
+Explicit runtime validation has this public call and result contract:
+
+```panackelty
+validate[NonEmptyText](input)
+```
+
+The result is `Result[NonEmptyText, ValidationError]`: `Ok(text)` carries the
+validated guarded value; `Error(details)` carries structured failures. Validation
+preserves the input, returns rather than prints errors, and does not silently
+coerce, trim or truncate. Code must handle the result before using the input as
+the target type. Established guarantees need no repeated checks unless an
+operation can invalidate them. Only the agreed guard fragment is selected; an
+explicit binding does not permit arbitrary predicates or method calls.
+
+`ValidationError` contains a structured list of failures. Each identifies the
+target type, affected value/field location (both fields for a relationship),
+constraint and relevant facts such as actual length and permitted bounds. Programs
+can inspect the facts; rendering a human-readable message is optional. The error
+must not automatically retain or print the original potentially sensitive input.
+Concrete record/enum fields and rendering entry points remain to be designed.
+
+Report all failed constraints in declaration order, reading conjunctions left to
+right. For records, report field failures in field declaration order, followed by
+cross-field failures in their written order. Do not use runtime evaluation order
+or an unordered container to determine presentation order.
+
+Agreed example: validating an empty string against a Label with length 1–80
+produces one minimum-length failure: target Label, location the value itself,
+minimum 1, actual 0. Its human-readable rendering is:
+
+> Cannot validate the value as Label.
+>
+> Label requires at least 1 Unicode scalar value, but the string is empty.
+
+This example specifies failure facts and presentation, not a final Label
+declaration. The proposed `text.length()` spelling for scalar counting still
+needs confirmation against the existing string API. Agree other constraint and
+record declarations and failure examples before implementing their output.
 
 #### Establishing and preserving guarantees
 
@@ -664,7 +720,8 @@ generics and module boundaries. Clarify preservation or loss of each invariant.
 Runtime validation reports **all failed constraints in deterministic order**.
 Identify the guarded type, constraint and affected field/value location, with
 useful facts such as observed length. Avoid printing entire potentially sensitive
-inputs. Define the concrete error representation and ordering in the API design.
+inputs. Define the concrete error representation in the API design; ordering is fixed
+by the agreement above.
 Distinguish failed input validation from unsupported guard forms or missing proof.
 
 Every static proof decision must be covered by GI#134 explanations: the requirement,
@@ -692,9 +749,11 @@ predicate families remain for later explicit selection, including alpha.19 work.
 JSON parsing and schema export remain separate under [RM#73](#rm-73) and
 [RM#74](#rm-74); reference/example coordination remains under GI#552.
 
-Next design step: agree declarations, composition and update syntax; the validation
-API and structured failure type/order; the pinned Unicode version; and example
-output. Then derive delivery slices and estimates. If a selected constraint cannot
+Next design step: settle remaining constraint/composition and record-update
+syntax, the concrete structured failure schema and rendering API, the pinned
+Unicode version and remaining output examples. The explicit binding, validate
+call/result contract and failure ordering above are settled. Then derive delivery
+slices, migration steps and estimates. If a selected constraint cannot
 fit safely, seek an explicit scope/release decision rather than silently dropping
 it. This is working-feature scope, not merely an assessment. No website or runtime
 behaviour changes through this planning update.

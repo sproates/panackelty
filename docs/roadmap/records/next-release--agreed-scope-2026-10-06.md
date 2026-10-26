@@ -282,8 +282,9 @@ claim that current implementations already meet them, and starts no implementati
   non-empty/non-blank/bounded-length/control-free strings, bounded arrays/maps/sets,
   and ordered same-record numeric field relationships. Static proof, explicit
   runtime validation, invariant preservation and deterministic failure reporting
-  are included. Concrete syntax, API, Unicode version and output remain design work
-  before implementation; the old representative list no longer defines selection.
+  are included. Explicit guard bindings, the `validate[Type](input)` result contract and failure
+  ordering are now also agreed in RM#153. Remaining constraint syntax, error schema,
+  Unicode version and examples need design before implementation.
 - New GI#435 proof decisions shipped in alpha.15 must also have GI#134 explanations.
   Define that integration once, without counting its delivery twice. Agree example
   transcripts before implementing output, including failure and unavailable cases.

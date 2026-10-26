@@ -1,0 +1,5 @@
+name: Artifact service DNS observation
+description: Resolve the runner-provided artifact service without exposing credentials
+runs:
+  using: node24
+  main: index.cjs

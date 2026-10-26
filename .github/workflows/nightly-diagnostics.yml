@@ -1,0 +1,90 @@
+name: Focused nightly diagnostics
+on:
+  push:
+    branches: [ci/nightly-failure-diagnostics]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  upload:
+    name: Artifact DNS probe (${{ matrix.attempt }})
+    runs-on: macos-14
+    timeout-minutes: 3
+    strategy:
+      fail-fast: false
+      matrix:
+        attempt: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Enable action debug and prepare representative reports
+        run: |
+          echo 'ACTIONS_STEP_DEBUG=true' >> "$GITHUB_ENV"
+          printf 'diagnostic\tcompiler\t-\t31\t0\n' > validation-profile.tsv
+          printf 'compiler\t31\t90\t0\n' > validation-timings.tsv
+          sw_vers
+          scutil --dns
+      - name: Upload with the exact action revision and nightly settings
+        id: upload
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        env:
+          RUNNER_DEBUG: '1'
+        with:
+          name: nightly-validation-macos-arm64-compiler-${{ github.run_id }}-${{ matrix.attempt }}
+          path: |
+            validation-profile.tsv
+            validation-timings.tsv
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Inspect DNS on the same runner
+        if: always()
+        uses: ./tests/experiments/nightly-diagnostics/dns
+  compiler:
+    name: Compiler fixture (${{ matrix.variant }})
+    runs-on: macos-14
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [baseline, traced]
+    env:
+      DIAGNOSTIC_VARIANT: ${{ matrix.variant }}
+      PANACKELTY_BOOTSTRAP_ROOT: .
+      VALIDATION_JOBS: 1
+    steps:
+      - uses: actions/checkout@v6
+      - name: Prepare native VM and the selected fixture runner
+        run: |
+          make native native-module-build native-fault-build
+          mkdir -p diagnostics
+          ./bin/panack compile tests/runner/main.panack -o diagnostics/runner.bc
+          # The nightly reuses its verified stage-two artifact in the compile
+          # subcase. Prepare a current compiler once; the source subcase still
+          # compiles the real source itself, with its original 90-second limit.
+          ./bin/panack compile src/compiler/main.panack -o diagnostics/compiler.bc
+          echo "PANACK_TEST_COMPILER=$PWD/diagnostics/compiler.bc" >> "$GITHUB_ENV"
+          sw_vers
+          sysctl hw.ncpu hw.memsize
+      - name: Apply temporary phase timing instrumentation
+        if: matrix.variant == 'traced'
+        run: |
+          ruby tests/experiments/nightly-diagnostics/instrument.rb
+          make native
+      - name: Run the real fixture alone
+        id: alone
+        run: node tests/experiments/nightly-diagnostics/compiler.cjs alone
+      - name: Run the real fixture alongside runtime probes
+        if: always() && steps.alone.outcome != 'skipped'
+        run: node tests/experiments/nightly-diagnostics/compiler.cjs concurrent
+      - name: Preserve diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: compiler-diagnostics-${{ matrix.variant }}-${{ github.run_id }}
+          path: |
+            diagnostics/**/result.json
+            diagnostics/**/*.log
+            diagnostics/**/*.tsv
+            diagnostics/**/*.stdout
+            diagnostics/**/*.stderr
+          retention-days: 14
+          if-no-files-found: warn

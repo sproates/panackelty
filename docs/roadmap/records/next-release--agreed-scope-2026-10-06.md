@@ -512,39 +512,97 @@ that remains accurate and needs no immediate edit.
 
 **RM#154: Incremental coverage collection: alpha.15 requirement.**
 
-Current allocation: alpha.15 after the 20 October rebalance.
+Owner agreement, 26 October 2026: deliver faster repeat source-coverage collection
+by safely reusing generated coverage plans while running every required test
+afresh. This is working optimisation scope, not merely a measurement report.
+Scope recording starts neither profiling nor implementation.
 
-**Planned for Alpha.14 by owner direction, 2026-10-15.** Improve code-coverage
-collection speed, particularly repeated release checks after changes that do not
-alter the measured program. During Alpha.13 preparation, reporting-only repairs
-repeated expensive plan generation. Successful source-coverage
-[Check 38775373415](https://github.com/sproates/panackelty/actions/runs/38775373415)
-took 29m48s for 31 fresh sessions and 45 measured files. This is an observed hosted
-baseline, not a fixed performance target. Profile generation, execution,
-aggregation and publication separately before selecting further optimisations.
+Inspection of `scripts/source_coverage_baseline.cjs` on `next` confirms that the
+collector reuses plans within one run but creates a new temporary workspace and
+regenerates them in a subsequent run. Persistent reuse is the bounded first
+implementation direction. The historical 29m48s run for 31 sessions and 45 files
+([Check 38775373415](https://github.com/sproates/panackelty/actions/runs/38775373415))
+is context, not a current baseline or fixed target.
 
-The first implementation direction is incremental reuse of generated coverage
-plans, keyed by exact compiler/exporter and VM identities, transitive source
-inputs, format/schema and relevant settings. Validate cached plans and provenance
-before use; missing, corrupt, partial, untrusted or invalidated entries must
-rebuild safely. Keep every required test execution fresh. Reusing execution
-results is a separate design decision and is not selected by this requirement.
+#### Workloads and target checkpoint
 
-Acceptance must demonstrate materially faster repeated collection with comparable
-cold/warm measurements, explain cache hits and invalidations, and cover changes
-to compiler, VM, exporter, dependencies and settings. Cached and freshly generated
-plans must produce equivalent inventories and coverage semantics. Preserve the
-full measured corpus, assertions, fresh session identities, explicit unmeasured
-and unavailable results, source provenance and release freshness checks. Raising
-timeouts alone does not satisfy the speed outcome; do not reduce test scope or
-weaken validation to meet it. Set a concrete improvement target from the profiling
-evidence during implementation planning rather than inventing a number now.
+Measure four workloads against the same declared corpus and comparable toolchain,
+platform and settings:
 
-This is a bounded follow-up to [RM#28: Incremental and modular builds](independent-website-publishing.md#rm-28) /
-[GI#106](https://github.com/sproates/panackelty/issues/106); the owner's accepted
-Alpha.13 workflow remains accepted. Initial effort is medium, provisional on cache
-trust and invalidation requirements. Implementation is not started by this roadmap
-addition, and it does not add a new gate to the ongoing Alpha.13 release.
+1. Empty plan cache: full cold generation and fresh execution.
+2. Unchanged repeat: matching inputs with reusable plans and fresh execution.
+3. Reporting-only change: unchanged measured programs, with fresh execution and
+   regenerated reporting/publication output.
+4. Measured-source or dependency change: affected plans invalidate; demonstrate
+   reuse only where dependencies and identities still justify it.
+
+Separate plan generation, test execution, aggregation and publication costs.
+Record revisions, cache state, input sizes, repetitions and variation, with both
+stage timings and end-to-end results. Measure local and hosted collection where
+persistent reuse is intended to operate. Do not compare a reduced corpus with the
+old full corpus and call it a speed improvement.
+
+After profiling, bring a concrete numerical improvement target for owner agreement
+before proceeding beyond the baseline into cache implementation. Preserve cold-run
+costs and unchanged/slower workloads in the report. If plan generation is not a
+material cost, return with that evidence and a scope decision rather than building
+a cache and claiming success from cache-hit counts alone.
+
+#### Reuse and fresh execution
+
+A reusable plan must match the exact compiler, VM and exporter identities,
+transitive measured-source inputs, plan format/schema and relevant settings.
+Specify the key, stored files, provenance validation and trusted cache sources
+before implementation. A matching key alone does not establish valid contents.
+Missing, corrupt, partial, untrusted or invalidated entries safely regenerate;
+no stale plan may be executed. Log why each plan is reused or rebuilt. Changes to
+reporting alone must not invalidate plans unless they alter a genuine plan input.
+
+Execute every required test and its assertions afresh. Create new session
+identities, execution counters and reports; never cache passing results, prior
+sessions or execution counters. Preserve source/toolchain identity checks and
+changes-during-collection detection. Reports identify the current collection and
+revision even when preparation was reused from compatible earlier inputs.
+
+#### Acceptance and boundaries
+
+- Demonstrate materially faster repeat collection against the agreed target,
+  with replayable before/after measurements for all four workloads.
+- Verify cached/fresh plan identity and equivalent inventories, probe definitions,
+  attribution and coverage semantics. For deterministic acceptance fixtures,
+  compare resulting reports allowing only explicitly listed per-run differences,
+  such as timestamps and session IDs. Do not mask differences in required test
+  execution, assertions, measured scope or provenance.
+- Test invalidation for compiler, VM, exporter, direct/transitive sources,
+  format/schema and settings. Test missing, corrupt, incomplete and untrusted
+  cache entries and recovery. Retain evidence that assertion failures still fail
+  a warm collection and that stale or duplicate sessions are rejected.
+- Preserve the complete selected corpus, explicit unmeasured/unavailable entries,
+  policy checks and source provenance. No higher timeout or weaker test assertion
+  can establish completion.
+
+The weekly/manual collection schedule remains unchanged. Coverage report freshness
+and percentages are informational under the existing release policy, not new
+release gates. Preserve existing integrity requirements without reinstating a
+coverage freshness gate from historical wording.
+
+Do not expand the measured corpus, cache execution results, rewrite the coverage
+system or weaken validation. **GI#106: Validation speed** remains the separate
+developer-feedback task; do not count this implementation there as well. The
+coverage publisher continues to receive static reports rather than executable
+plans; core collection owns plan generation and reuse.
+
+Effort is provisionally medium, approximately three implementation PRs: baseline
+and cache contract; reuse implementation with correctness tests; hosted acceptance
+and documentation. Each delivery includes its applicable tests; the final PR is
+integration evidence, not deferred correctness testing. Completion requires the
+implemented improvement and acceptance evidence, not scope approval alone.
+
+This planning change has no runtime/performance impact. The future optimisation
+must quantify collection cost and preserve coverage integrity. The website's
+existing broad faster-coverage plan remains accurate; no immediate website edit
+is required. There is no dedicated issue for this scoped record; RM#154 remains
+the task identifier.
 
 
 <a id="rm-155"></a>

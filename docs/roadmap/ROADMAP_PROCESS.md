@@ -137,6 +137,15 @@ Historical snapshots may retain their original status when clearly labelled as
 historical. Existing duplicated or stale entries should be reconciled during
 the roadmap refresh, not silently treated as current commitments.
 
+## Release deferrals
+
+Owner direction, 26 October 2026: when agreed release work is deferred, allocate
+it to the immediately following release unless the owner explicitly chooses a
+different destination. Do not return it to an unscheduled backlog by default.
+Update both release allocations, the issue and the current release summary,
+including any explained weight/denominator change. Preserve the work's scope and
+acceptance; deferral is neither completion nor permission to move other items.
+
 ## Next-release status
 
 [NEXT_RELEASE_STATUS.md](../NEXT_RELEASE_STATUS.md) is the lightweight source of

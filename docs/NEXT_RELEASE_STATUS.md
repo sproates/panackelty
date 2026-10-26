@@ -16,7 +16,7 @@ and linked issues retain the detailed requirements and decisions.
 | Item | Current state and remaining acceptance | Weight | Complete | Earned |
 | --- | --- | ---: | ---: | ---: |
 | [GI#200 Packages](https://github.com/sproates/panackelty/issues/200) | Accepted on next: local folders/archives, HTTPS archives, pinned Git, diagnostics and installed acceptance. [P04c evidence](design/PACKAGE_FINAL_ACCEPTANCE.md), PR#595. Not yet released. | 30/95 | 100% | 30/95 |
-| [GI#180 Compiler understanding](https://github.com/sproates/panackelty/issues/180) | Completion scope agreed: complete checker explanations and truthful instruction/source provenance, two checked inventories, five slices and realistic acceptance. PR#619 records the decision; implementation has not started. | 20/95 | Unassessed | Unknown |
+| [GI#180 Compiler understanding](https://github.com/sproates/panackelty/issues/180) | Completion scope agreed: complete checker explanations and truthful instruction/source provenance, two checked inventories, five slices and realistic acceptance. PR#619 is merged into main; implementation has not started. | 20/95 | Unassessed | Unknown |
 | [GI#435 Validated domain types](https://github.com/sproates/panackelty/issues/435) | Six-constraint semantics agreed: four string constraints, bounded arrays/maps/sets and ordered record-field relationships. Explicit guard binding, validate call/result, failure order and multiline/parenthesised conjunctions agreed. Final consolidated contract approved and merged into main in PR#616: constraint APIs, error schema/rendering, Unicode pin, examples and delivery slices. Existing numeric alternatives are preserved; implementation has not started. | 20/95 | 0% | 0 |
 | [GI#409 Compiler/stdlib boundary](https://github.com/sproates/panackelty/issues/409) | Pending dependency and coupling assessment with recommendation; no reorganisation selected. | 5/95 | 0% | 0 |
 | [RM#154 Faster coverage](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154) | Planned. Validated plan reuse, cold/warm measurements and invalidation/equivalence acceptance remain. Required test executions stay fresh. | 5/95 | 0% | 0 |
@@ -74,7 +74,7 @@ and exact GI#435 constraints before implementation. It is merged into main. GI#1
 This is agreed direction, not implementation progress; weights are unchanged.
 
 - **GI#180: Compiler understanding:** [completion scope agreed, PR#619](https://github.com/sproates/panackelty/pull/619),
-  awaiting main merge approval. GI#134: Compiler explanations must expose every
+  merged into main after owner approval. GI#134: Compiler explanations must expose every
   relevant function-checking requirement, outcome, supporting facts and source,
   with specific reasons for genuinely unreached decisions. GI#173: Compilation
   provenance must connect actual checking/transformations to every instruction

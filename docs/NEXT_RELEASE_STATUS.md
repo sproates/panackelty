@@ -156,7 +156,7 @@ This is agreed direction, not implementation progress; weights are unchanged.
 ## Agreed delivery order
 
 Owner agreement, 26 October. [PR#632: Alpha.15 delivery order](https://github.com/sproates/panackelty/pull/632)
-records the detailed sequencing and awaits main merge.
+records the detailed sequencing and is merged into main after owner approval.
 
 1. **GI#409: Compiler/stdlib boundary assessment** — dependency map, five change
    cases and recommendation; no refactor.

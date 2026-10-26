@@ -23,8 +23,10 @@ instruction/source attribution. GI#435's six-constraint semantic scope is now ag
 [RM#153](docs/roadmap/records/language-direction-and-differentiation--exploration.md#rm-153).
 Explicit guard bindings, `validate[Type](input)` and ordered structured failures
 are agreed. Alpha.15 also permits multiline conditions and parenthesised `&&`
-expressions; guard alternatives (`||`) are scheduled for alpha.16 with proof and
-diagnostic design. Remaining constraint API spellings and concrete error schema need design;
+expressions for the new constraints. Existing numeric `||` remains supported; its
+extension to the new families is scheduled for alpha.16. The [consolidated
+contract](docs/design/VALIDATED_DOMAIN_TYPES.md) supplies the final syntax and
+error-schema proposal, Unicode pin, examples and delivery boundaries for review;
 its new proof decisions also require explanations.
 
 GI#106's [bounded validation-speed milestone](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#alpha15-validation-speed)

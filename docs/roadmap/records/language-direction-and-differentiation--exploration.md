@@ -634,6 +634,29 @@ of at most 80 scalar values without control characters. Arbitrary Boolean
 predicates are not selected. Explain the scalar-counting rule, including displayed
 characters consisting of multiple scalar values, in documentation and diagnostics.
 
+#### Condition layout and composition agreed on 26 October
+
+Alpha.15 permits multiline guard conditions and parentheses for grouping supported
+constraints, combined with `&&`. Formatting and parentheses do not expand the
+six agreed constraint forms or permit arbitrary predicates and method calls.
+Keep the explicit programmer-chosen binding. Report failed conjuncts in written
+left-to-right order, including inside parentheses; line breaks do not change this.
+Exact constraint API spellings remain to be agreed; illustrative `length()`,
+`isNonBlank()` and `hasNoControlCharacters()` names are not approved APIs.
+
+Guard alternatives using `||` are explicitly scheduled for alpha.16, outside
+alpha.15. Define their static proof rules, interaction with conjunction/grouping,
+and structured and rendered failures before implementation. A rejected value
+must receive an explanation of the alternatives as alternatives, rather than
+presenting every failed branch as a separately mandatory condition. This does
+not schedule arbitrary predicates or other guard families. Validated-type reuse
+was discussed but is not yet an agreed design.
+
+This records planned language behaviour, not implemented or released syntax.
+No compiler/runtime performance changes arise from this documentation update.
+The public website's broad validated-domain-type claim remains accurate; no
+immediate website edit is needed for this detailed expression boundary.
+
 #### Guard syntax and validation API agreed on 26 October
 
 All guarded types must declare a programmer-chosen binding:

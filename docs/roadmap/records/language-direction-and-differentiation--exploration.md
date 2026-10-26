@@ -613,77 +613,91 @@ and release workflows, not a claim that arbitrary program equivalence is decidab
 
 **RM#153: Expand guarded types beyond numeric bounds** · [GI#435: Expand guarded types beyond numeric bounds](https://github.com/sproates/panackelty/issues/435).
 
-**Planned for alpha.15 after the 20 October release rebalance; scope broadened
-by owner direction on the same date.**
-Develop validated domain types beyond numeric bounds. The selected initial scope
-now includes string constraints, non-empty/bounded collections and relationships
-between fields of a record. This supersedes the non-empty-string-only slice.
-Implementation has not started; semantics and syntax must be settled before code
-is changed, but the outcome is working guards, not only an assessment report.
+**Alpha.15 semantic scope agreed by the owner, 26 October 2026.**
+Deliver six constraints across three families, with explicit static construction
+and runtime validation. This supersedes the earlier representative-outcome list.
+Syntax, concrete validation API/error types and example output remain to be
+agreed before implementation. No implementation starts with this record.
 
-Owner clarification, 26 October 2026: agree the exact supported constraint list,
-semantics, validation API, static proof boundary, failure output and explanation
-behaviour before implementation. The examples below describe candidate outcomes
-within selected families; they are not the final constraint specification.
-New proof decisions shipped in alpha.15 must also be covered by GI#134.
-
-| Selected family | Representative outcomes |
+| Constraint | Agreed semantics |
 | --- | --- |
-| String constraints | Express non-empty/non-blank text, bounded length and a bounded content rule such as excluding control characters. Define whether length counts bytes or Unicode units and exactly what blank/control means. |
-| Collection size | Express non-empty collections and bounded sizes, with sound construction, transformation and access rules. Do not imply that non-empty alone proves an arbitrary index is valid. |
-| Cross-field record invariants | Express relationships such as start ≤ end or minimum ≤ maximum, so construction and updates preserve a valid record. This is broader than independent guards on each field. |
+| Non-empty string | At least one Unicode scalar value. |
+| Non-blank string | At least one scalar outside Unicode `White_Space`. Pin the Unicode version during design; do not depend on host character classification. No trimming. |
+| Bounded string length | Count Unicode scalar values, not UTF-8 bytes or user-perceived characters. Inclusive non-negative compile-time constant bounds; lower, upper or both. Reject contradictory bounds at type definition. |
+| String without control characters | Exclude U+0000–U+001F and U+007F–U+009F, including tabs and newlines. Do not claim all invisible/formatting characters are excluded. Naming, documentation and diagnostics must make the exact boundary clear. |
+| Bounded collection size | Arrays, maps and sets, using their existing element/entry count. Inclusive compile-time constant bounds; non-empty is minimum one. Size alone proves neither an arbitrary array index nor map-key membership. |
+| Ordered cross-field relationship | Compare two fields of the same record using `<` or `≤`, with the same underlying ordered numeric type. Permit conjunctions. No arithmetic expressions, arbitrary calls, nested-field traversal or relationships between separate arguments. |
 
-**Establishing a guarantee.** Retain static proof where the compiler can establish
-an invariant, and add an explicit checked-validation path for runtime values.
-Validation must return a guarded value or a structured failure; it must not
-silently insert checks into existing proof-only conversions. Define the exact
-API, error type and permitted predicates during design. External input should
-be checked at the boundary and the resulting guarantee carried through typed
-code without repeated validation unless an operation can invalidate it.
+String constraints may be combined by conjunction, for example non-blank text
+of at most 80 scalar values without control characters. Arbitrary Boolean
+predicates are not selected. Explain the scalar-counting rule, including displayed
+characters consisting of multiple scalar values, in documentation and diagnostics.
 
-Acceptance must cover:
+#### Establishing and preserving guarantees
 
-- A bounded, documented guard language and sound proof rules. Purity alone does
-  not make arbitrary predicates terminating, inexpensive or statically decidable.
-  Unsupported guards and unavailable proofs need actionable diagnostics.
-- Construction, copying, reassignment, collection transformations and record
-  updates; facts through control flow, calls, generics and module boundaries;
-  and preservation or loss of each invariant. Do not allow an update to retain
-  a guarded type after breaking its guarantee.
-- Explicit runtime validation with useful failures identifying the constraint
-  and affected field/value location. Distinguish an input that fails validation
-  from a predicate or proof form the language does not support.
-- Representative accepted, statically rejected and runtime-rejected programs
-  for all three selected families. Include boundary values, Unicode/content
-  cases, empty/oversized collections and individually valid fields whose
-  relationship is invalid. Test compiler/bootstrap, saved-bytecode/runtime and
-  public CLI behaviour at the appropriate boundaries.
-- Documented public examples demonstrating validated configuration and
-  request-derived data, without depending on unimplemented JSON support. Explain
-  both proof and validation paths, supported operations and runtime costs.
-  Measure representative validation costs rather than assuming guards are free.
+Two explicit paths are required:
 
-Keep guards about stable value properties. A path's textual form can be
-validated; whether its file exists or is readable depends on external state and
-must not become an enduring value guarantee. Likewise, validated text alone
-must not imply context-independent security properties such as injection safety.
+1. Static construction succeeds when the compiler proves the constraints.
+   Otherwise explain the missing proof and point to explicit runtime validation.
+2. Runtime validation returns the guarded value or a structured validation failure.
+   Preserve the original value; never silently trim, truncate or coerce it.
 
-Broader candidates remain for subsequent selection, including alpha.19's further
-guard work: identifier/UUID/date formats, sorted or unique collections,
-element-wide predicates, relationships between separate arguments (index and
-collection, equal-length vectors or matrix dimensions), and domain-specific
-checksums or predicates. These are not automatic alpha.15 commitments. No general
-regex engine, dependent-type system or arbitrary user predicate evaluator is
-selected by this scope.
+Static proof covers literals, known collection sizes, existing compatible guarded
+guarantees and supported numeric comparison facts. This does not promise general
+reasoning about string contents or arbitrary program behaviour. Do not silently
+insert runtime checks into existing proof-only conversions.
 
-Coordinate JSON adapters and reusable input schemas with
-[RM#73: JSON support](#rm-73) and [RM#74: Type-driven input handling](#rm-74).
-The shared validated-type foundation belongs here; JSON parsing and schema
-export do not. Coordinate explanations with GI#134 and the public reference and
-examples with GI#552. Effort is larger than the original string slice and remains
-unestimated until the bounded semantics are reviewed. If any selected family
-cannot fit safely, bring an explicit scope/release trade-off to the owner rather
-than silently dropping it or claiming the milestone complete.
+Operations that can change collection size must either prove the result retains
+the constraint or produce an ordinary collection that can be explicitly validated
+again. Never retain a guarded type after invalidating its guarantee. Construction
+of a guarded record must establish all its invariants. Updating it must prove or
+validate the complete resulting record, without exposing an intermediate invalid
+guarded state. Exact update syntax/API remains part of the next design review.
+
+Carry established guarantees through typed code without repeated validation unless
+an operation can invalidate them. Acceptance includes construction, copying,
+reassignment, transformations and record updates, plus control flow, calls,
+generics and module boundaries. Clarify preservation or loss of each invariant.
+
+#### Failures, explanations and acceptance
+
+Runtime validation reports **all failed constraints in deterministic order**.
+Identify the guarded type, constraint and affected field/value location, with
+useful facts such as observed length. Avoid printing entire potentially sensitive
+inputs. Define the concrete error representation and ordering in the API design.
+Distinguish failed input validation from unsupported guard forms or missing proof.
+
+Every static proof decision must be covered by GI#134 explanations: the requirement,
+available facts and why they establish or fail to establish the guarantee. Count
+this integration once. Before implementation, review actual Panack declarations,
+validation calls and complete failure/explanation transcripts with the owner.
+
+Require accepted, statically rejected and runtime-rejected programs for all six
+constraints. Include boundary values, scalar/Unicode whitespace and control cases,
+empty and oversized collections, combined constraints and individually valid
+fields with an invalid relationship. Verify deterministic multi-failure reporting,
+invariant preservation and loss, public CLI, saved-bytecode/runtime behaviour and
+compiler/bootstrap correctness at the appropriate boundaries. Add configuration
+and request-data examples without depending on unimplemented JSON support.
+Measure representative runtime validation cost rather than claiming guards are free.
+
+#### Exclusions and remaining design
+
+No regex guards; email, URL, UUID or date formats; sorted/unique collection guards;
+element-wide predicates; arbitrary user-defined validation functions; or guarantees
+based on external state such as file existence. A Set's existing uniqueness is
+unchanged; this scope adds no new uniqueness guard. Validated text does not imply
+context-independent injection safety. Separate-argument relationships and broader
+predicate families remain for later explicit selection, including alpha.19 work.
+JSON parsing and schema export remain separate under [RM#73](#rm-73) and
+[RM#74](#rm-74); reference/example coordination remains under GI#552.
+
+Next design step: agree declarations, composition and update syntax; the validation
+API and structured failure type/order; the pinned Unicode version; and example
+output. Then derive delivery slices and estimates. If a selected constraint cannot
+fit safely, seek an explicit scope/release decision rather than silently dropping
+it. This is working-feature scope, not merely an assessment. No website or runtime
+behaviour changes through this planning update.
 
 ### JSON data support — exploration
 

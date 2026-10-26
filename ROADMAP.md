@@ -19,8 +19,10 @@ issue was created for this repair. Completion evidence is recorded in the PR.
 
 The [26 October clarification](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#alpha15-explanation-provenance-and-domain-type-clarification)
 requires complete function-checker explanations and comprehensive, truthful
-instruction/source attribution. GI#435's exact constraint list and semantics must
-be agreed before implementation; its new proof decisions also require explanations.
+instruction/source attribution. GI#435's six-constraint semantic scope is now agreed in
+[RM#153](docs/roadmap/records/language-direction-and-differentiation--exploration.md#rm-153).
+Concrete syntax, validation API and output remain to be agreed before implementation;
+its new proof decisions also require explanations.
 
 GI#106's [bounded validation-speed milestone](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#alpha15-validation-speed)
 now has an agreed scope: five baseline workloads, at most three selected

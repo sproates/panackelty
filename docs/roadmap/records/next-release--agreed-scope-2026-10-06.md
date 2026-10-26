@@ -283,8 +283,9 @@ claim that current implementations already meet them, and starts no implementati
   and ordered same-record numeric field relationships. Static proof, explicit
   runtime validation, invariant preservation and deterministic failure reporting
   are included. Explicit guard bindings, the `validate[Type](input)` result contract and failure
-  ordering are now also agreed in RM#153. Remaining constraint syntax, error schema,
-  Unicode version and examples need design before implementation.
+  ordering are now also agreed in RM#153. The [approved consolidated contract](../../design/VALIDATED_DOMAIN_TYPES.md)
+  fixes the remaining APIs, error schema, Unicode version and acceptance examples
+  following owner approval of PR#616. Implementation remains unstarted.
 - New GI#435 proof decisions shipped in alpha.15 must also have GI#134 explanations.
   Define that integration once, without counting its delivery twice. Agree example
   transcripts before implementing output, including failure and unavailable cases.
@@ -294,9 +295,111 @@ claim that current implementations already meet them, and starts no implementati
 
 Runtime value tracing, change-impact prediction and automatically deriving fixes
 remain outside the selected GI#180 alpha.15 workstreams. A debugger, interactive
-compiler visualiser and stable public compiler-IR API are not selected. Detailed
-inventories, acceptance examples and effort estimates remain planning work; if
-scope is too large, seek an explicit release decision rather than redefine complete.
+compiler visualiser and stable public compiler-IR API are not selected. The agreed completion scope below defines inventories, acceptance and delivery
+boundaries. Reconcile the detailed inventories before implementation; if scope
+is too large, seek an explicit release decision rather than redefine complete.
+
+### GI#180: Compiler understanding, agreed alpha.15 completion scope
+
+Owner agreement, 26 October 2026: finish the two selected workstreams below.
+This is completion of existing facilities, not a new compiler subsystem or a
+restart of the wider programme. Existing accepted deliveries remain accepted.
+This decision authorises scope definition, not implementation.
+
+**GI#134: Compiler explanations.** Explain every relevant type, effect and proof
+decision made while checking a function. State the requirement, the actual
+outcome, the types/constraints/facts used, their source locations and why those
+facts justify the result. If checking cannot reach a decision, name the missing
+information or earlier error. A decision the checker made but Explain omitted
+is an implementation gap, never an acceptable unavailable result. Reporting
+that the checker accepted or rejected something is insufficient without the
+supporting reason.
+
+**GI#173: Compilation provenance.** Connect source constructs through actual
+checking and transformation to emitted bytecode in both directions. Every
+instruction identifies its responsible source construct, or a genuine
+compiler-generated origin with a reason. Source queries explain multiple or
+shared instructions and constructs with no executable output. Imports, generic
+bodies, method calls and generated branch/loop machinery retain accurate
+identities. A stale or mismatched artifact produces an explicit validation
+failure rather than plausible attribution. Mapping alone is not a complete
+explanation of the compilation journey.
+
+#### Existing evidence and finite inventories
+
+Inspection of `next` at `8a5cc01` confirms substantial explanation coverage and
+the validated source-map foundation. The explanation guide already lists eleven
+checker-decision families; use it as the starting inventory, not eleven complete
+tasks or a complete count of missing decisions. Generic inference reasoning and
+some host-operation argument checks still lack complete retained evidence.
+Some renderers give a generic rejection/deferral reason despite more specific
+checker facts. The current source-map model is sparse and permits missing
+instruction entries, including stores, loop mechanics and implicit returns.
+These are observed gaps, not a completed audit or new implementation results.
+
+Maintain two checked inventories:
+
+- **Checker decisions:** reconcile every relevant active function-checking
+  decision site with its retained evidence, human-readable output, source
+  attribution and tests. Include generic inference/substitution, calls and
+  builtins, operators, locals/results, joins, patterns, effects and proofs.
+- **Emission and transformations:** reconcile emission paths and transformation
+  cases with instruction origins, reverse mappings, explanations and tests.
+  Include paths producing no instruction, multiple instructions or shared code.
+
+Each entry identifies the source site, reachable accepted/rejected/unavailable
+outcomes, output and regression evidence. Mark gaps explicitly. Tests must detect
+missing evidence or mappings, not only compare the entries that happen to exist.
+Adding an alpha.15 language decision updates its inventory and evidence in the
+same delivery. New **GI#435: Validated domain types** decisions are included;
+count their integration once across the two workstreams.
+
+Completeness means no unexplained inventory gaps, not a collection of successful
+demonstrations. A genuinely unreachable outcome needs a reason, not a fabricated
+test or invented explanation. Inventory reconciliation precedes implementation
+slicing; it does not permit silently narrowing the agreed completeness target.
+
+#### Delivery and acceptance
+
+| Slice | Required result |
+| --- | --- |
+| 1. Complete checker evidence | Retain missing decisions and their actual supporting facts. |
+| 2. Complete explanations | Explain reasons, inference chains and specific unavailable states. Agree representative complete transcripts before changing rendered output. |
+| 3. Complete instruction attribution | Every emitted instruction has a truthful origin; preserve validated artifact/source identity. |
+| 4. Connect the compilation journey | Source-to-instruction queries explain transformations, shared mappings and constructs producing no instructions. |
+| 5. Acceptance and documentation | Realistic examples, complete regression evidence, installed-tool checks and comparable cost measurements. |
+
+Each slice includes its own tests and applicable canonical validation. The final
+slice is integration acceptance, not permission to defer tests until the end.
+The work is provisionally large, approximately five to seven implementation PRs,
+including tests, documentation and integration; reconcile inventories before
+turning that range into a committed packet count.
+
+Acceptance covers accepted and rejected programs, partial checking after errors,
+imported/generic code, method calls, control flow, callbacks, mutation-invalidated
+facts and the new domain constraints. Use small boundary fixtures and realistic
+multi-module/maintained programs. Compare explanations with actual checker
+outcomes and provenance with emitted instructions, including deliberate missing
+mapping/evidence regressions. Do not accept plausible prose as proof of coverage.
+
+Evidence retention must preserve ordinary checking outcomes and executable
+behaviour, including bootstrap determinism. Reuse the current opt-in evidence and
+validated-sidecar mechanisms; do not make runtime execution depend on a sidecar.
+Any required metadata format change needs explicit versioning and compatibility
+coverage, not an unannounced executable-bytecode or public IR contract change.
+Measure compilation time, query time, memory and metadata size with collection
+enabled and disabled, recording workload, revisions and platform. Report material
+regressions with their disposition; no new arbitrary timing target is selected.
+
+Runtime value tracing, new inference capabilities, change prediction, automatic
+fixes, a debugger/visualiser and a stable public compiler-internals API remain
+outside this alpha.15 scope. Explanations of existing inference are included;
+**GI#170: Inference assessment** does not become a dependency for that work.
+
+Scope recording itself changes no runtime/performance behaviour. The website's
+broad planned compiler-understanding claim remains accurate; no immediate website
+edit is needed. Detailed examples and capability claims follow verified delivery
+and the release/website publication process.
 
 ### Compiler understanding and correctness: now alpha.15
 

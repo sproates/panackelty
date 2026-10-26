@@ -19,14 +19,17 @@ issue was created for this repair. Completion evidence is recorded in the PR.
 
 The [26 October clarification](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#alpha15-explanation-provenance-and-domain-type-clarification)
 requires complete function-checker explanations and comprehensive, truthful
-instruction/source attribution. GI#435's six-constraint semantic scope is now agreed in
+instruction/source attribution. The [GI#180: Compiler understanding completion
+scope](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#gi180-compiler-understanding-agreed-alpha15-completion-scope)
+now defines two checked inventories, five delivery slices and complete acceptance.
+Implementation remains unstarted. GI#435's six-constraint semantic scope is now agreed in
 [RM#153](docs/roadmap/records/language-direction-and-differentiation--exploration.md#rm-153).
 Explicit guard bindings, `validate[Type](input)` and ordered structured failures
 are agreed. Alpha.15 also permits multiline conditions and parenthesised `&&`
 expressions for the new constraints. Existing numeric `||` remains supported; its
 extension to the new families is scheduled for alpha.16. The [consolidated
-contract](docs/design/VALIDATED_DOMAIN_TYPES.md) supplies the final syntax and
-error-schema proposal, Unicode pin, examples and delivery boundaries for review;
+contract](docs/design/VALIDATED_DOMAIN_TYPES.md), approved in PR#616, defines syntax,
+error structures, Unicode rules, examples and delivery boundaries;
 its new proof decisions also require explanations.
 
 GI#106's [bounded validation-speed milestone](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#alpha15-validation-speed)

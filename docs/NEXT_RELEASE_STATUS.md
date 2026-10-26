@@ -20,7 +20,7 @@ and linked issues retain the detailed requirements and decisions.
 | [GI#435 Validated domain types](https://github.com/sproates/panackelty/issues/435) | Six-constraint semantics agreed: four string constraints, bounded arrays/maps/sets and ordered record-field relationships. Explicit guard binding, validate call/result, failure order and multiline/parenthesised conjunctions agreed. Final consolidated contract approved and merged into main in PR#616: constraint APIs, error schema/rendering, Unicode pin, examples and delivery slices. Existing numeric alternatives are preserved; implementation has not started. | 20/95 | 0% | 0 |
 | [GI#409 Compiler/stdlib boundary](https://github.com/sproates/panackelty/issues/409) | Assessment scope agreed: complete dependency map, five evidenced change cases and recommendation. PR#621 is merged into main. Assessment not started; no refactor selected. | 5/95 | 0% | 0 |
 | [RM#154 Faster coverage](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154) | Scope agreed and merged into main in PR#624: four measured workloads, target approval before cache implementation, validated persistent plan reuse and fresh executions. Profiling and implementation not started. | 5/95 | 0% | 0 |
-| [RM#155 Authoring friction](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-155) | Partial. Inventory preflight and contributor/interpolation guidance delivered (PR#545 and PR#565). Remaining scope agreed: unsupported-interpolation diagnostics, tested API examples and public-signature visibility guidance. Roadmap PR#626 awaits main merge; no additional implementation started. | 5/95 | Unquantified | Unknown |
+| [RM#155 Authoring friction](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-155) | Partial. Inventory preflight and contributor/interpolation guidance delivered (PR#545 and PR#565). Remaining scope agreed: unsupported-interpolation diagnostics, tested API examples and public-signature visibility guidance. Roadmap PR#626 is merged into main; no additional implementation started. | 5/95 | Unquantified | Unknown |
 | [RM#157 Performance review](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-157) | Open. Holistic measurements, prioritised findings and bounded quick wins remain to be assessed. | 5/95 | Unassessed | Unknown |
 | [GI#106 Validation speed](https://github.com/sproates/panackelty/issues/106) | Scope agreed, 26 October: five baseline workloads, at most three selected improvements and measured owner acceptance. Baseline not started. Earlier repairs (PR#596–598) remain delivered; the bounded milestone is not complete. | 5/95 | Unquantified | Unknown |
 | **Total** | **30/95 known contribution (about 32%); overall completion unquantified.** | **100%** | **Unknown** | **30/95 known** |
@@ -135,7 +135,7 @@ This is agreed direction, not implementation progress; weights are unchanged.
   stay unchanged; GI#106: Validation speed remains separate. Profiling and
   implementation have not started.
 - **RM#155: Authoring friction:** [scope agreed, PR#626](https://github.com/sproates/panackelty/pull/626),
-  awaiting main merge. Three improvements remain: diagnose unsupported interpolation
+  merged into main after owner approval. Three improvements remain: diagnose unsupported interpolation
   with source location and a local-binding remedy, add tested examples for strings/
   bytes, collections, test reporting and filesystem/process failures, and explain
   public-signature type visibility with a checked `pub import` example. Preserve

@@ -59,8 +59,7 @@ open. This planning update earns no additional completion credit.
 
 [PR#605](https://github.com/sproates/panackelty/pull/605) records the 26 October
 owner agreement on GI#134 completeness, GI#173 comprehensive truthful attribution,
-and exact GI#435 constraints before implementation. It has separate main merge
-approval. GI#180, GI#134, GI#173 and GI#435 issues carry the same clarification.
+and exact GI#435 constraints before implementation. It is merged into main. GI#180, GI#134, GI#173 and GI#435 issues carry the same clarification.
 This is agreed direction, not implementation progress; weights are unchanged.
 
 - GI#180: reconcile decision/transformation inventories; agree transcripts,

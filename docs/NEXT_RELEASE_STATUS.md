@@ -21,7 +21,7 @@ and linked issues retain the detailed requirements and decisions.
 | [GI#409 Compiler/stdlib boundary](https://github.com/sproates/panackelty/issues/409) | Assessment complete on merge of this delivery: 42-file closure verified, five change cases evidenced, recommendation to retain source organisation and assess narrower build dependencies in GI#106. [Evidence](COMPILER_STDLIB_BOUNDARY_ASSESSMENT.md). No refactor. | 5/90 | 100% | 5/90 |
 | [RM#154 Faster coverage](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154) | Scope agreed and merged into main in PR#624: four measured workloads, target approval before cache implementation, validated persistent plan reuse and fresh executions. Profiling and implementation not started. | 5/90 | 0% | 0 |
 | [RM#155 Authoring friction](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-155) | Partial. Inventory preflight and contributor/interpolation guidance delivered (PR#545 and PR#565). Remaining scope agreed: unsupported-interpolation diagnostics, tested API examples and public-signature visibility guidance. Roadmap PR#626 is merged into main; no additional implementation started. | 5/90 | Unquantified | Unknown |
-| [GI#106 Validation speed](https://github.com/sproates/panackelty/issues/106) | Scope agreed, 26 October: five baseline workloads, at most three selected improvements and measured owner acceptance. Baseline not started. Earlier repairs (PR#596–598) remain delivered; the bounded milestone is not complete. | 5/90 | Unquantified | Unknown |
+| [GI#106 Validation speed](https://github.com/sproates/panackelty/issues/106) | Scope agreed, 26 October: five baseline workloads, at most three selected improvements and measured owner acceptance. Baseline in progress: measuring the five agreed workloads before selecting improvements. Earlier repairs (PR#596–598) remain delivered; the bounded milestone is not complete. | 5/90 | Unquantified | Unknown |
 | **Total** | **35/90 known contribution (about 39%); overall completion unquantified.** | **100%** | **Unknown** | **35/90 known** |
 
 Weights retain the original provisional relative sizes, excluding the five points
@@ -70,9 +70,9 @@ open. This planning update earns no additional completion credit.
 - Finish with replayable measurements, invalidation/failure regressions and owner
   acceptance. Keep wider GI#106 concerns separate. No alpha.16 native coupling,
   separate compilation, major redesign, RM#154 caching or RM#157 runtime review.
-- Estimate: three to five PRs, subject to baseline evidence. Measurements and
-  implementation have not started. The next GI#106 action is the baseline when
-  authorised; no active work is implied by this scope record.
+- Estimate: three to five PRs, subject to baseline evidence. Baseline measurement is in progress; implementation has not started. The next
+  checkpoint is one consolidated proposal for at most three improvements and
+  numerical targets, supported by the measurements.
 
 ## Agreed alpha.15 scope boundaries
 
@@ -184,8 +184,7 @@ The order and scope weights remain unchanged. GI#409 assessment delivery is reco
   RM#154: Faster coverage is scoped in PR#624 and RM#155: Authoring friction in
   PR#626. RM#157: Performance review belongs to alpha.16. Delivery order is agreed
   above. GI#409 assessment is complete on merge of this delivery. Next is
-  GI#106: Validation speed, starting with its five-workload baseline; that work
-  has not started.
+  GI#106: Validation speed; its five-workload baseline is now in progress.
 - Promotion, package/install release checks and owner publication approval remain.
   Complete product acceptance on next does not mean a feature has shipped.
 - Latest supporting repair: [PR#601](https://github.com/sproates/panackelty/pull/601)

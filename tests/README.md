@@ -116,6 +116,27 @@ bytecode has a checked digest; failed compilation and inputs changed during
 compilation are never published. Every invocation executes the probe and its
 assertions. Instrumented VMs have separate keys and build directories. `make clean`
 removes all cached bytecode.
+Nine heavy compiler suites keep their standalone `tests/runner/compiler_*_unit.panack`
+entry points, with unchanged assertions in `tests/runner/compiler_suites/`.
+Make prepares `compiler_shared_unit.panack` once, then uses the existing worker
+pool to run each selected suite in a separate VM process. Selection is explicit;
+an unknown or missing suite fails with status 2. Full and focused targets retain
+their existing suite selections. Only compilation is shared, never test results.
+
+To run one suite using the shared artifact:
+
+```sh
+PANACK_PROBE_GROUP=compiler_checker_unit \
+  sh tests/run_probe.sh tests/runner/compiler_shared_unit.panack
+```
+
+The standalone checker command still works and compiles only its own import
+closure. Changing any shared suite or transitive import invalidates the shared
+artifact. `tests/unit/harness/compiler_shared.sh` proves exact selection, fresh
+assertions, failure propagation, dependency invalidation and recovery from corrupt
+or incomplete cached artifacts. Both commands are development checks; required
+pre-merge, nightly and release validation remain unchanged.
+
 The compiler integration driver and snapshot helper use the same cache; fixture
 programs still exercise the public CLI. The shell harness compiles its runner
 once per group and reuses it across isolated failure-injection scenarios.

@@ -13,9 +13,9 @@ stays in alpha.16. No refactor is delivered.
 
 GI#106: Validation speed has completed its five-workload local baseline and
 hosted Linux/macOS focused profiles. The [evidence and proposal](docs/VALIDATION_SPEED_BASELINE.md)
-recommend shared preparation for heavy compiler tests, with numerical targets
-awaiting owner agreement. No optimisation has been implemented; the milestone
-and owner acceptance remain open.
+record shared preparation for heavy compiler tests and numerical targets, approved
+by the owner on 27 October. Implementation is in progress; comparable replay
+and final owner acceptance remain open.
 
 For the current release summary, read [Next release status](docs/NEXT_RELEASE_STATUS.md).
 Keep that summary current alongside the detailed records when release work changes.

@@ -1,5 +1,12 @@
 # Specification coverage
 
+Shared compiler-test preparation preserves the existing assertions and standalone
+entry points; suite bodies now live in `runner/compiler_suites/`. Each selected
+suite runs in its own process. The real dispatcher and probe-cache regression in
+`unit/harness/compiler_shared.sh` checks one-suite selection, missing/unknown
+selection, injected assertion failure, direct/transitive invalidation, corruption,
+incomplete publication and missing-suite recovery. No validation cadence changes.
+
 The P03a HTTP prerequisite adds raw streaming transport contracts: a 32 MiB
 transfer read in chunks of at most 16 KiB, total-limit failure, stale and foreign
 handles, deadline expiry between reads and invocation cleanup. HTTP client

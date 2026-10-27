@@ -1,0 +1,41 @@
+import project/tests/runner/compiler_suites/contracts as contracts
+import project/tests/runner/compiler_suites/checker as checker
+import project/tests/runner/compiler_suites/module_bindings as module_bindings
+import project/tests/runner/compiler_suites/loader_confinement as loader_confinement
+import project/tests/runner/compiler_suites/package_source_limits as package_source_limits
+import project/tests/runner/compiler_suites/instruction_sources as instruction_sources
+import project/tests/runner/compiler_suites/source_maps as source_maps
+import project/tests/runner/compiler_suites/source_inventory as source_inventory
+import project/tests/runner/compiler_suites/coverage as coverage
+import stdlib/environment as environment
+import stdlib/host as host
+
+// Share compilation only. Each selected suite runs in a fresh VM process.
+main(): Void {
+  selected = match environment.get("PANACK_PROBE_GROUP") {
+    Some(value) => value,
+    None() => ""
+  }
+  if selected == "compiler_contracts_unit" {
+    contracts.run_suite()
+  } else if selected == "compiler_checker_unit" {
+    checker.run_suite()
+  } else if selected == "compiler_module_bindings_unit" {
+    module_bindings.run_suite()
+  } else if selected == "compiler_loader_confinement_unit" {
+    loader_confinement.run_suite()
+  } else if selected == "compiler_package_source_limits_unit" {
+    package_source_limits.run_suite()
+  } else if selected == "compiler_instruction_sources_unit" {
+    instruction_sources.run_suite()
+  } else if selected == "compiler_source_maps_unit" {
+    source_maps.run_suite()
+  } else if selected == "compiler_source_inventory_unit" {
+    source_inventory.run_suite()
+  } else if selected == "compiler_coverage_unit" {
+    coverage.run_suite()
+  } else {
+    host.stderr("unknown or missing compiler test suite: " + selected)
+    host.exit(2)
+  }
+}

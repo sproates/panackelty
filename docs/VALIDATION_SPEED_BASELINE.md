@@ -1,7 +1,8 @@
 # GI#106: validation baseline and proposal
 
-Measured 27 October 2026. **Owner approved the selection and targets on 27 October 2026. V2 implementation
-is in progress; measured improvement and final acceptance remain outstanding.**
+Measured 27 October 2026. **Owner approved the selection and targets on 27 October 2026. Implementation
+is merged in PR#637; [replay evidence](VALIDATION_SPEED_ACCEPTANCE.md) meets the
+measured targets. Final owner acceptance remains outstanding.**
 GI#106 remains open through implementation, comparable replay and explicit owner
 acceptance. This is the bounded alpha.15 milestone, not the wider issue backlog.
 
@@ -184,7 +185,7 @@ installation tests. Passing results must never be cached.
 | Workload | Proposed acceptance |
 | --- | --- |
 | Local clean full, same two-worker protocol | At least 15% faster: at most 1058s against 1245.71s |
-| Local compiler edit, same edit and warm starting state | At least 20% faster: at most 427s against 534.43s |
+| Local compiler edit, same edit and warm starting state | At least 20% faster: at most 427.544s against 534.43s |
 | Hosted initial compiler check, same workflow/settings | At least 10% faster on each platform: at most 877s macOS and 884s Linux |
 | Unchanged full and compiler repeats | No material regression: investigate/repeat any increase over 5% |
 | Package-only edit | Still zero compiler/seed rebuilds; investigate/repeat an increase over 5% or 2s, whichever is larger |
@@ -219,4 +220,4 @@ Baseline PR#636 recorded measurements and a proposal only, with no product, test
 workflow, cache or timeout behavior changes. Public specifications, architecture and
 installation instructions remain accurate. There is no website claim or release
 behavior to update. GI#106 is not complete and alpha.15's earned scope does not
-increase. The next action is implementation and comparable measurement against the agreed targets.
+increase. The next action is final owner acceptance of the implemented and measured milestone.

@@ -49,8 +49,8 @@ main(): Void {
   project = load_project_for_inventory(entry)
   match coverage_mapped_project(project, entry, project_root, stdlib) {
     Error(diagnostics) => {
-      for diagnostic in diagnostics { eprint(diagnostic.message); }
-      eprint("coverage plan: checked namespace failed")
+      for diagnostic in diagnostics { std_host.stderr(diagnostic.message); }
+      std_host.stderr("coverage plan: checked namespace failed")
       std_host.exit(1)
     },
     Ok(mapped) => coverage_plan(project, mapped, entry, project_root, source_root, stdlib, compiler, args)
@@ -103,7 +103,7 @@ coverage_plan(
   header = source_map_join(chunks, 0, chunks.len())
   if !source_map_write(args[1] + ".plan", header) {
     size = header.length()
-    eprint("coverage plan: header output failure (${size} bytes)")
+    std_host.stderr("coverage plan: header output failure (${size} bytes)")
     std_host.exit(1)
   }
   mut source_number: Nat = 0
@@ -163,12 +163,12 @@ coverage_plan(
           }
           chunks = chunks.append(source_map_join([encode_text(item.id), encode_text(item.kind), encode_text(item.detail), source_map_position(item.span.start), source_map_position(item.span.end), encode_u32(function), encode_u32(start), encode_u32(end), encode_u8(mode)], 0, 9))
         }
-        if !source_map_write(args[1] + ".source-${source_number}.plan", source_map_join(chunks, 0, chunks.len())) { eprint("coverage plan: source output failure"); std_host.exit(1); }
+        if !source_map_write(args[1] + ".source-${source_number}.plan", source_map_join(chunks, 0, chunks.len())) { std_host.stderr("coverage plan: source output failure"); std_host.exit(1); }
         source_number = source_number + 1
       }
     }
   }
-  if !source_snapshots_unchanged(project) || inner.length() == 0 { eprint("coverage plan: source changed"); std_host.exit(1); }
-  if source_number != snapshots.len() || !source_map_write(args[1] + ".bc", artifact) || !source_map_write(args[1] + ".inv", inventory) { eprint("coverage plan: output failure"); std_host.exit(1); }
+  if !source_snapshots_unchanged(project) || inner.length() == 0 { std_host.stderr("coverage plan: source changed"); std_host.exit(1); }
+  if source_number != snapshots.len() || !source_map_write(args[1] + ".bc", artifact) || !source_map_write(args[1] + ".inv", inventory) { std_host.stderr("coverage plan: output failure"); std_host.exit(1); }
   print("plan: wrote")
 }

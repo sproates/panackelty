@@ -1,10 +1,9 @@
 # Faster coverage: baseline and cache contract
 
 RM#154, alpha.15. Work started 27 October 2026. This is slice A, before cache
-implementation. The inventory capacity repair passes validation; completing the
-first workload exposed stale scope/exclusion metadata, now repaired for rerun.
-Complete measurements and the numerical target remain pending; no speed
-improvement or task completion is claimed.
+implementation. The capacity and stale coverage metadata repairs pass validation.
+All four baseline workloads completed successfully on 27 October 2026. The numerical
+target below awaits owner agreement; no speed improvement or task completion is claimed.
 
 ## Delivery slices
 
@@ -84,7 +83,8 @@ provide supported larger inventories. A prerequisite needs explicit inventory
 bounds, compatible consumers, boundary/rejection tests and distinct diagnostics.
 The owner approved inspecting the size breakdown, raising the inventory limit
 to 64 MiB consistently, preserving unrelated bounds and testing diagnostics,
-then resuming the baseline. Implementation and validation are in progress. The existing full corpus must remain selected.
+then resuming the baseline. The repair and complete measurements are recorded below;
+the existing full corpus remains selected.
 
 Publication is independently bounded. Historical successful publication
 [run 38779817246](https://github.com/sproates/panackelty-coverage/actions/runs/38779817246)
@@ -169,4 +169,61 @@ The current list was checked against source: 235 imports, 134 records and 26 enu
 with no executable functions or statements excluded. The policy records this
 review and refreshed identities; eligible/unmeasured scope and assertion selection
 are unchanged. Diagnostic replay is not a fresh baseline measurement. All four
-workloads must now run again with fresh sessions before target approval.
+workloads were then rerun with fresh sessions, with the results below.
+
+
+## Completed four-workload baseline
+
+Measured commit: `bee774413938483877713790a2db28fc93632c79` (PR#642).
+All four collectors completed and passed report-integrity checks. Each ran 31
+sessions/executions; all 124 session nonces are distinct. The temporary reporting
+and source edits were restored. These remain local, non-publishable development
+reports, not hosted publication evidence or a claim of cache performance.
+
+Seconds, rounded to two decimal places:
+
+| Phase | Empty cache | Unchanged repeat | Reporting-only change | Dependency source change |
+| --- | ---: | ---: | ---: | ---: |
+| Total | 955.43 | 939.13 | 958.23 | 946.91 |
+| Exporter compilation | 29.71 | 30.24 | 30.09 | 30.10 |
+| Plan generation | 820.73 | 804.60 | 822.64 | 815.18 |
+| Plan validation | 2.32 | 2.38 | 2.41 | 2.41 |
+| Fresh execution | 98.72 | 97.86 | 99.05 | 95.31 |
+| Session validation | 0.52 | 0.51 | 0.60 | 0.55 |
+| Observation mapping and aggregation | 2.94 | 3.02 | 2.92 | 2.92 |
+| Report writing | 0.03 | 0.03 | 0.03 | 0.03 |
+| Largest subprocess peak RSS (MiB) | 1040.91 | 1052.14 | 1039.92 | 1040.30 |
+
+Totals also include orchestration, metadata and integrity checks. The memory
+figures are the largest individual subprocess peaks, not whole-collection or
+machine peaks. These are one sample per workload on one machine; the small timing
+differences are not evidence that one variant is faster. The capacity adjustment
+has not been credited with a performance improvement.
+
+Unchanged and reporting-only runs match every measured file's lines, functions,
+branches, exclusions and metrics exactly, including counters. Their artifact and
+inventory identities also match. The dependency case changes only the measured
+`src/stdlib/bytes.panack` source hash and 13 session inventory identities; all
+artifact bytes, coverage states and metrics remain equivalent. Lexer counters
+change because the compiler processes the additional comment, as expected.
+Behavior-changing dependency invalidation remains a slice B acceptance case.
+
+Plan generation alone accounts for roughly 86% of collection time. Even with
+reuse, approximately 95–99 seconds of fresh execution must remain, plus validated
+plan reads, aggregation and reporting. Hosted publication is separately bounded
+as described above and is not included in these local totals.
+
+## Numerical target proposed for owner agreement
+
+For unchanged-repeat and reporting-only workloads, reduce median collection time
+by **at least 75%** against a matched uncached baseline. At these observed costs,
+that means roughly **four minutes or less**, while executing all 31 sessions afresh.
+For empty-cache and dependency-change workloads, allow no more than **10%** median
+regression against matched uncached collection. Measure three sequential samples
+per compared case on the same machine/toolchain, separate from other validation.
+Do not trade assertions, source scope, provenance, corruption checks or fresh
+execution for speed. Record memory peaks and explain any material increase.
+
+This is a proposal, not an accepted target. Owner agreement is the next checkpoint;
+cache implementation has not started. The expected saving comes from reusing
+validated preparation, not test results or counters.

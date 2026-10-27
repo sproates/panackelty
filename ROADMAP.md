@@ -7,15 +7,16 @@ and [acceptance evidence](docs/releases/ALPHA14_RELEASE_ACCEPTANCE.md).
 
 GI#409: Compiler/stdlib boundary assessment is complete on next (PR#635).
 The [assessment](docs/COMPILER_STDLIB_BOUNDARY_ASSESSMENT.md) verifies the full
-42-file closure and five change cases. Retain source organisation; evaluate
-narrower artifact prerequisites within GI#106: Validation speed. Native coupling
+42-file closure and five change cases. Retain source organisation. Narrower
+package-tool prerequisites were considered in GI#106 and remain unselected. Native coupling
 stays in alpha.16. No refactor is delivered.
 
-GI#106: Validation speed has completed its five-workload local baseline and
-hosted Linux/macOS focused profiles. The [evidence and proposal](docs/VALIDATION_SPEED_BASELINE.md)
-record shared preparation for heavy compiler tests and numerical targets, approved
-by the owner on 27 October. Implementation is in progress; comparable replay
-and final owner acceptance remain open.
+GI#106: Validation speed implementation is merged into next in PR#637.
+[Acceptance evidence](docs/VALIDATION_SPEED_ACCEPTANCE.md) meets the agreed targets:
+clean full validation is 16.1% faster, compiler-edit checks 20.05% faster, and
+hosted initial compiler checks 24.9%/36.8% faster. Regression guards passed,
+including the ordinary four-worker setting. Final owner acceptance remains open;
+the wider GI#106 issue is not closed. No tests or validation cadence were removed.
 
 For the current release summary, read [Next release status](docs/NEXT_RELEASE_STATUS.md).
 Keep that summary current alongside the detailed records when release work changes.

@@ -27,7 +27,7 @@ The scheduled collection on 26 October failed for the same reason:
 [run 40296515861](https://github.com/sproates/panackelty/actions/runs/40296515861).
 After replacing those calls with the existing `stdlib/host.stderr`, the parity
 fixture exposed a remaining removed `command_args` call. The fixture now calls
-`stdlib/host.arguments`. Neither repair changes the intended coverage semantics.
+`stdlib/host.arguments`. Neither repair changes the intended coverage semantics. PR#640 delivers these\ncompatibility repairs and records the baseline blocker.
 
 With both repairs, the parity comparison passes for both fixture paths: 388 exact
 source items per path match the accepted source renderer. Failed pre-repair runs

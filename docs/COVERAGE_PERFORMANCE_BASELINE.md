@@ -1,8 +1,9 @@
 # Faster coverage: baseline and cache contract
 
 RM#154, alpha.15. Work started 27 October 2026. This is slice A, before cache
-implementation. The first repaired collection is blocked by the inventory-size
-limit. Complete measurements and the numerical target remain pending; no speed
+implementation. The inventory capacity repair passes validation; completing the
+first workload exposed stale scope/exclusion metadata, now repaired for rerun.
+Complete measurements and the numerical target remain pending; no speed
 improvement or task completion is claimed.
 
 ## Delivery slices
@@ -28,7 +29,8 @@ The scheduled collection on 26 October failed for the same reason:
 [run 40296515861](https://github.com/sproates/panackelty/actions/runs/40296515861).
 After replacing those calls with the existing `stdlib/host.stderr`, the parity
 fixture exposed a remaining removed `command_args` call. The fixture now calls
-`stdlib/host.arguments`. Neither repair changes the intended coverage semantics. PR#640 delivers these\ncompatibility repairs and records the baseline blocker.
+`stdlib/host.arguments`. Neither repair changes the intended coverage semantics.
+PR#640 delivers these compatibility repairs and records the baseline blocker.
 
 With both repairs, the parity comparison passes for both fixture paths: 388 exact
 source items per path match the accepted source renderer. Failed pre-repair runs
@@ -36,11 +38,13 @@ are diagnostic evidence, not successful performance samples.
 
 ## Measurement method
 
-Use the existing collector and manifest without changing their limits or selected
-assertions. A temporary external Node profiler wraps subprocess calls and exported
+Use the existing collector and manifest with the approved capacity adjustment
+and unchanged selected assertions. A temporary external Node profiler wraps subprocess calls and exported
 reader/aggregation/report functions, recording elapsed monotonic time. No timing
 instrumentation is added to production source. Native build preparation is outside
 the collection measurement. Runs execute sequentially on the same machine.
+The profiler also records each subprocess's peak resident memory using macOS
+`time -l`; these are individual-process peaks, not total machine memory usage.
 
 Every run creates a fresh collection workspace. The current collector has no
 persistent plan cache, so both the empty-cache run and unchanged repeat generate
@@ -146,4 +150,23 @@ execution and raw recording, plus one-byte-over rejection and unchanged bytecode
 limits. JavaScript tests exercise the same inventory boundary, oversized
 containers and retained bounded metadata. Self-hosted tests cover size-diagnostic
 boundaries, missing compiler identity and decoding of valid larger containers.
-Full validation and complete workload measurements remain pending.
+Full local validation passed in 817 seconds, and both parity paths matched all
+388 source items. Native and JavaScript capacity boundaries passed.
+
+The first capacity-adjusted collection completed all 31 fresh sessions. The
+formerly failing module-binding inventory was 19,977,611 bytes; its plan took
+129.74 seconds and peaked at 1,104,052,224 resident bytes. Collection reached
+aggregation after 1,006.86 seconds: exporter compilation 29.08 seconds, plan
+generation 868.99 seconds and fresh execution 102.48 seconds. These remain
+diagnostic timings because report validation did not complete.
+
+Aggregation found that `stdlib/http_transport.panack`, already eligible in the
+unchanged manifest, was absent from all source closures. The scope fixture now
+imports that module explicitly. Replaying retained evidence with the repaired
+scope for diagnosis then exposed a stale declaration-exclusion hash. The old
+hash matches the published 15 October report (commit `061212655bf90cc9aca56003b46aac68255a288c`).
+The current list was checked against source: 235 imports, 134 records and 26 enums,
+with no executable functions or statements excluded. The policy records this
+review and refreshed identities; eligible/unmeasured scope and assertion selection
+are unchanged. Diagnostic replay is not a fresh baseline measurement. All four
+workloads must now run again with fresh sessions before target approval.

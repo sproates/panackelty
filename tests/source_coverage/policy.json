@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Package command diagnostics are explicitly unmeasured by the bounded source corpus.",
-    "basis": "Unit and public-command tests assert explanations, context and recovery, not source-execution coverage percentages.",
-    "scopeChange": "Add command_diagnostic.panack to the unmeasured inventory; retain eligible sources, exclusions and thresholds."
+    "reason": "Refresh declaration identities after the standard-library namespace migration and coverage capacity repair.",
+    "basis": "Compared with the published 15 October report: all 395 current exclusions identify imports (235), records (134) or enums (26) at their source locations. No executable functions or statements are excluded.",
+    "scopeChange": "Keep the existing manifest unchanged. Restore its http_transport inventory through the scope fixture; retain the existing unmeasured package diagnostics and informational coverage amounts."
   },
   "manifestHash": "47491a16bc0394de7f0c86c1dd20e95004865e5f461f86dfd70f7bcb3c09de95",
-  "exclusionHash": "773435167944b7750a18a232c06a2697356e8fb853efda5dfcf1a3acd8f10a7e"
+  "exclusionHash": "f8a977a2e8ea3e820e9b1486b33f029898231aa0df19e6e653b0a98c9a4e90b5"
 }

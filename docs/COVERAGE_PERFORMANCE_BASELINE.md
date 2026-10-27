@@ -1,7 +1,8 @@
 # Faster coverage: baseline and cache contract
 
 RM#154, alpha.15. Work started 27 October 2026. This is slice A, before cache
-implementation. Measurements and the numerical target remain pending; no speed
+implementation. The first repaired collection is blocked by the inventory-size
+limit. Complete measurements and the numerical target remain pending; no speed
 improvement or task completion is claimed.
 
 ## Delivery slices

@@ -135,8 +135,8 @@ This is agreed direction, not implementation progress; weights are unchanged.
   sessions and counters. Require cached/fresh equivalence, complete invalidation
   and corruption tests, and material measured repeat-run improvement. Medium,
   about three implementation PRs. Schedule, corpus and report-integrity policy
-  stay unchanged; GI#106: Validation speed remains separate. Profiling and
-  implementation have not started.
+  stay unchanged; GI#106: Validation speed remains separate. Slice A profiling has started, but complete measurements are blocked by the
+  inventory-size limit documented above. Cache implementation has not started.
 - **RM#155: Authoring friction:** [scope agreed, PR#626](https://github.com/sproates/panackelty/pull/626),
   merged into main after owner approval. Three improvements remain: diagnose unsupported interpolation
   with source location and a local-binding remedy, add tested examples for strings/

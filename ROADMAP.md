@@ -17,13 +17,42 @@ issue was created for this repair. Completion evidence is recorded in the PR.
 
 ## Next: alpha.15
 
+The owner-agreed [delivery order](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#agreed-alpha15-delivery-order--26-october-2026)
+is GI#409: Compiler/stdlib boundary assessment; GI#106: Validation speed;
+RM#154: Faster coverage; GI#180: Compiler understanding foundations;
+GI#435: Validated domain types; RM#155: Authoring friction; integrated acceptance.
+Compiler-understanding acceptance includes the new domain-type decisions.
+Implementation has not started; the next delivery is the GI#409 assessment.
+
 The [26 October clarification](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#alpha15-explanation-provenance-and-domain-type-clarification)
 requires complete function-checker explanations and comprehensive, truthful
-instruction/source attribution. GI#435's six-constraint semantic scope is now agreed in
+instruction/source attribution. The [GI#180: Compiler understanding completion
+scope](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#gi180-compiler-understanding-agreed-alpha15-completion-scope)
+now defines two checked inventories, five delivery slices and complete acceptance.
+Implementation remains unstarted. GI#435's six-constraint semantic scope is now agreed in
 [RM#153](docs/roadmap/records/language-direction-and-differentiation--exploration.md#rm-153).
 Explicit guard bindings, `validate[Type](input)` and ordered structured failures
-are agreed; remaining constraint syntax and concrete error schema need design;
+are agreed. Alpha.15 also permits multiline conditions and parenthesised `&&`
+expressions for the new constraints. Existing numeric `||` remains supported; its
+extension to the new families is scheduled for alpha.16. The [consolidated
+contract](docs/design/VALIDATED_DOMAIN_TYPES.md), approved in PR#616, defines syntax,
+error structures, Unicode rules, examples and delivery boundaries;
 its new proof decisions also require explanations.
+
+[GI#409: Compiler/stdlib boundary assessment](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-152)
+has an agreed dependency-map, five-case change-impact and recommendation deliverable.
+No refactor is included; the assessment has not started.
+
+[RM#154: Faster coverage](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154)
+has an agreed four-workload baseline, safely reusable plans and fresh-execution
+acceptance. Agree the measured target before cache implementation. Profiling
+and implementation remain unstarted.
+
+[RM#155: Authoring friction](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-155)
+has a fixed remaining list: diagnose unsupported interpolation, provide tested
+API examples, and explain public-signature type visibility. Inventory preflight
+and onboarding/interpolation guidance are already delivered on next. The three
+remaining improvements are agreed scope, not started implementation.
 
 GI#106's [bounded validation-speed milestone](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#alpha15-validation-speed)
 now has an agreed scope: five baseline workloads, at most three selected
@@ -51,10 +80,10 @@ through alpha.19 remain planned. See the
   were not included.
 - **alpha.15:** remaining foundation work: package-management implementation, compiler
   understanding, validated domain types, the compiler/stdlib assessment, faster
-  coverage, selected friction/performance work, and the GI#106 test-speed milestone.
+  coverage, selected friction improvements, and the GI#106 test-speed milestone.
 - **alpha.16:** build useful programs: typed service exchanges, file discovery,
-  subprocess examples, a tiny build tool, tested guides and GI#170 inference/diagnostics
-  assessment (deferred from alpha.15 by owner decision, 26 October).
+  subprocess examples, a tiny build tool, tested guides, GI#170: Inference assessment
+  and RM#157: Performance review.
 - **alpha.17:** everyday development: one editor, source-aware runtime errors and
   Homebrew installation.
 - **alpha.18:** interactive/connected applications: browser event handlers and

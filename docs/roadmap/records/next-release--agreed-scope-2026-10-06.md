@@ -23,26 +23,58 @@ Implementation and release publication remain separate decisions.
 | Release | General scope | Boundaries |
 | --- | --- | --- |
 | alpha.14: methods and HTTP | Released: GI#525 type-owned methods/dot notation, GI#518 routed HTTP framework, and the HTTP reference and runnable examples slice of [GI#552](https://github.com/sproates/panackelty/issues/552). | Release validation passed and native artifacts are published. [GI#555](https://github.com/sproates/panackelty/issues/555) coloured diagnostics was not included. The wider GI#552 standard-library reference remains separate. |
-| alpha.15: strengthen the foundations | Remaining compiler understanding GI#180 (GI#173 provenance and GI#134 explanations); GI#435 validated domain types; GI#409 compiler-facing stdlib assessment; full package-management implementation GI#200, arranged as P01–P04 under RM#44 and tracked as RM#158–RM#161; RM#154 faster coverage, RM#155 selected friction improvements, RM#157 performance review/quick wins; GI#106 validation-speed milestone. | All previously agreed bounded outcomes remain. Package-management implementation follows the [P01–P04 plan](dependency-management--idea.md#alpha15-implementation-plan); GI#200 stays open through final acceptance. Test-speed acceptance stays here rather than moving with the old alpha.15 theme. |
-| alpha.16: build useful programs | GI#170 inference/diagnostics assessment (moved from alpha.15 by owner decision, 26 October); GI#166 typed HTTP exchanges, GI#167 recursive file discovery, GI#168 subprocess examples, GI#169 tiny build tool, GI#138 tested guides coordinated with GI#310. | Prove installed success/failure workflows; no general RPC framework or production build system. Full GI#552 API-reference completion and GI#553 load profiling were only proposed for old alpha.15; their corresponding candidate slot is now alpha.16, not an automatic commitment. |
+| alpha.15: strengthen the foundations | Remaining compiler understanding GI#180 (GI#173 provenance and GI#134 explanations); GI#435 validated domain types with multiline, parenthesised conjunctions; GI#409 compiler-facing stdlib assessment; full package-management implementation GI#200, arranged as P01–P04 under RM#44 and tracked as RM#158–RM#161; RM#154 faster coverage, RM#155 selected friction improvements; GI#106 validation-speed milestone. | All previously agreed bounded outcomes remain. Package-management implementation follows the [P01–P04 plan](dependency-management--idea.md#alpha15-implementation-plan); GI#200 stays open through final acceptance. Test-speed acceptance stays here rather than moving with the old alpha.15 theme. |
+| alpha.16: build useful programs | GI#170 inference/diagnostics assessment; GI#166 typed HTTP exchanges, GI#167 recursive file discovery, GI#168 subprocess examples, GI#169 tiny build tool, GI#138 tested guides coordinated with GI#310; RM#157 performance review and bounded quick wins; GI#435 alternatives (`&#124;&#124;`) for the new string, collection and record-relationship guards, including proof rules and diagnostics; existing numeric alternatives are preserved. | Prove installed success/failure workflows; no general RPC framework or production build system. Full GI#552 API-reference completion and GI#553 load profiling were only proposed for old alpha.15; their corresponding candidate slot is now alpha.16, not an automatic commitment. |
 | alpha.17: improve everyday development | GI#139 one-editor support, GI#136 source-aware runtime errors, GI#147 Homebrew installation. | No full language server/debugger commitment. GI#555's proposed fallback slot moves here if not selected for alpha.14. |
 | alpha.18: interactive and connected applications | GI#165 browser event handlers; GI#142 bounded service/library contract testing. | Contract design follows concrete use cases; no general DOM/UI framework. Docker toolchain images (GI#146) and Linux ARM64 releases (GI#145) remain optional. |
 | alpha.19: improve language ergonomics | GI#274 error propagation and further GI#435 guard families, subject to design/evidence. | Beyond alpha.15's strings, collection sizes and cross-field records. Targeted inference and remaining stdlib discoverability may support the release; they are not automatic gates. |
 
-### Release deferral decision, 26 October 2026
+### Inference assessment allocation, 26 October 2026
 
-GI#170's inference/diagnostics assessment moves from alpha.15 to **alpha.16**.
-The owner wants the work but has deferred it because alpha.15 is already large
-and its remaining commitments need clearer definition. This is an explicit
-alpha.16 selection, not a return to the unscheduled backlog. Its assessment
-boundary is unchanged; no inference implementation or architecture is selected.
-GI#134's complete explanations of existing inference decisions remain in alpha.15.
-No other release item moves through this decision.
+GI#170: Inference assessment is selected for **alpha.16**. Its bounded assessment
+scope and acceptance criteria are unchanged; no inference architecture or
+implementation is selected. GI#134's complete explanations of existing inference
+decisions remain in alpha.15. This allocation changes no other release item.
+The [release deferral rule](../ROADMAP_PROCESS.md#release-deferrals) requires an
+explicit following-release allocation rather than returning deferred work to an
+unscheduled backlog.
 
-For future release deferrals, move the item to the immediately following release
-unless the owner explicitly chooses another destination. Update the source and
-destination allocations, issue and current release summary together. Do not
-silently unschedule the item or cascade other release commitments.
+### Agreed alpha.15 delivery order — 26 October 2026
+
+The owner has agreed the following order within the existing scope boundaries.
+This fixes delivery sequencing; it starts no implementation, changes no acceptance
+criteria and earns no additional completion credit. GI#200: Packages remains
+accepted on next, subject to release integration and publication checks.
+
+| Order | Work | Purpose and handoff |
+| --- | --- | --- |
+| 1 | GI#409: Compiler/stdlib boundary assessment | Complete the dependency map, five change cases and recommendation. Inform subsequent build/validation decisions; no refactor is authorised. |
+| 2 | GI#106: Validation speed | Measure the agreed baseline, agree targets and the bounded improvement selection, then deliver and obtain owner acceptance. Faster trustworthy checks benefit later work. |
+| 3 | RM#154: Faster coverage | Measure and agree the target, implement validated plan reuse with fresh executions, and complete its acceptance. Later compiler changes must exercise the invalidation rules. |
+| 4 | GI#180: Compiler understanding — foundations | Complete the two inventories and establish missing checker evidence, explanation and instruction/source-attribution mechanisms. Keep final completeness acceptance open for the new domain-type decisions. |
+| 5 | GI#435: Validated domain types | Deliver the approved contract using those mechanisms. Include explanations and provenance as new checking/proof decisions are introduced; do not add them as a later retrofit. |
+| 6 | RM#155: Authoring friction | Deliver the three agreed remaining improvements against the resulting compiler and reconcile their evidence. Its independent documentation work may happen earlier. |
+| 7 | Integrated acceptance | Finish GI#180 completeness, verify the combined features and complete release acceptance, including package/install checks. This is acceptance within existing scopes, not another independently weighted feature. |
+
+The first three steps are a practical delivery order, not newly invented hard
+technical prerequisites. In particular, a substantial obstacle in RM#154: Faster
+coverage need not block feature work: report the evidence and make any sequencing
+adjustment explicit. Do not silently change release scope or substitute alpha.16
+native coupling or RM#157: Performance review for these bounded tasks.
+
+The integration dependency is between GI#180: Compiler understanding and GI#435:
+Validated domain types. The mechanisms precede the new feature, and final
+understanding acceptance includes all new checking/proof decisions and source
+attribution. Existing GI#180 delivery slices remain the implementation structure;
+the foundations/final-acceptance split does not replace their requirements or
+count their work twice. Every delivery includes its own tests and required
+validation; the final acceptance step does not defer those checks.
+
+Next delivery: GI#409: Compiler/stdlib boundary assessment. Its agreed scope is
+small to medium, provisionally one to two assessment PRs. No assessment starts
+with this planning record. The other existing estimates and release weights are
+unchanged. This documentation-only sequencing decision has no runtime/performance
+impact and changes no website capability or release claims.
 
 ### Alpha.14 finishing scope
 
@@ -298,8 +330,9 @@ claim that current implementations already meet them, and starts no implementati
   and ordered same-record numeric field relationships. Static proof, explicit
   runtime validation, invariant preservation and deterministic failure reporting
   are included. Explicit guard bindings, the `validate[Type](input)` result contract and failure
-  ordering are now also agreed in RM#153. Remaining constraint syntax, error schema,
-  Unicode version and examples need design before implementation.
+  ordering are now also agreed in RM#153. The [approved consolidated contract](../../design/VALIDATED_DOMAIN_TYPES.md)
+  fixes the remaining APIs, error schema, Unicode version and acceptance examples
+  following owner approval of PR#616. Implementation remains unstarted.
 - New GI#435 proof decisions shipped in alpha.15 must also have GI#134 explanations.
   Define that integration once, without counting its delivery twice. Agree example
   transcripts before implementing output, including failure and unavailable cases.
@@ -309,9 +342,111 @@ claim that current implementations already meet them, and starts no implementati
 
 Runtime value tracing, change-impact prediction and automatically deriving fixes
 remain outside the selected GI#180 alpha.15 workstreams. A debugger, interactive
-compiler visualiser and stable public compiler-IR API are not selected. Detailed
-inventories, acceptance examples and effort estimates remain planning work; if
-scope is too large, seek an explicit release decision rather than redefine complete.
+compiler visualiser and stable public compiler-IR API are not selected. The agreed completion scope below defines inventories, acceptance and delivery
+boundaries. Reconcile the detailed inventories before implementation; if scope
+is too large, seek an explicit release decision rather than redefine complete.
+
+### GI#180: Compiler understanding, agreed alpha.15 completion scope
+
+Owner agreement, 26 October 2026: finish the two selected workstreams below.
+This is completion of existing facilities, not a new compiler subsystem or a
+restart of the wider programme. Existing accepted deliveries remain accepted.
+This decision authorises scope definition, not implementation.
+
+**GI#134: Compiler explanations.** Explain every relevant type, effect and proof
+decision made while checking a function. State the requirement, the actual
+outcome, the types/constraints/facts used, their source locations and why those
+facts justify the result. If checking cannot reach a decision, name the missing
+information or earlier error. A decision the checker made but Explain omitted
+is an implementation gap, never an acceptable unavailable result. Reporting
+that the checker accepted or rejected something is insufficient without the
+supporting reason.
+
+**GI#173: Compilation provenance.** Connect source constructs through actual
+checking and transformation to emitted bytecode in both directions. Every
+instruction identifies its responsible source construct, or a genuine
+compiler-generated origin with a reason. Source queries explain multiple or
+shared instructions and constructs with no executable output. Imports, generic
+bodies, method calls and generated branch/loop machinery retain accurate
+identities. A stale or mismatched artifact produces an explicit validation
+failure rather than plausible attribution. Mapping alone is not a complete
+explanation of the compilation journey.
+
+#### Existing evidence and finite inventories
+
+Inspection of `next` at `8a5cc01` confirms substantial explanation coverage and
+the validated source-map foundation. The explanation guide already lists eleven
+checker-decision families; use it as the starting inventory, not eleven complete
+tasks or a complete count of missing decisions. Generic inference reasoning and
+some host-operation argument checks still lack complete retained evidence.
+Some renderers give a generic rejection/deferral reason despite more specific
+checker facts. The current source-map model is sparse and permits missing
+instruction entries, including stores, loop mechanics and implicit returns.
+These are observed gaps, not a completed audit or new implementation results.
+
+Maintain two checked inventories:
+
+- **Checker decisions:** reconcile every relevant active function-checking
+  decision site with its retained evidence, human-readable output, source
+  attribution and tests. Include generic inference/substitution, calls and
+  builtins, operators, locals/results, joins, patterns, effects and proofs.
+- **Emission and transformations:** reconcile emission paths and transformation
+  cases with instruction origins, reverse mappings, explanations and tests.
+  Include paths producing no instruction, multiple instructions or shared code.
+
+Each entry identifies the source site, reachable accepted/rejected/unavailable
+outcomes, output and regression evidence. Mark gaps explicitly. Tests must detect
+missing evidence or mappings, not only compare the entries that happen to exist.
+Adding an alpha.15 language decision updates its inventory and evidence in the
+same delivery. New **GI#435: Validated domain types** decisions are included;
+count their integration once across the two workstreams.
+
+Completeness means no unexplained inventory gaps, not a collection of successful
+demonstrations. A genuinely unreachable outcome needs a reason, not a fabricated
+test or invented explanation. Inventory reconciliation precedes implementation
+slicing; it does not permit silently narrowing the agreed completeness target.
+
+#### Delivery and acceptance
+
+| Slice | Required result |
+| --- | --- |
+| 1. Complete checker evidence | Retain missing decisions and their actual supporting facts. |
+| 2. Complete explanations | Explain reasons, inference chains and specific unavailable states. Agree representative complete transcripts before changing rendered output. |
+| 3. Complete instruction attribution | Every emitted instruction has a truthful origin; preserve validated artifact/source identity. |
+| 4. Connect the compilation journey | Source-to-instruction queries explain transformations, shared mappings and constructs producing no instructions. |
+| 5. Acceptance and documentation | Realistic examples, complete regression evidence, installed-tool checks and comparable cost measurements. |
+
+Each slice includes its own tests and applicable canonical validation. The final
+slice is integration acceptance, not permission to defer tests until the end.
+The work is provisionally large, approximately five to seven implementation PRs,
+including tests, documentation and integration; reconcile inventories before
+turning that range into a committed packet count.
+
+Acceptance covers accepted and rejected programs, partial checking after errors,
+imported/generic code, method calls, control flow, callbacks, mutation-invalidated
+facts and the new domain constraints. Use small boundary fixtures and realistic
+multi-module/maintained programs. Compare explanations with actual checker
+outcomes and provenance with emitted instructions, including deliberate missing
+mapping/evidence regressions. Do not accept plausible prose as proof of coverage.
+
+Evidence retention must preserve ordinary checking outcomes and executable
+behaviour, including bootstrap determinism. Reuse the current opt-in evidence and
+validated-sidecar mechanisms; do not make runtime execution depend on a sidecar.
+Any required metadata format change needs explicit versioning and compatibility
+coverage, not an unannounced executable-bytecode or public IR contract change.
+Measure compilation time, query time, memory and metadata size with collection
+enabled and disabled, recording workload, revisions and platform. Report material
+regressions with their disposition; no new arbitrary timing target is selected.
+
+Runtime value tracing, new inference capabilities, change prediction, automatic
+fixes, a debugger/visualiser and a stable public compiler-internals API remain
+outside this alpha.15 scope. Explanations of existing inference are included;
+**GI#170: Inference assessment** does not become a dependency for that work.
+
+Scope recording itself changes no runtime/performance behaviour. The website's
+broad planned compiler-understanding claim remains accurate; no immediate website
+edit is needed. Detailed examples and capability claims follow verified delivery
+and the release/website publication process.
 
 ### Compiler understanding and correctness: now alpha.15
 
@@ -367,82 +502,218 @@ attention to HTTP server performance and source coverage instrumentation time.
 **RM#152: Assess the compiler-facing standard-library boundary** ·
 [GI#409: Assess the compiler-facing standard-library boundary](https://github.com/sproates/panackelty/issues/409).
 
-For Alpha.15, document the compiler's direct and transitive standard-library
-dependencies and distinguish source dependencies, compiler-seed/bootstrap
-rebuilds, VM/runtime ABI coupling, and package versioning. Recommend whether an
-explicit compiler-facing library boundary would help app-facing standard-library
-work proceed independently. This is an assessment: any implementation or
-reorganization requires a later scope decision based on the findings.
+Owner agreement, 26 October 2026: the alpha.15 outcome is an evidence-backed
+assessment and recommendation, not a refactor. Establish which library changes
+genuinely require rebuilding the compiler and which rebuilds result from source
+organisation or broad build rules. Distinguish that question from needing to
+edit the compiler/VM interface when adding a native host capability.
+
+The assessment has three deliverables:
+
+1. **Dependency map.** Account for the compiler's direct, transitive and implicit
+   standard-library dependencies. Distinguish Panack source dependencies,
+   compiler-seed/bootstrap requirements, native interfaces and release/version
+   coupling. Identify dependency paths and why the compiler consumes them;
+   an import list alone is insufficient.
+2. **Change-impact table.** Cover each of the five cases below. Identify what
+   currently rebuilds, why, what must rebuild for correctness and what validation
+   remains necessary. Support conclusions with source/build-rule evidence and
+   small reproducible probes, recording the revision and commands. Separate
+   observed behaviour from inferred necessity; do not treat a broad validation
+   run as proof that every component needs rebuilding.
+3. **Recommendation.** Compare retaining the current arrangement, tightening
+   dependency/build rules and introducing an explicit compiler-support library
+   boundary. Explain benefits, costs, bootstrap implications and concrete
+   follow-up work. Recommend the smallest justified next step; moving modules
+   or adding an abstraction layer is not a predetermined outcome.
+
+| Change case | Question the evidence must answer |
+| --- | --- |
+| Application-facing library code the compiler does not use | Does this rebuild the compiler despite having no source dependency, and which rule causes it? |
+| A library helper used by the compiler | Which dependency path requires rebuilding, and which artifacts are affected? |
+| An implicit core type or method | Which compiler, bootstrap and runtime contracts depend on it? |
+| A new host capability, such as a filesystem or process operation | Which source dependencies and native/compiler interfaces change, and why? |
+| Packaging or version metadata without changed behaviour | Which rebuilds arise from artifact identity or release policy rather than changed compiler behaviour? |
+
+**Completion:** all five cases are accounted for, the dependency map covers the
+compiler's complete library closure, and the recommendation identifies the
+smallest justified next step with supporting evidence. A recommendation to make
+no organisational change is valid if supported. Unverified dependencies or
+unexplained rebuilds must remain visible and prevent claiming the assessment
+complete. Small probes are evidence gathering, not production refactoring.
+
+Keep **GI#106: Validation speed** separate: that task delivers faster developer
+feedback. The alpha.16 native-coupling work may change the architecture; this
+assessment can inform it but does not implement it. Do not add compiler, VM,
+standard-library or packaging redesign, separate compilation, or independent
+component releases to alpha.15 through this assessment.
+
+Effort is provisionally small to medium, approximately one to two assessment PRs
+including evidence and documentation. Scope agreement does not start the
+assessment or claim findings. This planning update has no runtime/performance
+impact. The website already describes a library-boundary assessment in alpha.15;
+that remains accurate and needs no immediate edit.
 
 
 <a id="rm-154"></a>
 
 **RM#154: Incremental coverage collection: alpha.15 requirement.**
 
-Current allocation: alpha.15 after the 20 October rebalance.
+Owner agreement, 26 October 2026: deliver faster repeat source-coverage collection
+by safely reusing generated coverage plans while running every required test
+afresh. This is working optimisation scope, not merely a measurement report.
+Scope recording starts neither profiling nor implementation.
 
-**Planned for Alpha.14 by owner direction, 2026-10-15.** Improve code-coverage
-collection speed, particularly repeated release checks after changes that do not
-alter the measured program. During Alpha.13 preparation, reporting-only repairs
-repeated expensive plan generation. Successful source-coverage
-[Check 38775373415](https://github.com/sproates/panackelty/actions/runs/38775373415)
-took 29m48s for 31 fresh sessions and 45 measured files. This is an observed hosted
-baseline, not a fixed performance target. Profile generation, execution,
-aggregation and publication separately before selecting further optimisations.
+Inspection of `scripts/source_coverage_baseline.cjs` on `next` confirms that the
+collector reuses plans within one run but creates a new temporary workspace and
+regenerates them in a subsequent run. Persistent reuse is the bounded first
+implementation direction. The historical 29m48s run for 31 sessions and 45 files
+([Check 38775373415](https://github.com/sproates/panackelty/actions/runs/38775373415))
+is context, not a current baseline or fixed target.
 
-The first implementation direction is incremental reuse of generated coverage
-plans, keyed by exact compiler/exporter and VM identities, transitive source
-inputs, format/schema and relevant settings. Validate cached plans and provenance
-before use; missing, corrupt, partial, untrusted or invalidated entries must
-rebuild safely. Keep every required test execution fresh. Reusing execution
-results is a separate design decision and is not selected by this requirement.
+#### Workloads and target checkpoint
 
-Acceptance must demonstrate materially faster repeated collection with comparable
-cold/warm measurements, explain cache hits and invalidations, and cover changes
-to compiler, VM, exporter, dependencies and settings. Cached and freshly generated
-plans must produce equivalent inventories and coverage semantics. Preserve the
-full measured corpus, assertions, fresh session identities, explicit unmeasured
-and unavailable results, source provenance and release freshness checks. Raising
-timeouts alone does not satisfy the speed outcome; do not reduce test scope or
-weaken validation to meet it. Set a concrete improvement target from the profiling
-evidence during implementation planning rather than inventing a number now.
+Measure four workloads against the same declared corpus and comparable toolchain,
+platform and settings:
 
-This is a bounded follow-up to [RM#28: Incremental and modular builds](independent-website-publishing.md#rm-28) /
-[GI#106](https://github.com/sproates/panackelty/issues/106); the owner's accepted
-Alpha.13 workflow remains accepted. Initial effort is medium, provisional on cache
-trust and invalidation requirements. Implementation is not started by this roadmap
-addition, and it does not add a new gate to the ongoing Alpha.13 release.
+1. Empty plan cache: full cold generation and fresh execution.
+2. Unchanged repeat: matching inputs with reusable plans and fresh execution.
+3. Reporting-only change: unchanged measured programs, with fresh execution and
+   regenerated reporting/publication output.
+4. Measured-source or dependency change: affected plans invalidate; demonstrate
+   reuse only where dependencies and identities still justify it.
+
+Separate plan generation, test execution, aggregation and publication costs.
+Record revisions, cache state, input sizes, repetitions and variation, with both
+stage timings and end-to-end results. Measure local and hosted collection where
+persistent reuse is intended to operate. Do not compare a reduced corpus with the
+old full corpus and call it a speed improvement.
+
+After profiling, bring a concrete numerical improvement target for owner agreement
+before proceeding beyond the baseline into cache implementation. Preserve cold-run
+costs and unchanged/slower workloads in the report. If plan generation is not a
+material cost, return with that evidence and a scope decision rather than building
+a cache and claiming success from cache-hit counts alone.
+
+#### Reuse and fresh execution
+
+A reusable plan must match the exact compiler, VM and exporter identities,
+transitive measured-source inputs, plan format/schema and relevant settings.
+Specify the key, stored files, provenance validation and trusted cache sources
+before implementation. A matching key alone does not establish valid contents.
+Missing, corrupt, partial, untrusted or invalidated entries safely regenerate;
+no stale plan may be executed. Log why each plan is reused or rebuilt. Changes to
+reporting alone must not invalidate plans unless they alter a genuine plan input.
+
+Execute every required test and its assertions afresh. Create new session
+identities, execution counters and reports; never cache passing results, prior
+sessions or execution counters. Preserve source/toolchain identity checks and
+changes-during-collection detection. Reports identify the current collection and
+revision even when preparation was reused from compatible earlier inputs.
+
+#### Acceptance and boundaries
+
+- Demonstrate materially faster repeat collection against the agreed target,
+  with replayable before/after measurements for all four workloads.
+- Verify cached/fresh plan identity and equivalent inventories, probe definitions,
+  attribution and coverage semantics. For deterministic acceptance fixtures,
+  compare resulting reports allowing only explicitly listed per-run differences,
+  such as timestamps and session IDs. Do not mask differences in required test
+  execution, assertions, measured scope or provenance.
+- Test invalidation for compiler, VM, exporter, direct/transitive sources,
+  format/schema and settings. Test missing, corrupt, incomplete and untrusted
+  cache entries and recovery. Retain evidence that assertion failures still fail
+  a warm collection and that stale or duplicate sessions are rejected.
+- Preserve the complete selected corpus, explicit unmeasured/unavailable entries,
+  policy checks and source provenance. No higher timeout or weaker test assertion
+  can establish completion.
+
+The weekly/manual collection schedule remains unchanged. Coverage report freshness
+and percentages are informational under the existing release policy, not new
+release gates. Preserve existing integrity requirements without reinstating a
+coverage freshness gate from historical wording.
+
+Do not expand the measured corpus, cache execution results, rewrite the coverage
+system or weaken validation. **GI#106: Validation speed** remains the separate
+developer-feedback task; do not count this implementation there as well. The
+coverage publisher continues to receive static reports rather than executable
+plans; core collection owns plan generation and reuse.
+
+Effort is provisionally medium, approximately three implementation PRs: baseline
+and cache contract; reuse implementation with correctness tests; hosted acceptance
+and documentation. Each delivery includes its applicable tests; the final PR is
+integration evidence, not deferred correctness testing. Completion requires the
+implemented improvement and acceptance evidence, not scope approval alone.
+
+This planning change has no runtime/performance impact. The future optimisation
+must quantify collection cost and preserve coverage integrity. The website's
+existing broad faster-coverage plan remains accurate; no immediate website edit
+is required. There is no dedicated issue for this scoped record; RM#154 remains
+the task identifier.
 
 
 <a id="rm-155"></a>
 
-**RM#155: Review the friction log and implement selected improvements: alpha.15.**
+**RM#155: Authoring friction: alpha.15.**
 
-Current allocation: alpha.15 after the 20 October rebalance.
+**Completion scope agreed by the owner, 26 October 2026.** The selected list is
+fixed. Distinguish intended behaviour that needs better explanation from a
+behaviour change; reproduce each remaining case before implementing its remedy.
 
-**Planned by owner direction, 2026-10-15; clarified 2026-10-16.** Review the
-recorded authoring-friction log, identify concrete improvements, and select a
-bounded, prioritised set to implement during Alpha.14. Candidate improvements may
-address language/compiler behaviour, diagnostics, API discoverability,
-documentation, examples or development tooling. Distinguish confirmed defects
-from confusing intended behaviour and unverified suggestions; reproduce each
-selected case before choosing its remedy.
+Already delivered on next:
 
-Acceptance requires an explicit list of selected items and their intended
-outcomes, a demonstrated before/after improvement for each, appropriate regression
-tests for behaviour changes, and updated guidance where discovery or explanation
-is the problem. Record resolved, deferred and still-unverified cases with evidence.
-Coordinate overlapping work with [RM#64: Inference and diagnostics](language-direction-and-differentiation--exploration.md#rm-64),
-[RM#48: Compiler explanations](groomed-development-and-engineering-work.md#rm-48) and [RM#154: Incremental coverage
-collection](#rm-154) rather than counting the same delivery twice.
+- [PR#545: Example-inventory preflight](https://github.com/sproates/panackelty/pull/545)
+  detects inventory drift before expensive validation.
+- [PR#565: Contributor and interpolation guidance](https://github.com/sproates/panackelty/pull/565)
+  links existing onboarding guides and explains binding an expression to a local
+  name before interpolation. This remains completed work, not a new deliverable.
 
-The release commitment is to review the log, identify concrete improvements,
-and implement the selected prioritised items; it is not to implement every logged
-suggestion. Confirm the selected items and estimate their combined effort during
-Alpha.14 planning; scope and effort remain provisional until that review. Preserve
-existing correctness and compatibility contracts,
-and document any deliberately selected changes. This roadmap addition starts no
-implementation and adds no gate to the ongoing Alpha.13 release.
+Three remaining improvements:
+
+1. **Diagnose unsupported interpolation.** Unsupported expressions such as
+   `${package.name}` must produce a source-located, actionable compiler error
+   instead of silently appearing unchanged in output. Explain how to bind the
+   expression to a local name first. Preserve supported local-name interpolation;
+   full expression interpolation is outside scope. This is a deliberate
+   compatibility change for programs relying on literal unsupported forms:
+   document and test how to write literal `${…}` text deliberately, and migrate
+   affected maintained examples. Do not imply that currently unsupported escapes
+   already provide that mechanism or expand this into a string-syntax redesign.
+2. **Provide a bounded set of tested API examples.** Cover strings and bytes,
+   collection access, reporting test results, and filesystem/process failure
+   handling. Show the actual API names and relevant limitations. Link the examples
+   from existing guides and reuse the authoritative reference rather than adding
+   a competing API manual. These four groups are the selected documentation scope.
+3. **Explain public-signature type visibility.** Provide a worked example showing
+   why a privately imported type cannot appear in a public function signature and
+   how `pub import` makes the exposed type accessible. Check the rejected and
+   corrected examples. Preserve the existing visibility rules; this item requires
+   guidance, not a change to type accessibility.
+
+Acceptance requires a reproducible before/after example for each remaining
+improvement, regression tests for changed compiler behaviour, and checked
+executable documentation examples. Verify useful diagnostics, continued supported
+interpolation and deliberate literal text. Reconcile the recorded findings with
+this selected list and its evidence; distinguish resolved, unselected and
+unverified observations. New observations do not automatically expand alpha.15.
+An actual deferral of selected work requires an explicit following-release
+allocation rather than silently dropping it into the backlog.
+
+Keep GI#134: Compiler explanations, GI#170: Inference assessment, RM#154: Faster
+coverage and GI#106: Validation speed separately accounted for. Native coupling
+and a comprehensive API-reference project are outside this selected list. Do not
+count the same delivery twice or treat authoring mistakes as compiler defects.
+
+The remaining work is provisionally medium, about three implementation PRs:
+interpolation diagnostics and compatibility; API examples; visibility guidance
+and final evidence reconciliation. Each slice includes its own relevant tests.
+No additional implementation starts with this scope record. No dedicated GitHub
+issue was found for this roadmap item; none is created solely for bookkeeping.
+
+This scope-only update has no runtime or performance impact. Implementation must
+record proportionate performance evidence for compiler changes. Existing broad
+website claims remain accurate; no immediate website change is needed. Publish
+changed syntax guidance with the corresponding verified implementation/release.
 
 <a id="rm-156"></a>
 
@@ -484,9 +755,12 @@ guessing; update GI#518 before proceeding.
 
 <a id="rm-157"></a>
 
-**RM#157: Performance: alpha.15.**
+**RM#157: Performance review: alpha.16.**
 
-Current allocation: alpha.15 after the 20 October rebalance.
+Current allocation: **alpha.16**, by owner decision on 26 October 2026. This is
+an explicit next-release commitment, not an unscheduled backlog item. The review
+and bounded improvement scope remains; detailed workloads, targets and selected
+improvements still need agreement. No review or implementation has started.
 
 **Selected by owner direction, 2026-10-16.** Review Panackelty holistically to
 identify material performance problems, areas that need closer investigation, and
@@ -505,7 +779,7 @@ collection](#rm-154) so its validated plan-caching work is not duplicated or
 counted twice.
 
 Prioritise concrete findings. Implement a bounded set of safe, evidence-backed
-quick wins during Alpha.14 where they fit the release; record larger or
+quick wins during alpha.16 where they fit the release; record larger or
 uncertain opportunities with evidence and a recommendation for later selection.
 Preserve correctness, fresh required test execution and existing validation
 coverage. This review does not set a universal performance target or commit to
@@ -514,6 +788,10 @@ and any larger implementation scope during planning, after the initial evidence
 is available. Coordinate baseline work with [RM#56: Performance baselines](current-status-and-grooming-2026-10-01.md#rm-56)
 and ongoing policy under [RM#123: Standing performance engineering](standing-performance-engineering--ongoing.md#rm-123).
 
+
+Website: the release descriptions make no alpha.15 performance-review commitment;
+the broad foundation and useful-program themes remain accurate, so no immediate
+website edit is required. This allocation change has no runtime or performance impact.
 
 ### Else-if chains
 

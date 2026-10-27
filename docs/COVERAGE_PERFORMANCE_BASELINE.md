@@ -1,6 +1,6 @@
 # Faster coverage: baseline and cache contract
 
-RM#154, alpha.15. Work started 27 October 2026. Slice A is complete; slice B implementation started after owner target approval. The capacity and stale coverage metadata repairs pass validation.
+RM#154, alpha.15. Work started 27 October 2026. Slice A is complete; slice B local reuse is implemented and verified in PR#644. The capacity and stale coverage metadata repairs pass validation.
 All four baseline workloads completed successfully on 27 October 2026. The owner agreed the numerical target below on 27 October 2026; no speed improvement
 or overall task completion is claimed.
 
@@ -51,7 +51,7 @@ measurement. Reporting-only changes alter an output caption; the dependency
 workload appends a comment to `src/stdlib/bytes.panack`, changing source identity
 without changing executable behavior. Temporary edits are restored after each run.
 The comment-only case does not establish behavior-changing dependency acceptance;
-slice B must also test such changes and the resulting invalidation.
+the slice B fixture below separately tests such changes and invalidation.
 
 The local environment is macOS/Darwin 25.5.0, arm64, 18 logical CPUs, Node 26.0.0.
 Existing unrelated untracked files require `--allow-dirty`; all local reports are
@@ -205,7 +205,7 @@ inventory identities also match. The dependency case changes only the measured
 `src/stdlib/bytes.panack` source hash and 13 session inventory identities; all
 artifact bytes, coverage states and metrics remain equivalent. Lexer counters
 change because the compiler processes the additional comment, as expected.
-Behavior-changing dependency invalidation remains a slice B acceptance case.
+Behavior-changing dependency invalidation is tested separately by the slice B fixture below.
 
 Plan generation alone accounts for roughly 86% of collection time. Even with
 reuse, approximately 95–99 seconds of fresh execution must remain, plus validated
@@ -228,7 +228,7 @@ saving comes from reusing validated preparation, not test results or counters.
 
 ## Slice B: local authenticated plan reuse
 
-Implementation is in progress. The collector caches preparation by default in
+PR#644 delivers local preparation reuse. The collector caches preparation by default in
 `build/source-plan-cache`; `--no-plan-cache` selects uncached measurement and
 `--plan-cache PATH` selects a different local payload directory. Exporter compilation
 is lazy: a run with only valid hits does not need to compile the exporter.
@@ -267,3 +267,53 @@ Cache entries are disposable and remain until removed; `make clean` removes the
 default payload and trust directories. An explicitly selected payload directory
 is caller-managed. This slice changes coverage tooling only, not compiler or VM
 interfaces, the selected corpus, or coverage attribution semantics.
+
+### Slice B verification, 27 October 2026
+
+PR#644 implements local reuse. Full `make check` passed in 819 seconds. The
+changed `make source-coverage-report-tests` target passed, including both 388-item
+parity paths and the real dependency fixture. All 55 focused cache, reader,
+manifest, policy, routing and release-gate tests passed. Hosted Linux/macOS checks
+also passed for the implementation commit.
+
+Full-corpus local evidence at `f3e992b2d73cc4784cf0f0503c5f3936dc745b12`:
+
+| Workload | Seconds | Cache hits / regenerated plans | Collector peak RSS (MiB) | Largest subprocess peak RSS (MiB) |
+| --- | ---: | ---: | ---: | ---: |
+| Cold population | 971.80 | 0 / 29 | 947.63 | 1040.44 |
+| Unchanged repeat 1 | 108.48 | 29 / 0 | 1132.69 | 333.11 |
+| Unchanged repeat 2 | 110.36 | 29 / 0 | 1126.33 | 330.66 |
+| Unchanged repeat 3 | 107.56 | 29 / 0 | 1128.55 | 330.92 |
+| Reporting-only change | 107.84 | 29 / 0 | 1134.05 | 333.28 |
+
+All five collectors completed and passed integrity checks. Every run executed
+31 sessions; all 155 nonces are distinct. Files' source hashes, line/function/
+branch states, counters, exclusions and metrics match exactly across these runs,
+as do all artifact and inventory identities. The compiler, VM and measured
+source identities match the earlier uncached baseline. Temporary presentation
+edits were restored after measurement.
+
+The three-repeat median is 108.48 seconds, 88.45% below the earlier unchanged
+939.13-second sample. The reporting-only sample is 88.75% below its earlier
+958.23-second sample. The cold sample is 1.71% above the earlier 955.43-second
+cold sample. Hits perform no exporter compilation or plan generation; roughly
+99–102 seconds of fresh execution remain, and plan validation takes about two
+seconds. These are strong local results, not the full matched-median acceptance
+specified for slice C: the earlier uncached cases have only one sample each,
+and cold/dependency/reporting acceptance still needs matched repeats.
+
+The profiler now records the collector's own peak RSS as well as subprocess
+peaks. Cached runs retain decoded plans and verification/copy buffers in Node;
+the measured collector peak is about 1.10 GiB, versus 0.93 GiB in the new cold
+sample. Subprocess peaks fall because native plan generation is absent. These
+are separate process peaks, not simultaneous total memory, and the earlier
+baseline did not measure collector RSS. No overall memory improvement or
+regression against the old collector can therefore be established from these
+numbers. Slice C owns the matched memory comparison alongside timing acceptance;
+retain current file/count bounds and explicitly assess any material increase.
+
+Slice B's local implementation is verified. Slice C remains: trusted hosted
+persistence, three matched samples per comparison case across all four workloads,
+cache invalidation/recovery replay, hosted provenance/publication evidence and
+final operating acceptance. No release-completion credit or hosted speed claim
+is assigned from these local measurements alone.

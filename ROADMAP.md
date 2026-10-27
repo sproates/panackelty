@@ -11,11 +11,12 @@ The [assessment](docs/COMPILER_STDLIB_BOUNDARY_ASSESSMENT.md) verifies the full
 package-tool prerequisites were considered in GI#106 and remain unselected. Native coupling
 stays in alpha.16. No refactor is delivered.
 
-GI#106: Validation speed implementation is merged into next in PR#637.
+GI#106: Validation speed — alpha.15 milestone done. The owner accepted the
+implementation and replay on 27 October 2026; implementation is merged in PR#637.
 [Acceptance evidence](docs/VALIDATION_SPEED_ACCEPTANCE.md) meets the agreed targets:
 clean full validation is 16.1% faster, compiler-edit checks 20.05% faster, and
 hosted initial compiler checks 24.9%/36.8% faster. Regression guards passed,
-including the ordinary four-worker setting. Final owner acceptance remains open;
+including the ordinary four-worker setting. The bounded alpha.15 milestone is accepted;
 the wider GI#106 issue is not closed. No tests or validation cadence were removed.
 
 For the current release summary, read [Next release status](docs/NEXT_RELEASE_STATUS.md).

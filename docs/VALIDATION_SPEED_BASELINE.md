@@ -2,9 +2,9 @@
 
 Measured 27 October 2026. **Owner approved the selection and targets on 27 October 2026. Implementation
 is merged in PR#637; [replay evidence](VALIDATION_SPEED_ACCEPTANCE.md) meets the
-measured targets. Final owner acceptance remains outstanding.**
-GI#106 remains open through implementation, comparable replay and explicit owner
-acceptance. This is the bounded alpha.15 milestone, not the wider issue backlog.
+measured targets. The owner accepted the alpha.15 milestone on 27 October 2026.**
+The bounded alpha.15 milestone is complete. The wider GI#106 issue remains open
+for concerns outside that accepted scope.
 
 ## Five local workloads
 
@@ -219,5 +219,6 @@ rewrite or weaken tests to make the figures pass.
 Baseline PR#636 recorded measurements and a proposal only, with no product, test,
 workflow, cache or timeout behavior changes. Public specifications, architecture and
 installation instructions remain accurate. There is no website claim or release
-behavior to update. GI#106 is not complete and alpha.15's earned scope does not
-increase. The next action is final owner acceptance of the implemented and measured milestone.
+behavior to update. The baseline report alone did not earn additional completion
+credit. Subsequent implementation, replay and owner acceptance are recorded in the
+[acceptance report](VALIDATION_SPEED_ACCEPTANCE.md); the alpha.15 milestone is complete.

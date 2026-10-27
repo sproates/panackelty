@@ -4,7 +4,7 @@
 following [the baseline](VALIDATION_SPEED_BASELINE.md). Implementation is merged into next in
 [PR#637](https://github.com/sproates/panackelty/pull/637), measured at
 `97f19bfd289d225d62b943996812f20cfeffcf66`.
-**Measured targets are met; final owner acceptance remains outstanding.**
+**Owner accepted the alpha.15 milestone on 27 October 2026 after reviewing these results.**
 This does not close the wider GI#106 umbrella issue.
 
 ## What changed
@@ -146,8 +146,9 @@ are removed after measurement; raw evidence is retained.
 PR#637 merged the implementation into next at
 `a5fdb74186d4340f2ebb00aa8c7f84fb4e974150`. This report delivers the comparison and
 acceptance record; it introduces no runtime or validation behavior. Required PR
-checks must be green at the exact merged head. The milestone is **awaiting owner
-acceptance**, not complete. GI#106 remains open, and the release's known weighted
-contribution remains 35/90 until acceptance is recorded. RM#154: Faster coverage
-remains next in the agreed order after this checkpoint. No website claim changes
+checks must be green at the exact merged head. The owner explicitly accepted the milestone on 27 October 2026. The bounded
+alpha.15 milestone is **complete**; the wider GI#106 issue remains open. Its five
+points raise the release's known contribution from 35/90 to 40/90 (about 44%),
+without changing weights or scope. RM#154: Faster coverage is next in the agreed
+order and has not started. No website claim changes
 are required; the public compiler and package behavior is unchanged.

@@ -41,20 +41,20 @@ static bool read_number(FILE *f, size_t *v)
     *v = ((size_t)b[0] << 24) | ((size_t)b[1] << 16) | ((size_t)b[2] << 8) | b[3];
     return true;
 }
-static bool read_blob(FILE *f, uint8_t **data, size_t *size)
+static bool read_blob(FILE *f, uint8_t **data, size_t *size, size_t limit)
 {
-    if (!read_number(f, size) || *size > VM_COVERAGE_MAX_IDENTITY) return false;
+    if (!read_number(f, size) || *size > limit) return false;
     *data = malloc(*size ? *size : 1);
     return *data && fread(*data, 1, *size, f) == *size;
 }
 #ifndef __wasi__
-static bool read_path(const char *path, uint8_t **data, size_t *size)
+static bool read_path(const char *path, uint8_t **data, size_t *size, size_t limit)
 {
     FILE *f = fopen(path, "rb");
     if (!f) return false;
     bool ok = !fseek(f, 0, SEEK_END);
     long end = ok ? ftell(f) : -1;
-    ok = end >= 0 && (unsigned long)end <= VM_COVERAGE_MAX_IDENTITY && !fseek(f, 0, SEEK_SET);
+    ok = end >= 0 && (unsigned long)end <= limit && !fseek(f, 0, SEEK_SET);
     if (ok) {
         *size = (size_t)end;
         *data = malloc(*size ? *size : 1);
@@ -209,8 +209,8 @@ VMCoverageRun *vm_coverage_session_create(const char *directory, size_t count,
     size_t total = 0;
     for (size_t i = 0; i < count && ok; i++) {
         Identity *source = &s->identities[i];
-        ok = read_path(artifacts[i], &source->artifact, &source->artifact_size) &&
-            read_path(inventories[i], &source->inventory, &source->inventory_size);
+        ok = read_path(artifacts[i], &source->artifact, &source->artifact_size, VM_COVERAGE_MAX_IDENTITY) &&
+            read_path(inventories[i], &source->inventory, &source->inventory_size, VM_COVERAGE_MAX_INVENTORY);
         total += source->artifact_size + source->inventory_size;
         ok = ok && total <= VM_COVERAGE_MAX_RAW - 35 - 8 * s->count;
         for (size_t j = 0; j < i && ok; j++) {
@@ -255,7 +255,7 @@ VMCoverageRun *vm_coverage_session_inherit(const char *ticket, const uint8_t *ar
     size_t total = 0, identity = SESSION_ROOTS;
     for (size_t i = 0; i < s->count && ok; i++) {
         Identity *source = &s->identities[i];
-        ok = read_blob(f, &source->artifact, &source->artifact_size) && read_blob(f, &source->inventory, &source->inventory_size);
+        ok = read_blob(f, &source->artifact, &source->artifact_size, VM_COVERAGE_MAX_IDENTITY) && read_blob(f, &source->inventory, &source->inventory_size, VM_COVERAGE_MAX_INVENTORY);
         total += source->artifact_size + source->inventory_size;
         ok = ok && total <= VM_COVERAGE_MAX_RAW - 35 - 8 * s->count;
         if (ok && length == source->artifact_size && !memcmp(artifact, source->artifact, length)) identity = i;

@@ -59,8 +59,10 @@ pub run_suite(): Void {
   oversized_raw: Bytes = source_map_join(["PANACKCOV1\n".encode_utf8(), source_map_blob(doubled_identity), source_map_blob(doubled_identity),
     encode_u32(1), coverage_test_u64(1), encode_u32(1), coverage_test_cell(1, 1, 0, 1), "END\n".encode_utf8(),
     bytes().push(1).push(0)], 0, 9)
-  results = results.append(std_testing.expect("coverage rejects containers above 32 MiB",
-    !decode_coverage(oversized_raw, doubled_identity, doubled_identity, program).valid, "accepted"))
+  results = results.append(std_testing.expect("coverage accepts bounded containers above 32 MiB",
+    decode_coverage(oversized_raw, doubled_identity, doubled_identity, program).valid, "accepted"))
+  results = results.append(std_testing.expect("coverage retains 16 MiB artifact limit",
+    !decode_coverage(oversized_raw, doubled_identity.push(0), doubled_identity, program).valid, "oversized artifact accepted"))
   for flags in [1, 2, 3, 255] {
     raw: Bytes = coverage_test_raw(coverage_test_cell(1, 1, 0, 1), 1, flags)
     results = results.append(std_testing.expect("reject gap overflow unknown flags", !decode_coverage(raw, "a".encode_utf8(), "i".encode_utf8(), program).valid, "accepted"))

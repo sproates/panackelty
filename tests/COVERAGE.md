@@ -1590,3 +1590,16 @@ forced cleanup, missing/partial progress, launch failure, five injected compiler
 stalls and recovery. The separate observer VM and native supervisor are test-only;
 normal VM frame layout and the compiler seed are unchanged. See
 [the watchdog guide](compiler_watchdog/README.md) for evidence locations and limits.
+
+## Alpha.15 source-inventory capacity
+
+Inventories allow 64 MiB; compiler and bytecode identities remain 16 MiB.
+Native tests cover a 64 MiB inventory through root and inherited sessions,
+one-byte-over rejection, and the unchanged bytecode limit. Reader tests validate
+64 MiB identities, reject oversized inventories and 128 MiB containers, and retain
+small metadata bounds. Self-hosted inventory tests distinguish limit failures
+from missing compiler identity; coverage decoding accepts valid containers above
+32 MiB. The host-file functional fixture now exercises the 128 MiB synchronous
+I/O ceiling, lower caller read budgets, oversized requests and preservation of
+existing bytes on rejected writes. Rooted/async filesystem and process bounds
+remain unchanged. See [baseline evidence](../docs/COVERAGE_PERFORMANCE_BASELINE.md).

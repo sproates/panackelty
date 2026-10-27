@@ -1703,10 +1703,11 @@ The dispatcher and bytecode format are unchanged. See
 
 ## Coverage container bounds
 
-Coverage plans, session registries and raw records have a 32 MiB container bound.
-Individual compiler/artifact/inventory identity blobs remain limited to 16 MiB;
+Coverage plans, session registries and raw records have a 128 MiB container bound.
+Compiler/artifact identity blobs remain limited to 16 MiB; inventory blobs allow
+64 MiB.
 instruction-cell, execution-count and total-session budgets are unchanged.
-Synchronous filesystem reads/writes allow 32 MiB so the exporter and self-hosted
+Synchronous filesystem reads/writes allow 128 MiB so the exporter and self-hosted
 reporter can exchange these bounded containers. Rooted/async filesystem, directory
 listing, process-output and HTTP limits retain their separate contracts.
 

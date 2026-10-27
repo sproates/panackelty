@@ -5,4 +5,5 @@ import stdlib/testing as std_testing
 import stdlib/testing_commands as std_testing_commands
 import stdlib/testing_files as std_testing_files
 import stdlib/tcp::{TcpServerLimits}
+import stdlib/http_transport as std_http_transport
 main(): Void {}

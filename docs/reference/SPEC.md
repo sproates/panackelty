@@ -1017,7 +1017,7 @@ Reads fail without partial data when their explicit byte limit is exceeded.
 Writes create or truncate a file and may leave partial contents on failure;
 they promise neither atomic replacement nor durable storage. New ordinary file
 and directory permissions are 0666 and 0777 filtered by the caller's umask.
-Synchronous file data and read limits are capped at 32 MiB. Special files are rejected after
+Synchronous file data and read limits are capped at 128 MiB. Special files are rejected after
 opening with nonblocking flags; these calls are not a general stream API.
 
 `FileMetadata { kind: FileKind, size: Nat }` describes the final directory entry

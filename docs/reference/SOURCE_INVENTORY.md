@@ -109,8 +109,9 @@ A format or eligibility-policy change requires a new version, not silent reuse.
 The compiler identity is repeated in each inner context to make its scope explicit.
 
 Limits: 16 explicit roots, 16 MiB compiler, the source-map loader's 1 MiB per source,
-8 MiB/256 files per root, 16 MiB artifact, 100,000 items per file, 16 MiB per inner
-inventory and 16 MiB overall (the native filesystem capability limit). Serialization joins bounded chunks as a balanced
+8 MiB/256 files per root, 16 MiB artifact, 100,000 items per file, 64 MiB per inner
+inventory and 64 MiB overall, including the envelope. Compiler and artifact limits
+remain 16 MiB; the synchronous filesystem ceiling is independently 128 MiB. Serialization joins bounded chunks as a balanced
 tree. These are accepted input/output limits, not a CPU/memory sandbox for trusted
 source parsing or compilation. The ordinary compiler, bytecode v9, VM dispatcher,
 release runtime and normal execution paths remain uninstrumented.

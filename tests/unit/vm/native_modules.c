@@ -448,19 +448,19 @@ static void filesystem_data_limits_are_independent_of_process_limits(void)
     assert(fd >= 0 && !close(fd));
     VM vm = {0};
     Value *arguments[] = {value_data(V_PATH, (const uint8_t *)path, strlen(path)),
-                          value_size(32u * 1024u * 1024u)};
+                          value_size(128u * 1024u * 1024u)};
     Value *result = builtin_call(&vm, "fs_read", arguments);
     assert(result && !strcmp(result->as.named.name, "Ok"));
     release(result);
     release(arguments[1]);
-    arguments[1] = value_size(32u * 1024u * 1024u + 1);
+    arguments[1] = value_size(128u * 1024u * 1024u + 1);
     result = builtin_call(&vm, "fs_read", arguments);
     assert(result && !strcmp(result->as.named.name, "Error"));
     release(result);
     release(arguments[1]);
     arguments[1] = value_data(V_BYTES, NULL, 0);
     /* Rejection must precede access to the deliberately absent oversized data. */
-    arguments[1]->as.bytes.length = 32u * 1024u * 1024u + 1;
+    arguments[1]->as.bytes.length = 128u * 1024u * 1024u + 1;
     result = builtin_call(&vm, "fs_write", arguments);
     assert(result && !strcmp(result->as.named.name, "Error"));
     arguments[1]->as.bytes.length = 0;

@@ -9,8 +9,8 @@ HARNESS_COMMAND=$workspace/command.bc
 export HARNESS_COMMAND
 sh tests/profile_command.sh harness/supervisor-build ./bin/panack compile tests/runner/harness_command.panack -o "$HARNESS_COMMAND"
 case "${1:-all}" in
-    all) groups='layout installer release validation probes bootstrap runner distribution' ;;
-    compiler) groups='installer probes bootstrap runner' ;;
+    all) groups='layout installer release validation probes compiler_shared bootstrap runner distribution' ;;
+    compiler) groups='installer probes compiler_shared bootstrap runner' ;;
     *) echo 'usage: sh tests/harness.sh [all|compiler]' >&2; exit 1 ;;
 esac
 for group in $groups; do

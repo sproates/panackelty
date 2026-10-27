@@ -1,0 +1,181 @@
+import stdlib/testing as std_testing
+import stdlib/process as std_process
+import project/src/compiler/loader::{read_package_source}
+import stdlib/bytes as byte_buffer
+import stdlib/filesystem as std_filesystem
+import stdlib/host as std_host
+import stdlib/path as std_path
+import stdlib/testing::{TestResult}
+import stdlib/testing_files as std_testing_files
+import stdlib/process::{ProcessOutput}
+import stdlib/time as std_time
+
+package_limit_path(text: Str): Path {
+  match std_path.from_text(text) {
+    Ok(value) => value,
+    Error(error) => std_path.current()
+  }
+}
+
+package_limit_child(root: Path, name: Str): Path {
+  match root.join(package_limit_path(name)) {
+    Ok(value) => value,
+    Error(error) => root
+  }
+}
+
+package_limit_text(path: Path): Str {
+  match path.to_text() {
+    Ok(value) => value,
+    Error(error) => ""
+  }
+}
+
+package_limit_write_source(path: Path, size: Nat): Bool {
+  command: Str = "awk -v n=\"$2\" 'BEGIN { block = sprintf(\"%4095s\", \"\") \"\\n\"; full = int(n / 4096); remainder = n % 4096; for (i = 0; i < full; i++) printf \"%s\", block; if (remainder > 0) printf \"%*s\", remainder, \"\" }' > \"$1\""
+  match std_process.run(
+    package_limit_path("/bin/sh"),
+    ["-c", command, "source-limit", package_limit_text(path), "${size}"],
+    byte_buffer.empty(),
+    std_path.current(),
+    [],
+    std_time.seconds(10),
+    1024
+  ) {
+    Error(error) => false,
+    Ok(output) => output.exit_code == 0 && output.signal == 0 && output.stderr == byte_buffer.empty()
+  }
+}
+
+pub run_suite(): Void {
+  match std_testing_files.workspace_create(package_limit_path("/tmp")) {
+    Error(error) => { std_host.stdout("workspace creation failed"); std_host.exit(1) },
+    Ok(workspace) => {
+      root: Path = package_limit_child(workspace.root, "package-source-limits")
+      std_filesystem.create_directory(root)
+      root_text: Str = package_limit_text(root)
+      one_megabyte_file: Path = package_limit_child(root, "one-megabyte.panack")
+      oversized_file: Path = package_limit_child(root, "oversized.panack")
+      small_file: Path = package_limit_child(root, "small.panack")
+      exact_written: Bool = package_limit_write_source(one_megabyte_file, 1048576)
+      oversized_written: Bool = package_limit_write_source(oversized_file, 1048577)
+      std_filesystem.write(small_file, " ".encode_utf8())
+      mut results: [TestResult] = []
+      results = results.append(std_testing.expect(
+        "package source limit fixture setup",
+        exact_written && oversized_written,
+        "could not write sized source fixtures"
+      ))
+
+      empty_paths: [Str] = []
+      empty_sources: Map[Str, Str] = map()
+      exact_source_ok: Bool = match read_package_source(
+        package_limit_text(one_megabyte_file), root_text, None(), true, empty_paths, empty_sources
+      ) {
+        Error(error) => false,
+        Ok(source) => source.encode_utf8().length() == 1048576
+      }
+      results = results.append(std_testing.expect(
+        "1 MiB package source is accepted",
+        exact_source_ok,
+        "the source file boundary was not accepted"
+      ))
+      oversized_source_rejected: Bool = match read_package_source(
+        package_limit_text(oversized_file), root_text, None(), true, empty_paths, empty_sources
+      ) {
+        Error(message) => message == "package source read failed (output_limit)",
+        Ok(source) => false
+      }
+      results = results.append(std_testing.expect(
+        "package source over 1 MiB is rejected",
+        oversized_source_rejected,
+        "an oversized source file was read"
+      ))
+
+      mut source_count_paths: [Str] = []
+      mut source_count_values: Map[Str, Str] = map()
+      mut index: Nat = 1
+      while index <= 255 {
+        key: Str = if index == 1 { "toolchain-core" } else { "loaded${index}" }
+        source_count_paths = source_count_paths.append(key)
+        source_count_values = source_count_values.put(key, "")
+        index = index + 1
+      }
+      source_count_boundary_ok: Bool = match read_package_source(
+        package_limit_text(small_file), root_text, None(), true,
+        source_count_paths, source_count_values
+      ) {
+        Error(error) => false,
+        Ok(source) => source.encode_utf8().length() == 1
+      }
+      results = results.append(std_testing.expect(
+        "256 loaded sources are accepted",
+        source_count_boundary_ok,
+        "the loaded source count boundary was rejected"
+      ))
+      source_count_paths = source_count_paths.append("loaded256")
+      source_count_values = source_count_values.put("loaded256", "")
+      source_count_overflow_rejected: Bool = match read_package_source(
+        package_limit_text(small_file), root_text, None(), true,
+        source_count_paths, source_count_values
+      ) {
+        Error(message) => message == "package source closure limit exceeded",
+        Ok(source) => false
+      }
+      results = results.append(std_testing.expect(
+        "257 loaded sources are rejected",
+        source_count_overflow_rejected,
+        "the loaded source count limit accepted one extra source"
+      ))
+
+      large_source: Str = match read_package_source(
+        package_limit_text(one_megabyte_file), root_text, None(), true, empty_paths, empty_sources
+      ) {
+        Error(error) => "",
+        Ok(source) => source
+      }
+      mut exact_total_paths: [Str] = []
+      mut exact_total_sources: Map[Str, Str] = map()
+      for key in ["toolchain", "source1", "source2", "source3", "source4", "source5", "source6"] {
+        exact_total_paths = exact_total_paths.append(key)
+        exact_total_sources = exact_total_sources.put(key, large_source)
+      }
+      exact_total_ok: Bool = match read_package_source(
+        package_limit_text(one_megabyte_file), root_text, None(), true,
+        exact_total_paths, exact_total_sources
+      ) {
+        Error(error) => false,
+        Ok(source) => source.encode_utf8().length() == 1048576
+      }
+      results = results.append(std_testing.expect(
+        "8 MiB package source closure is accepted",
+        exact_total_ok,
+        "the source closure byte boundary was rejected"
+      ))
+      mut oversized_total_paths: [Str] = exact_total_paths.append("source7")
+      oversized_total_sources: Map[Str, Str] = exact_total_sources.put("source7", large_source)
+      oversized_total_rejected: Bool = match read_package_source(
+        package_limit_text(small_file), root_text, None(), true,
+        oversized_total_paths, oversized_total_sources
+      ) {
+        Error(message) => message == "package source closure exceeds 8 MiB",
+        Ok(source) => false
+      }
+      results = results.append(std_testing.expect(
+        "source closure over 8 MiB is rejected",
+        oversized_total_rejected,
+        "the source closure byte limit accepted one extra byte"
+      ))
+
+      std_filesystem.remove_file(one_megabyte_file)
+      std_filesystem.remove_file(oversized_file)
+      std_filesystem.remove_file(small_file)
+      std_filesystem.remove_directory(root)
+      match workspace.remove_empty() {
+        Error(error) => { results = results.append(std_testing.expect("workspace cleanup", false, "temporary files remain")) },
+        Ok(removed) => {}
+      }
+      if std_testing.report(results) > 0 { std_host.exit(1) }
+    }
+  }
+}

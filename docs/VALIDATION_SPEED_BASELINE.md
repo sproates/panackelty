@@ -1,7 +1,7 @@
 # GI#106: validation baseline and proposal
 
-Measured 27 October 2026. **V1 evidence is recorded; the proposal and targets
-below await owner agreement. No optimisation has been implemented.**
+Measured 27 October 2026. **Owner approved the selection and targets on 27 October 2026. V2 implementation
+is in progress; measured improvement and final acceptance remain outstanding.**
 GI#106 remains open through implementation, comparable replay and explicit owner
 acceptance. This is the bounded alpha.15 milestone, not the wider issue backlog.
 
@@ -179,7 +179,7 @@ package policy or alpha.16 native coupling. No test-cadence change is proposed.
 Keep full merge/nightly/release requirements, fresh bootstrap proofs and isolated
 installation tests. Passing results must never be cached.
 
-### Proposed targets, awaiting owner agreement
+### Targets agreed by the owner, 27 October 2026
 
 | Workload | Proposed acceptance |
 | --- | --- |
@@ -190,7 +190,7 @@ installation tests. Passing results must never be cached.
 | Package-only edit | Still zero compiler/seed rebuilds; investigate/repeat an increase over 5% or 2s, whichever is larger |
 | Documentation-only edit | Zero compilation and median at most 5s on the same local host |
 
-These are proposed criteria, not observed improvements or newly declared NFRs.
+These are agreed criteria, not observed improvements.
 Use comparable before/after samples, not rounding or a different worker count,
 to claim the percentage improvements. If a hosted image changes, obtain a fresh
 baseline and candidate pair on the same image. Preserve bytecode/VM checks as
@@ -215,8 +215,8 @@ rewrite or weaken tests to make the figures pass.
 
 ## Delivery impact
 
-This PR records measurements and a proposal only. No product, test, workflow,
-cache or timeout behavior changes. Public specifications, architecture and
+Baseline PR#636 recorded measurements and a proposal only, with no product, test,
+workflow, cache or timeout behavior changes. Public specifications, architecture and
 installation instructions remain accurate. There is no website claim or release
 behavior to update. GI#106 is not complete and alpha.15's earned scope does not
-increase. The next action is owner agreement on this proposal and its targets.
+increase. The next action is implementation and comparable measurement against the agreed targets.

@@ -62,6 +62,7 @@ STAGE3_COMPILER := $(BOOTSTRAP_DIR)/stage3/compiler.bc
 STAGE1_STDLIB := $(BOOTSTRAP_DIR)/stage1/stdlib-conformance.bc
 STAGE2_STDLIB := $(BOOTSTRAP_DIR)/stage2/stdlib-conformance.bc
 STAGE3_STDLIB := $(BOOTSTRAP_DIR)/stage3/stdlib-conformance.bc
+COMPILER_SHARED_SOURCE := tests/runner/compiler_shared_unit.panack
 COMPILER_INTEGRATION_SOURCE := tests/runner/compiler_integration_unit.panack
 COMPILER_INTEGRATION_GROUPS := \
 	$(COMPILER_INTEGRATION_SOURCE)::frontend \
@@ -92,30 +93,30 @@ test: check
 check-compiler: native package-tool
 	@$(TIMED) check-compiler $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory check-compiler-impl
 
-check-compiler-impl: $(STAGE2_COMPILER) compiler-integration-probe
+check-compiler-impl: $(STAGE2_COMPILER) compiler-integration-probe compiler-shared-probe
 	@$(PROFILE) harness/compiler sh tests/harness.sh compiler
 	@$(PROFILE) seed-refresh/failure-contracts sh tests/seed_refresh.sh
 	@$(MAKE) --no-print-directory native-oracle-artifacts
 	@PANACK_PROBE_SEED="$(abspath $(STAGE2_COMPILER))" PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROBES) $(COMPILER_INTEGRATION_GROUPS) \
-		tests/runner/compiler_contracts_unit.panack \
-		tests/runner/compiler_checker_unit.panack \
+		$(COMPILER_SHARED_SOURCE)::compiler_contracts_unit \
+		$(COMPILER_SHARED_SOURCE)::compiler_checker_unit \
 		tests/runner/compiler_purity_unit.panack \
 		tests/runner/compiler_resolver_unit.panack \
 		tests/runner/compiler_parser_unit.panack \
-		tests/runner/compiler_module_bindings_unit.panack \
-		tests/runner/compiler_loader_confinement_unit.panack \
-		tests/runner/compiler_package_source_limits_unit.panack \
+		$(COMPILER_SHARED_SOURCE)::compiler_module_bindings_unit \
+		$(COMPILER_SHARED_SOURCE)::compiler_loader_confinement_unit \
+		$(COMPILER_SHARED_SOURCE)::compiler_package_source_limits_unit \
 		tests/runner/compiler_source_spans_unit.panack \
-		tests/runner/compiler_instruction_sources_unit.panack \
-		tests/runner/compiler_source_maps_unit.panack \
-		tests/runner/compiler_source_inventory_unit.panack \
+		$(COMPILER_SHARED_SOURCE)::compiler_instruction_sources_unit \
+		$(COMPILER_SHARED_SOURCE)::compiler_source_maps_unit \
+		$(COMPILER_SHARED_SOURCE)::compiler_source_inventory_unit \
 		tests/runner/compiler_source_inventory_cli.panack \
 		tests/runner/compiler_coverage_cli.panack \
 		tests/runner/compiler_coverage_session_cli.panack \
 		tests/runner/compiler_coverage_session_records_cli.panack \
 		tests/runner/compiler_coverage_session_integrity_cli.panack \
 		tests/runner/compiler_coverage_session_process_cli.panack \
-		tests/runner/compiler_coverage_unit.panack \
+		$(COMPILER_SHARED_SOURCE)::compiler_coverage_unit \
 		tests/runner/compiler_explanations_unit.panack \
 		tests/runner/compiler_source_maps_cli.panack \
 		tests/runner/compiler_lexer_unit.panack \
@@ -123,6 +124,10 @@ check-compiler-impl: $(STAGE2_COMPILER) compiler-integration-probe
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROFILE) functional/cli-explanations $(PROBE) tests/runner/main.panack --case cli_explanations
 	@$(PROFILE) functional/case/cli_commands $(PROBE) tests/runner/main.panack --case cli_commands
 	@$(PROFILE) functional/failures $(PROBE) tests/runner/main.panack --failures-only
+
+.PHONY: compiler-shared-probe
+compiler-shared-probe: native $(STAGE2_COMPILER)
+	@PANACK_PROBE_SEED="$(abspath $(STAGE2_COMPILER))" $(PROFILE) probe-prepare/compiler-shared $(PROBE) --compile $(COMPILER_SHARED_SOURCE) "$(BUILD_DIR)/compiler-shared-unit.bc"
 
 compiler-integration-probe: native $(STAGE2_COMPILER)
 	@PANACK_PROBE_SEED="$(abspath $(STAGE2_COMPILER))" PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROFILE) probe-prepare/compiler-integration_unit $(PROBE) --compile $(COMPILER_INTEGRATION_SOURCE) "$(BUILD_DIR)/compiler-integration-unit.bc"
@@ -176,24 +181,24 @@ unit-runtime-probes:
 		tests/runner/bytecode_native_unit.panack
 	@PANACK_PROBE_SEED="$(abspath $(STAGE2_COMPILER))" $(PROFILE) probe/package_filesystem_unit $(PROBE) tests/runner/package_filesystem_unit.panack
 
-unit-compiler: native $(STAGE2_COMPILER) compiler-integration-probe
+unit-compiler: native $(STAGE2_COMPILER) compiler-integration-probe compiler-shared-probe
 	@$(MAKE) --no-print-directory native-oracle-artifacts
 	@PANACK_PROBE_SEED="$(abspath $(STAGE2_COMPILER))" PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROBES) $(COMPILER_INTEGRATION_GROUPS) \
-		tests/runner/compiler_contracts_unit.panack \
-		tests/runner/compiler_checker_unit.panack \
+		$(COMPILER_SHARED_SOURCE)::compiler_contracts_unit \
+		$(COMPILER_SHARED_SOURCE)::compiler_checker_unit \
 		tests/runner/compiler_purity_unit.panack \
 		tests/runner/compiler_resolver_unit.panack \
 		tests/runner/compiler_parser_unit.panack \
-		tests/runner/compiler_module_bindings_unit.panack \
-		tests/runner/compiler_package_source_limits_unit.panack \
+		$(COMPILER_SHARED_SOURCE)::compiler_module_bindings_unit \
+		$(COMPILER_SHARED_SOURCE)::compiler_package_source_limits_unit \
 		tests/runner/compiler_source_spans_unit.panack \
-		tests/runner/compiler_instruction_sources_unit.panack \
-		tests/runner/compiler_source_maps_unit.panack \
-		tests/runner/compiler_source_inventory_unit.panack \
+		$(COMPILER_SHARED_SOURCE)::compiler_instruction_sources_unit \
+		$(COMPILER_SHARED_SOURCE)::compiler_source_maps_unit \
+		$(COMPILER_SHARED_SOURCE)::compiler_source_inventory_unit \
 		tests/runner/compiler_source_inventory_cli.panack \
 		tests/runner/compiler_coverage_cli.panack \
 		tests/runner/compiler_coverage_session_cli.panack \
-		tests/runner/compiler_coverage_unit.panack \
+		$(COMPILER_SHARED_SOURCE)::compiler_coverage_unit \
 		tests/runner/compiler_explanations_unit.panack \
 		tests/runner/compiler_source_maps_cli.panack \
 		tests/runner/compiler_lexer_unit.panack \

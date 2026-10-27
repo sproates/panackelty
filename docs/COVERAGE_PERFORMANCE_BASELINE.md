@@ -1,9 +1,8 @@
 # Faster coverage: baseline and cache contract
 
-RM#154, alpha.15. Work started 27 October 2026. This is slice A, before cache
-implementation. The capacity and stale coverage metadata repairs pass validation.
-All four baseline workloads completed successfully on 27 October 2026. The numerical
-target below awaits owner agreement; no speed improvement or task completion is claimed.
+RM#154, alpha.15. Work started 27 October 2026. Slice A is complete; slice B implementation started after owner target approval. The capacity and stale coverage metadata repairs pass validation.
+All four baseline workloads completed successfully on 27 October 2026. The owner agreed the numerical target below on 27 October 2026; no speed improvement
+or overall task completion is claimed.
 
 ## Delivery slices
 
@@ -95,7 +94,7 @@ spent 23 seconds in preparation and skipped deployment. Neither is a controlled
 before/after sample for this change; publication is not included in local
 collection timings.
 
-## Proposed cache contract
+## Agreed cache contract
 
 
 Core collection owns executable preparation. The separate coverage publisher
@@ -121,9 +120,9 @@ The implementation must retain changes-during-collection detection.
 
 ## Acceptance checkpoint
 
-The target will be proposed from completed measurements, with the expected saving
-and irreducible fresh-execution cost stated explicitly. Owner agreement precedes
-cache implementation. This document does not approve a numerical target.
+The owner approved the measured numerical target on 27 October 2026 before
+slice B implementation. The expected saving and irreducible fresh-execution cost
+are recorded below.
 
 ## Approved capacity adjustment, 27 October 2026
 
@@ -213,7 +212,7 @@ reuse, approximately 95–99 seconds of fresh execution must remain, plus valida
 plan reads, aggregation and reporting. Hosted publication is separately bounded
 as described above and is not included in these local totals.
 
-## Numerical target proposed for owner agreement
+## Numerical target agreed on 27 October 2026
 
 For unchanged-repeat and reporting-only workloads, reduce median collection time
 by **at least 75%** against a matched uncached baseline. At these observed costs,
@@ -224,6 +223,47 @@ per compared case on the same machine/toolchain, separate from other validation.
 Do not trade assertions, source scope, provenance, corruption checks or fresh
 execution for speed. Record memory peaks and explain any material increase.
 
-This is a proposal, not an accepted target. Owner agreement is the next checkpoint;
-cache implementation has not started. The expected saving comes from reusing
-validated preparation, not test results or counters.
+The owner agreed these targets and authorised slice B implementation. The expected
+saving comes from reusing validated preparation, not test results or counters.
+
+## Slice B: local authenticated plan reuse
+
+Implementation is in progress. The collector caches preparation by default in
+`build/source-plan-cache`; `--no-plan-cache` selects uncached measurement and
+`--plan-cache PATH` selects a different local payload directory. Exporter compilation
+is lazy: a run with only valid hits does not need to compile the exporter.
+
+The first implementation deliberately uses a conservative input snapshot: all
+Panack source contents and directory identities under `src/` and `tests/`, package
+manifest/lock inputs there and at the checkout root, the launcher, version, cache
+producer, compiler/VM bytes, canonical checkout/stdlib roots and fixed generation
+settings. Source additions, removals, renames and symlink identities participate;
+mtime alone never establishes freshness. This captures resolution changes as well
+as dependency content. It may invalidate unaffected plans, but does not claim
+fine-grained dependency reuse. A plan whose sources escape the captured roots
+cannot be cached. Presentation-only report changes are not generation inputs.
+
+Only locally generated plans that pass the existing bounded plan reader can be
+sealed. A receipt authenticates the exact input context and every plan member's
+name, size and SHA-256 with HMAC-SHA256. Its random local key is stored separately
+in `build/source-plan-trust`, outside the payload cache. Both directories and
+files must be private to the current POSIX user; linked and hard-linked members
+are rejected. The trusted user/host is the security boundary; this is not a
+sandbox against the same user deliberately replacing trusted state. Do not copy,
+upload or restore the trust directory as part of a shared cache. Losing the key
+causes preparation to be regenerated. Shared hosted-cache integration is slice C.
+
+A hit authenticates the receipt, verifies every bounded member and copies the
+verified bytes to the new run's private workspace, then runs the existing plan
+reader against current source/compiler identities. Source and trust identities
+are checked during collection and again before reporting. Every execution,
+assertion, counter, session nonce, aggregation and report remains fresh. No
+execution data is stored in the cache. Incomplete, corrupt, untrusted or stale
+entries log a rebuild reason. Publication uses a private staging directory and
+atomic rename; failure to save a valid fresh plan does not invalidate that run.
+Concurrent complete publication never mixes members between generations.
+
+Cache entries are disposable and remain until removed; `make clean` removes the
+default payload and trust directories. An explicitly selected payload directory
+is caller-managed. This slice changes coverage tooling only, not compiler or VM
+interfaces, the selected corpus, or coverage attribution semantics.

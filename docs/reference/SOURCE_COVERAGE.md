@@ -205,3 +205,16 @@ not replace native C/main coverage or claim the entire canonical test suite.
 Compiler and bytecode identity blobs retain their individual 16 MiB limits.
 Inventory identity blobs are limited to 64 MiB. The 128 MiB container allowance includes these identities and counters;
 it does not increase instruction-cell, execution-count or total-session budgets.
+
+### Local preparation cache
+
+The repository collector (`scripts/source_coverage_baseline.cjs`) reuses locally
+authenticated source plans while executing every selected test again. Its default
+payload directory is `build/source-plan-cache`; use `--plan-cache PATH` to select
+another local directory, or `--no-plan-cache` for an uncached comparison. The
+separate private trust directory is `build/source-plan-trust` and must not be
+copied with cache payloads. Missing trust state causes regeneration. `make clean`
+removes both default directories. Cache hit/rebuild messages explain preparation
+choices; they never imply reuse of prior assertions or coverage counters.
+See the [baseline and cache contract](../COVERAGE_PERFORMANCE_BASELINE.md#slice-b-local-authenticated-plan-reuse)
+for input binding, integrity checks, trust boundaries and acceptance evidence.

@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-      - run: node --test tests/source_coverage/reader.test.cjs tests/source_coverage/manifest.test.cjs tests/source_coverage/policy.test.cjs tests/source_coverage/route.test.cjs tests/source_coverage/release_gate.test.cjs
+      - run: node --test tests/source_coverage/reader.test.cjs tests/source_coverage/cache.test.cjs tests/source_coverage/manifest.test.cjs tests/source_coverage/policy.test.cjs tests/source_coverage/route.test.cjs tests/source_coverage/release_gate.test.cjs
 
   workflow_validation:
     name: Workflow configuration validation

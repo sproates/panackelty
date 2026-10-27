@@ -1806,3 +1806,16 @@ and deadline policy live under `tests/compiler_watchdog`. This does not add a
 compiler host capability or change the seed. Module passes have independent hang
 allowances, with an outer process backstop and saved failure evidence. See the
 [watchdog guide](../../tests/compiler_watchdog/README.md).
+
+## Local source-coverage preparation reuse
+
+`scripts/source_coverage_cache.cjs` owns the repository collector's disposable
+preparation cache. It binds canonical roots, compiler/VM identities, source and
+resolution inputs and generation settings; authenticates receipts with a separate
+private local key; and publishes complete validated plans atomically. A hit copies
+verified preparation into the current private workspace before the existing
+bounded reader checks source and inventory identity. The baseline runner retains
+ownership of fresh execution, assertions, sessions and report generation.
+Compiler/VM interfaces and coverage formats do not change. The cache is not a
+source of test outcomes, and the coverage publisher still receives static reports
+only. See the [cache contract](../COVERAGE_PERFORMANCE_BASELINE.md#slice-b-local-authenticated-plan-reuse).

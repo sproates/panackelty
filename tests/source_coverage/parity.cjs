@@ -31,4 +31,5 @@ for(const value of ['true','false']) {
   }
   console.log(`SC4 parity ${value}: ${compared} exact source items`);
 }
+require('./cache_integration.cjs').cacheIntegration({checkout,work,compiler:regular(compilerIdentity),tool,run});
 console.log(`Parity evidence: ${work}`);

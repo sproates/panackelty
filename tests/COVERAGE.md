@@ -1603,3 +1603,16 @@ from missing compiler identity; coverage decoding accepts valid containers above
 I/O ceiling, lower caller read budgets, oversized requests and preservation of
 existing bytes on rejected writes. Rooted/async filesystem and process bounds
 remain unchanged. See [baseline evidence](../docs/COVERAGE_PERFORMANCE_BASELINE.md).
+
+### RM#154 local plan-cache verification
+
+The source-coverage cache tests cover authenticated persistent hits, private run
+copies, source changes despite preserved timestamps, added/renamed/removed
+resolution candidates, compiler/VM/launcher/manifest invalidation, and presentation
+changes that retain reuse. Corruption cases include altered receipts and payload
+hashes, missing/unexpected members, symlinks, hard links, truncation and size bounds.
+Interrupted generation, concurrent publication, publication failure and changed
+source/trust state fail safely or regenerate, without caching execution results.
+The native source-parity target also runs a real dependency fixture: a cache hit
+executes afresh, a dependency edit changes executable output, and all sessions
+have distinct identities. Full workload performance acceptance remains separate.

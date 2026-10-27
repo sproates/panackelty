@@ -979,3 +979,12 @@ query-header assertion is restricted to the installed example; the original
 contract fixture uses its unchanged common checks. `tests/http_package.sh` also
 runs the public lifecycle program from source and bytecode and compares shutdown
 output. The playbook embeds the matching example source and manifests.
+
+### Source-coverage plan reuse
+
+`make source-coverage-baseline` uses the local preparation cache described in the
+[source-coverage reference](../docs/reference/SOURCE_COVERAGE.md#local-preparation-cache).
+Use `node scripts/source_coverage_baseline.cjs OUTPUT --no-plan-cache` for an
+uncached comparison. Every collection executes its selected assertions afresh.
+`make source-coverage-report-tests` checks bounded readers, cache integrity and
+real compiler/VM parity, including a dependency edit that changes program output.

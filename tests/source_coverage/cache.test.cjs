@@ -108,3 +108,27 @@ test('toolchain file changes are detected before collection can complete',t=>{
   const f=fixture(t);fs.mkdirSync(path.join(f.root,'bootstrap'));fs.writeFileSync(path.join(f.root,'bootstrap/compiler-v9.bc'),f.compiler);fs.writeFileSync(path.join(f.root,'panack-vm'),f.vm);
   const c=f.cache();f.get(c);fs.writeFileSync(path.join(f.root,'panack-vm'),'changed VM');assert.throws(()=>c.assertCurrent(),/inputs changed/);
 });
+const {importVerifiedArtifact}=require('../../scripts/source_coverage_hosted.cjs');
+test('verified hosted payload is reauthenticated without copying the producer key',t=>{
+  const f=fixture(t),first=f.get(),download=path.join(f.root,'download');
+  fs.renameSync(f.directory,download);
+  const oldKey=fs.readFileSync(path.join(f.trustDirectory,'local.key'));
+  fs.rmSync(f.trustDirectory,{recursive:true});
+  // GitHub's zip transport loses private permissions; import reads bounded data
+  // and seals newly copied private files, never loosening local cache checks.
+  for(const slot of fs.readdirSync(download))for(const file of fs.readdirSync(path.join(download,slot)))fs.chmodSync(path.join(download,slot,file),0o644);
+  assert.equal(importVerifiedArtifact(download,f.cache(),path.join(f.root,'runs'),()=>{}),1);
+  assert.notDeepEqual(fs.readFileSync(path.join(f.trustDirectory,'local.key')),oldKey);
+  assert.deepEqual(f.get().artifact,first.artifact);assert.equal(f.builds(),1);
+});
+for(const damage of ['content','member','context','link','extra-slot'])test(`hosted import rejects ${damage} before execution`,t=>{
+  const f=fixture(t);f.get();const download=path.join(f.root,'download');fs.renameSync(f.directory,download);
+  const slot=path.join(download,fs.readdirSync(download)[0]),file=path.join(slot,'plan.bc');
+  if(damage==='content')fs.writeFileSync(file,'changed');
+  if(damage==='member')fs.renameSync(file,path.join(slot,'unexpected.bc'));
+  if(damage==='context')fs.writeFileSync(f.source,'different source');
+  if(damage==='link'){fs.unlinkSync(file);fs.symlinkSync(f.source,file);}
+  if(damage==='extra-slot')fs.mkdirSync(path.join(download,'source-plan-trust'));
+  assert.throws(()=>importVerifiedArtifact(download,f.cache(),path.join(f.root,'runs'),()=>{}));
+  assert.equal(f.slots().length,0);
+});

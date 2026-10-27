@@ -1616,3 +1616,12 @@ source/trust state fail safely or regenerate, without caching execution results.
 The native source-parity target also runs a real dependency fixture: a cache hit
 executes afresh, a dependency edit changes executable output, and all sessions
 have distinct identities. Full workload performance acceptance remains separate.
+
+Hosted preparation tests reject failed/unrelated/fork producers, mismatched
+commits, missing digests, expired/oversized artifacts and malformed identities.
+Import tests discard altered members, unexpected files, links and stale inputs;
+a fresh local key authenticates the imported copies without restoring the old
+key. The native parity target additionally imports a real prepared program,
+executes it afresh, then changes its dependency and checks the new output.
+Workflow contracts preserve digest enforcement, fresh collection and separate
+preparation/report artifact paths.

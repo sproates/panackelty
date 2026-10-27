@@ -404,7 +404,7 @@ native-coverage: native package-tool
 # Source coverage is opt-in SC4 collection, not LLVM instrumentation of .panack files.
 .PHONY: source-coverage-baseline source-coverage-report-tests
 source-coverage-report-tests: native $(STAGE2_COMPILER)
-	node --test tests/source_coverage/reader.test.cjs tests/source_coverage/cache.test.cjs tests/source_coverage/manifest.test.cjs tests/source_coverage/policy.test.cjs tests/source_coverage/release_gate.test.cjs
+	node --test tests/source_coverage/reader.test.cjs tests/source_coverage/cache.test.cjs tests/source_coverage/hosted.test.cjs tests/source_coverage/manifest.test.cjs tests/source_coverage/policy.test.cjs tests/source_coverage/release_gate.test.cjs
 	PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" node tests/source_coverage/parity.cjs
 
 source-coverage-baseline: native

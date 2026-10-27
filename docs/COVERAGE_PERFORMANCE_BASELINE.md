@@ -317,3 +317,56 @@ persistence, three matched samples per comparison case across all four workloads
 cache invalidation/recovery replay, hosted provenance/publication evidence and
 final operating acceptance. No release-completion credit or hosted speed claim
 is assigned from these local measurements alone.
+
+## Slice C: hosted preparation and matched acceptance
+
+Implementation is in progress. Hosted reuse uses a separately named
+`source-preparation-INPUT_IDENTITY` artifact retained for 30 days, so weekly runs
+can reuse preparation without depending on the ordinary cache's one-week idle
+retention. The name binds the full local context and hosted importer version.
+Selection examines at most 20 matching artifacts and accepts only an unexpired,
+bounded artifact from a completed successful `source-coverage.yml` dispatch on
+this repository's `next`, with matching producer commit and repository identity.
+The workflow downloads the selected immutable artifact ID from that exact run;
+a transport digest mismatch fails the download. Selection or download failure
+falls back to fresh preparation, without skipping any assertions.
+
+GitHub's authenticated artifact service and the trusted core workflow establish
+remote provenance. Downloaded receipts do not establish their own authority.
+Only after successful transport verification does the hosted importer validate
+bounded regular members, exact input context, names, sizes and hashes, and pass
+copied bytes through the existing plan reader. The local cache then seals these
+copies under a newly generated local key. No prior runner's key is uploaded or
+restored, and no new repository secret is needed. An invalid import discards the
+partially imported local set and regenerates. The trusted repository/workflow
+maintainers and runner user remain the trust boundary; this does not defend
+against a maintainer deliberately changing the trusted workflow.
+
+The archive is limited to 64 preparation slots, at most 259 members per slot,
+existing per-member reader bounds and 2 GiB of imported members. These are
+transport limits, not increased compiler/inventory limits. The current corpus
+needs 29 slots. Archive expiration, changed sources/toolchain/roots/importer,
+failed provenance or corruption produces a cold run. Each successful collection
+retains its current preparation separately from the static
+`source-coverage-RUN_ID` report. The coverage publisher continues to select only
+that exact static report name; executable preparation is never published as a
+coverage website asset. Failure to retain preparation is visible but does not
+invalidate a successful report.
+
+Remaining acceptance: focused workflow and real import/execution replay;
+three matched samples per workload with memory comparison; hosted cold and warm
+runs with fresh nonces; publication boundary verification; final operating review.
+The release summary retains partial/unquantified status until those checks pass.
+
+Initial slice C verification: all 77 focused reader/cache/hosted/manifest/policy/
+routing/release-gate tests pass, as do CI routing, workflow YAML/layout and docs
+checks. `make source-coverage-report-tests` passes both 388-item parity paths and
+the real dependency/import fixture with four distinct fresh sessions. These
+changes are confined to hosted coverage tooling, its CI validation target and
+tests; compiler/runtime behavior and the local collector are unchanged.
+Existing baseline compiler, VM and all measured source hashes match the current
+checkout exactly, and the local cache implementation is unchanged from PR#644.
+Existing valid samples will be retained when completing the missing matched
+repeats; the earlier profiler's missing collector RSS remains explicitly unknown.
+No website changes are needed: static report format and publisher selection are
+unchanged. Hosted execution and final performance acceptance remain pending.

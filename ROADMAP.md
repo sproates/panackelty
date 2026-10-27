@@ -19,6 +19,8 @@ hosted initial compiler checks 24.9%/36.8% faster. Regression guards passed,
 including the ordinary four-worker setting. The bounded alpha.15 milestone is accepted;
 the wider GI#106 issue is not closed. No tests or validation cadence were removed.
 
+RM#154: Faster coverage slice A is in progress. The [baseline and cache contract](docs/COVERAGE_PERFORMANCE_BASELINE.md) records the exporter compatibility repair and a blocking inventory-size limit. A prerequisite decision and complete four-workload measurements precede target approval. Cache implementation has not started.
+
 For the current release summary, read [Next release status](docs/NEXT_RELEASE_STATUS.md).
 Keep that summary current alongside the detailed records when release work changes.
 

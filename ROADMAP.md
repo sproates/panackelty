@@ -5,11 +5,17 @@ and [acceptance evidence](docs/releases/ALPHA14_RELEASE_ACCEPTANCE.md).
 
 ## Next: alpha.15
 
-GI#409: Compiler/stdlib boundary assessment is complete on merge of this delivery.
+GI#409: Compiler/stdlib boundary assessment is complete on next (PR#635).
 The [assessment](docs/COMPILER_STDLIB_BOUNDARY_ASSESSMENT.md) verifies the full
 42-file closure and five change cases. Retain source organisation; evaluate
 narrower artifact prerequisites within GI#106: Validation speed. Native coupling
-stays in alpha.16. No refactor is delivered. Next is GI#106's baseline.
+stays in alpha.16. No refactor is delivered.
+
+GI#106: Validation speed has completed its five-workload local baseline and
+hosted Linux/macOS focused profiles. The [evidence and proposal](docs/VALIDATION_SPEED_BASELINE.md)
+recommend shared preparation for heavy compiler tests, with numerical targets
+awaiting owner agreement. No optimisation has been implemented; the milestone
+and owner acceptance remain open.
 
 For the current release summary, read [Next release status](docs/NEXT_RELEASE_STATUS.md).
 Keep that summary current alongside the detailed records when release work changes.

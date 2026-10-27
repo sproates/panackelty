@@ -988,3 +988,10 @@ Use `node scripts/source_coverage_baseline.cjs OUTPUT --no-plan-cache` for an
 uncached comparison. Every collection executes its selected assertions afresh.
 `make source-coverage-report-tests` checks bounded readers, cache integrity and
 real compiler/VM parity, including a dependency edit that changes program output.
+
+Hosted preparation selection/import tests run in `source-coverage-report-tests`
+and the fast source-policy job. The real parity fixture also exercises a new
+runner's trust key and a fresh execution after import. Hosted acceptance requires
+separate cold and warm Source coverage dispatches on `next`; compare the logged
+preparation decisions, full session lists/nonces and static report identities.
+Preparation transport never bypasses the collector or its policy gate.

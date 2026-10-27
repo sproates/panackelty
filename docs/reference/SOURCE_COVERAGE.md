@@ -218,3 +218,22 @@ removes both default directories. Cache hit/rebuild messages explain preparation
 choices; they never imply reuse of prior assertions or coverage counters.
 See the [baseline and cache contract](../COVERAGE_PERFORMANCE_BASELINE.md#slice-b-local-authenticated-plan-reuse)
 for input binding, integrity checks, trust boundaries and acceptance evidence.
+
+### Hosted preparation
+
+The weekly/manual `next` collector retains preparation separately for 30 days.
+Only a successful core coverage producer with the exact preparation identity is
+eligible. The workflow checks producer identity and artifact transport integrity;
+the importer checks the bounded files and creates new local authentication.
+The previous runner's trust key, sessions and counters are never transferred.
+Every hosted collection still runs all selected assertions and produces fresh
+sessions and a new report. The publisher consumes only the static report.
+
+Logs identify the producer run, commit, artifact ID and digest, imported plan
+count, and subsequent hits/rebuilds. Missing, expired, incompatible or invalid
+preparation causes a fresh build. If an artifact is known to be damaged, delete
+that preparation artifact in GitHub Actions and dispatch Source coverage on
+`next`; the next successful run retains fresh preparation. Deleting preparation
+does not delete the separately retained report. A failed download or preparation
+upload does not suppress tests or a valid report. See the
+[hosted contract](../COVERAGE_PERFORMANCE_BASELINE.md#slice-c-hosted-preparation-and-matched-acceptance).

@@ -1819,3 +1819,12 @@ ownership of fresh execution, assertions, sessions and report generation.
 Compiler/VM interfaces and coverage formats do not change. The cache is not a
 source of test outcomes, and the coverage publisher still receives static reports
 only. See the [cache contract](../COVERAGE_PERFORMANCE_BASELINE.md#slice-b-local-authenticated-plan-reuse).
+
+`scripts/source_coverage_hosted.cjs` owns the hosted transport boundary: successful
+core `next` producer selection, bounded import and local reauthentication. The
+workflow downloads the selected immutable artifact with digest enforcement;
+only then does the importer treat its producer as trusted. Receipt contents
+alone never confer remote trust. Preparation artifacts contain no local key or
+execution evidence and are distinct from the static publisher's exact report
+name. Failed transport or import causes fresh preparation. See the
+[hosted contract](../COVERAGE_PERFORMANCE_BASELINE.md#slice-c-hosted-preparation-and-matched-acceptance).

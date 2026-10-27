@@ -21,15 +21,15 @@ and linked issues retain the detailed requirements and decisions.
 | [GI#409 Compiler/stdlib boundary](https://github.com/sproates/panackelty/issues/409) | Assessment complete on next (PR#635): 42-file closure verified, five change cases evidenced, recommendation to retain source organisation and assess narrower build dependencies in GI#106. [Evidence](COMPILER_STDLIB_BOUNDARY_ASSESSMENT.md). No refactor. | 5/90 | 100% | 5/90 |
 | [RM#154 Faster coverage](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154) | Scope agreed and merged into main in PR#624: four measured workloads, target approval before cache implementation, validated persistent plan reuse and fresh executions. Profiling and implementation not started. | 5/90 | 0% | 0 |
 | [RM#155 Authoring friction](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-155) | Partial. Inventory preflight and contributor/interpolation guidance delivered (PR#545 and PR#565). Remaining scope agreed: unsupported-interpolation diagnostics, tested API examples and public-signature visibility guidance. Roadmap PR#626 is merged into main; no additional implementation started. | 5/90 | Unquantified | Unknown |
-| [GI#106 Validation speed](https://github.com/sproates/panackelty/issues/106) | Shared compiler-test preparation merged into next (PR#637). [Replay evidence](VALIDATION_SPEED_ACCEPTANCE.md): clean full 16.1% faster, compiler edit 20.05% faster, hosted initial compiler 24.9%/36.8% faster. All guards passed, including four workers; final owner acceptance remains outstanding. Wider issue remains open. | 5/90 | Unquantified | Unknown |
-| **Total** | **35/90 known contribution (about 39%); overall completion unquantified.** | **100%** | **Unknown** | **35/90 known** |
+| [GI#106 Validation speed](https://github.com/sproates/panackelty/issues/106) | Shared compiler-test preparation merged into next (PR#637). [Replay evidence](VALIDATION_SPEED_ACCEPTANCE.md): clean full 16.1% faster, compiler edit 20.05% faster, hosted initial compiler 24.9%/36.8% faster. All guards passed, including four workers. Owner accepted the alpha.15 milestone on 27 October 2026. Wider issue remains open. | 5/90 | 100% | 5/90 |
+| **Total** | **40/90 known contribution (about 44%); overall completion unquantified.** | **100%** | **Unknown** | **40/90 known** |
 
 Weights retain the original provisional relative sizes, excluding the five points
 for GI#170: Inference assessment and the five for RM#157: Performance review,
 now allocated to alpha.16. The remaining denominator is 90; the Weight column
-sums to 100%. No remaining task was re-estimated. Known contribution is 35/90
-(about 39%) following the merged GI#409 assessment, up from 30/90 through delivery of
-its five-point scope. Earlier denominator reductions reflected deferrals only. Unknown contributions are not zero; overall completion remains
+sums to 100%. No remaining task was re-estimated. Known contribution is 40/90
+(about 44%), up from 35/90 following owner acceptance of GI#106's five-point
+alpha.15 milestone. Scope weights and the denominator are unchanged. Earlier denominator reductions reflected deferrals only. Unknown contributions are not zero; overall completion remains
 unquantified. These are provisional weights, not owner-approved effort estimates.
 
 ## Deferred to the following release
@@ -72,7 +72,7 @@ open. This planning update earns no additional completion credit.
   separate compilation, major redesign, RM#154 caching or RM#157 runtime review.
 - Estimate: three to five PRs, subject to baseline evidence. Implementation is merged in PR#637 and the
   [five-workload replay](VALIDATION_SPEED_ACCEPTANCE.md) meets the targets approved
-  on 27 October. The only remaining milestone checkpoint is final owner acceptance.
+  on 27 October. The owner accepted the alpha.15 milestone on 27 October 2026; it is complete.
   This does not close the wider umbrella issue.
 
 ## Agreed alpha.15 scope boundaries
@@ -172,7 +172,7 @@ substantial coverage obstacle need not block feature work; make any adjustment
 explicit with evidence. GI#180 foundations precede GI#435, with final acceptance
 covering both. Keep tests and required validation in every slice. Integrated
 acceptance adds no independently weighted task and does not duplicate credit.
-The order and scope weights remain unchanged. GI#409 assessment delivery is recorded above; GI#106 implementation and replay are delivered; final owner acceptance remains outstanding.
+The order and scope weights remain unchanged. GI#409 assessment delivery is recorded above; GI#106 implementation and replay are delivered and the owner accepted the alpha.15 milestone on 27 October 2026.
 
 ## Release readiness and next action
 
@@ -184,8 +184,8 @@ The order and scope weights remain unchanged. GI#409 assessment delivery is reco
   RM#154: Faster coverage is scoped in PR#624 and RM#155: Authoring friction in
   PR#626. RM#157: Performance review belongs to alpha.16. Delivery order is agreed
   above. GI#409 assessment is complete on next (PR#635). Next is
-  GI#106: Validation speed awaits final owner acceptance after implementation and
-  passing replay. RM#154: Faster coverage follows that checkpoint.
+  GI#106: Validation speed is accepted for alpha.15. Next is RM#154: Faster
+  coverage, starting with its four-workload baseline; implementation has not started.
 - Promotion, package/install release checks and owner publication approval remain.
   Complete product acceptance on next does not mean a feature has shipped.
 - Latest supporting repair: [PR#601](https://github.com/sproates/panackelty/pull/601)

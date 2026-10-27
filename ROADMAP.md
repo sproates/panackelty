@@ -79,10 +79,11 @@ through alpha.19 remain planned. See the
   the HTTP API reference and runnable examples slice of GI#552. Colours (GI#555)
   were not included.
 - **alpha.15:** remaining foundation work: package-management implementation, compiler
-  understanding, validated domain types, inference/stdlib assessments, faster
+  understanding, validated domain types, the compiler/stdlib assessment, faster
   coverage, selected friction improvements, and the GI#106 test-speed milestone.
 - **alpha.16:** build useful programs: typed service exchanges, file discovery,
-  subprocess examples, a tiny build tool, tested guides and RM#157: Performance review.
+  subprocess examples, a tiny build tool, tested guides, GI#170: Inference assessment
+  and RM#157: Performance review.
 - **alpha.17:** everyday development: one editor, source-aware runtime errors and
   Homebrew installation.
 - **alpha.18:** interactive/connected applications: browser event handlers and

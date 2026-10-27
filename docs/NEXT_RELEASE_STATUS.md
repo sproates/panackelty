@@ -183,7 +183,7 @@ The order and scope weights remain unchanged. GI#409 assessment delivery is reco
   in PR#619. GI#409: Compiler/stdlib boundary assessment is also scoped in PR#621.
   RM#154: Faster coverage is scoped in PR#624 and RM#155: Authoring friction in
   PR#626. RM#157: Performance review belongs to alpha.16. Delivery order is agreed
-  above. GI#409 assessment is complete on next (PR#635). Next is
+  above. GI#409 assessment is complete on next (PR#635).
   GI#106: Validation speed is accepted for alpha.15. Next is RM#154: Faster
   coverage, starting with its four-workload baseline; implementation has not started.
 - Promotion, package/install release checks and owner publication approval remain.

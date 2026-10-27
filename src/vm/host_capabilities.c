@@ -21,7 +21,7 @@
 extern char **environ;
 #define HC_MAX_NS UINT64_C(31536000000000000)
 #define HC_MAX_BYTES (16u * 1024u * 1024u)
-#define HC_MAX_FILE_BYTES (32u * 1024u * 1024u)
+#define HC_MAX_FILE_BYTES (128u * 1024u * 1024u)
 #define HC_ROOTED_PATH_MAX 4096u
 #define HC_ROOTED_DEPTH_MAX 256u
 #define HC_ROOTED_SYMLINK_MAX 40u

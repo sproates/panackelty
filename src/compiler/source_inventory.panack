@@ -225,14 +225,28 @@ pub pure inventory_module(module: LoadedModule): [InventoryItem] {
 
 // Foreign inventories are never decoded. The caller reproduces this envelope
 // using explicit local roots and the installed compiler, then compares bytes.
-pub pure serialize_source_inventory(
+pub pure source_inventory_limit_error(compiler_size: Nat, artifact_size: Nat, sources: Nat, items: Nat, inventory_size: Nat): Str {
+  if compiler_size == 0 { "source inventory requires a compiler identity, but the supplied identity is empty" }
+  else { if compiler_size > 16777216 { "source inventory compiler identity exceeds the 16 MiB limit" }
+  else { if artifact_size > 16777216 { "source inventory bytecode artifact exceeds the 16 MiB limit" }
+  else { if sources > 256 { "source inventory exceeds the limit of 256 source files" }
+  else { if items > 100000 { "source inventory exceeds the limit of 100000 items in one source file" }
+  else { if inventory_size > 67108864 { "source inventory exceeds the 64 MiB serialized-size limit" }
+  else { "" } } } } } }
+}
+
+pub pure serialize_source_inventory(project: LoadedProject, artifact: Bytes, compiler: Bytes, entry: Str, root: Str, stdlib: Str): Bytes {
+  serialize_source_inventory_checked(project, artifact, compiler, entry, root, stdlib).value_or(byte_buffer.empty())
+}
+
+pub pure serialize_source_inventory_checked(
   project: LoadedProject,
   artifact: Bytes,
   compiler: Bytes,
   entry: Str,
   root: Str,
   stdlib: Str
-): Bytes {
+): Result[Bytes,Str] {
   snapshots: [SourceSnapshot] = source_snapshots(project, root, stdlib)
   mut chunks: [Bytes] = ["PANACKINV1\nlocal-replay-v9\n".encode_utf8(), source_map_blob(compiler),
     encode_text(source_identifier(
@@ -241,6 +255,7 @@ pub pure serialize_source_inventory(
     stdlib
   )), source_map_blob(artifact), encode_u32(snapshots.len())]
   mut size: Nat = 0
+  mut maximum_items: Nat = 0
   mut valid: Bool = compiler.length() > 0 && compiler.length() <= 16777216 &&
     artifact.length() <= 16777216 && snapshots.len() <= 256
 
@@ -256,9 +271,10 @@ pub pure serialize_source_inventory(
     }
     chunks = chunks.append(encode_text(snapshot.name)).append(encode_text(snapshot.text)).append(encode_u32(items.len()))
     size = size + 12 + snapshot.name.encode_utf8().length() + snapshot.text.encode_utf8().length()
+    if items.len() > maximum_items { maximum_items = items.len(); }
     valid = valid && items.len() <= 100000
     for item in items {
-      if valid && size <= 16777216 {
+      if valid && size <= 67108864 {
         chunk: Bytes = source_map_join([encode_text(item.id), encode_text(item.kind), encode_text(item.detail),
           source_map_position(item.span.start), source_map_position(item.span.end)], 0, 5)
         chunks = chunks.append(chunk)
@@ -268,10 +284,10 @@ pub pure serialize_source_inventory(
       }
     }
   }
-  if valid && size <= 16777216 {
-    source_map_join(chunks, 0, chunks.len())
+  if valid && size <= 67108864 {
+    Ok(source_map_join(chunks, 0, chunks.len()))
   } else {
-    byte_buffer.empty()
+    Error(source_inventory_limit_error(compiler.length(), artifact.length(), snapshots.len(), maximum_items, size))
   }
 }
 
@@ -374,7 +390,7 @@ pub run_inventory_command(values: [Str], checking: Bool): Nat {
                   stdlib
                 )
                 size = size + 4 + inventory.length()
-                valid = valid && inventory.length() > 0 && size <= 16777216
+                valid = valid && inventory.length() > 0 && size <= 67108864
                 if valid {
                   chunks = chunks.append(source_map_blob(inventory))
                 }

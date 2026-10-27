@@ -67,7 +67,7 @@ is recorded even when the two destinations coincide. Function entries are
 separate counters. Suspension and zero-budget advances do not redispatch an
 instruction; successful asynchronous completion is credited once.
 
-Collection is opt-in with at most 262,144 instruction cells and a 32 MiB raw
+Collection is opt-in with at most 262,144 instruction cells and a 128 MiB raw
 record. Counter storage is 32 bytes per instruction plus 8 bytes plus `sizeof(size_t)` per
 function and a small collector header; frame bookkeeping adds three machine
 words on a 64-bit build. Disabled execution allocates no collector or source
@@ -166,8 +166,8 @@ session fails its session identity; listing the same session twice also fails.
 This is local evidence, not cryptographic authentication against deliberate
 rewriting. Session directories must remain private and unchanged during reading.
 
-Bounds: 16 distinct artifact identities, 32 MiB registry, 4,096 executions across
-the entire process tree, 256 MiB reserved record data per session, 32 MiB per
+Bounds: 16 distinct artifact identities, 128 MiB registry, 4,096 executions across
+the entire process tree, 256 MiB reserved record data per session, 128 MiB per
 wrapped record and IDs shorter than 192 bytes. The reporter accepts at most 256
 explicit sessions. Budget exhaustion or allocation/I/O failure leaves collection
 unavailable. Normal execution without a session allocates no registry or files.
@@ -202,6 +202,6 @@ execution manifest, production denominators, unknown-data handling, reproduction
 commands and separately identified `next` source report. Source reporting does
 not replace native C/main coverage or claim the entire canonical test suite.
 
-Compiler, bytecode and inventory identity blobs retain their individual 16 MiB
-limits. The 32 MiB container allowance includes these identities and counters;
+Compiler and bytecode identity blobs retain their individual 16 MiB limits.
+Inventory identity blobs are limited to 64 MiB. The 128 MiB container allowance includes these identities and counters;
 it does not increase instruction-cell, execution-count or total-session budgets.

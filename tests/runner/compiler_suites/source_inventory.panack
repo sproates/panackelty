@@ -1,6 +1,6 @@
 import project/src/compiler/path_support as path_support
 import stdlib/testing as std_testing
-import project/src/compiler/source_inventory::{InventoryItem, inventory_module, serialize_source_inventory, inventory_arguments}
+import project/src/compiler/source_inventory::{InventoryItem, inventory_module, serialize_source_inventory, serialize_source_inventory_checked, source_inventory_limit_error, inventory_arguments}
 import project/src/compiler/loader::{LoadedProject, load_project, load_project_for_source_map, load_project_for_inventory}
 import project/src/compiler/module_bindings::{LoadedModule, ModuleIdentity, source_module_identity, collect_module_bindings, loaded_module_declaration_index}
 import project/src/compiler/lexer::{lex_file}
@@ -133,6 +133,10 @@ pub run_suite(): Void {
   results = results.append(std_testing.expect("deterministic inventory", inventory.length() > 0 && inventory == serialize_source_inventory(project, artifact, compiler, entry, root, stdlib), "inventory differs"))
   results = results.append(std_testing.expect("compiler identity participates", inventory != serialize_source_inventory(project, artifact, "other compiler".encode_utf8(), entry, root, stdlib), "compiler identity lost"))
   results = results.append(std_testing.expect("artifact identity participates", inventory != serialize_source_inventory(project, byte_buffer.empty(), compiler, entry, root, stdlib), "artifact identity lost"))
+  results = results.append(std_testing.expect("inventory exact size boundary", source_inventory_limit_error(16777216, 16777216, 256, 100000, 67108864) == "", "supported boundary rejected"))
+  results = results.append(std_testing.expect("inventory overflow identifies size", source_inventory_limit_error(1, 1, 1, 1, 67108865) == "source inventory exceeds the 64 MiB serialized-size limit", "wrong limit diagnostic"))
+  results = results.append(std_testing.expect("artifact limit remains 16 MiB", source_inventory_limit_error(1, 16777217, 1, 1, 1) == "source inventory bytecode artifact exceeds the 16 MiB limit", "artifact limit changed"))
+  results = results.append(std_testing.expect("missing compiler diagnostic", match serialize_source_inventory_checked(project, artifact, byte_buffer.empty(), entry, root, stdlib) { Error(problem) => problem == "source inventory requires a compiler identity, but the supplied identity is empty", Ok(data) => false }, "missing compiler was misdiagnosed"))
   results = results.append(std_testing.expect("missing compiler identity rejects", serialize_source_inventory(project, artifact, byte_buffer.empty(), entry, root, stdlib) == byte_buffer.empty(), "missing identity accepted"))
   for args in [["inventory"], ["inventory", "a.bc", "-o", "out"], ["inventory", "a", "-o", "out", "extra"], ["inventory", "a", "-o", "out", "-o", "other"], ["inventory", "a", "--unknown", "out"]] {
     results = results.append(std_testing.expect("inventory argument rejection", !inventory_arguments(args, false).valid, "invalid arguments accepted"))

@@ -78,9 +78,9 @@ The compiler serializer, VM coverage identity reader and JavaScript report
 reader all enforce the current bound. Changing only the exporter would not
 provide supported larger inventories. A prerequisite needs explicit inventory
 bounds, compatible consumers, boundary/rejection tests and distinct diagnostics.
-The owner has been asked whether to include this prerequisite before resuming
-slice A. No limit or format change has been implemented or approved by this
-baseline document. The existing full corpus must remain selected.
+The owner approved inspecting the size breakdown, raising the inventory limit
+to 64 MiB consistently, preserving unrelated bounds and testing diagnostics,
+then resuming the baseline. Implementation and validation are in progress. The existing full corpus must remain selected.
 
 Publication is independently bounded. Historical successful publication
 [run 38779817246](https://github.com/sproates/panackelty-coverage/actions/runs/38779817246)
@@ -120,3 +120,30 @@ The implementation must retain changes-during-collection detection.
 The target will be proposed from completed measurements, with the expected saving
 and irreducible fresh-execution cost stated explicitly. Owner agreement precedes
 cache implementation. This document does not approve a numerical target.
+
+## Approved capacity adjustment, 27 October 2026
+
+The failing inventory contains 44 distinct source files and 111,315 items.
+Source text occupies 1,383,844 bytes; structural item IDs 10,272,445; item kinds
+1,038,386; details 861,872; source positions 2,671,560. Names, length prefixes,
+compiler bytes and program bytes make up the remainder. Structural paths repeat
+prefixes by design. There are no duplicate source-file entries. This is a verbose
+representation, but no accidental duplication was found; redesign is not selected.
+
+The implementation allows 64 MiB inventories and 128 MiB enclosing plans,
+registries and records. The enclosing bound accommodates the inventory plus
+compiler/program bytes and probe/counter metadata. Synchronous filesystem I/O
+also needs a 128 MiB ceiling to exchange those containers; callers retain their
+explicit lower read limits. Compiler and bytecode identities remain 16 MiB, source
+files 1 MiB, source closures 8 MiB/256 files, item counts 100,000 per file,
+instruction cells 262,144, executions 4,096 and total-session data 256 MiB.
+Rooted/async filesystem, HTTP and process-output bounds are unchanged. This is a
+capacity change, not a coverage format or attribution change.
+
+Exporter diagnostics distinguish inventory limits from changed source snapshots.
+Native boundary tests cover exactly 64 MiB through session creation, inherited
+execution and raw recording, plus one-byte-over rejection and unchanged bytecode
+limits. JavaScript tests exercise the same inventory boundary, oversized
+containers and retained bounded metadata. Self-hosted tests cover size-diagnostic
+boundaries, missing compiler identity and decoding of valid larger containers.
+Full validation and complete workload measurements remain pending.

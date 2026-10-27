@@ -672,3 +672,8 @@ P04a package diagnostics remain in the independent Panack package tool. Structur
 problems and rendering change no compiler/native source, descriptor schema or
 saved bootstrap artifact. The package-tool handoff and canonical bootstrap checks
 remain the required build-independence evidence.
+
+The alpha.15 inventory-capacity prerequisite refreshes the v9 seed through the
+standard stages 2–4 fixed-point proof. Inventories allow 64 MiB and enclosing
+coverage records 128 MiB; compiler/artifact identity bounds remain 16 MiB.
+The coverage format and ordinary execution semantics are unchanged.

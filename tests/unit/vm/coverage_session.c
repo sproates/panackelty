@@ -84,6 +84,29 @@ void coverage_session_contracts(void)
     result = execute(&vm, &function, NULL);
     assert(result && vm_coverage_entries(vm.coverage, 0) == 1); release(result);
     assert(vm_coverage_run_close(root) && terminal(directory, "0") == 1);
+    clean(directory);
+    /* Inventory capacity is independent of the bytecode identity bound. */
+    FILE *large = fopen(inventory, "wb");
+    assert(large && !ftruncate(fileno(large), VM_COVERAGE_MAX_INVENTORY + 1) && !fclose(large));
+    assert(!vm_coverage_session_create(directory, 1, artifacts, inventories, &program));
+    large = fopen(inventory, "r+b");
+    assert(large && !ftruncate(fileno(large), VM_COVERAGE_MAX_INVENTORY) && !fclose(large));
+    large = fopen(artifact, "wb");
+    assert(large && !ftruncate(fileno(large), VM_COVERAGE_MAX_IDENTITY + 1) && !fclose(large));
+    assert(!vm_coverage_session_create(directory, 1, artifacts, inventories, &program));
+    fixture(artifact, "artifact");
+    root = vm_coverage_session_create(directory, 1, artifacts, inventories, &program);
+    assert(root);
+    ticket = vm_coverage_process_ticket(root);
+    assert(ticket);
+    process = vm_coverage_session_inherit(ticket, (const uint8_t *)"artifact", 8, &program);
+    assert(process); free(ticket);
+    VM large_vm = {.program = &program, .coverage_run = process, .coverage = vm_coverage_run_collector(process)};
+    result = execute(&large_vm, &function, NULL); assert(result && !large_vm.error); release(result);
+    assert(vm_coverage_run_close(process) && terminal(directory, "0.1") == 1);
+    large_vm.coverage_run = root; large_vm.coverage = vm_coverage_run_collector(root);
+    result = execute(&large_vm, &function, NULL); assert(result && !large_vm.error); release(result);
+    assert(vm_coverage_run_close(root) && terminal(directory, "0") == 1);
     clean(directory); clean(work);
 #endif
 }

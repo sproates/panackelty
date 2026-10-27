@@ -106,22 +106,26 @@ test('source plan tampering, missing segments and stale snapshots fail closed',t
   fs.writeFileSync(path.join(root,entry),'stale');assert.throws(()=>readPlan(prefix,entry,root,compiler),/stale/);
 });
 
-test('coverage containers above 16 MiB retain bounded identities and a 32 MiB ceiling',t=>{
+test('coverage inventories reach 64 MiB with bounded identities and a 128 MiB container ceiling',t=>{
   const root=fixture(t);
-  const large={...plan,artifact:Buffer.alloc(8*1024*1024,97),inventory:Buffer.alloc(9*1024*1024,105)};
+  const large={...plan,artifact:Buffer.alloc(8*1024*1024,97),inventory:Buffer.alloc(64*1024*1024,105)};
   session(root,large);
   assert.equal(readSession(root,[large],new Set()).executions,1);
   const records=sessionRecords(root);
   assert.deepEqual(records,fs.readdirSync(root).sort().map(name=>[name,sha(fs.readFileSync(path.join(root,name)))]));
   const registry=path.join(root,'registry'), saved=fs.readFileSync(registry);
-  fs.truncateSync(registry,32*1024*1024+1);
+  fs.truncateSync(registry,128*1024*1024+1);
   assert.throws(()=>readSession(root,[large],new Set()),/oversized/);
   assert.throws(()=>sessionRecords(root),/oversized/);
   fs.writeFileSync(registry,saved);
-  fs.truncateSync(path.join(root,'raw-0'),32*1024*1024+1);
+  fs.truncateSync(path.join(root,'raw-0'),128*1024*1024+1);
   assert.throws(()=>readSession(root,[large],new Set()),/oversized/);
   assert.throws(()=>sessionRecords(root),/oversized/);
   assert.throws(()=>new Reader(u32(16*1024*1024+1)).blob(),/Oversized coverage blob/);
+  assert.throws(()=>new Reader(u32(64*1024*1024+1)).blob(64*1024*1024),/Oversized coverage blob/);
+  const oversized={...large,inventory:Buffer.alloc(64*1024*1024+1,105)};
+  session(root,oversized);
+  assert.throws(()=>readSession(root,[oversized],new Set()),/Oversized coverage blob/);
 });
 test('session record hashes reject linked files and keep metadata bounded',t=>{
   const root=fixture(t);session(root);

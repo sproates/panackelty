@@ -563,10 +563,10 @@ slice transitions. These slices share GI#180's existing weight; no extra credit.
 
 ### Shared preparation checkpoint — not a sixth implementation slice
 
-- [ ] P1 — Reconcile the existing checker inventory with actual active decision
+- [x] P1 — Reconcile the existing checker inventory with actual active decision
   sites, evidence types, renderers and regressions. Enumerate reachable success,
   rejection and unavailable paths; give reasons for unreachable outcomes.
-- [ ] P2 — Reconcile the emission/transformation inventory with current emission
+- [x] P2 — Reconcile the emission/transformation inventory with current emission
   sites, source mappings, query output and regressions. Include generated/shared
   instructions and constructs producing no executable code.
 - [ ] P3 — Freeze the resulting gap checklist for the existing language and map
@@ -684,24 +684,27 @@ change has no runtime, memory, build or website-capability impact.
 ### Preparation evidence register — source reconciliation, 28 October 2026
 
 Baseline: next at 8e15658b1546cc7a96f4aeda854da77cda9bde1d.
-P1 and P2 are **in progress**; P3 and implementation slices are **not started**.
-This register records verified findings, not a claim of exhaustive reconciliation.
+P1 and P2 source reconciliation is **complete**. P3 is **in progress**: the
+implementation packets are defined below; representative output remains proposed,
+not agreed. Implementation slices are **not started**. This is a source/test
+inventory checkpoint, not proof that the missing behavior has been implemented.
 No compiler execution, rebuild or test run was needed to inspect these source
 paths and existing test assertions. Referenced regressions below were read, not
 rerun. Keep this register with the execution checklist; do not duplicate the
 existing checker-family inventory in another document.
 
-| ID | Source evidence and finding | Disposition / owner | Remaining reconciliation |
+| ID | Source evidence and finding | Disposition / owner | Implementation acceptance / regression needs |
 | --- | --- | --- | --- |
 | C01 | `module_bodies.panack`: `bind_body_block` retains rejected non-Void storage requirements; `check_body_array` retains rejected non-Void array-element requirements as `BodyTypeCheckEvidence`. `compiler_suites/module_bindings.panack` and `cli_explanations/main.panack` already assert these facts and output. | Existing implementation; no slice 1 rebuild. Correct the stale guide claim during documentation reconciliation. | Check other reachable value-use paths separately; these cases do not establish universal coverage. |
 | C02 | `body_check_typed_intrinsic` calls `body_require_value` for every typed argument but retains `CallArgumentEvidence` only for an explicit name list. Missing argument-bearing names are `run_bytecode_args`, `process_exit`, `host_exit_async`, `process_run`, `process_run_isolated`, `host_sleep`, `host_decode_utf8`, `read_file`, `file_exists`, `read_bytes`, `write_bytes`, `write_file`, `host_stdout_async` and `host_stderr_async`. Streaming HTTP, staging, digest, gzip and filesystem operations are already on the retention list. | Slice 1 owns missing argument evidence; slice 2 owns corresponding output coverage. Reuse `CallArgumentEvidence` and existing arity evidence. | All 14 names use the same accepted/rejected/deferred argument-checking loop. Zero-input calls (`read_line`, `command_args`, `host_arguments_async`) need arity coverage, not invented argument evidence. Check preservation of previously checked children on early exits under C09. |
 | C03 | `BodySolution` and `BoundBody.constraints` retain solutions, while `body_apply_solutions` and `body_finish_constraints` turn unification failures into diagnostics and deferred results into spans. This is not a retained chain of the originating facts and unification decisions. | Slice 1 owns inference-cause retention; slice 2 explains the retained chain. Preserve existing inference semantics. | Map each inference/unification/solution path and its source origin; determine the smallest extension to existing records. |
 | C04 | Existing argument/binding/assignment/join records retain actual/expected types and `Option[Bool]` outcomes. Several renderer reasons describe acceptance or unavailable types generically. | Slice 2 owns specific reasons where existing facts suffice. Slice 1 owns only causes confirmed absent from retained evidence. | For each generic renderer, distinguish a missing fact from wording that fails to use an existing fact. |
-| C05 | `module_effect_call` already records known effect boundaries and unresolved indirect calls. `module_local_functions` derives permission for ordinary wrappers around local-resource operations; `module_effect_call` uses that permission to allow calls inside async functions, but its evidence records only the target effect and declaration identity, not that permission or its supporting calls. Invalid bodies skip effect checking; deferred bodies can retain boundaries. | Slice 1 extends existing effect evidence with the actual permission and dependency facts. Slice 2 explains them. No second effect checker or inferred-effect algorithm. | Classify non-indirect unknown-effect paths against signature/body recovery gates before adding evidence for a path that cannot be reached by a valid declaration. Keep skipped checking distinct from an allowed call. |
+| C05 | `module_effect_call` already records known effect boundaries and unresolved indirect calls. `module_local_functions` derives permission for ordinary wrappers around local-resource operations; `module_effect_call` uses that permission to allow calls inside async functions, but its evidence records only the target effect and declaration identity, not that permission or its supporting calls. Invalid bodies skip effect checking; deferred bodies can retain boundaries. | Slice 1 extends existing effect evidence with the actual permission and dependency facts. Slice 2 explains them. No second effect checker or inferred-effect algorithm. | Valid function signatures always carry an effect; invalid signature sets prevent publication of effect evidence in the loader. Do not add a user-facing unknown-direct-effect case for an internally incomplete signature. Assert local-resource permission causes and keep skipped body checking distinct from an allowed call. |
 | C06 | `body_check_collection_core_call` retains callback type, expected inputs/result and one combined outcome. It checks purity, then arity, then parameters and result. Later checks can be skipped after an earlier failure; the combined result does not retain those individual outcomes. Hole/parameter/non-callable branches already have records. | Slice 1 extends `CollectionCallbackEvidence` with the performed requirements and causes; slice 2 explains each relevant result without pretending skipped checks ran. | Regression matrix: map/reduce success, non-callable, unresolved callable, impure callback, wrong arity, each parameter mismatch, map Void result and reduce result mismatch. Existing callback regressions are a base, not a reason to repeat the implementation. |
 | C07 | `body_guard_conversion` and `body_subtraction_evidence` retain proof results and bounds. `Bounds` has a lower-bound origin but no upper-bound origin. `body_forget_written_fact` clears bounds without retaining the assignment that invalidated them. `body_require_value` can perform a guarded compatibility check without retaining its proof; proof retention in `body_refine` only covers callers that also refine. | Slice 1 owns missing proof causes at the existing decision sites, including mutation invalidation and conversions checked by specialized calls. Slice 2 renders those causes. Do not strengthen the proof engine or infer a runtime failure from insufficient proof. | Trace conversion retention through each require/refine caller and both condition branches. Account separately for a guarded value widening to its base: this is compatibility, not a new proof obligation. |
 | C08 | The five `body_check_http_*_core_call` helpers for buffer, lifecycle, connection, writer and state operations check typed arguments but construct `BodyCall` with empty argument evidence. State/handler-shape decisions have diagnostics but no retained requirements. Several wrong-arity/invalid-state branches return `body_failure` before adding arity or child evidence. TCP and streaming HTTP have different paths and must not be conflated with these helpers. | Slice 1 adds argument, shape and performed-arity evidence using existing record families. Slice 2 provides their output. | Cover all names selected by these five helpers, including accepted checks, wrong count, wrong state/handler shape, argument mismatch and unresolved input. Exercise compiler-owned intrinsic calls through their real declarations as well as helper fixtures. |
-| C09 | `body_call_with_receiver` checks children before dispatch. Some special-call early returns construct an empty failure body; the outer rejected-type-argument helper adds count evidence but cannot recreate discarded child records. Partial checking therefore needs preservation as well as better unavailable wording. | Slice 1 preserves already-produced evidence through rejected/deferred parents; slice 2 reports the exact stopping point. This is one cross-cutting repair, not a second implementation in each renderer. | Reconcile recovery through call, binding, return and final-constraint paths. Tests must distinguish an earlier checked child from a later check never performed. |
+| C09 | `body_call_with_receiver` checks children before dispatch. Some special-call early returns construct an empty failure body; the outer rejected-type-argument helper adds count evidence but cannot recreate discarded child records. Partial checking therefore needs preservation as well as better unavailable wording. | Slice 1 preserves already-produced evidence through rejected/deferred parents; slice 2 reports the exact stopping point. This is one cross-cutting repair, not a second implementation in each renderer. | Binding/assignment wrappers preserve checked children; function results refine then solve and retain their return requirement. Constraint solving preserves records but substitutes types without a decision history (C03). Early special-call failures and failed owned-method selection discard checked child/receiver records. Assert preserved earlier checks and explicitly skipped later checks. |
+| C10 | The `FunctionExpr` body branch constructs a callable type from the resolved signature or rejects a generic function reference, but retains no requirement/outcome explaining that distinction. A checked expression type alone does not explain the rejection. | Slice 1 adds the callable-reference requirement using `BodyTypeCheckEvidence`; slice 2 explains the result. Name resolution itself stays outside scope. | Assert a non-generic callable reference, a resolved generic reference requiring a wrapper, and an internally incomplete signature separately. Do not label a failed name lookup as a failed callable-type decision. |
 | E01 | `emit_block` appends stores for bindings/assignments and pops for expression statements without adding `InstructionSource` entries for those instructions. | Slice 3: complete statement instruction origins. | Determine available statement spans and any loss of source identity before emission; verify origin truth rather than copying the nearest expression span blindly. |
 | E02 | `emit_block` appends while jumps/pops and for iterator initialization/advance/jumps without corresponding instruction-source entries. Coverage probes exist for loop decisions but are not instruction-origin records. | Slice 3: generated control-flow attribution. | Account for every generated instruction and enclosing construct; preserve existing coverage probes independently. |
 | E03 | `NoBlockValue` emits a Void constant; `compile_program_emission` appends an implicit return after the emitted function body. Those paths do not add origins. | Slice 3: implicit-output origins with genuine generated reasons. | Identify the responsible block/function source and reachable cases, including empty bodies. |
@@ -778,29 +781,181 @@ than treating existing success as evidence that every instruction is covered.
 The older `compiler_explanations_unit.panack` covers the legacy checker: its
 passing cases alone cannot establish module-checker completeness.
 
-**Remaining preparation is bounded to three reconciliation checks:**
+### Final reconciliation and acceptance obligations
 
-1. Finish the require/refine and partial-body recovery trace for C07/C09, including
-   function results and already-retained evidence after failed constraints.
-2. Classify C05's unknown direct-effect paths against signature gates, and map
-   each listed gap's reachable outcomes to an existing assertion or an explicit
-   missing regression. Do not call helper-only malformed states user-reachable
-   without a source reproducer or a documented internal-only case.
-3. Finish the source-identity boundary check for synthetic/internal emission and
-   parser-to-bound statement spans. E01–E03/E07 need truthful origins even where
-   the current intermediate statement representation drops them.
+The three remaining source traces are resolved:
 
-P1/P2 remain open until those checks are recorded. P3 then freezes the packet
-list and representative transcripts. The confirmed mechanism changes are
-inference/proof dependency retention, preservation of statement/block origins,
-and a reverse-query/multiple-origin representation. Reusing current records is
-still the default; “just wording changes” or a firm five-to-seven-PR promise would
-not describe these findings accurately.
+1. **Proof and partial-body retention.** Direct arguments, annotated initializers,
+   assignments and function returns call `body_refine`; that path retains
+   conversion evidence and its original children. Specialized calls commonly
+   call `body_require_value` without refinement, so C07 covers their missing
+   proof causes. `body_solve` preserves existing records and substitutes several
+   recorded types while retaining earlier outcomes; C03 must keep the original
+   decision and later solution distinguishable. C09 is concentrated in early
+   call failures, including a checked receiver whose owned-method selection
+   fails. The resolution failure itself remains outside scope; earlier body
+   decisions must not disappear with it.
+2. **Effect reachability.** `check_module_signatures` assigns an effect to every
+   valid function and synthetic intrinsic signature. The loader only publishes
+   effect evidence when signature/guard validation succeeds. A missing direct
+   function effect is therefore an incomplete/internal signature case, not an
+   extra ordinary user outcome. Invalid bodies skip the effect pass; deferred
+   bodies can retain evidence. The existing unresolved-indirect-effect unit test
+   constructs a deferred body explicitly: keep that internal coverage without
+   claiming its exact malformed state is a runnable source example.
+3. **Origin boundaries.** Parser `Statement` and `Block` do not carry complete
+   construct spans. Binding/assignment bound spans currently follow the value;
+   loops can inherit the enclosing span. Slice 3 must carry honest construct
+   locations from parsing through binding/module emission, not relabel those
+   inherited spans as exact statement ranges. Bare internal ASTs have no source:
+   record an explicit generated/internal origin and reason, never a guessed
+   location. Defensive `OwnedCallExpr`/`DotCallExpr` traps in the low-level
+   emitter are internal bypass cases: the checked frontend resolves those forms
+   before emission. Preserve defensive coverage without presenting those traps
+   as the normal method-lowering result.
 
-Representative transcript candidates for P3/2.1 are the presentation's bounded
-subtraction, an unsuccessful proof, a generic argument inference chain, a typed
-host-call rejection, and a partially checked function. For P3/4.1 use a binding,
-a loop, shared generic code and a declaration with no instructions. These are
-candidate cases only; neither output wording nor a new command interface is
-approved by this register. The known limits of source spans and inference-cause
-retention must inform the cost estimate before implementation.
+Additional anchors: [signature construction](../../../src/compiler/module_signatures.panack),
+[loader gates](../../../src/compiler/loader.panack),
+[statement/block representation](../../../src/compiler/parser.panack) and
+[bound facts](../../../src/compiler/checker.panack).
+
+For every implementation packet, accepted/rejected/unavailable means the actual
+checker outcome. Known arity comparisons and match uniqueness have two outcomes;
+no synthetic unavailable outcome is needed. Type compatibility, proof and
+inference can lack required facts. A check skipped after another failure is
+reported as not performed with its dependency, not as a rejection or success.
+No source-level rejected outcome is required for an instruction that is only
+emitted after successful checking; failed compilation instead has no validated
+artifact. Internal-only cases remain labelled as such.
+
+| Gaps | Existing regression evidence to preserve | Missing acceptance to add in the owning slice |
+| --- | --- | --- |
+| C01, C04, C10 | Module-binding requirement/return/type-at tests and CLI cases already cover Void storage, operators, indexing, fields, match, joins and interpolation. | Rule-specific reasons, generic-reference rejection, genuine deferral causes, full readable transcripts; no empty evidence family presented as a failed check. |
+| C02, C08 | Typed fs/streaming and native TCP/HTTP transport fixtures; `network_core_body_tests` distinguishes transport argument results. | Every argument-bearing typed-helper name and each of the five HTTP-state helper families: performed count/shape/argument checks, accepted/rejected/unresolved outcomes and retention off. No network request is needed to check these compiler decisions. |
+| C03 | Inferred locals, explicit type counts, repeated-generic joins and owned generic methods already have checking/output tests. | First inference source, equality/collection/empty-constructor constraints, nested substitution, conflicting/recursive constraints, deferred dependencies and final solutions. Assert the source of each constraint, not merely the final type. |
+| C05, C06 | `namespace_effect_tests`, callback contract/receiver tests, `owned_callback_tests` and CLI partial-function cases. | Individual performed callback requirements and skipped successors; local-resource effect permission and its call dependencies; body/global gates with reasons. |
+| C07 | Branch conversion evidence and `owned_mutation_fact_tests` already check fresh/unrelated facts and reject stale facts. | Upper/lower source origins, specialized-call proof retention, assignment invalidation cause and true/false branch facts. Assert truthful insufficient-proof output rather than claiming runtime failure. |
+| C09 | Existing invalid/deferred body and valid-sibling recovery cases. | A previously checked argument/receiver remains explainable after its parent call fails; binding and return wrappers preserve it; final solving does not rewrite history into a different performed decision. |
+| E01–E03, E07 | `instruction_sources` fixtures explicitly assert current missing stores, loops and returns; identity/order/byte-parity checks already exist. | Replace those missing-origin expectations, include discarded expression statements and empty/nested blocks, and require an origin for every emitted instruction. Include an internal generated-origin case with no invented file/range. |
+| E05, E08 attribution | Source-map CLI tests already exercise stale, malformed, mismatched, missing and forged pairs; imported generic selector fixtures verify identity. | Distinct validation failure vs valid no-result, all origins for shared output, negative completeness test, and unchanged bytecode with retention on/off. Keep bounded local replay validation. |
+| E04, E06, E08 queries | Existing exact short-circuit, map/reduce, match, await, interpolation and imported-generic mapping fixtures. | Source-to-instruction results, actual transformation reasons, shared generic body vs call sites, method target identity, meaningful declarations with no standalone instructions and unused core pruning. No claims of specialization or general dead-code elimination. |
+
+Existing tests were inspected, not rerun. Rows describing missing acceptance are
+implementation obligations, not passing tests. This finishes P1/P2's mapping of
+source decisions, retained evidence, output and regression gaps; it does not
+replace slice 1.3/2.3/3.3/4.3's executed completeness checks. A later discovered
+omission within these agreed families is a defect to fix, not permission to
+narrow the completion target or silently add a new programme.
+
+### P3 implementation packets and output review
+
+The five slices stay unchanged. The following packets are a delivery order
+within them, not eight new slices or eight new weighted tasks:
+
+| Packet | Concrete result | Slice ownership / gap IDs |
+| --- | --- | --- |
+| A | Complete ordinary/special-call requirements and preserve previously checked evidence through failures. | Slice 1: C01, C02, C08, C09, C10. |
+| B | Retain where inference constraints came from, how they combine and why they resolve, fail or defer. | Slice 1: C03. |
+| C | Retain proof fact origins and mutation invalidation without changing what the compiler can prove. | Slice 1: C07. |
+| D | Retain individual callback requirements and local-resource effect permissions. | Slice 1: C05, C06. |
+| E | Render all retained decisions with specific reasons, source locations and compact complete output. | Slice 2: C04 and output for A–D; no second checking implementation. |
+| F | Complete instruction origins through parsing/emission; distinguish invalid artifacts and support truthful multiple/generated origins. | Slice 3: E01–E03, E05, E07 and attribution part of E08. |
+| G | Explain transformations, reverse mappings, shared output and no-output cases through noninteractive queries. | Slice 4: E04, E06 and query part of E08. |
+| H | Reconcile GI#435 additions, installed examples, documentation and comparable retention costs. | Slice 5, after GI#435 and the other alpha.15 compiler changes. |
+
+Packets A–D can feed E incrementally. Packet F precedes G. Add regressions while
+implementing each packet; H does not defer their testing. The mechanism changes
+are bounded to retained decision dependencies, construct origins and query/map
+representation. There is no new inference/proof engine, compiler/stdlib
+reorganisation or interactive terminal application.
+
+**Revised planning estimate: roughly 8–12 PRs**, replacing the unsupported
+five-to-seven estimate. Eight coherent delivery packets are now visible; the
+inference and source-origin changes may need more than one reviewable PR. This
+is an estimate, not a completion condition or a reason to create tiny PRs. The
+five slice exit criteria determine completion. Release weights are unchanged.
+
+**Output proposal — not implemented or approved.** Keep the current
+`panack explain SOURCE --function NAME` entry point. Group by source construct,
+lead with the result and attach supporting facts to that result. Combine closely
+related decisions in a paragraph without omitting their outcomes. Omit empty
+family headings. Do not print “unavailable” simply because a function has no
+calls, subtraction or generic inference. Keep the selected function's status
+separate from other project failures. No truncation, quiet mode or new interactive
+controls are proposed here.
+
+First full successful explanation candidate, using the existing bounded
+subtraction example from the explanation guide. This is a proposed transcript,
+not captured output. `remaining.panack` contains:
+
+```panackelty
+pure remaining(n: Nat): Nat {
+  if n >= 2 {
+    n - 2
+  } else {
+    0
+  }
+}
+main(): Void {}
+```
+
+Command: `panack explain remaining.panack --function remaining`.
+Proposed complete stdout, empty stderr and exit status 0:
+
+```text
+remaining: accepted
+Source: project/remaining.panack:1:1
+
+2:6  n >= 2 — Bool
+  n has the declared type Nat; 2 is Nat. These numeric values can be compared.
+  The result is Bool, as required by if.
+
+3:5  n - 2 — Nat
+  Both operands are Nat. In this branch, n >= 2 is true (2:6).
+  Subtracting 2 therefore cannot produce a value below 0.
+
+5:5  0 — Nat
+  The other branch produces the Nat literal 0.
+
+2:3  if … else — Nat
+  Both branches produce Nat, so their combined result is Nat.
+  This matches remaining's declared return type Nat (1:1).
+
+Effects: no call or await boundaries in this pure function.
+```
+
+Review this presentation before adapting the remaining full transcripts:
+rejected subtraction, generic inference, an HTTP/host requirement failure,
+partially checked function and genuinely unavailable decision. Each must show
+all performed relevant decisions and distinguish local acceptance from project
+failure. Existing ordinary diagnostics remain unchanged; failure transcripts
+must include their stderr and exit status as well as explanation stdout.
+
+For slice 4, extend `locate` without adding a separate application. Proposed
+mutually exclusive query forms, both retaining the current artifact/source/map
+validation:
+
+- Instruction query: existing `--function NAME --instruction PC`.
+- Source query: `--source-file MODULE --source-at LINE COLUMN`, where MODULE
+  is a portable identifier from the validated source snapshots, such as
+  `project/library.panack`. This selects across emitted functions, so a generic
+  declaration or import does not need an invented function selector. It must
+  not read an arbitrary path supplied through the map or this selector.
+
+Choose the smallest recorded source construct containing the point and show its
+exact range; never choose a nearby construct when the point has no match.
+Report all corresponding function/instruction ranges and recorded transformation
+reasons. Shared generic bodies must be described as shared, not specialised.
+Declarations contributing metadata can have no standalone instructions: explain
+that relationship explicitly. A point with no recorded construct, a recorded
+construct with no executable output, and failed artifact validation are distinct
+results. Valid query/no-output results exit 0; invalid arguments or unvalidated
+artifacts exit 1. Preserve the source-map replay trust model and bounded reads.
+This is a proposed command extension, not a currently available capability.
+
+Review the binding, loop, shared-generic and no-output transcripts against this
+concrete interface before slice 4 implementation. No extra declaration selector,
+interactive navigation or runtime debugger is required.
+
+P3 remains open for transcript/interface agreement. No compiler implementation
+has started and no completion credit is earned by this preparation record.

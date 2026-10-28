@@ -13,7 +13,11 @@ an interactive terminal prototype. The commands below remain historical review
 candidates, not an approved implementation plan. Their evidence and wording
 remain useful for evaluating direct selection, expansion and following origins.
 The local prototype uses Panack for UI/navigation and fixture evidence, plus a
-small native terminal-event adapter. It does not produce live compiler evidence.
+small native terminal-event adapter. That fixture version remains available. A separate
+live demo now uses retained compiler evidence and final preparation diagnostics,
+with reload and optional sharing of one terminal session to a phone. The live
+demo is not a shipped command or evidence-completeness claim. Physical-phone
+rehearsal and usability acceptance remain pending.
 
 ## The real function
 

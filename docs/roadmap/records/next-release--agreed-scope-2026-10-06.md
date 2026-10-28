@@ -1244,3 +1244,22 @@ Panack navigation/rendering code, rather than exposing a general shell or
 duplicating the model in browser code. Error/origin/back output was byte-compared
 with the terminal interface; browser interaction was checked at 390×844. This
 enables review, not live compiler evidence or production session acceptance.
+
+#### Live presentation milestone — 28 October 2026
+
+The owner requested a working Mac demonstration for 29 October at 15:00,
+including a phone reveal. A separate local demo now loads real retained compiler
+evidence, includes final preparation diagnostics and reloads edited source.
+`--serve` shares one running terminal session: navigation on the Mac or phone
+changes both screens. Panack owns the model and UI; isolated tmux/ttyd sessions
+supply terminal transport. The earlier fixture bridge remains available.
+
+Accepted/rejected subtraction, generic-call evidence, effect rejection, final
+preparation rejection, origin/back navigation and same-process source reload
+pass local checks. Two-way native-terminal/browser control was verified at a
+phone-sized viewport. Physical-phone and presentation-network rehearsal,
+accessibility, broader usability and production integration remain outstanding.
+No compiler/VM implementation changed, no additional evidence completeness is
+claimed and no release completion credit is added. This bounded milestone does
+not replace the five slices or their acceptance criteria. Website claims remain
+unchanged because the demo is local and unreleased.

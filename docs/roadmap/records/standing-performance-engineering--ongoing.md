@@ -252,3 +252,22 @@ includes the expanded cause-specific tests. Canonical make check passed in
 784 seconds on macOS arm64, compared with the earlier 709-second P04a run.
 The workload and machine conditions differ; these are observations, not a
 matched performance comparison.
+
+
+### RM#154 preparation reuse disposition, 28 October 2026
+
+[Final acceptance](../../COVERAGE_PERFORMANCE_BASELINE.md#final-acceptance-28-october-2026)
+meets the agreed timing targets: local repeat/reporting improvements 88.70%/88.75%,
+cold/dependency regressions 0.65%/2.35%. Hosted collection is 30m22s cold and
+3m35s warm. Warm collector RSS is 1125–1140 MiB versus 931–1056 MiB in the
+available uncached repeat/reporting observations; separate subprocess peaks
+fall to 330–342 MiB. Total simultaneous memory and a complete three-sample old
+collector baseline are unavailable; no overall memory-saving claim is made.
+
+Disposition: finish the bounded alpha.15 optimisation as directed by the owner,
+retain current bounds and disclose the warm collector memory cost and slow cold
+path. The subsequent coverage-approach review owns assessment of cold preparation
+and retained decoded plans after alpha.15, allocated to alpha.16. No further
+optimisation or new collection is a gate for this accepted bounded task. The
+implementation remains the responsibility of the core coverage maintainer; the
+next action is the separately scoped review, not an automatic repair campaign.

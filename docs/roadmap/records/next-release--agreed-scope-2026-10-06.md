@@ -306,6 +306,8 @@ acceptance is covered; optimisation is not required to close this assessment.
 
 Current allocation: alpha.15 after the 20 October rebalance.
 
+**Done, 28 October 2026:** local and hosted preparation reuse (PR#644/PR#645) meet the agreed four-workload targets, with equivalent results and fresh sessions. See [final acceptance](../../COVERAGE_PERFORMANCE_BASELINE.md#final-acceptance-28-october-2026). Cold preparation remains slow; the fundamental approach will be reviewed separately after alpha.15.
+
 **Planned for Alpha.14 by owner direction, 2026-10-15.** Improve code-coverage
 collection speed, particularly repeated release checks after changes that do not
 alter the measured program. During Alpha.13 preparation, reporting-only repairs

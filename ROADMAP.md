@@ -19,7 +19,7 @@ hosted initial compiler checks 24.9%/36.8% faster. Regression guards passed,
 including the ordinary four-worker setting. The bounded alpha.15 milestone is accepted;
 the wider GI#106 issue is not closed. No tests or validation cadence were removed.
 
-RM#154: Faster coverage slice A has completed its four-workload baseline after capacity and stale coverage metadata repairs (PR#642): 939–958 seconds per complete run, 124 fresh sessions. The [baseline and cache contract](docs/COVERAGE_PERFORMANCE_BASELINE.md) records the owner-agreed target (27 October): at least 75% faster repeat/reporting runs, at most 10% cold/dependency regression. Slice B local reuse is verified in PR#644: three cached repeats have a 108.48-second median with fresh assertions. Slice C hosted integration and matched acceptance are in progress.
+RM#154: Faster coverage is complete for alpha.15. PR#644 delivers local preparation reuse and PR#645 hosted persistence. Matched local acceptance shows 88.70% faster repeats and 88.75% faster reporting changes; cold/dependency regressions are 0.65%/2.35%, within the agreed 10% limit. Hosted collection fell from 30m22s to 3m35s with all 29 preparations reused and 31 fresh sessions per run. [Evidence and limitations](docs/COVERAGE_PERFORMANCE_BASELINE.md#final-acceptance-28-october-2026). Cold preparation remains slow; redesign is outside this completed optimisation.
 
 For the current release summary, read [Next release status](docs/NEXT_RELEASE_STATUS.md).
 Keep that summary current alongside the detailed records when release work changes.

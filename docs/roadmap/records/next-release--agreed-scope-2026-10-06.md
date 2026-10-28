@@ -1164,123 +1164,18 @@ binding construct, not silently reuse the initializer's position. If exact
 binding spans depend on packet F, deliver the source-origin dependency first or
 show the accurately labelled initializer location until F is available.
 
-### Provenance-query candidates
+### Realistic usability review
 
-These proposed transcripts describe expected instruction ranges from the current
-emitter, with the missing attribution/reasons supplied by slices 3/4. They are
-not captured output. Validate actual ranges against the compiler when adding
-regressions; do not hard-code inferred offsets in the renderer.
-
-File `loop.panack`:
-
-```panackelty
-main(): Void {
-  mut x = 0
-  while x < 1 {
-    x = x + 1
-  }
-}
-```
-
-After compiling the source and its map, a proposed source query is:
-
-```sh
-panack locate loop.bc --source loop.panack --source-map loop.pmap --source-file project/loop.panack --source-at 3 3
-```
-
-Proposed complete stdout (empty stderr, exit status 0):
-
-```text
-while x < 1 { … } => instructions 2 through 12 in main
-Source: project/loop.panack, line 3, column 3 through line 5, column 4.
-
-Instructions 2 through 4 evaluate x < 1.
-Instruction 5 leaves the loop when the condition is false.
-Instructions 6 through 9 evaluate x + 1 and store the result in x.
-Instructions 10 and 11 finish the body and discard its Void result.
-Instruction 12 returns to the condition for the next iteration.
-
-Panack generated the jumps and body-result handling to implement the while loop.
-```
-
-Querying the binding at line 2, column 3 instead gives:
-
-```text
-mut x = 0 => instructions 0 through 1 in main
-Source: project/loop.panack, line 2, column 3 through column 12.
-
-Instruction 0 produces the Nat literal 0.
-Instruction 1 stores that value in x.
-```
-
-The range convention is start-inclusive/end-exclusive, matching source maps.
-Output must label this convention in help; references to a single point need no
-range punctuation. Querying instruction 12 with the existing instruction form
-must return the same loop source and the generated back-edge reason, not a
-fictional source-level jump statement.
-
-**Shared generic output.** For this file:
-
-```panackelty
-pure identity[T](value: T): T { value }
-main(): Void { identity(1); identity("hello"); }
-```
-
-A source query at line 1, column 1 selects the declaration:
-
-```text
-identity[T] => shared instructions 0 through 1 in identity
-Source: project/generic.panack, line 1, column 1.
-
-Instruction 0 loads value. Instruction 1 returns it.
-Calls using Nat and Str use this same compiled body.
-Panack checks the type arguments before emission; it does not emit a separate
-identity body for each type.
-```
-
-The Nat/Str call relationship must come from retained call/declaration facts,
-not from guessed runtime values. Selecting either call expression instead shows
-its caller's instructions and links to the shared body. A generic declaration
-with no calls must not invent call types to fill this text.
-
-**No standalone executable output.** File `record.panack`:
-
-```panackelty
-record Box { value: Nat }
-main(): Void { Box(1); }
-```
-
-A source query at line 1, column 1 gives:
-
-```text
-record Box => no standalone instructions
-Source: project/record.panack, line 1, column 1.
-
-This declaration defines Box's fields and their types.
-The Box(1) expression on line 2, column 16 produces the instruction that
-constructs a Box value. The declaration itself does not execute.
-```
-
-This is a successful validated query (empty stderr, exit status 0), not an
-unavailable map. Imports and type declarations similarly need their actual
-compile-time role, rather than an invented instruction.
-
-**Mismatched artifact/map.** A failed exact-pair comparison gives empty stdout,
-exit status 1 and proposed stderr:
-
-```text
-Panack cannot validate the source map for loop.bc.
-The supplied bytecode or source map does not match the output produced from
-loop.panack and its imports using this compiler.
-
-Compile the source again with --source-map to create a matching pair, or use
-the sources and compiler that produced the supplied files.
-```
-
-Do not claim whether the original cause was changed source, a different compiler
-or damaged files when the comparison only establishes a mismatch. Missing files,
-invalid source, invalid arguments and a valid query with no matching construct
-retain separate truthful explanations.
+The owner rejected instruction-number-led provenance examples: users cannot
+relate those numbers to their code. Those candidates are superseded by the
+[source-led realistic review](../../COMPILER_UNDERSTANDING_REALISTIC_REVIEW.md),
+using the real package-tool function `hash_archive_file`, an observed failing
+edit and verified disassembly. Its complete overview, focused queries and full
+detailed transcript are proposals for review, not approved output. Existing
+short-example approval covers notation and wording, not overall usability.
+The baseline prints 1,025 lines for this 26-line function. Proposed source
+selection and detail controls must be agreed before renderer implementation;
+a second real compiler function must then test whether the design generalises.
 
 For slice 4, extend `locate` without adding a separate application. Proposed
 mutually exclusive query forms, both retaining the current artifact/source/map
@@ -1304,10 +1199,12 @@ results. Valid query/no-output results exit 0; invalid arguments or unvalidated
 artifacts exit 1. Preserve the source-map replay trust model and bounded reads.
 This is a proposed command extension, not a currently available capability.
 
-Review the binding, loop, shared-generic and no-output transcripts against this
-concrete interface before slice 4 implementation. No extra declaration selector,
+Review the source-led realistic transcripts against this interface before
+slice 4 implementation, including a second case covering shared-generic and
+no-output outcomes. No extra declaration selector,
 interactive navigation or runtime debugger is required.
 
-P3 remains open for the proposed provenance-query interface and transcripts.
-Checker presentation and the three reviewed sections are approved. No compiler
+P3 remains open for realistic usability agreement, including proposed overview,
+source selection, full-detail and provenance-query transcripts. The three short
+checker sections establish approved wording and notation only. No compiler
 implementation has started and no completion credit is earned by preparation.

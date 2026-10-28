@@ -1,8 +1,7 @@
 # Faster coverage: baseline and cache contract
 
-RM#154, alpha.15. Work started 27 October 2026. Slice A is complete; slice B local reuse is implemented and verified in PR#644. The capacity and stale coverage metadata repairs pass validation.
-All four baseline workloads completed successfully on 27 October 2026. The owner agreed the numerical target below on 27 October 2026; no speed improvement
-or overall task completion is claimed.
+RM#154, alpha.15: complete. Local reuse (PR#644), hosted persistence (PR#645) and final acceptance are delivered; see the final acceptance below.
+All four baseline workloads completed successfully on 27 October 2026. The owner agreed the numerical target below on 27 October 2026; the original baseline precedes the completed optimisation recorded below.
 
 ## Delivery slices
 
@@ -309,10 +308,10 @@ sample. Subprocess peaks fall because native plan generation is absent. These
 are separate process peaks, not simultaneous total memory, and the earlier
 baseline did not measure collector RSS. No overall memory improvement or
 regression against the old collector can therefore be established from these
-numbers. Slice C owns the matched memory comparison alongside timing acceptance;
+numbers. Slice C was assigned the matched memory comparison alongside timing acceptance;
 retain current file/count bounds and explicitly assess any material increase.
 
-Slice B's local implementation is verified. Slice C remains: trusted hosted
+At the slice B checkpoint, remaining slice C acceptance comprised: trusted hosted
 persistence, three matched samples per comparison case across all four workloads,
 cache invalidation/recovery replay, hosted provenance/publication evidence and
 final operating acceptance. No release-completion credit or hosted speed claim
@@ -320,7 +319,7 @@ is assigned from these local measurements alone.
 
 ## Slice C: hosted preparation and matched acceptance
 
-Implementation is in progress. Hosted reuse uses a separately named
+Implementation is merged in PR#645. Hosted reuse uses a separately named
 `source-preparation-INPUT_IDENTITY` artifact retained for 30 days, so weekly runs
 can reuse preparation without depending on the ordinary cache's one-week idle
 retention. The name binds the full local context and hosted importer version.
@@ -353,10 +352,7 @@ that exact static report name; executable preparation is never published as a
 coverage website asset. Failure to retain preparation is visible but does not
 invalidate a successful report.
 
-Remaining acceptance: focused workflow and real import/execution replay;
-three matched samples per workload with memory comparison; hosted cold and warm
-runs with fresh nonces; publication boundary verification; final operating review.
-The release summary retains partial/unquantified status until those checks pass.
+The acceptance listed at implementation time is now completed below.
 
 Initial slice C verification: all 77 focused reader/cache/hosted/manifest/policy/
 routing/release-gate tests pass, as do CI routing, workflow YAML/layout and docs
@@ -366,7 +362,69 @@ changes are confined to hosted coverage tooling, its CI validation target and
 tests; compiler/runtime behavior and the local collector are unchanged.
 Existing baseline compiler, VM and all measured source hashes match the current
 checkout exactly, and the local cache implementation is unchanged from PR#644.
-Existing valid samples will be retained when completing the missing matched
+Existing valid samples were retained when completing the missing matched
 repeats; the earlier profiler's missing collector RSS remains explicitly unknown.
 No website changes are needed: static report format and publisher selection are
-unchanged. Hosted execution and final performance acceptance remain pending.
+unchanged. Hosted execution and final performance acceptance are recorded below.
+
+
+## Final acceptance, 28 October 2026
+
+Done: the bounded alpha.15 preparation-reuse optimisation is complete. The owner
+selected finalisation of this approach, completion of alpha.15, then a separate
+review of the fundamental coverage approach. No further optimisation is part of
+RM#154. This completion record takes effect when merged into next.
+
+The local matrix contains three before/after samples for each of four workloads,
+24 successful collections and 744 distinct fresh session nonces. Compiler/VM
+identities, source files, coverage metrics and per-workload executable/inventory
+identities agree. The comparison initially rejected the bootstrap confirmation
+because it prints a unique temporary output path. Each exact stdout hash was
+validated against its own recorded path before normalising that message alone;
+all other stdout hashes remain compared exactly. Negative checks reject changed
+bootstrap output and artifact identity. No measurements were rerun for this fix.
+
+| Workload | Before median | After median | Change |
+| --- | ---: | ---: | ---: |
+| Cold | 965.53 s | 971.80 s | 0.65% slower |
+| Unchanged repeat | 959.71 s | 108.48 s | 88.70% faster |
+| Reporting-only | 958.23 s | 107.84 s | 88.75% faster |
+| Dependency change | 952.66 s | 975.08 s | 2.35% slower |
+
+All agreed timing thresholds pass. Warm collector peak RSS is 1125–1140 MiB,
+compared with 931–1056 MiB in the available uncached repeat/reporting samples.
+Warm subprocess peaks are 330–342 MiB, versus roughly 1040–1055 MiB uncached.
+These are separate process peaks, not simultaneous total memory. The earliest
+baseline lacks collector RSS; no full three-sample memory median or overall
+memory reduction is claimed. Disposition: retain this bounded implementation
+under the owner's direction to finalise as is, with the memory cost explicit.
+The separate coverage review owns reconsideration of retained decoded plans and
+cold preparation; no additional memory optimisation is a completion gate here.
+
+Hosted runs used the same next revision, 5141370ab500739c7bae7c39fd7959a77a2dc04b,
+on Ubuntu 24.04 with Node 24:
+
+- [Cold run 40650355121](https://github.com/sproates/panackelty/actions/runs/40650355121):
+  collection 30m22s; whole job 32m13s. Generated and retained preparation.
+- [Warm run 40650390601](https://github.com/sproates/panackelty/actions/runs/40650390601):
+  collection 3m35s; whole job 5m35s. Selected artifact 12800678556 from the cold
+  run, validated/imported 29 preparations, and logged all 29 cache hits.
+
+Downloaded reports agree on files, metrics, components, manifest, compiler/VM,
+commit and per-session artifact/inventory identities. All 62 session nonces are
+distinct. Non-bootstrap stdout hashes agree; bootstrap confirmation hashes each
+match their exact recorded workspace path. Both reports passed collection checks.
+Hosted collection is 88.20% faster in this pair; these are not three hosted
+repetitions or a guarantee of two-minute GitHub runs.
+
+Both runs uploaded separately named static reports and preparation artifacts.
+The publisher selects the exact source-coverage-RUN_ID name, so preparation
+cannot be selected as the report. Existing publisher selection code and downloaded
+static report contents were checked; these runs did not trigger a new coverage
+website deployment, and no deployment is claimed or required by this optimisation.
+
+Missing, expired, invalidated or rejected preparation still causes a cold run.
+Cold collection remains around 16 minutes locally and 30 minutes in this hosted
+sample. Fresh tests and assertions always execute; no test outcomes are cached.
+The source corpus, collection schedule, safety bounds and release freshness
+policy are unchanged. No public website feature/pin change is needed.

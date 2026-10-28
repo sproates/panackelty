@@ -875,7 +875,12 @@ inference and source-origin changes may need more than one reviewable PR. This
 is an estimate, not a completion condition or a reason to create tiny PRs. The
 five slice exit criteria determine completion. Release weights are unchanged.
 
-**Output proposal — not implemented or approved.** Keep the current
+**Output review — presentation convention agreed, full transcripts pending.**
+Owner agreement: use `expression => Type` and spell out locations as “line N,
+column M”. Bare `N:M` positions were mistaken for ratios and must not appear
+in these human explanations, including headings and supporting references.
+This notation agreement does not approve the remaining wording or CLI extension.
+Keep the current
 `panack explain SOURCE --function NAME` entry point. Group by source construct,
 lead with the result and attach supporting facts to that result. Combine closely
 related decisions in a paragraph without omitting their outcomes. Omit empty
@@ -904,22 +909,27 @@ Proposed complete stdout, empty stderr and exit status 0:
 
 ```text
 remaining: accepted
-Source: project/remaining.panack:1:1
+Source: project/remaining.panack, line 1, column 1
 
-2:6  n >= 2 — Bool
+n >= 2 => Bool
+  Line 2, column 6.
   n has the declared type Nat; 2 is Nat. These numeric values can be compared.
   The result is Bool, as required by if.
 
-3:5  n - 2 — Nat
-  Both operands are Nat. In this branch, n >= 2 is true (2:6).
-  Subtracting 2 therefore cannot produce a value below 0.
+n - 2 => Nat
+  Line 3, column 5.
+  Both operands are Nat. The condition n >= 2 on line 2, column 6 guarantees
+  that n is at least 2 in this branch. Subtracting 2 therefore cannot produce
+  a value below 0.
 
-5:5  0 — Nat
+0 => Nat
+  Line 5, column 5.
   The other branch produces the Nat literal 0.
 
-2:3  if … else — Nat
+if … else => Nat
+  Line 2, column 3.
   Both branches produce Nat, so their combined result is Nat.
-  This matches remaining's declared return type Nat (1:1).
+  This matches remaining's declared return type Nat on line 1, column 1.
 
 Effects: no call or await boundaries in this pure function.
 ```
@@ -930,6 +940,76 @@ partially checked function and genuinely unavailable decision. Each must show
 all performed relevant decisions and distinguish local acceptance from project
 failure. Existing ordinary diagnostics remain unchanged; failure transcripts
 must include their stderr and exit status as well as explanation stdout.
+
+### Further explanation examples — wording proposed for review
+
+These are individual explanation sections, not complete stdout/stderr transcripts.
+The source fixtures below establish their locations; no captured execution or
+new implementation is claimed. Failure diagnostics and other performed decisions
+must still appear in the eventual full transcript.
+
+**Rejected subtraction.** Source:
+
+```panackelty
+pure remaining(n: Nat): Nat {
+  n - 2
+}
+main(): Void {}
+```
+
+```text
+n - 2 => Nat — rejected
+  Line 2, column 3.
+  Both operands are Nat, but Nat includes 0 and 1. Subtracting 2 from either
+  would produce a negative value, which Nat cannot represent.
+  Panack cannot prove that n is at least 2 here.
+
+  Check that n >= 2 before subtracting, or use Int if negative results are valid.
+```
+
+Here Nat is the arithmetic result type selected by the type rule, not a claim
+that the expression passed its separate proof obligation. The rejected status
+must remain on the heading.
+
+**Generic inference.** Source:
+
+```panackelty
+pure identity[T](value: T): T { value }
+pure greeting(): Str {
+  identity("hello")
+}
+main(): Void {}
+```
+
+```text
+identity("hello") => Str
+  Line 3, column 3.
+  identity expects one argument of type T and returns the same type T.
+  "hello" has type Str, so Panack infers T as Str for this call.
+  The argument matches Str, and the call therefore produces Str.
+  This matches greeting's declared return type Str.
+```
+
+**A check that could not finish.** Source:
+
+```panackelty
+pure answer(): Nat {
+  missing
+}
+main(): Void {}
+```
+
+```text
+missing => type not determined
+  Line 2, column 3.
+  No value named missing is defined here, so Panack cannot determine its type.
+  Panack therefore cannot check whether this result matches answer's
+  declared return type Nat.
+```
+
+The unresolved name remains an ordinary diagnostic, not a newly selected
+name-resolution explanation feature. The in-scope explanation identifies the
+unavailable return-type check and the prior failure that prevented it.
 
 For slice 4, extend `locate` without adding a separate application. Proposed
 mutually exclusive query forms, both retaining the current artifact/source/map

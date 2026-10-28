@@ -190,8 +190,7 @@ The order and scope weights remain unchanged. GI#409 assessment delivery is reco
   Complete product acceptance on next does not mean a feature has shipped.
 - Latest supporting repair: [PR#601](https://github.com/sproates/panackelty/pull/601)
   merged into main adds upload retries and failure-time network evidence.
-  The original DNS cause is unconfirmed; a successful scheduled nightly with the
-  repairs has not yet been recorded here. This does not add earned scope credit.
+  The original DNS cause is unconfirmed. [Scheduled nightly 40666115194](https://github.com/sproates/panackelty/actions/runs/40666115194) succeeded on 28 October with the repairs in place. This confirms a successful scheduled run, not the original DNS cause, and adds no earned scope credit.
 - Alpha.16 native coupling work remains outside this release. The complete release
   allocation, including later-release work, stays in the agreed scope record.
 

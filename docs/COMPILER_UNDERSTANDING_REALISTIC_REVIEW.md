@@ -6,6 +6,15 @@ and wording; they did not establish usability. None of the command extensions
 below are approved or implemented. The recorded source inventory remains the
 completeness boundary.
 
+## Subsequent interaction decision
+
+The owner rejected line-coordinate navigation as the human workflow and selected
+an interactive terminal prototype. The commands below remain historical review
+candidates, not an approved implementation plan. Their evidence and wording
+remain useful for evaluating direct selection, expansion and following origins.
+The local prototype uses Panack for UI/navigation and fixture evidence, plus a
+small native terminal-event adapter. It does not produce live compiler evidence.
+
 ## The real function
 
 `hash_archive_file` in `src/packages/acquisition.panack`, lines 68–93, calculates
@@ -537,5 +546,5 @@ sounds good.
 A meaningful failure of this mock-up should change selection/organisation before
 renderer implementation. The next review case, after agreement on this approach,
 is a real compiler function with generic collections/callbacks and matching.
-It must not be reshaped to fit this case. No interactive terminal browser is
-included in this proposal.
+It must not be reshaped to fit this case. The original noninteractive-only proposal is superseded by the interaction
+decision above; the evidence-completeness requirement remains.

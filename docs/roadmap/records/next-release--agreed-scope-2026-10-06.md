@@ -647,7 +647,8 @@ invent instructions to give them something to point to.
 
 Exit: source queries explain how and why the actual output arose, including
 absence of executable output. This slice consumes slice 3 mappings; mapping
-completeness is not implemented twice. It introduces no interactive terminal UI.
+completeness is not implemented twice. The owner subsequently selected an
+interactive exploration prototype; see the updated presentation decision below.
 
 ### 5. Acceptance and documentation — not started
 
@@ -712,7 +713,7 @@ existing checker-family inventory in another document.
 | E05 | `InstructionSource` contains instruction index, span and a lowered flag. The documented locate behavior uses a generic unavailable result for both missing attribution and invalid/stale pairs. | Slice 3 owns valid origin/identity checks and explicit validation failure; slice 4 consumes them in transformation queries. | Trace each failure return and CLI exit behavior; agree a distinct failure transcript before changing it. |
 | E06 | Source maps already expose direct/lowered origins and validated function selectors. A lowered flag alone does not explain which transformation occurred or why. | Slice 4 owns missing transformation reasons, without rebuilding slice 3's mappings. | Reconcile short-circuit, calls, interpolation, match, generic sharing, methods and imported module identity with actual transformations and available query selectors. |
 | E07 | `module_emission_block` builds bare expressions for literal and local-use expression statements, although their bound nodes have spans. `module_emission_expression_with_parameters` normally wraps expressions in `LocatedExpr`. The bare statement paths can lose origins before the emitter; fixing only instruction append sites would miss them. | Slice 3 preserves existing source spans through the module-emission bridge, alongside E01–E03. | Compare identity-emitted and direct frontend fixtures, including discarded literal/local/function expressions. Never substitute an initializer span for a complete statement without identifying the generated operation. |
-| E08 | `source_map_arguments`/`run_source_map_command` accept an instruction index and function for `locate`. `source_map_location` returns one location and overwrites its result if another matching entry exists. There is no public reverse source-to-instructions selector or transformation explanation in this path. | Slice 3 owns truthful multiple-origin representation. Slice 4 owns reverse-query selection and result presentation as part of the already-agreed reverse mapping requirement. | P3/4.1 must specify the small noninteractive extension to the existing command surface. Do not describe reverse queries as an already available capability or introduce an interactive UI. |
+| E08 | `source_map_arguments`/`run_source_map_command` accept an instruction index and function for `locate`. `source_map_location` returns one location and overwrites its result if another matching entry exists. There is no public reverse source-to-instructions selector or transformation explanation in this path. | Slice 3 owns truthful multiple-origin representation. Slice 4 owns reverse-query selection and result presentation as part of the already-agreed reverse mapping requirement. | P3/4.1 must specify source-led navigation and truthful reverse-query results. Interactive exploration is now selected for prototyping; do not describe reverse queries as an already available capability. |
 
 The following paths have now been reconciled at source level. The eleven-family
 checker inventory remains in [Compiler explanations](../../guides/COMPILER_EXPLANATIONS.md#function-checking-decision-inventory);
@@ -867,10 +868,13 @@ Packets A–D can feed E incrementally. Packet F precedes G. Add regressions whi
 implementing each packet; H does not defer their testing. The mechanism changes
 are bounded to retained decision dependencies, construct origins and query/map
 representation. There is no new inference/proof engine, compiler/stdlib
-reorganisation or interactive terminal application.
+reorganisation. The earlier exclusion of an interactive terminal application is
+superseded by the owner decision below.
 
-**Revised planning estimate: roughly 8–12 PRs**, replacing the unsupported
-five-to-seven estimate. Eight coherent delivery packets are now visible; the
+**Historical planning estimate: roughly 8–12 PRs**, replacing the unsupported
+five-to-seven estimate. This estimate predates the interactive presentation
+decision and must be reassessed after prototype review. Eight coherent delivery
+packets were identified; the
 inference and source-origin changes may need more than one reviewable PR. This
 is an estimate, not a completion condition or a reason to create tiny PRs. The
 five slice exit criteria determine completion. Release weights are unchanged.
@@ -888,8 +892,8 @@ lead with the result and attach supporting facts to that result. Combine closely
 related decisions in a paragraph without omitting their outcomes. Omit empty
 family headings. Do not print “unavailable” simply because a function has no
 calls, subtraction or generic inference. Keep the selected function's status
-separate from other project failures. No truncation, quiet mode or new interactive
-controls are proposed here.
+separate from other project failures. These earlier text candidates do not establish acceptance of the interaction
+design; the following decision supersedes the noninteractive-only assumption.
 
 First full successful explanation candidate, using the existing bounded
 subtraction example from the explanation guide. This is a proposed transcript,
@@ -1208,3 +1212,28 @@ P3 remains open for realistic usability agreement, including proposed overview,
 source selection, full-detail and provenance-query transcripts. The three short
 checker sections establish approved wording and notation only. No compiler
 implementation has started and no completion credit is earned by preparation.
+
+### Interactive presentation prototype — owner decision, 28 October 2026
+
+The owner selected interactive terminal exploration now: an interim interface
+must be useful in its own right, and line-coordinate navigation has not met that
+bar. Prototype direct expression selection, expandable supporting facts, origin
+links and back navigation using the real package function. Keep honest plain-text
+output for redirected use. Replace the proposed coordinate-driven human workflow;
+do not build two competing navigation interfaces. Source positions remain useful
+context. The evidence inventories and five-slice dependencies remain necessary.
+
+The local prototype is written in Panack, with a small prototype-only POSIX adapter
+for key/resize events and terminal restoration. Panack uses existing read_line;
+no compiler or VM changes are required. Navigation, layout, evidence fixtures and
+history are Panack code. It demonstrates accepted/rejected fixtures, source view,
+origin/back and paging. It does not process live compiler evidence. The owner has
+not yet accepted the interaction design. Prototype code is isolated from the core
+checkout; this PR records the decision, not a shipped application.
+
+Before implementation, reassess presentation packets E/G, terminal capability
+ownership, supported platforms, accessibility/plain output and the delivery
+estimate. Validate a second real function after the first interaction review.
+The previous 8–12 PR estimate is no longer current; no replacement figure or
+completion credit is claimed. Preserve provisional release weights pending that
+assessment. No website capability claims change.

@@ -875,11 +875,13 @@ inference and source-origin changes may need more than one reviewable PR. This
 is an estimate, not a completion condition or a reason to create tiny PRs. The
 five slice exit criteria determine completion. Release weights are unchanged.
 
-**Output review — presentation convention agreed, full transcripts pending.**
+**Output review — checker presentation and three example sections approved.**
 Owner agreement: use `expression => Type` and spell out locations as “line N,
 column M”. Bare `N:M` positions were mistaken for ratios and must not appear
 in these human explanations, including headings and supporting references.
-This notation agreement does not approve the remaining wording or CLI extension.
+The owner subsequently approved the rejected-subtraction, generic-inference
+and unavailable-return explanation sections below. Apply that format and tone
+consistently; the source-mapping CLI extension remains proposed.
 Keep the current
 `panack explain SOURCE --function NAME` entry point. Group by source construct,
 lead with the result and attach supporting facts to that result. Combine closely
@@ -934,16 +936,17 @@ if … else => Nat
 Effects: no call or await boundaries in this pure function.
 ```
 
-Review this presentation before adapting the remaining full transcripts:
+Use the approved presentation when completing the full transcripts for
 rejected subtraction, generic inference, an HTTP/host requirement failure,
 partially checked function and genuinely unavailable decision. Each must show
 all performed relevant decisions and distinguish local acceptance from project
 failure. Existing ordinary diagnostics remain unchanged; failure transcripts
 must include their stderr and exit status as well as explanation stdout.
 
-### Further explanation examples — wording proposed for review
+### Further explanation examples — approved wording
 
-These are individual explanation sections, not complete stdout/stderr transcripts.
+The owner approved these three individual explanation sections on 28 October
+2026. They are not complete stdout/stderr transcripts.
 The source fixtures below establish their locations; no captured execution or
 new implementation is claimed. Failure diagnostics and other performed decisions
 must still appear in the eventual full transcript.
@@ -1011,6 +1014,274 @@ The unresolved name remains an ordinary diagnostic, not a newly selected
 name-resolution explanation feature. The in-scope explanation identifies the
 unavailable return-type check and the prior failure that prevented it.
 
+### Complete wrappers for the approved sections
+
+Keep the approved wording above. The complete rejected-subtraction transcript
+for `panack explain /examples/remaining.panack --function remaining` is:
+
+```text
+remaining: rejected
+Source: project/remaining.panack, line 1, column 1.
+
+n - 2 => Nat — rejected
+  Line 2, column 3.
+  Both operands are Nat, but Nat includes 0 and 1. Subtracting 2 from either
+  would produce a negative value, which Nat cannot represent.
+  Panack cannot prove that n is at least 2 here.
+
+  Check that n >= 2 before subtracting, or use Int if negative results are valid.
+
+Return type: compatible
+  The arithmetic result type Nat matches remaining's declared return type.
+  The subtraction is still rejected because its safety requirement was not proved.
+
+Effects: not checked because remaining's body failed type checking.
+```
+
+Stderr, with the existing diagnostic wording; exit status 1:
+
+```text
+error: /examples/remaining.panack:2:3: Nat subtraction may underflow; prove the left side is large enough or use Int
+  2 |   n - 2
+    |   ^
+```
+
+For `panack explain /examples/generic.panack --function greeting`, complete
+stdout is below; stderr is empty and exit status is 0:
+
+```text
+greeting: accepted
+Source: project/generic.panack, line 2, column 1.
+
+identity("hello") => Str
+  Line 3, column 3.
+  identity expects one argument of type T and returns the same type T.
+  One argument was supplied.
+  "hello" has type Str, so Panack infers T as Str for this call.
+  The argument matches Str, and the call therefore produces Str.
+  This matches greeting's declared return type Str.
+
+Effects: identity is pure, so this call is permitted inside pure greeting.
+```
+
+The full unavailable-return case is represented by the partial-check transcript
+below: remove its earlier binding and move the missing expression to line 2 for
+the simpler approved fixture. No invented result/return compatibility check may
+be added when the result type is absent. These composed transcripts remain
+specification candidates until exercised against the implementation.
+
+### Complete host and partial-check candidates
+
+The following full explanation candidates apply the approved convention. They
+are specification examples, not output from an implemented renderer. Ordinary
+failure diagnostics keep their existing stderr format, including its path/line/
+column notation. The new plain-language position convention applies to the
+explanations; this programme does not rewrite the ordinary diagnostic formatter.
+
+**Host argument failure.** File `/examples/host-call.panack`:
+
+```panackelty
+import stdlib/host as host
+main(): Void {
+  host.exit("done")
+}
+```
+
+Command: `panack explain /examples/host-call.panack --function main`.
+Proposed complete stdout:
+
+```text
+main: rejected
+Source: project/host-call.panack, line 2, column 1.
+
+host.exit("done") => Void — rejected
+  Line 3, column 3.
+  exit expects one argument, and one was supplied.
+  The status argument must be Nat, but "done" is Str.
+  Panack rejected this argument because Str is not compatible with Nat.
+
+Return type: compatible
+  The call's declared result is Void, which matches main's declared return type.
+  This type match does not make the rejected call valid.
+
+Effects: not checked because main's body failed type checking.
+```
+
+Existing diagnostic stderr contract (exit status 1):
+
+```text
+error: /examples/host-call.panack:3:13: argument 1 to exit is Str, expected Nat
+  3 |   host.exit("done")
+    |             ^
+```
+
+This is a public stdlib call, not an execution of the host operation. Evidence
+for the underlying intrinsic's own body remains part of C02 and uses its actual
+stdlib source identity when that function is selected.
+
+**Preserve useful results after a failure.** File `/examples/partial.panack`:
+
+```panackelty
+pure answer(): Nat {
+  number = 1
+  missing
+}
+main(): Void {}
+```
+
+Command: `panack explain /examples/partial.panack --function answer`.
+Proposed complete stdout:
+
+```text
+answer: rejected; some checks completed
+Source: project/partial.panack, line 1, column 1.
+
+number => Nat
+  Line 2, column 3.
+  The initializer 1 has type Nat, so Panack infers Nat for number.
+  Nat is a value type and can be stored in this binding.
+
+missing => type not determined
+  Line 3, column 3.
+  No value named missing is defined here, so Panack cannot determine its type.
+  Panack therefore cannot check whether this result matches answer's
+  declared return type Nat.
+
+Effects: not checked because answer's body failed type checking.
+```
+
+Existing diagnostic stderr contract (exit status 1):
+
+```text
+error: /examples/partial.panack:3:3: unknown local value missing
+  3 |   missing
+    |   ^
+```
+
+Unlike the failed parent-call cases in C09, a block already preserves its earlier
+binding. Reuse that evidence. The location for the binding must identify the
+binding construct, not silently reuse the initializer's position. If exact
+binding spans depend on packet F, deliver the source-origin dependency first or
+show the accurately labelled initializer location until F is available.
+
+### Provenance-query candidates
+
+These proposed transcripts describe expected instruction ranges from the current
+emitter, with the missing attribution/reasons supplied by slices 3/4. They are
+not captured output. Validate actual ranges against the compiler when adding
+regressions; do not hard-code inferred offsets in the renderer.
+
+File `loop.panack`:
+
+```panackelty
+main(): Void {
+  mut x = 0
+  while x < 1 {
+    x = x + 1
+  }
+}
+```
+
+After compiling the source and its map, a proposed source query is:
+
+```sh
+panack locate loop.bc --source loop.panack --source-map loop.pmap --source-file project/loop.panack --source-at 3 3
+```
+
+Proposed complete stdout (empty stderr, exit status 0):
+
+```text
+while x < 1 { … } => instructions 2 through 12 in main
+Source: project/loop.panack, line 3, column 3 through line 5, column 4.
+
+Instructions 2 through 4 evaluate x < 1.
+Instruction 5 leaves the loop when the condition is false.
+Instructions 6 through 9 evaluate x + 1 and store the result in x.
+Instructions 10 and 11 finish the body and discard its Void result.
+Instruction 12 returns to the condition for the next iteration.
+
+Panack generated the jumps and body-result handling to implement the while loop.
+```
+
+Querying the binding at line 2, column 3 instead gives:
+
+```text
+mut x = 0 => instructions 0 through 1 in main
+Source: project/loop.panack, line 2, column 3 through column 12.
+
+Instruction 0 produces the Nat literal 0.
+Instruction 1 stores that value in x.
+```
+
+The range convention is start-inclusive/end-exclusive, matching source maps.
+Output must label this convention in help; references to a single point need no
+range punctuation. Querying instruction 12 with the existing instruction form
+must return the same loop source and the generated back-edge reason, not a
+fictional source-level jump statement.
+
+**Shared generic output.** For this file:
+
+```panackelty
+pure identity[T](value: T): T { value }
+main(): Void { identity(1); identity("hello"); }
+```
+
+A source query at line 1, column 1 selects the declaration:
+
+```text
+identity[T] => shared instructions 0 through 1 in identity
+Source: project/generic.panack, line 1, column 1.
+
+Instruction 0 loads value. Instruction 1 returns it.
+Calls using Nat and Str use this same compiled body.
+Panack checks the type arguments before emission; it does not emit a separate
+identity body for each type.
+```
+
+The Nat/Str call relationship must come from retained call/declaration facts,
+not from guessed runtime values. Selecting either call expression instead shows
+its caller's instructions and links to the shared body. A generic declaration
+with no calls must not invent call types to fill this text.
+
+**No standalone executable output.** File `record.panack`:
+
+```panackelty
+record Box { value: Nat }
+main(): Void { Box(1); }
+```
+
+A source query at line 1, column 1 gives:
+
+```text
+record Box => no standalone instructions
+Source: project/record.panack, line 1, column 1.
+
+This declaration defines Box's fields and their types.
+The Box(1) expression on line 2, column 16 produces the instruction that
+constructs a Box value. The declaration itself does not execute.
+```
+
+This is a successful validated query (empty stderr, exit status 0), not an
+unavailable map. Imports and type declarations similarly need their actual
+compile-time role, rather than an invented instruction.
+
+**Mismatched artifact/map.** A failed exact-pair comparison gives empty stdout,
+exit status 1 and proposed stderr:
+
+```text
+Panack cannot validate the source map for loop.bc.
+The supplied bytecode or source map does not match the output produced from
+loop.panack and its imports using this compiler.
+
+Compile the source again with --source-map to create a matching pair, or use
+the sources and compiler that produced the supplied files.
+```
+
+Do not claim whether the original cause was changed source, a different compiler
+or damaged files when the comparison only establishes a mismatch. Missing files,
+invalid source, invalid arguments and a valid query with no matching construct
+retain separate truthful explanations.
+
 For slice 4, extend `locate` without adding a separate application. Proposed
 mutually exclusive query forms, both retaining the current artifact/source/map
 validation:
@@ -1037,5 +1308,6 @@ Review the binding, loop, shared-generic and no-output transcripts against this
 concrete interface before slice 4 implementation. No extra declaration selector,
 interactive navigation or runtime debugger is required.
 
-P3 remains open for transcript/interface agreement. No compiler implementation
-has started and no completion credit is earned by this preparation record.
+P3 remains open for the proposed provenance-query interface and transcripts.
+Checker presentation and the three reviewed sections are approved. No compiler
+implementation has started and no completion credit is earned by preparation.

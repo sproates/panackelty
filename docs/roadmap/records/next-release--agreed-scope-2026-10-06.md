@@ -519,3 +519,164 @@ explicit-address ordinary/contextual constructors allow IPv4 binding without
 resource-tuning options. Preview migration preserves its `127.0.0.1` default
 and `--host` through the explicit contextual constructor. GI#518 records the
 address validation and error contract.
+
+## GI#180: definitive alpha.15 delivery checklist, 28 October 2026
+
+This is the execution tracker for the five agreed compiler-understanding slices.
+It supersedes the conversational stage proposals, without changing the completion
+scope agreed in PR#619. Implementation has not started. Status values are not
+started, in progress, blocked, and complete; each completed stage must link its
+implementation and acceptance evidence here. Update NEXT_RELEASE_STATUS.md with
+slice transitions. These slices share GI#180's existing weight; no extra credit.
+
+### Review findings and reuse rules
+
+- Existing checker evidence is substantial: SubtractionEvidence, EffectEvidence,
+  GuardConversionEvidence, BindingTypeEvidence, AssignmentTypeEvidence,
+  ReturnTypeEvidence, CallArgumentEvidence, TypeJoinEvidence,
+  CollectionCallbackEvidence, OperatorTypeEvidence and BodyTypeCheckEvidence.
+  Extend the existing producers in checker.panack, module_bodies.panack and
+  module_effects.panack where a concrete gap is established. Do not introduce a
+  parallel generic evidence system as an assumed prerequisite.
+- The [explanation guide](../../guides/COMPILER_EXPLANATIONS.md#function-checking-decision-inventory)
+  already contains a checker-decision inventory and known gaps. Refresh it against
+  the current source; some prose still describes Void evidence as absent while
+  later text records it as implemented. Documentation is evidence to reconcile,
+  not proof that implementation is missing.
+- The two scope inventories are checker decisions and emission/transformations.
+  Neither is a replacement for the source inventory used by coverage. Forward
+  and reverse source mappings belong to the second inventory, not two new ones.
+- InstructionSource, FunctionSources, SourceMappedProgram, EmissionProbe and the
+  existing validated source-map queries already provide attribution foundations.
+  Complete and extend these where necessary; do not rebuild their functionality.
+- Slice 1 records checker facts; slice 2 explains them. Slice 3 establishes
+  instruction origins; slice 4 explains the transformations those origins support.
+  Do not make every instruction carry a checker proof merely to link these views.
+- Slice 4 is the existing command/query experience. Interactive keyboard
+  navigation, expandable terminal trees and a REPL are outside alpha.15.
+- Tests accompany implementation. Slice 5 integrates and reconciles their evidence;
+  it does not repeat every earlier experiment or postpone validation to the end.
+- GI#435 adds evidence, explanations and provenance with its own new decisions.
+  GI#180 final acceptance includes those additions, but does not implement or
+  count them a second time. Existing inference is explained; new inference
+  algorithms remain outside this task.
+
+### Shared preparation checkpoint — not a sixth implementation slice
+
+- [ ] P1 — Reconcile the existing checker inventory with actual active decision
+  sites, evidence types, renderers and regressions. Enumerate reachable success,
+  rejection and unavailable paths; give reasons for unreachable outcomes.
+- [ ] P2 — Reconcile the emission/transformation inventory with current emission
+  sites, source mappings, query output and regressions. Include generated/shared
+  instructions and constructs producing no executable code.
+- [ ] P3 — Freeze the resulting gap checklist for the existing language and map
+  each gap to exactly one delivery owner below. Select representative transcripts
+  and realistic programs for review, including the presentation subtraction case.
+  Identify mechanism changes and revise the provisional PR estimate from evidence.
+
+Output: finite, source-linked gaps and agreed example outputs. Reuse existing
+inventories; maintain one authoritative entry per gap. This checkpoint precedes
+implementation and earns no independent completion credit. It is a bounded audit
+of the agreed scope, not a compiler redesign. Material architectural discoveries
+must be reported before expanding the work; minor implementation choices remain
+with the implementor.
+
+### 1. Complete checker evidence — not started
+
+- [ ] 1.1 — For each confirmed checker gap, specify the missing facts, actual
+  decision site and existing evidence record to extend. Introduce a new record
+  only where existing types cannot faithfully express the missing decision.
+- [ ] 1.2 — Retain facts at the point the checker makes the decision, including
+  inference/substitution dependencies and specific causes of deferral. Preserve
+  partial evidence after errors and distinguish a genuinely unreached decision
+  from missing instrumentation. Implement by the finite decision-family checklist.
+- [ ] 1.3 — Reconcile evidence against active decision sites and reachable
+  outcomes. Regressions must detect omitted evidence. Check retention enabled
+  and disabled, preserving ordinary checking results and diagnostics.
+
+Exit: all inventoried existing-language checker decisions have the required
+truthful facts and source attribution. No prose redesign is required to declare
+this evidence slice complete. New domain-type cases remain assigned to GI#435.
+
+### 2. Complete explanations — not started
+
+- [ ] 2.1 — Agree complete transcripts for representative success, rejection,
+  inference-chain, partial-check and unavailable cases using the current CLI.
+  Lead with the conclusion and relevant supporting facts. Use the subtraction
+  example to check proportionality; do not promise unimplemented UI or flags.
+- [ ] 2.2 — Extend existing renderers to explain the slice 1 facts and their
+  dependencies, with exact source locations and specific unavailable reasons.
+  Reuse established wording across decision families; do not reconstruct proof
+  by rerunning an independent checker inside the renderer.
+- [ ] 2.3 — Reconcile every checker-inventory entry with its output and reachable
+  outcome regressions. Verify the agreed full transcripts and representative
+  multi-module programs. Accepted sample wording is not proof of complete coverage.
+
+Exit: every in-scope retained checker decision is explained accurately and
+readably through the existing query surface. Slice 2 can proceed family by
+family once the corresponding slice 1 evidence exists.
+
+### 3. Complete instruction attribution — not started
+
+- [ ] 3.1 — Classify confirmed mapping gaps against existing emission paths and
+  source-map structures. Specify source origins or genuine generated origins,
+  with reasons, preserving module/function identity and artifact validation.
+- [ ] 3.2 — Fill the missing origins through emission and transformations,
+  including imported/generic code, methods and generated control flow. Preserve
+  shared origins where required instead of selecting a misleading single source.
+- [ ] 3.3 — Check every emitted instruction against the emission inventory and
+  reverse source mapping. Include deliberately omitted mappings and stale or
+  mismatched artifact/source cases. Existing validated attribution must survive.
+
+Exit: all emitted instructions have truthful, validated origins. Maintain the
+source cases that produce no instructions in the inventory for slice 4; do not
+invent instructions to give them something to point to.
+
+### 4. Connect the compilation journey — not started
+
+- [ ] 4.1 — Agree query transcripts showing how representative source constructs
+  become instructions: direct, lowered, multiple, shared and no-output cases.
+  Identify the actual transformation facts needed beyond slice 3's origin maps.
+- [ ] 4.2 — Retain missing transformation facts at their existing production sites
+  and expose them through the existing source/instruction queries. Explain the
+  relationship and reason, reusing checker evidence where actually relevant.
+  Do not invent a chronological narrative or causal link the compiler did not record.
+- [ ] 4.3 — Reconcile each transformation-inventory entry with its query output
+  and regressions. Confirm truthful explanations for shared and zero-output
+  constructs, failed compilation, imports, generics and method/control-flow lowering.
+
+Exit: source queries explain how and why the actual output arose, including
+absence of executable output. This slice consumes slice 3 mappings; mapping
+completeness is not implemented twice. It introduces no interactive terminal UI.
+
+### 5. Acceptance and documentation — not started
+
+- [ ] 5.1 — After GI#435 and other alpha.15 compiler changes, reconcile both
+  maintained inventories against the resulting implementation. GI#435 supplies
+  its new decision evidence in its own deliveries; resolve remaining integration
+  gaps here. Do not declare whole-programme completeness before this checkpoint.
+- [ ] 5.2 — Exercise the agreed realistic programs and installed CLI: accepted
+  and rejected programs, partial checking, imported/generic code, methods,
+  callbacks, control flow, mutation-invalidated facts and new domain constraints.
+  Reuse valid slice evidence and run the necessary combined acceptance checks.
+- [ ] 5.3 — Measure comparable retention-on/off time and memory for the agreed
+  programs, assess material costs, and update user documentation, limitations,
+  release summary and completion records. Claim only capabilities demonstrated
+  by the final inventories and transcripts.
+
+Exit: both inventories have no unexplained gaps, installed behavior matches the
+agreed examples, costs are disclosed, and documentation matches the feature.
+
+### Ordering and tracking
+
+P1–P3 precede implementation. Slice 1 feeds slice 2; slice 3 feeds slice 4.
+Complete those foundations before GI#435, which integrates its new decisions as
+it implements domain types. Slice 5 closes GI#180 after those additions and the
+remaining alpha.15 compiler changes. Family-level implementation may connect
+adjacent slices in one PR; update each affected checklist item without duplicating
+work. A slice is complete only when all its stages meet their exit conditions.
+
+The earlier five-to-seven-PR figure remains provisional pending P3. These stages
+are tracking units, not promises of one PR each. No new implementation or test
+execution is authorised merely by recording this plan. This documentation-only
+change has no runtime, memory, build or website-capability impact.

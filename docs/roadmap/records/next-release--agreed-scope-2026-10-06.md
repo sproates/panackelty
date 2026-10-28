@@ -1263,3 +1263,8 @@ No compiler/VM implementation changed, no additional evidence completeness is
 claimed and no release completion credit is added. This bounded milestone does
 not replace the five slices or their acceptance criteria. Website claims remain
 unchanged because the demo is local and unreleased.
+
+The first physical iPhone review subsequently showed repeated/overwritten browser
+text while the tmux pane remained intact. The local bridge now has a candidate
+canvas-renderer and settled-sizing correction. Physical-phone verification is
+still pending; the desktop viewport check did not establish phone readiness.

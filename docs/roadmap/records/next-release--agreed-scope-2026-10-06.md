@@ -1237,3 +1237,10 @@ estimate. Validate a second real function after the first interaction review.
 The previous 8–12 PR estimate is no longer current; no replacement figure or
 completion credit is claimed. Preserve provisional release weights pending that
 assessment. No website capability claims change.
+
+Phone review is available through a prototype-only Panack HTTP event bridge and
+touch controls. It replays a bounded per-tab control history through the same
+Panack navigation/rendering code, rather than exposing a general shell or
+duplicating the model in browser code. Error/origin/back output was byte-compared
+with the terminal interface; browser interaction was checked at 390×844. This
+enables review, not live compiler evidence or production session acceptance.

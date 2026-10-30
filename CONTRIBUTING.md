@@ -5,14 +5,19 @@ and focused implementation changes are welcome.
 
 ## How Panackelty is developed
 
-I use AI extensively in developing Panackelty, including implementation, tests,
-documentation and verification. AI has made a substantial contribution to the
-project, and I want to be clear about that.
+AI helps a lot in developing Panackelty, including implementation, tests,
+documentation, verification and admin tasks. AI has made a substantial
+contribution to the project, and I want to be clear about that.
 
-I set the direction for the language and spend a lot of time working through
-its design, defining requirements, questioning proposed solutions and reviewing
-how the result behaves. I decide what belongs in the project and what needs more
-work. Responsibility for those decisions and for accepting changes remains with me.
+In no way am I claiming to have built this project 100% ‘by hand’ with zero
+assistance.
+
+I set the direction for the language, its design, its features, and how the
+project itself is managed and delivered. I spend a lot of time working through
+designs and specifications. I define the requirements, evaluate solution options
+and review how the result behaves. I decide what belongs in the project and what
+does not. Responsibility for those decisions and for accepting changes remains
+with me.
 
 ## AI-assisted contributions
 

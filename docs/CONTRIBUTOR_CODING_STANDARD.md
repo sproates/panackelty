@@ -277,4 +277,3 @@ may change only through a documented, reviewed baseline update.
 
 These are review conventions, not a claim of automated enforcement. Existing
 policy, formatting and validation tools cover only their documented scope.
-

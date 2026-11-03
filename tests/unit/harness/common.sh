@@ -11,6 +11,11 @@ contains() {
     NEEDLE=$2 awk 'BEGIN { wanted=ENVIRON["NEEDLE"] } { text=text $0 "\n" }
         END { exit !index(text,wanted) }' "$1" || fail "missing text in $1: $2"
 }
+contains_collapsed_whitespace() {
+    NEEDLE=$2 awk 'BEGIN { wanted=ENVIRON["NEEDLE"] }
+        { gsub(/[[:space:]]+/, " "); text=text $0 " " }
+        END { exit !index(text,wanted) }' "$1" || fail "missing text in $1: $2"
+}
 absent() {
     if NEEDLE=$2 awk '{ text=text $0 "\n" } END { exit !index(text,ENVIRON["NEEDLE"]) }' "$1"; then
         fail "unexpected text in $1: $2"

@@ -1,0 +1,72 @@
+#!/usr/bin/expect -f
+# Run from the checkout root. Exercise the same command and keys as the reviewer.
+set timeout 60
+log_user 0
+set booking tools/explain-review/samples/booking.panack
+proc see {snippet} {
+  expect {
+    -exact $snippet {}
+    timeout {error "Did not display '$snippet'"}
+    eof {error "Explorer exited before displaying '$snippet'"}
+  }
+}
+proc launch {file function} {
+  global spawn_id
+  # Compare tty mode before and after the command, including Ctrl-C.
+  spawn -noecho sh -c {modes() { stty -a | tr " ;" "\n" | grep -E "^-?(echo|icanon|isig|ixon|icrnl)$"; }; before=$(modes); test -n "$before" || exit 2; ./bin/panack explain --interactive "$1" --function "$2"; rc=$?; test "$before" = "$(modes)" && echo TTY-restored; exit "$rc"} sh $file $function
+}
+proc finish {key} {
+  send -- $key
+  see TTY-restored
+  expect eof
+  set status [wait]
+  if {[lindex $status 3] != 0} {error "Explorer exited with $status"}
+}
+launch $booking book_pair
+see "Compilation failed"
+see "> seats - 2 => Nat"
+see "n first unproved"
+send "n"
+see "> credit - 50"
+send "\r"
+see "credit is at least 25"
+send "\r"
+see "if credit >= 25"
+send "\033\[D"
+see "credit is at least 25"
+send "\033\[D"
+see "> credit - 50"
+send "\033\[A"
+see "> seats - 2 => Nat"
+send "\r"
+see "seats is at least 2"
+finish q
+
+set work [exec mktemp -d]
+set tmpname [file join $work booking.panack]
+set tmp [open $tmpname w]
+set src [open $booking]
+puts -nonewline $tmp [string map {{credit >= 25} {credit >= 50}} [read $src]]
+close $src
+close $tmp
+set failed [catch {
+  launch $tmpname book_pair
+  see "Project compiles"
+  send "\033\[B"
+  see "> credit - 50 => Nat"
+  send "\r"
+  see "credit is at least 50"
+  finish q
+} reason]
+file delete -force $work
+if {$failed} {error $reason}
+
+launch examples/fibonacci.panack previous
+see "Project compiles"
+see "if value == 0"
+send "\r"
+see "value is at least 1"
+send "\r"
+see "condition must be false"
+finish "\003"
+puts "Passed real terminal navigation, source edit, false branch and terminal restoration."

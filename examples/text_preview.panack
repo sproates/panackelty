@@ -1,0 +1,11 @@
+pure preview(name: Str, limit: Nat): Str {
+  if limit == 0 { "" }
+  else if name.len() <= limit { name }
+  else { name.slice(0, limit - 1) + "…" }
+}
+
+main(): Void {
+  print(preview("Ada", 3))
+  print(preview("Aλ🙂da", 4))
+  print(preview("Ada", 0).len())
+}

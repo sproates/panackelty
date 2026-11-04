@@ -39,10 +39,12 @@ main(): Void {
     expected_text = "${expected_text}PASS case/${name}/source\nPASS case/${name}/compile\nPASS case/${name}/bytecode\n"
   }
   expected_text = "${expected_text}PASS selected fixture count\n"
-  examples = ["callables", "collections_and_bytes", "decimal", "euler001",
-    "euler001_iterative", "euler002", "euler003", "euler004", "euler005",
-    "fibonacci", "fizzbuzz", "generic_functions", "generic_methods", "guards", "host_failures", "lexer_foundation",
-    "option_result", "owned_methods", "palindrome", "strings", "testing_report", "vm_arithmetic", "vm_branch_call",
+  examples = ["callables", "collections_and_bytes", "count_votes", "decimal", "decode_message",
+    "euler001", "euler001_iterative", "euler002", "euler003", "euler004", "euler005",
+    "fibonacci", "fizzbuzz", "generic_functions", "generic_methods", "guards", "host_failures",
+    "lexer_foundation", "option_result", "owned_methods", "palindrome", "pipe_input",
+    "read_temporary_note", "report_failures_only", "strings", "test_booking_limits",
+    "testing_report", "text_preview", "unique_names", "vm_arithmetic", "vm_branch_call",
     "vm_loop", "public_api", "trip_planner", "twin_sensors"]
   for name in examples {
     expected_text = "${expected_text}PASS example/${name}/source\nPASS example/${name}/compile\nPASS example/${name}/bytecode\n"
@@ -88,7 +90,7 @@ main(): Void {
     }
     expected_text = "${expected_text}PASS failure/${name}/no artifact\n"
   }
-  expected = "${expected_text}PASS selected failure count\ntests: 544, failures: 0\n".encode_utf8()
+  expected = "${expected_text}PASS selected failure count\ntests: 568, failures: 0\n".encode_utf8()
   command = TestCommand(runner_path("./bin/panack"),
     ["run", "tests/runner/main.panack"], byte_buffer.empty(), std_path.current(),
     runner_test_environment(),

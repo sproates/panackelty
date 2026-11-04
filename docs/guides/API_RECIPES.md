@@ -2,9 +2,126 @@
 
 These complete programs demonstrate the APIs available on alpha.15 `next`.
 Run commands from the checkout root after `make`, or from an extracted release
-containing these examples. Native host examples require POSIX and `/bin/sh`;
+containing these examples. The host examples use POSIX tools including `/bin/sh` and `/bin/cat`;
 they are not browser examples. Each program is checked from source and saved
 bytecode against an exact transcript by the functional suite.
+
+## Eight tasks to try
+
+### Text and UTF-8
+
+**[Shorten a display name](../../examples/text_preview.panack)**
+
+Slice by Unicode scalar position. Compare a name that fits, one that needs shortening, and a zero-width preview.
+
+```sh
+./bin/panack run examples/text_preview.panack
+```
+
+```text
+Ada
+Aλ🙂…
+0
+```
+
+**[Decode bytes received from another program](../../examples/decode_message.panack)**
+
+Handle malformed UTF-8 at the input boundary. The second message contains an incomplete multibyte sequence.
+
+```sh
+./bin/panack run examples/decode_message.panack
+```
+
+```text
+hello λ
+Message contains invalid UTF-8
+```
+
+### Collections
+
+**[Count votes by name](../../examples/count_votes.panack)**
+
+Build a frequency table. Initialise a missing entry on its first vote, then update the count when the same name appears again.
+
+```sh
+./bin/panack run examples/count_votes.panack
+```
+
+```text
+2
+1
+false
+```
+
+**[Remove duplicate names and preserve input order](../../examples/unique_names.panack)**
+
+Use a set to track membership and an array for the ordered result. The first occurrence wins.
+
+```sh
+./bin/panack run examples/unique_names.panack
+```
+
+```text
+Ian
+Ada
+Sam
+```
+
+### Test reports
+
+**[Test a rule at its boundary](../../examples/test_booking_limits.panack)**
+
+Use a table of inputs and independently specified expected results. The assertion name identifies the failing case and the failure count controls the exit status.
+
+```sh
+./bin/panack run examples/test_booking_limits.panack
+```
+
+```text
+PASS one seat short
+PASS exactly enough
+PASS spare seat
+tests: 3, failures: 0
+```
+
+**[Show only failed checks](../../examples/report_failures_only.panack)**
+
+Inspect each test outcome to build a compact report. This demonstration deliberately includes a mismatch so you can see its name and reason.
+
+```sh
+./bin/panack run examples/report_failures_only.panack
+```
+
+```text
+shipping label: expected Lisbon, got Paris
+```
+
+### Files and processes
+
+**[Write and read a temporary note](../../examples/read_temporary_note.panack)**
+
+Create a private temporary file in a writable directory, read it with a byte limit and decode the contents. Remove the file after either success or failure.
+
+```sh
+./bin/panack run examples/read_temporary_note.panack
+```
+
+```text
+practice at six
+```
+
+**[Pass text to a child process](../../examples/pipe_input.panack)**
+
+Send UTF-8 on standard input to /bin/cat and inspect its output. Repeat with a smaller capture limit to see the portable error code.
+
+```sh
+./bin/panack run examples/pipe_input.panack
+```
+
+```text
+hello λ
+output_limit
+```
 
 ## Strings and bytes
 

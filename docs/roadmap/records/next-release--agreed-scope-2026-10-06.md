@@ -387,11 +387,12 @@ transcripts. Baseline `7d60c45` had short strings/collection examples but no use
 testing-report or host-failure recipes. The new guide makes those existing
 contracts discoverable without reading test implementations. This slice is
 implemented, effective on merge; PR #652 records which checks ran and their results.
-Source and saved-bytecode runs of all four programs match their exact transcripts.
+The four overview programs and eight task-specific programs have exact expected
+transcripts for source and saved-bytecode runs.
 Unsupported-interpolation
 diagnostics and public-signature guidance remain separate. No issue is created
 solely for this slice. Runtime/compiler behaviour is unchanged; performance impact
-is limited to running two additional examples in validation. Website: no live
+is limited to running ten additional examples in validation. Website: no live
 claims change; repository guide and packaged examples carry the new guidance.
 
 <a id="rm-156"></a>

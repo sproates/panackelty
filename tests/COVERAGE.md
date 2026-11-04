@@ -1636,6 +1636,11 @@ process launch failure, child exit/signal/output and cleanup (`host_failures`).
 The host recipe uses a unique temporary directory and fixed POSIX shell input.
 It makes no timeout-performance, concurrency or browser support claim.
 
+Eight additional worked tasks check truncation at a Unicode scalar boundary,
+malformed UTF-8, vote counting, ordered deduplication, table-driven assertions,
+failure-only reports, temporary-file round trips and bounded child output. Each
+has an independently specified transcript in the functional example corpus.
+
 The archive duplicate-path fixture stores two distinct files under the same
 member name. This exercises duplicate regular entries on GNU tar and macOS tar
 without relying on implementation-specific options.

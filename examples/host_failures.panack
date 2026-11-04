@@ -4,6 +4,7 @@ import stdlib/host as host
 import stdlib/host::{HostError}
 import stdlib/path as paths
 import stdlib/process as process
+import stdlib/process::{ProcessOutput}
 import stdlib/testing as testing
 import stdlib/time as time
 
@@ -24,6 +25,19 @@ pure error_code[T](result: Result[T, HostError]): Str {
   match result {
     Ok(value) => "unexpected success",
     Error(error) => error.code
+  }
+}
+
+pure command_status(result: Result[ProcessOutput, HostError]): Str {
+  match result {
+    Error(error) => error.code,
+    Ok(output) => {
+      signal = output.signal
+      status = output.exit_code
+      if signal != 0 { "terminated by signal ${signal}" }
+      else if status != 0 { "exited with status ${status}" }
+      else { "completed successfully" }
+    }
   }
 }
 
@@ -63,13 +77,15 @@ exercise(root: Path): Nat {
   }
 
   results = results.append(testing.equal_str("missing executable",
-    error_code(process.run(missing, [], byte_buffer.empty(), root, [],
+    command_status(process.run(missing, [], byte_buffer.empty(), root, [],
       time.seconds(5), 128)), "launch_failed"))
   // A child that starts and exits with status 7 is an Ok ProcessOutput.
   // Error describes a host failure such as launch_failed, timeout or output_limit.
-  match process.run(path_literal("/bin/sh"),
+  child = process.run(path_literal("/bin/sh"),
       ["-c", "printf problem >&2; exit 7"], byte_buffer.empty(), root, [],
-      time.seconds(5), 128) {
+      time.seconds(5), 128)
+  results = results.append(testing.equal_str("child status", command_status(child), "exited with status 7"))
+  match child {
     Error(error) => {
       results = results.append(testing.expect("child launch", false, error.code))
     },

@@ -386,7 +386,7 @@ programs, an [API recipes guide](../../guides/API_RECIPES.md) and exact function
 transcripts. Baseline `7d60c45` had short strings/collection examples but no user-facing
 testing-report or host-failure recipes. The new guide makes those existing
 contracts discoverable without reading test implementations. This slice is
-implemented, effective on merge; its PR records full validation and acceptance.
+implemented, effective on merge; PR #652 records which checks ran and their results.
 Source and saved-bytecode runs of all four programs match their exact transcripts.
 Unsupported-interpolation
 diagnostics and public-signature guidance remain separate. No issue is created

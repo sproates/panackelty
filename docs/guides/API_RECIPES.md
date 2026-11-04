@@ -14,8 +14,17 @@ See the [complete program](../../examples/strings.panack).
 `Str.len()`, indexing and slicing use Unicode scalar positions, not UTF-8 byte
 positions or user-perceived characters. `"Aλ🙂"` has three scalars and encodes to
 seven bytes. Iterate text with `for index in 0..text.len()` and `text[index]`.
+For example, these four lines from the program print `3` and `7`:
+
+```panack
+text = "Aλ🙂"
+encoded = text.encode_utf8()
+print(text.len())
+print(encoded.length())
+```
+
 Bind the indexed character to a local name before interpolation, as the example
-does; interpolation accepts local names, not indexed expressions.
+does. Interpolation accepts local names.
 
 Use `text.encode_utf8()` to obtain `Bytes`, `buffer.length()` for its byte count,
 and `buffer.decode_utf8()` for known valid UTF-8. For untrusted bytes, use
@@ -36,8 +45,17 @@ values: appending `3` to `[1, 2]` leaves the original unchanged. Annotate empty
 collections when their element or key/value types cannot be inferred.
 
 `Map.get(key)` returns a value and traps when the key is absent. Check
-`Map.has(key)` before reading a key that might be missing. The example prints
-`missing key` for the absent entry. Array `first()` returns an `Option`; the
+`Map.has(key)` before reading a key that might be missing. The missing-key branch in the example prints `missing key`.
+
+```panack
+if answers.has("missing") {
+  print(answers.get("missing"))
+} else {
+  print("missing key")
+}
+```
+
+Array `first()` returns an `Option`; the
 example explicitly chooses `99` as the fallback for an empty array. That fallback
 is a demonstration policy, not a special value returned by the library.
 
@@ -71,7 +89,27 @@ uses that normal policy.
 Run `./bin/panack run examples/host_failures.panack`.
 See the [complete program](../../examples/host_failures.panack).
 
-The program creates a unique temporary directory under the current directory,
+A command can start successfully and still fail. For example, a shell that exits
+with status 7 returns `Ok(output)`. Trying to start a missing executable returns
+`Error(error)` with code `launch_failed`. This helper from the runnable example
+shows which value to inspect in each case.
+
+```panack
+pure command_status(result: Result[ProcessOutput, HostError]): Str {
+  match result {
+    Error(error) => error.code,
+    Ok(output) => {
+      signal = output.signal
+      status = output.exit_code
+      if signal != 0 { "terminated by signal ${signal}" }
+      else if status != 0 { "exited with status ${status}" }
+      else { "completed successfully" }
+    }
+  }
+}
+```
+
+The complete program creates a unique temporary directory under the current directory,
 so run it from a writable location. It checks these behaviours and removes its
 file and directory before reporting:
 
@@ -82,7 +120,7 @@ file and directory before reporting:
   Check `exit_code`, `signal`, `stdout` and `stderr`; `Ok` alone does not mean
   the child command succeeded. The example checks all four fields.
 
-The expected report has nine passes and ends with `tests: 9, failures: 0`.
+The expected report has ten passes and ends with `tests: 10, failures: 0`.
 Host errors carry a portable `code`; avoid depending on platform-specific
 `native_code` values. Process calls include a five-second timeout and a 128-byte
 output limit. The only shell script is a fixed literal; do not substitute

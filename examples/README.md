@@ -19,6 +19,16 @@ source and compiled bytecode. Namespace support modules are compiled and run
 through their example entry. Expected output is kept separately under
 `tests/functional/expected/examples` as test data rather than example code.
 
+## Practical API recipes
+
+The [API recipes guide](../docs/guides/API_RECIPES.md) explains complete, tested
+programs for strings/bytes, persistent collections, test reporting and native
+filesystem/process failures. Start with `strings.panack`,
+`collections_and_bytes.panack`, `testing_report.panack` and `host_failures.panack`.
+The last example needs a writable current directory and POSIX `/bin/sh`.
+`testing_report.panack` deliberately reports one failure to demonstrate the
+returned failure count; its process succeeds when that expected count is observed.
+
 ## VM walkthroughs
 
 The [VM execution guide](../docs/guides/VM_GUIDE.md) includes disassembly and recorded
@@ -113,6 +123,7 @@ The one-client HTTP example is a regression fixture, not a long-running applicat
 Add a matching `.stdout` file under `tests/functional/expected/examples/`, then
 update the example count in `tests/runner/main.panack` and the ordered example
 list and transcript total in `tests/functional/cases/runner_smoke/main.panack`.
+Update the matching mutation counts and totals in `tests/fixture_inventory_test.sh`.
 Run `sh tests/fixture_inventory.sh` for immediate bookkeeping feedback before
 `make check`. See the [preflight contract](../tests/README.md#fixture-inventory-preflight).
 

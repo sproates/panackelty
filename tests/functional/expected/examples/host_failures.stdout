@@ -1,0 +1,10 @@
+PASS missing file
+PASS bounded read
+PASS remove fixture
+PASS missing executable
+PASS child exit
+PASS no signal
+PASS child stderr
+PASS empty stdout
+PASS remove temporary directory
+tests: 9, failures: 0

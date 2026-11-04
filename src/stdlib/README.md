@@ -15,6 +15,8 @@ main(): Void {
 }
 ```
 
+For complete runnable examples, see the [API recipes guide](../../docs/guides/API_RECIPES.md).
+
 ## Curated prelude
 
 `stdlib/prelude` re-exports a curated set of modules while preserving each

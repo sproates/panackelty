@@ -1,0 +1,102 @@
+import stdlib/bytes as byte_buffer
+import stdlib/filesystem as filesystem
+import stdlib/host as host
+import stdlib/host::{HostError}
+import stdlib/path as paths
+import stdlib/process as process
+import stdlib/testing as testing
+import stdlib/time as time
+
+// The example uses fixed valid literals. Invalid user input should be returned
+// to the caller as a PathError instead of terminating the application.
+path_literal(text: Str): Path {
+  match paths.from_text(text) {
+    Ok(path) => path,
+    Error(error) => {
+      host.stderr("invalid example path")
+      host.exit(1)
+      paths.current()
+    }
+  }
+}
+
+pure error_code[T](result: Result[T, HostError]): Str {
+  match result {
+    Ok(value) => "unexpected success",
+    Error(error) => error.code
+  }
+}
+
+pure succeeded[T](result: Result[T, HostError]): Bool {
+  match result {
+    Ok(value) => true,
+    Error(error) => false
+  }
+}
+
+child_path(root: Path, name: Str): Path {
+  match root.join(path_literal(name)) {
+    Ok(path) => path,
+    Error(error) => {
+      host.stderr("invalid example child path")
+      host.exit(1)
+      root
+    }
+  }
+}
+
+exercise(root: Path): Nat {
+  missing = child_path(root, "missing")
+  file = child_path(root, "data")
+  mut results = [testing.equal_str("missing file",
+    error_code(filesystem.read(missing, 16)), "not_found")]
+  match filesystem.write(file, "hello".encode_utf8()) {
+    Error(error) => {
+      results = results.append(testing.expect("write fixture", false, error.code))
+    },
+    Ok(unit) => {
+      results = results.append(testing.equal_str("bounded read",
+        error_code(filesystem.read(file, 1)), "output_limit"))
+      results = results.append(testing.expect("remove fixture",
+        succeeded(filesystem.remove_file(file)), "could not remove file"))
+    }
+  }
+
+  results = results.append(testing.equal_str("missing executable",
+    error_code(process.run(missing, [], byte_buffer.empty(), root, [],
+      time.seconds(5), 128)), "launch_failed"))
+  // A child that starts and exits with status 7 is an Ok ProcessOutput.
+  // Error describes a host failure such as launch_failed, timeout or output_limit.
+  match process.run(path_literal("/bin/sh"),
+      ["-c", "printf problem >&2; exit 7"], byte_buffer.empty(), root, [],
+      time.seconds(5), 128) {
+    Error(error) => {
+      results = results.append(testing.expect("child launch", false, error.code))
+    },
+    Ok(output) => {
+      results = results.append(testing.equal_nat("child exit", output.exit_code, 7))
+      results = results.append(testing.equal_nat("no signal", output.signal, 0))
+      results = results.append(testing.expect("child stderr",
+        output.stderr == "problem".encode_utf8(), "unexpected stderr"))
+      results = results.append(testing.expect("empty stdout",
+        output.stdout == byte_buffer.empty(), "unexpected stdout"))
+    }
+  }
+  // Clean the unique temporary directory before reporting failures.
+  results = results.append(testing.expect("remove temporary directory",
+    succeeded(filesystem.remove_directory(root)), "could not remove directory"))
+  testing.report(results)
+}
+
+main(): Void {
+  match filesystem.temp_directory(paths.current()) {
+    Error(error) => {
+      host.stderr(error.code)
+      host.exit(1)
+    },
+    Ok(root) => {
+      failures = exercise(root)
+      if failures > 0 { host.exit(1) }
+    }
+  }
+}

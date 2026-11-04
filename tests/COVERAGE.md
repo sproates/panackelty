@@ -1625,3 +1625,18 @@ key. The native parity target additionally imports a real prepared program,
 executes it afresh, then changes its dependency and checks the new output.
 Workflow contracts preserve digest enforcement, fresh collection and separate
 preparation/report artifact paths.
+
+## RM#155 API recipe assertions
+
+The functional example corpus checks exact source and saved-bytecode transcripts
+for Unicode scalar/UTF-8 byte lengths and text iteration (`strings`), persistent
+collections and missing-key handling (`collections_and_bytes`), a deliberate test
+failure and returned count (`testing_report`), and bounded filesystem reads,
+process launch failure, child exit/signal/output and cleanup (`host_failures`).
+The host recipe uses a unique temporary directory and fixed POSIX shell input.
+It makes no timeout-performance, concurrency or browser support claim.
+
+The archive duplicate-path fixture explicitly emits two regular entries with
+`tar --hard-dereference`. GNU tar otherwise emits a hard-link second entry and
+triggers unsupported-entry rejection before the intended duplicate-path check.
+The separate symbolic-link rejection remains intact.

@@ -227,10 +227,6 @@ pure screen(model: Review, selected: Nat, depth: Nat, width: Nat, height: Nat, p
 
 explore(model: Review): Void {
   mut selected: Nat = 0
-  mut has_error = false
-  for i in 0..model.decisions.len() {
-    if !has_error && model.decisions[i].verdict == "Unproved" { selected = i; has_error = true }
-  }
   mut depth: Nat = 0
   mut page: Nat = 0
   mut width: Nat = 80

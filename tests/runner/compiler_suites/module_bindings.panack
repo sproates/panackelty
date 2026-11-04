@@ -2076,8 +2076,9 @@ pure namespace_body_tests(): [TestResult] {
       "unresolved collection receiver was reported as decided"
     ))
   } else {
+    count = retained_receivers.functions.len()
     results = results.append(std_testing.expect("collection receiver evidence fixtures bind", false,
-      "expected nine collection receiver fixtures, got ${len(retained_receivers.functions)}"))
+      "expected nine collection receiver fixtures, got ${count}"))
   }
   ordinary_receivers: CheckedModuleBodies = body_test_module_mode(
     "pub pure f(): [Nat] { [1].append(2) }",

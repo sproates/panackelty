@@ -8,5 +8,9 @@ main(): Void {
   for value in 0..3 { total = total + value }
   while total < 5 { total = total + 1 }
   selected: Int = if total == 5 { -1 } else { 1 }
+  names = ["Ada"]
+  first = names[0]
+  print("First: ${first}")
+  print("$" + "{names[0]}")
   print("value=${selected}; total=${total}; again=${total}")
 }

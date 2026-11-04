@@ -682,6 +682,10 @@ pure greeting(name: Str, attempts: Nat): Str {
 }
 ```
 
+A closed interpolation containing anything other than a local identifier is a
+compile-time error. Assign a field, index or call result to a local first. To
+produce literal placeholder text, concatenate `"$" + "{name}"`.
+
 Interpolation accepts `Nat`, `Int`, `Dec`, `Rat`, `Unit`, `Str`, `Bool`, and guarded scalar
 types. It is pure string construction, not I/O. Indexing uses a `Nat` and returns
 a one-character `Str`. Currently, “character” means a Unicode code point,

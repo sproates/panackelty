@@ -1,0 +1,7 @@
+import project/details::{Trip}
+
+pub pure weekend(): Trip {
+  Trip("Granada", 3)
+}
+
+main(): Void {}

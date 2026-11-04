@@ -354,7 +354,7 @@ run_resolved_project_source_command(
         match std_filesystem.read(path, 1048576) {
           Error(error) => report_driver_error("cannot read resolved project descriptor"),
           Ok(data) => match parse_resolved_project(data) {
-            Error(error) => report_driver_error("invalid resolved project descriptor at byte ${error.offset}: ${error.message}"),
+            Error(error) => { offset = error.offset; report_driver_error("invalid resolved project descriptor at byte ${offset}: " + error.message) },
             Ok(project) => match driver_validate_resolved_project(project) {
               Error(message) => report_driver_error(message),
               Ok(root) => {

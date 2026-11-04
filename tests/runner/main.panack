@@ -65,7 +65,7 @@ runner_source(directory: Path): Result[Path,Str] {
         "case \"$resolved\" in \"$root\"/*) printf '%s\\n' \"$resolved\" ;; *) exit 3 ;; esac"
       match std_process.run(runner_path("/bin/sh"), ["-c", script, "runner-source", reference_text],
           byte_buffer.empty(), std_path.current(), [], std_time.seconds(5), 4096) {
-        Error(error) => Error("source.path resolution failed: ${error.code}"),
+        Error(error) => Error("source.path resolution failed: " + error.code),
         Ok(output) => {
           if output.exit_code != 0 || output.signal != 0 {
             Error("source.path points outside the repository or cannot be resolved")
@@ -205,7 +205,7 @@ runner_program(label: Str, source: Path, expected_file: Path,
       compile_command = if label == "case/compiler_skeleton" {
         // The bootstrap recipe has already built and verified this artifact.
         TestCommand(runner_path("/bin/sh"),
-          ["-c", "if [ -n \"${PANACK_TEST_COMPILER:-}\" ]; then cp \"$PANACK_TEST_COMPILER\" \"$1\" && printf 'wrote %s\\n' \"$1\"; else exec sh tests/compiler_watchdog/run.sh compile \"$2\" -o \"$1\"; fi",
+          ["-c", "if [ -n \"$" + "{PANACK_TEST_COMPILER:-}\" ]; then cp \"$PANACK_TEST_COMPILER\" \"$1\" && printf 'wrote %s\\n' \"$1\"; else exec sh tests/compiler_watchdog/run.sh compile \"$2\" -o \"$1\"; fi",
             "runner-compiler", expected_path, source_path], byte_buffer.empty(), std_path.current(),
           ["PANACKELTY_BOOTSTRAP_ROOT=."],
           std_time.seconds(600), 1048576)
@@ -393,7 +393,7 @@ runner_failure_prefix(directory: Path): Result[Str,Str] {
   match std_process.run(runner_path("/bin/sh"),
       ["-c", "exec realpath \"$1\"", "runner-failure", directory_text],
       byte_buffer.empty(), std_path.current(), [], std_time.seconds(5), 4096) {
-    Error(error) => Error("path resolution failed: ${error.code}"),
+    Error(error) => Error("path resolution failed: " + error.code),
     Ok(output) => {
       if output.exit_code != 0 || output.signal != 0 {
         Error("path resolution failed")
@@ -509,7 +509,7 @@ runner_failures(workspace: TestWorkspace, selected: Str): [TestResult] {
           results = results.concat(runner_failure(directory, workspace))
         }
       }
-      expected_count: Nat = if selected == "" { 101 } else { 1 }
+      expected_count: Nat = if selected == "" { 103 } else { 1 }
       results.append(std_testing.equal_nat("selected failure count", count, expected_count))
     }
   }

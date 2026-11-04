@@ -46,9 +46,13 @@ integration_probe(name: Str, args: [Str], expected: Str): TestResult {
 integration_error(name: Str, args: [Str], status: Nat, output: Str, expected: Str): TestResult {
   match std_process.run(contract_path("./bin/panack"), args, byte_buffer.empty(), std_path.current(), [], std_time.seconds(90), 1048576) {
     Error(error) => std_testing.expect(name, false, "command failed"),
-    Ok(actual) => std_testing.expect(name, actual.exit_code == status && actual.signal == 0 &&
+    Ok(actual) => {
+      code = actual.exit_code
+      signal = actual.signal
+      std_testing.expect(name, actual.exit_code == status && actual.signal == 0 &&
       actual.stdout == output.encode_utf8() && integration_contains(actual.stderr.decode_utf8(), expected),
-      "unexpected status/output or missing diagnostic ${expected}; exit ${actual.exit_code}, signal ${actual.signal}, stdout: ${std_text.decode_utf8(actual.stdout)}, stderr: ${std_text.decode_utf8(actual.stderr)}")
+      "unexpected status/output or missing diagnostic ${expected}; exit ${code}, signal ${signal}, stdout: " + actual.stdout.decode_utf8() + ", stderr: " + actual.stderr.decode_utf8())
+    }
   }
 }
 integration_candidate_error(name: Str, args: [Str], expected: Str): TestResult {

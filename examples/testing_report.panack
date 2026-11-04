@@ -1,0 +1,16 @@
+import stdlib/testing as testing
+import stdlib/host as host
+
+main(): Void {
+  empty: [Nat] = []
+  results = [
+    testing.equal_str("greeting", "hello", "hello"),
+    testing.equal_nat("deliberate mismatch", 2, 3),
+    testing.expect("empty collection", empty.len() == 0, "expected no items")
+  ]
+  // Reporting prints every result and returns a count; it does not exit.
+  failures = testing.report(results)
+  print("returned failures: ${failures}")
+  // This demonstration expects one failure. A real suite exits for failures > 0.
+  if failures != 1 { host.exit(1) }
+}

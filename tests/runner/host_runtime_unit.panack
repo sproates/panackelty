@@ -323,7 +323,7 @@ host_paths(): [TestResult] {
 
 main(): Void {
   match std_testing_files.workspace_create(host_path("/tmp")) {
-    Error(problem) => { std_host.stderr("host test workspace failed: ${problem.code}"); std_host.exit(1) },
+    Error(problem) => { std_host.stderr("host test workspace failed: " + problem.code); std_host.exit(1) },
     Ok(workspace) => {
       mut results = host_direct(workspace).concat(host_paths())
       results = results.append(host_fixture("testing report order and empty case", "library_reports", [], [],

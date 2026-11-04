@@ -108,8 +108,7 @@ case_name=bug-report-form-requires-actionable-reproduction-details
 contains .github/ISSUE_TEMPLATE/bug_report.yml 'name: Bug report'
 contains .github/ISSUE_TEMPLATE/bug_report.yml 'panack --version'
 contains .github/ISSUE_TEMPLATE/bug_report.yml SECURITY.md
-contains CONTRIBUTING.md 'choose
-**Bug report**'
+contains_collapsed_whitespace CONTRIBUTING.md 'then choose **Bug report**. Include:'
 contains CONTRIBUTING.md 'private reporting channel'
 pass
 case_name=readme-quick-start-is-an-executable-release-gate

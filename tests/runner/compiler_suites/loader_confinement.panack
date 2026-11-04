@@ -144,7 +144,7 @@ pub run_suite(): Void {
           inferred_main_checked = body.status == BodyIdentityChecked() && body.deferred.len() == 0
           inferred_main_summary = match body.status {
             BodyIdentityChecked() => "identity checked",
-            BodyDeferred() => "deferred spans=${body.deferred.len()}",
+            BodyDeferred() => { count = body.deferred.len(); "deferred spans=${count}" },
             BodyInvalid() => "invalid body"
           }
         }

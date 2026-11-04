@@ -379,6 +379,30 @@ clarify the existing syntax without changing language behavior. Website: no
 impact; no live website claims or release information change. No issue was
 created solely for this documentation work.
 
+**RM#155 tested API recipes, 4 November 2026:** owner selected the independent
+examples slice while GI#180 awaits input. Implementation covers strings/bytes,
+collections, testing reports and filesystem/process failures through runnable
+programs, an [API recipes guide](../../guides/API_RECIPES.md) and exact functional
+transcripts. Baseline `7d60c45` had short strings/collection examples but no user-facing
+testing-report or host-failure recipes. The new guide makes those existing
+contracts discoverable without reading test implementations. [PR #652](https://github.com/sproates/panackelty/pull/652) merged fourteen
+source/bytecode recipes and a local HTTP fragment example into `next`.
+
+**RM#155 final acceptance (effective on merge).** All three improvements selected
+in [the agreed scope](https://github.com/sproates/panackelty/pull/626) have
+reproducible evidence:
+
+| Observation | Before | After |
+| --- | --- | --- |
+| Unsupported string interpolation | Printing `"${name[0]}"` printed those characters unchanged. | The [rejected fixture](../../../tests/functional/failures/interpolation_expression/main.panack) points at the opening dollar and gives the local-binding remedy. The [working case](../../../tests/functional/cases/expression_contracts/main.panack) exercises both that remedy and deliberate literal text. |
+| API examples were hard to find | Strings and collections had brief examples. Test reports and host failures required looking up test code. | The [recipe guide](../../guides/API_RECIPES.md) links complete programs, commands and expected results. |
+| An imported type was usable inside a module but inaccessible to its callers | A [private import](../../../tests/functional/failures/private_signature_import/main.panack) fails when `weekend()` publicly returns `Trip`. | The [worked module guide](../../../examples/namespaces/README.md#returning-a-type-from-another-module) shows the public import and a caller naming and using the type. |
+
+The first finding changes compiler behaviour. The other two resolve gaps in
+guidance. General expression interpolation, broader API-reference coverage and
+native-interface coupling were outside the selected scope. Log suggestions
+without a reproduction remain unverified and earn no release credit.
+
 <a id="rm-156"></a>
 
 **RM#156: HTTP server framework and type-owned dispatch — Alpha.14.**

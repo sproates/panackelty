@@ -1,6 +1,6 @@
 # Next release status
 
-Updated: 28 October 2026. Release: **v0.1.0-alpha.15**. Integration branch: **next**.
+Updated: 4 November 2026. Release: **v0.1.0-alpha.15**. Integration branch: **next**.
 Latest published release: **v0.1.0-alpha.14**. Publication date: not agreed.
 
 **Packages are accepted on next. The release still has substantial foundation
@@ -16,19 +16,18 @@ and linked issues retain the detailed requirements and decisions.
 | Item | Current state and remaining acceptance | Weight | Complete | Earned |
 | --- | --- | ---: | ---: | ---: |
 | [GI#200 Packages](https://github.com/sproates/panackelty/issues/200) | Accepted on next: local folders/archives, HTTPS archives, pinned Git, diagnostics and installed acceptance. [P04c evidence](design/PACKAGE_FINAL_ACCEPTANCE.md), PR#595. Not yet released. | 30/90 | 100% | 30/90 |
-| [GI#180 Compiler understanding](https://github.com/sproates/panackelty/issues/180) | Completion scope agreed: complete checker explanations and truthful instruction/source provenance, two checked inventories, five slices and realistic acceptance. PR#619 is merged into main. [Definitive five-slice execution checklist](roadmap/records/next-release--agreed-scope-2026-10-06.md#gi180-definitive-alpha15-delivery-checklist-28-october-2026) records the shared inventory checkpoint, stage outputs and completion conditions. P1/P2 source reconciliation is complete in draft PR#648, awaiting merge. Eight implementation packets map the confirmed gaps to the five existing slices. P3 is in progress: the owner approved `expression => Type`, explicit locations and the subtraction/inference/unavailable examples. Instruction-number-led provenance candidates were rejected. A [realistic usability review](COMPILER_UNDERSTANDING_REALISTIC_REVIEW.md) now includes a real package function, failure case, complete overview, focused queries and full detail. The owner selected interactive terminal exploration instead of line-coordinate navigation. A local Panack prototype with fixture evidence now demonstrates selection, expansion, origin/back and accepted/rejected examples; a phone browser bridge now drives the same Panack UI with touch controls, with terminal-output equivalence verified. A separate live demo now reads retained compiler evidence and final preparation diagnostics, supports source reload, and shares one running terminal with a phone through `--serve`. Two-way control and a source-edit/reload rejection were verified locally; the first physical iPhone review showed browser rendering corruption. A canvas-renderer/sizing correction is saved locally, awaiting phone verification; network rehearsal and usability acceptance remain pending. This bounded demo does not complete the evidence slices. The prior 8–12 PR estimate predates this change and must be reassessed. Compiler evidence implementation has not started; no completion credit added. | 20/90 | Unassessed | Unknown |
+| [GI#180 Compiler understanding](https://github.com/sproates/panackelty/issues/180) | Completion scope agreed: complete checker explanations and truthful instruction/source provenance, two checked inventories, five slices and realistic acceptance. PR#619 is merged into main. [Definitive five-slice execution checklist](roadmap/records/next-release--agreed-scope-2026-10-06.md#gi180-definitive-alpha15-delivery-checklist-28-october-2026) records the shared inventory checkpoint, stage outputs and completion conditions. Draft PR#648 records inventories and an interactive prototype direction; usability acceptance and a second real function await owner input. Compiler implementation remains pending. | 20/90 | Unassessed | Unknown |
 | [GI#435 Validated domain types](https://github.com/sproates/panackelty/issues/435) | Six-constraint semantics agreed: four string constraints, bounded arrays/maps/sets and ordered record-field relationships. Explicit guard binding, validate call/result, failure order and multiline/parenthesised conjunctions agreed. Final consolidated contract approved and merged into main in PR#616: constraint APIs, error schema/rendering, Unicode pin, examples and delivery slices. Existing numeric alternatives are preserved; implementation has not started. | 20/90 | 0% | 0 |
 | [GI#409 Compiler/stdlib boundary](https://github.com/sproates/panackelty/issues/409) | Assessment complete on next (PR#635): 42-file closure verified, five change cases evidenced, recommendation to retain source organisation and assess narrower build dependencies in GI#106. [Evidence](COMPILER_STDLIB_BOUNDARY_ASSESSMENT.md). No refactor. | 5/90 | 100% | 5/90 |
 | [RM#154 Faster coverage](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154) | Complete: local reuse PR#644 and hosted persistence PR#645. Local repeat/reporting medians improve 88.70%/88.75%; cold/dependency regressions 0.65%/2.35%. Hosted 30m22s → 3m35s with 29 cache hits and 62 distinct sessions across two runs. [Final evidence and limits](COVERAGE_PERFORMANCE_BASELINE.md#final-acceptance-28-october-2026). Cold preparation remains slow. | 5/90 | 100% | 5/90 |
-| [RM#155 Authoring friction](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-155) | Partial. Inventory preflight and contributor/interpolation guidance delivered (PR#545 and PR#565). Remaining scope agreed: unsupported-interpolation diagnostics, tested API examples and public-signature visibility guidance. Roadmap PR#626 is merged into main; no additional implementation started. | 5/90 | Unquantified | Unknown |
+| [RM#155 Authoring friction](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-155) | Complete on merge. Inventory preflight and contributor guidance shipped earlier. [PR #652](https://github.com/sproates/panackelty/pull/652) delivered the tested recipes on next. Final acceptance covers the source-located interpolation diagnostic, literal-text migration and [public-signature example](../examples/namespaces/README.md#returning-a-type-from-another-module). | 5/90 | 100% | 5/90 |
 | [GI#106 Validation speed](https://github.com/sproates/panackelty/issues/106) | Shared compiler-test preparation merged into next (PR#637). [Replay evidence](VALIDATION_SPEED_ACCEPTANCE.md): clean full 16.1% faster, compiler edit 20.05% faster, hosted initial compiler 24.9%/36.8% faster. All guards passed, including four workers. Owner accepted the alpha.15 milestone on 27 October 2026. Wider issue remains open. | 5/90 | 100% | 5/90 |
-| **Total** | **45/90 known contribution (50%); overall completion unquantified.** | **100%** | **Unknown** | **45/90 known** |
+| **Total** | **50/90 known contribution (55.6%); overall completion unquantified.** | **100%** | **Unknown** | **50/90 known** |
 
 Weights retain the original provisional relative sizes, excluding the five points
 for GI#170: Inference assessment and the five for RM#157: Performance review,
 now allocated to alpha.16. The remaining denominator is 90; the Weight column
-sums to 100%. No remaining task was re-estimated. Known contribution is 45/90
-(50%), up from 40/90 following completion of RM#154's five-point milestone. Scope weights and the denominator are unchanged. Earlier denominator reductions reflected deferrals only. Unknown contributions are not zero; overall completion remains
+sums to 100%. No remaining task was re-estimated. RM#155 contributes five points on merge, bringing the known contribution to 50/90. Scope weights and the denominator are unchanged. Earlier denominator reductions reflected deferrals only. Unknown contributions are not zero; overall completion remains
 unquantified. These are provisional weights, not owner-approved effort estimates.
 
 ## Deferred to the following release
@@ -90,7 +89,7 @@ This is agreed direction, not implementation progress; weights are unchanged.
   and no executable output. Reconcile two checked inventories; no unexplained
   gaps or fabricated attribution. Five delivery slices: checker evidence,
   explanations, instruction attribution, compilation journey, integrated acceptance.
-  Large; the previous 8–12 PR estimate requires reassessment after interactive-prototype review, with tests in every slice, realistic
+  Large; provisionally 5–7 implementation PRs, with tests in every slice, realistic
   examples and retention on/off cost evidence. Existing inference explanations
   remain included; new inference, runtime tracing and debugger/IR tooling do not.
   Inventories and representative transcripts precede implementation; this is an
@@ -138,16 +137,7 @@ This is agreed direction, not implementation progress; weights are unchanged.
   all four workloads pass after capacity and scope/exclusion metadata repairs.
   The numerical target is agreed; slice B local reuse is verified in PR#644.
   Slice C hosted integration and matched acceptance are complete; see the final evidence above.
-- **RM#155: Authoring friction:** [scope agreed, PR#626](https://github.com/sproates/panackelty/pull/626),
-  merged into main after owner approval. Three improvements remain: diagnose unsupported interpolation
-  with source location and a local-binding remedy, add tested examples for strings/
-  bytes, collections, test reporting and filesystem/process failures, and explain
-  public-signature type visibility with a checked `pub import` example. Preserve
-  supported interpolation and visibility rules; document deliberate literal text
-  and the interpolation compatibility change. Require before/after reproductions,
-  regression tests and checked documentation examples. Inventory preflight and
-  onboarding guidance remain completed work. Fixed list, medium, about three
-  implementation PRs; no additional implementation has started.
+- **RM#155 Authoring friction** completes the [three agreed improvements](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-155) on merge. The record links before/after examples and distinguishes compiler changes from documentation improvements.
 
 ## Agreed delivery order
 
@@ -185,7 +175,7 @@ The order and scope weights remain unchanged. GI#409 assessment delivery is reco
   RM#154: Faster coverage is scoped in PR#624 and RM#155: Authoring friction in
   PR#626. RM#157: Performance review belongs to alpha.16. Delivery order is agreed
   above. GI#409 assessment is complete on next (PR#635).
-  GI#106: Validation speed and RM#154: Faster coverage are complete for alpha.15. Next is GI#180: Compiler understanding foundations. Begin with concrete user-facing examples and the evidence inventories; do not treat the existing verbose output as the desired experience.
+  GI#106: Validation speed and RM#154: Faster coverage are complete for alpha.15. GI#180 is paused for owner input on the interactive explanation experience (draft PR#648). Owner selected RM#155 Authoring friction independently. Its final acceptance is recorded above.
 - Promotion, package/install release checks and owner publication approval remain.
   Complete product acceptance on next does not mean a feature has shipped.
 - Latest supporting repair: [PR#601](https://github.com/sproates/panackelty/pull/601)

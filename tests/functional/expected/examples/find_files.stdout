@@ -1,0 +1,11 @@
+public_api/api.panack
+public_api/details.panack
+public_api/main.panack
+trip_planner/budget.panack
+trip_planner/itinerary.panack
+trip_planner/main.panack
+trip_planner/routes.panack
+trip_planner/weather.panack
+twin_sensors/main.panack
+twin_sensors/navigation.panack
+twin_sensors/weather.panack

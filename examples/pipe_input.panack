@@ -1,0 +1,23 @@
+import stdlib/path as paths
+import stdlib/process as process
+import stdlib/time as time
+
+copy_text(cat: Path, limit: Nat): Str {
+  match process.run(cat, [], "hello λ".encode_utf8(), paths.current(), [], time.seconds(5), limit) {
+    Error(problem) => problem.code,
+    Ok(output) => {
+      if output.signal != 0 || output.exit_code != 0 { "cat failed" }
+      else { output.stdout.decode_utf8() }
+    }
+  }
+}
+
+main(): Void {
+  match paths.from_text("/bin/cat") {
+    Error(problem) => print("invalid executable path"),
+    Ok(cat) => {
+      print(copy_text(cat, 64))
+      print(copy_text(cat, 2))
+    }
+  }
+}

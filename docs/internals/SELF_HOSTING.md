@@ -677,3 +677,8 @@ The alpha.15 inventory-capacity prerequisite refreshes the v9 seed through the
 standard stages 2–4 fixed-point proof. Inventories allow 64 MiB and enclosing
 coverage records 128 MiB; compiler/artifact identity bounds remain 16 MiB.
 The coverage format and ordinary execution semantics are unchanged.
+
+RM#155 refreshes the v9 compiler seed for the interpolation diagnostic. The
+self-hosted compiler and project-manifest reader now print actual field values
+in their own errors. Stages 2, 3 and 4 produced identical compiler bytes and
+standard-library conformance output during seed regeneration.

@@ -1,0 +1,18 @@
+import stdlib/testing as testing
+import stdlib/testing::{TestOutcome.TestPassed, TestOutcome.TestFailed}
+
+main(): Void {
+  checks = [
+    testing.equal_nat("items packed", 3, 3),
+    testing.equal_str("shipping label", "Paris", "Lisbon")
+  ]
+  for check in checks {
+    match check.outcome {
+      TestPassed() => {},
+      TestFailed(reason) => {
+        name = check.name
+        print("${name}: ${reason}")
+      }
+    }
+  }
+}

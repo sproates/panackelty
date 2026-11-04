@@ -492,7 +492,7 @@ pub pure manifest_object_unknown_field(value: ManifestJsonValue, allowed: [Str])
       mut failure: Option[PackageManifestError] = None()
       for member in members {
         if !manifest_name_is_allowed(allowed, member.key) && failure == None() {
-          failure = Some(manifest_error("unknown manifest field ${member.key}", member.offset))
+          failure = Some(manifest_error("unknown manifest field " + member.key, member.offset))
         }
       }
       failure

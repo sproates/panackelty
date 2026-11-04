@@ -125,6 +125,13 @@ main(): Void {
       explain_write(source, "import stdlib/host as service_host\ncaller(): Void { service_host.stderr(\"x\") }\nmain(): Void {}\n")
       results = results.append(explain_run("eprint explains accepted non-Void arguments", ["explain", source, "--function", "caller"], 0,
         ["call argument 1 to stderr: accepted", "actual type: Str", "expected type: Str"], ["context: eprint argument"], ""))
+      explain_write(source, "import stdlib/http_runtime as runtime\nimport stdlib/host as host\nmain(): Void {}\n")
+      results = results.append(explain_run("host exit retains performed argument check", ["explain", source, "--function", "stdlib/host.panack:exit"], 0,
+        ["call argument 1 to process_exit: accepted", "actual type: Nat", "expected type: Nat"], [], ""))
+      results = results.append(explain_run("HTTP writer retains performed argument checks", ["explain", source, "--function", "stdlib/http_runtime.panack:writer_status"], 0,
+        ["call argument 1 to http_writer_status: accepted", "call argument 2 to http_writer_status: accepted"], [], ""))
+      results = results.append(explain_run("HTTP connection invocation retains the state requirement", ["explain", source, "--function", "stdlib/http_runtime.panack:connection_invoke"], 0,
+        ["context: HTTP state shape", "HttpConnectionState with two type arguments", "call argument 4 to http_connection_invoke: accepted"], [], ""))
       explain_write(source, "pure noop(): Void {}; caller(): Void { print(noop()) }\nmain(): Void {}\n")
       results = results.append(explain_run("print explains rejected Void arguments", ["explain", source, "--function", "caller"], 1,
         ["checked type requirement: rejected", "context: print argument", "expression: noop()", "actual type: Void", "expected type: any non-Void value", "rejected this type for the requirement"], [], "Void is not a value and cannot be passed as an argument"))

@@ -1,0 +1,280 @@
+import project/src/compiler/module_bodies::{BoundBody}
+import project/src/compiler/checker::{SubtractionEvidence}
+import project/src/compiler/types::{SourceSpan}
+import project/src/compiler/loader::{load_project_explained}
+import project/src/compiler/project_frontend::{prepare_project_program}
+import project/src/compiler/explanations::{explanation_function_selector}
+import project/src/compiler/module_bindings::{source_module_identity}
+import project/src/compiler/source_maps::{source_map_escape}
+import project/src/compiler/path_support as paths
+import stdlib/environment as env
+import stdlib/host as host
+
+record Decision { code: Str, statement: Str, verdict: Str, why: Str, condition: Str, branch: Str, origin: Str }
+record Review { name: Str, signature: Str, status: Str, decisions: [Decision] }
+
+pure previous(n: Nat): Nat { if n > 0 { n - 1 } else { 0 } }
+pure remaining_space(size: Nat, used: Nat): Nat {
+  signed_size: Int = size
+  if size > used { ((signed_size - used) / 1).nat() } else { 0 }
+}
+pure excerpt(source: Str, span: SourceSpan): Str {
+  source_map_escape(source.slice(span.start.offset, span.end.offset))
+}
+
+// Show the original source around the selected span. Indentation belongs to
+// the program. Never use a line number as the navigation key.
+pure context(source: Str, span: SourceSpan): Str {
+  mut start = span.start.offset
+  mut end = span.end.offset
+  while start > 0 && source[previous(start)] != "\n" { start = previous(start) }
+  while end < source.len() && source[end] != "\n" { end = end + 1 }
+  source_map_escape(source.slice(start, span.start.offset)) + excerpt(source, span) +
+    source_map_escape(source.slice(span.end.offset, end))
+}
+
+// Use child spans from the checked expression. Splitting displayed text at
+// the minus sign would misidentify operands in a nested subtraction.
+pure operand_name(body: BoundBody, span: SourceSpan, source: Str): Option[Str] {
+  mut name: Option[Str] = None()
+  if body.span == span && body.children.len() == 2 {
+    name = Some(excerpt(source, body.children[0].span))
+  } else {
+    for child in body.children {
+      if name == None() && child.span.start.offset <= span.start.offset && child.span.end.offset >= span.end.offset {
+        name = operand_name(child, span, source)
+      }
+    }
+  }
+  name
+}
+
+pure decision(source: Str, span: SourceSpan, item: SubtractionEvidence, left: Str): Decision {
+  proof = item.decision
+  code = excerpt(source, span)
+  mut verdict = if proof.proven { "Proved" } else { "Unproved" }
+  mut why = ""
+  if proof.rule == "unsupported" || proof.rule == "invalid-operands" {
+    verdict = "Unavailable"
+    why = if proof.rule == "unsupported" { "This operation has no Nat subtraction obligation." }
+      else { "Operand checking failed before Panack could establish a subtraction proof." }
+  } else {
+    if item.left.has_nat {
+      n = item.left.nat_value
+      why = left + " has the value ${n} here. "
+    } else if proof.has_lower {
+      n = proof.lower
+      why = "Panack knows " + left + " is at least ${n} here. "
+    }
+    if item.right.has_nat {
+      amount = item.right.nat_value
+      why = why + if proof.proven { "Subtracting ${amount} therefore leaves zero or more." }
+        else { "Subtracting ${amount} safely requires " + left + " to be at least ${amount}. Panack cannot prove that here." }
+    } else {
+      why = why + if proof.proven { "Panack proved the result cannot be negative." }
+        else { "Panack cannot prove the result stays at or above zero." }
+    }
+  }
+  mut condition = ""
+  mut branch = ""
+  mut origin = ""
+  match proof.guard {
+    None() => {},
+    Some(guard) => match guard.span {
+      None() => {},
+      Some(site) => if site.start.file == span.start.file && site.end.offset <= source.len() {
+        condition = excerpt(source, site)
+        branch = if guard.truth { "true" } else { "false" }
+        origin = context(source, site)
+      }
+    }
+  }
+  Decision(code, context(source, span), verdict, why, condition, branch, origin)
+}
+
+load(source_path: Str, selector: Str): Result[Review,Str] {
+  entry = paths.resolve(source_path)
+  root = env.get("PANACKELTY_BOOTSTRAP_ROOT").value_or(paths.parent(entry))
+  library = env.get("PANACKELTY_STDLIB_PATH").value_or("")
+  project = load_project_explained(entry)
+  mut identity = source_module_identity(entry, root, library)
+  for module in project.modules {
+    if module.source_path == entry { identity = module.bindings.identity }
+  }
+  status = match prepare_project_program(project, root, library, identity) {
+    Ok(program) => "Project compiles",
+    Error(errors) => if errors.len() > 0 { "Compilation failed: " + source_map_escape(errors[0].message) }
+      else { "Compilation failed" }
+  }
+  match explanation_function_selector(project, selector, entry, root, library) {
+    Error(message) => Error(status + "\n" + source_map_escape(message)),
+    Ok(selected) => {
+      mut rows: [Decision] = []
+      mut signature = ""
+      if project.sources.has(selected.source_path) {
+        source = project.sources.get(selected.source_path)
+        for function in project.module_bodies {
+          if function.signature.binding.identity == selected.identity {
+            name_span = function.signature.binding.span
+            // The declaration span can include the body. Show the first line.
+            mut start = name_span.start.offset
+            while start > 0 && source[previous(start)] != "\n" { start = previous(start) }
+            mut end = start
+            while end < source.len() && source[end] != "\n" { end = end + 1 }
+            signature = source_map_escape(source.slice(start,end))
+            for item in project.evidence {
+              if item.function_name == selected.emitted_name || item.function_name == selected.identity.name {
+                match item.span {
+                  None() => {},
+                  Some(span) => if span.start.file == selected.source_path && span.end.offset <= source.len() {
+                    left = operand_name(function.body, span, source).value_or("the left operand")
+                    rows = rows.append(decision(source, span, item, left))
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      if signature == "" { Error(status + "\nNo checked function body for " + source_map_escape(selector)) }
+      else { Ok(Review(source_map_escape(selected.display_name),signature,status,rows)) }
+    }
+  }
+}
+
+// All dynamic text has been escaped for terminal display by the model. Wrap
+// long source lines too, preserving indentation and splitting at spaces when possible.
+pure wrap(text: Str, width: Nat): [Str] {
+  mut lines: [Str] = []
+  mut start: Nat = 0
+  while start + width < text.len() {
+    mut end = start + width
+    while end > start && text[previous(end)] != " " { end = previous(end) }
+    if end == start { end = start + width }
+    lines = lines.append(text.slice(start,end))
+    start = end
+  }
+  lines.append(text.slice(start,text.len()))
+}
+pure heading(row: Decision): Str {
+  row.code + (if row.verdict == "Proved" { " => Nat" } else { "" }) + "  [" + row.verdict + "]"
+}
+record Frame { text: Str, last_scroll: Nat }
+pure screen(model: Review, selected: Nat, depth: Nat, width: Nat, height: Nat, page: Nat, first_unproved: Option[Nat]): Frame {
+  esc = bytes().push(27).decode_utf8()
+  clear = esc + "[H" + esc + "[2J"
+  if width < 30 || height < 10 { Frame(clear + "Enlarge terminal | q quit", 0) }
+  else {
+    cols = previous(width)
+    mut lines: [Str] = []
+    mut selected_line: Nat = 0
+    mut footer = "Up/Down select   Enter explain   q quit"
+    if model.decisions.len() == 0 {
+      lines = lines.append("This function has no retained subtraction decisions.")
+      footer = "q quit"
+    } else if depth == 0 {
+      if first_unproved != None() { footer = footer + "   n first unproved" }
+      lines = ["Select a subtraction to see why.", ""]
+      for i in 0..model.decisions.len() {
+        row = model.decisions[i]
+        if selected == i { selected_line = lines.len() }
+        marker = if i == selected { "> " } else { "  " }
+        lines = lines.append(marker + heading(row))
+        if selected == i { lines = lines.append(row.statement) }
+      }
+    } else {
+      row = model.decisions[selected]
+      if depth == 1 {
+        lines = ["In this statement", row.statement, "", heading(row), row.why]
+        if row.condition != "" {
+          lines = lines.append("").append("Branch evidence: " + row.condition + " is " + row.branch + ".")
+        }
+        footer = if row.condition != "" { "Enter show condition   Left back   q quit" } else { "Left back   q quit" }
+      } else {
+        lines = ["Condition in the original source",row.origin,"",
+          "To reach " + row.code + ", this condition must be " + row.branch + ".",
+          "", "Subtraction being explained", row.statement]
+        footer = "Left back   q quit"
+      }
+    }
+    mut content = wrap(model.status,cols).concat(wrap(model.signature,cols)).append("")
+    mut focus = content.len()
+    for i in 0..lines.len() {
+      if i == selected_line { focus = content.len() }
+      content = content.concat(wrap(lines[i],cols))
+    }
+    mut footer_lines = wrap(footer,cols)
+    mut room = remaining_space(height, footer_lines.len() + 2)
+    mut offset: Nat = 0
+    mut last_scroll: Nat = 0
+    if content.len() > room {
+      footer_lines = wrap("d/u scroll   " + footer,cols)
+      room = remaining_space(height, footer_lines.len() + 2)
+      if depth == 0 && focus >= room { offset = remaining_space(focus + 1, room) }
+      last_scroll = remaining_space(content.len(), offset + room)
+      offset = offset + page
+      if offset + room > content.len() { offset = remaining_space(content.len(), room) }
+    }
+    mut output = clear + "Panack explain / Subtraction"
+    for i in 0..room {
+      j = offset + i
+      output = output + "\n"
+      if j < content.len() { output = output + content[j] }
+    }
+    for line in footer_lines { output = output + "\n" + line }
+    Frame(output, last_scroll)
+  }
+}
+
+explore(model: Review): Void {
+  mut first_unproved: Option[Nat] = None()
+  for i in 0..model.decisions.len() {
+    if first_unproved == None() && model.decisions[i].verdict == "Unproved" { first_unproved = Some(i) }
+  }
+  mut selected: Nat = 0
+  mut depth: Nat = 0
+  mut page: Nat = 0
+  mut width: Nat = 80
+  mut height: Nat = 24
+  mut last_scroll: Nat = 0
+  mut running = true
+  while running {
+    event = read_line()
+    if event == "quit" || event == "" { running = false } else {
+      if event == "resize" {
+        width = read_line().parse_nat()
+        height = read_line().parse_nat()
+        page = 0
+      } else if event == "first_unproved" {
+        match first_unproved {
+          None() => {},
+          Some(index) => { selected = index; depth = 0; page = 0 }
+        }
+      } else if event == "open" && model.decisions.len() > 0 {
+        if depth == 0 { depth = 1 } else if model.decisions[selected].condition != "" { depth = 2 }
+        page = 0
+      } else if event == "back" || event == "close" {
+        depth = previous(depth)
+        page = 0
+      } else if depth == 0 && event == "down" && selected + 1 < model.decisions.len() {
+        selected = selected + 1
+        page = 0
+      } else if depth == 0 && event == "up" { selected = previous(selected); page = 0 }
+      else if event == "pagedown" && page < last_scroll { page = page + 1 }
+      else if event == "pageup" { page = previous(page) }
+      frame = screen(model,selected,depth,width,height,page,first_unproved)
+      last_scroll = frame.last_scroll
+      print(frame.text)
+    }
+  }
+}
+main(): Void {
+  args = host.arguments()
+  if args.len() != 3 || args[1] != "--function" { host.stderr("Expected SOURCE --function NAME"); host.exit(2) }
+  else {
+    match load(args[0],args[2]) {
+      Error(problem) => { host.stderr(problem); host.exit(1) },
+      Ok(model) => explore(model)
+    }
+  }
+}

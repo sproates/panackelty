@@ -1,0 +1,15 @@
+record Balance { seats: Nat, credit: Nat }
+
+pure book_pair(seats: Nat, credit: Nat): Result[Balance,Str] {
+  if seats >= 2 {
+    if credit >= 25 {
+      Ok(Balance(seats - 2, credit - 50))
+    } else {
+      Error("Two tickets cost 50 credits.")
+    }
+  } else {
+    Error("Two seats are required.")
+  }
+}
+
+main(): Void { print(book_pair(8, 120)) }

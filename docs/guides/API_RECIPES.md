@@ -6,7 +6,7 @@ containing these examples. The host examples use POSIX tools including `/bin/sh`
 they are not browser examples. Each program is checked from source and saved
 bytecode against an exact transcript by the functional suite.
 
-## Eight tasks to try
+## Nine tasks to try
 
 ### Text and UTF-8
 
@@ -97,6 +97,22 @@ shipping label: expected Lisbon, got Paris
 ```
 
 ### Files and processes
+
+**[Find files by suffix in a directory tree](../../examples/find_files.panack)**
+
+Give the program a starting directory and a filename suffix. It prints matching
+regular files in sorted order, relative to that directory. It skips symbolic
+links encountered during the walk. No matches means no output. Without
+arguments it searches `examples/namespaces` for `.panack` files.
+
+```sh
+./bin/panack run examples/find_files.panack examples/namespaces weather.panack
+```
+
+```text
+trip_planner/weather.panack
+twin_sensors/weather.panack
+```
 
 **[Write and read a temporary note](../../examples/read_temporary_note.panack)**
 

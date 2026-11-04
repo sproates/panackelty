@@ -11,5 +11,7 @@ The same command path works in a built source checkout.
 | [Routed HTTP server](http_server/README.md) | GET and POST handlers with response writers (alpha.14) |
 | [Contextual HTTP server](http_contextual_server/README.md) | Shared typed configuration, query access and fallback routing (alpha.14) |
 
+The [local ESI include example](esi_includes/README.md) serves two pages that share an editable HTML fragment.
+
 For ordinary directory serving use [panack-http-server](../../tools/http-server/README.md).
 For application HTTP APIs and limitations, read the [HTTP package guide](../../packages/http/README.md).

@@ -25,7 +25,7 @@ The [API recipes guide](../docs/guides/API_RECIPES.md) explains complete, tested
 programs for strings/bytes, persistent collections, test reporting and native
 filesystem/process failures. Start with `strings.panack`,
 `collections_and_bytes.panack`, `testing_report.panack` and `host_failures.panack`.
-The guide also links nine standalone worked tasks, including vote counting, UTF-8 decoding,
+The guide also links ten standalone worked tasks, including infinite streams, vote counting, UTF-8 decoding,
 boundary tests, recursive file searches, temporary-file cleanup and piping text to a process. The native
 recipes require a writable directory or the named POSIX executable.
 `testing_report.panack` deliberately reports one failure to demonstrate the

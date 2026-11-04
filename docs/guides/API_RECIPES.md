@@ -6,7 +6,7 @@ containing these examples. The host examples use POSIX tools including `/bin/sh`
 they are not browser examples. Each program is checked from source and saved
 bytecode against an exact transcript by the functional suite.
 
-## Nine tasks to try
+## Ten tasks to try
 
 ### Text and UTF-8
 
@@ -65,6 +65,20 @@ Use a set to track membership and an array for the ordered result. The first occ
 Ian
 Ada
 Sam
+```
+
+**[Take four terms from an infinite stream](../../examples/infinite_stream.panack)**
+
+An odd-number stream starts at 1 and advances by 2. Request four terms and
+map each to its reciprocal. Only the requested terms are evaluated, and
+Panack keeps each fraction exact.
+
+```sh
+./bin/panack run examples/infinite_stream.panack
+```
+
+```text
+[1/1, 1/3, 1/5, 1/7]
 ```
 
 ### Test reports
@@ -138,6 +152,8 @@ Send UTF-8 on standard input to /bin/cat and inspect its output. Repeat with a s
 hello λ
 output_limit
 ```
+
+For a runnable HTTP example, see [two pages sharing an ESI fragment](../../examples/network/esi_includes/README.md).
 
 ## Strings and bytes
 

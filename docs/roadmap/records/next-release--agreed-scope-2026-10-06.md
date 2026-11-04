@@ -548,7 +548,7 @@ address validation and error contract.
 
 This is the execution tracker for the five agreed compiler-understanding slices.
 It supersedes the conversational stage proposals, without changing the completion
-scope agreed in PR#619. Implementation has not started. Status values are not
+scope agreed in PR#619. See the current delivery decision below. Status values are not
 started, in progress, blocked, and complete; each completed stage must link its
 implementation and acceptance evidence here. Update NEXT_RELEASE_STATUS.md with
 slice transitions. These slices share GI#180's existing weight; no extra credit.
@@ -593,7 +593,7 @@ slice transitions. These slices share GI#180's existing weight; no extra credit.
 - [x] P2 — Reconcile the emission/transformation inventory with current emission
   sites, source mappings, query output and regressions. Include generated/shared
   instructions and constructs producing no executable code.
-- [ ] P3 — Freeze the resulting gap checklist for the existing language and map
+- [x] P3 — Freeze the resulting gap checklist for the existing language and map
   each gap to exactly one delivery owner below. Select representative transcripts
   and realistic programs for review, including the presentation subtraction case.
   Identify mechanism changes and revise the provisional PR estimate from evidence.
@@ -1292,3 +1292,18 @@ The first physical iPhone review subsequently showed repeated/overwritten browse
 text while the tmux pane remained intact. The local bridge now has a candidate
 canvas-renderer and settled-sizing correction. Physical-phone verification is
 still pending; the desktop viewport check did not establish phone readiness.
+
+### Delivery decision, 4 November 2026
+
+The owner reviewed [the live subtraction explorer](https://github.com/sproates/panackelty/pull/654),
+accepted its interaction pattern, and authorised end-to-end delivery of GI#180.
+Open in source order, show the project result and enclosing source, allow direct
+selection of the first unproved decision, and preserve selection on return from
+a supporting origin. Earlier proposals for mandatory prototype or transcript
+approval at each packet are superseded. Exercise the realistic package function
+and a second compiler function in engineering acceptance.
+
+P3 uses the C01–C10 and E01–E08 register above for the existing language. A–G
+cover the current compiler. H integrates these results and rechecks new decisions
+when GI#435 supplies them. A passing subtraction demonstration earns no
+completeness credit for other decision families.

@@ -538,7 +538,7 @@ reachable outcomes, and detect missing evidence rather than merely checking a
 fixed total. The full baseline output is evidence of existing behavior, not the
 target presentation.
 
-## Review decision
+## Original review questions
 
 First review the complete overview and one focused query: can a programmer find
 the right source section and understand the relevant reason without reading
@@ -552,3 +552,5 @@ renderer implementation. The next review case, after agreement on this approach,
 is a real compiler function with generic collections/callbacks and matching.
 It must not be reshaped to fit this case. The original noninteractive-only proposal is superseded by the interaction
 decision above; the evidence-completeness requirement remains.
+
+The owner accepted the live subtraction interaction on 4 November ([PR #654](https://github.com/sproates/panackelty/pull/654)). Use the realistic cases above to test the remaining decisions during delivery.

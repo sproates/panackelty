@@ -83,6 +83,11 @@ pure describe(name: Str, score: Nat): Str {
 For example, `${name[0]}` is not an interpolation form; `first = name[0]`
 followed by `${first}` is. See the complete [strings example](../../examples/strings.panack).
 
+From alpha.15, Panack points at an unsupported interpolation and asks you to
+bind its value first. Older versions could print the expression unchanged.
+To print the characters `${name[0]}` deliberately, write
+`print("$" + "{name[0]}")`.
+
 
 ## Language highlights
 
@@ -246,3 +251,6 @@ pure describe(result: Result[Nat,Str]): Str {
 ```
 
 The compiler rejects a `match` that misses or repeats a variant.
+
+
+For a worked module example, see [returning a type from another module](../../examples/namespaces/README.md#returning-a-type-from-another-module).

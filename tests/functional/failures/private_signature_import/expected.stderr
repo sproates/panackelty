@@ -1,0 +1,3 @@
+error: <case>/main.panack:3:21: signature weekend.return: public signature exposes inaccessible type Trip from details.panack
+  3 | pub pure weekend(): Trip {
+    |                     ^

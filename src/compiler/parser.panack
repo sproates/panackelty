@@ -1,3 +1,4 @@
+import project/src/compiler/expression_contracts::{decode_string_literal, split_interpolated_string}
 pub import project/src/compiler/lexer::{lex, Token, Diagnostic, SourcePos, SourceSpan, TokenKind, TokenKind.Identifier, TokenKind.Number, TokenKind.DecimalNumber, TokenKind.StringLiteral, TokenKind.Punctuation}
 
 // Build located syntax and retain module metadata without enabling staged features.
@@ -326,6 +327,23 @@ record ParsedFunctionParameterList {
   values: [FunctionParameter],
   type_spans: [SourceSpan],
   next: Nat
+}
+
+// The splitter reports a decoded character offset. Walk the original token
+// to account for escape pairs and physical newlines in the source location.
+pure interpolation_position(token: Token, offset: Nat): SourcePos {
+  mut raw: Nat = 1
+  mut decoded: Nat = 0
+  mut line = token.position.line
+  mut column = token.position.column + 1
+  while decoded < offset {
+    if token.text[raw] == "\\" { raw = raw + 1; column = column + 1 }
+    if token.text[raw] == "\n" { line = line + 1; column = 1 }
+    else { column = column + 1 }
+    raw = raw + 1
+    decoded = decoded + 1
+  }
+  SourcePos(token.position.file, token.position.offset + raw, line, column)
 }
 
 pure parse_error(message: Str, position: SourcePos): Diagnostic {
@@ -1043,10 +1061,16 @@ pure parse_primary(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] 
               ))
             } else {
               if token.kind == StringLiteral() {
-                Ok(ParsedExpr(
-                  located_expression(tokens, index, index + 1, StringExpr(token.text)),
-                  index + 1
-                ))
+                match split_interpolated_string(decode_string_literal(token.text)).invalid {
+                  None() => Ok(ParsedExpr(
+                    located_expression(tokens, index, index + 1, StringExpr(token.text)),
+                    index + 1
+                  )),
+                  Some(offset) => Error(parse_error(
+                    "string interpolation requires a local name; assign the expression to a local, then interpolate that name",
+                    interpolation_position(token, offset)
+                  ))
+                }
               } else {
                 if token.text == "true" || token.text == "false" {
                   Ok(ParsedExpr(

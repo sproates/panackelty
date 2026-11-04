@@ -3,7 +3,8 @@
 
 pub record InterpolatedString {
   parts: [Str],
-  variables: [Str]
+  variables: [Str],
+  invalid: Option[Nat]
 }
 
 // The lexer has already found the string boundary. Unknown escapes retain their
@@ -62,30 +63,34 @@ pub pure split_interpolated_string(text: Str): InterpolatedString {
   mut part_start: Nat = 0
   mut cursor: Nat = 0
 
-  while cursor + 3 < text.len() {
-    if text[cursor] == "$" && text[cursor + 1] == "{" &&
-      interpolation_name_start(text[cursor + 2]) {
-      mut end: Nat = cursor + 3
+  mut invalid: Option[Nat] = None()
+  while cursor + 1 < text.len() {
+    if text[cursor] == "$" && text[cursor + 1] == "{" {
+      mut end: Nat = cursor + 2
+      valid_start = end < text.len() && interpolation_name_start(text[end])
       while end < text.len() && interpolation_name_part(text[end]) {
         end = end + 1
       }
-      if end < text.len() && text[end] == "}" {
+      if valid_start && end < text.len() && text[end] == "}" {
         parts = parts.append(text.slice(part_start, cursor))
         variables = variables.append(text.slice(cursor + 2, end))
         cursor = end + 1
         part_start = cursor
       } else {
-        cursor = cursor + 1
+        // A bare opening sequence is also used when building source text.
+        while end < text.len() && text[end] != "}" { end = end + 1 }
+        if end < text.len() && invalid == None() { invalid = Some(cursor) }
+        cursor = end
       }
     } else {
       cursor = cursor + 1
     }
   }
   if variables.len() == 0 {
-    InterpolatedString([], [])
+    InterpolatedString([], [], invalid)
   } else {
     parts = parts.append(text.slice(part_start, text.len()))
-    InterpolatedString(parts, variables)
+    InterpolatedString(parts, variables, invalid)
   }
 }
 

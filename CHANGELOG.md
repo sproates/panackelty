@@ -6,6 +6,11 @@ in `docs/releases/RELEASE_POLICY.md`.
 
 ## Unreleased
 
+- Panack now reports unsupported expressions inside string interpolation at the
+  opening dollar sign. Bind the expression to a local first. To keep literal
+  placeholder text that earlier versions printed unchanged, use concatenation,
+  for example `"$" + "{name[0]}"`.
+
 ## 0.1.0-alpha.14 — 2026-10-21
 
 ### Features and fixes

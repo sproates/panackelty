@@ -23,7 +23,7 @@ main(): Void {
   }
   match std_process.run(oracle_path(args[3]), command, oracle_read_file_bytes(args[1]), std_path.current(),
       environment, std_time.seconds(args[0].parse_nat()), 16777216) {
-    Error(problem) => { std_host.stderr("oracle command failed: ${problem.code}"); std_host.exit(1) },
+    Error(problem) => { std_host.stderr("oracle command failed: " + problem.code); std_host.exit(1) },
     Ok(output) => {
       if output.exit_code != 0 || output.signal != 0 || output.stderr != byte_buffer.empty() {
         std_host.stderr("oracle command failed status, signal or stderr contract")

@@ -17,7 +17,7 @@ contains "$work/stdout" 'PASS failure/unknown_name/no artifact'
 contains "$work/stdout" 'tests: 7, failures: 0'
 pass
 # Bound each fixture, not the growing corpus. The functional suite separately
-# verifies whole-corpus discovery and its 333-assertion aggregate report.
+# verifies whole-corpus discovery and its 339-assertion aggregate report.
 case_name=failure-corpus-per-fixture
 fixture_count=0
 assertion_count=0
@@ -33,9 +33,9 @@ for directory in tests/functional/failures/*; do
     assertion_count=$((assertion_count + count))
 done
 case_name=failure-corpus-per-fixture
-[ "$fixture_count" = 101 ] || fail 'failure fixture inventory changed'
-# Each isolated invocation repeats the two selection assertions: 333 + 2*100.
-[ "$assertion_count" = 533 ] || fail 'failure assertion inventory changed'
+[ "$fixture_count" = 103 ] || fail 'failure fixture inventory changed'
+# Each isolated invocation repeats the two selection assertions: 339 + 2*102.
+[ "$assertion_count" = 543 ] || fail 'failure assertion inventory changed'
 pass
 for fixture in cli_environment_files cli_commands cli_explanations cli_check_disasm stdlib; do
     case_name=runner-$fixture

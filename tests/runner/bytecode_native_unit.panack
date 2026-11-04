@@ -34,7 +34,7 @@ pure bytecode_native_text(value: Path): Str { value.to_text().value_or("invalid-
 bytecode_native_case(name: Str, file: Str, expected: Str, target: Path): TestResult {
   data = bytecode_native_hex(filesystem_support.read_text(file))
   match std_filesystem.write(target, data) {
-    Error(problem) => std_testing.expect(name, false, "fixture write failed: ${problem.code}"),
+    Error(problem) => std_testing.expect(name, false, "fixture write failed: " + problem.code),
     Ok(done) => {
       outcome = std_process.run(bytecode_native_path("./bin/panack"), ["check", bytecode_native_text(target)],
         byte_buffer.empty(), std_path.current(), [], std_time.seconds(30), 1048576)
@@ -47,7 +47,7 @@ bytecode_native_case(name: Str, file: Str, expected: Str, target: Path): TestRes
         }
       }
       match std_filesystem.remove_file(target) {
-        Error(problem) => std_testing.expect(name, false, "fixture cleanup failed: ${problem.code}"),
+        Error(problem) => std_testing.expect(name, false, "fixture cleanup failed: " + problem.code),
         Ok(removed) => std_testing.expect(name, valid, "native verifier result differed from ${expected}")
       }
     }

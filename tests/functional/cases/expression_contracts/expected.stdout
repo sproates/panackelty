@@ -3,4 +3,6 @@
 4.0
 true
 false
+First: Ada
+${names[0]}
 value=-1; total=5; again=5

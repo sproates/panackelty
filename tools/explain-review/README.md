@@ -14,7 +14,7 @@ directory. The first run builds the explorer with the checkout's compiler and a
 C compiler. The explorer reads your source on each launch and checks the project
 without running the program.
 
-Select a subtraction with the arrows. Enter opens its explanation. If the
+The first subtraction is selected when the function opens. Use the arrows to explore in source order, or press **n** to jump to the first unproved subtraction. Enter opens its explanation. If the
 compiler retained a branch condition, Enter again shows the source that
 established it. Left returns to your selection. Press q to quit.
 

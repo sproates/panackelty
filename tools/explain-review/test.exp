@@ -25,7 +25,8 @@ proc finish {key} {
 launch $booking book_pair
 see "Compilation failed"
 see "> seats - 2 => Nat"
-send "\033\[B"
+see "n first unproved"
+send "n"
 see "> credit - 50"
 send "\r"
 see "credit is at least 25"

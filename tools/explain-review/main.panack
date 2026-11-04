@@ -160,7 +160,7 @@ pure heading(row: Decision): Str {
   row.code + (if row.verdict == "Proved" { " => Nat" } else { "" }) + "  [" + row.verdict + "]"
 }
 record Frame { text: Str, last_scroll: Nat }
-pure screen(model: Review, selected: Nat, depth: Nat, width: Nat, height: Nat, page: Nat): Frame {
+pure screen(model: Review, selected: Nat, depth: Nat, width: Nat, height: Nat, page: Nat, first_unproved: Option[Nat]): Frame {
   esc = bytes().push(27).decode_utf8()
   clear = esc + "[H" + esc + "[2J"
   if width < 30 || height < 10 { Frame(clear + "Enlarge terminal | q quit", 0) }
@@ -173,6 +173,7 @@ pure screen(model: Review, selected: Nat, depth: Nat, width: Nat, height: Nat, p
       lines = lines.append("This function has no retained subtraction decisions.")
       footer = "q quit"
     } else if depth == 0 {
+      if first_unproved != None() { footer = footer + "   n first unproved" }
       lines = ["Select a subtraction to see why.", ""]
       for i in 0..model.decisions.len() {
         row = model.decisions[i]
@@ -226,6 +227,10 @@ pure screen(model: Review, selected: Nat, depth: Nat, width: Nat, height: Nat, p
 }
 
 explore(model: Review): Void {
+  mut first_unproved: Option[Nat] = None()
+  for i in 0..model.decisions.len() {
+    if first_unproved == None() && model.decisions[i].verdict == "Unproved" { first_unproved = Some(i) }
+  }
   mut selected: Nat = 0
   mut depth: Nat = 0
   mut page: Nat = 0
@@ -240,6 +245,11 @@ explore(model: Review): Void {
         width = read_line().parse_nat()
         height = read_line().parse_nat()
         page = 0
+      } else if event == "first_unproved" {
+        match first_unproved {
+          None() => {},
+          Some(index) => { selected = index; depth = 0; page = 0 }
+        }
       } else if event == "open" && model.decisions.len() > 0 {
         if depth == 0 { depth = 1 } else if model.decisions[selected].condition != "" { depth = 2 }
         page = 0
@@ -252,7 +262,7 @@ explore(model: Review): Void {
       } else if depth == 0 && event == "up" { selected = previous(selected); page = 0 }
       else if event == "pagedown" && page < last_scroll { page = page + 1 }
       else if event == "pageup" { page = previous(page) }
-      frame = screen(model,selected,depth,width,height,page)
+      frame = screen(model,selected,depth,width,height,page,first_unproved)
       last_scroll = frame.last_scroll
       print(frame.text)
     }

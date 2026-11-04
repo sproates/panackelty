@@ -82,7 +82,7 @@ int main(int argc,char **argv) {
       switch(key){case 3:case 4:case 'q':event="quit\n";break;case 'k':event="up\n";break;
       case 'j':event="down\n";break;case 'l':case '\r':case '\n':case ' ':event="open\n";break;
       case 'h':event="close\n";break;case 'b':case 127:event="back\n";break;
-      case 'o':event="open\n";break;
+      case 'n':event="first_unproved\n";break;case 'o':event="open\n";break;
       case 'd':event="pagedown\n";break;case 'u':event="pageup\n";break;}
     }
     if(event && send_event(channel[1],event)<0)break;

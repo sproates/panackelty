@@ -1,0 +1,83 @@
+import http/server as http
+import stdlib/async_filesystem as fs
+import stdlib/async_host as host
+import stdlib/path as path
+import stdlib/bytes as buffer
+
+// Limit the example to one local include per template. The confined read
+// rejects paths that escape the document root. Each input is limited to 4 KiB.
+async read_file(root: Path, name: Path): Result[Bytes,Str] {
+  match await fs.read_beneath(root, name, 4096) {
+    Error(problem) => Error("Cannot read " + name.display() + ": " + problem.code),
+    Ok(file) => Ok(file.contents)
+  }
+}
+
+pure locate(data: Bytes, token: Str, start: Nat): Nat {
+  needle = token.encode_utf8()
+  mut cursor = start
+  while cursor + needle.length() <= data.length() && buffer.slice(data, cursor, cursor + needle.length()) != needle {
+    cursor = cursor + 1
+  }
+  if cursor + needle.length() <= data.length() { cursor } else { data.length() }
+}
+
+async assemble(root: Path, template: Bytes): Result[Bytes,Str] {
+  marker = "<esi:include src=\"/"
+  start = locate(template, "<esi:", 0)
+  if start == template.length() { Ok(template) }
+  else if locate(template, marker, start) != start { Error("Expected a local esi:include") }
+  else {
+    first = start + marker.len()
+    end = locate(template, "\"/>", first)
+    if end == template.length() { Error("Unterminated esi:include") }
+    else {
+      tail = end + 3
+      if locate(template, "<esi:", tail) < template.length() { Error("Expected only one include") }
+      else {
+        match path.from_native(buffer.slice(template, first, end)) {
+          Error(problem) => Error("Invalid fragment path"),
+          Ok(relative) => match await read_file(root, relative) {
+            Error(problem) => Error(problem),
+            Ok(fragment) => if locate(fragment, "<esi:", 0) < fragment.length() { Error("Nested include") }
+              else { Ok(buffer.slice(template, 0, start).join(fragment).join(buffer.slice(template, tail, template.length()))) }
+          }
+        }
+      }
+    }
+  }
+}
+
+async page(root: Path, request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  filename = if request.path == "/" { "index.html" } else { "about.html" }
+  rendered = match await read_file(root, path.from_text(filename).value_or(path.current())) {
+    Error(problem) => Error(problem),
+    Ok(template) => await assemble(root, template)
+  }
+  match rendered {
+    Ok(html) => {
+      response.header("Content-Type", "text/html; charset=utf-8")
+      response.send_bytes(html)
+    },
+    Error(problem) => {
+      response.status(500)
+      response.send("Could not assemble this page.")
+      ignored = await host.stderr(problem)
+      ()
+    }
+  }
+  Ok(())
+}
+
+async main(): Unit {
+  args = await host.arguments()
+  port = if args.len() == 0 { 8082 } else { args[0].parse_nat() }
+  root = path.from_text("examples/network/esi_includes/public").value_or(path.current())
+  server = http.create_bound_contextual_server("127.0.0.1", port, root)
+  server.get("/", @page)
+  server.get("/about", @page)
+  match await server.listen() {
+    Ok(done) => { ignored = await host.stdout("Listening on http://127.0.0.1:${port}/"); () },
+    Error(problem) => { ignored = await host.stderr(problem.message); await host.exit(1) }
+  }
+}

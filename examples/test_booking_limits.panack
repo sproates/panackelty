@@ -1,0 +1,26 @@
+import stdlib/host as host
+import stdlib/testing as testing
+import stdlib/testing::{TestResult}
+
+record BookingCase {
+  name: Str,
+  seats: Nat,
+  expected: Bool
+}
+
+pure can_book_pair(seats: Nat): Bool { seats >= 2 }
+
+main(): Void {
+  cases = [
+    BookingCase("one seat short", 1, false),
+    BookingCase("exactly enough", 2, true),
+    BookingCase("spare seat", 3, true)
+  ]
+  mut results: [TestResult] = []
+  for item in cases {
+    results = results.append(testing.expect(
+      item.name, can_book_pair(item.seats) == item.expected, "wrong booking decision"
+    ))
+  }
+  if testing.report(results) > 0 { host.exit(1) }
+}

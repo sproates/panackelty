@@ -1,0 +1,21 @@
+record Stream[T] { current: T, step: PureFn[T,T] }
+
+impl[T] Stream[T] {
+  pure take_mapped[R](count: Nat, transform: PureFn[T,R]): [R] {
+    mut results: [R] = []
+    mut term = self.current
+    for index in 0..count {
+      results = results.append(transform.call(term))
+      if index + 1 < count { term = self.step.call(term) }
+    }
+    results
+  }
+}
+
+pure next_odd(n: Nat): Nat { n + 2 }
+pure inverse(n: Nat): Rat { 1 / n }
+
+main(): Void {
+  odds = Stream(1, @next_odd)
+  print(odds.take_mapped(4, @inverse))
+}

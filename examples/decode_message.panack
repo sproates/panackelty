@@ -1,0 +1,13 @@
+import stdlib/host as host
+
+read_message(payload: Bytes): Str {
+  match host.decode_utf8(payload) {
+    Ok(text) => text,
+    Error(problem) => "Message contains invalid UTF-8"
+  }
+}
+
+main(): Void {
+  print(read_message("hello λ".encode_utf8()))
+  print(read_message(bytes().push(195)))
+}

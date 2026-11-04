@@ -1,0 +1,4 @@
+PASS one seat short
+PASS exactly enough
+PASS spare seat
+tests: 3, failures: 0

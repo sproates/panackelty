@@ -1,0 +1,5 @@
+PASS greeting
+FAIL deliberate mismatch: expected 3, got 2
+PASS empty collection
+tests: 3, failures: 1
+returned failures: 1

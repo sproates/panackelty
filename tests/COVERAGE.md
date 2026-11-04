@@ -1636,7 +1636,7 @@ process launch failure, child exit/signal/output and cleanup (`host_failures`).
 The host recipe uses a unique temporary directory and fixed POSIX shell input.
 It makes no timeout-performance, concurrency or browser support claim.
 
-The archive duplicate-path fixture explicitly emits two regular entries with
-`tar --hard-dereference`. GNU tar otherwise emits a hard-link second entry and
-triggers unsupported-entry rejection before the intended duplicate-path check.
+The archive duplicate-path fixture stores two distinct files under the same
+member name. This exercises duplicate regular entries on GNU tar and macOS tar
+without relying on implementation-specific options.
 The separate symbolic-link rejection remains intact.

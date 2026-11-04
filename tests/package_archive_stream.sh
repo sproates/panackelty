@@ -40,9 +40,11 @@ ln -s /etc/passwd "$work/source/link"
 COPYFILE_DISABLE=1 tar --format ustar -czf "$work/rejected.tar.gz" -C "$work/source" panack.json link
 reject unsupported
 rm "$work/source/link"
-# Emit duplicate regular entries; GNU tar otherwise turns the second into
-# a hard link, exercising unsupported-entry rejection instead of duplicate paths.
-COPYFILE_DISABLE=1 tar --hard-dereference --format ustar -czf "$work/rejected.tar.gz" -C "$work/source" panack.json panack.json
+# Use two distinct files with the same archive name so both entries are regular files.
+mkdir "$work/duplicate"
+cp "$work/source/panack.json" "$work/duplicate/panack.json"
+COPYFILE_DISABLE=1 tar --format ustar -czf "$work/rejected.tar.gz" \
+    -C "$work/source" panack.json -C "$work/duplicate" panack.json
 reject 'the archive contains the same path more than once'
 printf x > "$work/source/Straße"
 printf y > "$work/source/STRASSE"

@@ -62,6 +62,17 @@ require_package_tool() {
   fi
 }
 
+# Checkout-only review build of the interactive explanation explorer.
+if [ "${1-}" = explain ] && [ "${2-}" = --interactive ] && [ -f "$source_root/tools/explain-review/build.mk" ]; then
+  shift 2
+  if [ "$#" != 3 ] || [ "$2" != --function ]; then
+    echo 'Usage: panack explain --interactive SOURCE --function NAME' >&2
+    exit 2
+  fi
+  make -s -C "$source_root" -f tools/explain-review/build.mk || exit 1
+  exec "$source_root/build/explain-review/terminal" "$vm" run "$source_root/build/explain-review/explorer.bc" "$@"
+fi
+
 case "${1-}" in
   --help|"")
     "$vm" run "$compiler" "$@" || exit $?

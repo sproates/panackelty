@@ -25,7 +25,7 @@ pub import project/src/compiler/types::{Diagnostic}
 import project/src/compiler/diagnostics::{diagnostic_with_source}
 import project/src/compiler/emitter::{BytecodeProgram, SourceMappedProgram, compile_program, compile_program_with_sources, render_bytecode}
 import project/src/bytecode/codec::{serialize_bytecode}
-import project/src/compiler/source_maps::{SourceMapFunctionSelector, source_map_escape, source_map_destination_available, source_map_matches, source_map_location, source_map_write, source_snapshots_unchanged, serialize_source_map, source_map_function_selector}
+import project/src/compiler/source_maps::{SourceMapFunctionSelector, source_map_escape, source_map_destination_available, source_map_matches, source_map_location, source_map_reverse, source_map_write, source_snapshots_unchanged, serialize_source_map, source_map_function_selector}
 import project/src/compiler/module_bindings::{source_module_identity, source_package_module_identity}
 import project/src/compiler/project_frontend::{prepare_project_program, prepare_project_program_with_dependencies}
 import project/src/bytecode/decoder::{validate_bytecode, disassemble_bytecode}
@@ -576,7 +576,10 @@ pub record SourceMapArguments {
   artifact: Str,
   sidecar: Str,
   function_name: Str,
-  instruction: Nat
+  instruction: Nat,
+  module_name: Str,
+  line: Nat,
+  column: Nat
 }
 
 pub pure source_map_instruction(text: Str): Option[Nat] {
@@ -605,6 +608,9 @@ pub pure source_map_arguments(values: [Str], locating: Bool): SourceMapArguments
   mut sidecar: Str = ""
   mut function_name: Str = ""
   mut instruction: Option[Nat] = None()
+  mut module_name = ""
+  mut line: Nat = 0
+  mut column: Nat = 0
   mut valid: Bool = values.len() >= 2
 
   if valid {
@@ -621,7 +627,14 @@ pub pure source_map_arguments(values: [Str], locating: Bool): SourceMapArguments
     } else {
       option: Str = values[index]
       value: Str = values[index + 1]
-      if option == "--source-map" && sidecar == "" {
+      if locating && option == "--source-file" && module_name == "" {
+        module_name = value
+      } else if locating && option == "--source-at" && line == 0 && index + 2 < values.len() {
+        line = source_map_instruction(value).value_or(0)
+        column = source_map_instruction(values[index + 2]).value_or(0)
+        valid = line > 0 && column > 0
+        index = index + 1
+      } else if option == "--source-map" && sidecar == "" {
         sidecar = value
       } else {
         if option == "-o" && !locating && artifact == "" {
@@ -665,24 +678,24 @@ pub pure source_map_arguments(values: [Str], locating: Bool): SourceMapArguments
     path_support.suffix(source) == ".panack" && path_support.suffix(artifact) == ".bc"
   mut pc: Nat = 0
   if locating {
-    valid = valid && function_name != ""
+    reverse = module_name != "" || line > 0
+    valid = valid && if reverse { module_name != "" && line > 0 && column > 0 && function_name == "" && instruction == None() }
+      else { function_name != "" && instruction != None() }
     match instruction {
       Some(value) => {
         pc = value
       },
-      None() => {
-        valid = false
-      }
+      None() => {}
     }
   }
-  SourceMapArguments(valid, source, artifact, sidecar, function_name, pc)
+  SourceMapArguments(valid, source, artifact, sidecar, function_name, pc, module_name, line, column)
 }
 
 run_source_map_command(values: [Str], locating: Bool): Nat {
   args: SourceMapArguments = source_map_arguments(values, locating)
 
   if !args.valid {
-    report_driver_error("source-map usage: compile SOURCE.panack -o ARTIFACT.bc --source-map MAP | locate ARTIFACT.bc --source SOURCE.panack --source-map MAP --function NAME --instruction PC")
+    report_driver_error("source-map usage: compile SOURCE.panack -o ARTIFACT.bc --source-map MAP | locate ARTIFACT.bc --source SOURCE.panack --source-map MAP (--function NAME --instruction PC | --source-file MODULE --source-at LINE COLUMN)")
   } else {
     entry: Str = path_support.resolve(args.source)
     artifact_path: Str = path_support.resolve(args.artifact)
@@ -696,8 +709,7 @@ run_source_map_command(values: [Str], locating: Bool): Nat {
       prepared: PreparedProject = prepare_loaded_project(entry, loaded)
       if !prepared.valid {
         if locating {
-          print("source-map: unavailable")
-          0
+          report_driver_error("cannot validate the source map: " + prepared.message)
         } else {
           report_driver_error(prepared.message)
         }
@@ -711,38 +723,27 @@ run_source_map_command(values: [Str], locating: Bool): Nat {
           validate_bytecode(artifact) == "ok" &&
           source_snapshots_unchanged(loaded)
         if locating {
-          selected: Result[SourceMapFunctionSelector, Str] = source_map_function_selector(
-            loaded,
-            args.function_name,
-            entry,
-            root,
-            stdlib_root
-          )
-          match selected {
-            Error(message) => if message.starts_with_at("unknown function selector ", 0) {
-              print("source-map: unavailable")
-              0
-            } else {
-              report_driver_error(message)
-            },
-            Ok(function) => if valid && source_map_matches(
-            artifact_path,
-            artifact
-          ) && source_map_matches(map_path, sidecar) {
-            print(source_map_location(
-              loaded,
-              mapped,
-              function.emitted_name,
-              function.display_name,
-              args.instruction,
-              root,
-              stdlib_root
-            ))
+          if !valid {
+            report_driver_error("cannot validate the source map: source changed or replay exceeded the supported limits")
+          } else if !source_map_matches(artifact_path, artifact) {
+            report_driver_error("cannot validate the compiled artifact at " + artifact_path + "; compile the source and map together again")
+          } else if !source_map_matches(map_path, sidecar) {
+            report_driver_error("cannot validate the source map at " + map_path + "; compile the source and map together again")
+          } else if args.module_name != "" {
+            print(source_map_reverse(loaded, mapped, args.module_name, args.line, args.column, root, stdlib_root, source_module_identity(entry, root, stdlib_root)))
             0
           } else {
-            print("source-map: unavailable");
-            0
-          }
+            match source_map_function_selector(loaded, args.function_name, entry, root, stdlib_root) {
+              Error(message) => if message.starts_with_at("unknown function selector ", 0) {
+                print("source-map: unavailable")
+                0
+              } else { report_driver_error(message) },
+              Ok(function) => {
+                print(source_map_location(loaded, mapped, function.emitted_name, function.display_name,
+                  args.instruction, root, stdlib_root))
+                0
+              }
+            }
           }
         } else {
           if !valid {

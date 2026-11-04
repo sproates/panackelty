@@ -36,12 +36,12 @@ pure indexed_lookup_contracts(): [TestResult] {
     TypeDeclaration("Shared", "Nat", BoolExpr(true)),
     RecordDeclaration("Shared", ["R"], [RecordField("first", "R")]),
     EnumDeclaration("Shared", ["E"], [EnumVariant("Repeated", ["E"]), EnumVariant("Kept", [])]),
-    FunctionDeclaration("Shared", [], "Nat", true, false, Block([], NoBlockValue()), []),
+    FunctionDeclaration("Shared", [], "Nat", true, false, Block([], NoBlockValue(), None(), []), []),
     TypeDeclaration("Shared", "Int", BoolExpr(false)),
     ImportDeclaration("between.panack"),
     RecordDeclaration("Shared", ["S"], [RecordField("last", "S")]),
     EnumDeclaration("Shared", ["T"], [EnumVariant("Repeated", ["T"]), EnumVariant("Repeated", ["Str"])]),
-    FunctionDeclaration("Shared", [FunctionParameter("arg", "Str")], "Bool", false, true, Block([], NoBlockValue()), ["F"])
+    FunctionDeclaration("Shared", [FunctionParameter("arg", "Str")], "Bool", false, true, Block([], NoBlockValue(), None(), []), ["F"])
   ]
   program: Program = indexed_program(declarations)
   guarded: GuardedTypeLookup = guarded_type(program, "Shared")

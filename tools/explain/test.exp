@@ -2,7 +2,7 @@
 # Run from the checkout root. Exercise the same command and keys as the reviewer.
 set timeout 60
 log_user 0
-set booking tools/explain-review/samples/booking.panack
+set booking tools/explain/samples/booking.panack
 proc see {snippet} {
   expect {
     -exact $snippet {}
@@ -11,9 +11,10 @@ proc see {snippet} {
   }
 }
 proc launch {file function} {
-  global spawn_id
+  global spawn_id env
+  set binary [expr {[info exists env(PANACK_BIN)] ? $env(PANACK_BIN) : "./bin/panack"}]
   # Compare tty mode before and after the command, including Ctrl-C.
-  spawn -noecho sh -c {modes() { stty -a | tr " ;" "\n" | grep -E "^-?(echo|icanon|isig|ixon|icrnl)$"; }; before=$(modes); test -n "$before" || exit 2; ./bin/panack explain --interactive "$1" --function "$2"; rc=$?; test "$before" = "$(modes)" && echo TTY-restored; exit "$rc"} sh $file $function
+  spawn -noecho sh -c {modes() { stty -a | tr " ;" "\n" | grep -E "^-?(echo|icanon|isig|ixon|icrnl)$"; }; before=$(modes); test -n "$before" || exit 2; "$3" explain "$1" --function "$2"; rc=$?; test "$before" = "$(modes)" && echo TTY-restored; exit "$rc"} sh $file $function $binary
 }
 proc finish {key} {
   send -- $key
@@ -24,7 +25,7 @@ proc finish {key} {
 }
 launch $booking book_pair
 see "Compilation failed"
-see "> seats - 2 => Nat"
+see ">   if seats >= 2 \{"
 see "n first unproved"
 send "n"
 see "> credit - 50"
@@ -36,10 +37,8 @@ send "\033\[D"
 see "credit is at least 25"
 send "\033\[D"
 see "> credit - 50"
-send "\033\[A"
-see "> seats - 2 => Nat"
-send "\r"
-see "seats is at least 2"
+send "\033\[D"
+see ">       Ok(Balance"
 finish q
 
 set work [exec mktemp -d]
@@ -52,10 +51,9 @@ close $tmp
 set failed [catch {
   launch $tmpname book_pair
   see "Project compiles"
-  send "\033\[B"
-  see "> credit - 50 => Nat"
+  see "Select a statement"
   send "\r"
-  see "credit is at least 50"
+  see "Compiled"
   finish q
 } reason]
 file delete -force $work
@@ -63,10 +61,8 @@ if {$failed} {error $reason}
 
 launch examples/fibonacci.panack previous
 see "Project compiles"
-see "if value == 0"
+see "Select a statement"
 send "\r"
-see "value is at least 1"
-send "\r"
-see "condition must be false"
+see "Compiled"
 finish "\003"
-puts "Passed real terminal navigation, source edit, false branch and terminal restoration."
+puts "Passed terminal selection, proof, source origin, back navigation, successful compilation and terminal restoration."

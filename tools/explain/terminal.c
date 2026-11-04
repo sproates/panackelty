@@ -1,4 +1,4 @@
-/* POSIX key and resize events for the review build.
+/* POSIX key and resize events for the explanation explorer.
  * Sends key/resize events as lines to an unmodified Panack executable. */
 #define _DARWIN_C_SOURCE
 
@@ -67,7 +67,8 @@ int main(int argc,char **argv) {
     if(key==27) { /* Read a bounded escape sequence; never block indefinitely. */
       char seq[12]={0};size_t n=0;
       while(n<sizeof(seq)-1 && poll(&poller,1,40)>0) {
-        if(read(0,seq+n,1)!=1)break;n++;
+        if (read(0, seq+n, 1) != 1) { break; }
+        n++;
         if(n>=2 && seq[n-1]>='A' && seq[n-1]<='Z')break;
         if(n>=2 && seq[n-1]=='~')break;
       }

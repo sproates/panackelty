@@ -12,6 +12,7 @@ separate work.
 ```sh
 panack compile program.panack -o program.bc --source-map program.pmap
 panack locate program.bc --source program.panack --source-map program.pmap --function main --instruction 0
+panack locate program.bc --source program.panack --source-map program.pmap --source-file project/program.panack --source-at 3 5
 ```
 
 Both compile destinations must be distinct, nonexistent files in directories the
@@ -37,14 +38,15 @@ followed by function, instruction, portable file identifier, half-open range,
 one-based start/end line and column, and the captured expression. Offsets and
 columns count Unicode code points, not UTF-8 bytes. Console output uses the
 compiler's diagnostic escaping for control and non-ASCII characters. `lowered`
-means generated machinery attributed to its enclosing expression. Missing
-instruction entries, including statement stores, loop mechanics and implicit
-returns, print only `source-map: unavailable`.
+means generated machinery attributed to its enclosing expression. Stores and loop-control instructions identify their enclosing statement. An
+implicit return identifies the function block. An instruction with several
+recorded origins lists each one. The reverse query starts from a one-based
+source position and shows the instructions for the innermost mapped construct.
+A compile-time declaration can have no standalone instructions.
 
-Missing, malformed, stale, oversized or incompatible map/artifact/source input
-also produces `source-map: unavailable`, with exit status 0. The result means no
-validated attribution is available; it does not prove the supplied bytecode is
-valid or executable. Invalid command syntax exits 1. Creation failures exit 1
+An instruction without an entry in a validated map reports
+`source-map: unavailable`. Missing, stale or invalid inputs prevent validation
+and exit with a diagnostic and status 1. Creation failures exit 1
 with a diagnostic and may leave a partial output pair, which the caller should
 discard. Publication is not atomic. Existing file, hard-link and symlink outputs
 are rejected; the second destination is checked again after the first write to

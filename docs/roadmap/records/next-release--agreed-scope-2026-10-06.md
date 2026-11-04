@@ -605,7 +605,7 @@ of the agreed scope, not a compiler redesign. Material architectural discoveries
 must be reported before expanding the work; minor implementation choices remain
 with the implementor.
 
-### 1. Complete checker evidence — not started
+### 1. Complete checker evidence — implementation and acceptance in progress
 
 - [ ] 1.1 — For each confirmed checker gap, specify the missing facts, actual
   decision site and existing evidence record to extend. Introduce a new record
@@ -622,7 +622,7 @@ Exit: all inventoried existing-language checker decisions have the required
 truthful facts and source attribution. No prose redesign is required to declare
 this evidence slice complete. New domain-type cases remain assigned to GI#435.
 
-### 2. Complete explanations — not started
+### 2. Complete explanations — implementation and acceptance in progress
 
 - [ ] 2.1 — Agree complete transcripts for representative success, rejection,
   inference-chain, partial-check and unavailable cases using the current CLI.
@@ -640,7 +640,7 @@ Exit: every in-scope retained checker decision is explained accurately and
 readably through the existing query surface. Slice 2 can proceed family by
 family once the corresponding slice 1 evidence exists.
 
-### 3. Complete instruction attribution — not started
+### 3. Complete instruction attribution — implementation and acceptance in progress
 
 - [ ] 3.1 — Classify confirmed mapping gaps against existing emission paths and
   source-map structures. Specify source origins or genuine generated origins,
@@ -656,7 +656,7 @@ Exit: all emitted instructions have truthful, validated origins. Maintain the
 source cases that produce no instructions in the inventory for slice 4; do not
 invent instructions to give them something to point to.
 
-### 4. Connect the compilation journey — not started
+### 4. Connect the compilation journey — implementation and acceptance in progress
 
 - [ ] 4.1 — Agree query transcripts showing how representative source constructs
   become instructions: direct, lowered, multiple, shared and no-output cases.
@@ -674,7 +674,7 @@ absence of executable output. This slice consumes slice 3 mappings; mapping
 completeness is not implemented twice. The owner subsequently selected an
 interactive exploration prototype; see the updated presentation decision below.
 
-### 5. Acceptance and documentation — not started
+### 5. Acceptance and documentation — implementation and acceptance in progress
 
 - [ ] 5.1 — After GI#435 and other alpha.15 compiler changes, reconcile both
   maintained inventories against the resulting implementation. GI#435 supplies
@@ -691,6 +691,21 @@ interactive exploration prototype; see the updated presentation decision below.
 
 Exit: both inventories have no unexplained gaps, installed behavior matches the
 agreed examples, costs are disclosed, and documentation matches the feature.
+
+### Delivery progress, 4 November 2026
+
+The owner requested end-to-end delivery after reviewing the subtraction
+explorer. PR #654 delivered that first working interface. The active delivery
+branch extends the same interface to retained type, inference, callback, guard
+and effect decisions and generated instructions. The compiler records missing
+statement and control-flow origins, multiple origins and transformation
+purposes. Reverse queries validate the artifact and source pair before use.
+
+The updated compiler has reproduced its seed. Checkout and installed terminal
+navigation checks have passed. Full compiler regressions, final evidence
+reconciliation and cost checks are in progress. The boxes above remain open
+until their acceptance checks pass. Stage 5.1 still depends on GI#435 delivering
+its new domain-type decisions.
 
 ### Ordering and tracking
 

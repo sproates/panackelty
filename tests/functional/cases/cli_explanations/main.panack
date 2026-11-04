@@ -260,7 +260,7 @@ main(): Void {
         ["program: rejected"], ["context: collection receiver"], "unknown local value missing"))
       explain_write(source, "pure probe(): [Str] { [1].map(@format) }; pure format(value: Nat): Str { \"x\" }\nmain(): Void {}\n")
       results = results.append(explain_run("accepted map callback contract explains purity, input and result", ["explain", source, "--function", "probe"], 0,
-        ["array_map callback contract: accepted", "callback type: PureFn[Nat,Str]", "expected callback parameter types: [Nat]", "callback result type: Str", "expected callback result: any non-Void value", "accepted the callback's purity, arity, parameter types and result constraint"], [], ""))
+        ["context: callback purity", "context: callback parameter 1", "context: map callback result", "array_map callback contract: accepted", "callback type: PureFn[Nat,Str]", "expected callback parameter types: [Nat]", "callback result type: Str", "expected callback result: any non-Void value", "accepted the callback's purity, arity, parameter types and result constraint"], [], ""))
       explain_write(source, "pure probe(): Nat { [1].reduce(0, @bad_sum) }; pure bad_sum(total: Nat, value: Nat): Str { \"bad\" }\nmain(): Void {}\n")
       results = results.append(explain_run("rejected reduce callback explains result accumulator mismatch", ["explain", source, "--function", "probe"], 1,
         ["array_reduce callback contract: rejected", "callback type: PureFn[Nat,Nat,Str]", "expected callback parameter types: [Nat, Nat]", "callback result type: Str", "expected callback result: Nat", "rejected at least one callback contract requirement"], [], "reduce callback result is Str, expected Nat"))
@@ -414,7 +414,7 @@ main(): Void {
         ["checked type join: accepted", "context: match result", "input types: Nat and Int", "resulting type: Int"], [], ""))
       explain_write(source, "pure combine[T](left: T, right: T): T { left }\nprobe(): Int { combine(1, -2) }\nmain(): Void {}\n")
       results = results.append(explain_run("generic calls explain repeated type parameter joins", ["explain", source, "--function", "probe"], 0,
-        ["checked type join: accepted", "context: generic parameter T for combine", "input types: Nat and Int", "resulting type: Int"], [], ""))
+        ["checked type join: accepted", "context: generic parameter T for combine", "context: first constraint for T for combine", "earlier constraint:", "expression: 1", "input types: Nat and Int", "resulting type: Int"], [], ""))
       explain_write(source, "pure combine[T](left: T, right: T): T { left }\nprobe(): Nat { combine(1, \"wrong\") }\nmain(): Void {}\n")
       results = results.append(explain_run("rejected generic inference join preserves checker diagnostic", ["explain", source, "--function", "probe"], 1,
         ["checked type join: rejected", "context: generic parameter T for combine", "input types: Nat and Str", "resulting type: unavailable"], [], "inference for combine: incompatible types Nat and Str"))
@@ -508,7 +508,7 @@ main(): Void {
         ["context: field access", "checked type requirement: rejected", "actual type: Nat", "expected type: record with field value"], [], "field access requires a record, got Nat"))
       explain_write(source, "record Box { value: Nat }; probe(): Nat { missing.value }\nmain(): Void {}\n")
       results = results.append(explain_run("unresolved field receiver is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
-        ["context: field access", "checked type requirement: unavailable", "actual type: unavailable", "expected type: record with field value", "did not determine a complete type decision"], [], "unknown local value missing"))
+        ["context: field access", "checked type requirement: unavailable", "actual type: unavailable", "expected type: record with field value", "The receiver type could not be determined."], [], "unknown local value missing"))
       explain_write(source, "probe(flag: Bool): Rat { if flag { 1 } else { 3 / 2 } }\nmain(): Void {}\n")
       results = results.append(explain_run("unresolved branch join is explicit", ["explain", source, "--function", "probe"], 1,
         ["checked type join: unavailable", "context: conditional result", "input types: Nat and Rat", "resulting type: unavailable", "did not determine a complete join"], [], "function is not completely checked for identity emission: probe"))
@@ -685,6 +685,15 @@ main(): Void {
       results = results.append(explain_run("wrong explanation identity rejected",
         ["explain", source, "--function", "project/missing.panack:duplicate"], 1,
         [], [], "mismatched module identity selector"))
+      explain_write(source, "pure probe(input: Nat): Nat { mut value = input; if value >= 2 { value = input; value - 2 } else { 0 } }\nmain(): Void {}\n")
+      results = results.append(explain_run("reassignment explains invalidated subtraction bound", ["explain", source, "--function", "probe"], 1,
+        ["subtraction: unproved", "A reassignment invalidated the earlier bound.", "source: project/main.panack:1:74-1:79", "expression: input"], [], "Nat subtraction may underflow"))
+      explain_write(source, "type Small = Nat where value <= 10\npure probe(value: Nat): Void { if value <= 10 { small: Small = value; } }\nmain(): Void {}\n")
+      results = results.append(explain_run("upper-bound conversion links its condition", ["explain", source, "--function", "probe"], 0,
+        ["guarded conversion: proved", "True branch:", "expression: value <= 10"], [], ""))
+      explain_write(source, "import stdlib/http_runtime as runtime\nasync probe(connection: HttpConnectionState[Nat,Nat]): Nat { runtime.body_size(connection) }\nmain(): Void {}\n")
+      results = results.append(explain_run("async local-resource permission links the wrapper call", ["explain", source, "--function", "probe"], 0,
+        ["effect boundary: allowed", "classification basis: local resource permission", "Local resource call: http_body_size", "source: stdlib/http_runtime.panack:", "expression: http_body_size(connection)"], [], ""))
       for file in [source, library, artifact] {
         match std_filesystem.remove_file(explain_path(file)) { Ok(done) => {}, Error(error) => { results = results.append(std_testing.expect("cleanup", false, error.code)); } }
       }

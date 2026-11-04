@@ -219,4 +219,7 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 221, failures: 0
+PASS reassignment explains invalidated subtraction bound
+PASS upper-bound conversion links its condition
+PASS async local-resource permission links the wrapper call
+tests: 224, failures: 0

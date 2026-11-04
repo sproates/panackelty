@@ -483,7 +483,11 @@ $(BUILD_DIR)/tools/http-server.bc: $(PACKAGE_TOOL_ARTIFACT) panack-vm $(SEED_COM
 	@mkdir -p "$(@D)"
 	./bin/panack compile --project tools/http-server/panack.json -o "$@"
 
-install: native package-tool $(BUILD_DIR)/tools/http-server.bc
+explain-tool: native
+	$(MAKE) -f tools/explain/build.mk
+
+.PHONY: explain-tool
+install: native package-tool explain-tool $(BUILD_DIR)/tools/http-server.bc
 	install -d "$(DESTDIR)$(PREFIX)/bin"
 	install -d "$(DESTDIR)$(PREFIX)/libexec/panackelty"
 	install -d "$(DESTDIR)$(PREFIX)/share/panackelty"
@@ -495,6 +499,8 @@ install: native package-tool $(BUILD_DIR)/tools/http-server.bc
 	install -m 755 bin/panack "$(DESTDIR)$(PREFIX)/bin/panack"
 	install -m 755 tools/http-server/launch.sh "$(DESTDIR)$(PREFIX)/bin/panack-http-server"
 	install -m 755 panack-vm "$(DESTDIR)$(PREFIX)/libexec/panackelty/panack-vm"
+	install -m 755 build/explain/terminal "$(DESTDIR)$(PREFIX)/libexec/panackelty/panack-terminal"
+	install -m 644 build/explain/explorer.bc "$(DESTDIR)$(PREFIX)/share/panackelty/panack-explain.bc"
 	install -m 644 VERSION "$(DESTDIR)$(PREFIX)/share/panackelty/VERSION"
 	install -m 644 $(SEED_COMPILER) "$(DESTDIR)$(PREFIX)/share/panackelty/compiler-v9.bc"
 	install -m 644 "$(PACKAGE_TOOL_ARTIFACT)" "$(DESTDIR)$(PREFIX)/share/panackelty/panack-packages-v1.bc"

@@ -10,6 +10,8 @@ import project/src/compiler/module_resolution::{ModuleBindingGraph}
 pub import project/src/compiler/types::{SourcePos, SourceSpan}
 import project/src/bytecode/codec::{encode_u32, encode_text}
 pub import project/src/compiler/emitter::{SourceMappedProgram}
+import project/src/compiler/emitter::{render_instruction}
+import project/src/compiler/parser::{TopLevel.ImportDeclaration,TopLevel.TypeDeclaration,TopLevel.EnumDeclaration,TopLevel.RecordDeclaration,TopLevel.FunctionDeclaration}
 
 // Serialize and replay bounded, local source maps. Foreign paths and lengths are
 // never instructions to open files or allocate unchecked buffers.
@@ -333,13 +335,99 @@ pub pure source_map_location(
           end_column: Nat = span.end.column
           source: Str = project.sources.get(span.start.file)
           expression: Str = source_map_escape(source.slice(start, end))
-          output = "source-map: ${kind}\nfunction: ${name}\ninstruction: ${pc}\nfile: ${file}\nrange: ${start}..${end}\nstart: ${line}:${column}\nend: ${end_line}:${end_column}\nexpression: ${expression}"
+          if output == "source-map: unavailable" { output = "" } else { output = output + "\n\n" }
+          output = output + "source-map: ${kind}\nfunction: ${name}\ninstruction: ${pc}\nfile: ${file}\nrange: ${start}..${end}\nstart: ${line}:${column}\nend: ${end_line}:${end_column}\nexpression: ${expression}" + if location.reason == "" { "" } else { "\nreason: " + location.reason }
         }
       }
     }
   }
 
   output
+}
+
+pure source_map_contains(span: SourceSpan, line: Nat, column: Nat): Bool {
+  (line > span.start.line || (line == span.start.line && column >= span.start.column)) &&
+    (line < span.end.line || (line == span.end.line && column < span.end.column))
+}
+
+// Search only the replayed closure. Caller-supplied module identifiers never
+// become filesystem paths. For nested constructs choose the innermost mapping.
+pub pure source_map_reverse(project: LoadedProject, mapped: SourceMappedProgram, module_name: Str,
+  line: Nat, column: Nat, root: Str, library: Str, entry: ModuleIdentity): Str {
+  mut selected: Option[SourceSpan] = None()
+  for function in mapped.sources {
+    for item in function.entries {
+      span = item.span
+      if source_identifier(span.start.file, root, library) == module_name && source_map_contains(span, line, column) {
+        match selected {
+          None() => { selected = Some(span) },
+          Some(previous) => if span.start.offset >= previous.start.offset && span.end.offset <= previous.end.offset {
+            selected = Some(span)
+          }
+        }
+      }
+    }
+  }
+  match selected {
+    None() => {
+      mut reason = "No recorded source construct covers this position."
+      for module in project.modules {
+        if source_identifier(module.source_path, root, library) == module_name {
+          for i in 0..module.parsed.syntax.len() {
+            if source_map_contains(module.parsed.syntax[i].span, line, column) {
+              reason = match module.parsed.program.declarations[i] {
+                ImportDeclaration(path) => "This import selects a module at compile time. It produces no standalone instructions.",
+                TypeDeclaration(name,base,guard) => "Type " + source_map_escape(name) + " constrains values during checking. The declaration produces no standalone instructions.",
+                EnumDeclaration(name,parameters,variants) => "Enum " + source_map_escape(name) + " defines variants. Constructor instructions are emitted at their uses.",
+                RecordDeclaration(name,parameters,fields) => "Record " + source_map_escape(name) + " defines fields. Its construction and field reads have instructions at their uses.",
+                FunctionDeclaration(name,parameters,returns,pure_flag,async_flag,body,type_parameters) => {
+                  symbol = module_emission_symbol(loaded_binding_graph(project.modules,root,library),entry,DeclarationIdentity(module.bindings.identity,name))
+                  mut emitted = false
+                  for f in mapped.bytecode.functions { if f.name == symbol { emitted = true } }
+                  if !emitted && symbol.starts_with("$core_") { "Unused compiler-owned core function: no body was emitted." }
+                  else if emitted && type_parameters.len() > 0 { "This generic declaration has one shared compiled body. Its declaration header has no standalone instruction." }
+                  else { "No instruction is mapped to this part of the function declaration." }
+                }
+              }
+            }
+          }
+        }
+      }
+      reason
+    },
+    Some(span) => {
+      graph = loaded_binding_graph(project.modules,root,library)
+      mut names: Map[Str,Str] = map()
+      mut shared: Set[Str] = set()
+      for module in project.modules {
+        for declaration in module.parsed.program.declarations {
+          match declaration {
+            FunctionDeclaration(name,parameters,returns,pure_flag,async_flag,body,type_parameters) => {
+              symbol = module_emission_symbol(graph,entry,DeclarationIdentity(module.bindings.identity,name))
+              names = names.put(symbol,source_identifier(module.source_path,root,library) + ":" + name)
+              if type_parameters.len() > 0 { shared = shared.add(symbol) }
+            },
+            ImportDeclaration(path) => {}, TypeDeclaration(name,base,guard) => {},
+            EnumDeclaration(name,parameters,variants) => {}, RecordDeclaration(name,parameters,fields) => {}
+          }
+        }
+      }
+      source = project.sources.get(span.start.file)
+      mut output = "Source: " + source_map_escape(source.slice(span.start.offset, span.end.offset))
+      for i in 0..mapped.sources.len() {
+        function = mapped.sources[i]
+        for item in function.entries {
+          if item.span == span {
+            pc = item.index
+            output = output + "\n" + source_map_escape(if names.has(function.name) { names.get(function.name) } else { function.name }) + (if shared.has(function.name) { " (shared generic body)" } else { "" }) + " instruction ${pc}: " +
+              source_map_escape(render_instruction(mapped.bytecode.functions[i].instructions[pc])) +
+              (if item.reason == "" { "" } else { " (" + item.reason + ")" })
+          }
+        }
+      }
+      output
+    }
+  }
 }
 
 // Fresh destinations prevent overwriting loaded sources through existing hard

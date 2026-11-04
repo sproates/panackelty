@@ -18,7 +18,7 @@ import project/src/compiler/module_bodies::{
   SignatureTypeIdentity.SignatureNominal, SignatureTypeIdentity.SignatureParameter
 }
 pub import project/src/compiler/purity::{EffectEvidence}
-import project/src/compiler/purity::{CheckedEffects, combine_effects, is_impure_builtin}
+import project/src/compiler/purity::{EffectDependency, CheckedEffects, combine_effects, is_impure_builtin}
 
 // Check local call/await boundaries after names and callable types have been
 // resolved to module identities. Infer only the closed local-resource permission
@@ -27,7 +27,8 @@ record ModuleEffectContext {
   body: BodyContext,
   function_name: Str,
   mode: Str,
-  local_functions: Set[DeclarationIdentity]
+  local_functions: Set[DeclarationIdentity],
+  local_reasons: Map[DeclarationIdentity,[EffectDependency]]
 }
 
 pub record CheckedModuleEffects {
@@ -179,14 +180,17 @@ pure module_local_target(target: BodyTarget, known: Set[DeclarationIdentity]): B
   }
 }
 
-record LocalEffectSummary { safe: Bool, local: Bool }
+record LocalEffectSummary { safe: Bool, local: Bool, dependencies: [EffectDependency] }
+record LocalPermissions { allowed: Set[DeclarationIdentity], reasons: Map[DeclarationIdentity,[EffectDependency]] }
 
-pure module_local_body(context: BodyContext, body: BoundBody, known: Set[DeclarationIdentity]): LocalEffectSummary {
+pure module_local_body(context: BodyContext, body: BoundBody, known: Set[DeclarationIdentity], retain: Bool): LocalEffectSummary {
   mut safe = true
   mut local = false
+  mut dependencies: [EffectDependency] = []
   match body.node {
     BodyCall(target, types, arguments) => {
       local = module_local_target(target, known)
+      if retain && local { dependencies = dependencies.append(EffectDependency(module_effect_target_name(target), body.span)) }
       safe = local || module_effect_for_call(context, target, body) == Some(SignaturePure())
       match target {
         BodyCore(name) => if name == "$intrinsic_call" { safe = false },
@@ -196,19 +200,21 @@ pure module_local_body(context: BodyContext, body: BoundBody, known: Set[Declara
     BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity) => {},
     BodyFunction(binding) => {}, BodyArray() => {}, BodyUnary(operator) => {},
     BodyBinary(operator) => {}, BodyField(field) => {}, BodyIndex() => {}, BodyIf(value) => {},
-    BodyBlock(value) => {}, BodyMatch(targets, locals, spans) => {}, BodyBinding(identity, type, mutable, inferred, evidence) => {},
+    BodyBlock(value, original_span, statement_spans) => {}, BodyMatch(targets, locals, spans) => {}, BodyBinding(identity, type, mutable, inferred, evidence) => {},
     BodyAssignment(identity, evidence) => {}, BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
   }
   for child in body.children {
-    summary = module_local_body(context, child, known)
+    summary = module_local_body(context, child, known, retain)
+    if retain { dependencies = dependencies.concat(summary.dependencies) }
     safe = safe && summary.safe
     local = local || summary.local
   }
-  LocalEffectSummary(safe, local)
+  LocalEffectSummary(safe, local, dependencies)
 }
 
 pure module_local_functions(graph: ModuleBindingGraph, modules: [LoadedModule],
-    signatures: [ModuleSignature], functions: [BoundFunctionBody]): Set[DeclarationIdentity] {
+    signatures: [ModuleSignature], functions: [BoundFunctionBody], retain: Bool): LocalPermissions {
+  mut reasons: Map[DeclarationIdentity,[EffectDependency]] = map()
   mut known: Set[DeclarationIdentity] = set()
   mut changed = true
   while changed {
@@ -217,15 +223,16 @@ pure module_local_functions(graph: ModuleBindingGraph, modules: [LoadedModule],
       identity = function.signature.binding.identity
       if function.status != BodyInvalid() && function.signature.effect == Some(SignatureOrdinary()) && !known.has(identity) {
         context = BodyContext(graph, modules, signatures, identity, function.signature.parameters, map(), false)
-        summary = module_local_body(context, function.body, known)
+        summary = module_local_body(context, function.body, known, retain)
         if summary.safe && summary.local {
+          if retain { reasons = reasons.put(identity, summary.dependencies) }
           known = known.add(identity)
           changed = true
         }
       }
     }
   }
-  known
+  LocalPermissions(known, reasons)
 }
 
 pure module_effect_call(
@@ -264,7 +271,7 @@ pure module_effect_call(
           "indirect call; effect unavailable",
           "unavailable",
           awaited,
-          violations
+          violations, []
         ))
       }
     },
@@ -292,16 +299,26 @@ pure module_effect_call(
         violations = violations.append(reason)
       }
       if retain {
+        allowed_local = context.mode == "async" && impure && !async_call && module_local_target(target, context.local_functions)
+        mut supporting: [EffectDependency] = []
+        if allowed_local {
+          match target {
+            BodyCore(name) => {},
+            BodyDeclaration(binding) => if context.local_reasons.has(binding.identity) {
+              supporting = context.local_reasons.get(binding.identity)
+            }
+          }
+        }
         evidence = evidence.append(EffectEvidence(
           context.function_name,
           Some(expression.span),
           "call",
           context.mode,
           target_name,
-          if target_name == "call" { "callable type" } else { "checked declaration identity" },
+          if allowed_local { "local resource permission" } else if target_name == "call" { "callable type" } else { "checked declaration identity" },
           module_effect_name(target_effect),
           awaited,
-          violations
+          violations, supporting
         ))
       }
     }
@@ -341,7 +358,7 @@ pure module_effect_expression(
             BodyField(field) => { invalid_await_operand = true },
             BodyIndex() => { invalid_await_operand = true },
             BodyIf(has_else) => { invalid_await_operand = true },
-            BodyBlock(has_value) => { invalid_await_operand = true },
+            BodyBlock(has_value, original_span, statement_spans) => { invalid_await_operand = true },
             BodyMatch(targets, locals, spans) => { invalid_await_operand = true },
             BodyBinding(identity, type, mutable, inferred, type_evidence) => { invalid_await_operand = true },
             BodyAssignment(identity, assignment_evidence) => { invalid_await_operand = true },
@@ -365,7 +382,7 @@ pure module_effect_expression(
             "checked call boundary",
             "async",
             true,
-            violations
+            violations, []
           )])
         } else {
           result = CheckedEffects(diagnostics, [])
@@ -388,7 +405,7 @@ pure module_effect_expression(
       }
       children_walked = true
     },
-    BodyBlock(has_value) => {
+    BodyBlock(has_value, original_span, statement_spans) => {
       mut statement_count: Nat = expression.children.len()
       if has_value {
         if statement_count > 0 {
@@ -415,7 +432,7 @@ pure module_effect_expression(
                       "result type",
                       body_type_text(type),
                       true,
-                      [reason]
+                      [reason], []
                     )] } else { [] }
                   ))
                 }
@@ -424,7 +441,7 @@ pure module_effect_expression(
             BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity) => {},
             BodyFunction(binding) => {}, BodyCall(target, types, call_arguments) => {}, BodyArray() => {},
             BodyBinary(operator) => {}, BodyField(field) => {}, BodyIndex() => {}, BodyIf(value) => {},
-            BodyBlock(value) => {}, BodyMatch(targets, locals, spans) => {}, BodyBinding(identity, type, mutable, inferred, type_evidence) => {},
+            BodyBlock(value, nested_span, nested_statement_spans) => {}, BodyMatch(targets, locals, spans) => {}, BodyBinding(identity, type, mutable, inferred, type_evidence) => {},
             BodyAssignment(identity, assignment_evidence) => {}, BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
           }
         }
@@ -457,7 +474,7 @@ pub pure check_module_effects(
   mut diagnostics: [Diagnostic] = []
   mut evidence: [EffectEvidence] = []
   mut function_types: Map[Str, Bool] = map()
-  local_functions = module_local_functions(graph, modules, signatures, functions)
+  local_functions = module_local_functions(graph, modules, signatures, functions, retain)
   for function in functions {
     valid_body: Bool = function.status != BodyInvalid()
     function_types = function_types.put(function.signature.binding.identity.name,
@@ -476,7 +493,7 @@ pub pure check_module_effects(
         body_context,
         function.signature.binding.identity.name,
         module_effect_mode(function.signature.effect),
-        local_functions
+        local_functions.allowed, local_functions.reasons
       )
       checked: CheckedEffects = module_effect_expression(context, function.body, false, retain)
       diagnostics = diagnostics.concat(checked.diagnostics)

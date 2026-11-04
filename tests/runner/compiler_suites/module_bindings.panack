@@ -1038,6 +1038,29 @@ pure body_test_module(source: Str): CheckedModuleBodies {
   body_test_module_mode(source, true)
 }
 
+pure body_has_result_tail(node: BodyNode): Bool {
+  match node {
+    BodyCall(target, types, call_arguments) => false,
+    BodyBinding(local, type, mutable, inferred, type_evidence) => false,
+    BodyLiteral(value) => false,
+    BodyInterpolation(parts) => false,
+    BodyLocalUse(local) => false,
+    BodyFunction(binding) => false,
+    BodyArray() => false,
+    BodyUnary(operator) => false,
+    BodyBinary(operator) => false,
+    BodyField(name) => false,
+    BodyIndex() => false,
+    BodyIf(has_else) => false,
+    BodyBlock(has_tail, original_span, statement_spans) => has_tail,
+    BodyMatch(targets, bindings, spans) => false,
+    BodyAssignment(local, assignment_evidence) => false,
+    BodyWhile() => false,
+    BodyFor(local) => false,
+    BodyEmpty() => false
+  }
+}
+
 pure body_test_module_mode(source: Str, retain_guard_conversions: Bool): CheckedModuleBodies {
   body_test_identity_mode(source, namespace_identity("body.panack"), retain_guard_conversions)
 }
@@ -1073,7 +1096,7 @@ pure body_binding_inference_marker(body: BoundBody): Option[Bool] {
     BodyField(name) => None(),
     BodyIndex() => None(),
     BodyIf(has_else) => None(),
-    BodyBlock(has_tail) => None(),
+    BodyBlock(has_tail, original_span, statement_spans) => None(),
     BodyMatch(targets, bindings, spans) => None(),
     BodyAssignment(local, assignment_evidence) => None(),
     BodyWhile() => None(),
@@ -1193,7 +1216,7 @@ pure namespace_effect_tests(): [TestResult] {
     [unresolved_receiver], None(), [], [], [], [], [], []
   )
   unresolved_body: BoundBody = BoundBody(
-    BodyBlock(false), unresolved_span, [unresolved_call],
+    BodyBlock(false, None(), []), unresolved_span, [unresolved_call],
     Some(SignatureType(SignatureCore("Void"), [])), [], [], [], [], [], []
   )
   unresolved_deferred_function: BoundFunctionBody = BoundFunctionBody(
@@ -1314,12 +1337,14 @@ pure namespace_body_tests(): [TestResult] {
   generic_joins: [TypeJoinEvidence] = body_type_join_evidence(inferred_generic.functions[1].body)
   results = results.append(std_testing.expect(
     "explanation checker retains accepted generic parameter join",
-    generic_joins.len() == 1 &&
-      generic_joins[0].context == "generic parameter T for combine" &&
-      generic_joins[0].accepted == Some(true) &&
-      generic_joins[0].left == Some(SignatureType(SignatureCore("Nat"), [])) &&
-      generic_joins[0].right == Some(SignatureType(SignatureCore("Int"), [])) &&
-      generic_joins[0].result == Some(SignatureType(SignatureCore("Int"), [])),
+    generic_joins.len() == 2 && generic_joins[0].context == "first constraint for T for combine" &&
+      generic_joins[1].context == "generic parameter T for combine" &&
+      generic_joins[0].binder_index == Some(0) && generic_joins[0].dependency == None() &&
+      generic_joins[1].binder_index == Some(0) && generic_joins[1].dependency == Some(generic_joins[0].span) &&
+      generic_joins[1].accepted == Some(true) &&
+      generic_joins[1].left == Some(SignatureType(SignatureCore("Nat"), [])) &&
+      generic_joins[1].right == Some(SignatureType(SignatureCore("Int"), [])) &&
+      generic_joins[1].result == Some(SignatureType(SignatureCore("Int"), [])),
     "repeated generic argument constraints were not retained"
   ))
   rejected_generic: CheckedModuleBodies = body_test_module(
@@ -1328,12 +1353,12 @@ pure namespace_body_tests(): [TestResult] {
   rejected_generic_joins: [TypeJoinEvidence] = body_type_join_evidence(rejected_generic.functions[1].body)
   results = results.append(std_testing.expect(
     "explanation checker retains rejected generic parameter join",
-    rejected_generic_joins.len() == 1 &&
-      rejected_generic_joins[0].context == "generic parameter T for combine" &&
-      rejected_generic_joins[0].accepted == Some(false) &&
-      rejected_generic_joins[0].left == Some(SignatureType(SignatureCore("Nat"), [])) &&
-      rejected_generic_joins[0].right == Some(SignatureType(SignatureCore("Str"), [])) &&
-      rejected_generic_joins[0].result == None(),
+    rejected_generic_joins.len() == 2 && rejected_generic_joins[0].context == "first constraint for T for combine" &&
+      rejected_generic_joins[1].context == "generic parameter T for combine" &&
+      rejected_generic_joins[1].accepted == Some(false) &&
+      rejected_generic_joins[1].left == Some(SignatureType(SignatureCore("Nat"), [])) &&
+      rejected_generic_joins[1].right == Some(SignatureType(SignatureCore("Str"), [])) &&
+      rejected_generic_joins[1].result == None(),
     "rejected generic argument constraints were lost with the inference diagnostic"
   ))
   ordinary_join: CheckedModuleBodies = body_test_module_mode(
@@ -3709,7 +3734,10 @@ pure namespace_body_tests(): [TestResult] {
   results = results.append(std_testing.expect(
     "missing local facts retain an unavailable conversion result",
     unavailable_conversions.len() == 1 && unavailable_conversions[0].proven == None() &&
-      unavailable_conversions[0].bounds == None(),
+      match unavailable_conversions[0].bounds {
+        None() => false,
+        Some(bounds) => !bounds.has_lower && !bounds.has_upper && bounds.invalidated_at != None()
+      },
     "unresolved guard conversion was not retained as unavailable"
   ))
   left: LoadedModule = signature_test_module(namespace_identity("left"), "pub record Item { value: Nat }; pub pure take(value: Item): Item { value }; pub pure id[T](value: T): T { value }")
@@ -3725,13 +3753,13 @@ pure namespace_body_tests(): [TestResult] {
   }
   if checked.functions.len() == 3 {
     call: BoundBody = checked.functions[0].body.children[0]
-    results = results.append(std_testing.expect("qualified bound call retains declaration identity", match call.node { BodyCall(target, types, call_arguments) => match target { BodyDeclaration(binding) => binding.identity == DeclarationIdentity(left.bindings.identity, "take"), BodyCore(name) => false }, BodyLiteral(value) => false, BodyInterpolation(parts) => false, BodyLocalUse(local) => false, BodyFunction(binding) => false, BodyArray() => false, BodyUnary(operator) => false, BodyBinary(operator) => false, BodyField(name) => false, BodyIndex() => false, BodyIf(has_else) => false, BodyBlock(has_tail) => false, BodyMatch(targets, bindings, spans) => false, BodyBinding(local, type, mutable, inferred, type_evidence) => false, BodyAssignment(local, assignment_evidence) => false, BodyWhile() => false, BodyFor(local) => false, BodyEmpty() => false }, "call target was re-spelled"))
+    results = results.append(std_testing.expect("qualified bound call retains declaration identity", match call.node { BodyCall(target, types, call_arguments) => match target { BodyDeclaration(binding) => binding.identity == DeclarationIdentity(left.bindings.identity, "take"), BodyCore(name) => false }, BodyLiteral(value) => false, BodyInterpolation(parts) => false, BodyLocalUse(local) => false, BodyFunction(binding) => false, BodyArray() => false, BodyUnary(operator) => false, BodyBinary(operator) => false, BodyField(name) => false, BodyIndex() => false, BodyIf(has_else) => false, BodyBlock(has_tail, original_span, statement_spans) => false, BodyMatch(targets, bindings, spans) => false, BodyBinding(local, type, mutable, inferred, type_evidence) => false, BodyAssignment(local, assignment_evidence) => false, BodyWhile() => false, BodyFor(local) => false, BodyEmpty() => false }, "call target was re-spelled"))
   }
   lexical: CheckedModuleBodies = body_test_module("pub pure f(value: Nat): Nat { mut local = value; local = 2; if true { inner = local; inner }; local }")
   results = results.append(std_testing.equal_nat("nested lexical body binds", lexical.diagnostics.len(), 0))
   if lexical.functions.len() == 1 {
     children: [BoundBody] = lexical.functions[0].body.children
-    results = results.append(std_testing.expect("block preserves tail distinction", lexical.functions[0].body.node == BodyBlock(true), "lost block tail"))
+    results = results.append(std_testing.expect("block preserves tail distinction", body_has_result_tail(lexical.functions[0].body.node), "lost block tail"))
   results = results.append(std_testing.expect("assignment reuses lexical local identity", match children[1].node {
     BodyAssignment(local, assignment_evidence) => local == BodyLocalIdentity(lexical.functions[0].signature.binding.identity, [1,0], "local"),
     BodyBinding(local, type, mutable, inferred, type_evidence) => false,
@@ -3746,7 +3774,7 @@ pure namespace_body_tests(): [TestResult] {
     BodyField(name) => false,
     BodyIndex() => false,
     BodyIf(has_else) => false,
-    BodyBlock(has_tail) => false,
+    BodyBlock(has_tail, original_span, statement_spans) => false,
     BodyMatch(targets, bindings, spans) => false,
     BodyWhile() => false,
     BodyFor(local) => false,
@@ -4590,7 +4618,7 @@ pure owned_server_map_tests(): [TestResult] {
           BodyField(field) => {},
           BodyIndex() => {},
           BodyIf(has_else) => {},
-          BodyBlock(has_value) => {},
+          BodyBlock(has_value, original_span, statement_spans) => {},
           BodyMatch(targets, bindings, spans) => {},
           BodyBinding(identity, annotation, mutable, inferred, evidence) => {},
           BodyAssignment(identity, evidence) => {},

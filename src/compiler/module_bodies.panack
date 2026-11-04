@@ -51,7 +51,7 @@ pub enum BodyNode {
   BodyField(Str),
   BodyIndex,
   BodyIf(Bool),
-  BodyBlock(Bool),
+  BodyBlock(Bool, Option[SourceSpan], [SourceSpan]),
   BodyMatch([BodyTarget], [[BodyLocalIdentity]], [SourceSpan]),
   // The optional flag is populated only for explicit explanation checks. It
   // records whether this local's type came from its initializer or annotation.
@@ -120,7 +120,8 @@ pub record CallArgumentEvidence {
   span: SourceSpan,
   actual: Option[SignatureType],
   expected: SignatureType,
-  accepted: Option[Bool]
+  accepted: Option[Bool],
+  proofs: [GuardConversionEvidence]
 }
 
 pub record BindingTypeEvidence {
@@ -145,7 +146,9 @@ pub record TypeJoinEvidence {
   left: Option[SignatureType],
   right: Option[SignatureType],
   result: Option[SignatureType],
-  accepted: Option[Bool]
+  accepted: Option[Bool],
+  binder_index: Option[Nat],
+  dependency: Option[SourceSpan]
 }
 
 pub record CollectionCallbackEvidence {
@@ -175,7 +178,9 @@ pub record BodyTypeCheckEvidence {
   actual: Option[SignatureType],
   expected: Str,
   result: Option[SignatureType],
-  accepted: Option[Bool]
+  accepted: Option[Bool],
+  reason: Str,
+  dependency: Option[SourceSpan]
 }
 
 pub record BoundFunctionBody {
@@ -204,7 +209,7 @@ pub pure body_call_argument_evidence(body: BoundBody): [CallArgumentEvidence] {
     BodyField(name) => {},
     BodyIndex() => {},
     BodyIf(has_else) => {},
-    BodyBlock(has_tail) => {},
+    BodyBlock(has_tail, original_span, statement_spans) => {},
     BodyMatch(targets, bindings, spans) => {},
     BodyAssignment(local, assignment_evidence) => {},
     BodyWhile() => {},
@@ -231,7 +236,7 @@ pure body_direct_call_argument_metadata(body: BoundBody): [CallArgumentEvidence]
     BodyField(name) => [],
     BodyIndex() => [],
     BodyIf(has_else) => [],
-    BodyBlock(has_tail) => [],
+    BodyBlock(has_tail, original_span, statement_spans) => [],
     BodyMatch(targets, bindings, spans) => [],
     BodyAssignment(local, assignment_evidence) => [],
     BodyWhile() => [],
@@ -258,7 +263,7 @@ pub pure body_binding_type_evidence(body: BoundBody): [BindingTypeEvidence] {
     BodyField(name) => {},
     BodyIndex() => {},
     BodyIf(has_else) => {},
-    BodyBlock(has_tail) => {},
+    BodyBlock(has_tail, original_span, statement_spans) => {},
     BodyMatch(targets, bindings, spans) => {},
     BodyAssignment(local, assignment_evidence) => {},
     BodyWhile() => {},
@@ -290,7 +295,7 @@ pub pure body_assignment_type_evidence(body: BoundBody): [AssignmentTypeEvidence
     BodyField(name) => {},
     BodyIndex() => {},
     BodyIf(has_else) => {},
-    BodyBlock(has_tail) => {},
+    BodyBlock(has_tail, original_span, statement_spans) => {},
     BodyMatch(targets, bindings, spans) => {},
     BodyWhile() => {},
     BodyFor(local) => {},
@@ -440,18 +445,22 @@ pure body_fact_key(identity: BodyLocalIdentity): Str {
 }
 
 pure body_guard_bounds(context: BodyContext, value: BoundBody): Option[Bounds] {
+  body_lookup_bounds(context, value, false)
+}
+
+pure body_lookup_bounds(context: BodyContext, value: BoundBody, include_invalidated: Bool): Option[Bounds] {
   mut result: Option[Bounds] = None()
   match value.node {
     BodyLocalUse(identity) => {
       key: Str = body_fact_key(identity)
       if context.facts.has(key) {
         bounds: Bounds = context.facts.get(key)
-        if bounds.has_lower || bounds.has_upper {
+        if bounds.has_lower || bounds.has_upper || (include_invalidated && bounds.invalidated_at != None()) {
           result = Some(bounds)
         }
       }
     },
-    BodyBlock(has_tail) => {
+    BodyBlock(has_tail, original_span, statement_spans) => {
       if has_tail && value.children.len() > 0 {
         mut last: Option[BoundBody] = None()
         for child in value.children {
@@ -460,14 +469,14 @@ pure body_guard_bounds(context: BodyContext, value: BoundBody): Option[Bounds] {
         match last {
           None() => {},
           Some(child) => {
-            result = body_guard_bounds(context, child)
+            result = body_lookup_bounds(context, child, include_invalidated)
           }
         }
       }
     },
     BodyLiteral(literal) => match unlocated_expression(literal) {
       NatExpr(number) => {
-        result = Some(Bounds(true, number, true, number, None()))
+        result = Some(Bounds(true, number, true, number, None(), None(), None()))
       },
       LocatedExpr(position, inner, located_type_argument_spans) => {},
       DecimalExpr(text) => {},
@@ -537,7 +546,7 @@ record BodyGuardConversionDecision {
 pure body_guard_source_span(value: BoundBody): SourceSpan {
   mut span: SourceSpan = value.span
   match value.node {
-    BodyBlock(has_tail) => if has_tail {
+    BodyBlock(has_tail, original_span, statement_spans) => if has_tail {
       for child in value.children {
         span = body_guard_source_span(child)
       }
@@ -588,7 +597,7 @@ pure body_guard_conversion(
               body_type_text(expected),
               None(),
               render_expr(target.guard),
-              bounds,
+              if context.retain_guard_conversions { body_lookup_bounds(context, value, true) } else { bounds },
               proven
             )
             result = Some(BodyGuardConversionDecision(proven, Some(evidence)))
@@ -650,9 +659,10 @@ pure body_guard_conversion(
 pure body_compatibility_value(
   context: BodyContext,
   value: BoundBody,
-  expected: SignatureType
+  expected: SignatureType,
+  conversion: Option[BodyGuardConversionDecision]
 ): Option[Bool] {
-  match body_guard_conversion(context, value, expected) {
+  match conversion {
     Some(decision) => match decision.proven {
       Some(valid) => Some(valid),
       None() => match value.type {
@@ -673,7 +683,8 @@ pure body_require_value(
   expected: SignatureType,
   label: Str
 ): BodyResult {
-  match body_compatibility_value(context, value, expected) {
+  conversion = body_guard_conversion(context, value, expected)
+  result = match body_compatibility_value(context, value, expected, conversion) {
     None() => BodyResult(body_result(BodyEmpty(), value.span, [], None()).body, [], [value.span]),
     Some(valid) => if valid {
       body_result(BodyEmpty(), value.span, [], None())
@@ -687,12 +698,23 @@ pure body_require_value(
       )
     }
   }
+  if !context.retain_guard_conversions { result }
+  else {
+    match conversion {
+      None() => result,
+      Some(decision) => match decision.evidence {
+        None() => result,
+        Some(proof) => BodyResult(BoundBody(BodyEmpty(), value.span, [], None(), [], [proof], [], [], [], []),
+          result.diagnostics, result.deferred)
+      }
+    }
+  }
 }
 
 pure body_return_value_span(body: BoundBody): SourceSpan {
   mut span: SourceSpan = body.span
   match body.node {
-    BodyBlock(has_tail) => if has_tail {
+    BodyBlock(has_tail, original_span, statement_spans) => if has_tail {
       for child in body.children {
         span = child.span
       }
@@ -779,8 +801,10 @@ pure body_subtraction_evidence(context: BodyContext, node: BoundBody, valid: Opt
   left_name: Str = body_operation_scalar(context, left)
   right_name: Str = body_operation_scalar(context, right)
   lower: Option[Nat] = body_operand_lower_bound(context, left)
-  guard: Option[GuardOrigin] = match body_guard_bounds(context, left) {
-    None() => None(), Some(bounds) => bounds.lower_origin
+  bounds = body_lookup_bounds(context, left, true)
+  invalidated = match bounds { None() => None(), Some(value) => value.invalidated_at }
+  guard: Option[GuardOrigin] = match bounds {
+    None() => None(), Some(value) => if value.has_lower && lower == Some(value.lower) { value.lower_origin } else { None() }
   }
   proven: Bool = body_proves_nat_subtraction(context, left, right)
   rule: Str = if valid != Some(true) { "invalid-operands" }
@@ -790,7 +814,7 @@ pure body_subtraction_evidence(context: BodyContext, node: BoundBody, valid: Opt
   SubtractionEvidence(context.owner.name, Some(node.span),
     TypeInfo(left_name, left_literal != None(), left_literal.value_or(0), false),
     TypeInfo(right_name, right_literal != None(), right_literal.value_or(0), false),
-    SubtractionDecision(proven, rule, lower != None(), lower.value_or(0), guard))
+    SubtractionDecision(proven, rule, lower != None(), lower.value_or(0), guard, invalidated))
 }
 
 pub pure body_subtraction_evidence_entries(body: BoundBody): [SubtractionEvidence] {
@@ -827,7 +851,7 @@ pure body_proves_nat_subtraction(
       BodyField(field) => false,
       BodyIndex() => false,
       BodyIf(has_else) => false,
-      BodyBlock(has_tail) => false,
+      BodyBlock(has_tail, original_span, statement_spans) => false,
       BodyMatch(targets, bindings, spans) => false,
       BodyBinding(identity, type, mutable, inferred, type_evidence) => false,
       BodyAssignment(identity, assignment_evidence) => false,
@@ -885,7 +909,7 @@ pure body_condition_literal(value: BoundBody): Option[Nat] {
     BodyField(field) => {},
     BodyIndex() => {},
     BodyIf(has_else) => {},
-    BodyBlock(has_tail) => {},
+    BodyBlock(has_tail, original_span, statement_spans) => {},
     BodyMatch(targets, bindings, spans) => {},
     BodyBinding(identity, type, mutable, inferred, type_evidence) => {},
     BodyAssignment(identity, assignment_evidence) => {},
@@ -908,31 +932,31 @@ pure body_add_local_bound(
   prior: Bounds = if facts.has(key) {
     facts.get(key)
   } else {
-    Bounds(false, 0, false, 0, None())
+    Bounds(false, 0, false, 0, None(), None(), None())
   }
   mut next: Bounds = prior
   if (operator == ">" && truth) || (operator == "<=" && !truth) {
-    next = Bounds(true, value + 1, prior.has_upper, prior.upper, Some(GuardOrigin(Some(span), truth)))
+    next = Bounds(true, value + 1, prior.has_upper, prior.upper, Some(GuardOrigin(Some(span), truth)), prior.upper_origin, None())
   }
   if (operator == ">=" && truth) || (operator == "<" && !truth) {
-    next = Bounds(true, value, prior.has_upper, prior.upper, Some(GuardOrigin(Some(span), truth)))
+    next = Bounds(true, value, prior.has_upper, prior.upper, Some(GuardOrigin(Some(span), truth)), prior.upper_origin, None())
   }
   if (operator == "<=" && truth) || (operator == ">" && !truth) {
-    next = Bounds(prior.has_lower, prior.lower, true, value, prior.lower_origin)
+    next = Bounds(prior.has_lower, prior.lower, true, value, prior.lower_origin, Some(GuardOrigin(Some(span), truth)), None())
   }
   if (operator == "<" && truth) || (operator == ">=" && !truth) {
     if value > 0 {
-      next = Bounds(prior.has_lower, prior.lower, true, value - 1, prior.lower_origin)
+      next = Bounds(prior.has_lower, prior.lower, true, value - 1, prior.lower_origin, Some(GuardOrigin(Some(span), truth)), None())
     }
   }
   if operator == "==" && truth {
-    next = Bounds(true, value, true, value, Some(GuardOrigin(Some(span), truth)))
+    next = Bounds(true, value, true, value, Some(GuardOrigin(Some(span), truth)), Some(GuardOrigin(Some(span), truth)), None())
   }
   if operator == "!=" && truth && value == 0 {
-    next = Bounds(true, 1, prior.has_upper, prior.upper, Some(GuardOrigin(Some(span), truth)))
+    next = Bounds(true, 1, prior.has_upper, prior.upper, Some(GuardOrigin(Some(span), truth)), prior.upper_origin, None())
   }
   if operator == "==" && !truth && value == 0 {
-    next = Bounds(true, 1, prior.has_upper, prior.upper, Some(GuardOrigin(Some(span), truth)))
+    next = Bounds(true, 1, prior.has_upper, prior.upper, Some(GuardOrigin(Some(span), truth)), prior.upper_origin, None())
   }
   facts.put(key, next)
 }
@@ -994,7 +1018,7 @@ pure body_condition_facts(
               BodyField(field) => {},
               BodyIndex() => {},
               BodyIf(has_else) => {},
-              BodyBlock(has_tail) => {},
+              BodyBlock(has_tail, original_span, statement_spans) => {},
               BodyMatch(targets, bindings, spans) => {},
               BodyBinding(other_identity, type, mutable, inferred, type_evidence) => {},
               BodyAssignment(other_identity, assignment_evidence) => {},
@@ -1009,7 +1033,7 @@ pure body_condition_facts(
             BodyField(field) => {},
             BodyIndex() => {},
             BodyIf(has_else) => {},
-            BodyBlock(has_tail) => {},
+            BodyBlock(has_tail, original_span, statement_spans) => {},
             BodyMatch(targets, bindings, spans) => {},
             BodyBinding(identity, type, mutable, inferred, type_evidence) => {},
             BodyAssignment(identity, assignment_evidence) => {},
@@ -1031,7 +1055,7 @@ pure body_condition_facts(
     BodyField(field) => {},
     BodyIndex() => {},
     BodyIf(has_else) => {},
-    BodyBlock(has_tail) => {},
+    BodyBlock(has_tail, original_span, statement_spans) => {},
     BodyMatch(targets, bindings, spans) => {},
     BodyBinding(identity, type, mutable, inferred, type_evidence) => {},
     BodyAssignment(identity, assignment_evidence) => {},
@@ -1044,9 +1068,18 @@ pure body_condition_facts(
 
 // Source evaluation may assign through nested expressions. Invalidate incoming
 // bounds before checking sibling operands or loop-carried uses, using lexical IDs.
-pure body_forget_written_fact(facts: Map[Str, Bounds], name: Str, locals: Map[Str, BodyLocal]): Map[Str, Bounds] {
+pure body_clear_bounds(facts: Map[Str,Bounds], key: Str, origin: Option[SourceSpan]): Map[Str,Bounds] {
+  // An assignment can only invalidate evidence if a prior bound existed.
+  previous = if facts.has(key) { Some(facts.get(key)) } else { None() }
+  invalidated: Option[SourceSpan] = match previous {
+    None() => None(), Some(bound) => if bound.has_lower || bound.has_upper { origin } else { bound.invalidated_at }
+  }
+  facts.put(key, Bounds(false, 0, false, 0, None(), None(), invalidated))
+}
+
+pure body_forget_written_fact(facts: Map[Str, Bounds], name: Str, locals: Map[Str, BodyLocal], origin: Option[SourceSpan]): Map[Str, Bounds] {
   if locals.has(name) {
-    facts.put(body_fact_key(locals.get(name).identity), Bounds(false, 0, false, 0, None()))
+    body_clear_bounds(facts, body_fact_key(locals.get(name).identity), origin)
   } else { facts }
 }
 
@@ -1124,7 +1157,7 @@ pure body_facts_after_expression(expression: Expr, facts: Map[Str, Bounds], loca
 pure body_facts_after_statement(statement: Statement, facts: Map[Str, Bounds], locals: Map[Str, BodyLocal]): Map[Str, Bounds] {
   match statement {
     BindingStatement(name, type_name, annotation_span, mutable, value) => body_facts_after_expression(value, facts, locals),
-    AssignmentStatement(name, value) => body_forget_written_fact(body_facts_after_expression(value, facts, locals), name, locals),
+    AssignmentStatement(name, value) => body_forget_written_fact(body_facts_after_expression(value, facts, locals), name, locals, expression_span(value)),
     ExpressionStatement(value) => body_facts_after_expression(value, facts, locals),
     WhileStatement(condition, body) => body_facts_after_block(
       body,
@@ -1160,7 +1193,7 @@ pure body_invalidate_assigned_locals(
   mut result: Map[Str, Bounds] = facts
   match body.node {
     BodyAssignment(identity, assignment_evidence) => {
-      result = result.put(body_fact_key(identity), Bounds(false, 0, false, 0, None()))
+      result = body_clear_bounds(result, body_fact_key(identity), Some(body.span))
     },
     BodyLiteral(value) => {},
     BodyInterpolation(parts) => {},
@@ -1173,7 +1206,7 @@ pure body_invalidate_assigned_locals(
     BodyField(field) => {},
     BodyIndex() => {},
     BodyIf(has_else) => {},
-    BodyBlock(has_tail) => {},
+    BodyBlock(has_tail, original_span, statement_spans) => {},
     BodyMatch(targets, bindings, spans) => {},
     BodyBinding(identity, type, mutable, inferred, type_evidence) => {},
     BodyWhile() => {},
@@ -1592,7 +1625,7 @@ pure body_call_with_receiver(
               None(),
               "expected ${expected_count}; found ${actual_count}",
               None(),
-              Some(false)
+              Some(false), "", None()
             ))
           }
           diagnostics = diagnostics.append(
@@ -1611,7 +1644,7 @@ pure body_call_with_receiver(
               None(),
               "expected ${expected_count}; found ${actual_count}",
               None(),
-              Some(true)
+              Some(true), "", None()
             ))
           }
         }
@@ -1630,6 +1663,7 @@ pure body_call_with_receiver(
           inferred = inferred.append(SignatureType(SignatureHole(context.owner, path, index), []))
           index = index + 1
         }
+        mut inference_origins: Map[Nat,SourceSpan] = map()
         mut inference_deferred: Bool = false
         if types.len() > 0 {
           type_span: SourceSpan = body_type_argument_count_span(
@@ -1682,7 +1716,17 @@ pure body_call_with_receiver(
                   contract.parameters,
                   child.span
                 )
-                type_joins = type_joins.concat(inference.type_joins)
+                for join in inference.type_joins {
+                  match join.binder_index {
+                    None() => { type_joins = type_joins.append(join) },
+                    Some(slot) => {
+                      prior: Option[SourceSpan] = if inference_origins.has(slot) { Some(inference_origins.get(slot)) } else { None() }
+                      type_joins = type_joins.append(TypeJoinEvidence(join.context, join.span, join.left, join.right,
+                        join.result, join.accepted, join.binder_index, prior))
+                      inference_origins = inference_origins.put(slot, join.span)
+                    }
+                  }
+                }
                 match inference.failure {
                   Some(message) => {
                     diagnostics = diagnostics.append(
@@ -1770,7 +1814,7 @@ pure body_call_with_receiver(
                     child.span,
                     child.type,
                     expected,
-                    accepted
+                    accepted, []
                   ))
                 }
                 value = refined_child.body
@@ -1839,7 +1883,7 @@ pure body_call_with_receiver(
           BodyField(field) => value.node,
           BodyIndex() => value.node,
           BodyIf(has_else) => value.node,
-          BodyBlock(has_tail) => value.node,
+          BodyBlock(has_tail, original_span, statement_spans) => value.node,
           BodyMatch(targets, bindings, locations) => value.node,
           BodyBinding(local, type, mutable, inferred, evidence) => value.node,
           BodyAssignment(local, evidence) => value.node,
@@ -1930,7 +1974,7 @@ pure body_call_arity_evidence(
       match expected_count {
         Some(expected) => Some(expected == actual_count),
         None() => None()
-      }
+      }, "", None()
     )]
   }
 }
@@ -1950,7 +1994,7 @@ pure body_explicit_type_argument_arity_evidence(
       None(),
       "expected ${expected_count}; found ${actual_count}",
       None(),
-      Some(expected_count == actual_count)
+      Some(expected_count == actual_count), "", None()
     )]
   }
 }
@@ -2116,7 +2160,7 @@ pure body_tcp_legacy_expected_argument(
 
 pure body_http_shape(context: BodyContext, child: BoundBody, expected: Str, valid: Bool): [BodyTypeCheckEvidence] {
   if !context.retain_guard_conversions { [] }
-  else { [BodyTypeCheckEvidence("HTTP state shape", child.span, child.type, expected, None(), Some(valid))] }
+  else { [BodyTypeCheckEvidence("HTTP state shape", child.span, child.type, expected, None(), Some(valid), "", None())] }
 }
 
 pure body_http_failure(context: BodyContext, name: Str, children: [BoundBody], span: SourceSpan,
@@ -2145,7 +2189,7 @@ pure body_checked_http_call(context: BodyContext, name: Str, children: [BoundBod
       accepted: Option[Bool] = if checked.diagnostics.len() > 0 { Some(false) }
         else if checked.deferred.len() > 0 { None() } else { Some(true) }
       arguments = arguments.append(CallArgumentEvidence("call argument " + body_nat_text(index + 1) + " to " + name,
-        child.span, child.type, expected, accepted))
+        child.span, child.type, expected, accepted, checked.body.guard_conversions))
     }
   }
   checks = body_call_arity_evidence(context, "core", span, Some(count), children.len()).concat(shapes)
@@ -2213,7 +2257,7 @@ pure body_check_http_lifecycle_core_call(
         valid_handler = handler.identity == SignatureCallable(SignatureAsync()) && handler.arguments.len() == offset + 3
         if context.retain_guard_conversions {
           shape_checks = shape_checks.append(BodyTypeCheckEvidence("HTTP handler signature", children[0].span,
-            Some(handler), "async callable with " + body_nat_text(offset + 2) + " parameters", None(), Some(valid_handler)))
+            Some(handler), "async callable with " + body_nat_text(offset + 2) + " parameters", None(), Some(valid_handler), "", None()))
         }
         if !valid_handler {
           diagnostics = diagnostics.append(Diagnostic("invalid HTTP handler signature", span.start))
@@ -2391,7 +2435,7 @@ pure body_check_tcp_core_call(
           children[index].type,
           body_type_text(expected),
           None(),
-          accepted
+          accepted, "", None()
         ))
       }
       index = index + 1
@@ -2483,7 +2527,7 @@ pure body_check_existing_special_core_call(
         children[0].type,
         "callable type",
         None(),
-        target_accepted
+        target_accepted, "", None()
       ))
     }
     match children[0].type {
@@ -2521,7 +2565,7 @@ pure body_check_existing_special_core_call(
                 children[index + 1].span,
                 children[index + 1].type,
                 callable.arguments[index],
-                accepted
+                accepted, required.body.guard_conversions
               ))
             }
             index = index + 1
@@ -2561,7 +2605,7 @@ pure body_check_existing_special_core_call(
                   None(),
                   "any non-Void value",
                   None(),
-                  None()
+                  None(), "", None()
                 ))
               }
             },
@@ -2574,7 +2618,7 @@ pure body_check_existing_special_core_call(
                   Some(type),
                   "any non-Void value",
                   None(),
-                  Some(valid)
+                  Some(valid), "", None()
                 ))
               }
               if !valid {
@@ -2600,7 +2644,7 @@ pure body_check_existing_special_core_call(
                   None(),
                   "Str, Bytes, or array",
                   None(),
-                  None()
+                  None(), "", None()
                 ))
               }
             },
@@ -2614,7 +2658,7 @@ pure body_check_existing_special_core_call(
                   Some(type),
                   "Str, Bytes, or array",
                   None(),
-                  Some(valid)
+                  Some(valid), "", None()
                 ))
               }
               if valid {
@@ -2674,7 +2718,7 @@ pure body_check_existing_special_core_call(
                   children[0].span,
                   children[0].type,
                   SignatureType(SignatureCore("Str"), []),
-                  accepted
+                  accepted, required.body.guard_conversions
                 ))
               }
               if diagnostics.len() == 0 && deferred.len() == 0 {
@@ -2706,14 +2750,14 @@ pure body_check_existing_special_core_call(
                     children[0].span,
                     children[0].type,
                     SignatureType(SignatureCore("Nat"), []),
-                    left_accepted
+                    left_accepted, left.body.guard_conversions
                   ))
                   call_arguments = call_arguments.append(CallArgumentEvidence(
                     "call argument 2 to quotient",
                     children[1].span,
                     children[1].type,
                     SignatureType(SignatureCore("Nat"), []),
-                    right_accepted
+                    right_accepted, right.body.guard_conversions
                   ))
                 }
                 if diagnostics.len() == 0 && deferred.len() == 0 {
@@ -2858,7 +2902,7 @@ pure body_check_rational_conversion(
         children[0].span,
         children[0].type,
         SignatureType(SignatureCore("Rat"), []),
-        accepted
+        accepted, required.body.guard_conversions
       ))
     }
     if diagnostics.len() == 0 && deferred.len() == 0 {
@@ -2907,7 +2951,7 @@ pure body_check_environment_core_call(
         children[0].span,
         children[0].type,
         SignatureType(SignatureCore("Str"), []),
-        accepted
+        accepted, required.body.guard_conversions
       ))
     }
     if diagnostics.len() == 0 && deferred.len() == 0 {
@@ -3001,7 +3045,7 @@ pure body_check_time_core_call(
           child.span,
           child.type,
           inputs[index],
-          accepted
+          accepted, required.body.guard_conversions
         ))
       }
       index = index + 1
@@ -3114,7 +3158,7 @@ pure body_check_typed_intrinsic(
           child.span,
           child.type,
           inputs[index],
-          accepted
+          accepted, required.body.guard_conversions
         ))
       }
       index = index + 1
@@ -3514,7 +3558,7 @@ pure body_check_text_core_call(
           children[index].span,
           children[index].type,
           expected,
-          accepted
+          accepted, required.body.guard_conversions
         ))
       }
       index = index + 1
@@ -3579,7 +3623,7 @@ pure body_check_bytes_core_call(
           children[index].span,
           children[index].type,
           expected,
-          accepted
+          accepted, required.body.guard_conversions
         ))
       }
       index = index + 1
@@ -3660,7 +3704,7 @@ pure body_check_path_core_call(
           children[index].span,
           children[index].type,
           expected,
-          accepted
+          accepted, required.body.guard_conversions
         ))
       }
       index = index + 1
@@ -3731,6 +3775,13 @@ pure body_concat_item_type(type: Option[SignatureType]): Option[SignatureType] {
   }
 }
 
+pure body_callback_requirement(label: Str, span: SourceSpan, actual: SignatureType, expected: SignatureType,
+  checked: BodyResult): BodyTypeCheckEvidence {
+  outcome: Option[Bool] = if checked.diagnostics.len() > 0 { Some(false) }
+    else if checked.deferred.len() > 0 { None() } else { Some(true) }
+  BodyTypeCheckEvidence(label, span, Some(actual), body_type_text(expected), None(), outcome, "", None())
+}
+
 pure body_check_collection_core_call(
   context: BodyContext,
   name: Str,
@@ -3762,7 +3813,7 @@ pure body_check_collection_core_call(
         children[0].type,
         body_collection_receiver_requirement(operation),
         None(),
-        body_collection_receiver_acceptance(operation, children[0].type)
+        body_collection_receiver_acceptance(operation, children[0].type), "", None()
       ))
       if operation == "concat" {
         type_checks = type_checks.append(BodyTypeCheckEvidence(
@@ -3771,7 +3822,7 @@ pure body_check_collection_core_call(
           children[1].type,
           body_collection_receiver_requirement(operation),
           None(),
-          body_collection_receiver_acceptance(operation, children[1].type)
+          body_collection_receiver_acceptance(operation, children[1].type), "", None()
         ))
       }
     }
@@ -3787,7 +3838,7 @@ pure body_check_collection_core_call(
           body_concat_item_type(children[0].type),
           body_concat_item_type(children[1].type),
           None(),
-          None()
+          None(), None(), None()
         ))
       }
     } else {
@@ -3817,7 +3868,7 @@ pure body_check_collection_core_call(
                 children[1].span,
                 children[1].type,
                 collection.arguments[0],
-                accepted
+                accepted, item.body.guard_conversions
               ))
             }
             if item.diagnostics.len() == 0 && item.deferred.len() == 0 {
@@ -3839,7 +3890,7 @@ pure body_check_collection_core_call(
                     Some(collection.arguments[0]),
                     Some(value.arguments[0]),
                     None(),
-                    Some(false)
+                    Some(false), None(), None()
                   ))
                 }
               },
@@ -3853,7 +3904,7 @@ pure body_check_collection_core_call(
                       Some(collection.arguments[0]),
                       Some(value.arguments[0]),
                       None(),
-                      None()
+                      None(), None(), None()
                     ))
                   }
                 },
@@ -3866,7 +3917,7 @@ pure body_check_collection_core_call(
                       Some(collection.arguments[0]),
                       Some(value.arguments[0]),
                       Some(item),
-                      Some(true)
+                      Some(true), None(), None()
                     ))
                   }
                 }
@@ -3911,10 +3962,17 @@ pure body_check_collection_core_call(
                   } else {
                     None()
                   }
+                  callback_span = children[callback_index].span
+                  if context.retain_guard_conversions {
+                    type_checks = type_checks.append(BodyTypeCheckEvidence("callback purity", callback_span,
+                      Some(callback), "a pure callable", None(), Some(effect == SignaturePure()), "", None()))
+                  }
                   if effect != SignaturePure() {
                     diagnostics = diagnostics.append(Diagnostic(operation + " requires a pure callable", span.start))
                     accepted = Some(false)
                   } else {
+                    type_checks = type_checks.concat(body_call_arity_evidence(context, "callback", callback_span,
+                      Some(expected_arguments), prior_index(callback.arguments.len())))
                     if callback.arguments.len() != expected_arguments + 1 {
                       diagnostics = diagnostics.append(Diagnostic(operation + " callback has incorrect arity", span.start))
                       accepted = Some(false)
@@ -3924,10 +3982,18 @@ pure body_check_collection_core_call(
                       accumulator: SignatureType = value
                       expected_input: SignatureType = if operation == "array_map" { collection.arguments[0] } else { accumulator }
                       first_argument: BodyResult = body_require(context, Some(expected_input), callback.arguments[0], operation + " callback", children[callback_index].span)
+                      if context.retain_guard_conversions {
+                        type_checks = type_checks.append(body_callback_requirement("callback parameter 1", callback_span,
+                          expected_input, callback.arguments[0], first_argument))
+                      }
                       diagnostics = diagnostics.concat(first_argument.diagnostics)
                       deferred = deferred.concat(first_argument.deferred)
                       if operation == "array_map" {
                         callback_result = Some(callback.arguments[1])
+                        if context.retain_guard_conversions {
+                          type_checks = type_checks.append(BodyTypeCheckEvidence("map callback result", callback_span, callback_result,
+                            "a non-Void result", None(), Some(callback.arguments[1] != SignatureType(SignatureCore("Void"), [])), "", None()))
+                        }
                         if callback.arguments[1] == SignatureType(SignatureCore("Void"), []) {
                           diagnostics = diagnostics.append(Diagnostic("map callback cannot return Void", span.start))
                         } else {
@@ -3937,6 +4003,12 @@ pure body_check_collection_core_call(
                         callback_result = Some(callback.arguments[2])
                         second_argument: BodyResult = body_require(context, Some(collection.arguments[0]), callback.arguments[1], "reduce callback", children[callback_index].span)
                         result_argument: BodyResult = body_require(context, Some(callback.arguments[2]), accumulator, "reduce callback result", children[callback_index].span)
+                        if context.retain_guard_conversions {
+                          type_checks = type_checks.append(body_callback_requirement("callback parameter 2", callback_span,
+                            collection.arguments[0], callback.arguments[1], second_argument))
+                          type_checks = type_checks.append(body_callback_requirement("reduce callback result", callback_span,
+                            callback.arguments[2], accumulator, result_argument))
+                        }
                         diagnostics = diagnostics.concat(second_argument.diagnostics.concat(result_argument.diagnostics))
                         deferred = deferred.concat(second_argument.deferred.concat(result_argument.deferred))
                         output = Some(accumulator)
@@ -4092,7 +4164,7 @@ pure body_check_map_set_call(
               children[1].span,
               children[1].type,
               expected_key,
-              accepted
+              accepted, key.body.guard_conversions
             ))
           }
           if operation == "map_put" {
@@ -4110,7 +4182,7 @@ pure body_check_map_set_call(
                 children[2].span,
                 children[2].type,
                 collection.arguments[1],
-                accepted
+                accepted, value.body.guard_conversions
               ))
             }
             output = Some(collection)
@@ -4135,7 +4207,7 @@ pure body_check_map_set_call(
               children[1].span,
               children[1].type,
               collection.arguments[0],
-              accepted
+              accepted, item.body.guard_conversions
             ))
           }
           output = if operation == "set_add" { Some(collection) } else { body_core_type("Bool") }
@@ -4289,7 +4361,7 @@ pure bind_body_expression_with_type_argument_spans(
             accepted: Option[Bool] = if result.diagnostics.len() > 0 { Some(false) }
               else if type == None() { None() } else { Some(true) }
             reference_checks = [BodyTypeCheckEvidence("function reference", origin, type,
-              "a non-generic function with a known callable signature", type, accepted)]
+              "a non-generic function with a known callable signature", type, accepted, "", None())]
           }
           result = BodyResult(
             BoundBody(BodyFunction(binding), origin, [], type, [], [], [], [], [], reference_checks),
@@ -4559,7 +4631,7 @@ pure bind_body_block(
               checked.body.type,
               "non-Void stored value",
               None(),
-              Some(false)
+              Some(false), "", None()
             ))
           }
         }
@@ -4676,7 +4748,7 @@ pure bind_body_block(
                 checked.body.type,
                 "non-Void stored value",
                 None(),
-                Some(false)
+                Some(false), "", None()
               ))
             }
           }
@@ -4885,7 +4957,7 @@ pure bind_body_block(
     }
   }
   BodyResult(
-    BoundBody(BodyBlock(block.value != NoBlockValue()), span, children, output, [], [], [], [], [], []),
+    BoundBody(BodyBlock(block.value != NoBlockValue(), block.span, block.statement_spans), span, children, output, [], [], [], [], [], []),
     diagnostics,
     deferred
   )
@@ -5141,6 +5213,7 @@ pure check_body_operation(
   mut deferred: [SourceSpan] = body_child_obligations(checked)
   mut output: Option[SignatureType] = None()
   mut solutions: [BodySolution] = []
+  mut joins = node.type_joins
   mut operator_accepted: Option[Bool] = None()
   mut operator_checks: [OperatorTypeEvidence] = node.operator_checks
   left_type: Option[SignatureType] = node.children[0].type;
@@ -5209,7 +5282,16 @@ pure check_body_operation(
                       valid = valid && (scalar_numeric(a) || a == "Str")
                     } else {
                       if !numeric_pair && left != right && a != "Void" && b != "Void" {
-                        match body_join(context, left, right) {
+                        joined_operands = body_join(context, left, right)
+                        if context.retain_guard_conversions {
+                          result = match joined_operands { Error(message) => None(), Ok(value) => value }
+                          outcome: Option[Bool] = match joined_operands {
+                            Error(message) => Some(false), Ok(value) => if value == None() { None() } else { Some(true) }
+                          }
+                          joins = joins.append(TypeJoinEvidence("equality operands", node.span,
+                            Some(left), Some(right), result, outcome, None(), None()))
+                        }
+                        match joined_operands {
                           Error(message) => {
                             valid = false
                           },
@@ -5282,7 +5364,7 @@ pure check_body_operation(
   body_apply_solutions(
     context,
     BodyResult(
-    BoundBody(node.node, node.span, node.children, output, node.constraints, node.guard_conversions, node.type_joins, node.callback_contracts, operator_checks, node.type_checks),
+    BoundBody(node.node, node.span, node.children, output, node.constraints, node.guard_conversions, joins, node.callback_contracts, operator_checks, node.type_checks),
     diagnostics,
     deferred
   ),
@@ -5406,7 +5488,7 @@ pure check_body_conditional(
       node.children[0].type,
       "Bool",
       None(),
-      accepted
+      accepted, "", None()
     ))
   }
   mut type_joins: [TypeJoinEvidence] = []
@@ -5423,7 +5505,7 @@ pure check_body_conditional(
             node.children[1].type,
             None(),
             None(),
-            None()
+            None(), None(), None()
           ))
         }
       },
@@ -5437,7 +5519,7 @@ pure check_body_conditional(
               Some(left),
               None(),
               None(),
-              None()
+              None(), None(), None()
             ))
           }
         },
@@ -5451,7 +5533,7 @@ pure check_body_conditional(
                 Some(left),
                 Some(right),
                 None(),
-                Some(false)
+                Some(false), None(), None()
               ))
             }
           },
@@ -5464,7 +5546,7 @@ pure check_body_conditional(
                 Some(left),
                 Some(right),
                 joined,
-                if joined == None() { None() } else { Some(true) }
+                if joined == None() { None() } else { Some(true) }, None(), None()
               ))
             }
             if joined == None() {
@@ -5557,7 +5639,7 @@ pure body_iteration_item(context: BodyContext, checked: BodyResult): BodyResult 
         checked.body.type,
         "Range, Bytes or Array[T]",
         output,
-        accepted
+        accepted, "", None()
       ))
     } else {
       checked.body.type_checks
@@ -5628,7 +5710,7 @@ pure check_body_index(context: BodyContext, checked: BodyResult): BodyResult {
       node.children[0].type,
       "Str, Bytes or Array[T]",
       output,
-      receiver_accepted
+      receiver_accepted, "", None()
     ))
     type_checks = type_checks.append(BodyTypeCheckEvidence(
       "index position",
@@ -5636,7 +5718,7 @@ pure check_body_index(context: BodyContext, checked: BodyResult): BodyResult {
       node.children[1].type,
       "Nat",
       None(),
-      index_accepted
+      index_accepted, "", None()
     ))
   }
   BodyResult(
@@ -5704,7 +5786,7 @@ pure bind_body_string(
             local.type,
             "scalar type (Nat, Int, Dec, Rat, Str, Bool or Unit)",
             None(),
-            accepted
+            accepted, "", None()
           ))
         }
       }
@@ -5866,7 +5948,7 @@ pure body_solve(body: BoundBody, solutions: [BodySolution]): BoundBody {
           argument.span,
           body_solve_optional(argument.actual, solutions),
           body_solve_type(argument.expected, solutions),
-          argument.accepted
+          argument.accepted, argument.proofs
         ))
       }
       node = BodyCall(target, arguments, solved_arguments)
@@ -5900,7 +5982,7 @@ pure body_solve(body: BoundBody, solutions: [BodySolution]): BoundBody {
     BodyField(name) => {},
     BodyIndex() => {},
     BodyIf(has_else) => {},
-    BodyBlock(has_tail) => {},
+    BodyBlock(has_tail, original_span, statement_spans) => {},
     BodyMatch(targets, bindings, spans) => {},
     BodyAssignment(local, assignment_evidence) => {
       solved_assignment: Option[AssignmentTypeEvidence] = match assignment_evidence {
@@ -5943,7 +6025,7 @@ pure body_solve(body: BoundBody, solutions: [BodySolution]): BoundBody {
         body_solve_optional(evidence.actual, solutions),
         evidence.expected,
         body_solve_optional(evidence.result, solutions),
-        evidence.accepted
+        evidence.accepted, evidence.reason, evidence.dependency
       ))
     }
     BoundBody(node, body.span, children, body_solve_optional(body.type, solutions), body.constraints, body.guard_conversions, body.type_joins, callback_contracts, body.operator_checks, type_checks)
@@ -6148,25 +6230,56 @@ pure body_all_constraints(body: BoundBody): [BodySolution] {
   constraints
 }
 
+pure body_constraint_origins(body: BoundBody): [SourceSpan] {
+  mut origins: [SourceSpan] = []
+  for constraint in body.constraints { origins = origins.append(body.span) }
+  for child in body.children { origins = origins.concat(body_constraint_origins(child)) }
+  origins
+}
+
 pure body_finish_constraints(context: BodyContext, checked: BodyResult): BodyResult {
   mut solutions: [BodySolution] = []
   mut diagnostics: [Diagnostic] = checked.diagnostics
   mut deferred: [SourceSpan] = checked.deferred
 
+  origins: [SourceSpan] = if context.retain_guard_conversions { body_constraint_origins(checked.body) } else { [] }
+  mut index: Nat = 0
+  mut prior_sites: Map[SignatureTypeIdentity,SourceSpan] = map()
+  mut history: [BodyTypeCheckEvidence] = []
   for constraint in body_all_constraints(checked.body) {
+    prior = SignatureType(constraint.hole, [])
+    before: Option[SignatureType] = if context.retain_guard_conversions { Some(body_solve_type(prior, solutions)) } else { None() }
+    depends: Option[SourceSpan] = if context.retain_guard_conversions && prior_sites.has(constraint.hole) {
+      Some(prior_sites.get(constraint.hole))
+    } else { None() }
     match body_unify(context, SignatureType(constraint.hole, []), constraint.type, solutions) {
       Error(message) => {
+        if context.retain_guard_conversions {
+          history = history.append(BodyTypeCheckEvidence("inference constraint", origins[index], before,
+            body_type_text(constraint.type) + " (" + message + ")", None(), Some(false), message, depends))
+        }
         diagnostics = diagnostics.append(Diagnostic(message, checked.body.span.start))
       },
       Ok(result) => {
+        if context.retain_guard_conversions {
+          history = history.append(BodyTypeCheckEvidence("inference constraint", origins[index], before,
+            body_type_text(constraint.type), Some(result.type), if result.deferred { None() } else { Some(true) }, "", None()))
+        }
         solutions = result.solutions
         if result.deferred {
           deferred = deferred.append(checked.body.span)
         }
       }
     }
+    if context.retain_guard_conversions { prior_sites = prior_sites.put(constraint.hole, origins[index]) }
+    index = index + 1
   }
-  BodyResult(body_solve(checked.body, solutions), diagnostics, deferred)
+  body = body_solve(checked.body, solutions)
+  if context.retain_guard_conversions {
+    BodyResult(BoundBody(body.node, body.span, body.children, body.type, body.constraints, body.guard_conversions,
+      body.type_joins, body.callback_contracts, body.operator_checks,
+      body.type_checks.concat(history)), diagnostics, deferred)
+  } else { BodyResult(body, diagnostics, deferred) }
 }
 
 pure body_unresolved_spans(body: BoundBody): [SourceSpan] {
@@ -6201,7 +6314,7 @@ pure body_unresolved_spans(body: BoundBody): [SourceSpan] {
     BodyField(name) => {},
     BodyIndex() => {},
     BodyIf(has_else) => {},
-    BodyBlock(has_tail) => {},
+    BodyBlock(has_tail, original_span, statement_spans) => {},
     BodyMatch(targets, bindings, locations) => {},
     BodyBinding(local, type, mutable, inferred, evidence) => {},
     BodyAssignment(local, evidence) => {},
@@ -6411,45 +6524,42 @@ pure body_infer(
         repeated: Bool = body_type_complete(previous)
         match body_join(context, result[index], actual) {
           Error(message) => {
-            if context.retain_guard_conversions && repeated {
+            if context.retain_guard_conversions {
               parameter_name: Str = if index < parameter_names.len() { parameter_names[index] } else { "?" }
               type_joins = type_joins.append(TypeJoinEvidence(
-                "generic parameter " + parameter_name + " for " + function_name,
+                (if repeated { "generic parameter " } else { "first constraint for " }) + parameter_name + " for " + function_name,
                 span,
                 Some(previous),
                 Some(actual),
                 None(),
-                Some(false)
-              ))
+                Some(false), Some(index), None()))
             }
             failure = Some(message)
           },
           Ok(optional) => match optional {
             None() => {
               deferred = true
-              if context.retain_guard_conversions && repeated {
+              if context.retain_guard_conversions {
                 parameter_name: Str = if index < parameter_names.len() { parameter_names[index] } else { "?" }
                 type_joins = type_joins.append(TypeJoinEvidence(
-                  "generic parameter " + parameter_name + " for " + function_name,
+                  (if repeated { "generic parameter " } else { "first constraint for " }) + parameter_name + " for " + function_name,
                   span,
                   Some(previous),
                   Some(actual),
                   None(),
-                  None()
-                ))
+                  None(), Some(index), None()))
               }
             },
             Some(type) => {
-              if context.retain_guard_conversions && repeated {
+              if context.retain_guard_conversions {
                 parameter_name: Str = if index < parameter_names.len() { parameter_names[index] } else { "?" }
                 type_joins = type_joins.append(TypeJoinEvidence(
-                  "generic parameter " + parameter_name + " for " + function_name,
+                  (if repeated { "generic parameter " } else { "first constraint for " }) + parameter_name + " for " + function_name,
                   span,
                   Some(previous),
                   Some(actual),
                   Some(type),
-                  Some(true)
-                ))
+                  Some(true), Some(index), None()))
               }
               mut joined: [SignatureType] = []
               mut cursor: Nat = 0
@@ -6523,7 +6633,7 @@ pure check_body_array(context: BodyContext, checked: BodyResult, path: [Nat]): B
           child.type,
           "non-Void array element",
           None(),
-          Some(false)
+          Some(false), "", None()
         ))
       }
     }
@@ -6538,7 +6648,7 @@ pure check_body_array(context: BodyContext, checked: BodyResult, path: [Nat]): B
             previous_item,
             None(),
             None(),
-            None()
+            None(), None(), None()
           ))
         }
       },
@@ -6546,7 +6656,7 @@ pure check_body_array(context: BodyContext, checked: BodyResult, path: [Nat]): B
         None() => {
           if context.retain_guard_conversions && seen_element {
             type_joins = type_joins.append(TypeJoinEvidence(
-              "array element type", child.span, None(), Some(type), None(), None()
+              "array element type", child.span, None(), Some(type), None(), None(), None(), None()
             ))
           }
         },
@@ -6557,7 +6667,7 @@ pure check_body_array(context: BodyContext, checked: BodyResult, path: [Nat]): B
             )
             if context.retain_guard_conversions && !body_is_hole(previous) {
               type_joins = type_joins.append(TypeJoinEvidence(
-                "array element type", child.span, Some(previous), Some(type), None(), Some(false)
+                "array element type", child.span, Some(previous), Some(type), None(), Some(false), None(), None()
               ))
             }
           },
@@ -6570,7 +6680,7 @@ pure check_body_array(context: BodyContext, checked: BodyResult, path: [Nat]): B
                 Some(previous),
                 Some(type),
                 joined,
-                if joined == None() { None() } else { Some(true) }
+                if joined == None() { None() } else { Some(true) }, None(), None()
               ))
             }
             if joined == None() {
@@ -6624,6 +6734,7 @@ pure check_body_field(context: BodyContext, checked: BodyResult, field: Str): Bo
   mut diagnostics: [Diagnostic] = checked.diagnostics
   mut deferred: [SourceSpan] = body_child_obligations(checked)
   mut output: Option[SignatureType] = None()
+  mut reason = "The receiver type could not be determined."
   mut accepted: Option[Bool] = None()
 
   match checked.body.children[0].type {
@@ -6644,6 +6755,7 @@ pure check_body_field(context: BodyContext, checked: BodyResult, field: Str): Bo
       match record {
         Some(signature) => {
           if signature.binding.kind != ModuleRecord() {
+            reason = "The receiver declaration is not a record."
             accepted = Some(false)
             diagnostics = diagnostics.append(
               Diagnostic(
@@ -6662,10 +6774,12 @@ pure check_body_field(context: BodyContext, checked: BodyResult, field: Str): Bo
                   type.arguments
                 ) {
                   Error(message) => {
+                    reason = message
                     accepted = Some(false)
                     diagnostics = diagnostics.append(Diagnostic(message, checked.body.span.start))
                   },
                   Ok(value) => {
+                    reason = "Substituting the receiver type arguments gives the declared field type."
                     output = Some(value)
                     accepted = Some(true)
                   }
@@ -6673,6 +6787,7 @@ pure check_body_field(context: BodyContext, checked: BodyResult, field: Str): Bo
               }
             }
             if !found {
+              reason = "The record has no field named " + field + "."
               accepted = Some(false)
               diagnostics = diagnostics.append(
                 Diagnostic(
@@ -6685,8 +6800,10 @@ pure check_body_field(context: BodyContext, checked: BodyResult, field: Str): Bo
         },
         None() => {
           if body_is_hole(type) {
+            reason = "The receiver still has an unresolved inference variable."
             deferred = deferred.append(checked.body.span)
           } else {
+            reason = "A field can only be selected on a record."
             accepted = Some(false)
             diagnostics = diagnostics.append(
               Diagnostic(
@@ -6707,7 +6824,7 @@ pure check_body_field(context: BodyContext, checked: BodyResult, field: Str): Bo
       checked.body.children[0].type,
       "record with field " + field,
       output,
-      accepted
+      accepted, reason, None()
     ))
   }
   BodyResult(
@@ -6804,7 +6921,7 @@ pure bind_body_match(
       deferred = deferred.append(span)
       if context.retain_guard_conversions {
         type_checks = type_checks.append(BodyTypeCheckEvidence(
-          "match subject", subject_result.body.span, None(), "enum type", None(), None()
+          "match subject", subject_result.body.span, None(), "enum type", None(), None(), "", None()
         ))
       }
     },
@@ -6813,7 +6930,7 @@ pure bind_body_match(
         diagnostics = diagnostics.append(Diagnostic(message, subject_result.body.span.start))
         if context.retain_guard_conversions {
           type_checks = type_checks.append(BodyTypeCheckEvidence(
-            "match subject", subject_result.body.span, Some(type), "enum type", None(), Some(false)
+            "match subject", subject_result.body.span, Some(type), "enum type", None(), Some(false), "", None()
           ))
         }
       },
@@ -6822,7 +6939,7 @@ pure bind_body_match(
         variants_available = true
         if context.retain_guard_conversions {
           type_checks = type_checks.append(BodyTypeCheckEvidence(
-            "match subject", subject_result.body.span, Some(type), "enum type", None(), Some(true)
+            "match subject", subject_result.body.span, Some(type), "enum type", None(), Some(true), "", None()
           ))
         }
       }
@@ -6885,7 +7002,7 @@ pure bind_body_match(
             subject_result.body.type,
             expected,
             None(),
-            accepted
+            accepted, "", None()
           ))
         }
         if subject_result.body.type != None() && !found {
@@ -6916,7 +7033,7 @@ pure bind_body_match(
             subject_result.body.type,
             "variant " + identity.name + " appears at most once in this match",
             None(),
-            Some(unique)
+            Some(unique), "", None()
           ))
         }
         seen = seen.append(identity)
@@ -6949,7 +7066,7 @@ pure bind_body_match(
                     "expected ${expected_count} binding(s) for variant " + identity.name +
                       "; found ${actual_count}",
                     None(),
-                    Some(actual_count == expected_count)
+                    Some(actual_count == expected_count), "", None()
                   ))
                 }
                 match subject_result.body.type {
@@ -7008,7 +7125,7 @@ pure bind_body_match(
           subject_result.body.type,
           "binding ${name} receives payload ${number} of " + payload_variant_name,
           type,
-          accepted
+          accepted, "", None()
         ))
       }
       arm_bindings = arm_bindings.append(local)
@@ -7034,7 +7151,7 @@ pure bind_body_match(
         None() => {
           if context.retain_guard_conversions {
             type_joins = type_joins.append(TypeJoinEvidence(
-              "match result", checked.body.span, None(), checked.body.type, None(), None()
+              "match result", checked.body.span, None(), checked.body.type, None(), None(), None(), None()
             ))
           }
         },
@@ -7043,7 +7160,7 @@ pure bind_body_match(
             output = None()
             if context.retain_guard_conversions {
               type_joins = type_joins.append(TypeJoinEvidence(
-                "match result", checked.body.span, Some(previous), None(), None(), None()
+                "match result", checked.body.span, Some(previous), None(), None(), None(), None(), None()
               ))
             }
           },
@@ -7054,7 +7171,7 @@ pure bind_body_match(
               )
               if context.retain_guard_conversions {
                 type_joins = type_joins.append(TypeJoinEvidence(
-                  "match result", checked.body.span, Some(previous), Some(type), None(), Some(false)
+                  "match result", checked.body.span, Some(previous), Some(type), None(), Some(false), None(), None()
                 ))
               }
             },
@@ -7067,7 +7184,7 @@ pure bind_body_match(
                   Some(previous),
                   Some(type),
                   joined,
-                  if joined == None() { None() } else { Some(true) }
+                  if joined == None() { None() } else { Some(true) }, None(), None()
                 ))
               }
             }
@@ -7124,7 +7241,7 @@ pure bind_body_match(
       subject_result.body.type,
       expected_coverage,
       None(),
-      if !variants_available { None() } else { Some(missing_variants.len() == 0) }
+      if !variants_available { None() } else { Some(missing_variants.len() == 0) }, "", None()
     ))
   }
   if output == None() {

@@ -6,6 +6,14 @@ in `docs/releases/RELEASE_POLICY.md`.
 
 ## Unreleased
 
+- Explore compiler decisions interactively with `panack explain`. Navigate source
+  statements, inspect types, inference, callbacks, proofs and effects, and follow
+  supporting source. Plain reports remain available with `--text` or a pipe.
+- Extend instruction origins to stores, loop control, implicit results and
+  returns. Reverse source-map queries show emitted instructions, shared generic
+  bodies and declarations without standalone code. Invalid artifact/source
+  pairs fail validation before any location is reported.
+
 - Panack now reports unsupported expressions inside string interpolation at the
   opening dollar sign. Bind the expression to a local first. To keep literal
   placeholder text that earlier versions printed unchanged, use concatenation,

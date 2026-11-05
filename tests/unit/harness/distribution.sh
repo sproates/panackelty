@@ -25,11 +25,11 @@ done
 # Builds must own the executable they relink; a symlink shares the live root VM.
 cp "$root/panack-vm" "$checkout/panack-vm"
 cd "$checkout"
-# Prepare the copied VM and package tool before archive and release checks.
-# Their clean builds must not consume the release-check command's whole limit.
-# Packaging builds the HTTP server itself. Both commands remain bounded, and
-# the copied checkout owns every artifact.
+# Build the installed tools in this copied checkout. Each cold build has its
+# own deadline so the archive smoke test starts with all prerequisites ready.
 capture 0 90 make native package-tool
+capture 0 90 make explain-tool
+capture 0 90 make build/tools/http-server.bc
 capture 0 90 make quick-start
 set -- "$checkout"/build/panackelty-*.tar.gz
 test "$#" = 1 && test -f "$1" || fail 'expected exactly one archive'

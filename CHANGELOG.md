@@ -6,6 +6,8 @@ in `docs/releases/RELEASE_POLICY.md`.
 
 ## Unreleased
 
+- Validate runtime inputs with `validate[Type](input)`. Errors retain every failed requirement in declaration order and can render a separate explanation for each one.
+
 - Add compile-time string and collection guards. Check non-empty and non-blank
   strings, Unicode scalar length, control characters, and array, map and set
   sizes. The compiler distinguishes an invalid value from a missing proof.

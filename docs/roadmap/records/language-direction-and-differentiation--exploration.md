@@ -624,11 +624,14 @@ bindings on merge. It migrates declarations, preserves numeric alternatives
 and scoped proofs, and refreshes the self-hosted compiler seed.
 The migrated guards example produces identical saved bytecode to its alpha.15
 predecessor and prints 42. [PR #656](https://github.com/sproates/panackelty/pull/656)
-merged slice 1. Slice 2 delivers static string and collection constraints on
-merge. The [specification](../../reference/SPEC.md#guarded-types) covers the
+merged slice 1. [PR #657](https://github.com/sproates/panackelty/pull/657) merged slice 2 with static string and collection constraints. The [specification](../../reference/SPEC.md#guarded-types) covers the
 bounded guard forms and their proof rules. CLI and saved-bytecode regressions
 exercise Unicode boundaries, map replacement, set duplicates, missing proofs
-and mutation. Slice 3 delivers runtime validation and structured failures.
+and mutation. Slice 3 delivers runtime validation and structured failures on
+merge. The empty label regression checks both failures, their order, and their
+rendered paragraphs. Other cases check a control character after a supplementary
+scalar, numeric alternatives, input evaluation count and saved bytecode.
+Slice 4 adds record relationships and replacement validation.
 
 | Selected family | Representative outcomes |
 | --- | --- |

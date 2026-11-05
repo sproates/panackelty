@@ -239,4 +239,8 @@ PASS map replacement does not increase entry count
 PASS duplicate set addition does not increase count
 PASS assignment invalidates a branch size proof
 PASS mutation in a later condition cannot revive an earlier bound
-tests: 241, failures: 0
+PASS validation rejects the wrong input type
+PASS validation requires a declared guard
+PASS validation explains its call shape
+PASS validation treats a module name as literal data
+tests: 245, failures: 0

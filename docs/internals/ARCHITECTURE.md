@@ -18,6 +18,12 @@ methods using lexical scope and checked identity, with no receiver-to-global
 fallback. Receiver arrows are rejected. See the
 [compiler notes](../../src/compiler/README.md#type-owned-methods).
 
+The body checker lowers a `validate[Type](input)` call into a block with one
+private local for the input. The normalised guard produces calls bound to the
+bundled validation module by identity. That Panack module builds ordered
+failure data and renders messages. The saved program executes ordinary calls
+and Result constructors on the VM.
+
 ## Overview
 
 Panackelty is a compiled language whose execution contract is its bytecode virtual

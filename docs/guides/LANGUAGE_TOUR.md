@@ -184,7 +184,19 @@ pure greeting(label: Label): Str { "Hello, " + label }
 A literal such as `Label("Ian")` supplies all three facts at compile time.
 A function receiving an arbitrary string can check the same conditions in an
 `if` before constructing the label. The compiler points to any requirement it
-still needs. See the [guarded type rules](../reference/SPEC.md#guarded-types).
+still needs. For text received from a user, handle the result explicitly:
+
+```panackelty
+show_label(input: Str): Void {
+  match validate[Label](input) {
+    Ok(label) => print(label),
+    Error(problem) => print(problem.render())
+  }
+}
+```
+
+If several requirements fail, the developer can display all of them or inspect
+`problem.failures` individually. See the [guarded type rules](../reference/SPEC.md#guarded-types).
 
 ### Explicit effects, practical algorithms
 

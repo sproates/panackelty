@@ -571,8 +571,8 @@ The checker accepts a conversion only when it can prove the target guard from
 the value's literal, facts introduced by a surrounding `if`, or the invariant
 of a guarded source type with a compatible primitive base. A guarded source
 does not prove a stricter target unless its invariant entails that target
-guard. The checker does not silently insert a runtime check. The planned
-`validate[Type](input)` operation will provide explicit runtime validation.
+guard. The checker does not silently insert a runtime check. Use
+`validate[Type](input)` to check a runtime value explicitly.
 
 String and collection guards can constrain the number of Unicode scalar values,
 array elements, map entries or distinct set members. Both bounds are inclusive.
@@ -601,8 +601,26 @@ compiler to prove the requirements. Panack uses literal content, collection
 construction, established guarded types and facts from control flow. Assignment
 invalidates facts about the previous value. Known violations and missing proofs
 produce different diagnostics at the use site and identify the guard declaration.
-Contradictory bounds report both locations. Explicit runtime validation is
-scheduled for the next implementation slice.
+Contradictory bounds report both locations.
+
+#### Runtime validation
+
+`validate[Type](input)` takes one value of the declared base type, evaluates it
+once, and returns `Result[Type, ValidationError]`. The success case carries the
+original value. A wrong base type or unsupported target is a compilation error.
+Numeric validation supports comparisons, Boolean combinations, and arithmetic
+on the candidate and constants. Division and remainder require a positive
+natural literal divisor. An alternative joined with `||` is one requirement.
+
+On failure, `error.failures` contains one entry per failed written conjunct in
+declaration order, including failures after a passing condition. Each entry has
+the target identity, location, requirement and observed facts. A control failure
+records only the first offending scalar and its zero-based scalar index.
+`error.render()` returns a heading and a paragraph per failure. Rendering uses
+one-based character positions and omits the input and trailing newline. The
+caller chooses whether to display the error. Public data types live in
+`stdlib/validation`; calling `validate` and rendering an inferred error require
+no import.
 
 This separation is important: arbitrary user code in guards would make type
 checking non-terminating. Guards therefore remain total, pure, and within a

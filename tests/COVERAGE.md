@@ -868,6 +868,10 @@ replacement and reassignment. The compiler contracts check both field locations,
 relation and safe facts. The CLI checks source-linked proof and runtime
 explanations, plus reverse lookup of the saved comparison instruction.
 
+The [installed domain-type acceptance](../docs/VALIDATED_DOMAIN_TYPES_ACCEPTANCE.md)
+also checks the public dispatch example and reports comparable proof and
+runtime costs.
+
 ## Explicit guard bindings
 
 Parser and resolver tests cover the required name, arrow and lexical scope.

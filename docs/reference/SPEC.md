@@ -561,6 +561,9 @@ type Positive = Int where number => number > 0
 type Port = Nat where port => port >= 1 && port <= 65535
 ```
 
+For a complete request handler, public error fields and alpha.14 migration steps, see
+the [validated domain types guide](../guides/VALIDATED_DOMAIN_TYPES.md).
+
 A guarded type gives a base type a name and a checked requirement. The identifier
 before `=>` names the candidate within this condition. To migrate an existing
 guard that uses `value`, write `where value =>` before its condition. A line

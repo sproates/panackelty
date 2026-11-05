@@ -83,6 +83,7 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
+- **GI#435 final examples.** At alpha.15 promotion the website maintainer can use the [accepted dispatch example and transcript](../../guides/VALIDATED_DOMAIN_TYPES.md) for the tour and the explicit-binding migration for existing users.
 - **GI#435 record relationships.** At alpha.15 promotion, the website maintainer
   can use the tested ordered-range replacement to show where a runtime
   comparison comes from and how its failure identifies both fields.

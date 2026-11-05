@@ -613,8 +613,15 @@ and release workflows, not a claim that arbitrary program equivalence is decidab
 
 **RM#153: Expand guarded types beyond numeric bounds** · [GI#435: Expand guarded types beyond numeric bounds](https://github.com/sproates/panackelty/issues/435).
 
-**Planned for alpha.15 after the 20 October release rebalance; scope broadened
-by owner direction on the same date.**
+**Done for alpha.15 on merge.** The [installed acceptance record](../../VALIDATED_DOMAIN_TYPES_ACCEPTANCE.md)
+covers the final slice, including the configuration and request example,
+plain and structured failures, saved bytecode, source attribution and measured
+validation costs. The [migration guide](../../guides/VALIDATED_DOMAIN_TYPES.md)
+shows how to update an existing numeric guard. [PR #659](https://github.com/sproates/panackelty/pull/659)
+delivered the record relationship slice. Later guard families retain their
+separate release allocations.
+
+**Approved release scope and delivery history.**
 Develop validated domain types beyond numeric bounds. The selected initial scope
 now includes string constraints, non-empty/bounded collections and relationships
 between fields of a record. This supersedes the non-empty-string-only slice.
@@ -637,7 +644,7 @@ A complete replacement must establish its own invariant. Source and bytecode
 tests cover copying through a generic and array, taking fields from an imported
 guard, preserving an unchanged label, and reporting two failed field pairs in
 order. Public explanation and source-map tests link a runtime comparison to
-its original declaration. Installed release acceptance remains in slice 5.
+its original declaration. Slice 5 supplies the installed evidence linked above.
 
 | Selected family | Representative outcomes |
 | --- | --- |

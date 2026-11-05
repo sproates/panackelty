@@ -122,6 +122,7 @@ check-compiler-impl: $(STAGE2_COMPILER) compiler-integration-probe compiler-shar
 		tests/runner/compiler_lexer_unit.panack \
 		tests/runner/package_manifest_unit.panack
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROFILE) functional/cli-explanations $(PROBE) tests/runner/main.panack --case cli_explanations
+	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROFILE) functional/cli-explanations-proofs $(PROBE) tests/runner/main.panack --case cli_explanations_proofs
 	@$(PROFILE) functional/case/cli_commands $(PROBE) tests/runner/main.panack --case cli_commands
 	@$(PROFILE) functional/failures $(PROBE) tests/runner/main.panack --failures-only
 

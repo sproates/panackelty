@@ -9,7 +9,7 @@ pass
 case_name=large-cli-fixture-compilation-bound
 contains tests/runner/main.panack 'compile_timeout = if execution_timeout == 120 { 60 } else { 20 }'
 contains tests/runner/main.panack 'label == "case/stdlib", compile_timeout)'
-contains tests/unit/harness/runner.sh 'cli_commands|cli_explanations) fixture_timeout=360'
+contains tests/unit/harness/runner.sh 'cli_commands|cli_explanations|cli_explanations_proofs) fixture_timeout=360'
 pass
 case_name=isolated-environment-retains-tls-fixture-tool
 contains tests/without_interpreter.sh 'curl-config openssl'

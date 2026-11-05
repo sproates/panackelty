@@ -37,11 +37,11 @@ case_name=failure-corpus-per-fixture
 # Each isolated invocation repeats the two selection assertions: 339 + 2*102.
 [ "$assertion_count" = 543 ] || fail 'failure assertion inventory changed'
 pass
-for fixture in cli_environment_files cli_commands cli_explanations cli_check_disasm stdlib; do
+for fixture in cli_environment_files cli_commands cli_explanations cli_explanations_proofs cli_check_disasm stdlib; do
     case_name=runner-$fixture
     fixture_timeout=45
     # Enclose two 120-second executions, a 60-second build and runner overhead.
-    case "$fixture" in cli_commands|cli_explanations) fixture_timeout=360 ;; esac
+    case "$fixture" in cli_commands|cli_explanations|cli_explanations_proofs) fixture_timeout=360 ;; esac
     capture 0 "$fixture_timeout" env PANACKELTY_STDLIB_VALUE=ambient-test ./bin/panack run "$runner" --case "$fixture"
     contains "$work/stdout" "PASS case/$fixture/source"
     contains "$work/stdout" "PASS case/$fixture/bytecode"

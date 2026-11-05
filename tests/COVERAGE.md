@@ -851,6 +851,14 @@ the separate observer suite above. Hostile concurrent output-directory mutation,
 source-free verification and authenticated original producers are outside the
 [explicit contract](../docs/guides/SOURCE_MAPS.md).
 
+## Explicit guard bindings
+
+Parser and resolver tests cover the required name, arrow and lexical scope.
+Numeric checker and CLI cases exercise conversions between guards with different
+binding names. The semicolonless functional case executes a multiline numeric
+guard with parentheses and alternatives through source and saved bytecode. The
+checker also rejects a literal outside both alternatives.
+
 ## Compiler understanding delivery acceptance
 
 The [acceptance record](../docs/COMPILER_UNDERSTANDING_ACCEPTANCE.md) maps the

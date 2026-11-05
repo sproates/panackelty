@@ -557,21 +557,22 @@ and inference from the expected return type are also deferred.
 ## Guarded types
 
 ```panackelty
-type Positive = Int where value > 0
-type Port = Nat where value >= 1 && value <= 65535
+type Positive = Int where number => number > 0
+type Port = Nat where port => port >= 1 && port <= 65535
 ```
 
-A guarded type is a nominal refinement of a primitive scalar. `value` denotes
-the candidate value. The initial decidable guard language contains literals,
-`value`, comparisons, `&&`, `||`, and arithmetic.
+A guarded type is a nominal refinement of a primitive scalar. The identifier
+before `=>` names the candidate within this condition. To migrate an existing
+guard that uses `value`, write `where value =>` before its condition. A line
+break after `=>` or before `&&` continues the guard. Numeric guards support
+parentheses, comparisons, `&&`, `||`, and the existing arithmetic expressions.
 
 The checker accepts a conversion only when it can prove the target guard from
 the value's literal, facts introduced by a surrounding `if`, or the invariant
 of a guarded source type with a compatible primitive base. A guarded source
 does not prove a stricter target unless its invariant entails that target
-guard. The checker does not silently insert a runtime check. A future
-`check<T>(expression): Result<T, GuardError>` operation will be the explicit
-boundary for untrusted values.
+guard. The checker does not silently insert a runtime check. The planned
+`validate[Type](input)` operation will provide explicit runtime validation.
 
 This separation is important: arbitrary user code in guards would make type
 checking non-terminating. Guards therefore remain total, pure, and within a

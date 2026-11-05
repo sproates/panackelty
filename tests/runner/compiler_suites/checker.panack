@@ -173,11 +173,14 @@ pub run_suite(): Void {
       LoadedSource("broken.panack", "broken(): Void {\n  invalid: Nat = \"bad\";\n}")
     ], "main.panack"), "broken.panack:2:18: cannot assign Str to Nat; guard is not proven"))
   results = results.append(checker_unit_compare("generic guarded source proves broader target",
-    check_source_types("type Positive = Nat where value > 0; type NonNegative = Nat where value >= 0; pure convert[T](tag: T, value: Positive): NonNegative { value }; main(): Void {}"),
+    check_source_types("type Positive = Nat where n => n > 0; type NonNegative = Nat where candidate => candidate >= 0; pure convert[T](tag: T, value: Positive): NonNegative { value }; main(): Void {}"),
     "ok"))
   results = results.append(checker_unit_compare("guarded source does not prove stricter target",
-    check_source_types("type Positive = Nat where value > 0; type Greater = Nat where value > 5; pure convert(value: Positive): Greater { value }"),
+    check_source_types("type Positive = Nat where value => value > 0; type Greater = Nat where value => value > 5; pure convert(value: Positive): Greater { value }"),
     "function convert returns Positive, expected Greater"))
+  results = results.append(checker_unit_compare("numeric disjunction rejects a value outside both alternatives",
+    check_source_types("type Selected = Nat where n => n == 1 || n == 3; main(): Void { chosen: Selected = 2; }"),
+    "guard is not proven"))
   results = results.append(checker_unit_compare("sort accepts pure comparator",
     checker_sort_contract("pure less(a: Nat, b: Nat): Bool { a < b } main(): Void { print([2, 1].sort_by(@less)); }"), "ok"))
   results = results.append(checker_unit_compare("sort rejects effectful comparator",

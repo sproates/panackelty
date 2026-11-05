@@ -1436,7 +1436,7 @@ pub pure compile_program_emission(program: Program, retain_sources: Bool): Sourc
         )
       },
       ImportDeclaration(path) => {},
-      TypeDeclaration(name, base, guard) => {},
+      TypeDeclaration(name, base, guard_name, guard) => {},
       RecordDeclaration(name, parameters, fields) => {},
       EnumDeclaration(name, parameters, variants) => {}
     }

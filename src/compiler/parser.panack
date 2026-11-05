@@ -71,7 +71,7 @@ pub record MatchArm {
 
 pub enum TopLevel {
   ImportDeclaration(Str),
-  TypeDeclaration(Str, Str, Expr),
+  TypeDeclaration(Str, Str, Str, Expr),
   RecordDeclaration(Str, [Str], [RecordField]),
   EnumDeclaration(Str, [Str], [EnumVariant]),
   // Name, value parameters, return type, purity, async effect, body, type parameters.
@@ -122,7 +122,7 @@ pub pure indexed_program(declarations: [TopLevel]): Program {
   for declaration in declarations {
     match declaration {
       ImportDeclaration(path) => {},
-      TypeDeclaration(name, base, guard) => {
+      TypeDeclaration(name, base, guard_name, guard) => {
         types = types.put(name, index)
       },
       RecordDeclaration(name, parameters, fields) => {
@@ -1668,27 +1668,36 @@ pure parse_type_declaration(tokens: [Token], index: Nat): Result[ParsedTopLevel,
             token_position(tokens, where_index)
           ))
         } else {
-          match parse_expression(tokens, where_index + 1) {
-            Ok(guard) => {
-              declaration: TopLevel = TypeDeclaration(
-                tokens[name_index].text,
-                tokens[base_index].text,
-                guard.value
-              )
-              if guard.next == tokens.len() {
-                Ok(ParsedTopLevel(declaration, [token_span(tokens, base_index, base_index + 1)], guard.next))
-              } else {
-                if tokens[guard.next].text == ";" {
-                  Ok(ParsedTopLevel(declaration, [token_span(tokens, base_index, base_index + 1)], guard.next + 1))
+          guard_name_index = where_index + 1
+          arrow_index = guard_name_index + 1
+          if guard_name_index >= tokens.len() || tokens[guard_name_index].kind != Identifier() {
+            Error(parse_error("expected a guard binding after where", token_position(tokens, guard_name_index)))
+          } else if arrow_index >= tokens.len() || tokens[arrow_index].text != "=>" {
+            Error(parse_error("expected => after guard binding", token_position(tokens, arrow_index)))
+          } else {
+            match parse_expression(tokens, arrow_index + 1) {
+              Ok(guard) => {
+                declaration: TopLevel = TypeDeclaration(
+                  tokens[name_index].text,
+                  tokens[base_index].text,
+                  tokens[guard_name_index].text,
+                  guard.value
+                )
+                if guard.next == tokens.len() {
+                  Ok(ParsedTopLevel(declaration, [token_span(tokens, base_index, base_index + 1)], guard.next))
                 } else {
-                  Error(parse_error(
-                    "expected line break or semicolon after type declaration",
-                    token_position(tokens, guard.next)
-                  ))
+                  if tokens[guard.next].text == ";" {
+                    Ok(ParsedTopLevel(declaration, [token_span(tokens, base_index, base_index + 1)], guard.next + 1))
+                  } else {
+                    Error(parse_error(
+                      "expected line break or semicolon after type declaration",
+                      token_position(tokens, guard.next)
+                    ))
+                  }
                 }
-              }
-            },
-            Error(error) => Error(error)
+              },
+              Error(error) => Error(error)
+            }
           }
         }
       }
@@ -2223,7 +2232,7 @@ pure parse_impl_items(
           parse_impl_items(tokens, declarations.append(method), syntax.append(metadata), owner, owner_span, owner_parameters, owner_type, parsed.next)
         },
         ImportDeclaration(path) => Error(parse_error("expected method", token_position(tokens, index))),
-        TypeDeclaration(name, base, guard) => Error(parse_error("expected method", token_position(tokens, index))),
+        TypeDeclaration(name, base, guard_name, guard) => Error(parse_error("expected method", token_position(tokens, index))),
         RecordDeclaration(name, types, fields) => Error(parse_error("expected method", token_position(tokens, index))),
         EnumDeclaration(name, types, variants) => Error(parse_error("expected method", token_position(tokens, index)))
       }
@@ -2364,7 +2373,7 @@ pub pure module_execution_diagnostics(module: ParsedModule): [Diagnostic] {
         aliases = aliases.add(name)
       },
       ImportDeclaration(path) => {},
-      TypeDeclaration(name, base, guard) => {},
+      TypeDeclaration(name, base, guard_name, guard) => {},
       RecordDeclaration(name, parameters, fields) => {},
       FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {}
     }
@@ -2716,9 +2725,9 @@ pure render_function_declaration(
 pure render_top_level(declaration: TopLevel): Str {
   match declaration {
     ImportDeclaration(path) => "import \"${path}\";",
-    TypeDeclaration(name, base, guard) => {
+    TypeDeclaration(name, base, guard_name, guard) => {
       guard_text: Str = render_expr(guard)
-      "type ${name} = ${base} where ${guard_text};"
+      "type ${name} = ${base} where ${guard_name} => ${guard_text};"
     },
     RecordDeclaration(name, parameters, fields) => render_record_declaration(
       name,
@@ -3026,12 +3035,12 @@ pure declaration_requires_namespaces(
 ): Bool {
   match declaration {
     ImportDeclaration(path) => false,
-    TypeDeclaration(name, base, guard) => type_has_qualification(base) ||
+    TypeDeclaration(name, base, guard_name, guard) => type_has_qualification(base) ||
       expression_requires_namespaces(
       guard,
       aliases,
-      if aliases.has("value") {
-        locals.add("value")
+      if aliases.has(guard_name) {
+        locals.add(guard_name)
       } else {
         locals
       }),

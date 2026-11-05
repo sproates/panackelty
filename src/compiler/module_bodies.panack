@@ -417,7 +417,7 @@ pure body_is_guarded(context: BodyContext, type: SignatureType): Bool {
     SignatureNominal(identity) => match signature_declaration(context.modules, identity) {
       Error(message) => {},
       Ok(declaration) => match declaration {
-        TypeDeclaration(name, base, guard) => {
+        TypeDeclaration(name, base, guard_name, guard) => {
           guarded = true
         },
         ImportDeclaration(path) => {},
@@ -521,8 +521,8 @@ pure body_guard_spec(context: BodyContext, type: SignatureType): Option[GuardedT
     SignatureNominal(identity) => match signature_declaration(context.modules, identity) {
       Error(message) => {},
       Ok(declaration) => match declaration {
-        TypeDeclaration(name, base, guard) => {
-          result = Some(GuardedTypeLookup(true, base, guard))
+        TypeDeclaration(name, base, guard_name, guard) => {
+          result = Some(GuardedTypeLookup(true, base, guard_name, guard))
         },
         ImportDeclaration(path) => {},
         RecordDeclaration(name, types, fields) => {},
@@ -589,7 +589,7 @@ pure body_guard_conversion(
             bounds: Option[Bounds] = body_guard_bounds(context, value)
             proven: Option[Bool] = match bounds {
               None() => None(),
-              Some(facts) => Some(prove_guard_bounds(target.guard, facts))
+              Some(facts) => Some(prove_guard_bounds(target.guard, target.guard_name, facts))
             }
             evidence: GuardConversionEvidence = GuardConversionEvidence(
               body_guard_source_span(value),
@@ -611,12 +611,12 @@ pure body_guard_conversion(
             if compatible {
               source_facts: Map[Str, Bounds] = condition_facts(source.guard, map(), true)
               mut bounds: Option[Bounds] = None()
-              if source_facts.has("value") {
-                bounds = Some(source_facts.get("value"))
+              if source_facts.has(source.guard_name) {
+                bounds = Some(source_facts.get(source.guard_name))
               }
               proven: Option[Bool] = match bounds {
                 None() => None(),
-                Some(facts) => Some(prove_guard_bounds(target.guard, facts))
+                Some(facts) => Some(prove_guard_bounds(target.guard, target.guard_name, facts))
               }
               evidence: GuardConversionEvidence = GuardConversionEvidence(
                 body_guard_source_span(value),
@@ -773,8 +773,8 @@ pure body_operand_lower_bound(context: BodyContext, value: BoundBody): Option[Na
       None() => {},
       Some(guarded) => {
         intrinsic: Map[Str, Bounds] = condition_facts(guarded.guard, map(), true)
-        if intrinsic.has("value") {
-          intrinsic_bounds: Bounds = intrinsic.get("value")
+        if intrinsic.has(guarded.guard_name) {
+          intrinsic_bounds: Bounds = intrinsic.get(guarded.guard_name)
           if intrinsic_bounds.has_lower {
             match result {
               None() => {
@@ -4995,14 +4995,14 @@ pub pure check_module_guards(graph: ModuleBindingGraph, modules: [LoadedModule],
   mut diagnostics: [Diagnostic] = []
   for declaration in module.parsed.program.declarations {
     match declaration {
-      TypeDeclaration(name, base, guard) => {
+      TypeDeclaration(name, base, guard_name, guard) => {
         owner: DeclarationIdentity = DeclarationIdentity(module.bindings.identity, name)
         match body_signature(signatures, owner) {
           None() => {},
           Some(signature) => {
             context: BodyContext = BodyContext(graph, modules, signatures, owner, [], map(), false)
-            local: BodyLocal = BodyLocal(BodyLocalIdentity(owner, [0], "value"), Some(signature.slots[0].type), false)
-            checked: BodyResult = bind_body_expression(context, guard, signature.binding.span, map().put("value", local), [1])
+            local: BodyLocal = BodyLocal(BodyLocalIdentity(owner, [0], guard_name), Some(signature.slots[0].type), false)
+            checked: BodyResult = bind_body_expression(context, guard, signature.binding.span, map().put(guard_name, local), [1])
             required: BodyResult = body_require_value(context, checked.body, SignatureType(SignatureCore("Bool"), []), "type guard")
             diagnostics = diagnostics.concat(checked.diagnostics).concat(required.diagnostics)
             if checked.deferred.len() > 0 || required.deferred.len() > 0 {
@@ -5138,7 +5138,7 @@ pure check_module_bodies_mode(
             }
           }
         },
-        TypeDeclaration(name, base, guard) => {
+        TypeDeclaration(name, base, guard_name, guard) => {
           for binding in module.bindings.declarations {
             if binding.identity.name == name {
               diagnostics = diagnostics.concat(
@@ -5147,7 +5147,7 @@ pure check_module_bodies_mode(
                 module.bindings.identity,
                 guard,
                 binding.span,
-                set().add("value")
+                set().add(guard_name)
               ).diagnostics
               )
             }
@@ -5185,7 +5185,7 @@ pure body_guarded(context: BodyContext, value: SignatureType): Bool {
       match signature_declaration(context.modules, identity) {
         Error(message) => {},
         Ok(declaration) => match declaration {
-          TypeDeclaration(name, base, guard) => {
+          TypeDeclaration(name, base, guard_name, guard) => {
             result = true
           },
           FunctionDeclaration(name, parameters, return_type, pure_flag, async_flag, body, types) => {},

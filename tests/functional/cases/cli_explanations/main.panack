@@ -65,7 +65,7 @@ main(): Void {
       explain_write(source, "pub pure probe(): Str { name = missing; \"hello " + interpolation + "\" }\nmain(): Void {}\n")
       results = results.append(explain_run("unresolved interpolation local is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
         ["checked interpolation type: unavailable", "context: string interpolation", "local type: unavailable", "local type needed for interpolation"], [], "unknown local value missing"))
-      explain_write(source, "pub type Positive = Nat where value > 0\npub pure probe(name: Positive): Str { \"hello " + interpolation + "\" }\nmain(): Void {}\n")
+      explain_write(source, "pub type Positive = Nat where value => value > 0\npub pure probe(name: Positive): Str { \"hello " + interpolation + "\" }\nmain(): Void {}\n")
       results = results.append(explain_run("guarded interpolation type is explicitly deferred", ["explain", source, "--function", "probe"], 1,
         ["checked interpolation type: unavailable", "context: string interpolation", "local type: main.panack:Positive", "deferred interpolation of a guarded local type"], [], "function is not completely checked for identity emission: probe"))
       explain_write(source, "pure identity[T](value: T): T { value }\nprobe(): Void {\n  answer = identity(\"typed\");\n}\nmain(): Void {}\n")
@@ -523,20 +523,20 @@ main(): Void {
         ["program: accepted", "function: remaining", "subtraction: proved", "source: project/library.panack:3:15-3:20\nexpression: n - 2", "left lower bound: 2", "guard branch: true\nsource: project/library.panack:3:6-3:12\nexpression: n >= 2"], ["subtraction: unproved"], ""))
       results = results.append(explain_run("type-at preserves imported generic expression source", ["explain", source, "--function", "remaining", "--type-at", "3", "17"], 0,
         ["checked expression type: Nat", "source: project/library.panack:3:15-3:20\nexpression: n - 2"], [], ""))
-      explain_write(library, "pub type Positive = Nat where value > 0\npub pure inspect[T](tag: T, value: Nat): Void {\n  if value > 0 { positive: Positive = value; }\n}\n")
+      explain_write(library, "pub type Positive = Nat where value => value > 0\npub pure inspect[T](tag: T, value: Nat): Void {\n  if value > 0 { positive: Positive = value; }\n}\n")
       explain_write(source, "import project/library as library\nmain(): Void { library.inspect[Str](\"tag\", 2); }\n")
       results = results.append(explain_run("imported generic guarded conversion attribution", ["explain", source, "--function", "inspect"], 0,
         ["guarded conversion: proved", "source: project/library.panack:3:", "conversion: Nat -> library.panack:Positive", "target guard: (value > 0)", "facts: value >= 1", "retained value facts satisfy the target guard"], ["guarded conversion: unproved"], ""))
-      explain_write(source, "type Positive = Nat where value > 0\ntype NonNegative = Nat where value >= 0\npure inspect(value: Nat): Void { if value > 0 { positive: Positive = value; } }\nmain(): Void {}\n")
+      explain_write(source, "type Positive = Nat where value => value > 0\ntype NonNegative = Nat where candidate => candidate >= 0\npure inspect(value: Nat): Void { if value > 0 { positive: Positive = value; } }\nmain(): Void {}\n")
       results = results.append(explain_run("guarded conversion cites local branch facts", ["explain", source, "--function", "inspect"], 0,
         ["guarded conversions:", "guarded conversion: proved", "conversion: Nat -> main.panack:Positive", "target guard: (value > 0)", "facts: value >= 1", "retained value facts satisfy the target guard"], ["guarded conversion: unproved"], ""))
-      explain_write(source, "type Positive = Nat where value > 0\ntype NonNegative = Nat where value >= 0\npure inspect(value: Positive): Void { broad: NonNegative = value; }\nmain(): Void {}\n")
+      explain_write(source, "type Positive = Nat where value => value > 0\ntype NonNegative = Nat where candidate => candidate >= 0\npure inspect(value: Positive): Void { broad: NonNegative = value; }\nmain(): Void {}\n")
       results = results.append(explain_run("guarded source proves a broader guarded target", ["explain", source, "--function", "inspect"], 0,
-        ["guarded conversion: proved", "conversion: main.panack:Positive -> main.panack:NonNegative", "source guard: (value > 0)", "target guard: (value >= 0)", "facts: value >= 1"], ["guarded conversion: unproved"], ""))
-      explain_write(source, "type Positive = Nat where value > 0\npure inspect(): Positive { 0 }\nmain(): Void {}\n")
+        ["guarded conversion: proved", "conversion: main.panack:Positive -> main.panack:NonNegative", "source guard: (value > 0)", "target guard: (candidate >= 0)", "facts: value >= 1"], ["guarded conversion: unproved"], ""))
+      explain_write(source, "type Positive = Nat where value => value > 0\npure inspect(): Positive { 0 }\nmain(): Void {}\n")
       results = results.append(explain_run("rejected guarded conversion explains missing proof", ["explain", source, "--function", "inspect"], 1,
         ["program: rejected", "guarded conversion: unproved", "source: project/main.panack:2:", "expression: 0", "conversion: Nat -> main.panack:Positive", "facts: value >= 0 and value <= 0", "do not prove the target guard"], [], "return of inspect is Nat, expected main.panack:Positive"))
-      explain_write(source, "type Positive = Nat where value > 0\npure inspect(value: Positive): Nat { value }\nmain(): Void {}\n")
+      explain_write(source, "type Positive = Nat where value => value > 0\npure inspect(value: Positive): Nat { value }\nmain(): Void {}\n")
       results = results.append(explain_run("guarded to base widening has no proof conversion", ["explain", source, "--function", "inspect"], 0,
         ["guarded conversions: none"], ["guarded conversion:"], ""))
       results = results.append(explain_run("query does not execute main", ["explain", source, "--function", "main"], 0,
@@ -607,7 +607,7 @@ main(): Void {
         ["effect boundary: allowed", "callee: print", "ordinary function permits", "callee: main.panack:silent", "pure call is permitted"], ["effect boundary: rejected"], ""))
       results = results.append(explain_run("no calls has no invented evidence", ["explain", source, "--function", "silent"], 0,
         ["effects: unavailable", "no call or await boundary"], ["effect boundary:"], ""))
-      explain_write(source, "type Positive = Nat where value > 0\nprobe(name: Positive): Str { print(name); \"hello " + interpolation + "\" }\nmain(): Void {}\n")
+      explain_write(source, "type Positive = Nat where value => value > 0\nprobe(name: Positive): Str { print(name); \"hello " + interpolation + "\" }\nmain(): Void {}\n")
       results = results.append(explain_run("deferred function retains its checked effect boundaries", ["explain", source, "--function", "probe"], 1,
         ["effect boundary: allowed", "callee: print", "function status: type checking is deferred; these are the effect boundaries the checker retained"], ["effects: unavailable", "no call or await boundary"], "function is not completely checked for identity emission: probe"))
       explain_write(source, "pure answer(): Nat { 42 } pure probe(): Nat { f: Fn[Nat] = @answer; f.call() } main(): Void {}")
@@ -654,7 +654,7 @@ main(): Void {
         results = results.append(explain_run("valid sibling survives invalid inferred types", ["explain", source, "--function", "main"], 1,
         ["program: rejected", "effect boundary: allowed", "callee: print"], ["effects: unavailable"], "error:"))
       }
-      for invalid in ["bad(x: Missing): Void {}", "type Bad = Nat where 1;", "record Bad { x: Nat, x: Bool }", "enum Bad { Value(Missing) }"] {
+      for invalid in ["bad(x: Missing): Void {}", "type Bad = Nat where value => 1;", "record Bad { x: Nat, x: Bool }", "enum Bad { Value(Missing) }"] {
         explain_write(source, "main(): Void { print(1); } " + invalid)
         results = results.append(explain_run("global declaration prevents recovery", ["explain", source, "--function", "main"], 1,
         ["effects: unavailable", "global declaration checking"], ["effect boundary:"], "error:"))
@@ -688,7 +688,7 @@ main(): Void {
       explain_write(source, "pure probe(input: Nat): Nat { mut value = input; if value >= 2 { value = input; value - 2 } else { 0 } }\nmain(): Void {}\n")
       results = results.append(explain_run("reassignment explains invalidated subtraction bound", ["explain", source, "--function", "probe"], 1,
         ["subtraction: unproved", "A reassignment invalidated the earlier bound.", "source: project/main.panack:1:74-1:79", "expression: input"], [], "Nat subtraction may underflow"))
-      explain_write(source, "type Small = Nat where value <= 10\npure probe(value: Nat): Void { if value <= 10 { small: Small = value; } }\nmain(): Void {}\n")
+      explain_write(source, "type Small = Nat where value => value <= 10\npure probe(value: Nat): Void { if value <= 10 { small: Small = value; } }\nmain(): Void {}\n")
       results = results.append(explain_run("upper-bound conversion links its condition", ["explain", source, "--function", "probe"], 0,
         ["guarded conversion: proved", "True branch:", "expression: value <= 10"], [], ""))
       explain_write(source, "import stdlib/http_runtime as runtime\nasync probe(connection: HttpConnectionState[Nat,Nat]): Nat { runtime.body_size(connection) }\nmain(): Void {}\n")

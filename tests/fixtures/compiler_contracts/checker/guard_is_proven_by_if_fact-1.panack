@@ -1,5 +1,5 @@
 
-type Positive = Int where value > 0;
+type Positive = Int where value => value > 0;
 pure positive(x: Int): Int {
   if x > 0 { safe: Positive = x; safe } else { 0 }
 }

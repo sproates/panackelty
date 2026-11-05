@@ -90,8 +90,8 @@ pure parser_unit_parses_bindings_assignments_and_nested_type_references(): [Test
 pure parser_unit_parses_complete_mixed_program(): [TestResult] {
   [
     std_testing.equal_str("parser/parses_complete_mixed_program/1",
-      parse_program_source("import \"runtime.panack\"; type Positive = Int where value > 0; record Pair[A, B] { first: A, second: B } enum Option[T] { None, Some(T) } pure value_or(value: Option[Nat], fallback: Nat): Nat { match value { Some(found) => found, None() => fallback } } main(): Void { print(value_or(Some(42), 0)); }"),
-      "import \"runtime.panack\"; type Positive = Int where (value > 0); record Pair[A,B] { first: A, second: B } enum Option[T] { None, Some(T) } pure value_or(value: Option[Nat], fallback: Nat): Nat { match value { Some(found) => found, None() => fallback } } main(): Void { print(value_or(Some(42), 0)); }")
+      parse_program_source("import \"runtime.panack\"; type Positive = Int where value => value > 0; record Pair[A, B] { first: A, second: B } enum Option[T] { None, Some(T) } pure value_or(value: Option[Nat], fallback: Nat): Nat { match value { Some(found) => found, None() => fallback } } main(): Void { print(value_or(Some(42), 0)); }"),
+      "import \"runtime.panack\"; type Positive = Int where value => (value > 0); record Pair[A,B] { first: A, second: B } enum Option[T] { None, Some(T) } pure value_or(value: Option[Nat], fallback: Nat): Nat { match value { Some(found) => found, None() => fallback } } main(): Void { print(value_or(Some(42), 0)); }")
   ]
 }
 
@@ -256,8 +256,8 @@ pure parser_unit_parses_function_declarations(): [TestResult] {
 pure parser_unit_parses_guarded_type_declarations(): [TestResult] {
   [
     std_testing.equal_str("parser/parses_guarded_type_declarations/1",
-      parse_program_source("import \"types.panack\"; type Positive = Int where value > 0; type Port = Nat where value >= 1 && value <= 65535;"),
-      "import \"types.panack\"; type Positive = Int where (value > 0); type Port = Nat where ((value >= 1) && (value <= 65535));")
+      parse_program_source("import \"types.panack\"; type Positive = Int where value => value > 0; type Port = Nat where value => value >= 1 && value <= 65535;"),
+      "import \"types.panack\"; type Positive = Int where value => (value > 0); type Port = Nat where value => ((value >= 1) && (value <= 65535));")
   ]
 }
 
@@ -606,7 +606,13 @@ pure parser_unit_reports_malformed_guarded_type_declarations(): [TestResult] {
       "expected where after guarded type base"),
     std_testing.equal_str("parser/reports_malformed_guarded_type_declarations/7",
       parse_program_source("type Positive = Int where;"),
-      "expected expression")
+      "expected a guard binding after where"),
+    std_testing.equal_str("legacy implicit guard requires an explicit binding",
+      parse_program_source("type Positive = Int where value > 0;"),
+      "expected => after guard binding"),
+    std_testing.equal_str("guard requires a name before the arrow",
+      parse_program_source("type Positive = Int where => true;"),
+      "expected a guard binding after where")
   ]
 }
 

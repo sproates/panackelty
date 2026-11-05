@@ -484,7 +484,7 @@ pub pure check_selected_effect_evidence(
 
   for declaration in program.declarations {
     match declaration {
-      TypeDeclaration(name, base, guard) => {
+      TypeDeclaration(name, base, guard_name, guard) => {
         result = combine_effects(
           result,
           check_effect_expression(guard, program, map(), false, false, None())

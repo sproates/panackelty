@@ -716,7 +716,7 @@ load_project_module(
                               }
                             }
                           },
-                          TypeDeclaration(name, base, guard) => {},
+                          TypeDeclaration(name, base, guard_name, guard) => {},
                           RecordDeclaration(name, parameters, fields) => {},
                           EnumDeclaration(name, parameters, variants) => {},
                           FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {}
@@ -932,7 +932,7 @@ load_project_mode_with_configuration(
             }
           },
           ImportDeclaration(path) => {},
-          TypeDeclaration(name, base, guard) => {},
+          TypeDeclaration(name, base, guard_name, guard) => {},
           RecordDeclaration(name, parameters, fields) => {},
           EnumDeclaration(name, parameters, variants) => {}
         }

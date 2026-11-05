@@ -77,8 +77,8 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   selective imports, original-identity re-exports, enum selectors and qualified
   functions/types. It validates missing/private/conflicting imports and cycles,
   sharing completed graph nodes across diamonds. Raw use traversal distinguishes
-  namespace receivers before owned binding. Lexical values, including the implicit
-  guarded-type `value`, may shadow namespace aliases. Selectively imported
+  namespace receivers before owned binding. Lexical values, including the name declared
+  after `where` in a guard, may shadow namespace aliases. Selectively imported
   declarations still reject value collisions; type binders still reject all
   import collisions. The raw-use traversal tracks lexical value scopes, including
   values sharing an enum name or an import basename.

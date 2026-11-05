@@ -6,6 +6,10 @@ in `docs/releases/RELEASE_POLICY.md`.
 
 ## Unreleased
 
+- Guarded type declarations now name their candidate, for example
+  `type Positive = Nat where n => n > 0`. To migrate an existing guard,
+  insert `value =>` immediately after `where`.
+
 - Explore compiler decisions interactively with `panack explain`. Navigate source
   statements, inspect types, inference, callbacks, proofs and effects, and follow
   supporting source. Plain reports remain available with `--text` or a pipe.

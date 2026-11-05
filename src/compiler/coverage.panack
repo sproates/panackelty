@@ -355,7 +355,7 @@ pub pure coverage_source_function_name(
     FunctionDeclaration(name, parameters, result, pure_effect, async_effect, body, types) =>
       module_emission_symbol(graph, entry, DeclarationIdentity(module, name)),
     ImportDeclaration(path) => "",
-    TypeDeclaration(name, base, guard) => "",
+    TypeDeclaration(name, base, guard_name, guard) => "",
     RecordDeclaration(name, types, fields) => "",
     EnumDeclaration(name, types, variants) => ""
   }
@@ -393,7 +393,7 @@ pub pure render_coverage(
           if name == "main" { entry = module.bindings.identity; } else {}
         },
         ImportDeclaration(path) => {},
-        TypeDeclaration(name, base, guard) => {},
+        TypeDeclaration(name, base, guard_name, guard) => {},
         RecordDeclaration(name, types, fields) => {},
         EnumDeclaration(name, types, variants) => {}
       }

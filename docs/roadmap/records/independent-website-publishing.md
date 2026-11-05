@@ -83,6 +83,11 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
+- **GI#435 explicit guard bindings.** At alpha.15 promotion, migrate numeric
+  guard declarations in the language tour, playground and examples to the
+  explicit binding syntax. Published alpha.14 examples target the earlier
+  compiler. Core release and website maintainers own the promotion check.
+
 - **GI#180 interactive compiler explanations: Pending acceptance and release.**
   After the matching native release, update the explanation guide and examples
   to show source-first terminal navigation, decision details, supporting source

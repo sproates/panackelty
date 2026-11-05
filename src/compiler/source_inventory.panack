@@ -207,7 +207,7 @@ pub pure inventory_module(module: LoadedModule): [InventoryItem] {
       ImportDeclaration(path) => {
         items = items.append(InventoryItem(id, "excluded", "import", span))
       },
-      TypeDeclaration(name, base, guard) => {
+      TypeDeclaration(name, base, guard_name, guard) => {
         items = items.append(InventoryItem(id, "excluded", "compile-time-refinement", span))
       },
       RecordDeclaration(name, types, fields) => {

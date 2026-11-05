@@ -219,11 +219,12 @@ pure module_emission_guard_expressions(
   graph: ModuleBindingGraph,
   entry: ModuleIdentity,
   owner: ModuleIdentity,
+  guard_name: Str,
   expressions: [Expr]
 ): [Expr] {
   mut result: [Expr] = []
   for expression in expressions {
-    result = result.append(module_emission_guard_expression(graph, entry, owner, expression))
+    result = result.append(module_emission_guard_expression(graph, entry, owner, guard_name, expression))
   }
   result
 }
@@ -232,6 +233,7 @@ pure module_emission_guard_block(
   graph: ModuleBindingGraph,
   entry: ModuleIdentity,
   owner: ModuleIdentity,
+  guard_name: Str,
   block: Block
 ): Block {
   mut statements: [Statement] = []
@@ -242,30 +244,30 @@ pure module_emission_guard_block(
         type_name,
         annotation_span,
         mutable,
-        module_emission_guard_expression(graph, entry, owner, value)
+        module_emission_guard_expression(graph, entry, owner, guard_name, value)
       ),
       AssignmentStatement(name, value) => AssignmentStatement(
         name,
-        module_emission_guard_expression(graph, entry, owner, value)
+        module_emission_guard_expression(graph, entry, owner, guard_name, value)
       ),
       ExpressionStatement(value) => ExpressionStatement(
-        module_emission_guard_expression(graph, entry, owner, value)
+        module_emission_guard_expression(graph, entry, owner, guard_name, value)
       ),
       WhileStatement(condition, body) => WhileStatement(
-        module_emission_guard_expression(graph, entry, owner, condition),
-        module_emission_guard_block(graph, entry, owner, body)
+        module_emission_guard_expression(graph, entry, owner, guard_name, condition),
+        module_emission_guard_block(graph, entry, owner, guard_name, body)
       ),
       ForStatement(name, values, body) => ForStatement(
         name,
-        module_emission_guard_expression(graph, entry, owner, values),
-        module_emission_guard_block(graph, entry, owner, body)
+        module_emission_guard_expression(graph, entry, owner, guard_name, values),
+        module_emission_guard_block(graph, entry, owner, guard_name, body)
       )
     })
   }
   Block(statements, match block.value {
     NoBlockValue() => NoBlockValue(),
     TailBlockValue(value) => TailBlockValue(
-      module_emission_guard_expression(graph, entry, owner, value)
+      module_emission_guard_expression(graph, entry, owner, guard_name, value)
     )
   }, block.span, block.statement_spans)
 }
@@ -274,6 +276,7 @@ pure module_emission_guard_arms(
   graph: ModuleBindingGraph,
   entry: ModuleIdentity,
   owner: ModuleIdentity,
+  guard_name: Str,
   arms: [MatchArm]
 ): [MatchArm] {
   mut result: [MatchArm] = []
@@ -284,7 +287,7 @@ pure module_emission_guard_arms(
         arm.pattern.bindings,
         arm.pattern.span
       ),
-      module_emission_guard_expression(graph, entry, owner, arm.body)
+      module_emission_guard_expression(graph, entry, owner, guard_name, arm.body)
     ))
   }
   result
@@ -294,12 +297,13 @@ pure module_emission_guard_expression(
   graph: ModuleBindingGraph,
   entry: ModuleIdentity,
   owner: ModuleIdentity,
+  guard_name: Str,
   expression: Expr
 ): Expr {
   match expression {
     LocatedExpr(span, value, located_type_argument_spans) => LocatedExpr(
       span,
-      module_emission_guard_expression(graph, entry, owner, value),
+      module_emission_guard_expression(graph, entry, owner, guard_name, value),
       located_type_argument_spans
     ),
     NatExpr(value) => NatExpr(value),
@@ -308,25 +312,25 @@ pure module_emission_guard_expression(
     BoolExpr(value) => BoolExpr(value),
     NameExpr(name) => NameExpr(name),
     FunctionExpr(name) => FunctionExpr(module_emission_guard_target(graph, entry, owner, name)),
-    ArrayExpr(items) => ArrayExpr(module_emission_guard_expressions(graph, entry, owner, items)),
+    ArrayExpr(items) => ArrayExpr(module_emission_guard_expressions(graph, entry, owner, guard_name, items)),
     UnaryExpr(operator, value) => UnaryExpr(
       operator,
-      module_emission_guard_expression(graph, entry, owner, value)
+      module_emission_guard_expression(graph, entry, owner, guard_name, value)
     ),
     BinaryExpr(operator, left, right) => BinaryExpr(
       operator,
-      module_emission_guard_expression(graph, entry, owner, left),
-      module_emission_guard_expression(graph, entry, owner, right)
+      module_emission_guard_expression(graph, entry, owner, guard_name, left),
+      module_emission_guard_expression(graph, entry, owner, guard_name, right)
     ),
     CallExpr(name, arguments, types) => CallExpr(
       module_emission_guard_target(graph, entry, owner, name),
-      module_emission_guard_expressions(graph, entry, owner, arguments),
+      module_emission_guard_expressions(graph, entry, owner, guard_name, arguments),
       types
     ),
     OwnedCallExpr(target, name, arguments, types) => OwnedCallExpr(
-      module_emission_guard_expression(graph, entry, owner, target),
+      module_emission_guard_expression(graph, entry, owner, guard_name, target),
       name,
-      module_emission_guard_expressions(graph, entry, owner, arguments),
+      module_emission_guard_expressions(graph, entry, owner, guard_name, arguments),
       types
     ),
     DotCallExpr(target, name, arguments, types) => match resolve_module_dot_call_scoped(
@@ -336,46 +340,46 @@ pure module_emission_guard_expression(
       name,
       arguments,
       types,
-      set().add("value")
+      set().add(guard_name)
     ) {
       Error(message) => DotCallExpr(
-        module_emission_guard_expression(graph, entry, owner, target),
+        module_emission_guard_expression(graph, entry, owner, guard_name, target),
         name,
-        module_emission_guard_expressions(graph, entry, owner, arguments),
+        module_emission_guard_expressions(graph, entry, owner, guard_name, arguments),
         types
       ),
       Ok(resolved) => match resolved {
         OwnedDotCall(receiver, method, values, type_arguments) => OwnedCallExpr(
-          module_emission_guard_expression(graph, entry, owner, receiver),
+          module_emission_guard_expression(graph, entry, owner, guard_name, receiver),
           method,
-          module_emission_guard_expressions(graph, entry, owner, values),
+          module_emission_guard_expressions(graph, entry, owner, guard_name, values),
           type_arguments
         ),
         NamespaceCall(binding, values, type_arguments) => CallExpr(
           module_emission_callable_symbol(graph, entry, binding),
-          module_emission_guard_expressions(graph, entry, owner, values),
+          module_emission_guard_expressions(graph, entry, owner, guard_name, values),
           type_arguments
         )
       }
     },
     FieldExpr(target, field) => FieldExpr(
-      module_emission_guard_expression(graph, entry, owner, target),
+      module_emission_guard_expression(graph, entry, owner, guard_name, target),
       field
     ),
     IndexExpr(target, index) => IndexExpr(
-      module_emission_guard_expression(graph, entry, owner, target),
-      module_emission_guard_expression(graph, entry, owner, index)
+      module_emission_guard_expression(graph, entry, owner, guard_name, target),
+      module_emission_guard_expression(graph, entry, owner, guard_name, index)
     ),
     IfExpr(condition, yes, no, has_else) => IfExpr(
-      module_emission_guard_expression(graph, entry, owner, condition),
-      module_emission_guard_block(graph, entry, owner, yes),
-      module_emission_guard_block(graph, entry, owner, no),
+      module_emission_guard_expression(graph, entry, owner, guard_name, condition),
+      module_emission_guard_block(graph, entry, owner, guard_name, yes),
+      module_emission_guard_block(graph, entry, owner, guard_name, no),
       has_else
     ),
-    BlockExpr(block) => BlockExpr(module_emission_guard_block(graph, entry, owner, block)),
+    BlockExpr(block) => BlockExpr(module_emission_guard_block(graph, entry, owner, guard_name, block)),
     MatchExpr(value, arms) => MatchExpr(
-      module_emission_guard_expression(graph, entry, owner, value),
-      module_emission_guard_arms(graph, entry, owner, arms)
+      module_emission_guard_expression(graph, entry, owner, guard_name, value),
+      module_emission_guard_arms(graph, entry, owner, guard_name, arms)
     )
   }
 }
@@ -709,7 +713,7 @@ pure module_emission_function(
       }
     },
     ImportDeclaration(path) => None(),
-    TypeDeclaration(name, base, guard) => None(),
+    TypeDeclaration(name, base, guard_name, guard) => None(),
     RecordDeclaration(name, parameters, fields) => None(),
     EnumDeclaration(name, parameters, variants) => None()
   }
@@ -725,7 +729,7 @@ pure module_emission_declaration_span(module: LoadedModule, name: Str): SourceSp
   for declaration in module.parsed.program.declarations {
     declared: Str = match declaration {
       ImportDeclaration(path) => "",
-      TypeDeclaration(value, base, guard) => value,
+      TypeDeclaration(value, base, guard_name, guard) => value,
       RecordDeclaration(value, parameters, fields) => value,
       EnumDeclaration(value, parameters, variants) => value,
       FunctionDeclaration(value, parameters, return_type, is_pure, is_async, body, type_parameters) => value
@@ -765,7 +769,7 @@ pub pure module_emission_program(
             }
           },
           ImportDeclaration(path) => {},
-          TypeDeclaration(name, base, guard) => { declarations = declarations.append(declaration) },
+          TypeDeclaration(name, base, guard_name, guard) => { declarations = declarations.append(declaration) },
           RecordDeclaration(name, parameters, fields) => { declarations = declarations.append(declaration) },
           EnumDeclaration(name, parameters, variants) => { declarations = declarations.append(declaration) }
         }
@@ -775,7 +779,7 @@ pub pure module_emission_program(
       for declaration in module.parsed.program.declarations {
         converted: Option[TopLevel] = match declaration {
           ImportDeclaration(path) => None(),
-          TypeDeclaration(name, base, guard) => Some(TypeDeclaration(
+          TypeDeclaration(name, base, guard_name, guard) => Some(TypeDeclaration(
             module_emission_symbol(
               graph,
               entry,
@@ -791,10 +795,12 @@ pub pure module_emission_program(
                 base
               )
             },
+            guard_name,
             module_emission_guard_expression(
               graph,
               entry,
               module.bindings.identity,
+              guard_name,
               guard
             )
           )),
@@ -874,7 +880,7 @@ pub pure module_emission_program(
               ))
             },
             ImportDeclaration(path) => {},
-            TypeDeclaration(name, base, guard) => {},
+            TypeDeclaration(name, base, guard_name, guard) => {},
             RecordDeclaration(name, parameters, fields) => {},
             EnumDeclaration(name, parameters, variants) => {}
           },

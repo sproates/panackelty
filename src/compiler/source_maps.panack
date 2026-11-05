@@ -377,7 +377,7 @@ pub pure source_map_reverse(project: LoadedProject, mapped: SourceMappedProgram,
             if source_map_contains(module.parsed.syntax[i].span, line, column) {
               reason = match module.parsed.program.declarations[i] {
                 ImportDeclaration(path) => "This import selects a module at compile time. It produces no standalone instructions.",
-                TypeDeclaration(name,base,guard) => "Type " + source_map_escape(name) + " constrains values during checking. The declaration produces no standalone instructions.",
+                TypeDeclaration(name,base,guard_name,guard) => "Type " + source_map_escape(name) + " constrains values during checking. The declaration produces no standalone instructions.",
                 EnumDeclaration(name,parameters,variants) => "Enum " + source_map_escape(name) + " defines variants. Constructor instructions are emitted at their uses.",
                 RecordDeclaration(name,parameters,fields) => "Record " + source_map_escape(name) + " defines fields. Its construction and field reads have instructions at their uses.",
                 FunctionDeclaration(name,parameters,returns,pure_flag,async_flag,body,type_parameters) => {
@@ -407,7 +407,7 @@ pub pure source_map_reverse(project: LoadedProject, mapped: SourceMappedProgram,
               names = names.put(symbol,source_identifier(module.source_path,root,library) + ":" + name)
               if type_parameters.len() > 0 { shared = shared.add(symbol) }
             },
-            ImportDeclaration(path) => {}, TypeDeclaration(name,base,guard) => {},
+            ImportDeclaration(path) => {}, TypeDeclaration(name,base,guard_name,guard) => {},
             EnumDeclaration(name,parameters,variants) => {}, RecordDeclaration(name,parameters,fields) => {}
           }
         }

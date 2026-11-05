@@ -98,7 +98,7 @@ pure program_trace(source: Str): Str {
         for declaration in program.declarations {
           match declaration {
             FunctionDeclaration(name, parameters, return_type, pure_function, async_function, body, types) => { output = output + trace_block(body); },
-            TypeDeclaration(name, base, guard) => { output = output + trace_span(guard); },
+            TypeDeclaration(name, base, guard_name, guard) => { output = output + trace_span(guard); },
             ImportDeclaration(path) => {}, RecordDeclaration(name, types, fields) => {}, EnumDeclaration(name, types, variants) => {}
           }
         }

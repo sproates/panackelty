@@ -156,7 +156,7 @@ Guarded types turn familiar values into distinct types with compiler-checked
 invariants:
 
 ```panackelty
-type Port = Nat where value >= 1 && value <= 65535
+type Port = Nat where value => value >= 1 && value <= 65535
 
 pure describe_port(port: Port): Str {
   "listening on ${port}"

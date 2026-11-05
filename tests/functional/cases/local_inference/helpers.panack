@@ -1,6 +1,6 @@
 pub record Person { name: Str, active: Bool }
 pub enum Maybe[T] { Absent, Present(T) }
-pub type Port = Nat where value >= 1 && value <= 65535
+pub type Port = Nat where value => value >= 1 && value <= 65535
 
 pub pure increment(value: Nat): Nat { value + 1 }
 pub pure label(value: Str): Str { "Hi, ${value}" }

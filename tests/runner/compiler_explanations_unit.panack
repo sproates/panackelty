@@ -132,7 +132,7 @@ main(): Void {
     ["generic definition once", "pure identity[T](n: T): T { n } pure probe[T](n: T): T { identity(n) }", "call:pure:identity:pure:plain"],
     ["match callable payload", "enum Choice { Has(PureFn[Nat]) } pure probe(c: Choice): Nat { match c { Has(f) => intrinsic_call(f) } }", "call:pure:call:pure:plain"],
     ["field callable", "record Box { f: Fn[Nat] } pure probe(box: Box): Nat { intrinsic_call(box.f) }", "call:pure:call:ordinary:plain:pure function cannot call impure function call"],
-    ["guard evidence excluded", "type Count = Nat where value > 0; pure probe(): Nat { 1 }", ""]
+    ["guard evidence excluded", "type Count = Nat where value => value > 0; pure probe(): Nat { 1 }", ""]
   ]
   for item in effect_cases {
     program: Program = explanation_program(item[1])
@@ -155,7 +155,7 @@ main(): Void {
     ["invalid return signature", "bad(): Missing { 1 }", "global"],
     ["duplicate generic header", "bad[T,T](): Void {}", "global"],
     ["invalid async header", "async bad(): Void {}", "global"],
-    ["invalid guarded declaration", "type Bad = Nat where 1; bad(): Void {}", "global"],
+    ["invalid guarded declaration", "type Bad = Nat where value => 1; bad(): Void {}", "global"],
     ["invalid record declaration", "record Bad { x: Nat, x: Bool } bad(): Void {}", "global"],
     ["invalid enum declaration", "enum Bad { Value(Missing) } bad(): Void {}", "global"],
     ["resolver failure", "bad(): Void { missing(); }", "global"],
@@ -177,7 +177,7 @@ main(): Void {
       results = results.append(std_testing.expect(item[0] + " global gate", !checked.declarations_valid && recovered.evidence.len() == 0, "global failure allowed recovery"))
     }
   }
-  impure_guard_program: Program = explanation_program("type Enabled = Bool where read_line() == \"yes\"; main(): Void { print(1); } bad(): Bool { 1 }")
+  impure_guard_program: Program = explanation_program("type Enabled = Bool where value => read_line() == \"yes\"; main(): Void { print(1); } bad(): Bool { 1 }")
   impure_guard_checked: CheckedProgram = check_program_evidence(impure_guard_program, true)
   impure_guard_effects: CheckedEffects = check_frontend_effects(impure_guard_program, impure_guard_checked, true)
   results = results.append(std_testing.expect("guard purity does not claim project validity", impure_guard_checked.declarations_valid && impure_guard_effects.evidence.len() == 1 && impure_guard_effects.evidence[0].function_name == "main" && check_program_purity(impure_guard_program).len() > 0 && impure_guard_effects.diagnostics.len() > 0 && impure_guard_effects.diagnostics == check_program_frontend(impure_guard_program), "guard purity changed original diagnostics or local eligibility"))

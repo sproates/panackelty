@@ -405,7 +405,7 @@ module_emission_program_tests(): [TestResult] {
   mut right_guard_call: Str = ""
   for declaration in emitted.program.declarations {
     match declaration {
-      TypeDeclaration(name, base, guard) => {
+      TypeDeclaration(name, base, guard_name, guard) => {
         if name == module_emission_symbol(graph, identity, DeclarationIdentity(left_identity, "Positive")) {
           left_guard_call = module_emission_guard_call_name(guard)
         } else if name == module_emission_symbol(graph, identity, DeclarationIdentity(right_identity, "Positive")) {
@@ -559,7 +559,7 @@ module_emission_effect_tests(): [TestResult] {
           } else {}
         }
       },
-      TypeDeclaration(name, base, guard) => {},
+      TypeDeclaration(name, base, guard_name, guard) => {},
       ImportDeclaration(path) => {},
       RecordDeclaration(name, parameters, fields) => {},
       EnumDeclaration(name, parameters, variants) => {}
@@ -670,7 +670,7 @@ pure namespace_target_text(result: Result[ResolvedModuleTarget,Str]): Str {
 }
 
 pure namespace_resolution_graph(): ModuleBindingGraph {
-  library: ModuleBindings = namespace_test_bindings("library", "pub pure get(): Nat { 1 }\npub pure first(): Nat { 2 }\npure helper(): Nat { 3 }\npub record Box[T] { value: T }\npub enum Failure { Timeout, Detail(Str) }\nenum Hidden { Secret }\npub type Positive = Nat where value > 0")
+  library: ModuleBindings = namespace_test_bindings("library", "pub pure get(): Nat { 1 }\npub pure first(): Nat { 2 }\npure helper(): Nat { 3 }\npub record Box[T] { value: T }\npub enum Failure { Timeout, Detail(Str) }\nenum Hidden { Secret }\npub type Positive = Nat where value => value > 0")
   facade: ModuleBindings = namespace_test_bindings("facade", "pub import project/library as api\npub import project/library::{get as answer, Box as Crate, Failure, Failure.Timeout as expired}\nimport project/library as hidden")
   application: ModuleBindings = namespace_test_bindings("app", "import project/facade as facade\nimport project/library as api\nimport project/facade::{answer, Crate, expired}\nimport project/library as second\nmain(): Void {}")
   other: ModuleBindings = namespace_test_bindings("other", "pub record Box[T] { value: T }\npure helper(): Nat { 4 }")
@@ -778,7 +778,7 @@ pure namespace_qualified_syntax_tests(): [TestResult] {
           results = results.append(std_testing.expect("raw dot call preserves receiver spelling arguments", raw_namespace_dot_call(value), "raw dot call was lowered"))
         }
       },
-      ImportDeclaration(path) => {}, TypeDeclaration(name, base, guard) => {}, RecordDeclaration(name, parameters, fields) => {}, EnumDeclaration(name, parameters, variants) => {}
+      ImportDeclaration(path) => {}, TypeDeclaration(name, base, guard_name, guard) => {}, RecordDeclaration(name, parameters, fields) => {}, EnumDeclaration(name, parameters, variants) => {}
     }
   }
   results
@@ -872,7 +872,7 @@ pure namespace_lexical_receiver_tests(): [TestResult] {
       }
     }
   }
-  match namespace_parse("import project/library as value; type Positive = Nat where value.get()") {
+  match namespace_parse("import project/library as candidate; type Positive = Nat where candidate => candidate.get()") {
     Error(error) => { results = results.append(std_testing.expect("guard shadow fixture parses", false, diagnostic_text(error))) },
     Ok(parsed) => {
       identity: ModuleIdentity = namespace_identity("guard")
@@ -880,8 +880,8 @@ pure namespace_lexical_receiver_tests(): [TestResult] {
         collect_module_bindings(identity, parsed), namespace_test_bindings("library", "pub pure get(): Bool { true }")],
         [ModuleImportEdge(identity, 0, namespace_identity("library"))])
       uses: ResolvedModuleUses = namespace_raw_uses(graph, identity, parsed)
-      results = results.append(std_testing.equal_nat("implicit guarded value gives no namespace reference", uses.references.len(), 0))
-      results = results.append(std_testing.equal_nat("implicit guarded value shadows namespace", uses.diagnostics.len(), 0))
+      results = results.append(std_testing.equal_nat("guard binding gives no namespace reference", uses.references.len(), 0))
+      results = results.append(std_testing.equal_nat("guard binding shadows namespace", uses.diagnostics.len(), 0))
     }
   }
   match namespace_parse("import stdlib/result; record Item { outcome: Nat }; pure f(result: Item): Nat { result.outcome }") {
@@ -923,7 +923,7 @@ pure namespace_signature_tests(): [TestResult] {
       latest_field: Str = match latest {
         RecordDeclaration(name, parameters, fields) => fields[0].name,
         ImportDeclaration(path) => "import",
-        TypeDeclaration(name, base, guard) => "type",
+        TypeDeclaration(name, base, guard_name, guard) => "type",
         EnumDeclaration(name, parameters, variants) => "enum",
         FunctionDeclaration(name, parameters, result, pure_flag, async_flag, body, types) => "function"
       }
@@ -966,9 +966,9 @@ pure namespace_signature_tests(): [TestResult] {
   results = results.append(std_testing.equal_str("callable private parameter leak", signature_test_error("record Hidden { value: Nat }; pub pure f(value: PureFn[Hidden,Nat]): Nat { 0 }"), "signature f.value: public signature exposes inaccessible type Hidden from signature.panack"))
   results = results.append(std_testing.equal_str("private return leak", signature_test_error("record Hidden { value: Nat }; pub pure f(): Hidden { 0 }"), "signature f.return: public signature exposes inaccessible type Hidden from signature.panack"))
   results = results.append(std_testing.equal_str("public wrapper may call private body helper", signature_test_error("pure helper(): Nat { 1 }; pub pure wrap(): Nat { helper() }"), "ok"))
-  results = results.append(std_testing.equal_str("public guard direct helper leak", signature_test_error("pure hidden(value: Nat): Bool { true }; pub type Good = Nat where hidden(value)"), "public guard depends on inaccessible declaration hidden from signature.panack"))
-  results = results.append(std_testing.equal_str("public guard receiver helper leak", signature_test_error("pure hidden(value: Nat): Bool { true }; pub type Good = Nat where hidden(value)"), "public guard depends on inaccessible declaration hidden from signature.panack"))
-  results = results.append(std_testing.equal_str("public guard accessible helper", signature_test_error("pub pure exposed(value: Nat): Bool { true }; pub type Good = Nat where exposed(value)"), "ok"))
+  results = results.append(std_testing.equal_str("public guard direct helper leak", signature_test_error("pure hidden(value: Nat): Bool { true }; pub type Good = Nat where value => hidden(value)"), "public guard depends on inaccessible declaration hidden from signature.panack"))
+  results = results.append(std_testing.equal_str("public guard receiver helper leak", signature_test_error("pure hidden(value: Nat): Bool { true }; pub type Good = Nat where value => hidden(value)"), "public guard depends on inaccessible declaration hidden from signature.panack"))
+  results = results.append(std_testing.equal_str("public guard accessible helper", signature_test_error("pub pure exposed(value: Nat): Bool { true }; pub type Good = Nat where value => exposed(value)"), "ok"))
   results = results.append(std_testing.equal_str("reserved core nominal rejected", signature_test_error("pub record Option[T] { value: T }"), "declaration Option conflicts with a reserved core identity"))
   results = results.append(std_testing.equal_str("reserved scalar nominal rejected", signature_test_error("pub record Nat { value: Int }"), "declaration Nat conflicts with a reserved core identity"))
   results = results.append(std_testing.equal_str("duplicate parameter rejected", signature_test_error("pub record Pair[T,T] { value: T }"), "invalid or duplicate type parameter T"))
@@ -982,7 +982,7 @@ pure namespace_signature_tests(): [TestResult] {
   results = results.append(std_testing.expect("enum payload type points at the type token", enum_position.file == "module.panack" && enum_position.line == 1 && enum_position.column == 38, "wrong diagnostic position"))
   parameter_position: SourcePos = signature_test_position("pub pure f(value: Missing): Nat { 0 }")
   results = results.append(std_testing.expect("function parameter type points at the type token", parameter_position.file == "module.panack" && parameter_position.line == 1 && parameter_position.column == 19, "wrong diagnostic position"))
-  guarded_base_position: SourcePos = signature_test_position("pub type Positive = Missing where value > 0")
+  guarded_base_position: SourcePos = signature_test_position("pub type Positive = Missing where value => value > 0")
   results = results.append(std_testing.expect("guarded type base points at the type token", guarded_base_position.file == "module.panack" && guarded_base_position.line == 1 && guarded_base_position.column == 21, "wrong diagnostic position"))
   leaked: LoadedModule = signature_test_module(namespace_identity("leaked"), "import project/left as api; pub pure expose(): api.Item[Nat] { 0 }")
   leak_graph: ModuleBindingGraph = ModuleBindingGraph([left.bindings, leaked.bindings], [ModuleImportEdge(leaked.bindings.identity, 0, left.bindings.identity)])
@@ -1000,14 +1000,14 @@ pure namespace_signature_tests(): [TestResult] {
   core_graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, core_use.bindings], [ModuleImportEdge(core_use.bindings.identity, 0, core.bindings.identity)])
   core_owner: DeclarationIdentity = DeclarationIdentity(core_use.bindings.identity, "f")
   results = results.append(std_testing.expect("toolchain core alias equals implicit core identity", signature_test_type(core_graph, [core, core_use], core_owner, [], "Maybe[Nat]", true) == signature_test_type(core_graph, [core, core_use], core_owner, [], "Option[Nat]", true), "second core identity"))
-  results = results.append(std_testing.equal_str("guard function reference retains privacy", signature_test_error("pure hidden(): Bool { true }; pub type Good = Nat where @hidden"), "public guard depends on inaccessible declaration hidden from signature.panack"))
+  results = results.append(std_testing.equal_str("guard function reference retains privacy", signature_test_error("pure hidden(): Bool { true }; pub type Good = Nat where value => @hidden"), "public guard depends on inaccessible declaration hidden from signature.panack"))
   results = results.append(std_testing.equal_str("empty callable signature rejects", signature_test_error("pub pure f(value: Fn): Nat { 0 }"), "signature f.value: Fn expects at least a return type"))
   results = results.append(std_testing.expect("private Result alias equals implicit core identity", signature_test_type(core_graph, [core, core_use], core_owner, [], "Outcome[Nat,Str]", true) == signature_test_type(core_graph, [core, core_use], core_owner, [], "Result[Nat,Str]", true), "second Result identity"))
   results = results.append(std_testing.equal_nat("private implicit-core alias public contract accepted", check_module_signatures(core_graph, [core, core_use], core_use).diagnostics.len(), 0))
-  core_guard: LoadedModule = signature_test_module(namespace_identity("core_guard"), "import stdlib/core::{Option as Maybe}; pub type Good = Nat where Maybe.Some(value) == Maybe.Some(value)")
+  core_guard: LoadedModule = signature_test_module(namespace_identity("core_guard"), "import stdlib/core::{Option as Maybe}; pub type Good = Nat where value => Maybe.Some(value) == Maybe.Some(value)")
   core_guard_graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, core_guard.bindings], [ModuleImportEdge(core_guard.bindings.identity, 0, core.bindings.identity)])
   results = results.append(std_testing.equal_nat("private core alias qualified guard constructor is reachable", check_module_signatures(core_guard_graph, [core, core_guard], core_guard).diagnostics.len(), 0))
-  results = results.append(std_testing.equal_str("core string method in public guard remains available", signature_test_error("pub type Good = Str where value.ends_with(\"x\")"), "ok"))
+  results = results.append(std_testing.equal_str("core string method in public guard remains available", signature_test_error("pub type Good = Str where value => value.ends_with(\"x\")"), "ok"))
   for method in ["first", "ends_with", "sort_by", "parse_nat", "get", "put", "has", "add", "call", "map", "reduce"] {
     method_module: LoadedModule = signature_test_module(namespace_identity("method"), "pub pure f(value: Nat): Nat { value." + method + "() }")
     method_graph: ModuleBindingGraph = ModuleBindingGraph([method_module.bindings], [])
@@ -1015,7 +1015,7 @@ pure namespace_signature_tests(): [TestResult] {
       namespace_raw_uses(method_graph, method_module.bindings.identity, method_module.parsed).diagnostics.len(), 0))
   }
   choices: LoadedModule = signature_test_module(namespace_identity("choices"), "pub enum Choice { Pick(Nat) }")
-  choice_guard: LoadedModule = signature_test_module(namespace_identity("choice_guard"), "pub import project/choices::{Choice}; pub type Good = Nat where Choice.Pick(value)")
+  choice_guard: LoadedModule = signature_test_module(namespace_identity("choice_guard"), "pub import project/choices::{Choice}; pub type Good = Nat where value => Choice.Pick(value)")
   choice_graph: ModuleBindingGraph = ModuleBindingGraph([choices.bindings, choice_guard.bindings], [ModuleImportEdge(choice_guard.bindings.identity, 0, choices.bindings.identity)])
   results = results.append(std_testing.equal_nat("public enum reexport exposes qualified guard constructor", check_module_signatures(choice_graph, [choices, choice_guard], choice_guard).diagnostics.len(), 0))
   results = results.append(std_testing.expect("public enum route reaches original variant identity", signature_public_identity(choice_graph, choice_guard.bindings.identity, DeclarationIdentity(choices.bindings.identity, "Pick"), []), "variant inaccessible"))
@@ -2280,7 +2280,7 @@ pure namespace_body_tests(): [TestResult] {
     results = results.append(std_testing.expect("owned first is fully checked/" + source, checked.functions.len() > 0 && checked.functions[0].status == BodyIdentityChecked(), "owned body remained deferred"))
   }
   guarded_branch: CheckedModuleBodies = body_test_module(
-    "pub type Positive = Nat where value > 0; pub pure f(value: Nat): Nat { if value > 0 { positive: Positive = value; value - 1 } else { 0 } }"
+    "pub type Positive = Nat where value => value > 0; pub pure f(value: Nat): Nat { if value > 0 { positive: Positive = value; value - 1 } else { 0 } }"
   )
   results = results.append(std_testing.expect(
     "identity guard facts prove guarded conversion and Nat subtraction",
@@ -2311,7 +2311,7 @@ pure namespace_body_tests(): [TestResult] {
     ))
   }
   ordinary_guarded_branch: CheckedModuleBodies = body_test_module_mode(
-    "pub type Positive = Nat where value > 0; pub pure f(value: Nat): Void { if value > 0 { positive: Positive = value; } }",
+    "pub type Positive = Nat where value => value > 0; pub pure f(value: Nat): Void { if value > 0 { positive: Positive = value; } }",
     false
   )
   results = results.append(std_testing.expect(
@@ -3692,7 +3692,7 @@ pure namespace_body_tests(): [TestResult] {
     "ordinary checking retained explanation-only filesystem path evidence"
   ))
   guarded_invariant: CheckedModuleBodies = body_test_module(
-    "pub type Positive = Nat where value > 0; pub pure f(value: Positive): Nat { value - 1 }"
+    "pub type Positive = Nat where value => value > 0; pub pure f(value: Positive): Nat { value - 1 }"
   )
   results = results.append(std_testing.expect(
     "guarded type invariant proves Nat subtraction",
@@ -3701,7 +3701,7 @@ pure namespace_body_tests(): [TestResult] {
     if guarded_invariant.diagnostics.len() > 0 { guarded_invariant.diagnostics[0].message } else { "guarded invariant was not used for subtraction" }
   ))
   guarded_literal: CheckedModuleBodies = body_test_module(
-    "pub type Positive = Nat where value > 0; pub pure f(): Positive { 0 }"
+    "pub type Positive = Nat where value => value > 0; pub pure f(): Positive { 0 }"
   )
   results = results.append(std_testing.expect(
     "known failing guarded conversion is rejected",
@@ -3715,7 +3715,7 @@ pure namespace_body_tests(): [TestResult] {
     "failed conversion proof was not retained"
   ))
   guarded_literal_positive: CheckedModuleBodies = body_test_module(
-    "pub type Positive = Nat where value > 0; pub pure f(): Positive { 1 }"
+    "pub type Positive = Nat where value => value > 0; pub pure f(): Positive { 1 }"
   )
   results = results.append(std_testing.expect(
     "known passing guarded conversion is checked",
@@ -3731,7 +3731,7 @@ pure namespace_body_tests(): [TestResult] {
     "successful conversion proof was not retained"
   ))
   guarded_mutation: CheckedModuleBodies = body_test_module(
-    "pub type Positive = Nat where value > 0; pub pure f(value: Nat): Nat { mut current = value; if current > 0 { current = 0; positive: Positive = current; 0 } else { 0 } }"
+    "pub type Positive = Nat where value => value > 0; pub pure f(value: Nat): Nat { mut current = value; if current > 0 { current = 0; positive: Positive = current; 0 } else { 0 } }"
   )
   results = results.append(std_testing.expect(
     "reassignment invalidates only the mutated local guard fact",
@@ -3847,7 +3847,7 @@ pure namespace_body_tests(): [TestResult] {
   results = results.append(std_testing.equal_str("loop local cannot shadow parameter", body_test_error("pub pure f(value: Nat): Nat { for value in [1] {}; value }"), "loop variable value shadows an existing binding"))
   results = results.append(std_testing.equal_str("pattern local cannot shadow parameter", body_test_error("pub pure f(value: Nat): Nat { match Some(1) { Some(value) => value, None() => 0 } }"), "pattern binding value shadows an existing binding"))
   results = results.append(std_testing.equal_str("pattern requires original variant category", body_test_error("pub pure f(): Nat { match 1 { helper() => 1 } }; pure helper(): Nat { 1 }"), "match requires an enum, got Nat"))
-  results = results.append(std_testing.equal_str("private guard still resolves names", body_test_error("type Hidden = Nat where missing(value); pub pure f(): Nat { 1 }"), "module body.panack has no binding missing"))
+  results = results.append(std_testing.equal_str("private guard still resolves names", body_test_error("type Hidden = Nat where value => missing(value); pub pure f(): Nat { 1 }"), "module body.panack has no binding missing"))
   results = results.append(std_testing.equal_str("later recursive callable contract exists", body_test_error("pub pure f(value: Nat): Nat { f(value) }"), "ok"))
   core: LoadedModule = signature_test_module(ModuleIdentity(ToolchainModulePackage(), "core.panack"), "pub enum Option[T] { Some(T), None }; pub enum Result[T,E] { Ok(T), Error(E) }")
   alias: LoadedModule = signature_test_module(namespace_identity("core_body"), "import stdlib/core::{Option as Maybe}; pub pure f(): Option[Nat] { Maybe.Some(1) }")
@@ -3873,9 +3873,9 @@ pure namespace_raw_uses_unchecked(graph: ModuleBindingGraph, identity: ModuleIde
     origin: SourceSpan = parsed.syntax[index].span
     match declaration {
       ImportDeclaration(path) => {},
-      TypeDeclaration(name, base, guard) => {
+      TypeDeclaration(name, base, guard_name, guard) => {
         result = combine_module_uses(result, resolve_qualified_type_uses(graph, identity, base, origin))
-        result = combine_module_uses(result, resolve_module_expression_uses(graph, identity, guard, origin, set().add("value")))
+        result = combine_module_uses(result, resolve_module_expression_uses(graph, identity, guard, origin, set().add(guard_name)))
       },
       RecordDeclaration(name, parameters, fields) => { for field in fields { result = combine_module_uses(result, resolve_qualified_type_uses(graph, identity, field.type_name, origin)) } },
       EnumDeclaration(name, parameters, variants) => { for variant in variants { for type_name in variant.payload { result = combine_module_uses(result, resolve_qualified_type_uses(graph, identity, type_name, origin)) } } },
@@ -4032,7 +4032,7 @@ pure namespace_expression_tests(): [TestResult] {
     ))
   }
   guarded_interpolation: CheckedModuleBodies = body_test_module(
-    "pub type Positive = Nat where value > 0; pub pure f(name: Positive): Str { \"" + interpolation + "\" }"
+    "pub type Positive = Nat where value => value > 0; pub pure f(name: Positive): Str { \"" + interpolation + "\" }"
   )
   guarded_evidence: Option[BodyTypeCheckEvidence] = if guarded_interpolation.functions.len() == 1 {
     body_type_check_for_context(guarded_interpolation.functions[0].body, "string interpolation")
@@ -4804,7 +4804,7 @@ pure builtin_owner_tests(): [TestResult] {
   core: LoadedModule = signature_test_module(builtin_owner_module(),
     "pub pure echo(value: Nat): Nat { value } impl Nat { pub pure marker(): Nat { self } }")
   for source in ["pure use(value: Nat): Nat { value.echo() }",
-      "type Guarded = Nat where value > 0; pure use(value: Guarded): Nat { value.marker() }"] {
+      "type Guarded = Nat where value => value > 0; pure use(value: Guarded): Nat { value.marker() }"] {
     app: LoadedModule = signature_test_module(namespace_identity("no_fallback"), source)
     graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, app.bindings], [])
     results = results.append(std_testing.expect("builtin/no global fallback or guard inheritance/" + source,
@@ -4887,7 +4887,7 @@ pure owned_intrinsic_tests(): [TestResult] {
     "pure use(value: Bytes): Bytes { value.push(\"x\") }",
     "pure use(value: Nat): Nat { value.divide(\"x\") }",
     "pure use(value: Nat): Nat { value.get(0) }",
-    "type Guarded = Nat where value > 0; pure use(value: Guarded): Nat { value.divide(2) }",
+    "type Guarded = Nat where value => value > 0; pure use(value: Guarded): Nat { value.divide(2) }",
     "pure missing(value: Nat): Nat { value } pure use(value: Nat): Nat { value.missing() }",
     "pure use(value: Str): Nat { value.len[Nat]() }"
   ] {
@@ -5001,7 +5001,7 @@ core_adapter_emission_tests(): [TestResult] {
         }
       },
       ImportDeclaration(path) => {},
-      TypeDeclaration(name, base, guard) => {},
+      TypeDeclaration(name, base, guard_name, guard) => {},
       RecordDeclaration(name, parameters, fields) => {},
       EnumDeclaration(name, parameters, variants) => {}
     }

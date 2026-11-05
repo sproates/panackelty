@@ -15,6 +15,7 @@ pub record TypeShape {
 pub record GuardedTypeLookup {
   found: Bool,
   base: Str,
+  guard_name: Str,
   guard: Expr
 }
 
@@ -301,14 +302,14 @@ pub pure render_type(base: Str, arguments: [Str]): Str {
 }
 
 pub pure guarded_type(program: Program, name: Str): GuardedTypeLookup {
-  mut result: GuardedTypeLookup = GuardedTypeLookup(false, "", NatExpr(0))
+  mut result: GuardedTypeLookup = GuardedTypeLookup(false, "", "", NatExpr(0))
 
   if program.type_indices.has(name) {
     index: Nat = program.type_indices.get(name)
     match program.declarations[index] {
-      TypeDeclaration(declared, base, guard) => {
+      TypeDeclaration(declared, base, guard_name, guard) => {
         if declared == name {
-          result = GuardedTypeLookup(true, base, guard)
+          result = GuardedTypeLookup(true, base, guard_name, guard)
         } else {
         }
       },
@@ -335,7 +336,7 @@ pub pure record_type(program: Program, name: Str): RecordLookup {
         }
       },
       ImportDeclaration(path) => {},
-      TypeDeclaration(declared, base, guard) => {},
+      TypeDeclaration(declared, base, guard_name, guard) => {},
       EnumDeclaration(declared, parameters, variants) => {},
       FunctionDeclaration(declared, parameters, return_type, is_pure, is_async, body, type_parameters) => {}
     }
@@ -357,7 +358,7 @@ pub pure enum_type(program: Program, name: Str): EnumLookup {
         }
       },
       ImportDeclaration(path) => {},
-      TypeDeclaration(declared, base, guard) => {},
+      TypeDeclaration(declared, base, guard_name, guard) => {},
       RecordDeclaration(declared, parameters, fields) => {},
       FunctionDeclaration(declared, parameters, return_type, is_pure, is_async, body, type_parameters) => {}
     }
@@ -379,7 +380,7 @@ pub pure function_type(program: Program, name: Str): FunctionLookup {
         }
       },
       ImportDeclaration(path) => {},
-      TypeDeclaration(declared, base, guard) => {},
+      TypeDeclaration(declared, base, guard_name, guard) => {},
       RecordDeclaration(declared, parameters, fields) => {},
       EnumDeclaration(declared, parameters, variants) => {}
     }
@@ -568,31 +569,31 @@ pure assignable(program: Program, source: Str, target: Str): Bool {
   }
 }
 
-pure evaluate_nat_guard(expression: Expr, value: Nat): Bool {
+pure evaluate_nat_guard(expression: Expr, guard_name: Str, value: Nat): Bool {
   mut result: Bool = false
 
   match expression {
     LocatedExpr(position, inner, located_type_argument_spans) => {
-      result = evaluate_nat_guard(inner, value)
+      result = evaluate_nat_guard(inner, guard_name, value)
     },
     BoolExpr(item) => {
       result = item
     },
     UnaryExpr(operator, operand) => {
       if operator == "!" {
-        result = !evaluate_nat_guard(operand, value)
+        result = !evaluate_nat_guard(operand, guard_name, value)
       } else {}
     },
     BinaryExpr(operator, left, right) => {
       if operator == "&&" {
-        result = evaluate_nat_guard(left, value) && evaluate_nat_guard(right, value)
+        result = evaluate_nat_guard(left, guard_name, value) && evaluate_nat_guard(right, guard_name, value)
       } else {
         if operator == "||" {
-          result = evaluate_nat_guard(left, value) || evaluate_nat_guard(right, value)
+          result = evaluate_nat_guard(left, guard_name, value) || evaluate_nat_guard(right, guard_name, value)
         } else {
           match unlocated_expression(left) {
             NameExpr(name) => {
-              if name == "value" {
+              if name == guard_name {
                 match unlocated_expression(right) {
                   NatExpr(bound) => {
                     if operator == ">" {
@@ -674,23 +675,23 @@ pure evaluate_nat_guard(expression: Expr, value: Nat): Bool {
   result
 }
 
-pub pure prove_guard_bounds(expression: Expr, bounds: Bounds): Bool {
+pub pure prove_guard_bounds(expression: Expr, guard_name: Str, bounds: Bounds): Bool {
   mut result: Bool = false
 
   match expression {
     LocatedExpr(position, inner, located_type_argument_spans) => {
-      result = prove_guard_bounds(inner, bounds)
+      result = prove_guard_bounds(inner, guard_name, bounds)
     },
     BinaryExpr(operator, left, right) => {
       if operator == "&&" {
-        result = prove_guard_bounds(left, bounds) && prove_guard_bounds(right, bounds)
+        result = prove_guard_bounds(left, guard_name, bounds) && prove_guard_bounds(right, guard_name, bounds)
       } else {
         if operator == "||" {
-          result = prove_guard_bounds(left, bounds) || prove_guard_bounds(right, bounds)
+          result = prove_guard_bounds(left, guard_name, bounds) || prove_guard_bounds(right, guard_name, bounds)
         } else {
           match unlocated_expression(left) {
             NameExpr(name) => {
-              if name == "value" {
+              if name == guard_name {
                 match unlocated_expression(right) {
                   NatExpr(bound) => {
                     if operator == ">" {
@@ -793,7 +794,7 @@ pure assignable_checked(
       false
     } else {
       if value.has_nat {
-        evaluate_nat_guard(guarded.guard, value.nat_value)
+        evaluate_nat_guard(guarded.guard, guarded.guard_name, value.nat_value)
       } else {
         mut proven: Bool = false
         guarded_source: GuardedTypeLookup = guarded_type(program, value.name)
@@ -801,15 +802,15 @@ pure assignable_checked(
           (guarded_source.base == "Nat" && guarded.base == "Int")
         if guarded_source.found && compatible_source_base {
           source_facts: Map[Str, Bounds] = condition_facts(guarded_source.guard, map(), true)
-          if source_facts.has("value") {
-            proven = prove_guard_bounds(guarded.guard, source_facts.get("value"))
+          if source_facts.has(guarded_source.guard_name) {
+            proven = prove_guard_bounds(guarded.guard, guarded.guard_name, source_facts.get(guarded_source.guard_name))
           } else {}
         } else {}
         match unlocated_expression(source) {
           LocatedExpr(position, inner, located_type_argument_spans) => {},
           NameExpr(name) => {
             if !proven && facts.has(name) {
-              proven = prove_guard_bounds(guarded.guard, facts.get(name))
+              proven = prove_guard_bounds(guarded.guard, guarded.guard_name, facts.get(name))
             } else {}
           },
           NatExpr(item) => {},
@@ -3481,13 +3482,13 @@ pub pure check_program_evidence_mode(
       declaration_start: Nat = diagnostics.len()
       mut function_declaration: Bool = false
       match declaration {
-        TypeDeclaration(name, base, guard) => {
+        TypeDeclaration(name, base, guard_name, guard) => {
           if !is_scalar_base(base) || base == "Rat" || base == "Unit" {
             diagnostics = diagnostics.append(
               checker_diagnostic("guarded type base must be a scalar, got ${base}")
             )
           } else {}
-          environment: Map[Str, TypeInfo] = map().put("value", plain_type(base))
+          environment: Map[Str, TypeInfo] = map().put(guard_name, plain_type(base))
           facts: Map[Str, Bounds] = map()
           checked: CheckedExpression = check_expression_evidence(
             guard,
@@ -3652,15 +3653,15 @@ pub pure check_program_evidence_mode(
             (guarded_source.base == "Nat" && guarded_return.base == "Int")
           if !return_ok && guarded_return.found && guarded_source.found && compatible_guarded_base {
             source_facts: Map[Str, Bounds] = condition_facts(guarded_source.guard, map(), true)
-            if source_facts.has("value") {
-              return_ok = prove_guard_bounds(guarded_return.guard, source_facts.get("value"))
+            if source_facts.has(guarded_source.guard_name) {
+              return_ok = prove_guard_bounds(guarded_return.guard, guarded_return.guard_name, source_facts.get(guarded_source.guard_name))
             } else {}
           } else {}
           if !return_ok && guarded_return.found && checked.info.has_nat && base_type(
             program,
             checked.info.name
           ) == guarded_return.base {
-            return_ok = evaluate_nat_guard(guarded_return.guard, checked.info.nat_value)
+            return_ok = evaluate_nat_guard(guarded_return.guard, guarded_return.guard_name, checked.info.nat_value)
           } else {}
           if !return_ok {
             actual_return: Str = checked.info.name

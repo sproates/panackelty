@@ -140,7 +140,7 @@ pure collect_variants(program: Program, positions: [SourcePos]): ResolverSymbols
     position: SourcePos = declaration_position(positions, index)
     match declaration {
       ImportDeclaration(path) => {},
-      TypeDeclaration(name, base, guard) => {},
+      TypeDeclaration(name, base, guard_name, guard) => {},
       RecordDeclaration(name, parameters, fields) => {},
       EnumDeclaration(name, parameters, declared_variants) => {
         for variant in declared_variants {
@@ -197,7 +197,7 @@ pure collect_symbols_at(program: Program, positions: [SourcePos]): ResolverSymbo
     position: SourcePos = declaration_position(positions, index)
     match declaration {
       ImportDeclaration(path) => {},
-      TypeDeclaration(name, base, guard) => {
+      TypeDeclaration(name, base, guard_name, guard) => {
         symbols = add_top_level_symbol(symbols, name, false, position)
       },
       RecordDeclaration(name, parameters, fields) => {
@@ -284,7 +284,7 @@ pub pure visit_module(units: [SourceUnit], path: Str, state: ModuleGraphState): 
             ImportDeclaration(imported) => {
               current = visit_module(units, imported, current)
             },
-            TypeDeclaration(name, base, guard) => {},
+            TypeDeclaration(name, base, guard_name, guard) => {},
             RecordDeclaration(name, parameters, fields) => {},
             EnumDeclaration(name, parameters, variants) => {},
             FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {}
@@ -510,8 +510,8 @@ pub pure resolve_program_at(program: Program, positions: [SourcePos]): [Diagnost
   for declaration in program.declarations {
     match declaration {
       ImportDeclaration(path) => {},
-      TypeDeclaration(name, base, guard) => {
-        guard_scope: Set[Str] = set().add("value")
+      TypeDeclaration(name, base, guard_name, guard) => {
+        guard_scope: Set[Str] = set().add(guard_name)
         diagnostics = diagnostics.concat(resolve_expression(guard, guard_scope, symbols))
       },
       RecordDeclaration(name, parameters, fields) => {},

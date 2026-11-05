@@ -256,7 +256,7 @@ pub pure signature_type(
               EnumDeclaration(name, types, variants) => {
                 arity = types.len()
               },
-              TypeDeclaration(name, base, guard) => {},
+              TypeDeclaration(name, base, guard_name, guard) => {},
               ImportDeclaration(path) => {
                 failure = Some("import is not a nominal type")
               },
@@ -358,7 +358,7 @@ pub pure check_module_signatures(
       Ok(owner_declaration) => match owner_declaration {
         RecordDeclaration(name, types, fields) => { owner_arity = Some(types.len()) },
         EnumDeclaration(name, types, variants) => { owner_arity = Some(types.len()) },
-        TypeDeclaration(name, base, guard) => {},
+        TypeDeclaration(name, base, guard_name, guard) => {},
         ImportDeclaration(path) => {},
         FunctionDeclaration(name, values, result, pure_flag, async_flag, body, types) => {}
       }
@@ -397,7 +397,7 @@ pub pure check_module_signatures(
     mut result_void: Bool = false
     match declaration {
       ImportDeclaration(path) => {},
-      TypeDeclaration(declared, base, guard) => {
+      TypeDeclaration(declared, base, guard_name, guard) => {
         name = declared
         fields = [RecordField("base", base)]
         if !is_scalar_base(base) || base == "Rat" || base == "Unit" {
@@ -409,7 +409,7 @@ pub pure check_module_signatures(
             module.bindings.identity,
             guard,
             syntax.span,
-            set().add("value")
+            set().add(guard_name)
           )
           diagnostics = diagnostics.concat(uses.diagnostics)
           for reference in uses.references {

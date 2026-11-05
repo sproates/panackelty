@@ -107,7 +107,7 @@ pub pure loaded_module_declaration_index(parsed: ParsedModule): Map[Str,TopLevel
   for declaration in parsed.program.declarations {
     match declaration {
       ImportDeclaration(path) => {},
-      TypeDeclaration(name, base, guard) => {
+      TypeDeclaration(name, base, guard_name, guard) => {
         declarations = declarations.put(name, declaration)
       },
       RecordDeclaration(name, parameters, fields) => {
@@ -150,7 +150,7 @@ pub pure collect_module_bindings(identity: ModuleIdentity, parsed: ParsedModule)
           ModuleImportBinding(path, syntax.binding, syntax.is_public, syntax.span)
         )
       },
-      TypeDeclaration(name, base, guard) => {
+      TypeDeclaration(name, base, guard_name, guard) => {
         declarations = declarations.append(
           module_declaration_binding(identity, name, ModuleGuardedType(), syntax)
         )

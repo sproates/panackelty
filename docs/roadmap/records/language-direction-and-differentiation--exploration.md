@@ -618,8 +618,12 @@ by owner direction on the same date.**
 Develop validated domain types beyond numeric bounds. The selected initial scope
 now includes string constraints, non-empty/bounded collections and relationships
 between fields of a record. This supersedes the non-empty-string-only slice.
-Implementation has not started; semantics and syntax must be settled before code
-is changed, but the outcome is working guards, not only an assessment report.
+The [approved alpha.15 contract](https://github.com/sproates/panackelty/blob/main/docs/design/VALIDATED_DOMAIN_TYPES.md)
+defines the five implementation slices. Slice 1 delivers explicit numeric guard
+bindings on merge. It migrates declarations, preserves numeric alternatives
+and scoped proofs, and refreshes the self-hosted compiler seed.
+The migrated guards example produces identical saved bytecode to its alpha.15
+predecessor and prints 42. Slice 2 adds static string and collection constraints.
 
 | Selected family | Representative outcomes |
 | --- | --- |

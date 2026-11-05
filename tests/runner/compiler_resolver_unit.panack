@@ -21,7 +21,13 @@ pure resolver_unit_enforces_lexical_scope_and_shadowing(): [TestResult] {
       "pattern binding value shadows an existing binding"),
     std_testing.equal_str("resolver/enforces_lexical_scope_and_shadowing/5",
       resolve_source("main(): Void { if true { inner: Nat = 1; } else {}; print(inner); }"),
-      "unknown name inner")
+      "unknown name inner"),
+    std_testing.equal_str("guard binding is local to its condition",
+      resolve_source("type Positive = Nat where item => item > 0; main(): Void { print(item); }"),
+      "unknown name item"),
+    std_testing.equal_str("only the declared guard name is bound",
+      resolve_source("type Positive = Nat where item => value > 0; main(): Void {}"),
+      "unknown name value")
   ]
 }
 
@@ -47,7 +53,7 @@ pure resolver_unit_propagates_lexer_and_parser_failures(): [TestResult] {
 pure resolver_unit_reports_duplicate_and_conflicting_top_level_symbols(): [TestResult] {
   [
     std_testing.equal_str("resolver/reports_duplicate_and_conflicting_top_level_symbols/1",
-      resolve_source("type Value = Nat where value > 0; record Value {} main(): Void {}"),
+      resolve_source("type Value = Nat where value => value > 0; record Value {} main(): Void {}"),
       "top-level name Value is already declared"),
     std_testing.equal_str("resolver/reports_duplicate_and_conflicting_top_level_symbols/2",
       resolve_source("print(): Void {} main(): Void {}"),
@@ -135,7 +141,7 @@ pure resolver_unit_reports_unknown_names_functions_and_variants(): [TestResult] 
 pure resolver_unit_resolves_guard_value_and_recursive_calls(): [TestResult] {
   [
     std_testing.equal_str("resolver/resolves_guard_value_and_recursive_calls/1",
-      resolve_source("\ntype Positive = Int where value > 0;\npure countdown(value: Nat): Nat {\n  if value == 0 { 0 } else { countdown(value - 1) }\n}\nmain(): Void { print(countdown(3)); }\n"),
+      resolve_source("\ntype Positive = Int where value => value > 0;\npure countdown(value: Nat): Nat {\n  if value == 0 { 0 } else { countdown(value - 1) }\n}\nmain(): Void { print(countdown(3)); }\n"),
       "ok")
   ]
 }

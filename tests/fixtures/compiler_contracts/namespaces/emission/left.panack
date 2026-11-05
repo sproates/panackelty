@@ -14,6 +14,6 @@ pub pure indirect_value(): Nat {
 }
 pub pure make_outcome(): Outcome[Nat] { Finished(make()) }
 pub pure positive(value: Nat): Bool { value == 45 }
-pub type Positive = Nat where positive(value)
-pub type ProvenPositive = Nat where value > 0
+pub type Positive = Nat where value => positive(value)
+pub type ProvenPositive = Nat where value => value > 0
 main(): Void { print(999) }

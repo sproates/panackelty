@@ -33,11 +33,11 @@ contract_check(name: Str, expected: Str): TestResult {
 pure indexed_lookup_contracts(): [TestResult] {
   declarations: [TopLevel] = [
     ImportDeclaration("before.panack"),
-    TypeDeclaration("Shared", "Nat", BoolExpr(true)),
+    TypeDeclaration("Shared", "Nat", "value", BoolExpr(true)),
     RecordDeclaration("Shared", ["R"], [RecordField("first", "R")]),
     EnumDeclaration("Shared", ["E"], [EnumVariant("Repeated", ["E"]), EnumVariant("Kept", [])]),
     FunctionDeclaration("Shared", [], "Nat", true, false, Block([], NoBlockValue(), None(), []), []),
-    TypeDeclaration("Shared", "Int", BoolExpr(false)),
+    TypeDeclaration("Shared", "Int", "value", BoolExpr(false)),
     ImportDeclaration("between.panack"),
     RecordDeclaration("Shared", ["S"], [RecordField("last", "S")]),
     EnumDeclaration("Shared", ["T"], [EnumVariant("Repeated", ["T"]), EnumVariant("Repeated", ["Str"])]),
@@ -98,7 +98,7 @@ pure readable_compiler_contracts(): [TestResult] {
   module_identity: ModuleIdentity = ModuleIdentity(StandaloneModulePackage(), "readability.panack")
   owner: DeclarationIdentity = DeclarationIdentity(module_identity, "example")
   guarded_identity: DeclarationIdentity = DeclarationIdentity(module_identity, "Positive")
-  program: Program = indexed_program([TypeDeclaration("Positive", "Nat", BoolExpr(true))])
+  program: Program = indexed_program([TypeDeclaration("Positive", "Nat", "value", BoolExpr(true))])
   parsed: ParsedModule = ParsedModule(program, [], [])
   bindings: ModuleBindings = ModuleBindings(module_identity, [], [], map())
   module: LoadedModule = LoadedModule("readability.panack", parsed, program, bindings, loaded_module_declaration_index(parsed))

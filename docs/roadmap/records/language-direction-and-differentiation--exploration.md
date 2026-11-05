@@ -618,7 +618,7 @@ covers the final slice, including the configuration and request example,
 plain and structured failures, saved bytecode, source attribution and measured
 validation costs. The [migration guide](../../guides/VALIDATED_DOMAIN_TYPES.md)
 shows how to update an existing numeric guard. [PR #659](https://github.com/sproates/panackelty/pull/659)
-delivered the record relationship slice. Later guard families retain their
+delivered the record relationship slice. The post-acceptance audit reopened GI#435 for contextual proof, indexing and the shared control-character check. Its completion evidence is included in the acceptance record. Later guard families retain their
 separate release allocations.
 
 **Approved release scope and delivery history.**

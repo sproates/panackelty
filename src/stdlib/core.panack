@@ -13,6 +13,27 @@ enum Result[T, E] {
 pub enum PathError { EmptyPath, PathContainsNul, PathNotUtf8, AbsolutePathAppend }
 pub enum DurationError { FractionalNanosecond, ZeroDurationDivisor }
 
+pub record ControlCharacterPosition { index: Nat, scalar: Nat }
+
+// Return the first C0 or C1 control, indexed by Unicode scalar rather than byte.
+pub pure first_control_character(text: Str): Option[ControlCharacterPosition] {
+  data = text.encode_utf8()
+  mut offset: Nat = 0
+  mut index: Nat = 0
+  mut found: Option[ControlCharacterPosition] = None()
+  while offset < data.length() && found == None() {
+    first = data.at(offset)
+    if first < 32 || first == 127 {
+      found = Some(ControlCharacterPosition(index,first))
+    } else if first == 194 && data.at(offset + 1) <= 159 {
+      found = Some(ControlCharacterPosition(index,data.at(offset + 1)))
+    }
+    offset = offset + if first < 128 { 1 } else if first < 224 { 2 } else if first < 240 { 3 } else { 4 }
+    index = index + 1
+  }
+  found
+}
+
 impl Str {
   // Unicode 17.0.0 White_Space from PropList.txt.
   // https://www.unicode.org/Public/17.0.0/ucd/PropList.txt
@@ -45,17 +66,7 @@ impl Str {
   }
 
   pub pure has_no_control_characters(): Bool {
-    data = self.encode_utf8()
-    mut cursor: Nat = 0
-    mut clear = true
-    while cursor < data.length() && clear {
-      first = data.at(cursor)
-      // C1 controls are the valid UTF-8 pairs C2 80 through C2 9F.
-      clear = first >= 32 && first != 127 &&
-        !(first == 194 && data.at(cursor + 1) <= 159)
-      cursor = cursor + 1
-    }
-    clear
+    first_control_character(self) == None()
   }
 
   // Lengths and offsets use Unicode code points, like starts_with_at.

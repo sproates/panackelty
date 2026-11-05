@@ -10,8 +10,7 @@ type Label = Str where text =>
 record DispatchConfig { window: OrderedWindow, queues: Queues }
 
 dispatch(config: DispatchConfig, label: Label): Void {
-  queues: [Str] = config.queues
-  queue = queues[0]
+  queue = config.queues[0]
   first = config.window.first
   last = config.window.last
   print("Queue " + queue + " accepts " + label + " (retry ${first} to ${last} seconds).")

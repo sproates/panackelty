@@ -261,4 +261,14 @@ PASS two ordered inputs do not prove a mixed replacement
 PASS mutation during reconstruction loses the shared origin
 PASS a transformed string must establish its target guard again
 PASS an appended collection must establish its target guard again
-tests: 263, failures: 0
+PASS mixed conditional rejects the failing branch
+PASS mixed conditional requires proof for unknown input
+PASS nested literal reports its failing word
+PASS unknown array element requires proof
+PASS base array cannot acquire element guarantees
+PASS guarded array still requires a natural index
+PASS guarded map uses ordinary indexing restrictions
+PASS array size proof still required after checking its elements
+PASS array size cannot satisfy its element guard
+PASS guarded array indexing retains the VM bounds check
+tests: 273, failures: 0

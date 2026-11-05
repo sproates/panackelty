@@ -606,6 +606,13 @@ invalidates facts about the previous value. Known violations and missing proofs
 produce different diagnostics at the use site and identify the guard declaration.
 Contradictory bounds report both locations.
 
+When a guarded result is required, each value-producing branch of an
+`if` expression must satisfy that type. A branch may already carry the
+guard or may supply a base value whose facts prove it. A literal supplied
+where an array of guarded elements is required is checked element by element,
+including nested literals. These conversions use static proof. A guarded
+array can be indexed directly with the usual natural index and bounds checks.
+
 #### Runtime validation
 
 `validate[Type](input)` takes one value of the declared base type, evaluates it

@@ -1,3 +1,4 @@
+import stdlib/core::{first_control_character}
 // Runtime validation retains requirements and safe facts about the input.
 pub enum ValidationLocation { WholeValue, Field(Str) }
 pub enum ValidationCountUnit { UnicodeScalars, ArrayElements, MapEntries, SetElements }
@@ -118,21 +119,10 @@ pure nonblank(error: ValidationError, value: Str): ValidationError {
   if value.is_non_blank() { error } else { failed(error, NonBlank(), BlankText()) }
 }
 pure control_free(error: ValidationError, value: Str): ValidationError {
-  data = value.encode_utf8()
-  mut offset: Nat = 0
-  mut index: Nat = 0
-  mut result = error
-  while offset < data.length() && result.failures.len() == error.failures.len() {
-    first = data.at(offset)
-    if first < 32 || first == 127 {
-      result = failed(error, NoControlCharacters(), ControlCharacter(index,first))
-    } else if first == 194 && data.at(offset + 1) <= 159 {
-      result = failed(error, NoControlCharacters(), ControlCharacter(index,data.at(offset + 1)))
-    }
-    offset = offset + if first < 128 { 1 } else if first < 224 { 2 } else if first < 240 { 3 } else { 4 }
-    index = index + 1
+  match first_control_character(value) {
+    None() => error,
+    Some(control) => failed(error,NoControlCharacters(),ControlCharacter(control.index,control.scalar))
   }
-  result
 }
 pure numeric(error: ValidationError, expression: Str, satisfied: Bool): ValidationError {
   if satisfied { error } else { failed(error, NumericPredicate(expression), PredicateNotSatisfied()) }

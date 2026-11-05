@@ -858,10 +858,19 @@ pure domain_conversion(context: BodyContext, value: BoundBody, actual: Signature
   }
   mut checks: [BodyTypeCheckEvidence] = []
   mut accepted = true
+  base_type = base.value_or(expected)
+  mut base_proved = base != None() && body_compatibility(context,actual_base,base_type) == Some(true)
+  if !base_proved && actual_base.identity == SignatureCore("Array") &&
+      base_type.identity == SignatureCore("Array") && has_domain_target(context,base_type) {
+    match contextual_domain_proof(context,value,base_type) {
+      Some(elements) => { base_proved = elements.proven == Some(true); checks = elements.checks },
+      None() => {}
+    }
+  }
   if actual == expected {
     // A value already carrying this type established the invariant at construction.
     accepted = true
-  } else if base == None() || body_compatibility(context, actual_base, base.value_or(expected)) != Some(true) {
+  } else if !base_proved {
     accepted = false
   } else {
     facts = value_domain_facts(context, value)
@@ -949,10 +958,83 @@ pure body_guard_source_span(value: BoundBody): SourceSpan {
   span
 }
 
+// Only the selected value participates in the proof. Unwrap a true block
+// tail while retaining the value's original use span and captured flow facts.
+pure domain_tail(value: BoundBody): BoundBody {
+  if value.children.len() > 0 {
+    match value.node {
+      BodyBlock(tail,span,origins) => {
+        last = value.children[prior_index(value.children.len())]
+        if tail && last.type == value.type { domain_tail(last) } else { value }
+      },
+      BodyLiteral(v) => value, BodyInterpolation(parts) => value, BodyLocalUse(id,facts) => value,
+      BodyFunction(binding) => value, BodyCall(target,types,args) => value, BodyArray() => value,
+      BodyUnary(op) => value, BodyBinary(op) => value, BodyField(name) => value, BodyIndex() => value,
+      BodyIf(has_else) => value, BodyMatch(targets,bindings,sites) => value, BodyBinding(id,t,m,i,e) => value,
+      BodyAssignment(id,e) => value, BodyWhile() => value, BodyFor(id) => value, BodyEmpty() => value
+    }
+  } else { value }
+}
+
+pure has_domain_target(context: BodyContext, type: SignatureType): Bool {
+  if type.identity == SignatureCore("Array") && type.arguments.len() == 1 {
+    has_domain_target(context,type.arguments[0])
+  } else {
+    match body_guard_spec(context,type) {
+      Some(spec) => domain_base(spec.base) || record_guard(spec.base), None() => false
+    }
+  }
+}
+
+pure contextual_domain_proof(context: BodyContext, value: BoundBody, expected: SignatureType): Option[BodyGuardConversionDecision] {
+  tail = domain_tail(value)
+  array = tail.node == BodyArray() && expected.identity == SignatureCore("Array") && expected.arguments.len() == 1
+  conditional = tail.node == BodyIf(true) && tail.children.len() == 3
+  if !array && !conditional {
+    if expected.identity == SignatureCore("Array") && tail.type.value_or(expected).identity == SignatureCore("Array") && tail.type != None() && tail.type != Some(expected) &&
+        body_compatibility(context,tail.type.value_or(expected),expected) == None() {
+      Some(BodyGuardConversionDecision(Some(false),None(),[BodyTypeCheckEvidence(
+        "array element requirement",tail.span,tail.type,body_type_text(expected),Some(expected),Some(false),
+        "Panack needs a proof for each array element. Construct or validate the elements before passing the array.",None())]))
+    } else { None() }
+  } else {
+    target = if array { expected.arguments[0] } else { expected }
+    mut checks: [BodyTypeCheckEvidence] = []
+    mut valid = true
+    mut i: Nat = if array { 0 } else { 1 }
+    while i < tail.children.len() {
+      child = domain_tail(tail.children[i])
+      proof = body_guard_conversion(context,child,target)
+      accepted = body_compatibility_value(context,child,target,proof)
+      valid = valid && accepted == Some(true)
+      details = match proof { Some(decision) => decision.checks, None() => [] }
+      checks = checks.concat(details)
+      if accepted != Some(true) && details.len() == 0 {
+        checks = checks.append(BodyTypeCheckEvidence("value requirement",child.span,child.type,body_type_text(target),Some(target),
+          Some(false),"This value requires " + body_type_text(target) + ".",None()))
+      }
+      i = i + 1
+    }
+    Some(BodyGuardConversionDecision(Some(valid),None(),checks))
+  }
+}
+
 pure body_guard_conversion(
   context: BodyContext,
   value: BoundBody,
   expected: SignatureType
+): Option[BodyGuardConversionDecision] {
+  nested = if value.type != Some(expected) && context.facts.has("$domain") && has_domain_target(context,expected) {
+    contextual_domain_proof(context,value,expected)
+  } else { None() }
+  match nested {
+    Some(decision) => Some(decision),
+    None() => body_direct_guard_conversion(context,value,expected)
+  }
+}
+
+pure body_direct_guard_conversion(
+  context: BodyContext, value: BoundBody, expected: SignatureType
 ): Option[BodyGuardConversionDecision] {
   mut result: Option[BodyGuardConversionDecision] = None()
   match value.type {
@@ -1073,11 +1155,13 @@ pure body_require_value(
       match conversion {
         Some(decision) => { for check in decision.checks {
           if check.accepted != Some(true) {
-            requirement_site = check.dependency.value_or(value.span)
-            pos = requirement_site.start
+            declaration = match check.dependency {
+              Some(site) => " Guard declared in " + site.start.file + ", line " +
+                body_nat_text(site.start.line) + ", column " + body_nat_text(site.start.column) + ".",
+              None() => ""
+            }
             failures = failures.append(Diagnostic(label + " requires " + body_type_text(expected) +
-              ". " + check.reason + " Guard declared in " + pos.file + ", line " +
-              body_nat_text(pos.line) + ", column " + body_nat_text(pos.column) + "." +
+              ". " + check.reason + declaration +
               (if check.accepted == None() { " For runtime input, use validate[Type](input) with the declared guard type and handle the result." } else { "" }), check.span.start))
           }
         } }, None() => {}
@@ -6189,6 +6273,33 @@ pure body_join(
   }
 }
 
+pure domain_join_base(context: BodyContext, type: SignatureType): SignatureType {
+  match body_guard_spec(context,type) {
+    Some(spec) => if domain_base(spec.base) || record_guard(spec.base) {
+      domain_base_type(context,type).value_or(type)
+    } else { type },
+    None() => type
+  }
+}
+
+// Join produced values, including elements of persistent arrays. Generic
+// parameter inference and callable contracts keep their separate join rules.
+pure body_value_join(context: BodyContext, left: SignatureType, right: SignatureType): Result[Option[SignatureType],Str] {
+  if !context.facts.has("$domain") || left == right || body_is_hole(left) || body_is_hole(right) {
+    body_join(context,left,right)
+  } else {
+    a = domain_join_base(context,left)
+    b = domain_join_base(context,right)
+    if a.identity == SignatureCore("Array") && b.identity == a.identity &&
+        a.arguments.len() == 1 && b.arguments.len() == 1 {
+      match body_value_join(context,a.arguments[0],b.arguments[0]) {
+        Ok(item) => match item { Some(t) => Ok(Some(body_intrinsic_array(t))), None() => Ok(None()) },
+        Error(message) => Error(message)
+      }
+    } else { body_join(context,a,b) }
+  }
+}
+
 pure check_body_conditional(
   context: BodyContext,
   checked: BodyResult,
@@ -6257,7 +6368,7 @@ pure check_body_conditional(
             ))
           }
         },
-        Some(right) => match body_join(context, left, right) {
+        Some(right) => match body_value_join(context, left, right) {
           Error(message) => {
             diagnostics = diagnostics.append(Diagnostic(message, node.span.start))
             if context.retain_guard_conversions {
@@ -6402,7 +6513,8 @@ pure check_body_index(context: BodyContext, checked: BodyResult): BodyResult {
     None() => {
       deferred = deferred.append(node.span)
     },
-    Some(type) => {
+    Some(receiver) => {
+      type = if body_is_guarded(context,receiver) { domain_base_type(context,receiver).value_or(receiver) } else { receiver }
       if type == SignatureType(SignatureCore("Str"), []) {
         output = body_core_type("Str")
         receiver_accepted = Some(true)
@@ -6415,17 +6527,9 @@ pure check_body_index(context: BodyContext, checked: BodyResult): BodyResult {
             output = Some(type.arguments[0])
             receiver_accepted = Some(true)
           } else {
-            if body_guarded(context, type) {
-              deferred = deferred.append(node.span)
-            } else {
-              receiver_accepted = Some(false)
-              diagnostics = diagnostics.append(
-                Diagnostic(
-                "indexing requires Str, Bytes or array, got " + body_type_text(type),
-                node.span.start
-              )
-              )
-            }
+            receiver_accepted = Some(false)
+            diagnostics = diagnostics.append(Diagnostic(
+              "indexing requires Str, Bytes or array, got " + body_type_text(receiver),node.children[0].span.start))
           }
         }
       }
@@ -7408,7 +7512,7 @@ pure check_body_array(context: BodyContext, checked: BodyResult, path: [Nat]): B
             ))
           }
         },
-        Some(previous) => match body_join(context, previous, type) {
+        Some(previous) => match body_value_join(context, previous, type) {
           Error(message) => {
             diagnostics = diagnostics.append(
               Diagnostic("array elements have " + message, child.span.start)

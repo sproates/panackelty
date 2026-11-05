@@ -1,6 +1,6 @@
 # HTTP package
 
-Native **0.1.0-alpha.14** includes `panackelty.http` version `0.1.0`.
+Native **0.1.0-alpha.15** includes `panackelty.http` version `0.1.0`.
 Alpha.14 replaces the transport-oriented server API with
 a routed HTTP server framework. The HTTP/HTTPS client remains unchanged. To serve files, start with the [static HTTP server tool](../../tools/http-server/README.md).
 
@@ -10,14 +10,15 @@ In your application's `panack.json`, give `dependencies.http.path` the relative
 path from that manifest to this package. In an extracted release the package is
 at `panackelty/packages/http`. Keep the complete package directory; the manifest
 and exported modules are required. The application and package must use the
-matching `0.1.0-alpha.14` toolchain.
+matching `0.1.0-alpha.15` toolchain.
 
 For example, an application beside the extracted `panackelty/` directory uses:
 
 ```json
-{"schema":1,"package":"my.http_app","version":"0.1.0","language":"modules-v1","toolchain":"0.1.0-alpha.14","source":"src","entry":"main.panack","exports":{},"dependencies":{"http":{"path":"../panackelty/packages/http"}}}
+{"schema":1,"package":"my.http_app","version":"0.1.0","language":"modules-v1","toolchain":"0.1.0-alpha.15","source":"src","entry":"main.panack","exports":{},"dependencies":{"http":{"path":"../panackelty/packages/http"}}}
 ```
 
+Create the application lock with `panack deps lock --project path/to/app/panack.json`.
 Run it with `panack run --project path/to/app/panack.json`. There is no package
 registry lookup or implicit dependency download.
 

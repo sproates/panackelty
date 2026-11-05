@@ -3,8 +3,7 @@
 Updated: 5 November 2026. Release: **v0.1.0-alpha.15**. Integration branch: **next**.
 Latest published release: **v0.1.0-alpha.14**. Publication date: not agreed.
 
-**All seven alpha.15 feature workstreams are accepted on merge. The next step
-is release preparation and owner approval for publication.**
+**All seven alpha.15 feature workstreams are accepted on next. The release candidate is in preparation for promotion to main.**
 
 This is the current release-status source of truth. Read this file for a quick
 status answer; follow evidence links when investigating a particular item.
@@ -166,7 +165,7 @@ The order and scope weights remain unchanged. GI#409 assessment delivery is reco
 
 ## Release readiness and next action
 
-- Next: prepare the release candidate and verify versioning, distribution and
+- Candidate prepared with the alpha.15 version, release notes and regenerated bundled locks. Verify distribution and
   promotion against the [release policy](releases/RELEASE_POLICY.md).
 - Promotion, package/install release checks and owner publication approval remain.
   Complete product acceptance on next does not mean a feature has shipped.

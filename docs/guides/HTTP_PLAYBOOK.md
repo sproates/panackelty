@@ -3,14 +3,14 @@
 This playbook walks through a working HTTP server, from sending your first
 request to sharing settings between handlers and shutting the server down.
 Each example includes the complete code, so you can read it here or try it with
-your alpha.14 release package. For individual methods and their options, see the
+your alpha.15 release package. For individual methods and their options, see the
 [API reference](../reference/http-server.md).
 
 ## Your first server
 
-### Open your alpha.14 release package
+### Open your alpha.15 release package
 
-Use the alpha.14 release package for your operating system and processor. Unpack
+Use the alpha.15 release package for your operating system and processor. Unpack
 it and open a terminal in the extracted `panackelty` directory. The package
 includes the compiler, runtime, standard library, HTTP package and the examples
 used in this playbook. You do not need Git, Make, a C compiler or Xcode tools.
@@ -21,7 +21,7 @@ Check that you are using the supplied compiler:
 ./bin/panack --version
 ```
 
-The version should be `0.1.0-alpha.14`. All commands below run from this extracted
+The version should be `0.1.0-alpha.15`. All commands below run from this extracted
 directory, which contains `bin`, `examples` and `packages`. Using `./bin/panack`
 keeps the compiler and bundled packages together, even if another version is
 installed on your machine. Use `curl` in a second terminal to try the requests.
@@ -133,7 +133,7 @@ find the program and its dependencies. Here's the manifest from
   "package": "examples.http_server",
   "version": "0.1.0",
   "language": "modules-v1",
-  "toolchain": "0.1.0-alpha.14",
+  "toolchain": "0.1.0-alpha.15",
   "source": "src",
   "entry": "main.panack",
   "exports": {},
@@ -317,7 +317,7 @@ The accompanying manifest is shown below. It's included at
   "package": "examples.http_contextual_server",
   "version": "0.1.0",
   "language": "modules-v1",
-  "toolchain": "0.1.0-alpha.14",
+  "toolchain": "0.1.0-alpha.15",
   "source": "src",
   "entry": "main.panack",
   "exports": {},
@@ -416,7 +416,7 @@ Here's the accompanying manifest, included at
   "package": "examples.http_server_lifecycle",
   "version": "0.1.0",
   "language": "modules-v1",
-  "toolchain": "0.1.0-alpha.14",
+  "toolchain": "0.1.0-alpha.15",
   "source": "src",
   "entry": "main.panack",
   "exports": {},

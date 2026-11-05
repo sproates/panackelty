@@ -44,7 +44,7 @@ main(): Void {
     "fibonacci", "find_files", "fizzbuzz", "generic_functions", "generic_methods", "guards", "host_failures", "infinite_stream",
     "lexer_foundation", "option_result", "owned_methods", "palindrome", "pipe_input",
     "read_temporary_note", "report_failures_only", "strings", "test_booking_limits",
-    "testing_report", "text_preview", "unique_names", "vm_arithmetic", "vm_branch_call",
+    "testing_report", "text_preview", "unique_names", "validated_dispatch", "vm_arithmetic", "vm_branch_call",
     "vm_loop", "public_api", "trip_planner", "twin_sensors"]
   for name in examples {
     expected_text = "${expected_text}PASS example/${name}/source\nPASS example/${name}/compile\nPASS example/${name}/bytecode\n"
@@ -90,7 +90,7 @@ main(): Void {
     }
     expected_text = "${expected_text}PASS failure/${name}/no artifact\n"
   }
-  expected = "${expected_text}PASS selected failure count\ntests: 583, failures: 0\n".encode_utf8()
+  expected = "${expected_text}PASS selected failure count\ntests: 586, failures: 0\n".encode_utf8()
   command = TestCommand(runner_path("./bin/panack"),
     ["run", "tests/runner/main.panack"], byte_buffer.empty(), std_path.current(),
     runner_test_environment(),

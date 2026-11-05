@@ -31,6 +31,10 @@ recipes require a writable directory or the named POSIX executable.
 `testing_report.panack` deliberately reports one failure to demonstrate the
 returned failure count; its process succeeds when that expected count is observed.
 
+The [validated dispatch example](validated_dispatch.panack) checks retry
+configuration and request labels. Its [walkthrough and migration guide](../docs/guides/VALIDATED_DOMAIN_TYPES.md)
+shows how to handle successful values and report every failed rule.
+
 ## VM walkthroughs
 
 The [VM execution guide](../docs/guides/VM_GUIDE.md) includes disassembly and recorded

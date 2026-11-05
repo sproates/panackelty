@@ -29,7 +29,7 @@ sh "$root/tests/fixture_inventory.sh" "$tree"
 printf 'main(): Void {}\n' > "$tree/examples/new_example.panack"
 : > "$tree/tests/functional/expected/examples/new_example.stdout"
 reject addition 'examples list missing new_example'
-grep -F 'count is 37, inventory requires 38' "$work/out" >/dev/null
+grep -F 'count is 38, inventory requires 39' "$work/out" >/dev/null
 # Real Makefile must stop before invoking policy/build sub-makes, even with -j.
 cp Makefile VERSION "$tree/"
 cp tests/fixture_inventory.sh tests/fixture_inventory.awk "$tree/tests/"
@@ -45,8 +45,8 @@ fi
 grep -F 'examples list missing new_example' "$work/make.out" >/dev/null
 test ! -e "$work/phase-started" || fail 'expensive phase started before rejection'
 # A deliberately maintained inventory is accepted, without rewriting goldens.
-replace tests/runner/main.panack 's/== "" { 37 }/== "" { 38 }/'
-replace tests/functional/cases/runner_smoke/main.panack 's/"option_result"/"new_example", "option_result"/; s/tests: 583/tests: 586/'
+replace tests/runner/main.panack 's/== "" { 38 }/== "" { 39 }/'
+replace tests/functional/cases/runner_smoke/main.panack 's/"option_result"/"new_example", "option_result"/; s/tests: 586/tests: 589/'
 sh "$root/tests/fixture_inventory.sh" "$tree"
 reset_tree
 replace tests/functional/cases/runner_smoke/main.panack 's/"generic_functions", "generic_methods"/"generic_methods", "generic_functions"/'
@@ -65,8 +65,8 @@ mkdir "$tree/examples/namespaces/owned_methods"
 : > "$tree/examples/namespaces/owned_methods/main.panack"
 reject duplicate-source 'duplicate example name owned_methods'
 reset_tree
-replace tests/runner/main.panack 's/== "" { 37 }/== "" { 36 }/'
-reject count 'count is 36, inventory requires 37'
+replace tests/runner/main.panack 's/== "" { 38 }/== "" { 37 }/'
+reject count 'count is 37, inventory requires 38'
 reset_tree
 replace tests/functional/cases/runner_smoke/main.panack 's/"generic_methods"/"replacement"/'
 reject same-size-list 'examples list missing generic_methods'
@@ -74,8 +74,8 @@ reset_tree
 replace tests/functional/cases/runner_smoke/main.panack 's/"generic_methods"/"owned_methods"/'
 reject duplicate-list 'duplicate examples entry owned_methods'
 reset_tree
-replace tests/functional/cases/runner_smoke/main.panack 's/tests: 583/tests: 562/'
-reject total 'transcript total is 562, inventory requires 583'
+replace tests/functional/cases/runner_smoke/main.panack 's/tests: 586/tests: 562/'
+reject total 'transcript total is 562, inventory requires 586'
 reset_tree
 replace tests/functional/cases/runner_smoke/main.panack 's/examples = /renamed_examples = /'
 reject format 'expected declaration not found'

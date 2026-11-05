@@ -46,7 +46,7 @@ fi
 STUB
 cat > "$work/bin/sw_vers" <<'STUB'
 #!/bin/sh
-printf '14.0\n'
+printf '%s\n' "${fixture_macos:-15.0}"
 STUB
 chmod +x "$work/bin/uname" "$work/bin/sed" "$work/bin/sw_vers"
 fixture() {
@@ -101,6 +101,13 @@ test "$("$link" --version)" = 'panack 0.1.0-alpha.14 (bytecode 9)' || fail 'inst
 install_ok
 test "$(readlink "$prefix/current")" = "$first" || fail repeat-link
 fixture 0.1.0-alpha.15
+if [ "$fixture_system" = Darwin ]; then
+    fixture_macos=14.0; export fixture_macos
+    install_ok --version 0.1.0-alpha.14
+    reject 'requires macOS 15 or newer' --version 0.1.0-alpha.15
+    test "$(readlink "$prefix/current")" = "$first" || fail 'changed installed release on unsupported macOS'
+    unset fixture_macos
+fi
 install_ok --version 0.1.0-alpha.15
 test "$("$link" --version)" = 'panack 0.1.0-alpha.15 (bytecode 9)' || fail upgraded-command
 test -d "$prefix/$first" || fail 'old release not retained'

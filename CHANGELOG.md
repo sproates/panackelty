@@ -8,6 +8,10 @@ in `docs/releases/RELEASE_POLICY.md`.
 
 ## 0.1.0-alpha.15 — 2026-11-05
 
+### Supported systems
+
+- The Apple silicon archive requires macOS 15 or newer. Users on macOS 14 can continue using alpha.14. The Linux x86-64 minimum is Ubuntu 22.04.
+
 ### Packages
 
 - Declare dependencies on local directories, local archives, HTTPS archives or pinned Git sources. Use `panack deps lock`, `restore` and `update` with `--project panack.json` to manage a project explicitly. Restore a previously acquired graph offline using its lockfile. Git is optional for projects that use only local and HTTPS dependencies.

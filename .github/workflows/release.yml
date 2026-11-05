@@ -60,7 +60,7 @@ jobs:
           - target: linux-x86_64
             runner: ubuntu-22.04
           - target: macos-arm64
-            runner: macos-14
+            runner: macos-15
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Check out exact release source

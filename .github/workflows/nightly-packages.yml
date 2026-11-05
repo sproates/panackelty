@@ -32,7 +32,7 @@ jobs:
           - target: linux-x86_64
             runner: ubuntu-22.04
           - target: macos-arm64
-            runner: macos-14
+            runner: macos-15
     runs-on: ${{ matrix.runner }}
     env:
       VALIDATION_JOBS: ${{ matrix.suite == 'compiler' && '3' || '2' }}

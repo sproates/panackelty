@@ -11,6 +11,8 @@ compiler, VM and standard library retain bytecode format 9.
 
 ## Promotion and publication
 
+Alpha.15 targets Ubuntu 22.04 or newer on x86-64 and macOS 15 or newer on Apple silicon. GitHub retired its macOS 14 runner on 2 November. Alpha.14 remains available for macOS 14.
+
 The promotion PR requires full validation and Linux and macOS package checks.
 After owner approval and merge, release publication requires the exact approved
 main commit, matching version, and the [release workflow](RELEASE_POLICY.md#release-gate).

@@ -138,7 +138,7 @@ Opt-in [detailed validation profiling](../../tests/README.md#detailed-validation
 separates native builds, harness groups, probes and bootstrap costs.
 
 Continuous integration builds this package independently on Ubuntu 22.04
-x86-64 and macOS 14 arm64. Each platform runs five clean, isolated suites via
+x86-64 and macOS 15 arm64. Each platform runs five clean, isolated suites via
 `make check-no-interpreter CI_SUITE=…`: compiler/harness, runtime/functional,
 bootstrap, source conformance and bytecode conformance/packaging. Together they cover the complete
 check and package proofs with only allowlisted commands visible. The stable

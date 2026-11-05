@@ -45,6 +45,8 @@ not otherwise require Git. Verified cached Git packages can be used without
 invoking Git. This package workflow is currently available on `next`; the
 alpha.14 installation described here does not include it.
 
+On Apple silicon the minimum for alpha.15 is macOS 15. For macOS 14, use the alpha.14 download above.
+
 The alpha.15 distribution includes the separate package tool alongside the
 compiler. Keep the complete toolchain directory together when moving it; linking
 `bin/panack` onto PATH is supported. No source checkout, compiler build tools,

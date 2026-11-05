@@ -4,7 +4,9 @@ Notable changes to Panackelty are recorded here. Preview releases may change
 source syntax, checking behavior, standard-library APIs, and bytecode as described
 in `docs/releases/RELEASE_POLICY.md`.
 
-## 0.1.0-alpha.15
+## Unreleased
+
+## 0.1.0-alpha.15 — 2026-11-05
 
 ### Packages
 
@@ -48,7 +50,7 @@ in `docs/releases/RELEASE_POLICY.md`.
 ### Development tools
 
 - Reuse verified test preparation across coverage runs while executing the tests afresh. Shared compiler-test preparation also reduces the cost of full and focused validation.
-- New runnable examples include directory-tree searches, a request-counting HTTP service and typed request dispatch.
+- New runnable examples include directory-tree searches, an HTTP include example and typed request dispatch.
 
 ## 0.1.0-alpha.14 — 2026-10-21
 

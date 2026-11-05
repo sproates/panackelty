@@ -1,0 +1,93 @@
+name: Artifact upload recovery contracts
+on:
+  pull_request:
+    paths:
+      - '.github/actions/artifact-network/**'
+      - '.github/actions/upload-with-diagnostics/**'
+      - '.github/workflows/artifact-upload-probe.yml'
+      - '.github/workflows/nightly-packages.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  upload:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-22.04, macos-14]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v6
+        with:
+          path: .nightly-ci
+          sparse-checkout: .github/actions
+          persist-credentials: false
+      - name: Prepare successful and recovering uploads
+        shell: bash
+        run: |
+          mkdir -p payload
+          echo 'upload contract' > payload/success.txt
+          # Wait for evidence of the first failed attempt, then make its file available.
+          # This injects a missing-file failure, not a claim to reproduce a DNS outage.
+          (
+            for attempt in $(seq 1 120); do
+              if [[ -d artifact-upload-diagnostics ]]; then
+                echo 'recovered upload contract' > payload/recovery.txt
+                exit 0
+              fi
+              sleep 1
+            done
+            exit 1
+          ) > "$RUNNER_TEMP/upload-recovery-fixture.log" 2>&1 &
+      - name: First attempt succeeds
+        id: first
+        uses: ./.nightly-ci/.github/actions/upload-with-diagnostics
+        with:
+          name: immediate-${{ matrix.runner }}
+          path: payload/success.txt
+          if-no-files-found: error
+      - name: Assert no unnecessary retry or diagnostics
+        shell: bash
+        env:
+          ATTEMPT: ${{ steps.first.outputs.attempt }}
+        run: test "$ATTEMPT" = 1 && test ! -d artifact-upload-diagnostics
+      - name: Recover on the second attempt
+        id: recovered
+        uses: ./.nightly-ci/.github/actions/upload-with-diagnostics
+        with:
+          name: recovered-${{ matrix.runner }}
+          path: payload/recovery.txt
+          if-no-files-found: error
+      - name: Assert recovery retains failure evidence
+        shell: bash
+        env:
+          ATTEMPT: ${{ steps.recovered.outputs.attempt }}
+        run: |
+          test "$ATTEMPT" = 2
+          test "$(find artifact-upload-diagnostics -name '*.jsonl' | wc -l | tr -d ' ')" = 1
+          grep -q 'artifactServiceHostname' artifact-upload-diagnostics/*.jsonl
+      - name: Exhaust all three attempts
+        id: exhausted
+        continue-on-error: true
+        uses: ./.nightly-ci/.github/actions/upload-with-diagnostics
+        with:
+          name: exhausted-${{ matrix.runner }}
+          path: payload/never-created.txt
+          if-no-files-found: error
+      - name: Assert exhaustion fails and every failed attempt was diagnosed
+        shell: bash
+        env:
+          OUTCOME: ${{ steps.exhausted.outcome }}
+        run: |
+          test "$OUTCOME" = failure
+          test "$(find artifact-upload-diagnostics -name '*.jsonl' | wc -l | tr -d ' ')" = 4
+      - name: Preserve probe evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: upload-probe-evidence-${{ matrix.runner }}
+          path: artifact-upload-diagnostics/*.jsonl

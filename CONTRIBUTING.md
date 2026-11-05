@@ -181,4 +181,4 @@ Open **Issues**, select **New issue**, then choose **Bug report**. Include:
 - What you expected, and whether the problem also occurs with compiled bytecode.
 
 Don't include secrets or private data. Report suspected vulnerabilities through
-the private reporting channel in [SECURITY.md](SECURITY.md), not a public issue.
+the private channel in [SECURITY.md](SECURITY.md), not a public issue.

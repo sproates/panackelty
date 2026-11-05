@@ -3,6 +3,18 @@
 Panackelty **0.1.0-alpha.14 is published**. See the [release notes](CHANGELOG.md)
 and [acceptance evidence](docs/releases/ALPHA14_RELEASE_ACCEPTANCE.md).
 
+## Nightly artifact resilience: 26 October 2026
+
+Nightly uploads capture bounded DNS, resolver and HTTPS evidence after each
+failure and retry up to twice before failing. Failed attempts remain visible even
+when a retry succeeds. The original DNS failure is still unexplained; transient
+failure remains a hypothesis. Delivery validation covers native Linux/macOS
+upload success, recovery and exhaustion independently of full nightly validation.
+See [diagnostics and limits](tests/VALIDATION_PROFILE.md#nightly-artifact-upload-recovery-and-dns-evidence--2026-10-26).
+This is CI-only work with no product or website behaviour change. Successful
+uploads add no diagnostics or backoff; failed uploads have explicit bounds. No
+issue was created for this repair. Completion evidence is recorded in the PR.
+
 ## Next: alpha.15
 
 GI#409: Compiler/stdlib boundary assessment is complete on next (PR#635).
@@ -44,10 +56,11 @@ through alpha.19 remain planned. See the
   the HTTP API reference and runnable examples slice of GI#552. Colours (GI#555)
   were not included.
 - **alpha.15:** remaining foundation work: package-management implementation, compiler
-  understanding, validated domain types, inference/stdlib assessments, faster
-  coverage, selected friction/performance work, and the GI#106 test-speed milestone.
+  understanding, validated domain types, the compiler/stdlib assessment, faster
+  coverage, selected friction improvements, and the GI#106 test-speed milestone.
 - **alpha.16:** build useful programs: typed service exchanges, file discovery,
-  subprocess examples, a tiny build tool and tested guides.
+  subprocess examples, a tiny build tool, tested guides, GI#170: Inference assessment
+  and RM#157: Performance review.
 - **alpha.17:** everyday development: one editor, source-aware runtime errors and
   Homebrew installation.
 - **alpha.18:** interactive/connected applications: browser event handlers and

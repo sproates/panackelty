@@ -6265,3 +6265,46 @@ in 204.89 seconds, with the nested corpus passing in 143 seconds. Full
 functional assertions, bootstrap/namespace acceptance, release smoke and quick
 start. These local observations are not a controlled before/after speed comparison.
 The failed hosted macOS lane remains the post-merge acceptance check. No source, VM or seed change is involved.
+
+## Nightly artifact upload recovery and DNS evidence — 2026-10-26
+
+The scheduled upload failure remains unexplained. Transient DNS failure is a
+hypothesis; successful later probes do not establish the original cause.
+Nightly package, coverage and validation-report uploads now use the same bounded
+wrapper: at most three attempts, with 10 and 30 seconds between attempts and a
+10-minute ceiling for the complete upload operation. Ordinary successful uploads incur no
+probe or backoff cost. Retention and missing-file policies remain unchanged.
+Retry artifacts have `-retry-2` or `-retry-3` appended to the original name, so a
+partially successful earlier upload cannot cause a duplicate-name conflict.
+The job summary records recovery or exhaustion. An external timeout or job cancellation can interrupt diagnostic collection. Exhaustion fails the upload;
+recovery does not turn an earlier validation failure into a successful job.
+
+After every failed attempt, a JavaScript action reads the runner-provided
+`ACTIONS_RESULTS_URL` and records its hostname. It performs three rounds of
+system DNS lookup, A/AAAA records with TTLs and CNAME lookup, with `api.github.com`
+as a control. Records include UTC time, probe duration and error codes, configured
+resolvers, platform resolver/routing configuration, runner image/version, Node
+version and proxy hostnames. An unauthenticated HTTPS HEAD request checks DNS,
+TCP/TLS and HTTP reachability of the results service directly, without using proxy environment variables. An HTTP error response can
+still demonstrate connectivity. This probe does not reproduce an authenticated
+CreateArtifact request or test a later blob-storage endpoint.
+
+Each probe is bounded, command output is capped and the complete diagnostic
+process has a 30-second deadline. Missing tools and missing runtime URLs are
+reported rather than guessed. Credentials, URL paths/query strings, proxy
+passwords and arbitrary environment values are not dumped. The original upload
+error remains in the action log; correlate its hostname and stage with these
+later observations rather than assuming the results service caused every error.
+
+JSON records go immediately to the job log and to
+`artifact-upload-diagnostics/*.jsonl`. Validation-report retries include those
+files when available. Job logs and summaries remain the evidence source when
+artifact uploads all fail. Tooling is checked out from the workflow revision
+after validation, independently of the `next`/`main` source being tested.
+
+The small Artifact upload recovery contracts workflow exercises first-attempt
+success, second-attempt recovery and exhausted retries on Linux and macOS. Its
+missing-file fault is deterministic and does not simulate or prove a DNS outage.
+Unit contracts cover credential omission, missing service URLs and probe limits.
+The next real failure should be investigated from the original error and this
+contemporaneous evidence before changing retry counts or declaring a root cause.

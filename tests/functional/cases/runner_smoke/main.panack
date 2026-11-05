@@ -26,7 +26,7 @@ main(): Void {
     std_host.stderr("error: cached runner transcript cannot establish fresh coverage; unset PANACK_TEST_RUNNER_REPORT")
     std_host.exit(1)
   }
-  names = ["async_await", "callables", "cli_check_disasm", "cli_commands", "cli_diagnostic_display", "cli_environment_files", "cli_explanations", "cli_rational_failures", "collections", "compiler_lexer", "compiler_skeleton", "core_methods", "guard_fact_refresh", "hello_world",
+  names = ["async_await", "callables", "cli_check_disasm", "cli_commands", "cli_diagnostic_display", "cli_environment_files", "cli_explanations", "cli_rational_failures", "collections", "compiler_lexer", "compiler_skeleton", "core_methods", "domain_constraints", "guard_fact_refresh", "hello_world",
     "host_capabilities", "host_process", "host_types", "local_inference",
     "modules", "optional_else", "owned_async_handlers", "owned_callbacks", "owned_core_methods", "owned_generic_methods", "owned_imports", "owned_intrinsics", "owned_method_dispatch", "owned_methods",
     "owned_server_map", "owned_server_map_alias", "owned_server_map_facade",
@@ -90,7 +90,7 @@ main(): Void {
     }
     expected_text = "${expected_text}PASS failure/${name}/no artifact\n"
   }
-  expected = "${expected_text}PASS selected failure count\ntests: 580, failures: 0\n".encode_utf8()
+  expected = "${expected_text}PASS selected failure count\ntests: 583, failures: 0\n".encode_utf8()
   command = TestCommand(runner_path("./bin/panack"),
     ["run", "tests/runner/main.panack"], byte_buffer.empty(), std_path.current(),
     runner_test_environment(),

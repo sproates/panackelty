@@ -1658,45 +1658,48 @@ pure parse_type_declaration(tokens: [Token], index: Nat): Result[ParsedTopLevel,
       Error(parse_error("expected = after type name", token_position(tokens, equals_index)))
     } else {
       base_index: Nat = equals_index + 1
-      if base_index >= tokens.len() || tokens[base_index].kind != Identifier() {
-        Error(parse_error("expected guarded type base", token_position(tokens, base_index)))
-      } else {
-        where_index: Nat = base_index + 1
-        if where_index >= tokens.len() || tokens[where_index].text != "where" {
-          Error(parse_error(
-            "expected where after guarded type base",
-            token_position(tokens, where_index)
-          ))
-        } else {
-          guard_name_index = where_index + 1
-          arrow_index = guard_name_index + 1
-          if guard_name_index >= tokens.len() || tokens[guard_name_index].kind != Identifier() {
-            Error(parse_error("expected a guard binding after where", token_position(tokens, guard_name_index)))
-          } else if arrow_index >= tokens.len() || tokens[arrow_index].text != "=>" {
-            Error(parse_error("expected => after guard binding", token_position(tokens, arrow_index)))
+      match parse_type_ref(tokens, base_index) {
+        Error(problem) => {
+          Error(parse_error("expected guarded type base", token_position(tokens, base_index)))
+        },
+        Ok(base) => {
+          where_index: Nat = base.next
+          if where_index >= tokens.len() || tokens[where_index].text != "where" {
+            Error(parse_error(
+              "expected where after guarded type base",
+              token_position(tokens, where_index)
+            ))
           } else {
-            match parse_expression(tokens, arrow_index + 1) {
-              Ok(guard) => {
-                declaration: TopLevel = TypeDeclaration(
-                  tokens[name_index].text,
-                  tokens[base_index].text,
-                  tokens[guard_name_index].text,
-                  guard.value
-                )
-                if guard.next == tokens.len() {
-                  Ok(ParsedTopLevel(declaration, [token_span(tokens, base_index, base_index + 1)], guard.next))
-                } else {
-                  if tokens[guard.next].text == ";" {
-                    Ok(ParsedTopLevel(declaration, [token_span(tokens, base_index, base_index + 1)], guard.next + 1))
+            guard_name_index = where_index + 1
+            arrow_index = guard_name_index + 1
+            if guard_name_index >= tokens.len() || tokens[guard_name_index].kind != Identifier() {
+              Error(parse_error("expected a guard binding after where", token_position(tokens, guard_name_index)))
+            } else if arrow_index >= tokens.len() || tokens[arrow_index].text != "=>" {
+              Error(parse_error("expected => after guard binding", token_position(tokens, arrow_index)))
+            } else {
+              match parse_expression(tokens, arrow_index + 1) {
+                Ok(guard) => {
+                  declaration: TopLevel = TypeDeclaration(
+                    tokens[name_index].text,
+                    base.text,
+                    tokens[guard_name_index].text,
+                    guard.value
+                  )
+                  if guard.next == tokens.len() {
+                    Ok(ParsedTopLevel(declaration, [base.span], guard.next))
                   } else {
-                    Error(parse_error(
-                      "expected line break or semicolon after type declaration",
-                      token_position(tokens, guard.next)
-                    ))
+                    if tokens[guard.next].text == ";" {
+                      Ok(ParsedTopLevel(declaration, [base.span], guard.next + 1))
+                    } else {
+                      Error(parse_error(
+                        "expected line break or semicolon after type declaration",
+                        token_position(tokens, guard.next)
+                      ))
+                    }
                   }
-                }
-              },
-              Error(error) => Error(error)
+                },
+                Error(error) => Error(error)
+              }
             }
           }
         }

@@ -1,3 +1,5 @@
+pub import project/src/compiler/domain_guards::{DomainFacts}
+import project/src/compiler/domain_guards::{common_facts, combine_facts, DomainRule, domain_base, domain_rules, rule_outcome, fact_text, rule_text, declared_facts, unknown_facts}
 import project/src/compiler/resolver::{is_builtin}
 import project/src/compiler/owned_intrinsics::{owned_intrinsic_lowering}
 import project/src/compiler/module_bindings::{module_declaration_display, builtin_owner_arity, method_owner_name}
@@ -42,7 +44,7 @@ pub enum BodyTarget {
 pub enum BodyNode {
   BodyLiteral(Expr),
   BodyInterpolation([Str]),
-  BodyLocalUse(BodyLocalIdentity),
+  BodyLocalUse(BodyLocalIdentity, Option[DomainFacts]),
   BodyFunction(ModuleDeclarationBinding),
   BodyCall(BodyTarget, [SignatureType], [CallArgumentEvidence]),
   BodyArray,
@@ -201,7 +203,7 @@ pub pure body_call_argument_evidence(body: BoundBody): [CallArgumentEvidence] {
     BodyBinding(local, type, mutable, inferred, type_evidence) => {},
     BodyLiteral(value) => {},
     BodyInterpolation(parts) => {},
-    BodyLocalUse(local) => {},
+    BodyLocalUse(local, captured_domain) => {},
     BodyFunction(binding) => {},
     BodyArray() => {},
     BodyUnary(operator) => {},
@@ -228,7 +230,7 @@ pure body_direct_call_argument_metadata(body: BoundBody): [CallArgumentEvidence]
     BodyBinding(local, type, mutable, inferred, type_evidence) => [],
     BodyLiteral(value) => [],
     BodyInterpolation(parts) => [],
-    BodyLocalUse(local) => [],
+    BodyLocalUse(local, captured_domain) => [],
     BodyFunction(binding) => [],
     BodyArray() => [],
     BodyUnary(operator) => [],
@@ -255,7 +257,7 @@ pub pure body_binding_type_evidence(body: BoundBody): [BindingTypeEvidence] {
     BodyCall(target, types, call_arguments) => {},
     BodyLiteral(value) => {},
     BodyInterpolation(parts) => {},
-    BodyLocalUse(local) => {},
+    BodyLocalUse(local, captured_domain) => {},
     BodyFunction(binding) => {},
     BodyArray() => {},
     BodyUnary(operator) => {},
@@ -287,7 +289,7 @@ pub pure body_assignment_type_evidence(body: BoundBody): [AssignmentTypeEvidence
     BodyCall(target, types, call_arguments) => {},
     BodyLiteral(value) => {},
     BodyInterpolation(parts) => {},
-    BodyLocalUse(local) => {},
+    BodyLocalUse(local, captured_domain) => {},
     BodyFunction(binding) => {},
     BodyArray() => {},
     BodyUnary(operator) => {},
@@ -444,6 +446,34 @@ pure body_fact_key(identity: BodyLocalIdentity): Str {
   result
 }
 
+pure captured_domain_facts(context: BodyContext, local: BodyLocalIdentity): Option[DomainFacts] {
+  if context.facts.has("$domain") {
+    key = body_fact_key(local)
+    if context.facts.has(key) { context.facts.get(key).domain } else { None() }
+  } else { None() }
+}
+
+pure with_domain_facts(facts: Map[Str,Bounds], key: Str, domain: DomainFacts): Map[Str,Bounds] {
+  prior = if facts.has(key) { facts.get(key) }
+    else { Bounds(false, 0, false, 0, None(), None(), None(), None()) }
+  facts.put(key, Bounds(prior.has_lower, prior.lower, prior.has_upper, prior.upper,
+    prior.lower_origin, prior.upper_origin, prior.invalidated_at, Some(domain)))
+}
+
+pure domain_initial_flow(signatures: [ModuleSignature]): Map[Str,Bounds] {
+  mut result: Map[Str,Bounds] = map()
+  for signature in signatures {
+    if signature.binding.kind == ModuleGuardedType() && signature.slots.len() == 1 {
+      family = signature.slots[0].type.identity
+      if family == SignatureCore("Str") || family == SignatureCore("Array") ||
+        family == SignatureCore("Map") || family == SignatureCore("Set") {
+        result = result.put("$domain", Bounds(false, 0, false, 0, None(), None(), None(), None()))
+      }
+    }
+  }
+  result
+}
+
 pure body_guard_bounds(context: BodyContext, value: BoundBody): Option[Bounds] {
   body_lookup_bounds(context, value, false)
 }
@@ -451,7 +481,7 @@ pure body_guard_bounds(context: BodyContext, value: BoundBody): Option[Bounds] {
 pure body_lookup_bounds(context: BodyContext, value: BoundBody, include_invalidated: Bool): Option[Bounds] {
   mut result: Option[Bounds] = None()
   match value.node {
-    BodyLocalUse(identity) => {
+    BodyLocalUse(identity, captured_domain) => {
       key: Str = body_fact_key(identity)
       if context.facts.has(key) {
         bounds: Bounds = context.facts.get(key)
@@ -476,7 +506,7 @@ pure body_lookup_bounds(context: BodyContext, value: BoundBody, include_invalida
     },
     BodyLiteral(literal) => match unlocated_expression(literal) {
       NatExpr(number) => {
-        result = Some(Bounds(true, number, true, number, None(), None(), None()))
+        result = Some(Bounds(true, number, true, number, None(), None(), None(), None()))
       },
       LocatedExpr(position, inner, located_type_argument_spans) => {},
       DecimalExpr(text) => {},
@@ -538,9 +568,179 @@ pure body_guard_spec(context: BodyContext, type: SignatureType): Option[GuardedT
   result
 }
 
+// Only the original declaration identity supplies a nominal's base and guard.
+pure domain_base_type(context: BodyContext, type: SignatureType): Option[SignatureType] {
+  mut base: Option[SignatureType] = None()
+  match type.identity {
+    SignatureNominal(owner) => match body_signature(context.signatures, owner) {
+      Some(signature) => if signature.slots.len() == 1 { base = Some(signature.slots[0].type) },
+      None() => {}
+    },
+    SignatureCore(name) => {}, SignatureParameter(owner, index) => {},
+    SignatureCallable(effect) => {}, SignatureHole(owner, path, index) => {}
+  }
+  base
+}
+
+pure domain_operation(target: BodyTarget): Str {
+  match target {
+    BodyCore(name) => name,
+    BodyDeclaration(binding) => match binding.intrinsic {
+      None() => "", Some(id) => owned_intrinsic_lowering(id)
+    }
+  }
+}
+
+pure domain_literal_key(value: BoundBody): Option[Str] {
+  mut key: Option[Str] = None()
+  match value.node {
+    BodyLiteral(literal) => match unlocated_expression(literal) {
+      StringExpr(raw) => { key = Some("text:" + decode_string_literal(raw)) },
+      NatExpr(n) => { key = Some("nat:${n}") },
+      BoolExpr(flag) => { key = Some(if flag { "true" } else { "false" }) },
+      LocatedExpr(site, inner, types) => {},
+    DecimalExpr(raw) => {}, NameExpr(name) => {},
+    FunctionExpr(name) => {}, ArrayExpr(items) => {},
+    UnaryExpr(op, operand) => {}, BinaryExpr(op, lhs, rhs) => {},
+    CallExpr(name, arguments, types) => {}, DotCallExpr(target, name, arguments, types) => {},
+    OwnedCallExpr(target, name, arguments, types) => {}, FieldExpr(target, name) => {},
+    IndexExpr(target, index) => {}, IfExpr(test, yes, no, has_else) => {},
+    BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+    },
+    BodyInterpolation(parts) => {}, BodyLocalUse(identity, captured_domain) => {},
+    BodyFunction(binding) => {}, BodyCall(target, types, evidence) => {},
+    BodyArray() => {}, BodyUnary(op) => {},
+    BodyBinary(op) => {}, BodyField(name) => {},
+    BodyIndex() => {}, BodyIf(has_else) => {},
+    BodyBlock(has_tail, original_span, statement_spans) => {}, BodyMatch(targets, locals, spans) => {},
+    BodyBinding(identity, type, mutable, inferred, evidence) => {}, BodyAssignment(identity, evidence) => {},
+    BodyWhile() => {}, BodyFor(identity) => {},
+    BodyEmpty() => {}
+  }
+  key
+}
+
+pure value_domain_facts(context: BodyContext, value: BoundBody): DomainFacts {
+  mut facts = unknown_facts()
+  match value.type {
+    None() => {},
+    Some(type) => match body_guard_spec(context, type) {
+      Some(guard) => if domain_base(guard.base) {
+        facts = declared_facts(domain_rules(guard.guard, guard.guard_name, guard.base, value.span))
+      },
+      None() => {}
+    }
+  }
+  match value.node {
+    BodyLiteral(literal) => match unlocated_expression(literal) {
+      StringExpr(raw) => {
+        text = decode_string_literal(raw)
+        facts = DomainFacts(text.len(), Some(text.len()), Some(text.is_non_blank()),
+          Some(text.has_no_control_characters()), None())
+      },
+      LocatedExpr(site, inner, types) => {},
+    NatExpr(n) => {}, DecimalExpr(raw) => {},
+    BoolExpr(flag) => {}, NameExpr(name) => {},
+    FunctionExpr(name) => {}, ArrayExpr(items) => {},
+    UnaryExpr(op, operand) => {}, BinaryExpr(op, lhs, rhs) => {},
+    CallExpr(name, arguments, types) => {}, DotCallExpr(target, name, arguments, types) => {},
+    OwnedCallExpr(target, name, arguments, types) => {}, FieldExpr(target, name) => {},
+    IndexExpr(target, index) => {}, IfExpr(test, yes, no, has_else) => {},
+    BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+    },
+    BodyArray() => {
+      count = value.children.len()
+      facts = DomainFacts(count, Some(count), None(), None(), None())
+    },
+    BodyCall(target, types, evidence) => {
+      operation = domain_operation(target)
+      if operation == "map" || operation == "set" {
+        keys: Set[Str] = set()
+        facts = DomainFacts(0, Some(0), None(), None(), Some(keys))
+      } else if (operation == "map_put" || operation == "set_add") && value.children.len() >= 2 {
+        prior = value_domain_facts(context, value.children[0])
+        mut minimum = if prior.minimum == 0 { 1 } else { prior.minimum }
+        mut maximum: Option[Nat] = match prior.maximum { Some(n) => Some(n + 1), None() => None() }
+        mut keys: Option[Set[Str]] = None()
+        match prior.keys {
+          Some(known) => match domain_literal_key(value.children[1]) {
+            Some(key) => {
+              minimum = prior.minimum + (if known.has(key) { 0 } else { 1 })
+              maximum = Some(minimum)
+              keys = Some(known.add(key))
+            }, None() => {}
+          }, None() => {}
+        }
+        facts = DomainFacts(minimum, maximum, None(), None(), keys)
+      }
+    },
+    BodyBlock(has_tail, original_span, statement_spans) => if has_tail && value.children.len() > 0 {
+      facts = value_domain_facts(context, value.children[prior_index(value.children.len())])
+    },
+    BodyInterpolation(parts) => {},
+    BodyLocalUse(identity, captured_domain) => match captured_domain {
+      Some(local_facts) => { facts = combine_facts(facts, local_facts) }, None() => {}
+    },
+    BodyFunction(binding) => {}, BodyUnary(op) => {},
+    BodyBinary(op) => {}, BodyField(name) => {},
+    BodyIndex() => {}, BodyIf(has_else) => if has_else && value.children.len() == 3 {
+      facts = common_facts(value_domain_facts(context, value.children[1]),
+        value_domain_facts(context, value.children[2]))
+    },
+    BodyMatch(targets, locals, spans) => if value.children.len() > 1 {
+      facts = value_domain_facts(context, value.children[1])
+      for index in 2..value.children.len() {
+        facts = common_facts(facts, value_domain_facts(context, value.children[index]))
+      }
+    }, BodyBinding(identity, type, mutable, inferred, evidence) => {},
+    BodyAssignment(identity, evidence) => {}, BodyWhile() => {},
+    BodyFor(identity) => {}, BodyEmpty() => {}
+  }
+  facts
+}
+
+pure domain_conversion(context: BodyContext, value: BoundBody, actual: SignatureType,
+  expected: SignatureType, target: GuardedTypeLookup): BodyGuardConversionDecision {
+  base = domain_base_type(context, expected)
+  actual_base = match body_guard_spec(context, actual) {
+    Some(guard) => domain_base_type(context, actual).value_or(actual),
+    None() => actual
+  }
+  mut checks: [BodyTypeCheckEvidence] = []
+  mut accepted = true
+  if actual == expected {
+    // A value already carrying this type established the invariant at construction.
+    accepted = true
+  } else if base == None() || body_compatibility(context, actual_base, base.value_or(expected)) != Some(true) {
+    accepted = false
+  } else {
+    facts = value_domain_facts(context, value)
+    rules = domain_rules(target.guard, target.guard_name, target.base, value.span)
+    accepted = rules.len() > 0
+    for rule in rules {
+      outcome = rule_outcome(rule.requirement, facts)
+      requirement = rule_text(rule.requirement, target.base)
+      conclusion = match outcome {
+        Some(pass) => if pass { "The value satisfies the requirement: " + requirement + "." }
+          else { "The value violates the requirement: " + requirement + "." },
+        None() => "Panack cannot prove this value meets the requirement: " + requirement + "."
+      }
+      detail = fact_text(rule.requirement, facts, target.base)
+      reason = conclusion + (if detail == "" { "" } else { " " + detail })
+      accepted = accepted && outcome == Some(true)
+      if context.retain_guard_conversions || outcome != Some(true) {
+        checks = checks.append(BodyTypeCheckEvidence("domain constraint", body_guard_source_span(value), Some(actual),
+          requirement, Some(expected), outcome, reason, Some(rule.source)))
+      }
+    }
+  }
+  BodyGuardConversionDecision(Some(accepted), None(), checks)
+}
+
 record BodyGuardConversionDecision {
   proven: Option[Bool],
-  evidence: Option[GuardConversionEvidence]
+  evidence: Option[GuardConversionEvidence],
+  checks: [BodyTypeCheckEvidence]
 }
 
 pure body_guard_source_span(value: BoundBody): SourceSpan {
@@ -553,7 +753,7 @@ pure body_guard_source_span(value: BoundBody): SourceSpan {
     },
     BodyLiteral(literal) => {},
     BodyInterpolation(parts) => {},
-    BodyLocalUse(identity) => {},
+    BodyLocalUse(identity, captured_domain) => {},
     BodyFunction(binding) => {},
     BodyCall(target, types, call_arguments) => {},
     BodyArray() => {},
@@ -581,7 +781,9 @@ pure body_guard_conversion(
   match value.type {
     None() => {},
     Some(actual) => match body_guard_spec(context, expected) {
-      Some(target) => match actual.identity {
+      Some(target) => if domain_base(target.base) {
+        result = Some(domain_conversion(context, value, actual, expected, target))
+      } else { match actual.identity {
         SignatureCore(actual_base) => {
           compatible: Bool = actual_base == target.base ||
             (actual_base == "Nat" && target.base == "Int")
@@ -600,7 +802,7 @@ pure body_guard_conversion(
               if context.retain_guard_conversions { body_lookup_bounds(context, value, true) } else { bounds },
               proven
             )
-            result = Some(BodyGuardConversionDecision(proven, Some(evidence)))
+            result = Some(BodyGuardConversionDecision(proven, Some(evidence), []))
           } else {}
         },
         SignatureNominal(identity) => match body_guard_spec(context, actual) {
@@ -627,14 +829,14 @@ pure body_guard_conversion(
                 bounds,
                 proven
               )
-              result = Some(BodyGuardConversionDecision(proven, Some(evidence)))
+              result = Some(BodyGuardConversionDecision(proven, Some(evidence), []))
             } else {}
           }
         },
         SignatureParameter(owner, index) => {},
         SignatureCallable(effect) => {},
         SignatureHole(owner, path, index) => {}
-      },
+      } },
       None() => match body_guard_spec(context, actual) {
         Some(source) => {
           target_base: Str = match expected.identity {
@@ -644,9 +846,10 @@ pure body_guard_conversion(
             SignatureCallable(effect) => "",
             SignatureHole(owner, path, index) => ""
           }
-          if target_base == source.base ||
+          if (domain_base(source.base) && domain_base_type(context, actual) == Some(expected)) ||
+            target_base == source.base ||
             (source.base == "Nat" && target_base == "Int") {
-            result = Some(BodyGuardConversionDecision(Some(true), None()))
+            result = Some(BodyGuardConversionDecision(Some(true), None(), []))
           } else {}
         },
         None() => {}
@@ -689,13 +892,26 @@ pure body_require_value(
     Some(valid) => if valid {
       body_result(BodyEmpty(), value.span, [], None())
     } else {
-      body_failure(
+      mut failures: [Diagnostic] = []
+      match conversion {
+        Some(decision) => { for check in decision.checks {
+          if check.accepted != Some(true) {
+            requirement_site = check.dependency.value_or(value.span)
+            pos = requirement_site.start
+            failures = failures.append(Diagnostic(label + " requires " + body_type_text(expected) +
+              ". " + check.reason + " Guard declared in " + pos.file + ", line " +
+              body_nat_text(pos.line) + ", column " + body_nat_text(pos.column) + "." +
+              (if check.accepted == None() { " Check this requirement before using the value here." } else { "" }), check.span.start))
+          }
+        } }, None() => {}
+      }
+      if failures.len() > 0 { BodyResult(value, failures, []) } else { body_failure(
         label + " is " + body_type_text(match value.type {
           Some(actual) => actual,
           None() => expected
         }) + ", expected " + body_type_text(expected),
         value.span
-      )
+      ) }
     }
   }
   if !context.retain_guard_conversions { result }
@@ -722,7 +938,7 @@ pure body_return_value_span(body: BoundBody): SourceSpan {
     BodyBinding(local, type, mutable, inferred, type_evidence) => {},
     BodyLiteral(value) => {},
     BodyInterpolation(parts) => {},
-    BodyLocalUse(local) => {},
+    BodyLocalUse(local, captured_domain) => {},
     BodyFunction(binding) => {},
     BodyCall(target, types, call_arguments) => {},
     BodyArray() => {},
@@ -834,7 +1050,7 @@ pure body_proves_nat_subtraction(
   match body_condition_literal(right) {
     None() => false,
     Some(amount) => match left.node {
-      BodyLocalUse(identity) => match body_operand_lower_bound(context, left) {
+      BodyLocalUse(identity, captured_domain) => match body_operand_lower_bound(context, left) {
         None() => false,
         Some(lower) => lower >= amount
       },
@@ -900,7 +1116,7 @@ pure body_condition_literal(value: BoundBody): Option[Nat] {
       MatchExpr(subject, arms) => {}
     },
     BodyInterpolation(parts) => {},
-    BodyLocalUse(identity) => {},
+    BodyLocalUse(identity, captured_domain) => {},
     BodyFunction(binding) => {},
     BodyCall(target, types, call_arguments) => {},
     BodyArray() => {},
@@ -932,38 +1148,184 @@ pure body_add_local_bound(
   prior: Bounds = if facts.has(key) {
     facts.get(key)
   } else {
-    Bounds(false, 0, false, 0, None(), None(), None())
+    Bounds(false, 0, false, 0, None(), None(), None(), None())
   }
   mut next: Bounds = prior
   if (operator == ">" && truth) || (operator == "<=" && !truth) {
-    next = Bounds(true, value + 1, prior.has_upper, prior.upper, Some(GuardOrigin(Some(span), truth)), prior.upper_origin, None())
+    next = Bounds(true, value + 1, prior.has_upper, prior.upper, Some(GuardOrigin(Some(span), truth)), prior.upper_origin, None(), None())
   }
   if (operator == ">=" && truth) || (operator == "<" && !truth) {
-    next = Bounds(true, value, prior.has_upper, prior.upper, Some(GuardOrigin(Some(span), truth)), prior.upper_origin, None())
+    next = Bounds(true, value, prior.has_upper, prior.upper, Some(GuardOrigin(Some(span), truth)), prior.upper_origin, None(), None())
   }
   if (operator == "<=" && truth) || (operator == ">" && !truth) {
-    next = Bounds(prior.has_lower, prior.lower, true, value, prior.lower_origin, Some(GuardOrigin(Some(span), truth)), None())
+    next = Bounds(prior.has_lower, prior.lower, true, value, prior.lower_origin, Some(GuardOrigin(Some(span), truth)), None(), None())
   }
   if (operator == "<" && truth) || (operator == ">=" && !truth) {
     if value > 0 {
-      next = Bounds(prior.has_lower, prior.lower, true, value - 1, prior.lower_origin, Some(GuardOrigin(Some(span), truth)), None())
+      next = Bounds(prior.has_lower, prior.lower, true, value - 1, prior.lower_origin, Some(GuardOrigin(Some(span), truth)), None(), None())
     }
   }
   if operator == "==" && truth {
-    next = Bounds(true, value, true, value, Some(GuardOrigin(Some(span), truth)), Some(GuardOrigin(Some(span), truth)), None())
+    next = Bounds(true, value, true, value, Some(GuardOrigin(Some(span), truth)), Some(GuardOrigin(Some(span), truth)), None(), None())
   }
   if operator == "!=" && truth && value == 0 {
-    next = Bounds(true, 1, prior.has_upper, prior.upper, Some(GuardOrigin(Some(span), truth)), prior.upper_origin, None())
+    next = Bounds(true, 1, prior.has_upper, prior.upper, Some(GuardOrigin(Some(span), truth)), prior.upper_origin, None(), None())
   }
   if operator == "==" && !truth && value == 0 {
-    next = Bounds(true, 1, prior.has_upper, prior.upper, Some(GuardOrigin(Some(span), truth)), prior.upper_origin, None())
+    next = Bounds(true, 1, prior.has_upper, prior.upper, Some(GuardOrigin(Some(span), truth)), prior.upper_origin, None(), None())
   }
   facts.put(key, next)
 }
 
 // Facts flow only when a boolean composition guarantees them on this path.
 // Both conjunction-true and disjunction-false establish each operand in order.
-pure body_condition_facts(
+record DomainObservation { local: BodyLocalIdentity, property: Str }
+
+pure domain_observation(node: BoundBody): Option[DomainObservation] {
+  mut observation: Option[DomainObservation] = None()
+  match node.node {
+    BodyLocalUse(id, captured) => { observation = Some(DomainObservation(id, "value")) },
+    BodyCall(target, types, evidence) => if node.children.len() == 1 {
+      mut property = domain_operation(target)
+      match target {
+        BodyCore(name) => {},
+        BodyDeclaration(binding) => if binding.identity.module == ModuleIdentity(ToolchainModulePackage(), "core.panack") {
+          match binding.method {
+            Some(method) => if method_owner_name(method.owner) == "Str" &&
+              (method.name == "is_non_blank" || method.name == "has_no_control_characters") { property = method.name },
+            None() => {}
+          }
+        }
+      }
+      match node.children[0].node {
+        BodyLocalUse(id, captured) => { observation = Some(DomainObservation(id, property)) },
+        BodyLiteral(literal) => {},
+    BodyInterpolation(parts) => {},
+    BodyFunction(binding) => {},
+    BodyCall(inner_target, inner_types, inner_evidence) => {},
+    BodyArray() => {},
+    BodyUnary(op) => {},
+    BodyBinary(op) => {},
+    BodyField(field) => {},
+    BodyIndex() => {},
+    BodyIf(has_else) => {},
+    BodyBlock(tail, site, spans) => {},
+    BodyMatch(targets, locals, sites) => {},
+    BodyBinding(local, type, mutable, inferred, unused) => {},
+    BodyAssignment(local, unused) => {},
+    BodyWhile() => {},
+    BodyFor(local) => {},
+    BodyEmpty() => {}
+      }
+    },
+    BodyLiteral(literal) => {},
+    BodyInterpolation(parts) => {},
+    BodyFunction(binding) => {},
+    BodyArray() => {},
+    BodyUnary(op) => {},
+    BodyBinary(op) => {},
+    BodyField(field) => {},
+    BodyIndex() => {},
+    BodyIf(has_else) => {},
+    BodyBlock(tail, site, spans) => {},
+    BodyMatch(targets, locals, sites) => {},
+    BodyBinding(local, type, mutable, inferred, evidence) => {},
+    BodyAssignment(local, evidence) => {},
+    BodyWhile() => {},
+    BodyFor(local) => {},
+    BodyEmpty() => {}
+  }
+  observation
+}
+
+pure domain_count_test(op: Str, n: Nat, truth: Bool): DomainFacts {
+  mut minimum: Nat = 0
+  mut maximum: Option[Nat] = None()
+  if (op == ">=" && truth) || (op == "<" && !truth) { minimum = n }
+  if (op == ">" && truth) || (op == "<=" && !truth) { minimum = n + 1 }
+  if (op == "<=" && truth) || (op == ">" && !truth) { maximum = Some(n) }
+  if n > 0 && ((op == "<" && truth) || (op == ">=" && !truth)) { maximum = Some(n - 1) }
+  if (op == "==" && truth) || (op == "!=" && !truth) { minimum = n; maximum = Some(n) }
+  if n == 0 && ((op == "!=" && truth) || (op == "==" && !truth)) { minimum = 1 }
+  DomainFacts(minimum, maximum, None(), None(), None())
+}
+
+pure domain_branch_fact(facts: Map[Str,Bounds], writes: Map[Str,Bounds],
+  local: BodyLocalIdentity, extra: DomainFacts): Map[Str,Bounds] {
+  key = body_fact_key(local)
+  if writes.has(key) || extra == unknown_facts() { facts }
+  else {
+    prior = if facts.has(key) { facts.get(key).domain.value_or(unknown_facts()) } else { unknown_facts() }
+    with_domain_facts(facts, key, combine_facts(prior, extra))
+  }
+}
+
+pure domain_condition(condition: BoundBody, facts: Map[Str,Bounds],
+  writes: Map[Str,Bounds], truth: Bool): Map[Str,Bounds] {
+  mut result = facts
+  match condition.node {
+    BodyUnary(op) => if op == "!" && condition.children.len() == 1 {
+      result = domain_condition(condition.children[0], facts, writes, !truth)
+    },
+    BodyBinary(op) => if condition.children.len() == 2 {
+      left = condition.children[0]
+      right = condition.children[1]
+      if (op == "&&" && truth) || (op == "||" && !truth) {
+        first = domain_condition(left, facts, writes, truth)
+        result = domain_condition(right, first, writes, truth)
+      } else {
+        match domain_observation(left) {
+          None() => {},
+          Some(observation) => if observation.property == "len" {
+            match body_condition_literal(right) {
+              Some(n) => { result = domain_branch_fact(facts, writes, observation.local, domain_count_test(op,n,truth)) },
+              None() => {}
+            }
+          } else if (op == "==" || op == "!=") && observation.property == "value" && domain_literal_key(right) == Some("text:") {
+            result = domain_branch_fact(facts, writes, observation.local, domain_count_test(op,0,truth))
+          }
+        }
+      }
+    },
+    BodyCall(target, types, evidence) => match domain_observation(condition) {
+      Some(observation) => if observation.property == "is_non_blank" {
+        extra = DomainFacts(if truth { 1 } else { 0 }, None(), Some(truth), None(), None())
+        result = domain_branch_fact(facts, writes, observation.local, extra)
+      } else if observation.property == "has_no_control_characters" {
+        extra = DomainFacts(if truth { 0 } else { 1 }, None(), None(), Some(truth), None())
+        result = domain_branch_fact(facts, writes, observation.local, extra)
+      },
+      None() => {}
+    },
+    BodyLiteral(literal) => {},
+    BodyInterpolation(parts) => {},
+    BodyLocalUse(identity, captured) => {},
+    BodyFunction(binding) => {},
+    BodyArray() => {},
+    BodyField(field) => {},
+    BodyIndex() => {},
+    BodyIf(has_else) => {},
+    BodyBlock(tail, site, spans) => {},
+    BodyMatch(targets, locals, sites) => {},
+    BodyBinding(local, type, mutable, inferred, evidence) => {},
+    BodyAssignment(local, evidence) => {},
+    BodyWhile() => {},
+    BodyFor(local) => {},
+    BodyEmpty() => {}
+  }
+  result
+}
+
+pure body_condition_facts(condition: BoundBody, facts: Map[Str,Bounds], truth: Bool): Map[Str,Bounds] {
+  numeric = numeric_condition_facts(condition, facts, truth)
+  if facts.has("$domain") {
+    // A later operand can assign after an earlier operand observed the local.
+    writes = body_invalidate_assigned_locals(map(), condition)
+    domain_condition(condition, numeric, writes, truth)
+  } else { numeric }
+}
+
+pure numeric_condition_facts(
   condition: BoundBody,
   facts: Map[Str, Bounds],
   truth: Bool
@@ -972,24 +1334,24 @@ pure body_condition_facts(
   match condition.node {
     BodyUnary(operator) => {
       if operator == "!" && condition.children.len() == 1 {
-        result = body_condition_facts(condition.children[0], facts, !truth)
+        result = numeric_condition_facts(condition.children[0], facts, !truth)
       }
     },
     BodyBinary(operator) => {
       if (operator == "&&" && truth) || (operator == "||" && !truth) {
-        result = body_condition_facts(condition.children[0], facts, truth)
-        result = body_condition_facts(condition.children[1], result, truth)
+        result = numeric_condition_facts(condition.children[0], facts, truth)
+        result = numeric_condition_facts(condition.children[1], result, truth)
       } else {
         if operator != "&&" && operator != "||" && condition.children.len() == 2 {
           match condition.children[0].node {
-            BodyLocalUse(identity) => match body_condition_literal(condition.children[1]) {
+            BodyLocalUse(identity, captured_domain) => match body_condition_literal(condition.children[1]) {
               None() => {},
               Some(value) => {
                 result = body_add_local_bound(facts, identity, operator, value, truth, condition.span)
               }
             },
             BodyLiteral(literal) => match condition.children[1].node {
-              BodyLocalUse(identity) => match body_condition_literal(condition.children[0]) {
+              BodyLocalUse(identity, captured_domain) => match body_condition_literal(condition.children[0]) {
                 None() => {},
                 Some(value) => {
                   reversed: Str = if operator == ">" {
@@ -1048,7 +1410,7 @@ pure body_condition_facts(
     },
     BodyLiteral(value) => {},
     BodyInterpolation(parts) => {},
-    BodyLocalUse(identity) => {},
+    BodyLocalUse(identity, captured_domain) => {},
     BodyFunction(binding) => {},
     BodyCall(target, types, call_arguments) => {},
     BodyArray() => {},
@@ -1074,7 +1436,7 @@ pure body_clear_bounds(facts: Map[Str,Bounds], key: Str, origin: Option[SourceSp
   invalidated: Option[SourceSpan] = match previous {
     None() => None(), Some(bound) => if bound.has_lower || bound.has_upper { origin } else { bound.invalidated_at }
   }
-  facts.put(key, Bounds(false, 0, false, 0, None(), None(), invalidated))
+  facts.put(key, Bounds(false, 0, false, 0, None(), None(), invalidated, None()))
 }
 
 pure body_forget_written_fact(facts: Map[Str, Bounds], name: Str, locals: Map[Str, BodyLocal], origin: Option[SourceSpan]): Map[Str, Bounds] {
@@ -1197,7 +1559,7 @@ pure body_invalidate_assigned_locals(
     },
     BodyLiteral(value) => {},
     BodyInterpolation(parts) => {},
-    BodyLocalUse(identity) => {},
+    BodyLocalUse(identity, captured_domain) => {},
     BodyFunction(binding) => {},
     BodyCall(target, types, call_arguments) => {},
     BodyArray() => {},
@@ -1390,6 +1752,34 @@ pure body_type_argument_count_span(
 }
 
 // Select by canonical owner and source method name, independently of globals.
+// A domain type keeps its own methods. A base method operates on the same
+// underlying value and returns its ordinary declared result type.
+pure domain_method_receiver(context: BodyContext, method: Str, checked: BodyResult): BodyResult {
+  mut result = checked
+  match checked.body.type {
+    Some(type) => match type.identity {
+      SignatureNominal(owner) => match body_guard_spec(context,type) {
+        Some(spec) => if domain_base(spec.base) {
+          match resolve_owned_method(context.graph, owner, method) {
+            Ok(binding) => {},
+            Error(message) => match domain_base_type(context,type) {
+              Some(base) => {
+                b = checked.body
+                result = BodyResult(BoundBody(b.node, b.span, b.children, Some(base), b.constraints,
+                  b.guard_conversions, b.type_joins, b.callback_contracts, b.operator_checks, b.type_checks),
+                  checked.diagnostics, checked.deferred)
+              }, None() => {}
+            }
+          }
+        }, None() => {}
+      },
+      SignatureCore(name) => {}, SignatureParameter(owner,index) => {},
+      SignatureCallable(effect) => {}, SignatureHole(owner,path,index) => {}
+    }, None() => {}
+  }
+  result
+}
+
 pure body_owned_target(
   context: BodyContext, method: Str, receiver: BodyResult
 ): Result[BodyTarget, Str] {
@@ -1487,8 +1877,31 @@ pure body_call(
   locals: Map[Str, BodyLocal],
   path: [Nat]
 ): BodyResult {
-  body_call_with_receiver(context, target, arguments, types, type_argument_spans,
-    span, locals, path, None())
+  mut guarded: Option[SignatureType] = None()
+  match target {
+    BodyDeclaration(binding) => if binding.kind == ModuleGuardedType() {
+      type = SignatureType(SignatureNominal(binding.identity), [])
+      match body_guard_spec(context, type) {
+        Some(spec) => if domain_base(spec.base) { guarded = Some(type) },
+        None() => {}
+      }
+    },
+    BodyCore(name) => {}
+  }
+  match guarded {
+    None() => body_call_with_receiver(context, target, arguments, types, type_argument_spans,
+      span, locals, path, None()),
+    Some(type) => if arguments.len() != 1 || types.len() != 0 {
+      body_failure("guarded construction requires one value and no type arguments", span)
+    } else {
+      child = bind_body_expression(context, arguments[0], span, locals, path.append(0))
+      required = body_require_value(context, child.body, type, "construction")
+      refined = body_refine(context, child, type)
+      BodyResult(BoundBody(BodyBlock(true, Some(span), []), span, [refined.body], Some(type),
+        [], [], [], [], [], []), refined.diagnostics.concat(required.diagnostics),
+        refined.deferred.concat(required.deferred))
+    }
+  }
 }
 
 // Known receiver arguments and explicit method arguments are fixed. Receiver
@@ -1875,7 +2288,7 @@ pure body_call_with_receiver(
           BodyCall(ignored, inferred, evidence) => BodyCall(target, inferred, evidence),
           BodyLiteral(literal) => value.node,
           BodyInterpolation(parts) => value.node,
-          BodyLocalUse(local) => value.node,
+          BodyLocalUse(local, captured_domain) => value.node,
           BodyFunction(function) => value.node,
           BodyArray() => value.node,
           BodyUnary(operator) => value.node,
@@ -2642,7 +3055,7 @@ pure body_check_existing_special_core_call(
                   "len argument",
                   children[0].span,
                   None(),
-                  "Str, Bytes, or array",
+                  "Str, Bytes, Array, Map, or Set",
                   None(),
                   None(), "", None()
                 ))
@@ -2650,13 +3063,14 @@ pure body_check_existing_special_core_call(
             },
             Some(type) => {
               valid: Bool = type.identity == SignatureCore("Str") ||
-                type.identity == SignatureCore("Bytes") || type.identity == SignatureCore("Array")
+                type.identity == SignatureCore("Bytes") || type.identity == SignatureCore("Array") ||
+                type.identity == SignatureCore("Map") || type.identity == SignatureCore("Set")
               if context.retain_guard_conversions {
                 type_checks = type_checks.append(BodyTypeCheckEvidence(
                   "len argument",
                   children[0].span,
                   Some(type),
-                  "Str, Bytes, or array",
+                  "Str, Bytes, Array, Map, or Set",
                   None(),
                   Some(valid), "", None()
                 ))
@@ -2664,7 +3078,7 @@ pure body_check_existing_special_core_call(
               if valid {
                 output = body_core_type("Nat")
               } else {
-                diagnostics = diagnostics.append(Diagnostic("len expects Str, Bytes, or array, got " + body_type_text(type), span.start))
+                diagnostics = diagnostics.append(Diagnostic("len expects Str, Bytes, Array, Map, or Set, got " + body_type_text(type), span.start))
               }
             }
           }
@@ -4321,7 +4735,7 @@ pure bind_body_expression_with_type_argument_spans(
         result = body_failure("unknown local value " + name, origin)
       } else {
         local: BodyLocal = locals.get(name)
-        result = body_result(BodyLocalUse(local.identity), origin, [], local.type)
+        result = body_result(BodyLocalUse(local.identity, captured_domain_facts(context, local.identity)), origin, [], local.type)
       }
     },
     FunctionExpr(name) => {
@@ -4392,7 +4806,8 @@ pure bind_body_expression_with_type_argument_spans(
       }
     },
     OwnedCallExpr(receiver, name, arguments, types) => {
-      checked: BodyResult = bind_body_expression(context, receiver, origin, locals, path.append(0))
+      checked = domain_method_receiver(context, name,
+        bind_body_expression(context, receiver, origin, locals, path.append(0)))
       match body_owned_target(context, name, checked) {
         Error(message) => {
           failure = body_keep_checked_children(context, body_failure(message, origin), [checked.body])
@@ -4956,6 +5371,28 @@ pure bind_body_block(
       current_context,
       body_invalidate_assigned_locals(current_context.facts, checked.body)
     )
+    if current_context.facts.has("$domain") && checked.body.children.len() == 1 {
+      mut written: Option[BodyLocalIdentity] = None()
+      match checked.body.node {
+        BodyBinding(local, local_type, mutable, inferred, evidence) => { written = Some(local) },
+        BodyAssignment(local, evidence) => { written = Some(local) },
+        BodyLiteral(v) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(id, captured) => {},
+        BodyFunction(binding) => {}, BodyCall(target, types, evidence) => {}, BodyArray() => {},
+        BodyUnary(op) => {}, BodyBinary(op) => {}, BodyField(field) => {}, BodyIndex() => {},
+        BodyIf(has_else) => {}, BodyBlock(tail, site, spans) => {}, BodyMatch(targets, members, sites) => {},
+        BodyWhile() => {}, BodyFor(id) => {}, BodyEmpty() => {}
+      }
+      match written {
+        None() => {},
+        Some(local) => {
+          value_facts = value_domain_facts(current_context, checked.body.children[0])
+          if value_facts != unknown_facts() {
+            current_context = body_context_with_facts(current_context,
+              with_domain_facts(current_context.facts, body_fact_key(local), value_facts))
+          }
+        }
+      }
+    }
     children = children.append(checked.body)
     diagnostics = diagnostics.concat(checked.diagnostics)
     deferred = deferred.concat(checked.deferred)
@@ -5040,6 +5477,7 @@ pure check_module_bodies_mode(
   retain_guard_conversions: Bool
 ): CheckedModuleBodies {
   mut functions: [BoundFunctionBody] = []
+  initial_facts = domain_initial_flow(signatures)
   mut diagnostics: [Diagnostic] = module_import_shadow_diagnostics(graph, module.bindings, module.parsed)
 
   if diagnostics.len() == 0 {
@@ -5052,7 +5490,7 @@ pure check_module_bodies_mode(
             Some(signature) => {
               diagnostic_start: Nat = diagnostics.len()
               context: BodyContext = BodyContext(
-                graph, modules, signatures, owner, type_parameters, map(), retain_guard_conversions
+                graph, modules, signatures, owner, type_parameters, initial_facts, retain_guard_conversions
               )
               mut locals: Map[Str, BodyLocal] = map()
               mut bound_parameters: [BodyLocal] = []
@@ -5768,7 +6206,7 @@ pure bind_body_string(
         local: BodyLocal = locals.get(name)
         mut accepted: Option[Bool] = None()
         children = children.append(
-          BoundBody(BodyLocalUse(local.identity), span, [], local.type, [], [], [], [], [], [])
+          BoundBody(BodyLocalUse(local.identity, captured_domain_facts(context, local.identity)), span, [], local.type, [], [], [], [], [], [])
         )
         match local.type {
           None() => {
@@ -5990,7 +6428,7 @@ pure body_solve(body: BoundBody, solutions: [BodySolution]): BoundBody {
     },
     BodyLiteral(value) => {},
     BodyInterpolation(parts) => {},
-    BodyLocalUse(local) => {},
+    BodyLocalUse(local, captured_domain) => {},
     BodyFunction(binding) => {},
     BodyArray() => {},
     BodyUnary(operator) => {},
@@ -6071,9 +6509,23 @@ pure body_refine(context: BodyContext, checked: BodyResult, expected: SignatureT
           }
         }
       }
+      if context.retain_guard_conversions && decision.checks.len() > 0 {
+        b = with_evidence.body
+        with_evidence = BodyResult(BoundBody(b.node, b.span, b.children, b.type, b.constraints,
+          b.guard_conversions, b.type_joins, b.callback_contracts, b.operator_checks,
+          b.type_checks.concat(decision.checks)), with_evidence.diagnostics, with_evidence.deferred)
+      }
       match decision.proven {
         Some(proven) => if proven {
-          with_evidence
+          match checked.body.type {
+            Some(actual) => match body_guard_spec(context, expected) {
+              Some(spec) => if domain_base(spec.base) {
+                body_apply_solutions(context, with_evidence,
+                  body_solutions(actual, domain_base_type(context, expected).value_or(expected)))
+              } else { with_evidence },
+              None() => with_evidence
+            }, None() => with_evidence
+          }
         } else {
           match checked.body.type {
             None() => with_evidence,
@@ -6322,7 +6774,7 @@ pure body_unresolved_spans(body: BoundBody): [SourceSpan] {
     },
     BodyLiteral(value) => {},
     BodyInterpolation(parts) => {},
-    BodyLocalUse(local) => {},
+    BodyLocalUse(local, captured_domain) => {},
     BodyFunction(binding) => {},
     BodyArray() => {},
     BodyUnary(operator) => {},

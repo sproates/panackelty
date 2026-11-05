@@ -561,7 +561,7 @@ type Positive = Int where number => number > 0
 type Port = Nat where port => port >= 1 && port <= 65535
 ```
 
-A guarded type is a nominal refinement of a primitive scalar. The identifier
+A guarded type gives a base type a name and a checked requirement. The identifier
 before `=>` names the candidate within this condition. To migrate an existing
 guard that uses `value`, write `where value =>` before its condition. A line
 break after `=>` or before `&&` continues the guard. Numeric guards support
@@ -573,6 +573,36 @@ of a guarded source type with a compatible primitive base. A guarded source
 does not prove a stricter target unless its invariant entails that target
 guard. The checker does not silently insert a runtime check. The planned
 `validate[Type](input)` operation will provide explicit runtime validation.
+
+String and collection guards can constrain the number of Unicode scalar values,
+array elements, map entries or distinct set members. Both bounds are inclusive.
+Use a non-negative constant, optionally computed using closed natural addition,
+multiplication or subtraction. Group requirements with parentheses and `&&`.
+
+```panackelty
+type Label = Str where s =>
+  s != "" && s.len() <= 80
+  && s.is_non_blank() && s.has_no_control_characters()
+
+type ShortList = [Str] where items => items.len() >= 1 && items.len() <= 4
+type TwoKeys = Map[Str,Nat] where entries => entries.len() <= 2
+type Participants = Set[Str] where names => names.len() >= 1
+```
+
+For strings, `s != ""` and `s.len() >= 1` establish the same minimum.
+`is_non_blank()` requires a character outside Unicode 17.0.0 White_Space.
+`has_no_control_characters()` excludes U+0000–001F and U+007F–009F. Empty text
+is blank and contains zero control characters. Both predicates and the four
+`len()` methods are available in ordinary code. Replacing a map entry or adding
+a duplicate set member preserves its count.
+
+`Label("North")` and an annotation such as `label: Label = "North"` ask the
+compiler to prove the requirements. Panack uses literal content, collection
+construction, established guarded types and facts from control flow. Assignment
+invalidates facts about the previous value. Known violations and missing proofs
+produce different diagnostics at the use site and identify the guard declaration.
+Contradictory bounds report both locations. Explicit runtime validation is
+scheduled for the next implementation slice.
 
 This separation is important: arbitrary user code in guards would make type
 checking non-terminating. Guards therefore remain total, pure, and within a

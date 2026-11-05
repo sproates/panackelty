@@ -6,6 +6,11 @@ in `docs/releases/RELEASE_POLICY.md`.
 
 ## Unreleased
 
+- Add compile-time string and collection guards. Check non-empty and non-blank
+  strings, Unicode scalar length, control characters, and array, map and set
+  sizes. The compiler distinguishes an invalid value from a missing proof.
+  `panack explain` links each checked requirement to its declaration.
+
 - Guarded type declarations now name their candidate, for example
   `type Positive = Nat where n => n > 0`. To migrate an existing guard,
   insert `value =>` immediately after `where`.

@@ -106,13 +106,13 @@ main(): Void {
         ["checked call arity: rejected", "argument counts: expected 1; found 2", "rejected the supplied argument count"], [], "take expects 1 arguments, got 2"))
       explain_write(source, "pure probe(): Nat { \"hello\".len() }\nmain(): Void {}\n")
       results = results.append(explain_run("accepted core call arity reports exact argument count", ["explain", source, "--function", "probe"], 0,
-        ["call arity checks:", "checked call arity: accepted", "context: core call arity", "argument counts: expected 1; found 1", "accepted the supplied argument count", "checked type requirement: accepted", "context: len argument", "expression: \"hello\"", "actual type: Str", "expected type: Str, Bytes, or array"], [], ""))
+        ["call arity checks:", "checked call arity: accepted", "context: core call arity", "argument counts: expected 1; found 1", "accepted the supplied argument count", "checked type requirement: accepted", "context: len argument", "expression: \"hello\"", "actual type: Str", "expected type: Str, Bytes, Array, Map, or Set"], [], ""))
       explain_write(source, "pure probe(): Nat { bytes().length() }\nmain(): Void {}\n")
       results = results.append(explain_run("len accepts Bytes and explains its type requirement", ["explain", source, "--function", "probe"], 0,
         ["call argument 1 to byte_len: accepted", "actual type: Bytes", "expected type: Bytes"], [], ""))
       explain_write(source, "pure probe(): Nat { [1].len() }\nmain(): Void {}\n")
       results = results.append(explain_run("len accepts arrays and explains its type requirement", ["explain", source, "--function", "probe"], 0,
-        ["checked type requirement: accepted", "context: len argument", "expression: [1]", "actual type: Array[Nat]", "expected type: Str, Bytes, or array"], [], ""))
+        ["checked type requirement: accepted", "context: len argument", "expression: [1]", "actual type: Array[Nat]", "expected type: Str, Bytes, Array, Map, or Set"], [], ""))
       explain_write(source, "pure probe(): Nat { 1.len() }\nmain(): Void {}\n")
       results = results.append(explain_run("len rejects unsupported argument types", ["explain", source, "--function", "probe"], 1,
         ["program: rejected"], ["context: len argument"], "unknown owned method Nat.len"))
@@ -694,6 +694,57 @@ main(): Void {
       explain_write(source, "import stdlib/http_runtime as runtime\nasync probe(connection: HttpConnectionState[Nat,Nat]): Nat { runtime.body_size(connection) }\nmain(): Void {}\n")
       results = results.append(explain_run("async local-resource permission links the wrapper call", ["explain", source, "--function", "probe"], 0,
         ["effect boundary: allowed", "classification basis: local resource permission", "Local resource call: http_body_size", "source: stdlib/http_runtime.panack:", "expression: http_body_size(connection)"], [], ""))
+      explain_write(source, "type Label = Str where label => label.len() <= 2\npure probe(): Label { Label(\"é\") }\nmain(): Void {}\n")
+      results = results.append(explain_run("domain proof cites its declaration", ["explain", source, "--function", "probe"], 0,
+        ["context: domain constraint", "at most 2 Unicode scalar values", "Guard declaration:", "label.len() <= 2", "The value contains 1 Unicode scalar value."], [], ""))
+      explain_write(source, "type Short = Str where s => s.len() <= 2\npure probe(input: Str): Short { input }\nmain(): Void {}\n")
+      results = results.append(explain_run("unknown string proof explains the missing bound", ["explain", source, "--function", "probe"], 1,
+        ["context: domain constraint", "Panack cannot prove", "Guard declaration:"], [], "Panack cannot prove this value meets the requirement: at most 2 Unicode scalar values."))
+      explain_write(source, "type Word = Str where w => w != \"\"\nmain(): Void { print(Word(\"\")) }\n")
+      results = results.append(explain_run("empty string fails non-empty requirement", ["check", source], 1,
+        [], [], "at least 1 Unicode scalar value. The value contains 0 Unicode scalar values."))
+      explain_write(source, "type One = Str where s => s.len() <= 1\nmain(): Void { print(One(\"é\")) }\n")
+      results = results.append(explain_run("literal scalar maximum counts decomposed text", ["check", source], 1,
+        [], [], "at most 1 Unicode scalar value. The value contains 2 Unicode scalar values."))
+      explain_write(source, "type Word = Str where w => w.is_non_blank()\nmain(): Void { print(Word(\"　\")) }\n")
+      results = results.append(explain_run("Unicode whitespace fails non-blank requirement", ["check", source], 1,
+        [], [], "Every character is Unicode whitespace."))
+      explain_write(source, "type Line = Str where w => w.has_no_control_characters()\nmain(): Void { print(Line(\"a\\tb\")) }\n")
+      results = results.append(explain_run("control character fails static content requirement", ["check", source], 1,
+        [], [], "The string contains a control character."))
+      explain_write(source, "type Names = [Str] where names =>\n  names.len() >= 4 && names.len() <= 2\nmain(): Void {}\n")
+      results = results.append(explain_run("reject contradictory size bounds at declaration", ["check", source], 1,
+        [], [], "at least 4 array elements but allows at most 2 array elements"))
+      explain_write(source, "type Word = Str where w => w != \"\" || w.is_non_blank()\nmain(): Void {}\n")
+      results = results.append(explain_run("reject new string alternatives", ["check", source], 1,
+        [], [], "unsupported guard for Str"))
+      explain_write(source, "type Word = Str where w => w.ends_with(\"x\")\nmain(): Void {}\n")
+      results = results.append(explain_run("reject arbitrary text methods in guards", ["check", source], 1,
+        [], [], "unsupported guard for Str"))
+      explain_write(source, "type Names = [Str] where a => a.len() >= a.len()\nmain(): Void {}\n")
+      results = results.append(explain_run("reject dynamic size bound", ["check", source], 1,
+        [], [], "unsupported guard for [Str]"))
+      explain_write(source, "type Names = [Str] where a => a.len() >= 1\nmain(): Void { print(Names([])) }\n")
+      results = results.append(explain_run("reject empty array from non-empty domain", ["check", source], 1,
+        [], [], "1 array element. The value contains 0 array elements."))
+      explain_write(source, "type Names = [Str] where a => a.len() <= 1\npure probe(a: [Str]): Names { Names(a) }\nmain(): Void {}\n")
+      results = results.append(explain_run("unknown collection size requires proof", ["check", source], 1,
+        [], [], "Panack cannot prove this value meets the requirement: at most 1 array element."))
+      explain_write(source, "type Names = [Str] where a => a.len() >= 1\nmain(): Void { print(Names([1])) }\n")
+      results = results.append(explain_run("guarded collection preserves element identity", ["check", source], 1,
+        [], [], "construction is Array[Nat], expected"))
+      explain_write(source, "type Two = Map[Str,Nat] where m => m.len() >= 2\nmain(): Void { print(Two(map().put(\"a\",1).put(\"a\",2))) }\n")
+      results = results.append(explain_run("map replacement does not increase entry count", ["check", source], 1,
+        [], [], "at least 2 map entries. The value contains 1 map entry."))
+      explain_write(source, "type Two = Set[Nat] where s => s.len() >= 2\nmain(): Void { print(Two(set().add(1).add(1))) }\n")
+      results = results.append(explain_run("duplicate set addition does not increase count", ["check", source], 1,
+        [], [], "at least 2 distinct set elements. The value contains 1 distinct set element."))
+      explain_write(source, "type Short = Str where s => s.len() <= 2\npure probe(a: Str): Void { mut s = a; if s.len() <= 2 { s = \"long\"; checked: Short = s; } }\nmain(): Void {}\n")
+      results = results.append(explain_run("assignment invalidates a branch size proof", ["check", source], 1,
+        [], [], "at most 2 Unicode scalar values. The value contains 4 Unicode scalar values."))
+      explain_write(source, "type Short = Str where s => s.len() <= 2\npure probe(a: Str): Void { mut s = a; if s.len() <= 2 && (if true { s = \"long\"; true } else { true }) { checked: Short = s; } }\nmain(): Void {}\n")
+      results = results.append(explain_run("mutation in a later condition cannot revive an earlier bound", ["check", source], 1,
+        [], [], "Panack cannot prove"))
       for file in [source, library, artifact] {
         match std_filesystem.remove_file(explain_path(file)) { Ok(done) => {}, Error(error) => { results = results.append(std_testing.expect("cleanup", false, error.code)); } }
       }

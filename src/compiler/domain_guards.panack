@@ -1,0 +1,214 @@
+// Normalise only the documented string and collection predicates. Keep each
+// written conjunct and its source even when two requirements are equivalent.
+import project/src/compiler/parser as ast
+pub import project/src/compiler/parser::{Expr, SourceSpan, Diagnostic}
+import project/src/compiler/parser::{Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr}
+
+pub enum DomainRequirement { Minimum(Nat), Maximum(Nat), NonBlank, ControlFree }
+pub record DomainRule { requirement: DomainRequirement, source: SourceSpan }
+enum GuardTerm { Candidate, Length, Constant(Nat), EmptyText, Conditions([DomainRule]), Unsupported }
+
+pub pure domain_collection_base(base: Str): Bool {
+  base.starts_with("[") || base.starts_with("Array[") || base.starts_with("Map[") || base.starts_with("Set[")
+}
+
+pub pure domain_base(base: Str): Bool { base == "Str" || domain_collection_base(base) }
+
+pure method_term(receiver: Expr, method: Str, arguments: [Expr], types: [Str],
+  binding: Str, text: Bool, span: SourceSpan): GuardTerm {
+  if ast.unlocated_expression(receiver) != NameExpr(binding) || arguments.len() != 0 || types.len() != 0 {
+    Unsupported()
+  } else if method == "len" { Length() }
+  else if text && method == "is_non_blank" { Conditions([DomainRule(NonBlank(), span)]) }
+  else if text && method == "has_no_control_characters" { Conditions([DomainRule(ControlFree(), span)]) }
+  else { Unsupported() }
+}
+
+pure term(expression: Expr, binding: Str, text: Bool, span: SourceSpan): GuardTerm {
+  mut result: GuardTerm = Unsupported()
+  match expression {
+    LocatedExpr(site, inner, types) => { result = term(inner, binding, text, site) },
+    NameExpr(name) => if name == binding { result = Candidate() },
+    NatExpr(n) => { result = Constant(n) },
+    StringExpr(raw) => if raw == "\"\"" { result = EmptyText() },
+    DotCallExpr(receiver, method, arguments, types) => {
+      result = method_term(receiver, method, arguments, types, binding, text, span)
+    },
+    OwnedCallExpr(receiver, method, arguments, types) => {
+      result = method_term(receiver, method, arguments, types, binding, text, span)
+    },
+    BinaryExpr(op, left, right) => {
+      lhs = term(left, binding, text, span)
+      rhs = term(right, binding, text, span)
+      match rhs {
+        Constant(n) => if lhs == Length() {
+          if op == ">=" { result = Conditions([DomainRule(Minimum(n), span)]) }
+          else if op == "<=" { result = Conditions([DomainRule(Maximum(n), span)]) }
+        } else {
+          // Closed natural arithmetic can supply a bound without evaluating user code.
+          match lhs {
+            Constant(a) => if op == "+" { result = Constant(a + n) }
+              else if op == "*" { result = Constant(a * n) }
+              else if op == "-" && a >= n {
+                signed: Int = a
+                result = Constant(((signed - n) / 1).nat())
+              },
+            Unsupported() => {}, Candidate() => {}, Length() => {}, EmptyText() => {}, Conditions(rules) => {}
+          }
+        },
+        EmptyText() => if text && op == "!=" && lhs == Candidate() {
+          result = Conditions([DomainRule(Minimum(1), span)])
+        },
+        Conditions(b) => if op == "&&" {
+          match lhs {
+            Conditions(a) => { result = Conditions(a.concat(b)) },
+            Unsupported() => {}, Candidate() => {}, Length() => {}, Constant(n) => {}, EmptyText() => {}
+          }
+        },
+        Unsupported() => {}, Candidate() => {}, Length() => {}
+      }
+    },
+    DecimalExpr(n) => {}, BoolExpr(b) => {}, FunctionExpr(name) => {}, ArrayExpr(items) => {},
+    UnaryExpr(op, inner) => {}, CallExpr(name, args, types) => {}, FieldExpr(owner, field) => {},
+    IndexExpr(owner, index) => {}, IfExpr(test, yes, no, has_else) => {}, BlockExpr(block) => {},
+    MatchExpr(value, arms) => {}
+  }
+  result
+}
+
+pub pure domain_rules(guard: Expr, binding: Str, base: Str, site: SourceSpan): [DomainRule] {
+  match term(guard, binding, base == "Str", site) {
+    Conditions(rules) => rules,
+    Unsupported() => [], Candidate() => [], Length() => [], Constant(n) => [], EmptyText() => []
+  }
+}
+
+pub pure domain_declaration_errors(guard: Expr, binding: Str, base: Str, site: SourceSpan): [Diagnostic] {
+  rules = domain_rules(guard, binding, base, site)
+  mut errors: [Diagnostic] = []
+  if rules.len() == 0 {
+    allowed = if base == "Str" { "a length bound, a non-empty comparison, is_non_blank() or has_no_control_characters()" }
+      else { "a length bound with >= or <= and a non-negative constant" }
+    position = ast.expression_span(guard).value_or(site)
+    errors = errors.append(Diagnostic("unsupported guard for " + base + ". Use " + allowed +
+      " on " + binding + ". Combine requirements with &&.", position.start))
+  } else {
+    mut minimum: Nat = 0
+    mut minimum_site = site
+    mut maximum: Option[Nat] = None()
+    mut maximum_site = site
+    for rule in rules {
+      match rule.requirement {
+        Minimum(n) => if n > minimum { minimum = n; minimum_site = rule.source },
+        Maximum(n) => if n <= maximum.value_or(n) { maximum = Some(n); maximum_site = rule.source },
+        NonBlank() => if minimum < 1 { minimum = 1; minimum_site = rule.source },
+        ControlFree() => {}
+      }
+    }
+    match maximum {
+      None() => {},
+      Some(limit) => if minimum > limit {
+        errors = errors.append(Diagnostic("these bounds conflict. This guard requires " + rule_text(Minimum(minimum),base) + " but allows " + rule_text(Maximum(limit),base) + ".", minimum_site.start))
+          .append(Diagnostic("the conflicting maximum is declared here. Choose compatible bounds.", maximum_site.start))
+      }
+    }
+  }
+  errors
+}
+
+pub record DomainFacts {
+  minimum: Nat, maximum: Option[Nat],
+  non_blank: Option[Bool], control_free: Option[Bool],
+  keys: Option[Set[Str]]
+}
+
+pub pure unknown_facts(): DomainFacts { DomainFacts(0, None(), None(), None(), None()) }
+
+pub pure declared_facts(rules: [DomainRule]): DomainFacts {
+  mut minimum: Nat = 0
+  mut maximum: Option[Nat] = None()
+  mut non_blank: Option[Bool] = None()
+  mut controls: Option[Bool] = None()
+  for rule in rules {
+    match rule.requirement {
+      Minimum(n) => if n > minimum { minimum = n },
+      Maximum(n) => if n <= maximum.value_or(n) { maximum = Some(n) },
+      NonBlank() => { non_blank = Some(true); if minimum == 0 { minimum = 1 } },
+      ControlFree() => { controls = Some(true) }
+    }
+  }
+  DomainFacts(minimum, maximum, non_blank, controls, None())
+}
+
+pub pure rule_outcome(rule: DomainRequirement, facts: DomainFacts): Option[Bool] {
+  match rule {
+    Minimum(n) => if facts.minimum >= n { Some(true) }
+      else if facts.maximum.value_or(n) < n { Some(false) } else { None() },
+    Maximum(n) => if facts.minimum > n { Some(false) }
+      else { match facts.maximum { Some(upper) => if upper <= n { Some(true) } else { None() }, None() => None() } },
+    NonBlank() => if facts.maximum == Some(0) { Some(false) } else { facts.non_blank },
+    ControlFree() => if facts.maximum == Some(0) { Some(true) } else { facts.control_free }
+  }
+}
+
+pure count_text(n: Nat, base: Str): Str {
+  unit = if base == "Str" { if n == 1 { "Unicode scalar value" } else { "Unicode scalar values" } }
+    else if base.starts_with("Map[") { if n == 1 { "map entry" } else { "map entries" } }
+    else if base.starts_with("Set[") { if n == 1 { "distinct set element" } else { "distinct set elements" } }
+    else { if n == 1 { "array element" } else { "array elements" } }
+  "${n} " + unit
+}
+
+pub pure fact_text(rule: DomainRequirement, facts: DomainFacts, base: Str): Str {
+  match rule {
+    NonBlank() => if facts.maximum == Some(0) { "The string is empty." }
+      else if facts.non_blank == Some(false) { "Every character is Unicode whitespace." }
+      else if facts.non_blank == Some(true) { "The string contains a character outside Unicode whitespace." } else { "" },
+    ControlFree() => if facts.control_free == Some(false) { "The string contains a control character." }
+      else if facts.control_free == Some(true) { "The string contains no control characters." } else { "" },
+    Minimum(n) => size_fact_text(facts, base),
+    Maximum(n) => size_fact_text(facts, base)
+  }
+}
+
+pure size_fact_text(facts: DomainFacts, base: Str): Str {
+  if facts.maximum == Some(facts.minimum) { "The value contains " + count_text(facts.minimum,base) + "." }
+  else if facts.minimum > 0 && facts.maximum != None() {
+    "The value contains at least " + count_text(facts.minimum,base) + " and at most " + count_text(facts.maximum.value_or(0),base) + "."
+  } else if facts.minimum > 0 { "The value contains at least " + count_text(facts.minimum,base) + "." }
+  else { match facts.maximum { Some(n) => "The value contains at most " + count_text(n,base) + ".", None() => "" } }
+}
+
+pub pure rule_text(rule: DomainRequirement, base: Str): Str {
+  match rule {
+    Minimum(n) => "at least " + count_text(n, base),
+    Maximum(n) => "at most " + count_text(n, base),
+    NonBlank() => "at least one character outside Unicode whitespace",
+    ControlFree() => "text free of control characters"
+  }
+}
+
+pub pure combine_facts(a: DomainFacts, b: DomainFacts): DomainFacts {
+  minimum = if a.minimum > b.minimum { a.minimum } else { b.minimum }
+  maximum = match a.maximum {
+    None() => b.maximum,
+    Some(n) => Some(if b.maximum.value_or(n) < n { b.maximum.value_or(n) } else { n })
+  }
+  DomainFacts(minimum, maximum,
+    if b.non_blank != None() { b.non_blank } else { a.non_blank },
+    if b.control_free != None() { b.control_free } else { a.control_free },
+    if b.keys != None() { b.keys } else { a.keys })
+}
+
+// Facts available after a choice must hold for either result.
+pub pure common_facts(a: DomainFacts, b: DomainFacts): DomainFacts {
+  lower = if a.minimum < b.minimum { a.minimum } else { b.minimum }
+  upper: Option[Nat] = match a.maximum {
+    None() => None(),
+    Some(x) => match b.maximum { None() => None(), Some(y) => Some(if x > y { x } else { y }) }
+  }
+  DomainFacts(lower, upper,
+    if a.non_blank == b.non_blank { a.non_blank } else { None() },
+    if a.control_free == b.control_free { a.control_free } else { None() },
+    if a.keys == b.keys { a.keys } else { None() })
+}

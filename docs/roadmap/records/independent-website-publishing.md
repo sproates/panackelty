@@ -83,6 +83,11 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
+- **GI#435 static string and collection guards.** On alpha.15 promotion, add
+  the Label example and document Unicode scalar length, both text predicates,
+  Map/Set counts and proof-only construction. Core release and website
+  maintainers own the versioned examples and playground update.
+
 - **GI#435 explicit guard bindings.** At alpha.15 promotion, migrate numeric
   guard declarations in the language tour, playground and examples to the
   explicit binding syntax. Published alpha.14 examples target the earlier

@@ -14,6 +14,50 @@ pub enum PathError { EmptyPath, PathContainsNul, PathNotUtf8, AbsolutePathAppend
 pub enum DurationError { FractionalNanosecond, ZeroDurationDivisor }
 
 impl Str {
+  // Unicode 17.0.0 White_Space from PropList.txt.
+  // https://www.unicode.org/Public/17.0.0/ucd/PropList.txt
+  // Distributed under the Unicode License V3 in docs/licenses/Unicode-License.txt.
+  pub pure is_non_blank(): Bool {
+    data = self.encode_utf8()
+    mut cursor: Nat = 0
+    mut non_blank = false
+    while cursor < data.length() && !non_blank {
+      first = data.at(cursor)
+      mut scalar = first
+      mut width: Nat = 1
+      if first >= 240 {
+        // Every supplementary scalar falls outside White_Space.
+        width = 4
+      } else if first >= 224 {
+        width = 3
+        scalar = (first % 16) * 4096 + (data.at(cursor + 1) % 64) * 64 + data.at(cursor + 2) % 64
+      } else if first >= 192 {
+        width = 2
+        scalar = (first % 32) * 64 + data.at(cursor + 1) % 64
+      }
+      non_blank = width == 4 || !((scalar >= 9 && scalar <= 13) ||
+        scalar == 32 || scalar == 133 || scalar == 160 || scalar == 5760 ||
+        (scalar >= 8192 && scalar <= 8202) || scalar == 8232 || scalar == 8233 ||
+        scalar == 8239 || scalar == 8287 || scalar == 12288)
+      cursor = cursor + width
+    }
+    non_blank
+  }
+
+  pub pure has_no_control_characters(): Bool {
+    data = self.encode_utf8()
+    mut cursor: Nat = 0
+    mut clear = true
+    while cursor < data.length() && clear {
+      first = data.at(cursor)
+      // C1 controls are the valid UTF-8 pairs C2 80 through C2 9F.
+      clear = first >= 32 && first != 127 &&
+        !(first == 194 && data.at(cursor + 1) <= 159)
+      cursor = cursor + 1
+    }
+    clear
+  }
+
   // Lengths and offsets use Unicode code points, like starts_with_at.
   pub pure ends_with(suffix: Str): Bool {
     value_length = self.len()

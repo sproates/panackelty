@@ -1,0 +1,29 @@
+type Label = Str where text =>
+  text != "" && text.len() <= 2
+  && text.is_non_blank() && text.has_no_control_characters()
+
+type Short = Str where candidate => candidate.len() <= 3
+type Names = [Str] where items => items.len() >= 1 && items.len() <= (1 + 1)
+type OneEntry = Map[Str,Nat] where values => values.len() >= 1 && values.len() <= 1
+type OneMember = Set[Nat] where values => values.len() >= 1 && values.len() <= 1
+
+pure checked_label(input: Str): Label {
+  if input.len() >= 1 && input.len() <= 2 && input.is_non_blank() && input.has_no_control_characters() {
+    input
+  } else { "?" }
+}
+
+pure widen(label: Label): Short { label }
+
+main(): Void {
+  print(widen(checked_label("𐐷")))
+  print(Label("é").len())
+  print(checked_label("\t"))
+  names = ["first", "second"]
+  print(Names(names).len())
+  by_name = map().put("same", 1)
+  print(OneEntry(by_name.put("same", 9)).get("same"))
+  print(OneMember(set().add(5).add(5)).len())
+  print("​".is_non_blank())
+  print(" ".has_no_control_characters())
+}

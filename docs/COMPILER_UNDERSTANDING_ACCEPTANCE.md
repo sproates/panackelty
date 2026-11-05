@@ -68,7 +68,7 @@ PANACKELTY_BOOTSTRAP_ROOT="$PWD" ./bin/panack run \
 ```
 
 The package manager has 39,476 instructions and 39,486 recorded origins. The
-compiler has 95,045 instructions and 95,045 origins. Both projects passed with
+compiler has 95,081 instructions and 95,081 origins. Both projects passed with
 zero missing origins and zero invalid ranges, instruction indices or function
 identities.
 
@@ -86,6 +86,71 @@ took 291 seconds and packaged-release smoke took 19 seconds. Printed historical
 timing-budget warnings are not current acceptance thresholds. The final unit
 run includes the assignment-mutability decision and source-span regression.
 
-Final real-project audit refresh, installed-terminal checks and cost measurements
-are in progress. Hosted checks remain a separate exact-head merge gate.
+Final real-project audits and checkout/installed terminal checks passed against
+the refreshed seed. Comparable cost measurements are recorded below. Hosted
+checks remain a separate exact-head merge gate.
 GI#180 remains open for the final cross-feature acceptance after GI#435.
+
+
+## Cost measurement method
+
+Measurements use macOS 26.5 arm64, the same VM and identical final source and
+standard-library files. The baseline compiler is revision `8120706`, seed
+`d2c59d86d6bfe12d62efa66a0e4f8d4e1b931451014d14635ddd750eedba27e7`;
+the candidate is implementation revision `b1f125e` and the seed recorded above.
+Each command starts a fresh process. Filesystem caches are not flushed. The
+validation suite finished before measurement; no other validation was
+intentionally run alongside it. Three sequential before/after pairs are taken
+for each workload. Ranges disclose the variability on this development Mac.
+
+The entry points are `src/packages/main.panack` and `src/compiler/main.panack`.
+Text queries select `hash_archive_file` and `prior_index`, respectively. Check
+mode disables explanation retention; text explain enables it. Explorer startup
+also prepares source/instruction relationships, so it does more work than the
+text query. Peak RSS is measured during preparation, not steady navigation.
+
+The measurement commands, from the checkout root with its source and standard
+library roots selected, are:
+
+```sh
+/usr/bin/time -lp ./panack-vm run COMPILER.bc check SOURCE.panack
+/usr/bin/time -lp ./panack-vm run COMPILER.bc explain SOURCE.panack --function NAME
+printf 'resize\n80\n30\nquit\n' | /usr/bin/time -lp ./panack-vm run \
+  build/explain/explorer.bc SOURCE.panack --function NAME
+```
+
+The compiler seed grows from 1,015,464 to 1,050,539 bytes. The installed explorer
+adds 973,599 bytes of Panack bytecode and a 35,392-byte native terminal adapter on
+this Mac. Installation builds the explorer once; ordinary source checks do not
+build it. Its build dependencies exclude package-policy sources, verified with
+a dry-run package-source modification. These figures do not claim unchanged
+build or memory costs.
+
+| Project | Command | Median seconds (range) | Median peak RSS MiB |
+| --- | --- | ---: | ---: |
+| packages | before-check | 8.22 (7.71–9.70) | 158.0 |
+| packages | after-check | 7.92 (7.91–8.44) | 162.1 |
+| packages | before-explain | 8.51 (8.41–8.75) | 199.5 |
+| packages | after-explain | 8.66 (8.48–10.41) | 216.3 |
+| packages | explorer | 9.62 (9.34–11.17) | 253.0 |
+| compiler | before-check | 34.99 (32.98–35.79) | 313.7 |
+| compiler | after-check | 33.63 (33.28–35.83) | 331.4 |
+| compiler | before-explain | 35.70 (34.93–36.59) | 421.8 |
+| compiler | after-explain | 35.76 (34.25–37.62) | 450.8 |
+| compiler | explorer | 38.30 (35.64–42.73) | 539.3 |
+
+The before/after timing ranges overlap on both workloads; these measurements do
+not establish a material ordinary-check or text-query latency regression. They
+also do not establish a speed improvement. Additional retained evidence raises
+text-query peak memory by about 17 MiB for packages and 29 MiB for the compiler.
+Ordinary-check peak memory rises by about 4 MiB and 18 MiB respectively, including
+the additional source spans carried through the frontend.
+
+The explorer prepares the whole project even when selecting one function. Its
+median startup is 9.62 seconds for packages and 38.30 seconds for the compiler,
+with peak memory of 253.0 and 539.3 MiB. This is the disclosed cost of the current
+source/instruction view, not a claim of instant large-project startup. The
+delivery assessment accepts these bounded preparation costs for the requested
+capability; no ordinary compilation or execution regression was observed in
+correctness tests. Reassess this evidence when GI#435 changes the compiler;
+do not extrapolate these two workloads to all projects.

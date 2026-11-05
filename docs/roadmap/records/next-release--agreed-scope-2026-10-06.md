@@ -605,16 +605,16 @@ of the agreed scope, not a compiler redesign. Material architectural discoveries
 must be reported before expanding the work; minor implementation choices remain
 with the implementor.
 
-### 1. Complete checker evidence — implementation and acceptance in progress
+### 1. Complete checker evidence — complete on merge
 
-- [ ] 1.1 — For each confirmed checker gap, specify the missing facts, actual
+- [x] 1.1 — For each confirmed checker gap, specify the missing facts, actual
   decision site and existing evidence record to extend. Introduce a new record
   only where existing types cannot faithfully express the missing decision.
-- [ ] 1.2 — Retain facts at the point the checker makes the decision, including
+- [x] 1.2 — Retain facts at the point the checker makes the decision, including
   inference/substitution dependencies and specific causes of deferral. Preserve
   partial evidence after errors and distinguish a genuinely unreached decision
   from missing instrumentation. Implement by the finite decision-family checklist.
-- [ ] 1.3 — Reconcile evidence against active decision sites and reachable
+- [x] 1.3 — Reconcile evidence against active decision sites and reachable
   outcomes. Regressions must detect omitted evidence. Check retention enabled
   and disabled, preserving ordinary checking results and diagnostics.
 
@@ -622,17 +622,18 @@ Exit: all inventoried existing-language checker decisions have the required
 truthful facts and source attribution. No prose redesign is required to declare
 this evidence slice complete. New domain-type cases remain assigned to GI#435.
 
-### 2. Complete explanations — implementation and acceptance in progress
+### 2. Complete explanations — complete on merge
 
-- [ ] 2.1 — Agree complete transcripts for representative success, rejection,
-  inference-chain, partial-check and unavailable cases using the current CLI.
-  Lead with the conclusion and relevant supporting facts. Use the subtraction
-  example to check proportionality; do not promise unimplemented UI or flags.
-- [ ] 2.2 — Extend existing renderers to explain the slice 1 facts and their
+- [x] 2.1 — Apply the owner-approved source-first interactive workflow to
+  representative success, rejection, inference-chain, partial-check and
+  unavailable cases. Lead with the conclusion and relevant supporting facts.
+  Preserve plain output for scripts. The 4 November delivery decision supersedes
+  repeated transcript-approval checkpoints.
+- [x] 2.2 — Extend existing renderers to explain the slice 1 facts and their
   dependencies, with exact source locations and specific unavailable reasons.
   Reuse established wording across decision families; do not reconstruct proof
   by rerunning an independent checker inside the renderer.
-- [ ] 2.3 — Reconcile every checker-inventory entry with its output and reachable
+- [x] 2.3 — Reconcile every checker-inventory entry with its output and reachable
   outcome regressions. Verify the agreed full transcripts and representative
   multi-module programs. Accepted sample wording is not proof of complete coverage.
 
@@ -640,15 +641,15 @@ Exit: every in-scope retained checker decision is explained accurately and
 readably through the existing query surface. Slice 2 can proceed family by
 family once the corresponding slice 1 evidence exists.
 
-### 3. Complete instruction attribution — implementation and acceptance in progress
+### 3. Complete instruction attribution — complete on merge
 
-- [ ] 3.1 — Classify confirmed mapping gaps against existing emission paths and
+- [x] 3.1 — Classify confirmed mapping gaps against existing emission paths and
   source-map structures. Specify source origins or genuine generated origins,
   with reasons, preserving module/function identity and artifact validation.
-- [ ] 3.2 — Fill the missing origins through emission and transformations,
+- [x] 3.2 — Fill the missing origins through emission and transformations,
   including imported/generic code, methods and generated control flow. Preserve
   shared origins where required instead of selecting a misleading single source.
-- [ ] 3.3 — Check every emitted instruction against the emission inventory and
+- [x] 3.3 — Check every emitted instruction against the emission inventory and
   reverse source mapping. Include deliberately omitted mappings and stale or
   mismatched artifact/source cases. Existing validated attribution must survive.
 
@@ -656,16 +657,16 @@ Exit: all emitted instructions have truthful, validated origins. Maintain the
 source cases that produce no instructions in the inventory for slice 4; do not
 invent instructions to give them something to point to.
 
-### 4. Connect the compilation journey — implementation and acceptance in progress
+### 4. Connect the compilation journey — complete on merge
 
-- [ ] 4.1 — Agree query transcripts showing how representative source constructs
+- [x] 4.1 — Specify and verify queries showing how representative source constructs
   become instructions: direct, lowered, multiple, shared and no-output cases.
   Identify the actual transformation facts needed beyond slice 3's origin maps.
-- [ ] 4.2 — Retain missing transformation facts at their existing production sites
+- [x] 4.2 — Retain missing transformation facts at their existing production sites
   and expose them through the existing source/instruction queries. Explain the
   relationship and reason, reusing checker evidence where actually relevant.
   Do not invent a chronological narrative or causal link the compiler did not record.
-- [ ] 4.3 — Reconcile each transformation-inventory entry with its query output
+- [x] 4.3 — Reconcile each transformation-inventory entry with its query output
   and regressions. Confirm truthful explanations for shared and zero-output
   constructs, failed compilation, imports, generics and method/control-flow lowering.
 
@@ -692,20 +693,26 @@ interactive exploration prototype; see the updated presentation decision below.
 Exit: both inventories have no unexplained gaps, installed behavior matches the
 agreed examples, costs are disclosed, and documentation matches the feature.
 
-### Delivery progress, 4 November 2026
+### Delivery progress, 5 November 2026
 
 The owner requested end-to-end delivery after reviewing the subtraction
-explorer. PR #654 delivered that first working interface. The active delivery
-branch extends the same interface to retained type, inference, callback, guard
-and effect decisions and generated instructions. The compiler records missing
-statement and control-flow origins, multiple origins and transformation
-purposes. Reverse queries validate the artifact and source pair before use.
+explorer. PR #654 delivered that first interface. The delivery branch now
+extends it to type, inference, callback, guard and effect decisions, assignment
+mutability and generated instructions. The compiler retains statement and
+control-flow origins, multiple origins and transformation purposes. Reverse
+queries validate the artifact and source pair before selection.
 
-The updated compiler has reproduced its seed. Checkout and installed terminal
-navigation checks have passed. Full compiler regressions, final evidence
-reconciliation and cost checks are in progress. The boxes above remain open
-until their acceptance checks pass. Stage 5.1 still depends on GI#435 delivering
-its new domain-type decisions.
+Slices 1–4 are complete on merge, subject to the exact-head hosted checks. The [acceptance record](../../COMPILER_UNDERSTANDING_ACCEPTANCE.md)
+maps C01–C10 and E01–E08 to implementation and regression evidence. The final
+compiler seed reproduced exactly, full local `make check` passed, and checkout
+and installed terminal navigation passed. Audits of the complete package manager
+and compiler found zero missing or invalid instruction origins.
+
+Comparable before/after time and memory measurements are recorded for the
+package manager and compiler. Stage 5.1 and the new-domain-type
+part of 5.2 still depend on GI#435. Existing-language realistic and installed
+acceptance has passed; reuse that evidence and check the new integration when
+GI#435 supplies its decisions. Whole-programme completion remains open.
 
 ### Ordering and tracking
 

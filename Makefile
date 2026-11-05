@@ -364,6 +364,7 @@ native-oracle-contracts-impl: $(BUILD_DIR)/vm/panack-vm native-module-build $(ST
 SANITIZE_SUITE ?= all
 
 # Reject unknown suites before performing any build.
+native-sanitize: export PANACK_COMPILER_WATCHDOG_PROFILE := sanitizer
 native-sanitize:
 	@case "$(SANITIZE_SUITE)" in all|vm|oracle|runner) ;; *) echo "unknown sanitizer suite" >&2; exit 2 ;; esac
 	@$(MAKE) --no-print-directory native package-tool

@@ -167,11 +167,11 @@ try {
   const branches = [...counted.pcs].filter(([key,c]) => key.startsWith(counted.names.get(chooseIdentity)+':') && c.yes+c.no);
   check(branches.length === 1 && branches[0][1].yes === 1 && branches[0][1].no === 1, 'both VM conditional outcomes once');
   check(map.functions.some(fn => fn.entries.some(e => e.lowered)), 'lowered entries explicit');
-  check([...counted.pcs].some(([key]) => {
+  check([...counted.pcs].every(([key]) => {
     const [fn,pc] = key.split(':').map(Number);
     const name = [...counted.names].find(([,index]) => index === fn)[0];
-    return !map.functions.find(f => f.name === name).entries.some(e => e.pc === pc);
-  }), 'unmapped instruction denominator remains visible');
+    return map.functions.find(f => f.name === name).entries.some(e => e.pc === pc);
+  }), 'every counted instruction, including lowered code, has a source origin');
   const samples = {plainCompile:[plain.ms], mappedCompile:[basic.ms], bulk:[], count:[]};
   // Corrupt and coherently forged metadata must never reach decodeLocal.
   const original = fs.readFileSync(basic.sidecar);

@@ -25,9 +25,12 @@ function compile(name,mode='map',directory=corpus) {
   return {file,artifact,sidecar,bytes:fs.readFileSync(artifact),
     map:mode==='map'?fs.readFileSync(sidecar):null,milliseconds:performance.now()-start};
 }
-function locate(built,point,source=built.file) {
+function locateCommand(built,point,source,expected) {
   return command('./bin/panack',['locate',built.artifact,'--source',source,'--source-map',built.sidecar,
-    '--function',point.function,'--instruction',String(point.pc)]).stdout;
+    '--function',point.function,'--instruction',String(point.pc)],expected);
+}
+function locate(built,point,source=built.file) {
+  return locateCommand(built,point,source,0).stdout;
 }
 function trap(artifact) {
   const fields=command(observer,[artifact]).stdout.trim().split('\t');
@@ -87,9 +90,14 @@ try {
     if(name==='local') baseline={...built,point:mappedPoint};
   }
   const b=baseline, unavailable=(built=b,point=b.point)=>check(locate(built,point)==='source-map: unavailable\n','unavailable, never guessed');
+  function invalid(built, reason) {
+    const result = locateCommand(built, b.point, built.file, 1);
+    check(result.stdout === '' && result.stderr.startsWith('error: cannot validate ' + reason),
+      'invalid lookup must fail without a location: ' + result.stderr);
+  }
   const shape=layout(b.map), pick=shape.functions.find(f=>f.name.text==='$module1_pick'), entry=pick.entries[2];
   const damaged=path.join(work,'damaged.pmap');
-  const reject=raw=>{fs.writeFileSync(damaged,raw);unavailable({...b,sidecar:damaged});};
+  const reject=raw=>{fs.writeFileSync(damaged,raw);invalid({...b,sidecar:damaged}, "the source map at ");};
   for(const raw of [Buffer.alloc(0),Buffer.from('{'),Buffer.from('null'),Buffer.from('[]'),Buffer.from([255]),
       Buffer.alloc(1024*1024),b.map.subarray(0,b.map.length-1),Buffer.concat([b.map,Buffer.from('extra')])]) reject(raw);
   for(const [offset,value] of [[0,0],[8,50],[shape.entry.lengthOffset,255],[shape.sourceCount,255],
@@ -113,15 +121,17 @@ try {
   duplicateSource.writeUInt32BE(shape.sources.length+1,shape.sourceCount);reject(duplicateSource);
   const duplicateEntry=Buffer.concat([b.map.subarray(0,entry+33),b.map.subarray(entry,entry+33),b.map.subarray(entry+33)]);
   duplicateEntry.writeUInt32BE(pick.entries.length+1,pick.count);reject(duplicateEntry);
-  unavailable({...b,sidecar:path.join(work,'missing')});
-  unavailable({...b,artifact:path.join(work,'missing.bc')});
-  const wrong=path.join(work,'wrong.bc');fs.writeFileSync(wrong,Buffer.concat([b.bytes,Buffer.from([0])]));unavailable({...b,artifact:wrong});
-  unavailable(b,{function:'unknown',pc:2});unavailable(b,{function:'pick',pc:3});unavailable(b,{function:'pick',pc:999999});
+  invalid({...b,sidecar:path.join(work,'missing')}, 'the source map at ');
+  invalid({...b,artifact:path.join(work,'missing.bc')}, 'the compiled artifact at ');
+  const wrong=path.join(work,'wrong.bc');fs.writeFileSync(wrong,Buffer.concat([b.bytes,Buffer.from([0])]));invalid({...b,artifact:wrong}, 'the compiled artifact at ');
+  unavailable(b,{function:'unknown',pc:2});const implicitReturn = locate(b,{function:'pick',pc:3});
+  check(implicitReturn.startsWith('source-map: lowered\nfunction: pick\ninstruction: 3\nfile: project/local.panack\nrange: 41..59\n') &&
+    implicitReturn.includes('reason: Return the result of this function body.'), 'implicit return points to the function body');unavailable(b,{function:'pick',pc:999999});
   const original=fs.readFileSync(b.file);
   for(const data of [Buffer.concat([Buffer.from('// changed\n'),original]),Buffer.from([255]),Buffer.alloc(1048577,32)]) {
-    fs.writeFileSync(b.file,data);unavailable();
+    fs.writeFileSync(b.file,data);invalid(b, 'the source map');
   }
-  fs.writeFileSync(b.file,original);fs.renameSync(b.file,b.file+'.away');unavailable();
+  fs.writeFileSync(b.file,original);fs.renameSync(b.file,b.file+'.away');invalid(b, 'the source map');
   // Explicit-source symlinks are safe: the exact captured bytes are reproduced.
   fs.symlinkSync(b.file+'.away',b.file);expectLocation(b,b.point,'local.panack',45,57,2,3,'items[index]');
   fs.unlinkSync(b.file);fs.renameSync(b.file+'.away',b.file);
@@ -141,7 +151,7 @@ try {
   fs.writeFileSync(b.file,original.toString().replace('pick([7], 2)','pick([7], 0)'));
   const good=compile('local');command('./bin/panack',['run',good.artifact]);
   check(command(observer,[good.artifact]).stdout.trim()==='completed','valid index has no fabricated trap');
-  unavailable({...b,artifact:good.artifact});unavailable({...b,sidecar:good.sidecar});
+  invalid({...b,artifact:good.artifact}, 'the source map at ');invalid({...b,sidecar:good.sidecar}, 'the compiled artifact at ');
   fs.writeFileSync(b.file,original);
   for(const tail of ['value','items[index]']) {
     fs.writeFileSync(path.join(corpus,'earlier.panack'),`pure other(items: [Nat], index: Nat): Nat { value: Nat = items[index]; ${tail} }\nmain(): Void { value: Nat = other([7], 2); }\n`);
@@ -153,15 +163,15 @@ try {
   const shifted=compile('local'),point=trap(shifted.artifact);
   const shiftedMapPoint={...point,function:'pick'};
   check(point.function==='$module1_pick' && point.pc===2 && locate(shifted,shiftedMapPoint).includes('expression: items[index]\n'),'function identity survives table reorder');
-  unavailable();fs.writeFileSync(b.file,original);
+  invalid(b, 'the compiled artifact at ');fs.writeFileSync(b.file,original);
   // No automatic execution: a lookup of a trapping program succeeds above.
   // Reproducible core snapshot is required, including unused declarations.
   const stdlib=path.join(work,'stdlib');fs.mkdirSync(stdlib);fs.copyFileSync('src/stdlib/core.panack',path.join(stdlib,'core.panack'));
   const env={...process.env,PANACKELTY_STDLIB_PATH:stdlib};
-  const nativeLocate=()=>command('./panack-vm',['run','bootstrap/compiler-v9.bc','locate',b.artifact,'--source',b.file,'--source-map',b.sidecar,'--function','pick','--instruction','2'],0,env).stdout;
-  check(nativeLocate()===locate(b,b.point),'stdlib relocation preserves identity');
+  const nativeLocate=(status=0)=>command('./panack-vm',['run','bootstrap/compiler-v9.bc','locate',b.artifact,'--source',b.file,'--source-map',b.sidecar,'--function','pick','--instruction','2'],status,env);
+  check(nativeLocate().stdout===locate(b,b.point),'stdlib relocation preserves identity');
   fs.appendFileSync(path.join(stdlib,'core.panack'),'\n// changed unused core\n');
-  check(nativeLocate()==='source-map: unavailable\n','implicit core changes invalidate');
+  check(nativeLocate(1).stderr.includes('cannot validate the source map at '),'implicit core changes invalidate');
   const plain=[],mapped=[],lookup=[];
   for(let i=0;i<5;i++) {
     plain.push(compile('local','plain').milliseconds);mapped.push(compile('local').milliseconds);

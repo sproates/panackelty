@@ -51,10 +51,14 @@ when the input has the correct base type and the invariant depends on its
 contents. For a replacement record, construct the complete candidate and
 validate that record. Keep the old guarded record until the result is `Ok`.
 
-The example widens `config.queues` to `[Str]` before indexing. A copy can
-preserve its guarded type, or you can explicitly request the ordinary base
-type for an operation. A bound on size alone does not prove an arbitrary
-index is in range.
+The example reads `config.queues[0]` directly. The result has the declared
+element type. Indexing still uses the ordinary array bounds check.
+
+If a function requires `[Label]`, you can pass a literal such as
+`["Ticket 42", "Urgent"]`. Panack checks each element against the guard.
+For a runtime array of strings, validate each value as you build the array
+of labels. A conditional can likewise return a proved `Label` from one branch
+and a literal from the other when both meet the required guard.
 
 ## Reading an error in code
 

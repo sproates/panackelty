@@ -868,6 +868,9 @@ replacement and reassignment. The compiler contracts check both field locations,
 relation and safe facts. The CLI checks source-linked proof and runtime
 explanations, plus reverse lookup of the saved comparison instruction.
 
+Guard context regressions cover conditional branches, nested guarded elements,
+ordinary indexing on a guarded array and single-source control classification.
+
 The [installed domain-type acceptance](../docs/VALIDATED_DOMAIN_TYPES_ACCEPTANCE.md)
 also checks the public dispatch example and reports comparable proof and
 runtime costs.

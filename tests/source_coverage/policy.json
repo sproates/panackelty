@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Review declaration exclusions for record relationship proof facts.",
-    "basis": "Reproduced the previous reviewed exclusion digest from d57f8f5 with the production inventory. Reviewed the new inventory: 246 imports, 144 records and 33 enums. Only declarations are excluded.",
+    "reason": "Review declaration exclusions for the shared control-character position record.",
+    "basis": "Reproduced the previous reviewed exclusion digest from fc5e66a with the production inventory. Reviewed the new inventory: 246 imports, 145 records and 33 enums. Only declarations are excluded.",
     "scopeChange": "Measured files, test corpus and unmeasured list are unchanged."
   },
   "manifestHash": "d6a4a9aff279fb3c697f0f544eb9f69d656e99f53d8dcc8ff50351ad74c08096",
-  "exclusionHash": "1bcf682a77528fe00a779a48905eb5398b2bbeabcff77c7b7059c2029a7d63be"
+  "exclusionHash": "328c85f4222012178156259947c64c6f6ae88956392a53efb742f3236f13e715"
 }

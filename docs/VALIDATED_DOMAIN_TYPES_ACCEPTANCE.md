@@ -36,6 +36,24 @@ assert the public fields, scalar boundaries, and omission of sensitive input.
 The [CLI regression suite](../tests/functional/cases/cli_explanations/main.panack)
 distinguishes known invalid values, missing proof and unsupported declarations.
 
+## Follow-up to the acceptance audit
+
+The original acceptance used an explicit base-array conversion to index the
+queue. The follow-up exercises direct indexing in the packaged example.
+The functional regressions cover a guarded/base conditional, literal arrays of
+guarded elements and nested arrays. Invalid values identify the offending
+expression and its guard. A base-typed array with unknown contents requires
+element-level proof. Both static control exclusion and runtime validation now
+use the same first-control lookup in the core library. Its scalar offset and
+code are checked at the C0/C1 boundaries and after a supplementary character.
+
+On macOS arm64 the follow-up compiler (seed `584cdb79`) and the original
+`fc5e66a` installation compiled the same 10,000-iteration control-exclusion
+workload. Inputs alternated between `"Ticket 42"` and `"𐐷\tTicket"`; both
+executables reported 5,000 failures. On the same VM, five alternating trials
+after warm-up took medians of 169 ms and 209 ms respectively. The timing
+includes input selection, checking and summing failure counts.
+
 ## Cost of proof and explicit validation
 
 Each program summed one expression over 50,000 iterations and printed one

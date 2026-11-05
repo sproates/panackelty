@@ -29,6 +29,7 @@ main(): Void {
   print(" ".has_no_control_characters())
   exercise_validation()
   exercise_record_validation()
+  exercise_guard_context()
 }
 
 type Alternative = Int where n => (n < 2 || n > 8) && n != 4
@@ -91,4 +92,22 @@ exercise_record_validation(): Void {
   print(original.label)
   print(IncreasingDecimal(Pair(1.01,1.1)).right)
   print(IncreasingRational(Pair(1 / 3, 2 / 5)).left)
+}
+
+type Word = Str where s => s.is_non_blank()
+type WordQueue = [Word] where q => q.len() >= 1
+
+pure choose_word(input: Str): Word {
+  if input.is_non_blank() { Word(input) } else { "guest" }
+}
+
+pure first(words: [[Word]]): Word { words[0][0] }
+
+exercise_guard_context(): Void {
+  print(choose_word("Ada"))
+  print(choose_word(""))
+  print(first([["first","second"]]))
+  words: [Word] = [Word("one"),"two"]
+  queue = WordQueue([words[1],"three"])
+  print(queue[0])
 }

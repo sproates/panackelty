@@ -1,4 +1,3 @@
-import stdlib/core::{first_control_character}
 // Runtime validation retains requirements and safe facts about the input.
 pub enum ValidationLocation { WholeValue, Field(Str) }
 pub enum ValidationCountUnit { UnicodeScalars, ArrayElements, MapEntries, SetElements }
@@ -119,7 +118,7 @@ pure nonblank(error: ValidationError, value: Str): ValidationError {
   if value.is_non_blank() { error } else { failed(error, NonBlank(), BlankText()) }
 }
 pure control_free(error: ValidationError, value: Str): ValidationError {
-  match first_control_character(value) {
+  match value.first_control_character() {
     None() => error,
     Some(control) => failed(error,NoControlCharacters(),ControlCharacter(control.index,control.scalar))
   }

@@ -1,4 +1,4 @@
-import stdlib/core::{first_control_character, ControlCharacterPosition}
+import stdlib/core::{ControlCharacterPosition}
 import stdlib/validation::{ValidationLocation.Field, ValidationRelation.LessThan, ValidationRelation.LessThanOrEqual, ValidationConstraint.FieldRelation, ValidationFacts.RelationNotSatisfied, ValidationLocation.WholeValue, ValidationCountUnit.UnicodeScalars, ValidationConstraint.MinimumCount, ValidationConstraint.NonBlank, ValidationConstraint.NoControlCharacters, ValidationFacts.ActualCount, ValidationFacts.BlankText, ValidationFacts.ControlCharacter}
 
 import project/tests/runner/compiler_backend_fixtures::{check_source_frontend, compile_source_disassembly}
@@ -207,7 +207,7 @@ pure unicode_domain_predicates(): [TestResult] {
     allowed = scalar >= 32 && (scalar < 127 || scalar > 159)
     checks = checks.append(std_testing.expect("control exclusion ${scalar}",
       ("𐐷" + test_scalar(scalar)).has_no_control_characters() == allowed &&
-      first_control_character("𐐷" + test_scalar(scalar)) == (if allowed { None() } else { Some(ControlCharacterPosition(1,scalar)) }), "wrong control classification"))
+      ("𐐷" + test_scalar(scalar)).first_control_character() == (if allowed { None() } else { Some(ControlCharacterPosition(1,scalar)) }), "wrong control classification"))
   }
   checks.append(std_testing.expect("empty string predicate boundaries",
     !"".is_non_blank() && "".has_no_control_characters(), "wrong empty string result"))

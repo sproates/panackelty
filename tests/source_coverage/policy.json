@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Review declaration exclusions for the shared control-character position and library import.",
-    "basis": "Reproduced the previous reviewed exclusion digest from fc5e66a with the production inventory. Reviewed the new inventory: 247 imports, 145 records and 33 enums. Only declarations are excluded.",
+    "reason": "Review declaration exclusions for the shared control-character position record.",
+    "basis": "Reproduced the previous reviewed exclusion digest from fc5e66a with the production inventory. Reviewed the new inventory: 246 imports, 145 records and 33 enums. Only declarations are excluded.",
     "scopeChange": "Measured files, test corpus and unmeasured list are unchanged."
   },
   "manifestHash": "d6a4a9aff279fb3c697f0f544eb9f69d656e99f53d8dcc8ff50351ad74c08096",
-  "exclusionHash": "672df27a52cb8c2b778771f6a668b6bf4f9c33f62f93507b5f43c374e4329a4c"
+  "exclusionHash": "328c85f4222012178156259947c64c6f6ae88956392a53efb742f3236f13e715"
 }

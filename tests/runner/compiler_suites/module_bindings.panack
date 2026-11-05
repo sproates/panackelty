@@ -1007,7 +1007,7 @@ pure namespace_signature_tests(): [TestResult] {
   core_guard: LoadedModule = signature_test_module(namespace_identity("core_guard"), "import stdlib/core::{Option as Maybe}; pub type Good = Nat where value => Maybe.Some(value) == Maybe.Some(value)")
   core_guard_graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, core_guard.bindings], [ModuleImportEdge(core_guard.bindings.identity, 0, core.bindings.identity)])
   results = results.append(std_testing.equal_nat("private core alias qualified guard constructor is reachable", check_module_signatures(core_guard_graph, [core, core_guard], core_guard).diagnostics.len(), 0))
-  results = results.append(std_testing.equal_str("core string method in public guard remains available", signature_test_error("pub type Good = Str where value => value.ends_with(\"x\")"), "ok"))
+  results = results.append(std_testing.equal_str("core string method in public guard remains available", signature_test_error("pub type Good = Str where value => value.is_non_blank()"), "ok"))
   for method in ["first", "ends_with", "sort_by", "parse_nat", "get", "put", "has", "add", "call", "map", "reduce"] {
     method_module: LoadedModule = signature_test_module(namespace_identity("method"), "pub pure f(value: Nat): Nat { value." + method + "() }")
     method_graph: ModuleBindingGraph = ModuleBindingGraph([method_module.bindings], [])
@@ -1044,7 +1044,7 @@ pure body_has_result_tail(node: BodyNode): Bool {
     BodyBinding(local, type, mutable, inferred, type_evidence) => false,
     BodyLiteral(value) => false,
     BodyInterpolation(parts) => false,
-    BodyLocalUse(local) => false,
+    BodyLocalUse(local, captured_domain) => false,
     BodyFunction(binding) => false,
     BodyArray() => false,
     BodyUnary(operator) => false,
@@ -1087,7 +1087,7 @@ pure body_binding_inference_marker(body: BoundBody): Option[Bool] {
     BodyBinding(identity, type, mutable, inferred, type_evidence) => inferred,
     BodyLiteral(value) => None(),
     BodyInterpolation(parts) => None(),
-    BodyLocalUse(local) => None(),
+    BodyLocalUse(local, captured_domain) => None(),
     BodyFunction(binding) => None(),
     BodyCall(target, types, call_arguments) => None(),
     BodyArray() => None(),
@@ -1208,7 +1208,7 @@ pure namespace_effect_tests(): [TestResult] {
   unresolved_function: BoundFunctionBody = unresolved_bodies.functions[0]
   unresolved_span: SourceSpan = unresolved_function.body.span
   unresolved_receiver: BoundBody = BoundBody(
-    BodyLocalUse(BodyLocalIdentity(unresolved_function.signature.binding.identity, [0], "callback")),
+    BodyLocalUse(BodyLocalIdentity(unresolved_function.signature.binding.identity, [0], "callback"), None()),
     unresolved_span, [], None(), [], [], [], [], [], []
   )
   unresolved_call: BoundBody = BoundBody(
@@ -2914,7 +2914,7 @@ pure namespace_body_tests(): [TestResult] {
     accepted_len_text_argument.functions.len() == 1 &&
       match body_type_check_for_context(accepted_len_text_argument.functions[0].body, "len argument") {
         None() => false,
-        Some(evidence) => evidence.expected == "Str, Bytes, or array" && evidence.accepted == Some(true)
+        Some(evidence) => evidence.expected == "Str, Bytes, Array, Map, or Set" && evidence.accepted == Some(true)
       },
     "len did not retain its accepted Str requirement"
   ))
@@ -2929,7 +2929,7 @@ pure namespace_body_tests(): [TestResult] {
     accepted_len_array_argument.functions.len() == 1 &&
       match body_type_check_for_context(accepted_len_array_argument.functions[0].body, "len argument") {
         None() => false,
-        Some(evidence) => evidence.expected == "Str, Bytes, or array" && evidence.accepted == Some(true)
+        Some(evidence) => evidence.expected == "Str, Bytes, Array, Map, or Set" && evidence.accepted == Some(true)
       },
     "len did not retain its accepted array requirement"
   ))
@@ -3767,7 +3767,7 @@ pure namespace_body_tests(): [TestResult] {
   }
   if checked.functions.len() == 3 {
     call: BoundBody = checked.functions[0].body.children[0]
-    results = results.append(std_testing.expect("qualified bound call retains declaration identity", match call.node { BodyCall(target, types, call_arguments) => match target { BodyDeclaration(binding) => binding.identity == DeclarationIdentity(left.bindings.identity, "take"), BodyCore(name) => false }, BodyLiteral(value) => false, BodyInterpolation(parts) => false, BodyLocalUse(local) => false, BodyFunction(binding) => false, BodyArray() => false, BodyUnary(operator) => false, BodyBinary(operator) => false, BodyField(name) => false, BodyIndex() => false, BodyIf(has_else) => false, BodyBlock(has_tail, original_span, statement_spans) => false, BodyMatch(targets, bindings, spans) => false, BodyBinding(local, type, mutable, inferred, type_evidence) => false, BodyAssignment(local, assignment_evidence) => false, BodyWhile() => false, BodyFor(local) => false, BodyEmpty() => false }, "call target was re-spelled"))
+    results = results.append(std_testing.expect("qualified bound call retains declaration identity", match call.node { BodyCall(target, types, call_arguments) => match target { BodyDeclaration(binding) => binding.identity == DeclarationIdentity(left.bindings.identity, "take"), BodyCore(name) => false }, BodyLiteral(value) => false, BodyInterpolation(parts) => false, BodyLocalUse(local, captured_domain) => false, BodyFunction(binding) => false, BodyArray() => false, BodyUnary(operator) => false, BodyBinary(operator) => false, BodyField(name) => false, BodyIndex() => false, BodyIf(has_else) => false, BodyBlock(has_tail, original_span, statement_spans) => false, BodyMatch(targets, bindings, spans) => false, BodyBinding(local, type, mutable, inferred, type_evidence) => false, BodyAssignment(local, assignment_evidence) => false, BodyWhile() => false, BodyFor(local) => false, BodyEmpty() => false }, "call target was re-spelled"))
   }
   lexical: CheckedModuleBodies = body_test_module("pub pure f(value: Nat): Nat { mut local = value; local = 2; if true { inner = local; inner }; local }")
   results = results.append(std_testing.equal_nat("nested lexical body binds", lexical.diagnostics.len(), 0))
@@ -3780,7 +3780,7 @@ pure namespace_body_tests(): [TestResult] {
     BodyCall(target, types, call_arguments) => false,
     BodyLiteral(value) => false,
     BodyInterpolation(parts) => false,
-    BodyLocalUse(local) => false,
+    BodyLocalUse(local, captured_domain) => false,
     BodyFunction(binding) => false,
     BodyArray() => false,
     BodyUnary(operator) => false,
@@ -4003,7 +4003,7 @@ pure namespace_expression_tests(): [TestResult] {
     function: BoundFunctionBody = interpolated.functions[0]
     node: BoundBody = function.body.children[0]
     results = results.append(std_testing.expect("interpolation parts share existing escape semantics", node.node == BodyInterpolation(["hi ", "\n", ""]), "literal parsing changed"))
-    results = results.append(std_testing.expect("repeated interpolation preserves ordered local IDs", node.children.len() == 2 && node.children[0].node == BodyLocalUse(function.parameters[0].identity) && node.children[1].node == node.children[0].node, "local interpolation identity/order lost"))
+    results = results.append(std_testing.expect("repeated interpolation preserves ordered local IDs", node.children.len() == 2 && node.children[0].node == BodyLocalUse(function.parameters[0].identity, None()) && node.children[1].node == node.children[0].node, "local interpolation identity/order lost"))
     results = results.append(std_testing.expect("interpolation owns original literal span", node.span.start.line == 1 && node.children[0].span == node.span, "interpolation source ownership changed"))
     results = results.append(std_testing.expect("known interpolation is identity checked", function.status == BodyIdentityChecked(), "valid interpolation deferred"))
     interpolation_checks: [BodyTypeCheckEvidence] = body_type_check_evidence(node)
@@ -4624,7 +4624,7 @@ pure owned_server_map_tests(): [TestResult] {
           },
           BodyEmpty() => {},
           BodyLiteral(value) => {},
-          BodyLocalUse(identity) => {},
+          BodyLocalUse(identity, captured_domain) => {},
           BodyFunction(binding) => {},
           BodyArray() => {},
           BodyUnary(operator) => {},

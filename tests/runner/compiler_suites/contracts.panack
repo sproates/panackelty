@@ -179,8 +179,38 @@ pure else_if_contracts(): [TestResult] {
   results
 }
 
+pure test_scalar(n: Nat): Str {
+  if n < 128 { bytes().push(n).decode_utf8() }
+  else if n < 2048 { bytes().push(192 + n.divide(64)).push(128 + n % 64).decode_utf8() }
+  else if n < 65536 {
+    bytes().push(224 + n.divide(4096)).push(128 + n.divide(64) % 64).push(128 + n % 64).decode_utf8()
+  } else {
+    bytes().push(240 + n.divide(262144)).push(128 + n.divide(4096) % 64)
+      .push(128 + n.divide(64) % 64).push(128 + n % 64).decode_utf8()
+  }
+}
+
+pure unicode_domain_predicates(): [TestResult] {
+  mut checks: [TestResult] = []
+  for scalar in [9,10,11,12,13,32,133,160,5760,8192,8193,8194,8195,8196,8197,8198,8199,8200,8201,8202,8232,8233,8239,8287,12288] {
+    checks = checks.append(std_testing.expect("Unicode White_Space ${scalar}",
+      !test_scalar(scalar).is_non_blank(), "expected a blank scalar"))
+  }
+  for scalar in [8,14,31,33,132,134,159,161,5759,5761,8191,8203,8231,8234,8238,8240,8286,8288,12287,12289,65536] {
+    checks = checks.append(std_testing.expect("outside White_Space ${scalar}",
+      test_scalar(scalar).is_non_blank(), "expected a non-blank scalar"))
+  }
+  for scalar in 0..162 {
+    allowed = scalar >= 32 && (scalar < 127 || scalar > 159)
+    checks = checks.append(std_testing.expect("control exclusion ${scalar}",
+      ("x" + test_scalar(scalar)).has_no_control_characters() == allowed, "wrong control classification"))
+  }
+  checks.append(std_testing.expect("empty string predicate boundaries",
+    !"".is_non_blank() && "".has_no_control_characters(), "wrong empty string result"))
+}
+
 pub run_suite(): Void {
-  mut results: [TestResult] = indexed_lookup_contracts().concat(readable_compiler_contracts()).concat(else_if_contracts())
+  mut results: [TestResult] = unicode_domain_predicates().concat(indexed_lookup_contracts()).concat(readable_compiler_contracts()).concat(else_if_contracts())
   results = results.append(contract_check("generic_functions/bodies_are_checked_even_when_unused-1", "operator +"))
   results = results.append(contract_check("generic_functions/bodies_are_checked_even_when_unused-2", "len expects"))
   results = results.append(contract_check("generic_functions/bodies_are_checked_even_when_unused-3", "returns Nat, expected T"))

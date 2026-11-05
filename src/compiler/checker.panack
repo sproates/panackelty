@@ -1,3 +1,4 @@
+pub import project/src/compiler/domain_guards::{DomainFacts}
 pub import project/src/compiler/parser::{unlocated_expression, parse_program_complete, Expr, Block, Program, Statement, FunctionParameter, RecordField, EnumVariant, IndexedVariant, MatchArm, MatchPattern, TopLevel, SourcePos, SourceSpan, Diagnostic, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, BlockValue.NoBlockValue, BlockValue.TailBlockValue}
 pub import project/src/compiler/resolver::{LoadedSource}
 import project/src/compiler/resolver::{SourceUnit, ModuleGraphState, append_program_declarations, duplicate_module_diagnostics, is_builtin, render_resolver_diagnostics, resolve_program, visit_module}
@@ -73,7 +74,8 @@ pub record Bounds {
   upper: Nat,
   lower_origin: Option[GuardOrigin],
   upper_origin: Option[GuardOrigin],
-  invalidated_at: Option[SourceSpan]
+  invalidated_at: Option[SourceSpan],
+  domain: Option[DomainFacts]
 }
 
 // Evidence is retained only by the explicit query. It is produced at the same
@@ -1969,7 +1971,7 @@ pure check_generic_call(
 // Unknown bounds retain the map key without asserting either endpoint.
 pure forget_written_fact(facts: Map[Str, Bounds], name: Str): Map[Str, Bounds] {
   if facts.has(name) {
-    facts.put(name, Bounds(false, 0, false, 0, None(), None(), None()))
+    facts.put(name, Bounds(false, 0, false, 0, None(), None(), None(), None()))
   } else {
     facts
   }
@@ -2590,9 +2592,9 @@ pub pure check_expression_evidence(
             if operation == "len" {
               value_type: Str = argument_infos[0].name
               shape: TypeShape = type_shape(value_type)
-              if value_type != "Str" && value_type != "Bytes" && shape.base != "Array" {
+              if value_type != "Str" && value_type != "Bytes" && shape.base != "Array" && shape.base != "Map" && shape.base != "Set" {
                 diagnostics = diagnostics.append(
-                  checker_diagnostic("len expects Str, Bytes, or array, got ${value_type}")
+                  checker_diagnostic("len expects Str, Bytes, Array, Map, or Set, got ${value_type}")
                 )
               } else {}
               result = "Nat"
@@ -3087,7 +3089,7 @@ pure condition_facts_evidence(
               bound: Bounds = if result.has(name) {
                 result.get(name)
               } else {
-                Bounds(false, 0, false, 0, None(), None(), None())
+                Bounds(false, 0, false, 0, None(), None(), None(), None())
               }
               mut next: Bounds = bound
               reason: Option[GuardOrigin] = if retain {
@@ -3096,27 +3098,27 @@ pure condition_facts_evidence(
                 None()
               }
               if (operator == ">" && truth) || (operator == "<=" && !truth) {
-                next = Bounds(true, value + 1, bound.has_upper, bound.upper, reason, bound.upper_origin, None())
+                next = Bounds(true, value + 1, bound.has_upper, bound.upper, reason, bound.upper_origin, None(), None())
               } else {}
               if (operator == ">=" && truth) || (operator == "<" && !truth) {
-                next = Bounds(true, value, bound.has_upper, bound.upper, reason, bound.upper_origin, None())
+                next = Bounds(true, value, bound.has_upper, bound.upper, reason, bound.upper_origin, None(), None())
               } else {}
               if operator == "<=" && truth {
-                next = Bounds(bound.has_lower, bound.lower, true, value, bound.lower_origin, reason, None())
+                next = Bounds(bound.has_lower, bound.lower, true, value, bound.lower_origin, reason, None(), None())
               } else {}
               if operator == ">" && !truth {
-                next = Bounds(bound.has_lower, bound.lower, true, value, bound.lower_origin, reason, None())
+                next = Bounds(bound.has_lower, bound.lower, true, value, bound.lower_origin, reason, None(), None())
               } else {}
               if (operator == "<" && truth) || (operator == ">=" && !truth) {
                 if value > 0 {
-                  next = Bounds(bound.has_lower, bound.lower, true, value - 1, bound.lower_origin, reason, None())
+                  next = Bounds(bound.has_lower, bound.lower, true, value - 1, bound.lower_origin, reason, None(), None())
                 } else {}
               } else {}
               if operator == "==" && truth {
-                next = Bounds(true, value, true, value, reason, reason, None())
+                next = Bounds(true, value, true, value, reason, reason, None(), None())
               } else {}
               if operator == "==" && !truth && value == 0 {
-                next = Bounds(true, 1, bound.has_upper, bound.upper, reason, bound.upper_origin, None())
+                next = Bounds(true, 1, bound.has_upper, bound.upper, reason, bound.upper_origin, None(), None())
               } else {}
               result = result.put(name, next)
             },

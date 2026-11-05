@@ -423,7 +423,7 @@ pure module_emission_interpolation(body: BoundBody): Expr {
       for child in body.children {
         mut local_name: Str = ""
         match child.node {
-          BodyLocalUse(identity) => {
+          BodyLocalUse(identity, captured_domain) => {
             local_name = identity.name
           },
           BodyLiteral(value) => {},
@@ -453,7 +453,7 @@ pure module_emission_interpolation(body: BoundBody): Expr {
       StringExpr("\"" + module_emission_escape_string(text) + "\"")
     },
     BodyLiteral(value) => value,
-    BodyLocalUse(identity) => NameExpr(identity.name),
+    BodyLocalUse(identity, captured_domain) => NameExpr(identity.name),
     BodyFunction(binding) => FunctionExpr(""),
     BodyCall(target, types, call_arguments) => CallExpr("$unit", [], []),
     BodyArray() => CallExpr("$unit", [], []),
@@ -507,7 +507,7 @@ pure module_emission_block(
     BodyBlock(value, original_span, statement_spans) => { block_span = original_span; origins = statement_spans; value },
     BodyLiteral(value) => false,
     BodyInterpolation(parts) => false,
-    BodyLocalUse(identity) => false,
+    BodyLocalUse(identity, captured_domain) => false,
     BodyFunction(binding) => false,
     BodyCall(target, types, call_arguments) => false,
     BodyArray() => false,
@@ -556,7 +556,7 @@ pure module_emission_block(
         BodyEmpty() => None(),
         BodyLiteral(value) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
         BodyInterpolation(parts) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
-        BodyLocalUse(identity) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
+        BodyLocalUse(identity, captured_domain) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
         BodyFunction(binding) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
         BodyCall(target, types, call_arguments) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
         BodyArray() => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
@@ -594,7 +594,7 @@ pure module_emission_expression_with_parameters(
   emitted: Expr = match body.node {
     BodyInterpolation(parts) => module_emission_interpolation(body),
     BodyLiteral(value) => value,
-    BodyLocalUse(identity) => NameExpr(identity.name),
+    BodyLocalUse(identity, captured_domain) => NameExpr(identity.name),
     BodyFunction(binding) => FunctionExpr(module_emission_callable_symbol(graph, entry, binding)),
     BodyCall(target, types, call_arguments) => CallExpr(
       module_emission_target(graph, entry, target),

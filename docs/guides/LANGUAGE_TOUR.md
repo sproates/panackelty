@@ -172,6 +172,20 @@ The compiler only accepts a conversion when it can prove the target guard from
 the value or its guarded source type. It does not hide a runtime check inside
 otherwise pure code.
 
+A string guard can express the rule for a display label.
+
+```panackelty
+type Label = Str where text =>
+  text.is_non_blank() && text.len() <= 80 && text.has_no_control_characters()
+
+pure greeting(label: Label): Str { "Hello, " + label }
+```
+
+A literal such as `Label("Ian")` supplies all three facts at compile time.
+A function receiving an arbitrary string can check the same conditions in an
+`if` before constructing the label. The compiler points to any requirement it
+still needs. See the [guarded type rules](../reference/SPEC.md#guarded-types).
+
 ### Explicit effects, practical algorithms
 
 Pure code cannot read files, inspect the environment, or print. Local mutation

@@ -197,7 +197,7 @@ pure module_local_body(context: BodyContext, body: BoundBody, known: Set[Declara
         BodyDeclaration(binding) => {}
       }
     },
-    BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity) => {},
+    BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity, captured_domain) => {},
     BodyFunction(binding) => {}, BodyArray() => {}, BodyUnary(operator) => {},
     BodyBinary(operator) => {}, BodyField(field) => {}, BodyIndex() => {}, BodyIf(value) => {},
     BodyBlock(value, original_span, statement_spans) => {}, BodyMatch(targets, locals, spans) => {}, BodyBinding(identity, type, mutable, inferred, evidence) => {},
@@ -350,7 +350,7 @@ pure module_effect_expression(
             BodyCall(target, types, call_arguments) => {},
             BodyLiteral(value) => { invalid_await_operand = true },
             BodyInterpolation(parts) => { invalid_await_operand = true },
-            BodyLocalUse(identity) => { invalid_await_operand = true },
+            BodyLocalUse(identity, captured_domain) => { invalid_await_operand = true },
             BodyFunction(binding) => { invalid_await_operand = true },
             BodyArray() => { invalid_await_operand = true },
             BodyUnary(nested) => { invalid_await_operand = true },
@@ -438,7 +438,7 @@ pure module_effect_expression(
                 }
               }
             },
-            BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity) => {},
+            BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity, captured_domain) => {},
             BodyFunction(binding) => {}, BodyCall(target, types, call_arguments) => {}, BodyArray() => {},
             BodyBinary(operator) => {}, BodyField(field) => {}, BodyIndex() => {}, BodyIf(value) => {},
             BodyBlock(value, nested_span, nested_statement_spans) => {}, BodyMatch(targets, locals, spans) => {}, BodyBinding(identity, type, mutable, inferred, type_evidence) => {},
@@ -450,7 +450,7 @@ pure module_effect_expression(
       }
       children_walked = true
     },
-    BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity) => {},
+    BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity, captured_domain) => {},
     BodyFunction(binding) => {}, BodyArray() => {}, BodyBinary(operator) => {}, BodyField(field) => {},
     BodyIndex() => {}, BodyIf(value) => {}, BodyMatch(targets, locals, spans) => {},
     BodyBinding(identity, type, mutable, inferred, type_evidence) => {}, BodyAssignment(identity, assignment_evidence) => {},

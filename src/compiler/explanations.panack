@@ -329,7 +329,7 @@ pub pure body_inferred_locals(body: BoundBody): [BoundBody] {
     },
     BodyLiteral(value) => {},
     BodyInterpolation(parts) => {},
-    BodyLocalUse(local) => {},
+    BodyLocalUse(local, captured_domain) => {},
     BodyFunction(binding) => {},
     BodyCall(target, types, call_arguments) => {},
     BodyArray() => {},
@@ -359,7 +359,7 @@ pub pure inferred_local_type(body: BoundBody): Option[SignatureType] {
     },
     BodyLiteral(value) => None(),
     BodyInterpolation(parts) => None(),
-    BodyLocalUse(local) => None(),
+    BodyLocalUse(local, captured_domain) => None(),
     BodyFunction(binding) => None(),
     BodyCall(target, types, call_arguments) => None(),
     BodyArray() => None(),
@@ -382,7 +382,7 @@ pure explanation_expression_node(body: BoundBody): Bool {
     BodyBinding(local, type, mutable, inferred, type_evidence) => false,
     BodyLiteral(value) => true,
     BodyInterpolation(parts) => true,
-    BodyLocalUse(local) => true,
+    BodyLocalUse(local, captured_domain) => true,
     BodyFunction(binding) => true,
     BodyCall(target, types, call_arguments) => true,
     BodyArray() => true,
@@ -899,7 +899,7 @@ pure render_type_check_evidence(
     (if count_decision { "" } else { "\n${actual_label}: ${actual}" }) +
     "\n${expected_label}: ${expected}" +
     (if count_decision { "" } else { "\nresulting type: ${result}" }) +
-    (if evidence.dependency != None() { "\nPrior constraint:\n" + explanation_location(evidence.dependency, sources, root, stdlib_root) } else { "" }) +
+    (if evidence.dependency != None() { (if evidence.context == "domain constraint" { "\nGuard declaration:\n" } else { "\nPrior constraint:\n" }) + explanation_location(evidence.dependency, sources, root, stdlib_root) } else { "" }) +
     if evidence.reason != "" { "\nreason: " + source_map_escape(evidence.reason) } else { match evidence.accepted {
       Some(accepted) => if accepted {
         if call_arity {
@@ -1163,7 +1163,7 @@ pure render_inferred_local(
     },
     BodyLiteral(value) => "inferred local: unavailable",
     BodyInterpolation(parts) => "inferred local: unavailable",
-    BodyLocalUse(local) => "inferred local: unavailable",
+    BodyLocalUse(local, captured_domain) => "inferred local: unavailable",
     BodyFunction(binding) => "inferred local: unavailable",
     BodyCall(target, types, call_arguments) => "inferred local: unavailable",
     BodyArray() => "inferred local: unavailable",

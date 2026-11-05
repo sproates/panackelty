@@ -1,3 +1,4 @@
+import project/src/compiler/domain_guards::{domain_base, domain_declaration_errors}
 import project/src/compiler/owned_intrinsics::{owned_intrinsic_declarations}
 import project/src/compiler/module_bindings::{builtin_owner_arity, builtin_owner_module}
 pub import project/src/compiler/module_resolution::{ModuleBindingGraph, ResolvedModuleUses, ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant, ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget, binding_graph_module, binding_graph_target, module_identity_in, resolve_module_expression_uses, resolve_module_path_inner, resolve_module_type, module_import_names, module_reserved_binding}
@@ -400,8 +401,10 @@ pub pure check_module_signatures(
       TypeDeclaration(declared, base, guard_name, guard) => {
         name = declared
         fields = [RecordField("base", base)]
-        if !is_scalar_base(base) || base == "Rat" || base == "Unit" {
-          diagnostics = diagnostics.append(Diagnostic("guarded type base must be a scalar, got " + base, if syntax.type_spans.len() > 0 { syntax.type_spans[0].start } else { syntax.span.start }))
+        if domain_base(base) {
+          diagnostics = diagnostics.concat(domain_declaration_errors(guard, guard_name, base, syntax.span))
+        } else if !is_scalar_base(base) || base == "Rat" || base == "Unit" {
+          diagnostics = diagnostics.append(Diagnostic("unsupported guarded type base " + base + ". Use a numeric scalar, Bool, Str, an array, Map or Set.", if syntax.type_spans.len() > 0 { syntax.type_spans[0].start } else { syntax.span.start }))
         }
         if syntax.is_public {
           uses: ResolvedModuleUses = resolve_module_expression_uses(

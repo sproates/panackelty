@@ -10,8 +10,12 @@
 Value *builtins_text_call(VM *vm, const char *name, Value **a)
 {
     if (!strcmp(name, "len")) {
+        if (a[0]->kind == V_MAP || a[0]->kind == V_SET) {
+            size_t slots = a[0]->as.sequence.count;
+            return value_size(a[0]->kind == V_MAP ? slots / 2 : slots);
+        }
         REQUIRE(a[0]->kind == V_STR || a[0]->kind == V_BYTES || a[0]->kind == V_ARRAY,
-                "VM trap: len requires Str, Bytes, or Array");
+                "VM trap: len requires Str, Bytes, Array, Map, or Set");
         size_t n = a[0]->kind == V_STR     ? a[0]->as.bytes.characters
                    : a[0]->kind == V_BYTES ? a[0]->as.bytes.length
                                            : a[0]->as.sequence.count;

@@ -222,4 +222,21 @@ PASS wrong explanation identity rejected
 PASS reassignment explains invalidated subtraction bound
 PASS upper-bound conversion links its condition
 PASS async local-resource permission links the wrapper call
-tests: 224, failures: 0
+PASS domain proof cites its declaration
+PASS unknown string proof explains the missing bound
+PASS empty string fails non-empty requirement
+PASS literal scalar maximum counts decomposed text
+PASS Unicode whitespace fails non-blank requirement
+PASS control character fails static content requirement
+PASS reject contradictory size bounds at declaration
+PASS reject new string alternatives
+PASS reject arbitrary text methods in guards
+PASS reject dynamic size bound
+PASS reject empty array from non-empty domain
+PASS unknown collection size requires proof
+PASS guarded collection preserves element identity
+PASS map replacement does not increase entry count
+PASS duplicate set addition does not increase count
+PASS assignment invalidates a branch size proof
+PASS mutation in a later condition cannot revive an earlier bound
+tests: 241, failures: 0

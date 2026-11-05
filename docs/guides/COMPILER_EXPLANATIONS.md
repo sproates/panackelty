@@ -344,6 +344,15 @@ stderr: the original type-first diagnostics are preserved, and the project remai
 rejected. There is no separate
 capability taxonomy such as Network or Filesystem in this output.
 
+## String and collection requirements
+
+For a domain conversion, open the source statement and choose a domain
+constraint. Each conjunct has its own outcome. Panack shows the size or text
+fact it established, and the supporting source opens the declaration where
+that requirement was written. The text query includes the same information
+under `checked type requirements`. A missing proof means the available facts
+allow more than one outcome.
+
 ## Guarded-conversion explanations
 
 The query reports conversions into a guarded type when the checker consults

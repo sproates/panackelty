@@ -851,6 +851,17 @@ the separate observer suite above. Hostile concurrent output-directory mutation,
 source-free verification and authenticated original producers are outside the
 [explicit contract](../docs/guides/SOURCE_MAPS.md).
 
+## Static string and collection guards
+
+The `domain_constraints` functional case runs through source and saved bytecode.
+It covers branch proofs, different guarded types, supplementary and decomposed
+text, map replacement, duplicate set members and base methods on guarded values.
+The `cli_explanations` fixture checks per-requirement evidence, declaration
+locations, contradictory and unsupported guards, missing proofs, definite
+failures and mutation. Compiler contract tests enumerate all 25 Unicode 17.0.0
+whitespace scalars and their neighbouring boundaries, and check every C0/C1
+control boundary.
+
 ## Explicit guard bindings
 
 Parser and resolver tests cover the required name, arrow and lexical scope.

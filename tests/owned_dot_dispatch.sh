@@ -113,7 +113,7 @@ reject 'conflicts with an import binding'
 # The guard's declared receiver is a local even when an import has that name.
 cat > "$work/main.panack" <<'SOURCE'
 import "library.panack" as text
-type Ending = Str where text => text.ends_with("x")
+type Ending = Str where text => text.is_non_blank()
 main(): Void {}
 SOURCE
 ./bin/panack check "$work/main.panack" > /dev/null

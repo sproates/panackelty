@@ -5,6 +5,11 @@ that produced it. A wrong location is worse than an unavailable location, so the
 first public consumer reproduces the compilation locally before reporting a
 source range. Forward and reverse queries retain original source identity and
 explain lowering, shared output and constructs with no standalone instructions.
+For a runtime domain check the originating expression can be a guard in
+another module. The instruction belongs to the validating caller. Use the
+guard's module for a reverse query and the caller's function for a forward
+query. Both refer to the same compiled instruction.
+
 The interactive [compiler explorer](COMPILER_EXPLANATIONS.md) connects source
 statements to compiler decisions and generated instructions. Runtime value
 derivations and automatic trap locations are separate capabilities.

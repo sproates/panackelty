@@ -6,6 +6,10 @@ in `docs/releases/RELEASE_POLICY.md`.
 
 ## Unreleased
 
+- Explore domain proofs and their supporting source, including guarded
+  collection and indirect calls. Imported validation rules retain their own
+  source in the terminal and their caller's identity in the plain report.
+
 - Guard records with relationships between numeric fields. Prove an ordered
   range at construction or validate a replacement at runtime. Explanations
   and saved source maps identify the comparison in the guard declaration.

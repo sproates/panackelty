@@ -98,7 +98,7 @@ remain unscheduled/deferred in the website backlog.
   explicit binding syntax. Published alpha.14 examples target the earlier
   compiler. Core release and website maintainers own the promotion check.
 
-- **GI#180 interactive compiler explanations: Pending acceptance and release.**
+- **GI#180 interactive compiler explanations: Feature accepted on merge; pending release promotion.**
   After the matching native release, update the explanation guide and examples
   to show source-first terminal navigation, decision details, supporting source
   and generated instructions. Document `--text` for scripts. Preserve alpha.14

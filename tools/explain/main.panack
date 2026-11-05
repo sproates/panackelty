@@ -1,5 +1,5 @@
 import project/src/compiler/module_bodies::{BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyInvalid, BoundBody, BoundFunctionBody, body_type_text, body_type_complete,
-  body_call_argument_evidence, body_binding_type_evidence, body_assignment_type_evidence, body_type_join_evidence,
+  body_subtraction_evidence_entries, body_call_argument_evidence, body_binding_type_evidence, body_assignment_type_evidence, body_type_join_evidence,
   body_collection_callback_evidence, body_operator_type_evidence, body_type_check_evidence}
 import project/src/compiler/module_signatures::{SignatureType}
 import project/src/compiler/explanations::{body_guard_conversions, body_inferred_locals, inferred_local_type}
@@ -10,7 +10,7 @@ import project/src/compiler/checker::{SubtractionEvidence}
 import project/src/compiler/types::{SourceSpan}
 import project/src/compiler/loader::{load_project_explained}
 import project/src/compiler/project_frontend::{prepare_project_program}
-import project/src/compiler/explanations::{explanation_function_selector}
+import project/src/compiler/explanations::{explanation_function_selector, effect_belongs_to}
 import project/src/compiler/module_bindings::{source_module_identity}
 import project/src/compiler/source_maps::{source_map_escape}
 import project/src/compiler/path_support as paths
@@ -20,7 +20,7 @@ import stdlib/host as host
 record Origin { label: Str, source: Str }
 record Decision { site: SourceSpan, label: Str, verdict: Str, why: Str, origins: [Origin] }
 record Section { statement: Str, decisions: [Decision] }
-record Review { source: Str, name: Str, signature: Str, status: Str, sections: [Section] }
+record Review { sources: Map[Str,Str], name: Str, signature: Str, status: Str, sections: [Section] }
 
 pure previous(n: Nat): Nat { if n > 0 { n - 1 } else { 0 } }
 pure remaining_space(size: Nat, used: Nat): Nat {
@@ -57,11 +57,11 @@ pure context(source: Str, span: SourceSpan): Str {
 // the minus sign would misidentify operands in a nested subtraction.
 pure operand_name(body: BoundBody, span: SourceSpan, source: Str): Option[Str] {
   mut name: Option[Str] = None()
-  if body.span == span && body.children.len() == 2 {
+  if body.span == span && body.children.len() == 2 && body.children[0].span.start.file == span.start.file {
     name = Some(excerpt(source, body.children[0].span))
   } else {
     for child in body.children {
-      if name == None() && child.span.start.offset <= span.start.offset && child.span.end.offset >= span.end.offset {
+      if name == None() {
         name = operand_name(child, span, source)
       }
     }
@@ -136,16 +136,14 @@ pure origin(project: LoadedProject, span: SourceSpan, label: Str): [Origin] {
     [Origin(label, source_map_escape(span.start.file) + "\n" + context(project.sources.get(span.start.file),span))]
   } else { [] }
 }
-pure facts(project: LoadedProject, function: BoundFunctionBody, selected: SourceMapFunctionSelector,
-  source: Str): [Decision] {
+pure facts(project: LoadedProject, function: BoundFunctionBody, selected: SourceMapFunctionSelector): [Decision] {
   body = function.body
   mut rows: [Decision] = []
-  for item in project.evidence {
-    if item.function_name == selected.emitted_name || item.function_name == selected.identity.name {
-      match item.span {
-        None() => {}, Some(span) => if span.start.file == selected.source_path {
-          rows = rows.append(subtraction(source,span,item,operand_name(body,span,source).value_or("the left operand")))
-        }
+  for item in body_subtraction_evidence_entries(body) {
+    match item.span {
+      None() => {}, Some(span) => if project.sources.has(span.start.file) {
+        text = project.sources.get(span.start.file)
+        rows = rows.append(subtraction(text,span,item,operand_name(body,span,text).value_or("the left operand")))
       }
     }
   }
@@ -201,12 +199,12 @@ pure facts(project: LoadedProject, function: BoundFunctionBody, selected: Source
   }
   for e in body_type_check_evidence(body) {
     base = requirement(e.span,e.context,e.actual,source_map_escape(e.expected),e.accepted)
-    links = match e.dependency { None() => [], Some(site) => origin(project,site,if e.context == "domain constraint" || e.context == "runtime validation" { "Guard requirement declared here" } else { "Earlier constraint" }) }
-    rows = rows.append(Decision(e.span,base.label,if e.context == "runtime validation" { "Checked at runtime" } else { base.verdict },base.why + (if e.reason == "" { "" } else { " " + source_map_escape(e.reason) }),links))
+    links = match e.dependency { None() => [], Some(site) => origin(project,site,if e.context == "domain constraint" || e.context == "runtime validation" { "Guard requirement declared here" } else if e.context == "supporting guard fact" { "Source of the guard fact" } else { "Earlier constraint" }) }
+    rows = rows.append(Decision(e.span,base.label,if e.context == "runtime validation" { "Checked at runtime" } else if e.context == "domain constraint" && e.accepted == None() { "Unproved" } else { base.verdict },base.why + (if e.reason == "" { "" } else { " " + source_map_escape(e.reason) }),links))
   }
   for e in project.effects {
-    if e.function_name == selected.identity.name || e.function_name == selected.emitted_name {
-      match e.span { None() => {}, Some(span) => if span.start.file == selected.source_path {
+    if effect_belongs_to(e,selected) {
+      match e.span { None() => {}, Some(span) => if project.sources.has(span.start.file) {
         mut why = "The enclosing function is " + e.mode + "."
         if e.kind == "call" { why = why + " The callee " + source_map_escape(e.target) + " is " + e.target_effect + " (" + e.basis + ")." }
         for error in e.violations { why = why + " " + source_map_escape(error) + "." }
@@ -220,22 +218,38 @@ pure facts(project: LoadedProject, function: BoundFunctionBody, selected: Source
   rows
 }
 
-pure ordered(left: Decision, right: Decision): Bool { left.site.start.offset < right.site.start.offset }
-pure sections(source: Str, entries: [Decision]): [Section] {
+pure ordered(left: Decision, right: Decision): Bool {
+  if left.site.start.file == right.site.start.file { left.site.start.offset < right.site.start.offset }
+  else { left.site.start.file < right.site.start.file }
+}
+pure sections(sources: Map[Str,Str], selected: Str, root: Str, library: Str, entries: [Decision]): [Section] {
   mut groups: [Section] = []
   mut current: [Decision] = []
   mut last: Nat = 0
   mut text = ""
-  for item in entries.sort_by(@ordered) {
-    if item.site.start.line != last {
+  mut local: [Decision] = []
+  mut supporting: [Decision] = []
+  for item in entries {
+    if item.site.start.file == selected { local = local.append(item) } else { supporting = supporting.append(item) }
+  }
+  mut file = ""
+  for item in local.sort_by(@ordered).concat(supporting.sort_by(@ordered)) {
+    if item.site.start.line != last || item.site.start.file != file {
+      file = item.site.start.file
       if current.len() > 0 { groups = groups.append(Section(text,current)) }
       current = []
-      // The overview is one original line, including the enclosing statement.
-      mut start = item.site.start.offset
-      while start > 0 && source[previous(start)] != "\n" { start = previous(start) }
-      mut end = start
-      while end < source.len() && source[end] != "\n" { end = end + 1 }
-      text = source_map_escape(source.slice(start,end))
+      text = "Source unavailable"
+      if sources.has(file) {
+        source = sources.get(file)
+        if item.site.start.offset <= source.len() {
+          mut start = item.site.start.offset
+          while start > 0 && source[previous(start)] != "\n" { start = previous(start) }
+          mut end = start
+          while end < source.len() && source[end] != "\n" { end = end + 1 }
+          text = (if file == selected { "" } else { source_map_escape(source_identifier(file,root,library)) + "  " }) +
+            source_map_escape(source.slice(start,end))
+        }
+      }
       last = item.site.start.line
     }
     current = current.append(item)
@@ -279,7 +293,7 @@ load(source_path: Str, selector: Str): Result[Review,Str] {
             mut end = start
             while end < source.len() && source[end] != "\n" { end = end + 1 }
             signature = source_map_escape(source.slice(start,end))
-            rows = facts(project,function,selected,source)
+            rows = facts(project,function,selected)
           }
         }
         match prepared {
@@ -290,7 +304,7 @@ load(source_path: Str, selector: Str): Result[Review,Str] {
               mapping = mapped.sources[i]
               if mapping.name == selected.emitted_name {
                 for item in mapping.entries {
-                  if item.span.start.file == selected.source_path {
+                  if project.sources.has(item.span.start.file) {
                     instruction = mapped.bytecode.functions[i].instructions[item.index]
                     pc = item.index
                     rows = rows.append(Decision(item.span, source_map_escape(instruction_purpose(instruction)), "Compiled",
@@ -304,7 +318,7 @@ load(source_path: Str, selector: Str): Result[Review,Str] {
         }
       }
       if signature == "" { Error(status + "\nNo checked function body for " + source_map_escape(selector)) }
-      else { Ok(Review(project.sources.get(selected.source_path), source_map_escape(selected.display_name),signature,status,sections(project.sources.get(selected.source_path),rows))) }
+      else { Ok(Review(project.sources, source_map_escape(selected.display_name),signature,status,sections(project.sources,selected.source_path,root,library,rows))) }
     }
   }
 }
@@ -362,7 +376,8 @@ pure screen(model: Review, group: Nat, selected: Nat, depth: Nat, width: Nat, he
       } else {
         row = section.decisions[selected]
         if depth == 2 {
-          snippet = excerpt(model.source, row.site)
+          snippet = if model.sources.has(row.site.start.file) { excerpt(model.sources.get(row.site.start.file), row.site) }
+            else { "Source unavailable" }
           lines = lines.append(row.label + "  [" + row.verdict + "]")
           if snippet != row.label && snippet != section.statement { lines = lines.append(snippet) }
           lines = lines.append(row.why)

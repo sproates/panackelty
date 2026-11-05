@@ -3,8 +3,8 @@
 Updated: 5 November 2026. Release: **v0.1.0-alpha.15**. Integration branch: **next**.
 Latest published release: **v0.1.0-alpha.14**. Publication date: not agreed.
 
-**Packages and validated domain types have passed feature acceptance on next.
-Compiler understanding has one cross-feature acceptance stage remaining before release checks.**
+**All seven alpha.15 feature workstreams are accepted on merge. The next step
+is release preparation and owner approval for publication.**
 
 This is the current release-status source of truth. Read this file for a quick
 status answer; follow evidence links when investigating a particular item.
@@ -16,19 +16,18 @@ and linked issues retain the detailed requirements and decisions.
 | Item | Current state and remaining acceptance | Weight | Complete | Earned |
 | --- | --- | ---: | ---: | ---: |
 | [GI#200 Packages](https://github.com/sproates/panackelty/issues/200) | Accepted on next: local folders/archives, HTTPS archives, pinned Git, diagnostics and installed acceptance. [P04c evidence](design/PACKAGE_FINAL_ACCEPTANCE.md), PR#595. Not yet released. | 30/90 | 100% | 30/90 |
-| [GI#180 Compiler understanding](https://github.com/sproates/panackelty/issues/180) | Slices 1–4 merged in [PR#655](https://github.com/sproates/panackelty/pull/655). Interactive checker explanations, instruction origins and reverse source queries passed [current-language acceptance](COMPILER_UNDERSTANDING_ACCEPTANCE.md). Slice 5 integrates the decisions introduced by GI#435. | 20/90 | Unassessed | Unknown |
-| [GI#435 Validated domain types](https://github.com/sproates/panackelty/issues/435) | The audit follow-up completes acceptance on merge for guarded conditionals, array elements, indexing and the shared control-character check. See the [installed acceptance and cost results](VALIDATED_DOMAIN_TYPES_ACCEPTANCE.md) and [migration guide](guides/VALIDATED_DOMAIN_TYPES.md). | 20/90 | 100% | 20/90 |
+| [GI#180 Compiler understanding](https://github.com/sproates/panackelty/issues/180) | Complete on merge. [Final integration acceptance](COMPILER_UNDERSTANDING_ACCEPTANCE.md#final-alpha15-integration) reconciles checker decisions and instruction origins against GI#435, including installed terminal navigation, realistic project audits and retention costs. | 20/90 | 100% | 20/90 |
+| [GI#435 Validated domain types](https://github.com/sproates/panackelty/issues/435) | [PR #661](https://github.com/sproates/panackelty/pull/661) completed acceptance for guarded conditionals, array elements, indexing and the shared control-character check. See the [installed acceptance and cost results](VALIDATED_DOMAIN_TYPES_ACCEPTANCE.md) and [migration guide](guides/VALIDATED_DOMAIN_TYPES.md). | 20/90 | 100% | 20/90 |
 | [GI#409 Compiler/stdlib boundary](https://github.com/sproates/panackelty/issues/409) | Assessment complete on next (PR#635): 42-file closure verified, five change cases evidenced, recommendation to retain source organisation and assess narrower build dependencies in GI#106. [Evidence](COMPILER_STDLIB_BOUNDARY_ASSESSMENT.md). No refactor. | 5/90 | 100% | 5/90 |
 | [RM#154 Faster coverage](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154) | Complete: local reuse PR#644 and hosted persistence PR#645. Local repeat/reporting medians improve 88.70%/88.75%; cold/dependency regressions 0.65%/2.35%. Hosted 30m22s → 3m35s with 29 cache hits and 62 distinct sessions across two runs. [Final evidence and limits](COVERAGE_PERFORMANCE_BASELINE.md#final-acceptance-28-october-2026). Cold preparation remains slow. | 5/90 | 100% | 5/90 |
 | [RM#155 Authoring friction](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-155) | Complete on merge. Inventory preflight and contributor guidance shipped earlier. [PR #652](https://github.com/sproates/panackelty/pull/652) delivered the tested recipes on next. Final acceptance covers the source-located interpolation diagnostic, literal-text migration and [public-signature example](../examples/namespaces/README.md#returning-a-type-from-another-module). | 5/90 | 100% | 5/90 |
 | [GI#106 Validation speed](https://github.com/sproates/panackelty/issues/106) | Shared compiler-test preparation merged into next (PR#637). [Replay evidence](VALIDATION_SPEED_ACCEPTANCE.md): clean full 16.1% faster, compiler edit 20.05% faster, hosted initial compiler 24.9%/36.8% faster. All guards passed, including four workers. Owner accepted the alpha.15 milestone on 27 October 2026. Wider issue remains open. | 5/90 | 100% | 5/90 |
-| **Total** | **70/90 known contribution (77.8%); overall completion unquantified.** | **100%** | **Unknown** | **70/90 known** |
+| **Total** | **All agreed feature workstreams accepted.** | **100%** | **100%** | **90/90** |
 
 Weights retain the original provisional relative sizes, excluding the five points
 for GI#170: Inference assessment and the five for RM#157: Performance review,
 now allocated to alpha.16. The remaining denominator is 90; the Weight column
-sums to 100%. No remaining task was re-estimated. GI#435 adds its agreed 20 points on merge. Unknown contributions are not zero; overall completion remains
-unquantified. These are provisional weights, not owner-approved effort estimates.
+sums to 100%. No remaining task was re-estimated. The final GI#180 integration earns its existing 20 points once. These provisional scope weights track feature acceptance. Release checks, promotion and publication are separate.
 
 ## Deferred to the following release
 
@@ -167,9 +166,8 @@ The order and scope weights remain unchanged. GI#409 assessment delivery is reco
 
 ## Release readiness and next action
 
-- Next: GI#180 Compiler understanding, slice 5. Reconcile its inventories and
-  finish integrated acceptance against the delivered domain-type decisions.
-  The GI#435 example, source map and runtime-cost evidence are available above.
+- Next: prepare the release candidate and verify versioning, distribution and
+  promotion against the [release policy](releases/RELEASE_POLICY.md).
 - Promotion, package/install release checks and owner publication approval remain.
   Complete product acceptance on next does not mean a feature has shipped.
 - Latest supporting repair: [PR#601](https://github.com/sproates/panackelty/pull/601)

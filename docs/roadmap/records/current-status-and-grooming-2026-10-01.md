@@ -232,7 +232,13 @@ mandatory. Detailed implementation evidence belongs in #187.
 
 **RM#9: Compiler understanding programme** · [GI#180: Compiler understanding programme](https://github.com/sproates/panackelty/issues/180).
 
-**Included in Alpha.14; release-specific scope undefined.** Owner direction,
+**Alpha.15 completion on merge.** GI#134 Compiler explanations and GI#173
+Compilation provenance meet the [final integration criteria](../../COMPILER_UNDERSTANDING_ACCEPTANCE.md#final-alpha15-integration).
+GI#172 Runtime value provenance, GI#174 Counterfactual compilation and GI#175
+Semantic change prediction retain their separate scopes. The register below
+records the earlier investigation and alpha.14 planning.
+
+**Historical alpha.14 allocation.** Owner direction,
 2026-10-14: include GI#180 in Alpha.14, but leave the selected workstreams,
 deliverables and acceptance criteria for this release undefined. Resume planning
 to define a bounded scope; implementation remains unselected. The existing
@@ -280,8 +286,8 @@ live verification remain separately recorded in the website follow-up register.
 
 | Workstream | State | Acceptance focus / progress |
 | --- | --- | --- |
-| [RM#48: Compiler explanations](groomed-development-and-engineering-work.md#rm-48) · [GI#134: Compiler explanations](https://github.com/sproates/panackelty/issues/134) | Open; Alpha.14 selection undefined | First guarded-subtraction query accepted through #219; full types/effects/proof scope remains open. |
-| <a id="rm-91"></a>**RM#91: Compilation provenance** · [GI#173: Compilation provenance](https://github.com/sproates/panackelty/issues/173) | Open; selected for Alpha.14 | U1 attribution and U2 production mapping accepted; U4 connections through checking/lowering remain open. No accepted workstream delivery yet. |
+| [RM#48: Compiler explanations](groomed-development-and-engineering-work.md#rm-48) · [GI#134: Compiler explanations](https://github.com/sproates/panackelty/issues/134) | Alpha.15 complete on merge; earlier checkpoint follows | First guarded-subtraction query accepted through #219; full types/effects/proof scope remains open. |
+| <a id="rm-91"></a>**RM#91: Compilation provenance** · [GI#173: Compilation provenance](https://github.com/sproates/panackelty/issues/173) | Alpha.15 complete on merge; earlier checkpoint follows | U1 attribution and U2 production mapping accepted; U4 connections through checking/lowering remain open. No accepted workstream delivery yet. |
 | <a id="rm-92"></a>**RM#92: Counterfactual compilation** · [GI#174: Counterfactual compilation](https://github.com/sproates/panackelty/issues/174) | Open; Alpha.14 selection undefined | Derive sufficient requirements and validate them by actual compilation. No accepted delivery yet. |
 | <a id="rm-93"></a>**RM#93: Semantic change prediction** · [GI#175: Semantic change prediction](https://github.com/sproates/panackelty/issues/175) | Open; Alpha.14 selection undefined | [RM#106: Semantic-impact experiment](u0-semantic-impact-experiment--2026-10-03.md#rm-106) establishes bounded direct predictions and positive local non-impact; one-change transitive acceptance and production remain open. |
 | [RM#68: Runtime value provenance](language-direction-and-differentiation--exploration.md#rm-68) · [GI#172: Runtime value provenance](https://github.com/sproates/panackelty/issues/172) | Open; Alpha.14 selection undefined | Explain opt-in computation/value derivations with bounded runtime overhead and retention. No accepted delivery yet. |

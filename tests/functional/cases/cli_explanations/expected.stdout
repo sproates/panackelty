@@ -271,4 +271,14 @@ PASS guarded map uses ordinary indexing restrictions
 PASS array size proof still required after checking its elements
 PASS array size cannot satisfy its element guard
 PASS guarded array indexing retains the VM bounds check
-tests: 273, failures: 0
+PASS append retains the guarded item proof
+PASS map retains its guarded value rejection
+PASS set retains its guarded item proof
+PASS indirect call retains domain requirements
+PASS invalid validation input reports its stopping point
+PASS branch domain proof points to establishing condition
+PASS write invalidates a domain branch fact
+PASS imported validation keeps the caller's effects and subtraction
+PASS same-named sibling excludes the caller's generated checks
+PASS rejected validation target explains the skipped requirements
+tests: 283, failures: 0

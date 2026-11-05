@@ -31,7 +31,7 @@ A pipe selects the plain report automatically. Explicit location queries retain
 their plain output. The installed tool includes the explorer and terminal
 adapter. A source checkout builds them on first use.
 
-## Current completion work
+## Retained decisions
 
 The checker now retains native-intrinsic arguments, first and subsequent generic
 constraints, contextual constraint solutions, callback component checks,
@@ -41,8 +41,7 @@ checking leaves explanation-only records disabled.
 
 The table below maps the current decision families to their retained facts.
 The original gap audit remains in the definitive delivery checklist.
-Whole-programme acceptance also includes the new decisions introduced by
-GI#435 Validated domain types.
+The final inventory includes the decisions introduced by GI#435 Validated domain types.
 [Delivery checklist](../roadmap/records/next-release--agreed-scope-2026-10-06.md#gi180-definitive-alpha15-delivery-checklist-28-october-2026)
 
 ## Completion target for GI #134
@@ -175,17 +174,15 @@ forms. Path checks cover the typed arguments to `path_from_text`,
 `path_from_native`, `path_append`, `path_to_text`, `path_native_bytes`,
 `path_display`, `path_absolute`, `path_directory`, `path_filename`,
 `path_join`, `path_suffix`, `path_parent`, `path_is_absolute`,
-`path_with_suffix` and `path_resolve`. Other generic collection-call joins,
-callback contracts for other operations, and other builtins remain outside
-these slices. The environment checks cover the
+`path_with_suffix` and `path_resolve`. The type-join and callback sections describe those decisions separately. The environment checks cover the
 string key arguments to `environment_get` and `environment_has`. Diagnostics and
 exit status remain unchanged. Time checks cover arguments to `duration_nanoseconds`,
 `duration_ticks`, `duration_from_seconds`, `instant_add`, `instant_difference` and
 `instant_before`. Direct calls to resolved function declarations and record/enum
 constructors also report whether the supplied argument count matches the
 declared inputs, with the call source range, expected and supplied counts, and
-the existing accepted or rejected outcome. Core builtins, indirect calls and
-explicit type-argument counts remain uncovered call-arity decisions.
+the existing accepted or rejected outcome. Core builtins and indirect calls also report performed argument-count checks.
+Explicit type arguments have a separate count requirement.
 
 ## Array callback contracts
 
@@ -376,21 +373,18 @@ ordinary project checking keeps the evidence collections empty.
 
 ## Boundaries and cost
 
-This first query covers binary Nat subtraction in function definitions. Generic
-functions are checked once at their definition; output does not claim call-site
-specialisation or runtime path execution. Imported definitions keep their own
-source locations. A query can include multiple subtraction obligations in checker
-traversal order, including nested subtractions and both branches.
+Functions are checked at their definitions, including shared generic bodies.
+The checker reports the evidence it used. An unproved requirement can still
+succeed for some runtime inputs. For domain guards, the requirement links to
+its declaration. When a condition or initializer supplies supporting facts,
+its source is available separately. A write that clears prior domain facts can
+explain why proof is missing. The caller's validation input is checked at
+compile time; a valid call schedules each written requirement for runtime.
+Inspecting the caller in a terminal also shows decisions and instructions
+originating in imported guards under their own module names.
 
-The checker adds the narrow guarded-source conversion described above;
-explanation mode records that same checker decision. Other proof rules and
-acceptance semantics are unchanged. Variable-to-variable relations, compound
-guard inference and arithmetic constant folding are not added.
-The original checker may reject mathematically safe expressions outside its
-supported proof rules. Constant values are retained, but declaration/initializer
-provenance chains are not; the operation range identifies the operands being
-checked. Type-declaration guards are not part of this function query. General type explanations, transitive effect explanations, compilation provenance, suggested requirements, change
-predictions and runtime value derivations remain separate programme work.
+The report describes static checking and compilation. Runtime paths, transitive
+value histories and counterfactual changes are outside its scope.
 
 Only the explicit query retains subtraction/effect evidence, lower-bound origins,
 and guarded-conversion decisions. Ordinary checking carries empty

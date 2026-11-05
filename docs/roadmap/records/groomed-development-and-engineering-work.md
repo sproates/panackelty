@@ -32,7 +32,10 @@ generator, formatter or package manager is needed.
 
 **RM#48: Compiler explanations** · [GI#134: Compiler explanations](https://github.com/sproates/panackelty/issues/134).
 
-Work record: [#134](https://github.com/sproates/panackelty/issues/134).
+**Done for alpha.15 on merge.** The [final integration record](../../COMPILER_UNDERSTANDING_ACCEPTANCE.md#final-alpha15-integration)
+reconciles the maintained checker inventory with the domain-type decisions,
+public output and installed terminal. The staged work below records how the
+feature developed. Work record: [#134](https://github.com/sproates/panackelty/issues/134).
 
 **Owner direction, 2026-10-15:** completion means `panack explain` covers every
 relevant type, effect and proof decision the checker makes while checking a

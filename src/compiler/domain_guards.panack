@@ -151,18 +151,28 @@ pub pure record_rules(expression: Expr, binding: Str, site: SourceSpan): [Record
   if valid { rules } else { [] }
 }
 
+// Explanation-only sources carry the facts at this site, without a recursive
+// copy of their own history. Ordinary checking keeps the list empty.
+pub record DomainFactOrigin { source: SourceSpan, reason: Str, facts: DomainFacts }
 pub record DomainFacts {
   minimum: Nat, maximum: Option[Nat],
   non_blank: Option[Bool], control_free: Option[Bool],
-  keys: Option[Set[Str]], orders: [FieldOrder], numbers: [FieldNumber]
+  keys: Option[Set[Str]], orders: [FieldOrder], numbers: [FieldNumber], origins: [DomainFactOrigin]
 }
 
 pub pure size_facts(minimum: Nat, maximum: Option[Nat], non_blank: Option[Bool], control_free: Option[Bool], keys: Option[Set[Str]]): DomainFacts {
-  DomainFacts(minimum,maximum,non_blank,control_free,keys,[],[])
+  DomainFacts(minimum,maximum,non_blank,control_free,keys,[],[],[])
 }
 
 pub pure record_facts(orders: [FieldOrder], numbers: [FieldNumber]): DomainFacts {
-  DomainFacts(0,None(),None(),None(),None(),orders,numbers)
+  DomainFacts(0,None(),None(),None(),None(),orders,numbers,[])
+}
+
+pub pure with_fact_source(facts: DomainFacts, observed: DomainFacts, source: SourceSpan, reason: Str): DomainFacts {
+  snapshot = DomainFacts(observed.minimum,observed.maximum,observed.non_blank,observed.control_free,observed.keys,
+    observed.orders,observed.numbers,[])
+  DomainFacts(facts.minimum,facts.maximum,facts.non_blank,facts.control_free,facts.keys,
+    facts.orders,facts.numbers,facts.origins.append(DomainFactOrigin(source,reason,snapshot)))
 }
 
 pub pure unknown_facts(): DomainFacts { size_facts(0, None(), None(), None(), None()) }
@@ -231,6 +241,18 @@ pub pure rule_text(rule: DomainRequirement, base: Str): Str {
   }
 }
 
+// A fact can reach a join through both arms. Keep one copy per observation.
+pure merge_fact_origins(left: [DomainFactOrigin], right: [DomainFactOrigin]): [DomainFactOrigin] {
+  if left.len() == 0 { right } else if right.len() == 0 || left == right { left } else {
+    mut seen: Set[DomainFactOrigin] = set()
+    mut merged: [DomainFactOrigin] = []
+    for origin in left.concat(right) {
+      if !seen.has(origin) { seen = seen.add(origin); merged = merged.append(origin) }
+    }
+    merged
+  }
+}
+
 pub pure combine_facts(a: DomainFacts, b: DomainFacts): DomainFacts {
   minimum = if a.minimum > b.minimum { a.minimum } else { b.minimum }
   maximum = match a.maximum {
@@ -240,7 +262,7 @@ pub pure combine_facts(a: DomainFacts, b: DomainFacts): DomainFacts {
   DomainFacts(minimum, maximum,
     if b.non_blank != None() { b.non_blank } else { a.non_blank },
     if b.control_free != None() { b.control_free } else { a.control_free },
-    if b.keys != None() { b.keys } else { a.keys }, a.orders.concat(b.orders), a.numbers.concat(b.numbers))
+    if b.keys != None() { b.keys } else { a.keys }, a.orders.concat(b.orders), a.numbers.concat(b.numbers), merge_fact_origins(a.origins,b.origins))
 }
 
 // Facts available after a choice must hold for either result.
@@ -257,7 +279,7 @@ pub pure common_facts(a: DomainFacts, b: DomainFacts): DomainFacts {
   DomainFacts(lower, upper,
     if a.non_blank == b.non_blank { a.non_blank } else { None() },
     if a.control_free == b.control_free { a.control_free } else { None() },
-    if a.keys == b.keys { a.keys } else { None() }, orders, numbers)
+    if a.keys == b.keys { a.keys } else { None() }, orders, numbers, merge_fact_origins(a.origins,b.origins))
 }
 
 pure validation_call(name: Str, arguments: [Expr]): Expr {

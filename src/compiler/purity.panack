@@ -49,7 +49,8 @@ pub record EffectEvidence {
   target_effect: Str,
   awaited: Bool,
   violations: [Str],
-  dependencies: [EffectDependency]
+  dependencies: [EffectDependency],
+  owner_file: Str
 }
 
 pub record CheckedEffects {
@@ -348,7 +349,7 @@ pub pure check_effect_expression(
       basis,
       target_effect,
       awaited,
-      violations, []
+      violations, [], ""
     )
     result = CheckedEffects(result.diagnostics, [entry].concat(result.evidence))
   }
@@ -419,7 +420,7 @@ pure check_effect_block(
                 "result type",
                 checked.info.name,
                 true,
-                [reason], []
+                [reason], [], ""
               )
               result = CheckedEffects(result.diagnostics, result.evidence.append(entry))
             }
@@ -511,7 +512,7 @@ pub pure check_selected_effect_evidence(
             for entry in checked.evidence {
               entries = entries.append(
                 EffectEvidence(name, entry.span, entry.kind, entry.mode, entry.target,
-                entry.basis, entry.target_effect, entry.awaited, entry.violations, entry.dependencies))
+                entry.basis, entry.target_effect, entry.awaited, entry.violations, entry.dependencies,entry.owner_file))
             }
           }
           result = combine_effects(result, CheckedEffects(checked.diagnostics, entries))

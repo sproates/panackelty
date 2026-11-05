@@ -675,17 +675,17 @@ absence of executable output. This slice consumes slice 3 mappings; mapping
 completeness is not implemented twice. The owner subsequently selected an
 interactive exploration prototype; see the updated presentation decision below.
 
-### 5. Acceptance and documentation — implementation and acceptance in progress
+### 5. Acceptance and documentation — complete on merge
 
-- [ ] 5.1 — After GI#435 and other alpha.15 compiler changes, reconcile both
+- [x] 5.1 — After GI#435 and other alpha.15 compiler changes, reconcile both
   maintained inventories against the resulting implementation. GI#435 supplies
   its new decision evidence in its own deliveries; resolve remaining integration
   gaps here. Do not declare whole-programme completeness before this checkpoint.
-- [ ] 5.2 — Exercise the agreed realistic programs and installed CLI: accepted
+- [x] 5.2 — Exercise the agreed realistic programs and installed CLI: accepted
   and rejected programs, partial checking, imported/generic code, methods,
   callbacks, control flow, mutation-invalidated facts and new domain constraints.
   Reuse valid slice evidence and run the necessary combined acceptance checks.
-- [ ] 5.3 — Measure comparable retention-on/off time and memory for the agreed
+- [x] 5.3 — Measure comparable retention-on/off time and memory for the agreed
   programs, assess material costs, and update user documentation, limitations,
   release summary and completion records. Claim only capabilities demonstrated
   by the final inventories and transcripts.
@@ -693,7 +693,15 @@ interactive exploration prototype; see the updated presentation decision below.
 Exit: both inventories have no unexplained gaps, installed behavior matches the
 agreed examples, costs are disclosed, and documentation matches the feature.
 
-### Delivery progress, 5 November 2026
+**Done on merge.** The [final integration results](../../COMPILER_UNDERSTANDING_ACCEPTANCE.md#final-alpha15-integration)
+close GI#134 Compiler explanations, GI#173 Compilation provenance and the
+agreed alpha.15 scope of GI#180 Compiler understanding. The two inventories
+include static and runtime domain decisions, their sources across module
+boundaries, and validation bytecode. The installed explorer and both
+directions of the source-map query were exercised. Later research remains
+allocated to its own issues.
+
+### Earlier delivery checkpoint, 5 November 2026
 
 The owner requested end-to-end delivery after reviewing the subtraction
 explorer. PR #654 delivered that first interface. The delivery branch now

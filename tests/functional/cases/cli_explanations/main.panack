@@ -817,6 +817,36 @@ main(): Void {
       results = results.append(explain_run("array size cannot satisfy its element guard", ["check",source],1,[],[],"The string is empty."))
       explain_write(source, "type Word = Str where s => s.is_non_blank()\ntype Queue = [Word] where a => a.len() >= 1\nmain(): Void { print(Queue([\"ok\"])[1]) }\n")
       results = results.append(explain_run("guarded array indexing retains the VM bounds check", ["run",source],1,[],[],"index is out of bounds"))
+      explain_write(source, "type Word = Str where s => s.is_non_blank()\npure probe(words: [Word]): [Word] { words.append(\"ok\") }\nmain(): Void {}\n")
+      results = results.append(explain_run("append retains the guarded item proof", ["explain",source,"--function","probe"],0,
+        ["context: domain constraint", "expression: \"ok\"", "Guard declaration:", "The value satisfies the requirement"],[],""))
+      explain_write(source, "type Word = Str where s => s.is_non_blank()\npure probe(m: Map[Str,Word]): Map[Str,Word] { m.put(\"key\",\"\") }\nmain(): Void {}\n")
+      results = results.append(explain_run("map retains its guarded value rejection", ["explain",source,"--function","probe"],1,
+        ["context: domain constraint", "The string is empty.", "Guard declaration:"],[],"string is empty"))
+      explain_write(source, "type Word = Str where s => s.is_non_blank()\npure probe(s: Set[Word]): Set[Word] { s.add(\"ok\") }\nmain(): Void {}\n")
+      results = results.append(explain_run("set retains its guarded item proof", ["explain",source,"--function","probe"],0,
+        ["context: domain constraint", "expression: \"ok\"", "Guard declaration:"],[],""))
+      explain_write(source, "type Word = Str where s => s.is_non_blank()\npure probe(f: PureFn[Word,Str]): Str { f.call(\"ok\") }\nmain(): Void {}\n")
+      results = results.append(explain_run("indirect call retains domain requirements", ["explain",source,"--function","probe"],0,
+        ["context: domain constraint", "expression: \"ok\"", "Guard declaration:"],[],""))
+      explain_write(source, "type Word = Str where s => s.is_non_blank()\npure probe(): Void { result = validate[Word](12); }\nmain(): Void {}\n")
+      results = results.append(explain_run("invalid validation input reports its stopping point", ["explain",source,"--function","probe"],1,
+        ["context: validation input", "actual type: Nat", "Panack cannot run this validation call."],["context: runtime validation"],"expected Str"))
+      explain_write(source, "type Tiny = Str where s => s.len() <= 2\npure probe(input: Str): Tiny { if input.len() <= 2 { Tiny(input) } else { Tiny(\"ok\") } }\nmain(): Void {}\n")
+      results = results.append(explain_run("branch domain proof points to establishing condition", ["explain",source,"--function","probe"],0,
+        ["context: supporting guard fact", "Supporting source:", "expression: input.len() <= 2", "This condition is true here."],[],""))
+      explain_write(source, "type Tiny = Str where s => s.len() <= 2\npure probe(input: Str,next: Str): Void { mut s = input; if s.len() <= 2 { s = next; result: Tiny = s; } }\nmain(): Void {}\n")
+      results = results.append(explain_run("write invalidates a domain branch fact", ["explain",source,"--function","probe"],1,
+        ["context: domain constraint", "checked type requirement: unproved", "A write invalidated the earlier facts", "Supporting source:"],[],"cannot prove"))
+      explain_write(library,"pub type Small = Int where n => n - 1 <= 10\npub pure probe(): Nat { 3 - 2 }\n")
+      explain_write(source,"import project/library::{Small}\npure probe(n: Int): Void { answer = validate[Small](n); }\nmain(): Void {}\n")
+      results = results.append(explain_run("imported validation keeps the caller's effects and subtraction",["explain",source,"--function","project/main.panack:probe"],0,
+        ["source: project/library.panack:1:","expression: n - 1","callee: validation.panack:numeric"],["expression: 3 - 2"],""))
+      results = results.append(explain_run("same-named sibling excludes the caller's generated checks",["explain",source,"--function","project/library.panack:probe"],0,
+        ["expression: 3 - 2"],["callee: validation.panack:numeric","context: runtime validation"],""))
+      explain_write(source,"main(): Void { result = validate[Str](\"ok\"); }\n")
+      results = results.append(explain_run("rejected validation target explains the skipped requirements",["explain",source,"--function","main"],1,
+        ["context: validation target","Str has no declared guard"],["context: runtime validation","context: validation input"],"Str has no declared guard"))
       for file in [source, library, artifact, labelled_source, relation_bc, relation_map] {
         match std_filesystem.remove_file(explain_path(file)) { Ok(done) => {}, Error(error) => { results = results.append(std_testing.expect("cleanup", false, error.code)); } }
       }

@@ -1460,6 +1460,16 @@ pure namespace_body_tests(): [TestResult] {
       body_operator_type_evidence(ordinary_operator.functions[0].body).len() == 0,
     "ordinary operator checking retained explanation-only evidence"
   ))
+  domain_source = "pub type Word = Str where s => s != \"\"; pub pure choose(s: Str): Word { if s != \"\" { Word(s) } else { Word(\"ok\") } }"
+  plain_domain = body_test_module_mode(domain_source,false)
+  explained_domain = body_test_module_mode(domain_source,true)
+  results = results.append(std_testing.expect("domain fact sources are retained only for explanation",
+    plain_domain.diagnostics.len() == 0 && explained_domain.diagnostics == plain_domain.diagnostics &&
+    plain_domain.functions.len() == 1 && explained_domain.functions.len() == 1 &&
+    body_type_check_evidence(plain_domain.functions[0].body).len() == 0 &&
+    match body_type_check_for_context(explained_domain.functions[0].body,"supporting guard fact") {
+      Some(fact) => fact.dependency != None() && fact.accepted == Some(true), None() => false
+    }, "unexpected proof retention or checking result"))
   checked_index: CheckedModuleBodies = body_test_module(
     "pub pure at(values: [Nat], position: Nat): Nat { values[position] }"
   )

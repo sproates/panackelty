@@ -26,6 +26,7 @@ import project/src/compiler/purity::{EffectDependency, CheckedEffects, combine_e
 record ModuleEffectContext {
   body: BodyContext,
   function_name: Str,
+  owner_file: Str,
   mode: Str,
   local_functions: Set[DeclarationIdentity],
   local_reasons: Map[DeclarationIdentity,[EffectDependency]]
@@ -271,7 +272,7 @@ pure module_effect_call(
           "indirect call; effect unavailable",
           "unavailable",
           awaited,
-          violations, []
+          violations, [], context.owner_file
         ))
       }
     },
@@ -318,7 +319,7 @@ pure module_effect_call(
           if allowed_local { "local resource permission" } else if target_name == "call" { "callable type" } else { "checked declaration identity" },
           module_effect_name(target_effect),
           awaited,
-          violations, supporting
+          violations, supporting, context.owner_file
         ))
       }
     }
@@ -382,7 +383,7 @@ pure module_effect_expression(
             "checked call boundary",
             "async",
             true,
-            violations, []
+            violations, [], context.owner_file
           )])
         } else {
           result = CheckedEffects(diagnostics, [])
@@ -432,7 +433,7 @@ pure module_effect_expression(
                       "result type",
                       body_type_text(type),
                       true,
-                      [reason], []
+                      [reason], [], context.owner_file
                     )] } else { [] }
                   ))
                 }
@@ -492,6 +493,7 @@ pub pure check_module_effects(
       context: ModuleEffectContext = ModuleEffectContext(
         body_context,
         function.signature.binding.identity.name,
+        function.signature.binding.span.start.file,
         module_effect_mode(function.signature.effect),
         local_functions.allowed, local_functions.reasons
       )

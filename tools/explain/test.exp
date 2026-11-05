@@ -65,4 +65,30 @@ see "Select a statement"
 send "\r"
 see "Compiled"
 finish "\003"
+# Generated validation decisions can belong to a longer imported file.
+# Exercise both the overview and detail screen against that file's own source.
+set work [exec mktemp -d]
+set failed [catch {
+  set lib [open [file join $work rules.panack] w]
+  puts $lib [string repeat "// padding for the imported declaration\n" 32]
+  puts $lib {pub type Word = Str where s => s.is_non_blank()}
+  close $lib
+  set f [open [file join $work main.panack] w]
+  puts $f {import "rules.panack"::{Word}}
+  puts $f {main(): Void { print(validate[Word]("hi")) }}
+  close $f
+  launch [file join $work main.panack] main
+  see "Project compiles"
+  see "rules.panack  pub type Word"
+  send "\033\[B"
+  see "> project/rules.panack"
+  send "\r"
+  see "Enter open"
+  send "\r"
+  see "s.is_non_blank()"
+  finish q
+} reason]
+file delete -force $work
+if {$failed} {error $reason}
+
 puts "Passed terminal selection, proof, source origin, back navigation, successful compilation and terminal restoration."

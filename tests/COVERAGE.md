@@ -1690,3 +1690,5 @@ The archive duplicate-path fixture stores two distinct files under the same
 member name. This exercises duplicate regular entries on GNU tar and macOS tar
 without relying on implementation-specific options.
 The separate symbolic-link rejection remains intact.
+
+The [final compiler-understanding acceptance](../docs/COMPILER_UNDERSTANDING_ACCEPTANCE.md#final-alpha15-integration) records domain-proof retention, cross-module terminal navigation, source-map round trips and realistic instruction-origin audits.

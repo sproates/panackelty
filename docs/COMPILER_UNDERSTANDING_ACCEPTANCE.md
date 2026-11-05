@@ -7,8 +7,9 @@ instructions produced for each source construct. The terminal interface and
 navigation are implemented in Panackelty. The native adapter supplies terminal
 key, resize and signal handling.
 
-This record covers the existing language. Final release integration includes
-GI#435 Validated domain types when that feature supplies its new decisions.
+The [final alpha.15 integration](#final-alpha15-integration) covers validated
+domain types. The earlier measurements and checks below record the original
+delivery of the existing-language explorer.
 
 ## Evidence and provenance
 
@@ -98,8 +99,7 @@ checks remain a separate exact-head merge gate.
 The domain-constraints and public explanation fixtures also verify GI#435
 static proof, known failure and runtime-check evidence. The imported record
 guard is shown at its declaration. A reverse lookup on its comparison finds
-the instructions emitted in the validating caller. GI#180 remains open for
-the final cross-feature acceptance after GI#435.
+the instructions emitted in the validating caller. The final integration below covers the remaining cross-feature acceptance.
 
 
 ## Cost measurement method
@@ -162,5 +162,66 @@ with peak memory of 253.0 and 539.3 MiB. This is the disclosed cost of the curre
 source/instruction view, not a claim of instant large-project startup. The
 delivery assessment accepts these bounded preparation costs for the requested
 capability; no ordinary compilation or execution regression was observed in
-correctness tests. Reassess this evidence when GI#435 changes the compiler;
-do not extrapolate these two workloads to all projects.
+correctness tests. The final measurements below revisit these workloads after GI#435.
+
+## Final alpha.15 integration
+
+The final compiler seed is `9fb5c3837e87901f12fe0768099dc8c81a5aaf531735ce53c84a6573a62f066d`.
+This checkpoint covers GI#134 Compiler explanations,
+GI#173 Compilation provenance and their umbrella GI#180 Compiler understanding.
+Runtime tracing, counterfactual compilation and change prediction have separate
+issue records.
+
+| Inventory reconciliation | Final evidence |
+| --- | --- |
+| C01–C04, C06, C09–C10: value checking, generic and contextual requirements, callbacks and partial results | Existing component and CLI cases continue to cover calls, joins, callbacks, methods, unresolved dependencies and usable sibling functions. New regressions cover guarded array elements and the declared input type of `validate`. A rejected input reports why validation cannot run. |
+| C05, C07–C08: effects, guard proofs and specialized calls | Append, map, set and indirect calls retain the checked guard and its declaration. A source link identifies a branch or assignment supplying a relevant domain fact, or a write invalidating earlier facts. A static proof, a missing proof and a check deferred to runtime have distinct labels. Effects from an imported guard are selected by their owning function. |
+| E01–E03, E07: emitted instructions and generated origins | The whole-project audit verifies every instruction has an origin and those origins name a real function, an in-range instruction and a nonempty range of the corresponding source. The imported guard test exercises the public explorer with a declaration beyond the length of the caller's source file. |
+| E04–E06, E08: transformations, shared code, no output and both lookup directions | Existing source-map and instruction-source fixtures cover loops, shared generics, awaits, unused declarations and invalid sidecars. The installed domain validation fixture compares the executable bytes with and without a map, finds a generated validation call by the guard declaration, then looks up its instruction to recover the same module and expression. |
+
+For example, in a `[Word]` array with a non-blank element guard,
+`words.append("ok")` reports the requirement on the literal and links to the
+`Word` declaration. In a conditional proof, selecting **Source of the guard fact**
+opens the expression supplying the evidence. For `validate[Word](input)` the
+outcome is **Checked at runtime**. The explorer can open the imported guard's
+source and its generated instructions without executing the program.
+
+The public CLI suite passed all 283 assertions. The installed mapped and ordinary executables were byte-identical (8,834 bytes). The separate map was 53,698 bytes.
+
+The installed PTY regression runs the reviewed booking example, exercises the
+first-unproved shortcut and supporting-source navigation, exits normally and
+with Ctrl-C, and verifies terminal mode restoration. It then opens an imported
+guard in the overview and detail screens. Plain installed queries also exercise
+a rejected function with a valid generic sibling, an invalidated local proof,
+and the packaged dispatch example.
+
+### Whole-project audit
+
+The development audit now counts retained type-requirement records as well as
+instruction origins. This is one specific record family; it excludes operator,
+effect, subtraction and other evidence families from the retention count.
+The command under **Real projects** above accepts `plain` or `explained`.
+Both modes produced the same instruction and origin counts for each project.
+
+| Entry point | Instructions | Origins | Type requirements, plain / explained |
+| --- | ---: | ---: | ---: |
+| Validated dispatch example | 1,004 | 1,004 | 0 / 558 |
+| Domain constraints fixture | 1,488 | 1,488 | 0 / 932 |
+| Package tool | 39,476 | 39,486 | 0 / 16,415 |
+| Self-hosted compiler | 103,974 | 103,974 | 0 / 48,212 |
+
+All audited instructions had an origin. The audit found zero invalid ranges,
+indices or source/function identities in either mode. The public lookup and
+navigation regressions separately check what those origins actually mean.
+
+### Final cost
+
+The timings below use the same local machine, seed and VM. Each check and text explanation ran in a fresh process three times with alternating order. Cells show median wall time (range in seconds) and median peak resident memory. Explorer startup is one observation per project, ending after the first render and quit. These measure whole-project preparation even when the query selects one function.
+
+| Project | Check | Text explanation | Explorer startup |
+| --- | --- | --- | --- |
+| Validated dispatch | 0.25 s (0.22–0.27), 26.6 MiB | 0.32 s (0.29–0.37), 28.6 MiB | 0.31 s, 28.5 MiB |
+| Package tool | 8.31 s (8.25–8.44), 165.7 MiB | 9.38 s (8.83–9.62), 220.5 MiB | 9.50 s, 256.9 MiB |
+| Self-hosted compiler | 38.19 s (37.61–38.26), 366.3 MiB | 38.80 s (38.50–38.90), 493.6 MiB | 40.15 s, 589.0 MiB |
+
+The dispatch example is small enough for immediate exploration. On the compiler itself, preparing an interactive session costs tens of seconds and substantially more memory than an ordinary check. This affects how quickly a developer can begin exploring a large project. Keep these workloads in the alpha.16 performance review (RM#157) when evaluating startup improvements.

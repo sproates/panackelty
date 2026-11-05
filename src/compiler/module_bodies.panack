@@ -1,5 +1,5 @@
 pub import project/src/compiler/domain_guards::{DomainFacts}
-import project/src/compiler/domain_guards::{guard_conjuncts, record_rules, FieldOrder, FieldNumber, size_facts, record_facts, runtime_validation_expression, runtime_numeric_supported, common_facts, combine_facts, DomainRule, domain_base, domain_rules, rule_outcome, fact_text, rule_text, declared_facts, unknown_facts}
+import project/src/compiler/domain_guards::{with_fact_source, guard_conjuncts, record_rules, FieldOrder, FieldNumber, size_facts, record_facts, runtime_validation_expression, runtime_numeric_supported, common_facts, combine_facts, DomainRule, domain_base, domain_rules, rule_outcome, fact_text, rule_text, declared_facts, unknown_facts}
 import project/src/compiler/resolver::{is_builtin}
 import project/src/compiler/owned_intrinsics::{owned_intrinsic_lowering}
 import project/src/compiler/module_bindings::{module_declaration_display, builtin_owner_arity, method_owner_name}
@@ -739,11 +739,24 @@ pure value_domain_facts(context: BodyContext, value: BoundBody): DomainFacts {
     None() => {},
     Some(type) => match body_guard_spec(context, type) {
       Some(guard) => if domain_base(guard.base) {
-        facts = declared_facts(domain_rules(guard.guard, guard.guard_name, guard.base, value.span))
+        rules = domain_rules(guard.guard, guard.guard_name, guard.base, value.span)
+        facts = declared_facts(rules)
+        if context.retain_guard_conversions {
+          for rule in rules {
+            facts = with_fact_source(facts,declared_facts([rule]),rule.source,
+              "The source type guarantees this requirement.")
+          }
+        }
       } else if record_guard(guard.base) {
         mut orders: [FieldOrder] = []
         for rule in record_rules(guard.guard,guard.guard_name,value.span) { orders = orders.append(rule.order) }
         facts = record_facts(orders,[])
+        if context.retain_guard_conversions {
+          for rule in record_rules(guard.guard,guard.guard_name,value.span) {
+            facts = with_fact_source(facts,record_facts([rule.order],[]),rule.source,
+              "The source type guarantees this relationship.")
+          }
+        }
       },
       None() => {}
     }
@@ -897,6 +910,17 @@ pure domain_conversion(context: BodyContext, value: BoundBody, actual: Signature
         if context.retain_guard_conversions || outcome != Some(true) {
           checks = checks.append(BodyTypeCheckEvidence("domain constraint",body_guard_source_span(value),Some(actual),
             requirement,Some(expected),outcome,reason,Some(rule.source)))
+          if context.retain_guard_conversions {
+            mut seen: Set[SourceSpan] = set()
+            for origin in facts.origins {
+              if !seen.has(origin.source) && ((outcome != None() && record_outcome(order,origin.facts) == outcome) ||
+                (outcome == None() && origin.facts == unknown_facts())) {
+                checks = checks.append(BodyTypeCheckEvidence("supporting guard fact",body_guard_source_span(value),
+                  Some(actual),requirement,Some(expected),outcome,origin.reason,Some(origin.source)))
+                seen = seen.add(origin.source)
+              }
+            }
+          }
         }
       }
     } else {
@@ -916,6 +940,17 @@ pure domain_conversion(context: BodyContext, value: BoundBody, actual: Signature
         if context.retain_guard_conversions || outcome != Some(true) {
           checks = checks.append(BodyTypeCheckEvidence("domain constraint", body_guard_source_span(value), Some(actual),
             requirement, Some(expected), outcome, reason, Some(rule.source)))
+          if context.retain_guard_conversions {
+            mut seen: Set[SourceSpan] = set()
+            for origin in facts.origins {
+              if !seen.has(origin.source) && ((outcome != None() && rule_outcome(rule.requirement,origin.facts) == outcome) ||
+                (outcome == None() && origin.facts == unknown_facts())) {
+                checks = checks.append(BodyTypeCheckEvidence("supporting guard fact",body_guard_source_span(value),
+                  Some(actual),requirement,Some(expected),outcome,origin.reason,Some(origin.source)))
+                seen = seen.add(origin.source)
+              }
+            }
+          }
         }
       }
     }
@@ -1154,7 +1189,7 @@ pure body_require_value(
       mut failures: [Diagnostic] = []
       match conversion {
         Some(decision) => { for check in decision.checks {
-          if check.accepted != Some(true) {
+          if check.accepted != Some(true) && check.context != "supporting guard fact" {
             declaration = match check.dependency {
               Some(site) => " Guard declared in " + site.start.file + ", line " +
                 body_nat_text(site.start.line) + ", column " + body_nat_text(site.start.column) + ".",
@@ -1179,11 +1214,9 @@ pure body_require_value(
   else {
     match conversion {
       None() => result,
-      Some(decision) => match decision.evidence {
-        None() => result,
-        Some(proof) => BodyResult(BoundBody(BodyEmpty(), value.span, [], None(), [], [proof], [], [], [], []),
-          result.diagnostics, result.deferred)
-      }
+      Some(decision) => BodyResult(BoundBody(BodyEmpty(), value.span, [], None(), [],
+        match decision.evidence { None() => [], Some(proof) => [proof] }, [], [], [], decision.checks),
+        result.diagnostics, result.deferred)
     }
   }
 }
@@ -1517,12 +1550,15 @@ pure domain_count_test(op: Str, n: Nat, truth: Bool): DomainFacts {
 }
 
 pure domain_branch_fact(facts: Map[Str,Bounds], writes: Map[Str,Bounds],
-  local: BodyLocalIdentity, extra: DomainFacts): Map[Str,Bounds] {
+  local: BodyLocalIdentity, extra: DomainFacts, site: SourceSpan, truth: Bool): Map[Str,Bounds] {
   key = body_fact_key(local)
   if writes.has(key) || extra == unknown_facts() { facts }
   else {
     prior = if facts.has(key) { facts.get(key).domain.value_or(unknown_facts()) } else { unknown_facts() }
-    with_domain_facts(facts, key, combine_facts(prior, extra))
+    observed = if facts.has("$domain-explain") {
+      with_fact_source(extra,extra,site,if truth { "This condition is true here." } else { "This condition is false here." })
+    } else { extra }
+    with_domain_facts(facts, key, combine_facts(prior, observed))
   }
 }
 
@@ -1544,7 +1580,7 @@ pure domain_condition(condition: BoundBody, facts: Map[Str,Bounds],
           None() => {},
           Some(observation) => if observation.property == "len" {
             match body_condition_literal(right) {
-              Some(n) => { result = domain_branch_fact(facts, writes, observation.local, domain_count_test(op,n,truth)) },
+              Some(n) => { result = domain_branch_fact(facts, writes, observation.local, domain_count_test(op,n,truth),condition.span,truth) },
               None() => {}
             }
           } else if observation.property.starts_with("field:") && (op == "<" || op == "<=" || op == ">" || op == ">=") {
@@ -1555,11 +1591,11 @@ pure domain_condition(condition: BoundBody, facts: Map[Str,Bounds],
                 forward = (op == "<" || op == "<=") == truth
                 strict = (op == "<" || op == ">") == truth
                 relation = FieldOrder(if forward { a } else { b },if strict { "<" } else { "<=" },if forward { b } else { a })
-                result = domain_branch_fact(facts,writes,other.local,record_facts([relation],[]))
+                result = domain_branch_fact(facts,writes,other.local,record_facts([relation],[]),condition.span,truth)
               }, None() => {}
             }
           } else if (op == "==" || op == "!=") && observation.property == "value" && domain_literal_key(right) == Some("text:") {
-            result = domain_branch_fact(facts, writes, observation.local, domain_count_test(op,0,truth))
+            result = domain_branch_fact(facts, writes, observation.local, domain_count_test(op,0,truth),condition.span,truth)
           }
         }
       }
@@ -1567,10 +1603,10 @@ pure domain_condition(condition: BoundBody, facts: Map[Str,Bounds],
     BodyCall(target, types, evidence) => match domain_observation(condition) {
       Some(observation) => if observation.property == "is_non_blank" {
         extra = size_facts(if truth { 1 } else { 0 }, None(), Some(truth), None(), None())
-        result = domain_branch_fact(facts, writes, observation.local, extra)
+        result = domain_branch_fact(facts, writes, observation.local, extra,condition.span,truth)
       } else if observation.property == "has_no_control_characters" {
         extra = size_facts(if truth { 0 } else { 1 }, None(), None(), Some(truth), None())
-        result = domain_branch_fact(facts, writes, observation.local, extra)
+        result = domain_branch_fact(facts, writes, observation.local, extra,condition.span,truth)
       },
       None() => {}
     },
@@ -1713,7 +1749,19 @@ pure body_clear_bounds(facts: Map[Str,Bounds], key: Str, origin: Option[SourceSp
   invalidated: Option[SourceSpan] = match previous {
     None() => None(), Some(bound) => if bound.has_lower || bound.has_upper { origin } else { bound.invalidated_at }
   }
-  facts.put(key, Bounds(false, 0, false, 0, None(), None(), invalidated, None()))
+  mut cleared: Option[DomainFacts] = None()
+  if facts.has("$domain-explain") {
+    match previous {
+      Some(bound) => match bound.domain {
+        Some(domain) => match origin {
+          Some(site) => if domain != unknown_facts() {
+            cleared = Some(with_fact_source(unknown_facts(),unknown_facts(),site,"A write invalidated the earlier facts about this local."))
+          }, None() => {}
+        }, None() => {}
+      }, None() => {}
+    }
+  }
+  facts.put(key, Bounds(false, 0, false, 0, None(), None(), invalidated, cleared))
 }
 
 pure body_forget_written_fact(facts: Map[Str, Bounds], name: Str, locals: Map[Str, BodyLocal], origin: Option[SourceSpan]): Map[Str, Bounds] {
@@ -2163,19 +2211,30 @@ pure validation_target_name(identity: DeclarationIdentity): Str {
   prefix + identity.module.path + ":" + identity.name
 }
 
+// Shape and target checks precede argument binding. Keep the actual cause
+// for partial explanations without manufacturing a check on an unvisited value.
+pure rejected_guard_call(context: BodyContext, span: SourceSpan, label: Str, expected: Str, why: Str): BodyResult {
+  failure = body_failure(why,span)
+  if context.retain_guard_conversions {
+    BodyResult(BoundBody(BodyEmpty(),span,[],None(),[],[],[],[],[],
+      [BodyTypeCheckEvidence(label,span,None(),expected,None(),Some(false),why,None())]),
+      failure.diagnostics, failure.deferred)
+  } else { failure }
+}
+
 // Only the success path of the generated checker can expose the guarded type.
 pure bind_runtime_validation(context: BodyContext, arguments: [Expr], types: [Str],
   span: SourceSpan, locals: Map[Str,BodyLocal], path: [Nat]): BodyResult {
   if types.len() != 1 || arguments.len() != 1 {
-    body_failure("Use validate[Type](value) with one guarded type and one value.",span)
+    rejected_guard_call(context,span,"validation call shape","one type argument and one value","Use validate[Type](value) with one guarded type and one value.")
   } else {
     match signature_type(context.graph,context.modules,context.owner,context.parameters,types[0],false,false) {
       Error(message) => body_failure(message,span),
       Ok(target) => match body_guard_spec(context,target) {
-        None() => body_failure("Runtime validation requires a guarded type. " + types[0] + " has no declared guard.",span),
+        None() => rejected_guard_call(context,span,"validation target","a guarded type","Runtime validation requires a guarded type. " + types[0] + " has no declared guard."),
         Some(spec) => if !domain_base(spec.base) && !record_guard(spec.base) &&
           !(scalar_numeric(spec.base) && runtime_numeric_supported(spec.guard,spec.guard_name)) {
-          body_failure("Runtime validation does not support the guard declared for " + types[0] + ".",span)
+          rejected_guard_call(context,span,"validation target","a guard supported by runtime validation","Runtime validation does not support the guard declared for " + types[0] + ".")
         } else {
           base = domain_base_type(context,target).value_or(target)
           input = bind_body_expression(context,arguments[0],span,locals,path.append(0))
@@ -2196,12 +2255,22 @@ pure bind_runtime_validation(context: BodyContext, arguments: [Expr], types: [St
             Some(result) => Some(SignatureType(result.identity,[target,error_type])), None() => None()
           }
           mut evidence: [BodyTypeCheckEvidence] = []
-          if context.retain_guard_conversions {
+          if context.retain_guard_conversions && refined.diagnostics.len() == 0 && required.diagnostics.len() == 0 &&
+              refined.deferred.len() == 0 && required.deferred.len() == 0 {
             for term in guard_conjuncts(spec.guard) {
               evidence = evidence.append(BodyTypeCheckEvidence("runtime validation",span,Some(base),
                 render_expr(term),output,None(),"Panack checks this requirement when validate runs.",
                 expression_span(term)))
             }
+          }
+          if context.retain_guard_conversions {
+            compatible: Option[Bool] = if required.diagnostics.len() > 0 || refined.diagnostics.len() > 0 { Some(false) }
+              else if required.deferred.len() > 0 || refined.deferred.len() > 0 { None() } else { Some(true) }
+            evidence = evidence.append(BodyTypeCheckEvidence("validation input",input.body.span,input.body.type,
+              body_type_text(base),output,compatible,if compatible == Some(false) {
+                "The supplied value cannot be used as the declared base type. Panack cannot run this validation call."
+              } else if compatible == None() { "Panack could not establish the input type." }
+              else { "The input meets the guarded declaration's base type." },None()))
           }
           BodyResult(BoundBody(BodyBlock(true,Some(span),[span]),span,[binding.body,tail.body],output,[],[],[],[],[],evidence),
             refined.diagnostics.concat(required.diagnostics).concat(tail.diagnostics),
@@ -2237,7 +2306,7 @@ pure body_call(
     None() => body_call_with_receiver(context, target, arguments, types, type_argument_spans,
       span, locals, path, None()),
     Some(type) => if arguments.len() != 1 || types.len() != 0 {
-      body_failure("guarded construction requires one value and no type arguments", span)
+      rejected_guard_call(context,span,"guarded construction","one value and no type arguments","guarded construction requires one value and no type arguments")
     } else {
       child = bind_body_expression(context, arguments[0], span, locals, path.append(0))
       required = body_require_value(context, child.body, type, "construction")
@@ -3312,6 +3381,7 @@ pure body_check_existing_special_core_call(
             )
             diagnostics = diagnostics.concat(required.diagnostics)
             deferred = deferred.concat(required.deferred)
+            if context.retain_guard_conversions { type_checks = type_checks.concat(required.body.type_checks) }
             if context.retain_guard_conversions {
               accepted: Option[Bool] = if required.diagnostics.len() > 0 {
                 Some(false)
@@ -4617,6 +4687,7 @@ pure body_check_collection_core_call(
             diagnostics = diagnostics.concat(item.diagnostics)
             deferred = deferred.concat(item.deferred)
             if context.retain_guard_conversions {
+              type_checks = type_checks.concat(item.body.type_checks)
               accepted: Option[Bool] = if item.diagnostics.len() > 0 {
                 Some(false)
               } else {
@@ -4897,6 +4968,7 @@ pure body_check_map_set_call(
   mut deferred: [SourceSpan] = initial_deferred
   mut output: Option[SignatureType] = None()
   mut call_arguments: [CallArgumentEvidence] = []
+  mut type_checks: [BodyTypeCheckEvidence] = []
   is_map: Bool = collection.identity == SignatureCore("Map") && collection.arguments.len() == 2
   is_set: Bool = collection.identity == SignatureCore("Set") && collection.arguments.len() == 1
   is_lookup: Bool = operation == "map_get" || operation == "map_has"
@@ -4913,6 +4985,7 @@ pure body_check_map_set_call(
           diagnostics = diagnostics.concat(key.diagnostics)
           deferred = deferred.concat(key.deferred)
           if context.retain_guard_conversions {
+            type_checks = type_checks.concat(key.body.type_checks)
             accepted: Option[Bool] = if key.diagnostics.len() > 0 {
               Some(false)
             } else {
@@ -4931,6 +5004,7 @@ pure body_check_map_set_call(
             diagnostics = diagnostics.concat(value.diagnostics)
             deferred = deferred.concat(value.deferred)
             if context.retain_guard_conversions {
+              type_checks = type_checks.concat(value.body.type_checks)
               accepted: Option[Bool] = if value.diagnostics.len() > 0 {
                 Some(false)
               } else {
@@ -4956,6 +5030,7 @@ pure body_check_map_set_call(
           diagnostics = diagnostics.concat(item.diagnostics)
           deferred = deferred.concat(item.deferred)
           if context.retain_guard_conversions {
+            type_checks = type_checks.concat(item.body.type_checks)
             accepted: Option[Bool] = if item.diagnostics.len() > 0 {
               Some(false)
             } else {
@@ -4979,7 +5054,7 @@ pure body_check_map_set_call(
     BodyEmpty()
   }
   BodyResult(
-    BoundBody(node, span, [], output, body_collection_call_solutions(operation, children), [],  [], [], [], []),
+    BoundBody(node, span, [], output, body_collection_call_solutions(operation, children), [], [], [], [], type_checks),
     diagnostics,
     deferred
   )
@@ -5735,7 +5810,10 @@ pure bind_body_block(
           value_facts = value_domain_facts(current_context, checked.body.children[0])
           if value_facts != unknown_facts() {
             current_context = body_context_with_facts(current_context,
-              with_domain_facts(current_context.facts, body_fact_key(local), value_facts))
+              with_domain_facts(current_context.facts, body_fact_key(local),
+                if current_context.retain_guard_conversions {
+                  with_fact_source(value_facts,value_facts,checked.body.children[0].span,"This expression supplied the local value.")
+                } else { value_facts }))
           }
         }
       }
@@ -5841,7 +5919,10 @@ pure check_module_bodies_mode(
   retain_guard_conversions: Bool
 ): CheckedModuleBodies {
   mut functions: [BoundFunctionBody] = []
-  initial_facts = domain_initial_flow(signatures)
+  mut initial_facts = domain_initial_flow(signatures)
+  if retain_guard_conversions && initial_facts.has("$domain") {
+    initial_facts = initial_facts.put("$domain-explain",initial_facts.get("$domain"))
+  }
   mut diagnostics: [Diagnostic] = module_import_shadow_diagnostics(graph, module.bindings, module.parsed)
 
   if diagnostics.len() == 0 {

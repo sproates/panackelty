@@ -1,3 +1,4 @@
+import project/src/compiler/module_bodies::{body_type_check_evidence}
 import project/src/compiler/loader::{load_project, load_project_explained}
 import project/src/compiler/project_frontend::{prepare_project_program}
 import project/src/compiler/module_bindings::{source_module_identity}
@@ -13,6 +14,17 @@ main(): Void {
   root = env.get("PANACKELTY_BOOTSTRAP_ROOT").value_or(paths.parent(entry))
   library = env.get("PANACKELTY_STDLIB_PATH").value_or("")
   project = if args[1] == "plain" { load_project(entry) } else { load_project_explained(entry) }
+  mut requirements: Nat = 0
+  mut guard_checks: Nat = 0
+  for function in project.module_bodies {
+    for decision in body_type_check_evidence(function.body) {
+      requirements = requirements + 1
+      if decision.context == "domain constraint" || decision.context == "runtime validation" ||
+          decision.context == "supporting guard fact" { guard_checks = guard_checks + 1 }
+    }
+  }
+  print("retained type requirements ${requirements}, including ${guard_checks} domain requirements and supporting facts")
+  if args[1] == "plain" && requirements != 0 { host.exit(1) }
   identity = source_module_identity(entry,root,library)
   match prepare_project_program(project,root,library,identity) {
     Error(errors) => { for error in errors { host.stderr(error.message) }; host.exit(1) },

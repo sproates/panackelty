@@ -1,3 +1,4 @@
+import project/src/compiler/domain_guards as domain
 import stdlib/core::{ControlCharacterPosition}
 import stdlib/validation::{ValidationLocation.Field, ValidationRelation.LessThan, ValidationRelation.LessThanOrEqual, ValidationConstraint.FieldRelation, ValidationFacts.RelationNotSatisfied, ValidationLocation.WholeValue, ValidationCountUnit.UnicodeScalars, ValidationConstraint.MinimumCount, ValidationConstraint.NonBlank, ValidationConstraint.NoControlCharacters, ValidationFacts.ActualCount, ValidationFacts.BlankText, ValidationFacts.ControlCharacter}
 
@@ -13,7 +14,7 @@ import project/src/compiler/module_resolution::{ModuleBindingGraph}
 import project/src/compiler/module_signatures::{SignatureType, SignatureTypeIdentity.SignatureCore, SignatureTypeIdentity.SignatureNominal, SignatureTypeIdentity.SignatureHole, SignatureTypeIdentity.SignatureCallable, SignatureEffect.SignaturePure, SignatureEffect.SignatureOrdinary, SignatureEffect.SignatureAsync}
 import project/src/compiler/expression_contracts::{decode_string_literal}
 import project/src/compiler/diagnostics::{diagnostic_character, diagnostic_with_source}
-import project/src/compiler/types::{SourcePos, Diagnostic}
+import project/src/compiler/types::{SourcePos, SourceSpan, Diagnostic}
 import stdlib/host as std_host
 import stdlib/testing::{TestResult}
 pure contract_contains(actual: Str, expected: Str): Bool {
@@ -260,8 +261,21 @@ pure relationship_failures(): TestResult {
   }
 }
 
+pure shared_fact_origin_contract(): TestResult {
+  start = SourcePos("shared.panack",0,1,1)
+  site = SourceSpan(start,SourcePos("shared.panack",1,1,2))
+  size = domain.size_facts(1,Some(1),None(),None(),None())
+  first = domain.with_fact_source(size,size,site,"initializer")
+  other = domain.with_fact_source(size,size,site,"condition")
+  both = domain.combine_facts(first,other)
+  repeated = domain.common_facts(first,both)
+  std_testing.expect("converging branches retain each distinct fact source once",
+    repeated.origins.len() == 2 && repeated.origins == both.origins && repeated.minimum == 1,
+    "lost a fact source or retained duplicate paths")
+}
+
 pub run_suite(): Void {
-  mut results: [TestResult] = validation_failure_contracts().append(relationship_failures()).concat(unicode_domain_predicates()).concat(indexed_lookup_contracts()).concat(readable_compiler_contracts()).concat(else_if_contracts())
+  mut results: [TestResult] = validation_failure_contracts().append(shared_fact_origin_contract()).append(relationship_failures()).concat(unicode_domain_predicates()).concat(indexed_lookup_contracts()).concat(readable_compiler_contracts()).concat(else_if_contracts())
   results = results.append(contract_check("generic_functions/bodies_are_checked_even_when_unused-1", "operator +"))
   results = results.append(contract_check("generic_functions/bodies_are_checked_even_when_unused-2", "len expects"))
   results = results.append(contract_check("generic_functions/bodies_are_checked_even_when_unused-3", "returns Nat, expected T"))

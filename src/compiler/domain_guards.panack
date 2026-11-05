@@ -116,13 +116,56 @@ pub pure domain_declaration_errors(guard: Expr, binding: Str, base: Str, site: S
   errors
 }
 
+pub record FieldOrder { left: Str, op: Str, right: Str }
+pub record FieldNumber { field: Str, value: Rat }
+pub record RecordRule { order: FieldOrder, source: SourceSpan }
+
+pure direct_field(expression: Expr, binding: Str): Str {
+  path = ast.expression_reference_path(expression)
+  tail = ast.reference_tail(path)
+  if ast.reference_head(path) == binding && ast.reference_head(tail) == tail { tail } else { "" }
+}
+
+pub pure record_rules(expression: Expr, binding: Str, site: SourceSpan): [RecordRule] {
+  mut rules: [RecordRule] = []
+  mut valid = true
+  for part in guard_conjuncts(expression) {
+    mut accepted = false
+    match ast.unlocated_expression(part) {
+      BinaryExpr(op,lhs,rhs) => {
+        left = direct_field(lhs,binding)
+        right = direct_field(rhs,binding)
+        if (op == "<" || op == "<=") && left != "" && right != "" {
+          rules = rules.append(RecordRule(FieldOrder(left,op,right),ast.expression_span(part).value_or(site)))
+          accepted = true
+        }
+      },
+      LocatedExpr(s,v,ts) => {}, NameExpr(n) => {}, NatExpr(n) => {}, DecimalExpr(n) => {},
+      BoolExpr(b) => {}, StringExpr(s) => {}, FunctionExpr(n) => {}, ArrayExpr(items) => {},
+      UnaryExpr(op,v) => {}, CallExpr(n,args,ts) => {}, OwnedCallExpr(v,n,args,ts) => {},
+      DotCallExpr(v,n,args,ts) => {}, FieldExpr(v,n) => {}, IndexExpr(v,i) => {},
+      IfExpr(c,y,n,h) => {}, BlockExpr(b) => {}, MatchExpr(v,arms) => {}
+    }
+    valid = valid && accepted
+  }
+  if valid { rules } else { [] }
+}
+
 pub record DomainFacts {
   minimum: Nat, maximum: Option[Nat],
   non_blank: Option[Bool], control_free: Option[Bool],
-  keys: Option[Set[Str]]
+  keys: Option[Set[Str]], orders: [FieldOrder], numbers: [FieldNumber]
 }
 
-pub pure unknown_facts(): DomainFacts { DomainFacts(0, None(), None(), None(), None()) }
+pub pure size_facts(minimum: Nat, maximum: Option[Nat], non_blank: Option[Bool], control_free: Option[Bool], keys: Option[Set[Str]]): DomainFacts {
+  DomainFacts(minimum,maximum,non_blank,control_free,keys,[],[])
+}
+
+pub pure record_facts(orders: [FieldOrder], numbers: [FieldNumber]): DomainFacts {
+  DomainFacts(0,None(),None(),None(),None(),orders,numbers)
+}
+
+pub pure unknown_facts(): DomainFacts { size_facts(0, None(), None(), None(), None()) }
 
 pub pure declared_facts(rules: [DomainRule]): DomainFacts {
   mut minimum: Nat = 0
@@ -137,7 +180,7 @@ pub pure declared_facts(rules: [DomainRule]): DomainFacts {
       ControlFree() => { controls = Some(true) }
     }
   }
-  DomainFacts(minimum, maximum, non_blank, controls, None())
+  size_facts(minimum, maximum, non_blank, controls, None())
 }
 
 pub pure rule_outcome(rule: DomainRequirement, facts: DomainFacts): Option[Bool] {
@@ -197,7 +240,7 @@ pub pure combine_facts(a: DomainFacts, b: DomainFacts): DomainFacts {
   DomainFacts(minimum, maximum,
     if b.non_blank != None() { b.non_blank } else { a.non_blank },
     if b.control_free != None() { b.control_free } else { a.control_free },
-    if b.keys != None() { b.keys } else { a.keys })
+    if b.keys != None() { b.keys } else { a.keys }, a.orders.concat(b.orders), a.numbers.concat(b.numbers))
 }
 
 // Facts available after a choice must hold for either result.
@@ -207,10 +250,14 @@ pub pure common_facts(a: DomainFacts, b: DomainFacts): DomainFacts {
     None() => None(),
     Some(x) => match b.maximum { None() => None(), Some(y) => Some(if x > y { x } else { y }) }
   }
+  mut orders: [FieldOrder] = []
+  for prior in a.orders { for other in b.orders { if other == prior { orders = orders.append(prior) } } }
+  mut numbers: [FieldNumber] = []
+  for prior in a.numbers { for other in b.numbers { if other == prior { numbers = numbers.append(prior) } } }
   DomainFacts(lower, upper,
     if a.non_blank == b.non_blank { a.non_blank } else { None() },
     if a.control_free == b.control_free { a.control_free } else { None() },
-    if a.keys == b.keys { a.keys } else { None() })
+    if a.keys == b.keys { a.keys } else { None() }, orders, numbers)
 }
 
 pure validation_call(name: Str, arguments: [Expr]): Expr {
@@ -238,10 +285,10 @@ pure validation_literal(value: Str): Expr {
   match parts { None() => last, Some(prior) => BinaryExpr("+",prior,last) }
 }
 
-pure numeric_validation_terms(guard: Expr): [Expr] {
+pub pure guard_conjuncts(guard: Expr): [Expr] {
   match ast.unlocated_expression(guard) {
     BinaryExpr(op, left, right) => if op == "&&" {
-      numeric_validation_terms(left).concat(numeric_validation_terms(right))
+      guard_conjuncts(left).concat(guard_conjuncts(right))
     } else { [guard] },
     LocatedExpr(span,v,ts) => [], NameExpr(n) => [guard], NatExpr(n) => [guard], DecimalExpr(n) => [guard],
     BoolExpr(b) => [guard], StringExpr(s) => [guard], FunctionExpr(n) => [guard], ArrayExpr(items) => [guard],
@@ -294,10 +341,20 @@ pub pure runtime_validation_expression(guard: Expr, binding: Str, base: Str, tar
         NonBlank() => validation_call("nonblank",[checks,candidate]),
         ControlFree() => validation_call("control_free",[checks,candidate])
       }
+      checks = LocatedExpr(rule.source,checks,[])
+    }
+  } else if record_rules(guard,binding,span).len() > 0 {
+    for rule in record_rules(guard,binding,span) {
+      order = rule.order
+      test = LocatedExpr(rule.source,BinaryExpr(order.op,FieldExpr(candidate,order.left),FieldExpr(candidate,order.right)),[])
+      checks = validation_call("relation",[checks,validation_literal(order.left),validation_literal(order.right),
+        BoolExpr(order.op == "<"),test])
+      checks = LocatedExpr(rule.source,checks,[])
     }
   } else {
-    for term in numeric_validation_terms(guard) {
+    for term in guard_conjuncts(guard) {
       checks = validation_call("numeric",[checks,validation_literal(ast.render_expr(term)),term])
+      checks = LocatedExpr(ast.expression_span(term).value_or(span),checks,[])
     }
   }
   validation_call("finish",[checks,candidate])

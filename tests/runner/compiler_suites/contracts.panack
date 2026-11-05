@@ -1,4 +1,4 @@
-import stdlib/validation::{ValidationLocation.WholeValue, ValidationCountUnit.UnicodeScalars, ValidationConstraint.MinimumCount, ValidationConstraint.NonBlank, ValidationConstraint.NoControlCharacters, ValidationFacts.ActualCount, ValidationFacts.BlankText, ValidationFacts.ControlCharacter}
+import stdlib/validation::{ValidationLocation.Field, ValidationRelation.LessThan, ValidationRelation.LessThanOrEqual, ValidationConstraint.FieldRelation, ValidationFacts.RelationNotSatisfied, ValidationLocation.WholeValue, ValidationCountUnit.UnicodeScalars, ValidationConstraint.MinimumCount, ValidationConstraint.NonBlank, ValidationConstraint.NoControlCharacters, ValidationFacts.ActualCount, ValidationFacts.BlankText, ValidationFacts.ControlCharacter}
 
 import project/tests/runner/compiler_backend_fixtures::{check_source_frontend, compile_source_disassembly}
 import stdlib/testing as std_testing
@@ -241,8 +241,25 @@ pure validation_failure_contracts(): [TestResult] {
   results
 }
 
+record Triple { low: Nat, mid: Nat, high: Nat }
+type OrderedTriple = Triple where t => t.low < t.mid && t.mid <= t.high
+pure relationship_failures(): TestResult {
+  match validate[OrderedTriple](Triple(4,3,2)) {
+    Ok(value) => std_testing.expect("record failure locations and order",false,"unexpected success"),
+    Error(error) => {
+      f = error.failures
+      std_testing.expect("record failure locations and order",
+        f.len() == 2 && f[0].locations == [Field("low"),Field("mid")] &&
+        f[1].locations == [Field("mid"),Field("high")] && f[0].constraint == FieldRelation(LessThan()) &&
+        f[1].constraint == FieldRelation(LessThanOrEqual()) && f[0].facts == RelationNotSatisfied() &&
+        f[1].facts == RelationNotSatisfied() && f[0].target_type == error.target_type && f[1].target_type == error.target_type,
+        "incorrect fields, rule, target or fact")
+    }
+  }
+}
+
 pub run_suite(): Void {
-  mut results: [TestResult] = validation_failure_contracts().concat(unicode_domain_predicates()).concat(indexed_lookup_contracts()).concat(readable_compiler_contracts()).concat(else_if_contracts())
+  mut results: [TestResult] = validation_failure_contracts().append(relationship_failures()).concat(unicode_domain_predicates()).concat(indexed_lookup_contracts()).concat(readable_compiler_contracts()).concat(else_if_contracts())
   results = results.append(contract_check("generic_functions/bodies_are_checked_even_when_unused-1", "operator +"))
   results = results.append(contract_check("generic_functions/bodies_are_checked_even_when_unused-2", "len expects"))
   results = results.append(contract_check("generic_functions/bodies_are_checked_even_when_unused-3", "returns Nat, expected T"))

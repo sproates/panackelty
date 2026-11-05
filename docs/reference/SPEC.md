@@ -622,6 +622,28 @@ caller chooses whether to display the error. Public data types live in
 `stdlib/validation`; calling `validate` and rendering an inferred error require
 no import.
 
+#### Relationships between record fields
+
+```panackelty
+record Range { start: Int, end: Int }
+type OrderedRange = Range where r => r.start <= r.end
+```
+
+Use `<` or `<=` between two direct fields with the same underlying ordered
+numeric type. Combine requirements using `&&`. The compiler can prove an
+ordering from numeric constructor literals, a comparison on the same record
+in a branch, or a compatible guarantee the value already carries. Passing
+a guarded record through a typed call, generic or collection preserves its
+type. Reading a field gives its declared type, including its own guard.
+
+To change a field, construct a complete base record. For example,
+`Range(new_start, previous.end)` keeps the old end and requires a fresh proof
+or explicit validation. `validate[OrderedRange](candidate)` reports one failure
+per broken relationship, with the left and right field names in order.
+The original guarded value remains available even if its replacement fails.
+`panack explain` links static proofs and runtime checks to the declared rule.
+A source map links the emitted comparison back to that rule.
+
 This separation is important: arbitrary user code in guards would make type
 checking non-terminating. Guards therefore remain total, pure, and within a
 documented decidable fragment.

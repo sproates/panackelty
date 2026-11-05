@@ -142,3 +142,11 @@ pure finish[T](error: ValidationError, candidate: T): Result[T,ValidationError] 
 }
 
 pure begin(target: Str): ValidationError { ValidationError(target, []) }
+
+pure relation(error: ValidationError, left: Str, right: Str, strict: Bool, satisfied: Bool): ValidationError {
+  if satisfied { error } else {
+    rule = FieldRelation(if strict { LessThan() } else { LessThanOrEqual() })
+    failure = ValidationFailure(error.target_type,[Field(left),Field(right)],rule,RelationNotSatisfied())
+    ValidationError(error.target_type,error.failures.append(failure))
+  }
+}

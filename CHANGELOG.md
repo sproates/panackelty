@@ -6,6 +6,10 @@ in `docs/releases/RELEASE_POLICY.md`.
 
 ## Unreleased
 
+- Guard records with relationships between numeric fields. Prove an ordered
+  range at construction or validate a replacement at runtime. Explanations
+  and saved source maps identify the comparison in the guard declaration.
+
 - Validate runtime inputs with `validate[Type](input)`. Errors retain every failed requirement in declaration order and can render a separate explanation for each one.
 
 - Add compile-time string and collection guards. Check non-empty and non-blank

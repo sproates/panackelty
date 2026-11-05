@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Measure the validation library exercised by compiler contracts.",
-    "basis": "Reproduced the previous reviewed exclusion digest from 3fdb046 with the production inventory. Reviewed the new inventory: 246 imports, 141 records and 33 enums. Only declarations are excluded.",
-    "scopeChange": "Add src/stdlib/validation.panack to measured sources. Preserve the existing test corpus and unmeasured list."
+    "reason": "Review declaration exclusions for record relationship proof facts.",
+    "basis": "Reproduced the previous reviewed exclusion digest from d57f8f5 with the production inventory. Reviewed the new inventory: 246 imports, 144 records and 33 enums. Only declarations are excluded.",
+    "scopeChange": "Measured files, test corpus and unmeasured list are unchanged."
   },
   "manifestHash": "d6a4a9aff279fb3c697f0f544eb9f69d656e99f53d8dcc8ff50351ad74c08096",
-  "exclusionHash": "b23bc0e2531d7222e6aea57b74f2418b2b2cfe7da03fe5f4d70c57c047e00164"
+  "exclusionHash": "1bcf682a77528fe00a779a48905eb5398b2bbeabcff77c7b7059c2029a7d63be"
 }

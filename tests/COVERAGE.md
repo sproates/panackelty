@@ -863,6 +863,11 @@ whitespace scalars and their neighbouring boundaries, and check every C0/C1
 control boundary.
 Runtime validation extends the same source and saved-bytecode fixture with ordered multi-rule errors, success, single evaluation, collection counts and numeric alternatives. Compiler contracts also assert the structured fields and scalar offsets.
 
+Record relationships extend those fixtures across imports, generic calls, storage,
+replacement and reassignment. The compiler contracts check both field locations,
+relation and safe facts. The CLI checks source-linked proof and runtime
+explanations, plus reverse lookup of the saved comparison instruction.
+
 ## Explicit guard bindings
 
 Parser and resolver tests cover the required name, arrow and lexical scope.

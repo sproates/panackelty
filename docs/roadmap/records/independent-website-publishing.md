@@ -83,6 +83,9 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
+- **GI#435 record relationships.** At alpha.15 promotion, the website maintainer
+  can use the tested ordered-range replacement to show where a runtime
+  comparison comes from and how its failure identifies both fields.
 - **GI#435 runtime validation.** On alpha.15 promotion, the website maintainer should show a successful `validate` call and the two failures returned for an empty label, using the verified domain-constraints transcript.
 - **GI#435 static string and collection guards.** On alpha.15 promotion, add
   the Label example and document Unicode scalar length, both text predicates,

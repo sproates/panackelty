@@ -631,7 +631,13 @@ and mutation. Slice 3 delivers runtime validation and structured failures on
 merge. The empty label regression checks both failures, their order, and their
 rendered paragraphs. Other cases check a control character after a supplementary
 scalar, numeric alternatives, input evaluation count and saved bytecode.
-Slice 4 adds record relationships and replacement validation.
+[PR #658](https://github.com/sproates/panackelty/pull/658) merged slice 3.
+Slice 4 delivers record relationships and replacement validation on merge.
+A complete replacement must establish its own invariant. Source and bytecode
+tests cover copying through a generic and array, taking fields from an imported
+guard, preserving an unchanged label, and reporting two failed field pairs in
+order. Public explanation and source-map tests link a runtime comparison to
+its original declaration. Installed release acceptance remains in slice 5.
 
 | Selected family | Representative outcomes |
 | --- | --- |

@@ -381,10 +381,10 @@ main(): Void {
         ["annotated local value initializer: unavailable", "expression: missing", "actual type: unavailable", "expected type: Nat", "did not determine a complete initializer type"], [], "unknown local value missing"))
       explain_write(source, "probe(): Nat { mut value: Nat = 0; value = 5; value }\nmain(): Void {}\n")
       results = results.append(explain_run("accepted assignment value cites checked types", ["explain", source, "--function", "probe"], 0,
-        ["assignment value compatibility for value: accepted", "expression: 5", "actual type: Nat", "expected type: Nat", "compatible with the local type"], [], ""))
+        ["assignment value compatibility for value: accepted", "expression: 5", "actual type: Nat", "expected type: Nat", "compatible with the local type", "context: assignment mutability for value", "was declared with mut, so reassignment is allowed."], [], ""))
       explain_write(source, "probe(): Nat { value: Nat = 0; value = 5; value }\nmain(): Void {}\n")
       results = results.append(explain_run("type-compatible value remains separately rejected for immutability", ["explain", source, "--function", "probe"], 1,
-        ["assignment value compatibility for value: accepted", "expression: 5", "actual type: Nat", "expected type: Nat"], [], "cannot assign immutable binding value"))
+        ["assignment value compatibility for value: accepted", "expression: 5", "actual type: Nat", "expected type: Nat", "context: assignment mutability for value", "was declared without mut, so reassignment is not allowed."], [], "cannot assign immutable binding value"))
       explain_write(source, "probe(): Nat { mut value: Nat = 0; value = \"wrong\"; value }\nmain(): Void {}\n")
       results = results.append(explain_run("rejected assignment value explains type mismatch", ["explain", source, "--function", "probe"], 1,
         ["assignment value compatibility for value: rejected", "expression: \"wrong\"", "actual type: Str", "expected type: Nat", "incompatible with the local type"], [], "assignment value is Str, expected Nat"))

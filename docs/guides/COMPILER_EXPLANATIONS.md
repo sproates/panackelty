@@ -56,13 +56,11 @@ If the checker did make a decision but the explanation does not cover it yet,
 that is an implementation gap, not an acceptable unavailable result. No relevant
 decision should be silently omitted.
 
-The query families documented below are delivered partial coverage, not a claim
-that the target is complete. Before selecting further implementation slices,
-inventory the relevant checker decisions and map each one to its explanation
-output and regression coverage. This target concerns decisions made while
-checking functions; it does not by itself expand ordinary diagnostic wording,
-change language semantics, or add parse/resolution or compilation-provenance
-explanations.
+The maintained inventory maps the current function-checking decisions to their
+evidence and regression coverage. Release acceptance also reconciles the new
+domain-type decisions introduced by GI#435. Parsing and name-resolution failures
+remain frontend diagnostics. Compilation provenance has its own inventory and
+[source-map contract](SOURCE_MAPS.md).
 
 ## Function-checking decision inventory
 
@@ -221,9 +219,10 @@ included here; diagnostics and exit status remain unchanged.
 
 For each assignment to an existing local, the explanation reports the assigned
 value's checked type against the local's known type, with accepted, rejected or
-unavailable and the value's source range. This describes type compatibility
-only; a separate immutability error can still reject the assignment. Diagnostics
-and exit status remain unchanged.
+unavailable and the value's source range. Type compatibility and permission to reassign are separate decisions. The
+mutability explanation states whether the binding was declared with `mut` and
+why reassignment is allowed or rejected. Diagnostics and exit status remain
+unchanged.
 
 ## Checked type joins
 
@@ -233,9 +232,9 @@ the two results of an `if` expression, successive match arm results, or repeated
 arguments that constrain one generic function type parameter. Each entry
 identifies the join context and source location, both input types, the resulting
 type when determined, and whether the join was accepted, rejected or
-unavailable. For generic calls, only repeated constraints
-that reach the checker's join operation are shown; this is not a complete trace
-of generic inference. An unavailable join means the checker could not derive a
+unavailable. Generic calls retain the first constraint for each type parameter,
+subsequent constraints and the earlier argument that they depend on. Contextual
+constraint applications retain their requirement, outcome and resulting type. An unavailable join means the checker could not derive a
 complete result from the available types; it does not imply that the types are
 incompatible. Rejected joins keep the original diagnostic and exit status. This
 query does not add coercions or change type inference.
@@ -413,5 +412,6 @@ Acceptance coverage lives in `tests/runner/compiler_explanations_unit.panack`,
 `tests/runner/compiler_module_bindings_unit.panack` and
 `tests/functional/cases/cli_explanations`, plus the existing mutation/checker,
 bootstrap and public-CLI suites. Measurements and limitations are recorded in
-[the validation profile](../../tests/VALIDATION_PROFILE.md). This bounded delivery
-completes neither #134's whole types/effects/proof scope nor programme #180.
+[the validation profile](../../tests/VALIDATION_PROFILE.md). This historical baseline predates the current completion delivery. Current
+measurements and acceptance are recorded in
+[Compiler understanding acceptance](../COMPILER_UNDERSTANDING_ACCEPTANCE.md).

@@ -3,9 +3,11 @@
 Source maps connect an emitted function and instruction index to the expression
 that produced it. A wrong location is worse than an unavailable location, so the
 first public consumer reproduces the compilation locally before reporting a
-source range. This is the U2 foundation for programme #180; checker explanations,
-compilation reasons, runtime derivations and automatic trap locations remain
-separate work.
+source range. Forward and reverse queries retain original source identity and
+explain lowering, shared output and constructs with no standalone instructions.
+The interactive [compiler explorer](COMPILER_EXPLANATIONS.md) connects source
+statements to compiler decisions and generated instructions. Runtime value
+derivations and automatic trap locations are separate capabilities.
 
 ## Commands
 

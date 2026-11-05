@@ -4779,6 +4779,22 @@ pure bind_body_block(
         } else {
           local: BodyLocal = visible.get(name)
           mut assignment_evidence: Option[AssignmentTypeEvidence] = None()
+          assignment_checks: [BodyTypeCheckEvidence] = if current_context.retain_guard_conversions {
+            [BodyTypeCheckEvidence(
+              "assignment mutability for " + name,
+              checked.body.span,
+              local.type,
+              "mutable binding",
+              None(),
+              Some(local.mutable),
+              if local.mutable {
+                "The binding " + name + " was declared with mut, so reassignment is allowed."
+              } else {
+                "The binding " + name + " was declared without mut, so reassignment is not allowed."
+              },
+              None()
+            )]
+          } else { [] }
           if !local.mutable {
             diagnostics = diagnostics.append(
               Diagnostic("cannot assign immutable binding " + name, checked.body.span.start)
@@ -4853,7 +4869,7 @@ pure bind_body_block(
 
             [],
             [],
-            [], []
+            [], assignment_checks
             ),
             checked.diagnostics,
             checked.deferred

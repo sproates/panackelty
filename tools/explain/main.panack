@@ -129,7 +129,7 @@ pure outcome(check: Option[Bool]): Str {
 pure requirement(span: SourceSpan, label: Str, actual: Option[SignatureType], expected: Str, accepted: Option[Bool]): Decision {
   why = if actual == None() { "Required: " + expected + "." }
     else { "The expression has type " + describe(actual) + ". Required: " + expected + "." }
-  Decision(span, label, outcome(accepted), why, [])
+  Decision(span, source_map_escape(label), outcome(accepted), why, [])
 }
 pure origin(project: LoadedProject, span: SourceSpan, label: Str): [Origin] {
   if project.sources.has(span.start.file) {
@@ -154,7 +154,7 @@ pure facts(project: LoadedProject, function: BoundFunctionBody, selected: Source
   }
   for e in body_guard_conversions(body) {
     mut links: [Origin] = []
-    mut why = "To use " + e.source_type + " as " + e.target_type + ", Panack must establish " + source_map_escape(e.target_guard) + "."
+    mut why = "To use " + source_map_escape(e.source_type) + " as " + source_map_escape(e.target_type) + ", Panack must establish " + source_map_escape(e.target_guard) + "."
     match e.source_guard { None() => {}, Some(guard) => { why = why + " The source type guarantees " + source_map_escape(guard) + "." } }
     match e.bounds {
       None() => { why = why + " No applicable numeric bounds were retained." },
@@ -170,7 +170,7 @@ pure facts(project: LoadedProject, function: BoundFunctionBody, selected: Source
         match bounds.invalidated_at { None() => {}, Some(site) => { links = links.concat(origin(project,site,"Earlier bound invalidated here")) } }
       }
     }
-    rows = rows.append(Decision(e.span,"Convert to " + e.target_type,outcome(e.proven),why,links))
+    rows = rows.append(Decision(e.span,"Convert to " + source_map_escape(e.target_type),outcome(e.proven),why,links))
   }
   for local in body_inferred_locals(body) {
     t = inferred_local_type(local)
@@ -181,7 +181,7 @@ pure facts(project: LoadedProject, function: BoundFunctionBody, selected: Source
   for e in body_binding_type_evidence(body) { rows = rows.append(requirement(e.span,e.label,e.actual,describe(Some(e.expected)),e.accepted)) }
   for e in body_assignment_type_evidence(body) { rows = rows.append(requirement(e.span,e.label,e.actual,describe(e.expected),e.accepted)) }
   for e in body_type_join_evidence(body) {
-    rows = rows.append(Decision(e.span,e.context,outcome(e.accepted),
+    rows = rows.append(Decision(e.span,source_map_escape(e.context),outcome(e.accepted),
       (if e.context.starts_with("first constraint for ") { "This argument supplies the first type constraint, " + describe(e.right) + ". Result: " + describe(e.result) + "." }
       else { "Panack combines the earlier type " + describe(e.left) + " with " + describe(e.right) + ". Result: " + describe(e.result) + "." }),
       match e.dependency { None() => [], Some(site) => origin(project,site,"Earlier generic argument") }))

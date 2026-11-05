@@ -1604,6 +1604,28 @@ limits, stable-tree assumptions, compatibility and partial output handling.
 The old test-only JSON/checksum sidecar and compiler adapter are removed; the
 native observer now exercises these public commands against actual VM PCs.
 
+## Interactive compiler explanations and complete origins
+
+`tools/explain/main.panack` consumes the existing explained loader, checked body
+records and source-mapped emitter. It groups decisions by original source,
+then presents requirements, outcomes and supporting origins. It does not run a
+second type checker or execute the inspected program. The small native terminal
+adapter translates keys and resize events; Panack implements navigation and
+rendering. Installation packages both artifacts. The launcher uses the terminal
+interface for function queries on a TTY and retains plain output for pipes and
+`--text`.
+
+Statement and block spans survive parsing and module emission. Instruction
+origins carry lowering reasons and may share an instruction index, including
+call/await relationships. Validated `locate` queries work in both directions;
+invalid artifact/source pairs fail before selection. Explanation retention also
+records first and subsequent inference constraints, contextual applications,
+callback components, local-resource permissions, proof invalidation and
+assignment mutability. Ordinary checking does not retain these records.
+
+See [acceptance evidence](../COMPILER_UNDERSTANDING_ACCEPTANCE.md) for the finite
+inventories, real-project audits and remaining domain-type integration.
+
 ## U3 first query: retained subtraction evidence, 2026-10-02
 
 `check_program_evidence` uses the same checker traversal and subtraction decision

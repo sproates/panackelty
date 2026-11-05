@@ -3222,6 +3222,20 @@ pure namespace_body_tests(): [TestResult] {
       body_binding_type_evidence(ordinary_annotated_local.functions[0].body).len() == 0,
     "ordinary checking retained explanation-only annotated local evidence"
   ))
+  immutable_assignment: CheckedModuleBodies = body_test_module_mode(
+    "pub pure f(): Nat { value: Nat = 0; value = 5; value }", true
+  )
+  results = results.append(std_testing.expect(
+    "assignment evidence distinguishes mutability from value compatibility",
+    match body_type_check_for_context(accepted_assignment.functions[0].body, "assignment mutability for value") {
+      Some(evidence) => evidence.accepted == Some(true), None() => false
+    } && match body_type_check_for_context(immutable_assignment.functions[0].body, "assignment mutability for value") {
+      Some(evidence) => evidence.accepted == Some(false) && evidence.expected == "mutable binding" &&
+        evidence.span == body_assignment_type_evidence(immutable_assignment.functions[0].body)[0].span,
+      None() => false
+    } && body_type_check_for_context(ordinary_assignment.functions[0].body, "assignment mutability for value") == None(),
+    "mutability must be retained separately and only during explanation checking"
+  ))
   results = results.append(std_testing.expect(
     "explanation checking retains accepted assignment value evidence",
     accepted_assignment.functions.len() == 1 &&

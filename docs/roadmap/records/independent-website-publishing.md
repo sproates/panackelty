@@ -83,6 +83,14 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
+- **GI#180 interactive compiler explanations: Pending acceptance and release.**
+  After the matching native release, update the explanation guide and examples
+  to show source-first terminal navigation, decision details, supporting source
+  and generated instructions. Document `--text` for scripts. Preserve alpha.14
+  examples until promotion; do not imply that the terminal explorer executes the
+  inspected program. Ownership: core release and website maintainers. Evidence:
+  [compiler understanding acceptance](../../COMPILER_UNDERSTANDING_ACCEPTANCE.md).
+
 P04c final acceptance completes the package implementation on merge. The package
 follow-ups below still require a matching native release before promotion;
 [final evidence](../../design/PACKAGE_FINAL_ACCEPTANCE.md) records that boundary.

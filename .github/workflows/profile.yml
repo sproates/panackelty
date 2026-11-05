@@ -1,71 +1,33 @@
 name: Validation profile
-
-# This profiling workflow runs six component checks across two platforms and
-# can take a long time. Run it on demand; PRs use the regular Check workflow.
-on:
-  workflow_dispatch:
-
+on: workflow_dispatch
 permissions:
   contents: read
-
 jobs:
-  focused:
-    name: Warm profile (${{ matrix.target }})
+  measure:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - target: linux-x86_64
-            runner: ubuntu-22.04
-          - target: macos-arm64
-            runner: macos-15
-    runs-on: ${{ matrix.runner }}
-    env:
-      # Keep the profiling workload stable when local Make defaults change.
-      VALIDATION_JOBS: 2
-      VALIDATION_PROFILE_FILE: ${{ github.workspace }}/validation-profile.tsv
-      VALIDATION_TIMINGS_FILE: ${{ github.workspace }}/validation-timings.tsv
+        sample: [1, 2]
     steps:
       - uses: actions/checkout@v6
-      - name: Install native HTTP client dependency
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes libcurl4-openssl-dev zlib1g-dev libssl-dev
-      - name: Build ordinary native prerequisites
+      - run: sudo apt-get update && sudo apt-get install --yes libcurl4-openssl-dev zlib1g-dev libssl-dev
+      - name: Build the same observer and sanitizers as promotion CI
+        run: make CC=clang BUILD_DIR=build/sanitize CFLAGS="-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined" LDFLAGS="-fsanitize=address,undefined" compiler-watchdog-build
+      - name: Measure the complete self-compilation fixture
+        shell: bash
         env:
-          VALIDATION_PROFILE_RUN: preparation
-        run: make native native-module-build native-fault-build
-      - name: Measure initial and cached focused checks
-        shell: bash
+          UBSAN_OPTIONS: halt_on_error=1
         run: |
-          status=0
-          for component in compiler bytecode vm; do
-            for state in initial cached; do
-              VALIDATION_PROFILE_RUN="$state-$component" \
-                sh tests/profile_command.sh "$state/check-$component" \
-                make "check-$component" || status=1
-            done
-          done
-          exit "$status"
-      - name: Record environment
+          export PANACKELTY_STDLIB_PATH="$PWD/src/stdlib" PANACKELTY_BOOTSTRAP_ROOT="$PWD"
+          mkdir evidence
+          build/sanitize/vm/compiler-watchdog 600 evidence build/sanitize/vm/compiler-observer-vm run bootstrap/compiler-v9.bc run src/compiler/main.panack > actual.stdout
+          cmp tests/functional/cases/compiler_skeleton/expected.stdout actual.stdout
+          awk -F '\t' '$2=="return" && $3 ~ /check_module_bodies_explained$/ && $8 ~ /module_bodies.panack$/ {print "module_wall_seconds=" $6, "module_cpu_seconds=" $7}' evidence/run.*/progress.tsv
+          cat evidence/run.*/result.txt
+      - uses: actions/upload-artifact@v6
         if: always()
-        shell: bash
-        run: |
-          {
-            echo "source_commit=$GITHUB_SHA"
-            echo "runner=$RUNNER_OS-$RUNNER_ARCH"
-            echo "runner_image=${ImageOS:-unknown}"
-            echo "runner_image_version=${ImageVersion:-unknown}"
-            cc --version
-          } > profile-environment.txt
-      - name: Archive focused profiles
-        if: always()
-        uses: actions/upload-artifact@v6
         with:
-          name: focused-profile-${{ matrix.target }}-${{ github.run_id }}
-          path: |
-            validation-profile.tsv
-            validation-timings.tsv
-            profile-environment.txt
-          if-no-files-found: warn
+          name: sanitizer-timing-${{ matrix.sample }}
+          path: evidence/

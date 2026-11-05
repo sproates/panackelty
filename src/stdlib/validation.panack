@@ -1,0 +1,144 @@
+// Runtime validation retains requirements and safe facts about the input.
+pub enum ValidationLocation { WholeValue, Field(Str) }
+pub enum ValidationCountUnit { UnicodeScalars, ArrayElements, MapEntries, SetElements }
+pub enum ValidationRelation { LessThan, LessThanOrEqual }
+pub enum ValidationConstraint {
+  MinimumCount(ValidationCountUnit, Nat),
+  MaximumCount(ValidationCountUnit, Nat),
+  NonBlank, NoControlCharacters, FieldRelation(ValidationRelation), NumericPredicate(Str)
+}
+pub enum ValidationFacts {
+  ActualCount(Nat), BlankText, ControlCharacter(Nat, Nat), RelationNotSatisfied, PredicateNotSatisfied
+}
+pub record ValidationFailure {
+  target_type: Str, locations: [ValidationLocation], constraint: ValidationConstraint, facts: ValidationFacts
+}
+pub record ValidationError { target_type: Str, failures: [ValidationFailure] }
+
+pure count_units(unit: ValidationCountUnit, n: Nat): Str {
+  match unit {
+    UnicodeScalars() => if n == 1 { "Unicode scalar value" } else { "Unicode scalar values" },
+    ArrayElements() => if n == 1 { "array element" } else { "array elements" },
+    MapEntries() => if n == 1 { "map entry" } else { "map entries" },
+    SetElements() => if n == 1 { "set element" } else { "set elements" }
+  }
+}
+
+pure count_fact(unit: ValidationCountUnit, n: Nat): Str {
+  subject = match unit {
+    UnicodeScalars() => "string", ArrayElements() => "array", MapEntries() => "map", SetElements() => "set"
+  }
+  if n == 0 { "the ${subject} is empty" } else { "the ${subject} contains ${n}" }
+}
+
+pure control_code(n: Nat): Str {
+  digits = "0123456789ABCDEF"
+  mut value = n
+  mut result = ""
+  while value > 0 || result.len() < 4 {
+    result = digits[value % 16] + result
+    value = value.divide(16)
+  }
+  "U+" + result
+}
+
+// The data retains the module identity. In prose the declaration name is
+// sufficient: each message describes one validation target.
+pure declared_name(identity: Str): Str {
+  mut start: Nat = 0
+  mut i: Nat = 0
+  while i < identity.len() {
+    if identity[i] == ":" { start = i + 1 }
+    i = i + 1
+  }
+  identity.slice(start,identity.len())
+}
+
+pure failure_text(failure: ValidationFailure, empty_text: Bool): Str {
+  target = declared_name(failure.target_type)
+  mut description = target + " did not satisfy the declared requirement."
+  match failure.constraint {
+    MinimumCount(unit, limit) => match failure.facts {
+      ActualCount(n) => { description = "${target} requires at least ${limit} " + count_units(unit,limit) + ", but " + count_fact(unit,n) + "." },
+      BlankText() => {}, ControlCharacter(i,c) => {}, RelationNotSatisfied() => {}, PredicateNotSatisfied() => {}
+    },
+    MaximumCount(unit, limit) => match failure.facts {
+      ActualCount(n) => { description = "${target} allows at most ${limit} " + count_units(unit,limit) + ", but " + count_fact(unit,n) + "." },
+      BlankText() => {}, ControlCharacter(i,c) => {}, RelationNotSatisfied() => {}, PredicateNotSatisfied() => {}
+    },
+    NonBlank() => { description = target + " requires at least one character that is not Unicode whitespace" +
+      if empty_text { ", but the string is empty." } else { ", but the string has no such character." } },
+    NoControlCharacters() => match failure.facts {
+      ControlCharacter(i,c) => { position = i + 1
+        description = target + " does not allow control characters, but " + control_code(c) +
+          " occurs at character position ${position} (counting Unicode scalar values from 1)." },
+      BlankText() => {}, ActualCount(n) => {}, RelationNotSatisfied() => {}, PredicateNotSatisfied() => {}
+    },
+    NumericPredicate(expression) => { description = target + " requires " + expression + ", but that condition is false." },
+    FieldRelation(relation) => if failure.locations.len() == 2 {
+      match failure.locations[0] {
+        Field(left) => match failure.locations[1] {
+          Field(right) => { operator = match relation { LessThan() => "less than", LessThanOrEqual() => "less than or equal to" }
+            description = "${target} requires field '${left}' to be ${operator} field '${right}', but that relationship is not satisfied." },
+          WholeValue() => {}
+        }, WholeValue() => {}
+      }
+    }
+  }
+  description
+}
+
+impl ValidationError {
+  pub pure render(): Str {
+    mut empty_text = false
+    for failure in self.failures {
+      match failure.constraint {
+        MinimumCount(unit, limit) => if unit == UnicodeScalars() && failure.facts == ActualCount(0) { empty_text = true },
+        MaximumCount(unit,limit) => {}, NonBlank() => {}, NoControlCharacters() => {}, FieldRelation(r) => {}, NumericPredicate(expr) => {}
+      }
+    }
+    mut output = "Cannot validate the value as " + declared_name(self.target_type) + "."
+    for failure in self.failures { output = output + "\n\n" + failure_text(failure, empty_text) }
+    output
+  }
+}
+
+pure failed(error: ValidationError, rule: ValidationConstraint, facts: ValidationFacts): ValidationError {
+  detail = ValidationFailure(error.target_type, [WholeValue()], rule, facts)
+  ValidationError(error.target_type, error.failures.append(detail))
+}
+
+pure minimum(error: ValidationError, unit: ValidationCountUnit, limit: Nat, actual: Nat): ValidationError {
+  if actual < limit { failed(error, MinimumCount(unit,limit), ActualCount(actual)) } else { error }
+}
+pure maximum(error: ValidationError, unit: ValidationCountUnit, limit: Nat, actual: Nat): ValidationError {
+  if actual > limit { failed(error, MaximumCount(unit,limit), ActualCount(actual)) } else { error }
+}
+pure nonblank(error: ValidationError, value: Str): ValidationError {
+  if value.is_non_blank() { error } else { failed(error, NonBlank(), BlankText()) }
+}
+pure control_free(error: ValidationError, value: Str): ValidationError {
+  data = value.encode_utf8()
+  mut offset: Nat = 0
+  mut index: Nat = 0
+  mut result = error
+  while offset < data.length() && result.failures.len() == error.failures.len() {
+    first = data.at(offset)
+    if first < 32 || first == 127 {
+      result = failed(error, NoControlCharacters(), ControlCharacter(index,first))
+    } else if first == 194 && data.at(offset + 1) <= 159 {
+      result = failed(error, NoControlCharacters(), ControlCharacter(index,data.at(offset + 1)))
+    }
+    offset = offset + if first < 128 { 1 } else if first < 224 { 2 } else if first < 240 { 3 } else { 4 }
+    index = index + 1
+  }
+  result
+}
+pure numeric(error: ValidationError, expression: Str, satisfied: Bool): ValidationError {
+  if satisfied { error } else { failed(error, NumericPredicate(expression), PredicateNotSatisfied()) }
+}
+pure finish[T](error: ValidationError, candidate: T): Result[T,ValidationError] {
+  if error.failures.len() == 0 { Ok(candidate) } else { Error(error) }
+}
+
+pure begin(target: Str): ValidationError { ValidationError(target, []) }

@@ -17,6 +17,11 @@ main(): Void {
 
 For complete runnable examples, see the [API recipes guide](../../docs/guides/API_RECIPES.md).
 
+`stdlib/validation` owns the public error types for the built-in
+`validate[Type](input)`. Inspect `ValidationError.failures` for structured
+data, or use `error.render()` for plain text. See the
+[language specification](../../docs/reference/SPEC.md#runtime-validation).
+
 ## Curated prelude
 
 `stdlib/prelude` re-exports a curated set of modules while preserving each

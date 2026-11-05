@@ -745,7 +745,20 @@ main(): Void {
       explain_write(source, "type Short = Str where s => s.len() <= 2\npure probe(a: Str): Void { mut s = a; if s.len() <= 2 && (if true { s = \"long\"; true } else { true }) { checked: Short = s; } }\nmain(): Void {}\n")
       results = results.append(explain_run("mutation in a later condition cannot revive an earlier bound", ["check", source], 1,
         [], [], "Panack cannot prove"))
-      for file in [source, library, artifact] {
+      explain_write(source, "type Label = Str where s => s.is_non_blank()\nmain(): Void { print(validate[Label](42)) }\n")
+      results = results.append(explain_run("validation rejects the wrong input type", ["check", source], 1,
+        [], [], "input to validate[Label] is Nat, expected Str"))
+      explain_write(source, "main(): Void { print(validate[Str](\"text\")) }\n")
+      results = results.append(explain_run("validation requires a declared guard", ["check", source], 1,
+        [], [], "Str has no declared guard"))
+      explain_write(source, "type Label = Str where s => s.is_non_blank()\nmain(): Void { print(validate[Label,Label](\"x\")) }\n")
+      results = results.append(explain_run("validation explains its call shape", ["check", source], 1,
+        [], [], "Use validate[Type](value) with one guarded type and one value"))
+      labelled_source = root + "/" + interpolation + ".panack"
+      explain_write(labelled_source, "type Word = Str where s => s.is_non_blank()\nmain(): Void { match validate[Word](\"\") { Ok(w) => print(w), Error(problem) => print(problem.target_type) } }\n")
+      results = results.append(explain_run("validation treats a module name as literal data", ["run", labelled_source], 0,
+        [interpolation + ".panack:Word"], [], ""))
+      for file in [source, library, artifact, labelled_source] {
         match std_filesystem.remove_file(explain_path(file)) { Ok(done) => {}, Error(error) => { results = results.append(std_testing.expect("cleanup", false, error.code)); } }
       }
       std_filesystem.remove_file(explain_path(other))

@@ -1,11 +1,11 @@
 pub import project/src/compiler/domain_guards::{DomainFacts}
-import project/src/compiler/domain_guards::{common_facts, combine_facts, DomainRule, domain_base, domain_rules, rule_outcome, fact_text, rule_text, declared_facts, unknown_facts}
+import project/src/compiler/domain_guards::{runtime_validation_expression, runtime_numeric_supported, common_facts, combine_facts, DomainRule, domain_base, domain_rules, rule_outcome, fact_text, rule_text, declared_facts, unknown_facts}
 import project/src/compiler/resolver::{is_builtin}
 import project/src/compiler/owned_intrinsics::{owned_intrinsic_lowering}
 import project/src/compiler/module_bindings::{module_declaration_display, builtin_owner_arity, method_owner_name}
 import project/src/compiler/module_resolution::{resolve_owned_method, resolve_builtin_owned_method}
 import project/src/compiler/module_signatures::{signature_effect, signature_declaration, signature_type, substitute_signature_type, check_module_signatures}
-import project/src/compiler/module_bindings::{ModulePackageIdentity, ModulePackageIdentity.ToolchainModulePackage, module_import_names, module_internal_primitive, module_reserved_binding}
+import project/src/compiler/module_bindings::{ModulePackageIdentity, ModulePackageIdentity.ToolchainModulePackage, ModulePackageIdentity.StandaloneModulePackage, ModulePackageIdentity.ManifestModulePackage, module_import_names, module_internal_primitive, module_reserved_binding}
 import project/src/compiler/module_resolution::{ResolvedModuleUses, ResolvedModuleTarget, ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget, ResolvedDotCall, ResolvedDotCall.NamespaceCall, ResolvedDotCall.OwnedDotCall, binding_graph_module, binding_graph_target, module_identity_in, resolve_module_expression_uses, resolve_module_path_inner, resolve_module_type, module_head_is_namespace, resolve_module_function, resolve_module_path, resolve_module_dot_call_scoped, module_import_shadow_diagnostics}
 import project/src/compiler/parser::{Statement, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue, BlockValue.NoBlockValue, BlockValue.TailBlockValue, Block, Program, MatchArm, MatchPattern, ParsedModule, ParsedTypeRef, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, DeclarationSyntax, RecordField, FunctionParameter, EnumVariant, expression_span, expression_reference_path, reference_head, unlocated_expression, render_expr}
 import project/src/compiler/lexer::{prior_index}
@@ -901,7 +901,7 @@ pure body_require_value(
             failures = failures.append(Diagnostic(label + " requires " + body_type_text(expected) +
               ". " + check.reason + " Guard declared in " + pos.file + ", line " +
               body_nat_text(pos.line) + ", column " + body_nat_text(pos.column) + "." +
-              (if check.accepted == None() { " Check this requirement before using the value here." } else { "" }), check.span.start))
+              (if check.accepted == None() { " For runtime input, use validate[Type](input) with the declared guard type and handle the result." } else { "" }), check.span.start))
           }
         } }, None() => {}
       }
@@ -1700,7 +1700,18 @@ pure body_require(
 }
 
 pure body_target(context: BodyContext, name: Str, function_only: Bool): Result[BodyTarget, Str] {
-  if !function_only && (module_reserved_binding(name) || module_internal_primitive(context.owner, name)) {
+  // This prefix cannot occur in a source identifier. Generated calls bind to
+  // the bundled declaration even if the caller defines an identically named one.
+  if name.starts_with("$validation.") {
+    module = ModuleIdentity(ToolchainModulePackage(), "validation.panack")
+    match resolve_module_path(context.graph, module, name.slice("$validation.".len(),name.len())) {
+      Ok(target) => match target {
+        DeclarationTarget(binding) => Ok(BodyDeclaration(binding)),
+        NamespaceTarget(identity) => Error("expected a validation library declaration")
+      },
+      Error(message) => Error(message)
+    }
+  } else if !function_only && (module_reserved_binding(name) || module_internal_primitive(context.owner, name)) {
     Ok(BodyCore(name))
   } else {
     match resolve_module_path(context.graph, context.owner.module, name) {
@@ -1865,6 +1876,55 @@ pure body_impl_parameter_count(context: BodyContext, target: BodyTarget): Nat {
     }
   }
   count
+}
+
+pure validation_target_name(identity: DeclarationIdentity): Str {
+  prefix = match identity.module.package {
+    StandaloneModulePackage() => "project/", ToolchainModulePackage() => "stdlib/",
+    ManifestModulePackage(name,version) => name + "@" + version + "/"
+  }
+  prefix + identity.module.path + ":" + identity.name
+}
+
+// Only the success path of the generated checker can expose the guarded type.
+pure bind_runtime_validation(context: BodyContext, arguments: [Expr], types: [Str],
+  span: SourceSpan, locals: Map[Str,BodyLocal], path: [Nat]): BodyResult {
+  if types.len() != 1 || arguments.len() != 1 {
+    body_failure("Use validate[Type](value) with one guarded type and one value.",span)
+  } else {
+    match signature_type(context.graph,context.modules,context.owner,context.parameters,types[0],false,false) {
+      Error(message) => body_failure(message,span),
+      Ok(target) => match body_guard_spec(context,target) {
+        None() => body_failure("Runtime validation requires a guarded type. " + types[0] + " has no declared guard.",span),
+        Some(spec) => if !domain_base(spec.base) &&
+          !(scalar_numeric(spec.base) && runtime_numeric_supported(spec.guard,spec.guard_name)) {
+          body_failure("Runtime validation does not support the guard declared for " + types[0] + ".",span)
+        } else {
+          base = domain_base_type(context,target).value_or(target)
+          input = bind_body_expression(context,arguments[0],span,locals,path.append(0))
+          required = body_require_value(context,input.body,base,"input to validate[" + types[0] + "]")
+          refined = body_refine(context,input,base)
+          local = BodyLocalIdentity(context.owner,path.append(1),"$validation_input")
+          binding = body_result(BodyBinding(local,Some(base),false,None(),None()),span,[refined.body],body_core_type("Void"))
+          mut scope: Map[Str,BodyLocal] = map()
+          scope = scope.put(spec.guard_name,BodyLocal(local,Some(base),false))
+          target_name = match resolve_module_type(context.graph,context.owner.module,types[0]) {
+            Ok(declaration) => validation_target_name(declaration.identity), Error(message) => body_type_text(target)
+          }
+          checks = runtime_validation_expression(spec.guard,spec.guard_name,spec.base,target_name,span)
+          tail = bind_body_expression(context,checks,span,scope,path.append(2))
+          error_type = SignatureType(SignatureNominal(DeclarationIdentity(
+            ModuleIdentity(ToolchainModulePackage(),"validation.panack"),"ValidationError")),[])
+          output = match tail.body.type {
+            Some(result) => Some(SignatureType(result.identity,[target,error_type])), None() => None()
+          }
+          BodyResult(BoundBody(BodyBlock(true,Some(span),[span]),span,[binding.body,tail.body],output,[],[],[],[],[],[]),
+            refined.diagnostics.concat(required.diagnostics).concat(tail.diagnostics),
+            refined.deferred.concat(required.deferred).concat(tail.deferred))
+        }
+      }
+    }
+  }
 }
 
 pure body_call(
@@ -4792,7 +4852,9 @@ pure bind_body_expression_with_type_argument_spans(
           result = body_failure(message, origin)
         },
         Ok(target) => {
-          result = body_call(
+          if target == BodyCore("validate") {
+            result = bind_runtime_validation(context, arguments, types, origin, locals, path)
+          } else { result = body_call(
             context,
             target,
             arguments,
@@ -4801,7 +4863,7 @@ pure bind_body_expression_with_type_argument_spans(
             origin,
             locals,
             path
-          )
+          ) }
         }
       }
     },

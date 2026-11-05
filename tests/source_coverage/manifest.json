@@ -17,7 +17,7 @@
     "src/stdlib/compiler_paths.panack", "src/stdlib/path.panack", "src/stdlib/prelude.panack",
     "src/stdlib/process.panack", "src/stdlib/http_transport.panack", "src/stdlib/tcp.panack", "src/stdlib/testing.panack",
     "src/stdlib/testing_commands.panack", "src/stdlib/testing_files.panack", "src/stdlib/testing_async.panack",
-    "src/stdlib/time.panack"
+    "src/stdlib/time.panack", "src/stdlib/validation.panack"
   ],
   "unmeasured": [
     {"path":"src/packages/command_diagnostic.panack","reason":"Package command validation is exercised by unit and public CLI tests outside the bounded source-execution corpus; no coverage percentage is claimed."},

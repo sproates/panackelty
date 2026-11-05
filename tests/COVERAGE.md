@@ -861,6 +861,7 @@ locations, contradictory and unsupported guards, missing proofs, definite
 failures and mutation. Compiler contract tests enumerate all 25 Unicode 17.0.0
 whitespace scalars and their neighbouring boundaries, and check every C0/C1
 control boundary.
+Runtime validation extends the same source and saved-bytecode fixture with ordered multi-rule errors, success, single evaluation, collection counts and numeric alternatives. Compiler contracts also assert the structured fields and scalar offsets.
 
 ## Explicit guard bindings
 

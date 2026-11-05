@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Account for the GI#435 static guard checker in measured compiler sources.",
-    "basis": "Reproduced the previous reviewed exclusion digest from bee7744 with the production inventory. Reviewed the new inventory: 246 imports, 139 records and 28 enums. Only declarations are excluded.",
-    "scopeChange": "Add src/compiler/domain_guards.panack to measured sources. Preserve the existing test corpus and unmeasured list."
+    "reason": "Measure the validation library exercised by compiler contracts.",
+    "basis": "Reproduced the previous reviewed exclusion digest from 3fdb046 with the production inventory. Reviewed the new inventory: 246 imports, 141 records and 33 enums. Only declarations are excluded.",
+    "scopeChange": "Add src/stdlib/validation.panack to measured sources. Preserve the existing test corpus and unmeasured list."
   },
-  "manifestHash": "f054191353bd8e5d54d43aaec3075edb9e560c2e6504e5d8a522e52f9a86c081",
-  "exclusionHash": "e530033965c9e63454b023dc15b1375a7a6c311a97da03f7f9696f3b6155afe7"
+  "manifestHash": "d6a4a9aff279fb3c697f0f544eb9f69d656e99f53d8dcc8ff50351ad74c08096",
+  "exclusionHash": "b23bc0e2531d7222e6aea57b74f2418b2b2cfe7da03fe5f4d70c57c047e00164"
 }

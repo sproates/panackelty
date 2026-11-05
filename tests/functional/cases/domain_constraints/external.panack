@@ -1,0 +1,1 @@
+pub type Port = Nat where n => n >= 1 && n <= 65535

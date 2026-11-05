@@ -1,3 +1,4 @@
+import "external.panack"::{Port as RemotePort}
 type Label = Str where text =>
   text != "" && text.len() <= 2
   && text.is_non_blank() && text.has_no_control_characters()
@@ -26,4 +27,42 @@ main(): Void {
   print(OneMember(set().add(5).add(5)).len())
   print("​".is_non_blank())
   print(" ".has_no_control_characters())
+  exercise_validation()
+}
+
+type Alternative = Int where n => (n < 2 || n > 8) && n != 4
+
+counted_input(): Str {
+  print("evaluated input")
+  ""
+}
+
+show_label(input: Str): Void {
+  match validate[Label](input) {
+    Ok(label) => print(label),
+    Error(problem) => {
+      print(problem.failures.len())
+      print(problem.render())
+    }
+  }
+}
+
+exercise_validation(): Void {
+  show_label(counted_input())
+  show_label("𐐷")
+  show_label("  ")
+  show_label("𐐷\tprivate")
+  match validate[Names]([]) { Ok(names) => print(names.len()), Error(problem) => print(problem.render()) }
+  match validate[OneEntry](map().put("secret",1).put("secret",2)) {
+    Ok(entries) => print(entries.len()), Error(problem) => print(problem.render())
+  }
+  match validate[OneMember](set().add(1).add(2)) {
+    Ok(items) => print(items.len()), Error(problem) => print(problem.render())
+  }
+  match validate[Alternative](4) { Ok(n) => print(n), Error(problem) => print(problem.render()) }
+  match validate[Alternative](9) { Ok(n) => print(n), Error(problem) => print(problem.render()) }
+  match validate[RemotePort](65536) {
+    Ok(port) => print(port),
+    Error(problem) => { print(problem.target_type.ends_with("external.panack:Port")); print(problem.render()) }
+  }
 }

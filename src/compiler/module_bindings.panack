@@ -205,7 +205,7 @@ pub pure collect_module_bindings(identity: ModuleIdentity, parsed: ParsedModule)
 }
 
 pub pure module_reserved_binding(name: Str): Bool {
-  source_builtin(name) || name == "Nat" || name == "Int" || name == "Dec" ||
+  source_builtin(name) || name == "validate" || name == "Nat" || name == "Int" || name == "Dec" ||
     name == "Rat" ||
     name == "Array" ||
     name == "Bool" ||

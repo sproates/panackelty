@@ -212,3 +212,93 @@ pub pure common_facts(a: DomainFacts, b: DomainFacts): DomainFacts {
     if a.control_free == b.control_free { a.control_free } else { None() },
     if a.keys == b.keys { a.keys } else { None() })
 }
+
+pure validation_call(name: Str, arguments: [Expr]): Expr {
+  CallExpr("$validation." + name, arguments, [])
+}
+
+pure validation_literal(value: Str): Expr {
+  // Source paths may contain literal interpolation syntax. End a literal at
+  // each dollar sign so no generated string can refer to a caller's local.
+  mut parts: Option[Expr] = None()
+  mut escaped = ""
+  mut index: Nat = 0
+  while index < value.len() {
+    ch = value[index]
+    if ch == "\\" || ch == "\"" { escaped = escaped + "\\" }
+    escaped = escaped + ch
+    if ch == "$" {
+      part = StringExpr("\"" + escaped + "\"")
+      parts = Some(match parts { None() => part, Some(prior) => BinaryExpr("+",prior,part) })
+      escaped = ""
+    }
+    index = index + 1
+  }
+  last = StringExpr("\"" + escaped + "\"")
+  match parts { None() => last, Some(prior) => BinaryExpr("+",prior,last) }
+}
+
+pure numeric_validation_terms(guard: Expr): [Expr] {
+  match ast.unlocated_expression(guard) {
+    BinaryExpr(op, left, right) => if op == "&&" {
+      numeric_validation_terms(left).concat(numeric_validation_terms(right))
+    } else { [guard] },
+    LocatedExpr(span,v,ts) => [], NameExpr(n) => [guard], NatExpr(n) => [guard], DecimalExpr(n) => [guard],
+    BoolExpr(b) => [guard], StringExpr(s) => [guard], FunctionExpr(n) => [guard], ArrayExpr(items) => [guard],
+    UnaryExpr(op,v) => [guard], CallExpr(n,args,ts) => [guard], OwnedCallExpr(v,n,args,ts) => [guard],
+    DotCallExpr(v,n,args,ts) => [guard], FieldExpr(v,n) => [guard], IndexExpr(v,i) => [guard],
+    IfExpr(condition,yes,no,has_else) => [guard], BlockExpr(b) => [guard], MatchExpr(v,arms) => [guard]
+  }
+}
+
+// Division and remainder must be total for every input.
+pure validation_positive_divisor(value: Expr): Bool {
+  mut positive = false
+  match ast.unlocated_expression(value) {
+    NatExpr(n) => { positive = n > 0 },
+    LocatedExpr(span,v,ts) => {}, DecimalExpr(n) => {}, NameExpr(n) => {}, BoolExpr(b) => {},
+    UnaryExpr(op,v) => {}, BinaryExpr(op,left,right) => {}, StringExpr(s) => {}, FunctionExpr(n) => {},
+    ArrayExpr(items) => {}, CallExpr(n,args,ts) => {}, OwnedCallExpr(v,n,args,ts) => {},
+    DotCallExpr(v,n,args,ts) => {}, FieldExpr(v,n) => {}, IndexExpr(v,i) => {},
+    IfExpr(condition,yes,no,has_else) => {}, BlockExpr(b) => {}, MatchExpr(v,arms) => {}
+  }
+  positive
+}
+
+pub pure runtime_numeric_supported(guard: Expr, binding: Str): Bool {
+  match ast.unlocated_expression(guard) {
+    BinaryExpr(op,left,right) => (op == "&&" || op == "||" || op == "==" || op == "!=" ||
+      op == "<" || op == "<=" || op == ">" || op == ">=" || op == "+" || op == "*" || op == "-" ||
+      ((op == "/" || op == "%") && validation_positive_divisor(right))) &&
+      runtime_numeric_supported(left,binding) && runtime_numeric_supported(right,binding),
+    NameExpr(n) => n == binding, NatExpr(n) => true, DecimalExpr(n) => true, BoolExpr(b) => true,
+    UnaryExpr(op,v) => (op == "!" || op == "-") && runtime_numeric_supported(v,binding),
+    LocatedExpr(span,v,ts) => false, StringExpr(s) => false, FunctionExpr(n) => false, ArrayExpr(items) => false,
+    CallExpr(n,args,ts) => false, OwnedCallExpr(v,n,args,ts) => false, DotCallExpr(v,n,args,ts) => false,
+    FieldExpr(v,n) => false, IndexExpr(v,i) => false, IfExpr(condition,yes,no,has_else) => false,
+    BlockExpr(b) => false, MatchExpr(v,arms) => false
+  }
+}
+
+pub pure runtime_validation_expression(guard: Expr, binding: Str, base: Str, target_name: Str, span: SourceSpan): Expr {
+  candidate = NameExpr(binding)
+  mut checks = validation_call("begin",[validation_literal(target_name)])
+  if domain_base(base) {
+    unit = if base == "Str" { "UnicodeScalars" } else if base.starts_with("Map[") { "MapEntries" }
+      else if base.starts_with("Set[") { "SetElements" } else { "ArrayElements" }
+    count = OwnedCallExpr(candidate,"len",[],[])
+    for rule in domain_rules(guard,binding,base,span) {
+      checks = match rule.requirement {
+        Minimum(n) => validation_call("minimum",[checks,validation_call(unit,[]),NatExpr(n),count]),
+        Maximum(n) => validation_call("maximum",[checks,validation_call(unit,[]),NatExpr(n),count]),
+        NonBlank() => validation_call("nonblank",[checks,candidate]),
+        ControlFree() => validation_call("control_free",[checks,candidate])
+      }
+    }
+  } else {
+    for term in numeric_validation_terms(guard) {
+      checks = validation_call("numeric",[checks,validation_literal(ast.render_expr(term)),term])
+    }
+  }
+  validation_call("finish",[checks,candidate])
+}

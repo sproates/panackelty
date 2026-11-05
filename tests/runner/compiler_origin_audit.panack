@@ -1,0 +1,47 @@
+import project/src/compiler/loader::{load_project, load_project_explained}
+import project/src/compiler/project_frontend::{prepare_project_program}
+import project/src/compiler/module_bindings::{source_module_identity}
+import project/src/compiler/emitter::{compile_program_with_sources}
+import project/src/compiler/path_support as paths
+import stdlib/environment as env
+import stdlib/host as host
+main(): Void {
+  args = host.arguments()
+  if args.len() != 2 { host.stderr("Expected SOURCE plain|explained"); host.exit(2) }
+  if args[1] != "plain" && args[1] != "explained" { host.stderr("Expected plain or explained mode"); host.exit(2) }
+  entry = paths.resolve(args[0])
+  root = env.get("PANACKELTY_BOOTSTRAP_ROOT").value_or(paths.parent(entry))
+  library = env.get("PANACKELTY_STDLIB_PATH").value_or("")
+  project = if args[1] == "plain" { load_project(entry) } else { load_project_explained(entry) }
+  identity = source_module_identity(entry,root,library)
+  match prepare_project_program(project,root,library,identity) {
+    Error(errors) => { for error in errors { host.stderr(error.message) }; host.exit(1) },
+    Ok(program) => {
+      mapped = compile_program_with_sources(program)
+      mut total: Nat = 0
+      mut missing: Nat = 0
+      mut invalid: Nat = 0
+      mut origins: Nat = 0
+      for i in 0..mapped.bytecode.functions.len() {
+        function = mapped.bytecode.functions[i]
+        mut seen: Set[Nat] = set()
+        for location in mapped.sources[i].entries {
+          origins = origins + 1
+          seen = seen.add(location.index)
+          if !project.sources.has(location.span.start.file) || location.span.start.offset >= location.span.end.offset ||
+            location.span.start.file != location.span.end.file || location.index >= function.instructions.len() ||
+            location.span.end.offset > project.sources.get(location.span.start.file).len() ||
+            mapped.sources[i].name != function.name {
+            invalid = invalid + 1
+          }
+        }
+        for pc in 0..function.instructions.len() {
+          total = total + 1
+          if !seen.has(pc) { missing = missing + 1 }
+        }
+      }
+      print("instructions ${total}, origins ${origins}, missing ${missing}, invalid ${invalid}")
+      if missing > 0 || invalid > 0 { host.exit(1) }
+    }
+  }
+}

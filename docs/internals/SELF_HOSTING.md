@@ -280,8 +280,12 @@ for a compatible guarded target when the
 source invariant proves the target; ordinary checks still retain no explanation
 evidence. Fresh stage-2/3/4 compiler and standard-library
 fixed points validate the refresh; see the [query contract](../guides/COMPILER_EXPLANATIONS.md)
-and validation profile. This is a bounded subtraction query, not full compiler
-or runtime explanations.
+and validation profile. The subsequent GI#180 delivery extends this foundation
+to the maintained checker-decision inventory, interactive source navigation and
+complete instruction origins. The separately compiled explorer is written in
+Panack; its terminal adapter supplies host input only. See the
+[current acceptance record](../COMPILER_UNDERSTANDING_ACCEPTANCE.md), including
+the remaining GI#435 integration. Runtime value explanations are separate.
 
 The U2 deliveries refresh the v9 seed with complete frontend expression spans,
 optional instruction-source retention and validated public source-map commands.

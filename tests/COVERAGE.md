@@ -851,6 +851,19 @@ the separate observer suite above. Hostile concurrent output-directory mutation,
 source-free verification and authenticated original producers are outside the
 [explicit contract](../docs/guides/SOURCE_MAPS.md).
 
+## Compiler understanding delivery acceptance
+
+The [acceptance record](../docs/COMPILER_UNDERSTANDING_ACCEPTANCE.md) maps the
+maintained checker and emission inventories to their regression evidence.
+Module-binding tests cover retention on/off, first and repeated generic
+constraints, callback components, host requirements and assignment mutability.
+Public explanation and source-map CLI tests cover the corresponding outcomes
+and invalid artifact/source pairs. `tools/explain/test.exp` exercises real
+terminal navigation and restoration against checkout and installed commands.
+`runner/compiler_origin_audit.panack` audits every instruction in real package
+and compiler projects; this is explicit delivery acceptance, not an additional
+heavy recurring unit suite. New GI#435 decisions require later integration.
+
 ## U3 first subtraction explanation query
 
 The checker explanation unit suite covers constant and lower-bound decisions,

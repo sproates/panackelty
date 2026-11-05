@@ -37,6 +37,8 @@ pub pure is_impure_builtin(name: Str): Bool {
     name == "run_bytecode_args"
 }
 
+pub record EffectDependency { target: Str, span: SourceSpan }
+
 pub record EffectEvidence {
   function_name: Str,
   span: Option[SourceSpan],
@@ -46,7 +48,8 @@ pub record EffectEvidence {
   basis: Str,
   target_effect: Str,
   awaited: Bool,
-  violations: [Str]
+  violations: [Str],
+  dependencies: [EffectDependency]
 }
 
 pub record CheckedEffects {
@@ -345,7 +348,7 @@ pub pure check_effect_expression(
       basis,
       target_effect,
       awaited,
-      violations
+      violations, []
     )
     result = CheckedEffects(result.diagnostics, [entry].concat(result.evidence))
   }
@@ -416,7 +419,7 @@ pure check_effect_block(
                 "result type",
                 checked.info.name,
                 true,
-                [reason]
+                [reason], []
               )
               result = CheckedEffects(result.diagnostics, result.evidence.append(entry))
             }
@@ -508,7 +511,7 @@ pub pure check_selected_effect_evidence(
             for entry in checked.evidence {
               entries = entries.append(
                 EffectEvidence(name, entry.span, entry.kind, entry.mode, entry.target,
-                entry.basis, entry.target_effect, entry.awaited, entry.violations))
+                entry.basis, entry.target_effect, entry.awaited, entry.violations, entry.dependencies))
             }
           }
           result = combine_effects(result, CheckedEffects(checked.diagnostics, entries))

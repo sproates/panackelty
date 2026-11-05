@@ -19,6 +19,11 @@ with reload and optional sharing of one terminal session to a phone. The live
 demo is not a shipped command or evidence-completeness claim. Physical-phone
 rehearsal and usability acceptance remain pending.
 
+The current delivery uses the source-first terminal explorer described in the
+[acceptance record](COMPILER_UNDERSTANDING_ACCEPTANCE.md). The owner accepted its
+subtraction interaction on 4 November and authorised end-to-end implementation.
+The historical `--details` proposals below are not current command options.
+
 ## The real function
 
 `hash_archive_file` in `src/packages/acquisition.panack`, lines 68–93, calculates

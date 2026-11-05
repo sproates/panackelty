@@ -116,7 +116,8 @@ pure add_emission_probe(
 pub record InstructionSource {
   index: Nat,
   span: SourceSpan,
-  lowered: Bool
+  lowered: Bool,
+  reason: Str
 }
 
 pub record FunctionSources {
@@ -136,9 +137,14 @@ pure add_instruction_source(
   index: Nat,
   lowered: Bool
 ): [InstructionSource] {
+  add_origin(sources, origin, index, lowered, "")
+}
+
+pure add_origin(sources: [InstructionSource], origin: Option[SourceSpan], index: Nat,
+  lowered: Bool, reason: Str): [InstructionSource] {
   match origin {
     None() => sources,
-    Some(span) => sources.append(InstructionSource(index, span, lowered))
+    Some(span) => sources.append(InstructionSource(index, span, lowered, reason))
   }
 }
 
@@ -299,6 +305,38 @@ pure render_constant(value: ConstantValue): Str {
   }
 }
 
+// Source-led explanations identify the operation first. Its exact operands
+// and function-local index remain available for detailed bytecode inspection.
+pub pure instruction_purpose(instruction: Instruction): Str {
+  match instruction {
+    ConstInstruction(value) => "Produce a constant",
+    LoadInstruction(name) => "Read " + name,
+    StoreInstruction(name) => "Store the value in " + name,
+    PopInstruction() => "Discard the unused statement result",
+    UnaryInstruction(operator) => "Apply " + operator,
+    BinaryInstruction(operator) => "Combine the operands with " + operator,
+    MakeRangeInstruction() => "Build the iteration range",
+    MakeArrayInstruction(count) => "Build the array",
+    IndexGetInstruction() => "Read the indexed element",
+    InterpolateInstruction(parts) => "Combine the text and interpolated values",
+    IterInitInstruction(name) => "Start iteration",
+    IterNextInstruction(iterator, name, end) => "Advance the iterator and bind " + name,
+    MakeRecordInstruction(name, fields) => "Construct " + name,
+    FieldGetInstruction(name) => "Read field " + name,
+    MakeVariantInstruction(owner, name, count) => "Construct variant " + name,
+    MatchVariantInstruction(name, failure) => "Test for variant " + name,
+    MatchFailInstruction() => "Report an unmatched value",
+    CallInstruction(name, arity) => "Call " + name,
+    CallValueInstruction(arity) => "Call the supplied function",
+    AwaitCallInstruction(name,arity) => "Await the call to " + name,
+    AwaitValueInstruction(arity) => "Await the supplied function",
+    JumpFalseInstruction(target) => "Branch when the condition is false",
+    JumpInstruction(target) => "Continue at the next control-flow target",
+    PendingEndJumpInstruction() => "Resolve the end target",
+    ReturnInstruction() => "Return from the function"
+  }
+}
+
 pub pure render_instruction(instruction: Instruction): Str {
   match instruction {
     ConstInstruction(value) => {
@@ -405,7 +443,12 @@ pure emit_block(
   mut instructions: [Instruction] = []
   mut temporary: Nat = next_temporary
 
+  mut statement_index: Nat = 0
   for statement in block.statements {
+    origin: Option[SourceSpan] = if retain_sources && statement_index < block.statement_spans.len() {
+      Some(block.statement_spans[statement_index])
+    } else { None() }
+    statement_index = statement_index + 1
     statement_offset: Nat = offset + instructions.len()
     match statement {
       BindingStatement(name, type_name, annotation_span, mutable, value) => {
@@ -419,6 +462,7 @@ pure emit_block(
         sources = sources.concat(emitted.sources)
         probes = probes.concat(emitted.probes)
         instructions = instructions.concat(emitted.instructions)
+        if retain_sources { sources = add_origin(sources, origin, offset + instructions.len(), true, "Store the value computed by this statement.") }
         instructions = instructions.append(StoreInstruction(name))
         temporary = emitted.next_temporary
       },
@@ -433,6 +477,7 @@ pure emit_block(
         sources = sources.concat(emitted.sources)
         probes = probes.concat(emitted.probes)
         instructions = instructions.concat(emitted.instructions)
+        if retain_sources { sources = add_origin(sources, origin, offset + instructions.len(), true, "Store the value computed by this statement.") }
         instructions = instructions.append(StoreInstruction(name))
         temporary = emitted.next_temporary
       },
@@ -447,6 +492,7 @@ pure emit_block(
         sources = sources.concat(emitted.sources)
         probes = probes.concat(emitted.probes)
         instructions = instructions.concat(emitted.instructions)
+        if retain_sources { sources = add_origin(sources, origin, offset + instructions.len(), true, "Discard the result after this statement or iteration.") }
         instructions = instructions.append(PopInstruction())
         temporary = emitted.next_temporary
       },
@@ -478,11 +524,14 @@ pure emit_block(
           jump_index + 1,
           retain_sources
         )
+        if retain_sources { sources = add_origin(sources, origin, offset + instructions.len(), true, "Leave the loop when its condition is false.") }
         instructions = instructions.append(JumpFalseInstruction(end))
         sources = sources.concat(body_code.sources)
         probes = probes.concat(body_code.probes)
         instructions = instructions.concat(body_code.instructions)
+        if retain_sources { sources = add_origin(sources, origin, offset + instructions.len(), true, "Discard the result after this statement or iteration.") }
         instructions = instructions.append(PopInstruction())
+        if retain_sources { sources = add_origin(sources, origin, offset + instructions.len(), true, "Return to the loop test for the next iteration.") }
         instructions = instructions.append(JumpInstruction(statement_offset))
         temporary = body_code.next_temporary
       },
@@ -509,6 +558,7 @@ pure emit_block(
         sources = sources.concat(iterable_code.sources)
         probes = probes.concat(iterable_code.probes)
         instructions = instructions.concat(iterable_code.instructions)
+        if retain_sources { sources = add_origin(sources, origin, offset + instructions.len(), true, "Prepare an iterator for this loop.") }
         instructions = instructions.append(IterInitInstruction(iterator))
         probes = add_emission_probe(
           probes,
@@ -518,11 +568,14 @@ pure emit_block(
           loop_start + 1,
           retain_sources
         )
+        if retain_sources { sources = add_origin(sources, origin, offset + instructions.len(), true, "Bind the next item or leave the loop when exhausted.") }
         instructions = instructions.append(IterNextInstruction(iterator, name, end))
         sources = sources.concat(body_code.sources)
         probes = probes.concat(body_code.probes)
         instructions = instructions.concat(body_code.instructions)
+        if retain_sources { sources = add_origin(sources, origin, offset + instructions.len(), true, "Discard the result after this statement or iteration.") }
         instructions = instructions.append(PopInstruction())
+        if retain_sources { sources = add_origin(sources, origin, offset + instructions.len(), true, "Return to the loop test for the next iteration.") }
         instructions = instructions.append(JumpInstruction(loop_start))
         temporary = body_code.next_temporary
       }
@@ -530,6 +583,7 @@ pure emit_block(
   }
   match block.value {
     NoBlockValue() => {
+      if retain_sources { sources = add_origin(sources, block.span, offset + instructions.len(), true, "This block has no tail expression and produces Void.") }
       instructions = instructions.append(ConstInstruction(VoidConstant()))
     },
     TailBlockValue(value) => {
@@ -578,18 +632,18 @@ pure emit_short_circuit(
     probes = left_code.probes
     mut instructions: [Instruction] = left_code.instructions
     if retain_sources {
-      sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+      sources = add_origin(sources, origin, offset + instructions.len(), true, "Short-circuit " + operator + ": evaluate the right operand only when needed.")
     }
     instructions = instructions.append(JumpFalseInstruction(false_target))
     sources = sources.concat(right_code.sources)
     probes = probes.concat(right_code.probes)
     instructions = instructions.concat(right_code.instructions)
     if retain_sources {
-      sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+      sources = add_origin(sources, origin, offset + instructions.len(), true, "Short-circuit " + operator + ": evaluate the right operand only when needed.")
     }
     instructions = instructions.append(JumpInstruction(end))
     if retain_sources {
-      sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+      sources = add_origin(sources, origin, offset + instructions.len(), true, "Short-circuit " + operator + ": evaluate the right operand only when needed.")
     }
     instructions = instructions.append(ConstInstruction(BoolConstant(false)))
     probes = add_emission_probe(probes, operator, left, branch, branch + 1, retain_sources)
@@ -609,15 +663,15 @@ pure emit_short_circuit(
     probes = left_code.probes
     mut instructions: [Instruction] = left_code.instructions
     if retain_sources {
-      sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+      sources = add_origin(sources, origin, offset + instructions.len(), true, "Short-circuit " + operator + ": evaluate the right operand only when needed.")
     }
     instructions = instructions.append(JumpFalseInstruction(right_target))
     if retain_sources {
-      sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+      sources = add_origin(sources, origin, offset + instructions.len(), true, "Short-circuit " + operator + ": evaluate the right operand only when needed.")
     }
     instructions = instructions.append(ConstInstruction(BoolConstant(true)))
     if retain_sources {
-      sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+      sources = add_origin(sources, origin, offset + instructions.len(), true, "Short-circuit " + operator + ": evaluate the right operand only when needed.")
     }
     instructions = instructions.append(JumpInstruction(end))
     sources = sources.concat(right_code.sources)
@@ -649,7 +703,7 @@ pure emit_string_expression(
   } else {
     for variable in interpolation.variables {
       if retain_sources {
-        sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+        sources = add_origin(sources, origin, offset + instructions.len(), true, "Read each interpolated local before assembling the string.")
       }
       instructions = instructions.append(LoadInstruction(variable))
     }
@@ -706,12 +760,10 @@ pure emit_call(
       sources = collection.sources
       probes = collection.probes
       if retain_sources {
-        sources = add_instruction_source(
+        sources = add_origin(
           sources,
           origin,
-          offset + collection.instructions.len(),
-          true
-        )
+          offset + collection.instructions.len(), true, "Iterate the collection and invoke the supplied callback for each element.")
       }
       mut instructions: [Instruction] = collection.instructions.append(
         StoreInstruction(collection_name)
@@ -729,17 +781,17 @@ pure emit_call(
         probes = probes.concat(initial.probes)
         instructions = instructions.concat(initial.instructions)
         if retain_sources {
-          sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+          sources = add_origin(sources, origin, offset + instructions.len(), true, "Iterate the collection and invoke the supplied callback for each element.")
         }
         instructions = instructions.append(StoreInstruction(accumulator_name))
         temporary = initial.next_temporary
       } else {
         if retain_sources {
-          sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+          sources = add_origin(sources, origin, offset + instructions.len(), true, "Iterate the collection and invoke the supplied callback for each element.")
         }
         instructions = instructions.append(MakeArrayInstruction(0))
         if retain_sources {
-          sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+          sources = add_origin(sources, origin, offset + instructions.len(), true, "Iterate the collection and invoke the supplied callback for each element.")
         }
         instructions = instructions.append(StoreInstruction(accumulator_name))
       }
@@ -754,72 +806,72 @@ pure emit_call(
       probes = probes.concat(callback.probes)
       instructions = instructions.concat(callback.instructions)
       if retain_sources {
-        sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+        sources = add_origin(sources, origin, offset + instructions.len(), true, "Iterate the collection and invoke the supplied callback for each element.")
       }
       instructions = instructions.append(StoreInstruction(callback_name))
       if retain_sources {
-        sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+        sources = add_origin(sources, origin, offset + instructions.len(), true, "Iterate the collection and invoke the supplied callback for each element.")
       }
       instructions = instructions.append(LoadInstruction(collection_name))
       if retain_sources {
-        sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+        sources = add_origin(sources, origin, offset + instructions.len(), true, "Iterate the collection and invoke the supplied callback for each element.")
       }
       instructions = instructions.append(IterInitInstruction(iterator_name))
       loop_start: Nat = offset + instructions.len()
       next_index: Nat = instructions.len()
       if retain_sources {
-        sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+        sources = add_origin(sources, origin, offset + instructions.len(), true, "Iterate the collection and invoke the supplied callback for each element.")
       }
       instructions = instructions.append(IterNextInstruction(iterator_name, item_name, 0))
       if name == "$intrinsic_map" {
         if retain_sources {
-          sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+          sources = add_origin(sources, origin, offset + instructions.len(), true, "Iterate the collection and invoke the supplied callback for each element.")
         }
         instructions = instructions.append(LoadInstruction(accumulator_name))
         if retain_sources {
-          sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+          sources = add_origin(sources, origin, offset + instructions.len(), true, "Iterate the collection and invoke the supplied callback for each element.")
         }
         instructions = instructions.append(LoadInstruction(callback_name))
         if retain_sources {
-          sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+          sources = add_origin(sources, origin, offset + instructions.len(), true, "Iterate the collection and invoke the supplied callback for each element.")
         }
         instructions = instructions.append(LoadInstruction(item_name))
         if retain_sources {
-          sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+          sources = add_origin(sources, origin, offset + instructions.len(), true, "Iterate the collection and invoke the supplied callback for each element.")
         }
         instructions = instructions.append(CallValueInstruction(1))
         if retain_sources {
-          sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+          sources = add_origin(sources, origin, offset + instructions.len(), true, "Iterate the collection and invoke the supplied callback for each element.")
         }
         instructions = instructions.append(CallInstruction("append", 2))
         if retain_sources {
-          sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+          sources = add_origin(sources, origin, offset + instructions.len(), true, "Iterate the collection and invoke the supplied callback for each element.")
         }
         instructions = instructions.append(StoreInstruction(accumulator_name))
       } else {
         if retain_sources {
-          sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+          sources = add_origin(sources, origin, offset + instructions.len(), true, "Iterate the collection and invoke the supplied callback for each element.")
         }
         instructions = instructions.append(LoadInstruction(callback_name))
         if retain_sources {
-          sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+          sources = add_origin(sources, origin, offset + instructions.len(), true, "Iterate the collection and invoke the supplied callback for each element.")
         }
         instructions = instructions.append(LoadInstruction(accumulator_name))
         if retain_sources {
-          sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+          sources = add_origin(sources, origin, offset + instructions.len(), true, "Iterate the collection and invoke the supplied callback for each element.")
         }
         instructions = instructions.append(LoadInstruction(item_name))
         if retain_sources {
-          sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+          sources = add_origin(sources, origin, offset + instructions.len(), true, "Iterate the collection and invoke the supplied callback for each element.")
         }
         instructions = instructions.append(CallValueInstruction(2))
         if retain_sources {
-          sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+          sources = add_origin(sources, origin, offset + instructions.len(), true, "Iterate the collection and invoke the supplied callback for each element.")
         }
         instructions = instructions.append(StoreInstruction(accumulator_name))
       }
       if retain_sources {
-        sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+        sources = add_origin(sources, origin, offset + instructions.len(), true, "Iterate the collection and invoke the supplied callback for each element.")
       }
       instructions = instructions.append(JumpInstruction(loop_start))
       end: Nat = offset + instructions.len()
@@ -834,7 +886,7 @@ pure emit_call(
         instruction_index = instruction_index + 1
       }
       if retain_sources {
-        sources = add_instruction_source(sources, origin, offset + resolved.len(), true)
+        sources = add_origin(sources, origin, offset + resolved.len(), true, "Iterate the collection and invoke the supplied callback for each element.")
       }
       resolved = resolved.append(LoadInstruction(accumulator_name))
       EmittedCode(resolved, callback.next_temporary, sources, probes)
@@ -921,7 +973,7 @@ pure emit_match(
   mut instructions: [Instruction] = subject_code.instructions
 
   if retain_sources {
-    sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+    sources = add_origin(sources, origin, offset + instructions.len(), true, "Evaluate the match subject once and select a matching variant.")
   }
   instructions = instructions.append(StoreInstruction(temporary_name))
   mut temporary: Nat = subject_code.next_temporary
@@ -937,11 +989,11 @@ pure emit_match(
     )
     failure: Nat = body_offset + body_code.instructions.len() + 1
     if retain_sources {
-      sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+      sources = add_origin(sources, origin, offset + instructions.len(), true, "Evaluate the match subject once and select a matching variant.")
     }
     instructions = instructions.append(LoadInstruction(temporary_name))
     if retain_sources {
-      sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+      sources = add_origin(sources, origin, offset + instructions.len(), true, "Evaluate the match subject once and select a matching variant.")
     }
     probes = add_emission_probe(
       probes,
@@ -956,7 +1008,7 @@ pure emit_match(
     while binding_index > 0 {
       binding_index = binding_index - 1
       if retain_sources {
-        sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+        sources = add_origin(sources, origin, offset + instructions.len(), true, "Evaluate the match subject once and select a matching variant.")
       }
       instructions = instructions.append(StoreInstruction(arm.pattern.bindings[binding_index]))
     }
@@ -964,13 +1016,13 @@ pure emit_match(
     probes = probes.concat(body_code.probes)
     instructions = instructions.concat(body_code.instructions)
     if retain_sources {
-      sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+      sources = add_origin(sources, origin, offset + instructions.len(), true, "Evaluate the match subject once and select a matching variant.")
     }
     instructions = instructions.append(PendingEndJumpInstruction())
     temporary = body_code.next_temporary
   }
   if retain_sources {
-    sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+    sources = add_origin(sources, origin, offset + instructions.len(), true, "Evaluate the match subject once and select a matching variant.")
   }
   instructions = instructions.append(MatchFailInstruction())
   end: Nat = offset + instructions.len()
@@ -1095,6 +1147,7 @@ pure emit_expression_at(
         for instruction in emitted.instructions {
           if index + 1 == emitted.instructions.len() {
             instructions = instructions.append(awaited_instruction(instruction))
+            if retain_sources { sources = add_origin(sources, origin, offset + index, true, "Await changes the terminal call into an awaited invocation.") }
           } else {
             instructions = instructions.append(instruction)
           }
@@ -1251,14 +1304,14 @@ pure emit_expression_at(
         probes = condition_code.probes
         mut instructions: [Instruction] = condition_code.instructions
         if retain_sources {
-          sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+          sources = add_origin(sources, origin, offset + instructions.len(), true, "Select the branch specified by the if expression.")
         }
         instructions = instructions.append(JumpFalseInstruction(no_start))
         sources = sources.concat(yes_code.sources)
         probes = probes.concat(yes_code.probes)
         instructions = instructions.concat(yes_code.instructions)
         if retain_sources {
-          sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+          sources = add_origin(sources, origin, offset + instructions.len(), true, "Select the branch specified by the if expression.")
         }
         instructions = instructions.append(JumpInstruction(end))
         sources = sources.concat(no_code.sources)
@@ -1272,18 +1325,18 @@ pure emit_expression_at(
         probes = condition_code.probes
         mut instructions: [Instruction] = condition_code.instructions
         if retain_sources {
-          sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+          sources = add_origin(sources, origin, offset + instructions.len(), true, "Select the branch specified by the if expression.")
         }
         instructions = instructions.append(JumpFalseInstruction(void_start))
         sources = sources.concat(yes_code.sources)
         probes = probes.concat(yes_code.probes)
         instructions = instructions.concat(yes_code.instructions)
         if retain_sources {
-          sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+          sources = add_origin(sources, origin, offset + instructions.len(), true, "Select the branch specified by the if expression.")
         }
         instructions = instructions.append(PopInstruction())
         if retain_sources {
-          sources = add_instruction_source(sources, origin, offset + instructions.len(), true)
+          sources = add_origin(sources, origin, offset + instructions.len(), true, "Select the branch specified by the if expression.")
         }
         instructions = instructions.append(ConstInstruction(VoidConstant()))
         probes = add_emission_probe(probes, "if", condition, branch, branch + 1, retain_sources)
@@ -1375,7 +1428,7 @@ pub pure compile_program_emission(program: Program, retain_sources: Bool): Sourc
         emitted: EmittedCode = emit_block(body, program, 0, 0, retain_sources)
         instructions: [Instruction] = emitted.instructions.append(ReturnInstruction())
         if retain_sources {
-          sources = sources.append(FunctionSources(name, emitted.sources))
+          sources = sources.append(FunctionSources(name, add_origin(emitted.sources, body.span, emitted.instructions.len(), true, "Return the result of this function body.")))
           probes = probes.append(FunctionProbes(name, emitted.probes))
         }
         functions = functions.append(

@@ -1,5 +1,6 @@
 bin/panack
 bin/panack-http-server
+libexec/panackelty/panack-terminal
 libexec/panackelty/panack-vm
 packages/http/README.md
 packages/http/panack.json
@@ -40,6 +41,7 @@ share/doc/panackelty/Unicode-License.txt
 share/panackelty/VERSION
 share/panackelty/compiler-v9.bc
 share/panackelty/http-server-v1.bc
+share/panackelty/panack-explain.bc
 share/panackelty/panack-packages-v1.bc
 share/panackelty/stdlib/async_filesystem.panack
 share/panackelty/stdlib/async_host.panack

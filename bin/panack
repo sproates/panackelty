@@ -62,15 +62,29 @@ require_package_tool() {
   fi
 }
 
-# Checkout-only review build of the interactive explanation explorer.
-if [ "${1-}" = explain ] && [ "${2-}" = --interactive ] && [ -f "$source_root/tools/explain-review/build.mk" ]; then
-  shift 2
-  if [ "$#" != 3 ] || [ "$2" != --function ]; then
-    echo 'Usage: panack explain --interactive SOURCE --function NAME' >&2
-    exit 2
+# Pipelines and explicit text queries retain the compiler's plain output.
+if [ "${1-}" = explain ]; then
+  interactive=false
+  case "${2-}" in
+    --text) shift 2; set -- explain "$@" ;;
+    --interactive) interactive=true; shift 2 ;;
+    *) if [ -t 0 ] && [ -t 1 ] && [ "$#" = 4 ] && [ "$3" = --function ]; then interactive=true; shift; fi ;;
+  esac
+  if [ "$interactive" = true ]; then
+    if [ "$#" != 3 ] || [ "$2" != --function ]; then
+      echo 'Usage: panack explain SOURCE --function NAME' >&2
+      exit 2
+    fi
+    if [ -f "$source_root/tools/explain/build.mk" ]; then
+      make -s -C "$source_root" -f tools/explain/build.mk || exit 1
+      terminal="$source_root/build/explain/terminal"
+      explorer="$source_root/build/explain/explorer.bc"
+    else
+      terminal="$prefix/libexec/panackelty/panack-terminal"
+      explorer="$prefix/share/panackelty/panack-explain.bc"
+    fi
+    exec "$terminal" "$vm" run "$explorer" "$@"
   fi
-  make -s -C "$source_root" -f tools/explain-review/build.mk || exit 1
-  exec "$source_root/build/explain-review/terminal" "$vm" run "$source_root/build/explain-review/explorer.bc" "$@"
 fi
 
 case "${1-}" in

@@ -70,7 +70,9 @@ pub record Bounds {
   lower: Nat,
   has_upper: Bool,
   upper: Nat,
-  lower_origin: Option[GuardOrigin]
+  lower_origin: Option[GuardOrigin],
+  upper_origin: Option[GuardOrigin],
+  invalidated_at: Option[SourceSpan]
 }
 
 // Evidence is retained only by the explicit query. It is produced at the same
@@ -85,7 +87,8 @@ pub record SubtractionDecision {
   rule: Str,
   has_lower: Bool,
   lower: Nat,
-  guard: Option[GuardOrigin]
+  guard: Option[GuardOrigin],
+  invalidated_at: Option[SourceSpan]
 }
 
 pub record SubtractionEvidence {
@@ -121,10 +124,10 @@ pure subtraction_decision(
   right_info: TypeInfo,
   facts: Map[Str, Bounds]
 ): SubtractionDecision {
-  mut decision: SubtractionDecision = SubtractionDecision(false, "insufficient", false, 0, None())
+  mut decision: SubtractionDecision = SubtractionDecision(false, "insufficient", false, 0, None(), None())
 
   if left_info.has_nat && right_info.has_nat && left_info.nat_value >= right_info.nat_value {
-    decision = SubtractionDecision(true, "constants", false, 0, None())
+    decision = SubtractionDecision(true, "constants", false, 0, None(), None())
   }
   match unlocated_expression(left) {
     NameExpr(name) => {
@@ -136,7 +139,7 @@ pure subtraction_decision(
               "lower-bound"
             } else {
               "insufficient"
-            }, true, bound.lower, bound.lower_origin)
+            }, true, bound.lower, bound.lower_origin, None())
         }
       }
     },
@@ -1965,7 +1968,7 @@ pure check_generic_call(
 // Unknown bounds retain the map key without asserting either endpoint.
 pure forget_written_fact(facts: Map[Str, Bounds], name: Str): Map[Str, Bounds] {
   if facts.has(name) {
-    facts.put(name, Bounds(false, 0, false, 0, None()))
+    facts.put(name, Bounds(false, 0, false, 0, None(), None(), None()))
   } else {
     facts
   }
@@ -2342,7 +2345,7 @@ pub pure check_expression_evidence(
                   selected: SubtractionDecision = if !compatible_numeric ||
                     checked_left.diagnostics.len() > 0 ||
                     checked_right.diagnostics.len() > 0 {
-                    SubtractionDecision(false, "invalid-operands", false, 0, None())
+                    SubtractionDecision(false, "invalid-operands", false, 0, None(), None())
                   } else {
                     decision
                   }
@@ -2368,7 +2371,7 @@ pub pure check_expression_evidence(
                       "invalid-operands"
                     } else {
                       "unsupported"
-                    }, false, 0, None())))
+                    }, false, 0, None(), None())))
                 }
               }
               info = TypeInfo(result, false, 0, false)
@@ -3083,7 +3086,7 @@ pure condition_facts_evidence(
               bound: Bounds = if result.has(name) {
                 result.get(name)
               } else {
-                Bounds(false, 0, false, 0, None())
+                Bounds(false, 0, false, 0, None(), None(), None())
               }
               mut next: Bounds = bound
               reason: Option[GuardOrigin] = if retain {
@@ -3092,27 +3095,27 @@ pure condition_facts_evidence(
                 None()
               }
               if (operator == ">" && truth) || (operator == "<=" && !truth) {
-                next = Bounds(true, value + 1, bound.has_upper, bound.upper, reason)
+                next = Bounds(true, value + 1, bound.has_upper, bound.upper, reason, bound.upper_origin, None())
               } else {}
               if (operator == ">=" && truth) || (operator == "<" && !truth) {
-                next = Bounds(true, value, bound.has_upper, bound.upper, reason)
+                next = Bounds(true, value, bound.has_upper, bound.upper, reason, bound.upper_origin, None())
               } else {}
               if operator == "<=" && truth {
-                next = Bounds(bound.has_lower, bound.lower, true, value, bound.lower_origin)
+                next = Bounds(bound.has_lower, bound.lower, true, value, bound.lower_origin, reason, None())
               } else {}
               if operator == ">" && !truth {
-                next = Bounds(bound.has_lower, bound.lower, true, value, bound.lower_origin)
+                next = Bounds(bound.has_lower, bound.lower, true, value, bound.lower_origin, reason, None())
               } else {}
               if (operator == "<" && truth) || (operator == ">=" && !truth) {
                 if value > 0 {
-                  next = Bounds(bound.has_lower, bound.lower, true, value - 1, bound.lower_origin)
+                  next = Bounds(bound.has_lower, bound.lower, true, value - 1, bound.lower_origin, reason, None())
                 } else {}
               } else {}
               if operator == "==" && truth {
-                next = Bounds(true, value, true, value, reason)
+                next = Bounds(true, value, true, value, reason, reason, None())
               } else {}
               if operator == "==" && !truth && value == 0 {
-                next = Bounds(true, 1, bound.has_upper, bound.upper, reason)
+                next = Bounds(true, 1, bound.has_upper, bound.upper, reason, bound.upper_origin, None())
               } else {}
               result = result.put(name, next)
             },

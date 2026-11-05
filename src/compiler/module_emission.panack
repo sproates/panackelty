@@ -267,7 +267,7 @@ pure module_emission_guard_block(
     TailBlockValue(value) => TailBlockValue(
       module_emission_guard_expression(graph, entry, owner, value)
     )
-  })
+  }, block.span, block.statement_spans)
 }
 
 pure module_emission_guard_arms(
@@ -432,7 +432,7 @@ pure module_emission_interpolation(body: BoundBody): Expr {
           BodyField(name) => {},
           BodyIndex() => {},
           BodyIf(has_else) => {},
-          BodyBlock(has_tail) => {},
+          BodyBlock(has_tail, original_span, statement_spans) => {},
           BodyMatch(targets, bindings, spans) => {},
           BodyBinding(identity, type, mutable, inferred, type_evidence) => {},
           BodyAssignment(identity, assignment_evidence) => {},
@@ -458,7 +458,7 @@ pure module_emission_interpolation(body: BoundBody): Expr {
     BodyField(name) => CallExpr("$unit", [], []),
     BodyIndex() => CallExpr("$unit", [], []),
     BodyIf(has_else) => CallExpr("$unit", [], []),
-    BodyBlock(has_tail) => CallExpr("$unit", [], []),
+    BodyBlock(has_tail, original_span, statement_spans) => CallExpr("$unit", [], []),
     BodyMatch(targets, bindings, spans) => CallExpr("$unit", [], []),
     BodyBinding(identity, type, mutable, inferred, type_evidence) => CallExpr("$unit", [], []),
     BodyAssignment(identity, assignment_evidence) => CallExpr("$unit", [], []),
@@ -497,8 +497,10 @@ pure module_emission_block(
 ): Block {
   mut statements: [Statement] = []
   mut count: Nat = body.children.len()
+  mut block_span: Option[SourceSpan] = None()
+  mut origins: [SourceSpan] = []
   has_tail: Bool = match body.node {
-    BodyBlock(value) => value,
+    BodyBlock(value, original_span, statement_spans) => { block_span = original_span; origins = statement_spans; value },
     BodyLiteral(value) => false,
     BodyInterpolation(parts) => false,
     BodyLocalUse(identity) => false,
@@ -548,10 +550,10 @@ pure module_emission_block(
           module_emission_block(graph, entry, parameters, child.children[1])
         )),
         BodyEmpty() => None(),
-        BodyLiteral(value) => Some(ExpressionStatement(value)),
+        BodyLiteral(value) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
         BodyInterpolation(parts) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
-        BodyLocalUse(identity) => Some(ExpressionStatement(NameExpr(identity.name))),
-        BodyFunction(binding) => Some(ExpressionStatement(FunctionExpr(module_emission_callable_symbol(graph, entry, binding)))),
+        BodyLocalUse(identity) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
+        BodyFunction(binding) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
         BodyCall(target, types, call_arguments) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
         BodyArray() => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
         BodyUnary(operator) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
@@ -559,7 +561,7 @@ pure module_emission_block(
         BodyField(name) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
         BodyIndex() => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
         BodyIf(value) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
-        BodyBlock(value) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
+        BodyBlock(value, original_span, statement_spans) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
         BodyMatch(targets, bindings, spans) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child)))
       }
       match statement {
@@ -576,7 +578,7 @@ pure module_emission_block(
   } else {
     NoBlockValue()
   }
-  Block(statements, block_value)
+  Block(statements, block_value, block_span, origins)
 }
 
 pure module_emission_expression_with_parameters(
@@ -613,7 +615,7 @@ pure module_emission_expression_with_parameters(
       module_emission_block(graph, entry, parameters, body.children[2]),
       has_else
     ),
-    BodyBlock(has_tail) => BlockExpr(module_emission_block(graph, entry, parameters, body)),
+    BodyBlock(has_tail, original_span, statement_spans) => BlockExpr(module_emission_block(graph, entry, parameters, body)),
     BodyMatch(targets, bindings, pattern_spans) => {
       mut arms: [MatchArm] = []
       mut index: Nat = 0

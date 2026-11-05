@@ -995,3 +995,20 @@ runner's trust key and a fresh execution after import. Hosted acceptance require
 separate cold and warm Source coverage dispatches on `next`; compare the logged
 preparation decisions, full session lists/nonces and static report identities.
 Preparation transport never bypasses the collector or its policy gate.
+
+
+## Interactive compiler explanations
+
+Build the explorer and exercise the public terminal command from the checkout root.
+
+```sh
+make explain-tool
+expect tools/explain/test.exp
+```
+
+The PTY test navigates accepted and rejected programs, opens a supporting
+condition, returns to the previous selection and checks terminal restoration
+on quit and Ctrl-C. Set `PANACK_BIN` to an installed executable to repeat the
+checks against the distribution. The source-map CLI suite covers reverse lookup
+and artifact validation. The instruction-source suite checks origins for every
+instruction in its real-source fixtures and unchanged executable bytes.

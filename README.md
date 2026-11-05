@@ -64,6 +64,13 @@ command-line consumers. The installed package workflow includes both tools; [fin
 
 ## Explore
 
+On `next`, a function query in a terminal opens the interactive compiler explorer:
+`panack explain program.panack --function main`. Choose a source statement,
+inspect its decisions and follow supporting source. Use `--text` immediately
+after `explain` for the plain report. See the
+[explanation guide](docs/guides/COMPILER_EXPLANATIONS.md). This command checks the
+program without running it.
+
 | I want to… | Start here |
 | --- | --- |
 | Understand the language | [Language specification](docs/reference/SPEC.md) |

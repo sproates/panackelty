@@ -1543,7 +1543,9 @@ sidecar without changing language semantics or executable bytecode v9.
 --instruction PC` validates the pair by local recompilation and returns a direct
 expression, enclosing lowered expression, or explicit unavailable result. Ranges
 are half-open Unicode code-point offsets with one-based line/column coordinates.
-Lookup does not execute source, and ordinary runtime diagnostics do not consult
+A reverse lookup uses `--source-file MODULE --source-at LINE COLUMN` in place
+of the function and instruction selectors. Invalid or stale inputs fail
+validation with status 1. Lookup does not execute source, and ordinary runtime diagnostics do not consult
 maps. The [source-map contract](../guides/SOURCE_MAPS.md) defines identity, source
 closure, compatibility, I/O bounds, output safety and source disclosure.
 
@@ -1572,7 +1574,10 @@ facts. Other unsupported proof rules remain unchanged. A local
 proved obligation does not imply whole-program validity; unproved does not imply
 a runtime counterexample. Unsupported/invalid operands and unavailable evidence
 are explicit. Generic results describe definitions, not specialisations. No user
-code executes and no bytecode or files are emitted. See the
+code executes. In a terminal, the function query opens a source-led explorer
+with decisions, supporting origins and generated instructions for successful
+projects. These instructions are compiled in memory. Piped output and
+`--text` retain the plain report. See the
 [command contract](../guides/COMPILER_EXPLANATIONS.md) for exit status, source bounds,
 positions and deliberate limits. Bytecode v9 and numeric semantics are unchanged.
 

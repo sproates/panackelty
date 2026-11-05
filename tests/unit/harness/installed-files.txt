@@ -70,6 +70,7 @@ share/panackelty/stdlib/testing_async.panack
 share/panackelty/stdlib/testing_commands.panack
 share/panackelty/stdlib/testing_files.panack
 share/panackelty/stdlib/time.panack
+share/panackelty/stdlib/validation.panack
 tools/http-server/README.md
 tools/http-server/panack.json
 tools/http-server/panack.lock.json

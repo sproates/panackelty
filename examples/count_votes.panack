@@ -1,0 +1,15 @@
+pure count_votes(votes: [Str]): Map[Str, Nat] {
+  mut counts: Map[Str, Nat] = map()
+  for name in votes {
+    previous = if counts.has(name) { counts.get(name) } else { 0 }
+    counts = counts.put(name, previous + 1)
+  }
+  counts
+}
+
+main(): Void {
+  counts = count_votes(["Ada", "Ian", "Ada"])
+  print(counts.get("Ada"))
+  print(counts.get("Ian"))
+  print(counts.has("Sam"))
+}

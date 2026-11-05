@@ -2,4 +2,6 @@ import project/api as travel_api
 
 main(): Void {
   print(travel_api.trip_label())
+  trip: travel_api.Trip = travel_api.weekend()
+  print(trip.city)
 }

@@ -1,0 +1,8 @@
+panack: error[PKG_HTTP_PROTOCOL]: Cannot download the archive because the server response uses an unsupported transfer encoding.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/transfer.tar.gz
+  Dependency name: lib
+
+Ask the server administrator to send the archive using either one Transfer-Encoding: chunked header or a Content-Length header without Transfer-Encoding. Then retry your command.

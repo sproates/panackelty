@@ -1,1 +1,6 @@
 pub import project/details::{trip_label}
+pub import project/details::{Trip}
+
+pub pure weekend(): Trip {
+  Trip("Granada", 3)
+}

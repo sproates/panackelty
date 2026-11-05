@@ -1,0 +1,26 @@
+import project/src/packages/sha256::{sha256_new, sha256_feed, sha256_finish, sha256_bytes}
+import stdlib/testing as testing
+import stdlib/host as host
+import stdlib/bytes as byte_buffer
+pure hash_test(name: Str, actual: Result[Str, Str], expected: Str): testing.TestResult {
+  match actual {
+    Ok(hash) => testing.equal_str(name, hash, expected),
+    Error(problem) => testing.expect(name, false, problem)
+  }
+}
+main(): Void {
+  mut block: Bytes = byte_buffer.empty()
+  for index in 0..65536 { block = block.push(97) }
+  results = [
+    hash_test("SHA-256 64 KiB input", sha256_bytes(block),
+      "bf718b6f653bebc184e1479f1935b8da974d701b893afcf49e701f3e2f9f9c5a"),
+    hash_test("SHA-256 empty", sha256_bytes("".encode_utf8()),
+      "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
+    hash_test("SHA-256 abc", sha256_bytes("abc".encode_utf8()),
+      "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"),
+    hash_test("SHA-256 chunk boundaries",
+      sha256_finish(sha256_feed(sha256_feed(sha256_new(), "a".encode_utf8()), "bc".encode_utf8())),
+      "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+  ]
+  if testing.report(results) > 0 { host.exit(1) }
+}

@@ -1,0 +1,8 @@
+panack: error[PKG_USAGE]: Cannot run the package command because an option is not supported.
+
+  Project: <workspace>/app/panack.json
+  Option: --unknown
+
+Panack has not read or changed any package files.
+
+Remove the unsupported option. Only panack deps restore accepts --offline; panack deps update accepts dependency names after the manifest path.

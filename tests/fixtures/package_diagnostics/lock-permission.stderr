@@ -1,0 +1,6 @@
+panack: error[PKG_FILESYSTEM]: Cannot read panack.lock.json: the account running Panack does not have permission (permission_denied).
+
+  Project: <workspace>/app/panack.json
+  File: <workspace>/app/panack.lock.json
+
+Correct the reported filesystem problem, then retry your command. Check access using the account running Panack.

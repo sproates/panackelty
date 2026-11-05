@@ -96,7 +96,7 @@ pub pure decode_coverage_at(
   for function in sort_functions(program.functions) {
     size = size + 12 + function.instructions.len() * 32
   }
-  mut valid: Bool = size <= 33554432 && data.length() == size + offset && coverage_prefix(
+  mut valid: Bool = artifact.length() <= 16777216 && inventory.length() <= 67108864 && size <= 134217728 && data.length() == size + offset && coverage_prefix(
     data,
     prefix,
     offset
@@ -355,7 +355,7 @@ pub pure coverage_source_function_name(
     FunctionDeclaration(name, parameters, result, pure_effect, async_effect, body, types) =>
       module_emission_symbol(graph, entry, DeclarationIdentity(module, name)),
     ImportDeclaration(path) => "",
-    TypeDeclaration(name, base, guard) => "",
+    TypeDeclaration(name, base, guard_name, guard) => "",
     RecordDeclaration(name, types, fields) => "",
     EnumDeclaration(name, types, variants) => ""
   }
@@ -393,7 +393,7 @@ pub pure render_coverage(
           if name == "main" { entry = module.bindings.identity; } else {}
         },
         ImportDeclaration(path) => {},
-        TypeDeclaration(name, base, guard) => {},
+        TypeDeclaration(name, base, guard_name, guard) => {},
         RecordDeclaration(name, types, fields) => {},
         EnumDeclaration(name, types, variants) => {}
       }
@@ -626,7 +626,7 @@ pub run_coverage_report(values: [Str]): Nat {
           std_host.stderr("error: coverage unavailable: invalid, changed or incompatible local inventory")
           1
         } else {
-          match source_map_read(values[5], 33554432) {
+          match source_map_read(values[5], 134217728) {
             Error(error) => {
               std_host.stderr("error: coverage raw record unavailable")
               1

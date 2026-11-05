@@ -616,13 +616,38 @@ and release workflows, not a claim that arbitrary program equivalence is decidab
 
 **RM#153: Expand guarded types beyond numeric bounds** · [GI#435: Expand guarded types beyond numeric bounds](https://github.com/sproates/panackelty/issues/435).
 
-**Alpha.15 semantic scope agreed by the owner, 26 October 2026.**
-Deliver six constraints across three families, with explicit static construction
-and runtime validation. This supersedes the earlier representative-outcome list.
-The guard binding and validation-call contract below are also owner-agreed.
-The [consolidated contract](../../design/VALIDATED_DOMAIN_TYPES.md) supplies the
-final syntax proposal, concrete errors, Unicode pin and finite acceptance cases
-for review. No implementation starts with this record.
+**Done for alpha.15 on merge.** The [installed acceptance record](../../VALIDATED_DOMAIN_TYPES_ACCEPTANCE.md)
+covers the final slice, including the configuration and request example,
+plain and structured failures, saved bytecode, source attribution and measured
+validation costs. The [migration guide](../../guides/VALIDATED_DOMAIN_TYPES.md)
+shows how to update an existing numeric guard. [PR #659](https://github.com/sproates/panackelty/pull/659)
+delivered the record relationship slice. The post-acceptance audit reopened GI#435 for contextual proof, indexing and the shared control-character check. Its completion evidence is included in the acceptance record. Later guard families retain their
+separate release allocations.
+
+**Approved release scope and delivery history.**
+Develop validated domain types beyond numeric bounds. The selected initial scope
+now includes string constraints, non-empty/bounded collections and relationships
+between fields of a record. This supersedes the non-empty-string-only slice.
+The [approved alpha.15 contract](https://github.com/sproates/panackelty/blob/main/docs/design/VALIDATED_DOMAIN_TYPES.md)
+defines the five implementation slices. Slice 1 delivers explicit numeric guard
+bindings on merge. It migrates declarations, preserves numeric alternatives
+and scoped proofs, and refreshes the self-hosted compiler seed.
+The migrated guards example produces identical saved bytecode to its alpha.15
+predecessor and prints 42. [PR #656](https://github.com/sproates/panackelty/pull/656)
+merged slice 1. [PR #657](https://github.com/sproates/panackelty/pull/657) merged slice 2 with static string and collection constraints. The [specification](../../reference/SPEC.md#guarded-types) covers the
+bounded guard forms and their proof rules. CLI and saved-bytecode regressions
+exercise Unicode boundaries, map replacement, set duplicates, missing proofs
+and mutation. Slice 3 delivers runtime validation and structured failures on
+merge. The empty label regression checks both failures, their order, and their
+rendered paragraphs. Other cases check a control character after a supplementary
+scalar, numeric alternatives, input evaluation count and saved bytecode.
+[PR #658](https://github.com/sproates/panackelty/pull/658) merged slice 3.
+Slice 4 delivers record relationships and replacement validation on merge.
+A complete replacement must establish its own invariant. Source and bytecode
+tests cover copying through a generic and array, taking fields from an imported
+guard, preserving an unchanged label, and reporting two failed field pairs in
+order. Public explanation and source-map tests link a runtime comparison to
+its original declaration. Slice 5 supplies the installed evidence linked above.
 
 | Constraint | Agreed semantics |
 | --- | --- |

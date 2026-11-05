@@ -68,6 +68,26 @@ The examples deliberately stay small enough to modify. The
 [`examples` guide](../../examples/README.md) continues with complete algorithms,
 including palindrome detection, memoized Fibonacci, and Project Euler 1–5.
 
+### Interpolate a local value
+
+Interpolation accepts a local scalar name, such as `${first}`. If the value comes
+from an expression or field access, bind it to a local first:
+
+```panackelty
+pure describe(name: Str, score: Nat): Str {
+  first: Str = name[0]
+  "${first}: ${name} scored ${score}"
+}
+```
+
+For example, `${name[0]}` is not an interpolation form; `first = name[0]`
+followed by `${first}` is. See the complete [strings example](../../examples/strings.panack).
+
+From alpha.15, Panack points at an unsupported interpolation and asks you to
+bind its value first. Older versions could print the expression unchanged.
+To print the characters `${name[0]}` deliberately, write
+`print("$" + "{name[0]}")`.
+
 
 ## Language highlights
 
@@ -136,7 +156,7 @@ Guarded types turn familiar values into distinct types with compiler-checked
 invariants:
 
 ```panackelty
-type Port = Nat where value >= 1 && value <= 65535
+type Port = Nat where value => value >= 1 && value <= 65535
 
 pure describe_port(port: Port): Str {
   "listening on ${port}"
@@ -151,6 +171,32 @@ main(): Void {
 The compiler only accepts a conversion when it can prove the target guard from
 the value or its guarded source type. It does not hide a runtime check inside
 otherwise pure code.
+
+A string guard can express the rule for a display label.
+
+```panackelty
+type Label = Str where text =>
+  text.is_non_blank() && text.len() <= 80 && text.has_no_control_characters()
+
+pure greeting(label: Label): Str { "Hello, " + label }
+```
+
+A literal such as `Label("Ian")` supplies all three facts at compile time.
+A function receiving an arbitrary string can check the same conditions in an
+`if` before constructing the label. The compiler points to any requirement it
+still needs. For text received from a user, handle the result explicitly:
+
+```panackelty
+show_label(input: Str): Void {
+  match validate[Label](input) {
+    Ok(label) => print(label),
+    Error(problem) => print(problem.render())
+  }
+}
+```
+
+If several requirements fail, the developer can display all of them or inspect
+`problem.failures` individually. See the [guarded type rules](../reference/SPEC.md#guarded-types).
 
 ### Explicit effects, practical algorithms
 
@@ -231,3 +277,6 @@ pure describe(result: Result[Nat,Str]): Str {
 ```
 
 The compiler rejects a `match` that misses or repeats a variant.
+
+
+For a worked module example, see [returning a type from another module](../../examples/namespaces/README.md#returning-a-type-from-another-module).

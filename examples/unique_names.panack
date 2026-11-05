@@ -1,0 +1,17 @@
+pure unique_names(names: [Str]): [Str] {
+  mut seen: Set[Str] = set()
+  mut ordered: [Str] = []
+  for name in names {
+    if !seen.has(name) {
+      seen = seen.add(name)
+      ordered = ordered.append(name)
+    }
+  }
+  ordered
+}
+
+main(): Void {
+  for name in unique_names(["Ian", "Ada", "Ian", "Sam", "Ada"]) {
+    print(name)
+  }
+}

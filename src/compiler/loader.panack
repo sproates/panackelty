@@ -24,14 +24,14 @@ import project/src/compiler/parser::{
   parse_module_complete, module_execution_diagnostics
 }
 pub import project/src/compiler/parser::{Program}
-import project/src/compiler/lexer::{lex_file}
+import project/src/compiler/lexer::{lex_file, Token}
 import project/src/compiler/types::{SourcePos}
 pub import project/src/compiler/checker::{SubtractionEvidence}
 pub import project/src/compiler/purity::{EffectEvidence}
 import project/src/compiler/resolver::{append_program_declarations}
-pub import project/src/compiler/package_project::{ManifestDependencyProject}
-pub import project/src/compiler/package_project::{FilesystemRootIdentity}
-import project/src/compiler/package_manifest::{PackageManifestExport}
+pub import project/src/project_model/package_project::{ManifestDependencyProject}
+pub import stdlib/package_filesystem::{FilesystemRootIdentity}
+import project/src/project_model/package_manifest::{PackageManifestExport}
 
 // Resolve and read the module closure once, preserving traversal order and original
 // source snapshots. Host I/O belongs here rather than in the pure frontend.
@@ -442,6 +442,18 @@ pub read_package_source(
   }
 }
 
+// The compiler supplies the validation library only to programs that use the
+// built-in. Tokens distinguish a call from text inside strings or comments.
+pure uses_validation(tokens: [Token]): Bool {
+  mut found = false
+  mut index: Nat = 0
+  while !found && index + 1 < tokens.len() {
+    found = tokens[index].text == "validate" && tokens[index + 1].text == "["
+    index = index + 1
+  }
+  found
+}
+
 load_project_module(
   path: Str,
   state: ProjectLoadState,
@@ -596,6 +608,11 @@ load_project_module(
                         paths
                       )
                       next_stack: [Str] = stack.append(path)
+                      if uses_validation(tokens) {
+                        current = load_project_module(path_support.join(stdlib_root, "validation.panack"),
+                          current, next_stack, project_root, stdlib_root, bounded, false,
+                          package_root, package_root_identity, package_name, package_version, package_confined, dependencies)
+                      }
                       for declaration in parsed.program.declarations {
                         match declaration {
                           ImportDeclaration(imported) => {
@@ -716,7 +733,7 @@ load_project_module(
                               }
                             }
                           },
-                          TypeDeclaration(name, base, guard) => {},
+                          TypeDeclaration(name, base, guard_name, guard) => {},
                           RecordDeclaration(name, parameters, fields) => {},
                           EnumDeclaration(name, parameters, variants) => {},
                           FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {}
@@ -932,7 +949,7 @@ load_project_mode_with_configuration(
             }
           },
           ImportDeclaration(path) => {},
-          TypeDeclaration(name, base, guard) => {},
+          TypeDeclaration(name, base, guard_name, guard) => {},
           RecordDeclaration(name, parameters, fields) => {},
           EnumDeclaration(name, parameters, variants) => {}
         }

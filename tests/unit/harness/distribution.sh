@@ -18,11 +18,22 @@ case_name=checksum-from-spaced-checkout
 checkout=$work/'checkout with spaces (test)'
 mkdir "$checkout"
 for name in Makefile VERSION bin bootstrap src tests examples packages tools docs README.md ROADMAP.md CONTRIBUTING.md LICENSE CHANGELOG.md SECURITY.md; do
-    ln -s "$root/$name" "$checkout/$name"
+    # Source compilation checks physical containment, including bootstrap tools.
+    # A real copied checkout also tests packaging without borrowing source roots.
+    cp -R "$root/$name" "$checkout/$name"
 done
 # Builds must own the executable they relink; a symlink shares the live root VM.
 cp "$root/panack-vm" "$checkout/panack-vm"
 cd "$checkout"
+# A cold explorer build compiles much of the compiler itself (84s standalone
+# on hosted Linux). Bound that build independently from packaging and smoke.
+prepare_tools() {
+    tool_build=$1
+    capture 0 90 make "BUILD_DIR=$tool_build" native package-tool
+    capture 0 240 make "BUILD_DIR=$tool_build" explain-tool
+    capture 0 90 make "BUILD_DIR=$tool_build" "$tool_build/tools/http-server.bc"
+}
+prepare_tools build
 capture 0 90 make quick-start
 set -- "$checkout"/build/panackelty-*.tar.gz
 test "$#" = 1 && test -f "$1" || fail 'expected exactly one archive'
@@ -39,6 +50,7 @@ equal_files "$archive.sha256" "$work/checksum"
 pass
 case_name=archive-members-and-relocation
 cd "$checkout"
+prepare_tools "$work/archive-build"
 capture 0 90 make package-archive "BUILD_DIR=$work/archive-build"
 set -- "$work"/archive-build/panackelty-*.tar.gz
 test "$#" = 1 && test -f "$1" || fail 'expected exactly one custom-build archive'
@@ -102,7 +114,11 @@ pass
 case_name=installed-files-and-logical-imports
 cd "$checkout"
 destination=$work/'installation with spaces (test)'
+# The custom BUILD_DIR archive relinked this checkout's VM. Prepare its default
+# tool artifacts before timing installation, which must reuse their bytecode.
+prepare_tools build
 capture 0 30 make install "DESTDIR=$destination" PREFIX=/usr/local
+absent "$work/stdout" './bin/panack compile'
 installed=$destination/usr/local
 (cd "$installed" && find . -type f | sed 's|^./||' | sort) > "$work/files"
 equal_files "$work/files" "$root/tests/unit/harness/installed-files.txt"
@@ -117,10 +133,7 @@ equal_files "$work/stdout" "$work/import.stdout"
 test ! -s "$work/stderr" || fail 'installed import stderr'
 pass
 case_name=compiler-artifact-from-spaced-checkout
-# Use real copied sources, as source.path must remain inside this checkout.
-rm "$checkout/src" "$checkout/examples"
-cp -R "$root/src" "$checkout/src"
-cp -R "$root/examples" "$checkout/examples"
+# Sources were copied when this isolated checkout was created.
 for stage in stage1 stage2; do
     mkdir -p "$checkout/build/bootstrap/$stage"
     cp "$root/bootstrap/compiler-v9.bc" "$checkout/build/bootstrap/$stage/compiler.bc"

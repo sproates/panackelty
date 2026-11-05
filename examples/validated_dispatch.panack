@@ -1,0 +1,41 @@
+// Configuration sets the retry window and available queues. Each request
+// supplies its own label. Validate those values at their respective boundaries.
+record RetryWindow { first: Nat, last: Nat }
+type OrderedWindow = RetryWindow where w => w.first <= w.last
+type Queues = [Str] where queues => queues.len() >= 1 && queues.len() <= 4
+type Label = Str where text =>
+  text.len() >= 1 && text.len() <= 80 &&
+  text.is_non_blank() && text.has_no_control_characters()
+
+record DispatchConfig { window: OrderedWindow, queues: Queues }
+
+dispatch(config: DispatchConfig, label: Label): Void {
+  queue = config.queues[0]
+  first = config.window.first
+  last = config.window.last
+  print("Queue " + queue + " accepts " + label + " (retry ${first} to ${last} seconds).")
+}
+
+handle_request(config: DispatchConfig, raw_label: Str): Void {
+  match validate[Label](raw_label) {
+    Ok(label) => dispatch(config,label),
+    Error(problem) => print(problem.render())
+  }
+}
+
+configure(first: Nat, last: Nat): Void {
+  queues = Queues(["support"])
+  match validate[OrderedWindow](RetryWindow(first,last)) {
+    Ok(window) => {
+      config = DispatchConfig(window,queues)
+      handle_request(config,"Ticket 42")
+      handle_request(config,"")
+    },
+    Error(problem) => print(problem.render())
+  }
+}
+
+main(): Void {
+  configure(2,10)
+  configure(10,2)
+}

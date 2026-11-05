@@ -21,9 +21,9 @@
 struct VMHttpTransport {
     Value *request, *result;
     uint8_t *response;
-    size_t sent, received, limit;
+    size_t sent, received, limit, total;
     uint64_t deadline;
-    bool done, connecting;
+    bool done, connecting, streaming, paused;
 #ifndef __wasi__
     CURLM *multi;
     CURL *easy;
@@ -133,10 +133,11 @@ static const char *connect_error(CURLcode result)
 
 #endif
 
-VMHttpTransport *http_transport_start(Value **arguments)
+static VMHttpTransport *transport_start(Value **arguments, bool streaming)
 {
     VMHttpTransport *transport = calloc(1, sizeof(*transport));
     if (!transport) return NULL;
+    transport->streaming = streaming;
 #ifndef __wasi__
     transport->socket = CURL_SOCKET_BAD;
 #endif
@@ -146,8 +147,8 @@ VMHttpTransport *http_transport_start(Value **arguments)
         arguments[4]->kind != V_NAT || arguments[5]->kind != V_NAT ||
         !value_index(arguments[1], &port) || !value_index(arguments[4], &transport->limit) ||
         !value_index(arguments[5], &timeout) || !port || port > 65535 ||
-        arguments[3]->as.bytes.length > HTTP_TRANSPORT_BYTE_LIMIT ||
-        transport->limit > HTTP_TRANSPORT_BYTE_LIMIT || !timeout ||
+        arguments[3]->as.bytes.length > (streaming ? 65536 : HTTP_TRANSPORT_BYTE_LIMIT) ||
+        transport->limit > (streaming ? 268435456 : HTTP_TRANSPORT_BYTE_LIMIT) || !timeout ||
         timeout > HTTP_TRANSPORT_TIMEOUT_LIMIT) {
         finish(transport, "invalid HTTP transport arguments");
         return transport;
@@ -165,7 +166,7 @@ VMHttpTransport *http_transport_start(Value **arguments)
         return transport;
     }
     transport->deadline = now + timeout;
-    transport->response = malloc(transport->limit ? transport->limit : 1);
+    transport->response = malloc(streaming ? HTTP_TRANSPORT_CHUNK : (transport->limit ? transport->limit : 1));
     if (!transport->response) {
         transport->done = true;
         return transport;
@@ -215,6 +216,11 @@ VMHttpTransport *http_transport_start(Value **arguments)
     transport->connecting = true;
 #endif
     return transport;
+}
+
+VMHttpTransport *http_transport_start(Value **arguments)
+{
+    return transport_start(arguments, false);
 }
 
 #ifndef __wasi__
@@ -301,7 +307,7 @@ static bool poll_connect(VMHttpTransport *transport, unsigned max_wait_ms)
 
 bool http_transport_poll(VMHttpTransport *transport, unsigned max_wait_ms)
 {
-    if (transport->done) return true;
+    if (transport->done || transport->paused) return true;
 #ifdef __wasi__
     (void)max_wait_ms;
     finish(transport, "HTTP transport is unavailable on this host");
@@ -333,17 +339,24 @@ bool http_transport_poll(VMHttpTransport *transport, unsigned max_wait_ms)
     if (code == CURLE_OK) {
         if (!received) {
             finish(transport, NULL);
-        } else if (received > transport->limit - transport->received) {
+        } else if (received > transport->limit - transport->total) {
             finish(transport, "HTTP response limit exceeded");
         } else {
             memcpy(transport->response + transport->received, buffer, received);
             transport->received += received;
+            transport->total += received;
+            if (transport->streaming) {
+                Value *chunk = value_data(V_BYTES, transport->response, transport->received);
+                transport->result = chunk ? named_value(V_VARIANT, "Ok", NULL, &chunk, 1) : NULL;
+                release(chunk);
+                transport->paused = true;
+            }
         }
     } else if (code != CURLE_AGAIN) {
         finish(transport, "HTTP transport read failed");
     }
 #endif
-    return transport->done;
+    return transport->done || transport->paused;
 }
 
 Value *http_transport_result(const VMHttpTransport *transport)
@@ -361,4 +374,71 @@ void http_transport_destroy(VMHttpTransport *transport)
     release(transport->result);
     free(transport->response);
     free(transport);
+}
+
+/* Blocking pull API for command-line consumers. Each read returns at most
+ * 16 KiB. The original absolute deadline includes time between reads. Handles
+ * belong to one invocation and are never reused; close or teardown frees curl. */
+#define HTTP_STREAM_HANDLES 512
+struct VMHttpStreams { VMHttpTransport *slots[HTTP_STREAM_HANDLES]; size_t count; };
+
+static Value *stream_error(const char *message)
+{
+    Value *text = value_data(V_STR, (const uint8_t *)message, strlen(message));
+    Value *result = text ? named_value(V_VARIANT, "Error", NULL, &text, 1) : NULL;
+    release(text);
+    return result;
+}
+
+Value *http_stream_call(VM *vm, const char *name, Value **arguments)
+{
+    if (!strcmp(name, "http_stream_open")) {
+        if (!vm->http_streams) vm->http_streams = calloc(1, sizeof(*vm->http_streams));
+        if (!vm->http_streams || vm->http_streams->count == HTTP_STREAM_HANDLES)
+            return stream_error("HTTP stream resource limit exceeded");
+        VMHttpTransport *stream = transport_start(arguments, true);
+        if (!stream) return NULL;
+        if (stream->done) {
+            Value *result = retain(stream->result);
+            http_transport_destroy(stream);
+            return result;
+        }
+        size_t slot = vm->http_streams->count++;
+        vm->http_streams->slots[slot] = stream;
+        Value *handle = value_size(slot + 1);
+        Value *result = handle ? named_value(V_VARIANT, "Ok", NULL, &handle, 1) : NULL;
+        release(handle);
+        return result;
+    }
+    size_t handle;
+    if (arguments[0]->kind != V_NAT || !value_index(arguments[0], &handle) ||
+        !handle || !vm->http_streams || handle > vm->http_streams->count ||
+        !vm->http_streams->slots[handle - 1]) return stream_error("invalid HTTP stream handle");
+    VMHttpTransport *stream = vm->http_streams->slots[handle - 1];
+    if (!strcmp(name, "http_stream_close")) {
+        http_transport_destroy(stream);
+        vm->http_streams->slots[handle - 1] = NULL;
+        Value *unit = value_new(V_UNIT);
+        Value *result = unit ? named_value(V_VARIANT, "Ok", NULL, &unit, 1) : NULL;
+        release(unit);
+        return result;
+    }
+    if (strcmp(name, "http_stream_read")) return stream_error("invalid HTTP stream operation");
+    if (stream->paused) {
+        release(stream->result);
+        stream->result = NULL;
+        stream->received = 0;
+        stream->paused = false;
+    }
+    while (!http_transport_poll(stream, 20)) { }
+    return retain(stream->result);
+}
+
+void http_stream_destroy(VM *vm)
+{
+    if (!vm->http_streams) return;
+    for (size_t i = 0; i < vm->http_streams->count; i++)
+        http_transport_destroy(vm->http_streams->slots[i]);
+    free(vm->http_streams);
+    vm->http_streams = NULL;
 }

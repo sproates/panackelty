@@ -7,7 +7,8 @@
 
 #define VM_COVERAGE_MAX_CELLS 262144u
 #define VM_COVERAGE_MAX_IDENTITY 16777216u
-#define VM_COVERAGE_MAX_RAW 33554432u
+#define VM_COVERAGE_MAX_INVENTORY 67108864u
+#define VM_COVERAGE_MAX_RAW 134217728u
 
 typedef struct VMCoverage VMCoverage;
 typedef struct {

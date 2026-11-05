@@ -17,6 +17,7 @@ version=$(sed -n '1p' VERSION)
 cat > "$work/app/panack.json" <<MANIFEST
 {"schema":1,"package":"tests.async_filesystem","version":"0.1.0","language":"modules-v1","toolchain":"$version","source":"src","entry":"main.panack","exports":{},"dependencies":{"http":{"path":"../../../packages/http"}}}
 MANIFEST
+./bin/panack deps lock --project "$work/app/panack.json" > /dev/null
 cat > "$work/template.panack" <<'SOURCE'
 import stdlib/async_filesystem as files
 import stdlib/path as path

@@ -1,0 +1,10 @@
+panack: error[PKG_ARCHIVE_NUMBER_LIMIT]: Cannot unpack the archive because a numeric archive field exceeds Panack's supported maximum of 268435456.
+
+  Project: <workspace>/app/panack.json
+  Source archive: <workspace>/source.tar.gz
+  Dependency name: lib
+  Archive field: entry size
+
+Panack has stopped extraction because the reported archive limit was exceeded.
+
+If you maintain this package, reduce the reported value or count and recreate the archive. Otherwise, ask the package maintainer for an archive within Panack's limits.

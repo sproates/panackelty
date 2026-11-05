@@ -1,0 +1,61 @@
+𐐷
+2
+?
+2
+9
+1
+true
+true
+evaluated input
+2
+Cannot validate the value as Label.
+
+Label requires at least 1 Unicode scalar value, but the string is empty.
+
+Label requires at least one character that is not Unicode whitespace, but the string is empty.
+𐐷
+1
+Cannot validate the value as Label.
+
+Label requires at least one character that is not Unicode whitespace, but the string has no such character.
+2
+Cannot validate the value as Label.
+
+Label allows at most 2 Unicode scalar values, but the string contains 9.
+
+Label does not allow control characters, but U+0009 occurs at character position 2 (counting Unicode scalar values from 1).
+Cannot validate the value as Names.
+
+Names requires at least 1 array element, but the array is empty.
+1
+Cannot validate the value as OneMember.
+
+OneMember allows at most 1 set element, but the set contains 2.
+Cannot validate the value as Alternative.
+
+Alternative requires ((n < 2) || (n > 8)), but that condition is false.
+
+Alternative requires (n != 4), but that condition is false.
+9
+true
+Cannot validate the value as Port.
+
+Port requires (n <= 65535), but that condition is false.
+-2
+2
+Cannot validate the value as OrderedRange.
+
+OrderedRange requires field 'start' to be less than or equal to field 'end', but that relationship is not satisfied.
+2
+Cannot validate the value as WindowInOrder.
+
+WindowInOrder requires field 'first' to be less than field 'middle', but that relationship is not satisfied.
+
+WindowInOrder requires field 'middle' to be less than or equal to field 'last', but that relationship is not satisfied.
+OK
+1.1
+1/3
+Ada
+guest
+first
+two

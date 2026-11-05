@@ -1,0 +1,250 @@
+pub import project/src/packages/diagnostic::{PackageProblem}
+pub import project/packages/http/src/types::{HttpError}
+import project/src/packages/diagnostic::{package_problem, explain_problem, package_result, problem_label, host_detail}
+import project/packages/http/src/stream as http
+import project/packages/http/src/parser::{lower_ascii}
+pub import project/src/packages/archive::{StagedArchive}
+import project/src/packages/archive::{consume_compressed, gzip_failure}
+import project/src/packages/tar_stream::{TarStream, tar_stream_new, tar_stream_finish}
+import project/src/packages/sha256::{Sha256, sha256_new, sha256_feed, sha256_finish, sha256_close}
+import stdlib/filesystem_stage as staging
+import stdlib/gzip as gzip
+import stdlib/path as path
+import stdlib/bytes as byte_buffer
+
+record Decoder { stage: Nat, gzip_handle: Nat, tar: TarStream, hash: Sha256 }
+
+consume(state: Decoder, input: Bytes): Result[Decoder, PackageProblem] {
+  match consume_compressed(state.stage, state.gzip_handle, state.tar, input, false) {
+    Error(problem) => Error(problem),
+    Ok(tar) => Ok(Decoder(state.stage, state.gzip_handle, tar, sha256_feed(state.hash, input)))
+  }
+}
+
+pure safe_url(url: Str): Bool {
+  mut valid: Bool = url.starts_with_at("https://", 0)
+  data = url.encode_utf8()
+  for index in 0..data.length() { byte = data.at(index); if byte <= 32 || byte == 127 || byte == 64 || byte == 63 || byte == 35 || byte == 92 { valid = false } }
+  valid
+}
+
+pure redirect_url(current: Str, location: Str): Str {
+  if location.starts_with_at("https://", 0) { location }
+  else if location.starts_with_at("//", 0) { "https:" + location }
+  else {
+    mut origin_end: Nat = current.len()
+    for index in 8..current.len() { if current.slice(index, index + 1) == "/" && origin_end == current.len() { origin_end = index } }
+    origin = current.slice(0, origin_end)
+    if location.starts_with_at("/", 0) { origin + location }
+    else {
+      mut slash: Nat = origin_end
+      for index in origin_end..current.len() { if current.slice(index, index + 1) == "/" { slash = index } }
+      if origin_end == current.len() { origin + "/" + location }
+      else { current.slice(0, slash + 1) + location }
+    }
+  }
+}
+
+// A redirect target is untrusted server data. Explain the rejected property,
+// but never echo the target: credentials can occur in any part of the value.
+pub pure archive_redirect(current: Str, locations: [Str], hops: Nat): Result[Str, PackageProblem] {
+  mut cause = ""
+  if hops >= 5 { cause = "the server exceeded Panack's limit of five redirects" }
+  else if locations.len() == 0 { cause = "the server sent a redirect without a destination (Location header)" }
+  else if locations.len() > 1 { cause = "the server sent more than one redirect destination (Location header)" }
+  else if locations[0] == "" { cause = "the server sent an empty redirect destination (Location header)" }
+  else {
+    location = locations[0]
+    if !safe_url("https://placeholder/" + location) {
+      cause = "the redirect destination contains a forbidden control character"
+      for index in 0..location.len() {
+        character = location.slice(index, index + 1)
+        if character == "@" { cause = "the redirect destination contains an '@' character, which Panack forbids to exclude credentials" }
+        else if character == "?" { cause = "the redirect destination contains a query, which Panack does not allow in package URLs" }
+        else if character == "#" { cause = "the redirect destination contains a fragment, which Panack does not allow in package URLs" }
+        else if character == " " { cause = "the redirect destination contains a space" }
+        else if character == "\\" { cause = "the redirect destination contains a backslash" }
+      }
+    } else if lower_ascii(location).starts_with_at("http:", 0) {
+      cause = "the server redirected the download to an unencrypted HTTP address"
+    } else {
+      mut first_component = true
+      mut scheme = false
+      for index in 0..location.len() {
+        character = location.slice(index, index + 1)
+        if character == "/" { first_component = false }
+        if first_component && character == ":" { scheme = true }
+      }
+      if scheme && !location.starts_with_at("https://", 0) {
+        cause = "the redirect destination uses an unsupported URL scheme; Panack requires HTTPS"
+      }
+    }
+  }
+  if cause != "" {
+    Error(explain_problem(package_problem("PKG_REDIRECT", "Cannot download the archive because " + cause + "."),
+      "Panack stopped before following this redirect. The rejected destination is omitted because server-provided URLs can contain secrets.",
+      "Ask the server administrator to correct the redirect or the package maintainer to provide a direct HTTPS archive URL. Retry your command once the download is available."))
+  } else { Ok(redirect_url(current, locations[0])) }
+}
+
+open_archive(url: Str): Result[http.ResponseStream, PackageProblem] {
+  mut current = url
+  mut hops: Nat = 0
+  mut response: Option[http.ResponseStream] = None()
+  mut failure: Option[PackageProblem] = None()
+  while response == None() && failure == None() {
+    if !safe_url(current) { failure = Some(http_problem(http.HttpError.InvalidUrl(""))) }
+    else { match http.open_response(current, 60000, 67108864) {
+      Error(problem) => { failure = Some(http_problem(problem)) },
+      Ok(opened) => {
+        if opened.status == 200 {
+          mut encoding: Bool = false
+          for header in opened.headers { if lower_ascii(header.name) == "content-encoding" && lower_ascii(header.value) != "identity" { encoding = true } }
+          if encoding { closed = http.close_response(opened); failure = Some(explain_problem(package_problem("PKG_HTTP", "Cannot use the download because the server applied an additional content encoding."),
+            "Panack needs the original .tar.gz bytes to verify the archive checksum. HTTP Content-Encoding would change the representation being checked.",
+            "Ask the server administrator to serve the .tar.gz file directly, without HTTP Content-Encoding, or with Content-Encoding: identity. Then retry your command.")) }
+          else { response = Some(opened) }
+        } else {
+          closed = http.close_response(opened)
+          if opened.status == 301 || opened.status == 302 || opened.status == 303 || opened.status == 307 || opened.status == 308 {
+            mut locations: [Str] = []
+            for header in opened.headers { if lower_ascii(header.name) == "location" { locations = locations.append(header.value) } }
+            match archive_redirect(current, locations, hops) {
+              Error(problem) => { failure = Some(problem) },
+              Ok(next) => { current = next; hops = hops + 1 }
+            }
+          } else { status = opened.status; failure = Some(http_status_problem(status)) }
+        }
+      }
+    } }
+  }
+  match failure { Some(problem) => Error(problem), None() => match response { Some(value) => Ok(value), None() => Error(package_problem("PKG_TOOL", "Cannot finish the archive request because Panack has neither a response nor a reported transport error.")) } }
+}
+
+extract(stage: Nat, response: http.ResponseStream): Result[StagedArchive, PackageProblem] {
+  match gzip.open(268435456) {
+    Error(problem) => Error(gzip_failure(problem.code)),
+    Ok(handle) => {
+      hash = sha256_new()
+      decoded = http.fold_body_with_errors(response, Decoder(stage, handle, tar_stream_new(), hash), @consume, 67108864, @http_problem)
+      result = match decoded {
+        Error(problem) => { sha256_close(hash); Error(problem) },
+        Ok(state) => match consume_compressed(stage, handle, state.tar, byte_buffer.empty(), true) {
+          Error(problem) => { sha256_close(state.hash); Error(problem) },
+          Ok(tar) => match package_result(sha256_finish(state.hash), "PKG_TOOL") {
+            Error(problem) => Error(problem),
+            Ok(digest) => match tar_stream_finish(tar) {
+              Error(problem) => Error(problem),
+              Ok(entries) => match staging.path(stage) {
+                Error(problem) => Error(package_problem("PKG_FILESYSTEM", "Cannot locate the temporary package directory: " + host_detail(problem.code) + ".")),
+                Ok(root) => match root.to_text() {
+                  Error(problem) => Error(package_problem("PKG_FILESYSTEM", "Cannot use the temporary package directory because its path is not valid UTF-8 text.")),
+                  Ok(text) => Ok(StagedArchive(stage, text, digest, entries))
+                }
+              }
+            }
+          }
+        }
+      }
+      closed = gzip.close(handle)
+      result
+    }
+  }
+}
+
+pub stage_remote_archive(parent: Str, url: Str): Result[StagedArchive, PackageProblem] {
+  match path.from_text(parent) {
+    Error(problem) => Error(problem_label(package_problem("PKG_FILESYSTEM", "Cannot create the temporary archive directory because its parent path cannot be represented on this system."), "Parent directory", parent)),
+    Ok(parent_path) => match staging.begin(parent_path) {
+      Error(problem) => Error(problem_label(package_problem("PKG_FILESYSTEM", "Cannot create a temporary directory to unpack the archive: " + host_detail(problem.code) + "."), "Parent directory", parent)),
+      Ok(stage) => {
+        result = match open_archive(url) {
+          Error(problem) => Error(problem),
+          Ok(response) => { extracted = extract(stage, response); closed = http.close_response(response); extracted }
+        }
+        match result { Ok(archive) => Ok(archive), Error(problem) => { closed = staging.close(stage); Error(problem) } }
+      }
+    }
+  }
+}
+
+pub pure http_problem(problem: HttpError): PackageProblem {
+  match problem {
+    http.HttpError.InvalidUrl(detail) => explain_problem(package_problem("PKG_HTTP_URL", "Cannot download the archive because its URL is invalid."), "", "Check that the dependency specifies a direct HTTPS archive URL, then retry your command."),
+    http.HttpError.InvalidLimits() => package_problem("PKG_TOOL", "Panack supplied invalid HTTP transport limits."),
+    http.HttpError.DnsFailure() => explain_problem(package_problem("PKG_HTTP_DNS", "Cannot download the archive because Panack could not find the server's network address."),
+      "The DNS lookup failed, so Panack could not contact the archive server. This failure does not establish whether the hostname is incorrect or the DNS service is unavailable.",
+      "Check the hostname in the dependency's archive URL. If the hostname is correct, check network connectivity and DNS configuration in the environment running Panack, then retry your command."),
+    http.HttpError.ConnectFailure() => explain_problem(package_problem("PKG_HTTP_CONNECT", "Cannot download the archive because Panack could not connect to the archive server."),
+      "Panack could not establish a connection. The reported error does not identify whether the server is unavailable or something is blocking the connection.",
+      "Check whether the archive URL is accessible from the environment running Panack. Check network access and any firewall or proxy restrictions. If the server remains unreachable, report the problem to the server administrator.\n\nRetry your command once connectivity is restored."),
+    http.HttpError.TlsFailure() => explain_problem(package_problem("PKG_HTTPS_CONNECTION", "Cannot download the archive because Panack could not establish a secure HTTPS connection to the archive server."),
+      "The HTTP API has not provided enough detail for Panack to identify the cause.",
+      "Check whether the archive URL is accessible over HTTPS from the same environment. If you manage the server, check its HTTPS configuration and certificate; otherwise, report the failure to the server administrator."),
+    http.HttpError.Timeout() => explain_problem(package_problem("PKG_HTTP_TIMEOUT", "Cannot download the archive because the request exceeded Panack's 60-second time limit."),
+      "Panack did not receive the complete archive within the time limit. Panack has stopped the download.",
+      "Retry your command. If the download repeatedly times out, check whether the archive URL is accessible from the same environment and report the problem to the server administrator."),
+    http.HttpError.ProtocolError(detail) => problem_label(explain_problem(package_problem("PKG_HTTP_PROTOCOL", if detail.starts_with_at("truncated", 0) || detail.starts_with_at("incomplete", 0) || detail.starts_with_at("missing", 0) {
+        "Cannot finish downloading the archive because the HTTP response ended before Panack received all the required data."
+      } else { "Cannot finish downloading the archive because the server's HTTP response is incorrectly formatted." }),
+      "Panack cannot safely determine the complete archive contents from this response.",
+      "Retry your command. If the same error continues, report the archive URL and response detail to the server administrator."), "Response detail", detail),
+    http.HttpError.LimitExceeded(detail) => http_limit_problem(detail),
+    http.HttpError.Cancelled() => explain_problem(package_problem("PKG_HTTP_CANCELLED", "The archive download was cancelled before completion."),
+      "", "Run your command again when you are ready to continue."),
+    http.HttpError.UnsupportedHost() => explain_problem(package_problem("PKG_HTTPS_UNAVAILABLE", "Cannot download the archive because this Panack installation has no usable HTTPS support."),
+      "", "Use a supported native Panack installation with its required libcurl support. Check the installation instructions for this environment."),
+    http.HttpError.UnsupportedMethod(detail) => package_problem("PKG_TOOL", "Panack requested an unsupported HTTP method."),
+    http.HttpError.UnsupportedVersion(detail) => explain_problem(package_problem("PKG_HTTP_PROTOCOL", "Cannot download the archive because the server response uses an unsupported HTTP version."), "", "Ask the server administrator to provide an HTTP/1.0 or HTTP/1.1 response, then retry your command."),
+    http.HttpError.UnsupportedTransferEncoding() => explain_problem(package_problem("PKG_HTTP_PROTOCOL", "Cannot download the archive because the server response uses an unsupported transfer encoding."), "", "Ask the server administrator to send the archive using either one Transfer-Encoding: chunked header or a Content-Length header without Transfer-Encoding. Then retry your command."),
+    http.HttpError.InvalidRequest() => package_problem("PKG_TOOL", "Panack constructed an invalid HTTP request."),
+    http.HttpError.InvalidResponse() => explain_problem(package_problem("PKG_HTTP_PROTOCOL", "Cannot understand the archive server's HTTP response."), "", "Retry your command. If the response remains invalid, report the error and archive URL to the server administrator."),
+    http.HttpError.TransportFailure(detail) => explain_problem(package_problem("PKG_HTTP_TRANSPORT", "Cannot finish downloading the archive because the connection failed."),
+      "Panack did not receive a complete archive. The HTTP API has not provided enough detail to identify the cause.", "Check connectivity from the environment running Panack, then retry your command.")
+  }
+}
+
+pub pure http_status_problem(status: Nat): PackageProblem {
+  mut message = "Cannot download the archive because the server returned HTTP ${status} instead of the archive."
+  mut help = "Check that the URL provides a direct archive download. If the URL is correct, report the archive URL and HTTP status to the server administrator."
+  if status == 404 {
+    message = "Cannot download the archive because the server could not find the requested archive."
+    help = "Check the archive URL in panack.json. If the URL is incorrect, correct the URL and retry your command.\n\nIf the URL is correct, ask the package maintainer where the archive is available."
+  } else if status == 401 {
+    message = "Cannot download the archive because the server requires authentication."
+    help = "Panack requires an archive URL that can be downloaded without signing in. Ask the package maintainer for a suitable download URL."
+  } else if status == 403 {
+    message = "Cannot download the archive because the server refused access."
+    help = "Check the archive URL. If the URL is correct, ask the server administrator why access was refused. Panack requires an archive URL that can be downloaded without signing in."
+  } else if status == 407 {
+    message = "Cannot download the archive because the proxy requires authentication."
+    help = "Check the proxy access requirements in the environment running Panack. Ask the network administrator how to make this download accessible."
+  } else if status == 429 {
+    message = "Cannot download the archive because the server is limiting requests."
+    help = "Wait before retrying. If the server continues to reject the request, contact the server administrator."
+  } else if status >= 500 && status < 600 {
+    message = "Cannot download the archive because the server reported an error."
+    help = "Retry later. If the error continues, report the archive URL and HTTP status to the server administrator."
+  }
+  problem_label(explain_problem(package_problem("PKG_HTTP_STATUS", message), "", help), "Server response", "HTTP ${status}")
+}
+
+pub pure http_limit_problem(detail: Str): PackageProblem {
+  mut cause = "the response exceeded a transport limit"
+  mut help = "Report the response detail and your Panack version to the server administrator."
+  if detail == "response body" || detail == "request body" {
+    cause = "the archive exceeds Panack's 64 MiB download limit"
+    help = "Ask the package maintainer for an archive within this limit."
+  } else if detail == "chunk line" {
+    cause = "a chunk-size line exceeds Panack's 8 KiB limit"
+    help = "Ask the server administrator to shorten the HTTP chunk-size lines, including any extensions, then retry your command."
+  } else if detail == "informational responses" {
+    cause = "the server sent more than Panack's limit of eight informational responses before the archive response"
+    help = "Ask the server administrator to correct the sequence of HTTP responses, then retry your command."
+  } else if detail == "response headers" || detail == "response trailers" || detail == "response headers and trailers" || detail == "request headers and trailers" {
+    cause = "the HTTP headers and trailers exceed Panack's combined 64 KiB limit"
+    help = "Ask the server administrator to reduce the HTTP headers and trailers, then retry your command."
+  }
+  problem_label(explain_problem(package_problem("PKG_HTTP_LIMIT", "Cannot finish downloading the archive because " + cause + "."),
+    "Panack stopped the download at the response limit.", help), "Response detail", detail)
+}

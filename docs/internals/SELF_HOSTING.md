@@ -1,5 +1,26 @@
 # Self-hosting roadmap
 
+## Package tool separation on next
+
+GI#200 P02 builds the Panack package tool separately from the compiler. The
+compiler accepts and validates a temporary resolved-project descriptor; it
+contains no archive acquisition or lock policy. The matching compiler seed is
+`aa2eb354c90be0cf85f743f4b1e2673f229c087a71e6f79698df0943c5de18d6`;
+stages 2, 3 and 4 reproduce it. Package-only changes rebuild the package artifact
+without refreshing this seed. Generic host grants are part of the initial
+interface change; there is no new bytecode version or arbitrary C FFI.
+
+The P03a HTTP prerequisite adds three checked grants for `stdlib/http_stream`.
+Its one-time seed refresh exposes generic open/read/close transport operations;
+it adds no package policy to the compiler. Subsequent remote-package changes
+continue to build only the separate package artifact. The seed is reproduced
+through the existing stage 2/3/4 procedure, producing
+`34690cbd157483b57076e508d362a480405924326ce748de3905783d35d97eed`.
+The standard-library conformance artifact remains unchanged.
+P03a acquisition uses these existing grants through the Panack HTTP package.
+Its package-tool handoff test verifies that a package-only behaviour edit changes
+neither compiler artifact nor seed and invokes no compiler build.
+
 ## Current state
 
 Alpha.13 is published with the self-hosted namespace-capable compiler, local
@@ -259,8 +280,12 @@ for a compatible guarded target when the
 source invariant proves the target; ordinary checks still retain no explanation
 evidence. Fresh stage-2/3/4 compiler and standard-library
 fixed points validate the refresh; see the [query contract](../guides/COMPILER_EXPLANATIONS.md)
-and validation profile. This is a bounded subtraction query, not full compiler
-or runtime explanations.
+and validation profile. The subsequent GI#180 delivery extends this foundation
+to the maintained checker-decision inventory, interactive source navigation and
+complete instruction origins. The separately compiled explorer is written in
+Panack; its terminal adapter supplies host input only. See the
+[current acceptance record](../COMPILER_UNDERSTANDING_ACCEPTANCE.md), including
+the remaining GI#435 integration. Runtime value explanations are separate.
 
 The U2 deliveries refresh the v9 seed with complete frontend expression spans,
 optional instruction-source retention and validated public source-map commands.
@@ -630,3 +655,34 @@ The alpha.13 coverage-capacity correction refreshes the v9 seed through the
 standard stages 2–4 fixed-point proof. The self-hosted raw/session readers accept
 32 MiB containers while identity blobs remain bounded at 16 MiB. Compiler digest:
 `206a9dc17af2ca4d7d85af6759729aa35a7e9cb5dc53593b038d473cfbcf4403`.
+
+The P03b generic prerequisite adds exact-environment process launch, staged
+symbolic-link creation and bounded link-target inspection. Their explicit
+compiler grants refresh the v9 seed through the existing staged fixed-point
+procedure; bytecode remains version 9. Package policy remains outside the
+compiler. This prerequisite does not complete Git acquisition or the alpha.16
+native-interface decoupling task.
+
+P03b's Git acquisition modules use the merged prerequisite without changing
+compiler sources, native sources, bytecode version or bootstrap bytes. Its source
+and saved-bytecode fixtures compile with the existing seed. The package-only
+handoff regression remains the check that edits do not trigger a compiler build.
+
+P03c adds manifest/ref, lock and shared-snapshot integration entirely in the
+Panack package tool. Its package-owned manifest records do not alter the frozen
+compiler parser, saved seed, native operations or resolved-project schema.
+
+P04a package diagnostics remain in the independent Panack package tool. Structured
+problems and rendering change no compiler/native source, descriptor schema or
+saved bootstrap artifact. The package-tool handoff and canonical bootstrap checks
+remain the required build-independence evidence.
+
+The alpha.15 inventory-capacity prerequisite refreshes the v9 seed through the
+standard stages 2–4 fixed-point proof. Inventories allow 64 MiB and enclosing
+coverage records 128 MiB; compiler/artifact identity bounds remain 16 MiB.
+The coverage format and ordinary execution semantics are unchanged.
+
+RM#155 refreshes the v9 compiler seed for the interpolation diagnostic. The
+self-hosted compiler and project-manifest reader now print actual field values
+in their own errors. Stages 2, 3 and 4 produced identical compiler bytes and
+standard-library conformance output during seed regeneration.

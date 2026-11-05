@@ -1,0 +1,4 @@
+main(): Void {
+  name = "Ada"
+  print("λ\nFirst: ${name[0]}")
+}

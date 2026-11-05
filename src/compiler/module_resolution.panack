@@ -952,8 +952,8 @@ pub pure module_import_shadow_diagnostics(graph: ModuleBindingGraph, module: Mod
     origin: SourceSpan = parsed.syntax[index].span
     match declaration {
       ImportDeclaration(path) => {},
-      TypeDeclaration(name, base, guard) => {
-        diagnostics = diagnostics.concat(import_shadow_diagnostic(names, "value", origin))
+      TypeDeclaration(name, base, guard_name, guard) => {
+        diagnostics = diagnostics.concat(import_shadow_diagnostic(names, guard_name, origin))
         diagnostics = diagnostics.concat(expression_import_shadows(guard, names, origin))
       },
       RecordDeclaration(name, parameters, fields) => {

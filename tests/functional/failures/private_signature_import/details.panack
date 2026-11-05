@@ -1,0 +1,1 @@
+pub record Trip { city: Str, days: Nat }

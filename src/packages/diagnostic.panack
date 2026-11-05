@@ -1,0 +1,364 @@
+import stdlib/compiler_paths as paths
+
+// Package diagnostics are data until the public command boundary. Codes are
+// assigned where a failure is detected, never inferred from rendered prose.
+pub record ProblemContext { label: Str, value: Str }
+
+pub record PackageProblem {
+  code: Str,
+  message: Str,
+  phase: Str,
+  reason: Str,
+  help: Str,
+  contexts: [ProblemContext]
+}
+
+pub pure package_problem(code: Str, message: Str): PackageProblem {
+  mut phase = "finding dependencies"
+  mut reason = "Panack could not finish loading the dependencies."
+  mut help = "Correct the reported dependency problem, then retry your command."
+  if code.starts_with_at("PKG_GIT_", 0) || code.starts_with_at("PKG_SYMLINK_", 0) { reason = "" }
+  if code == "PKG_LOCK_MISSING" {
+    phase = "checking panack.lock.json"
+    reason = "The lockfile records the exact dependencies the project uses and belongs alongside panack.json."
+    help = "If you have an existing lockfile for this project, restore that file to the expected location. Otherwise, create one by running:"
+  } else if code == "PKG_LOCK_REQUIRED" {
+    phase = "checking selected dependencies"
+    reason = "A selected update needs an existing lockfile so Panack can preserve the dependencies you did not select. Panack has not changed any package files."
+    help = "Restore an existing lockfile for this project, or create an initial lockfile for all dependencies by running:"
+  } else if code == "PKG_LOCK_STALE" {
+    phase = "checking panack.lock.json"
+    reason = "The package definitions no longer match the lockfile. Panack checks the complete manifest files, so formatting changes also require the lockfile to be updated."
+    help = "If the change was unintended, restore the previous package definition. Otherwise, review the change before running panack deps update. Updating the lockfile may select different package versions or contents."
+  } else if code == "PKG_LOCK_INVALID" {
+    phase = "checking panack.lock.json"
+    reason = "Panack cannot determine the project's dependencies from this lockfile."
+    help = "If you edited the lockfile, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile. Creating a new lockfile may select different dependencies."
+  } else if code == "PKG_CACHE_MISSING" {
+    phase = "checking saved packages"
+    reason = "The lockfile records this dependency, but Panack cannot find its local files."
+    help = "Restore the packages identified by the lockfile by running:"
+  } else if code == "PKG_CACHE_INVALID" {
+    phase = "checking saved packages"
+    reason = "Panack cannot use this local package copy because the reported verification check failed."
+    help = "Save any edits you want to keep elsewhere before restoring these files.\n\nTo restore the local package files, run:"
+  } else if code == "PKG_CACHE_CHECKSUM" {
+    phase = "checking saved packages"
+    reason = "Panack calculated a checksum for the local package files. That checksum does not match the checksum recorded in the lockfile."
+    help = "Save any edits you want to keep elsewhere before restoring these files.\n\nTo restore the local package files to the contents identified by the lockfile, run:"
+  } else if code == "PKG_CACHE_STATE_MISSING" || code == "PKG_CACHE_STATE_INVALID" {
+    phase = "checking saved packages"
+    reason = "Panack's package state record identifies the lockfile used to prepare the local packages. Panack cannot verify the local packages using this record."
+    help = "Save any edits to local package files elsewhere before restoring dependencies. To recreate the record and prepare the packages identified by the lockfile, run:"
+  } else if code == "PKG_INTEGRITY" {
+    phase = "checking package contents"
+    reason = "The package failed a checksum or identity check against the lockfile. Panack has refused to use the unexpected contents."
+    help = "Obtain the original package identified by the lockfile and retry your command. If you intend to use changed contents instead, review those contents before running panack deps update."
+  } else if code == "PKG_MANIFEST_MISSING" {
+    phase = "finding panack.json"
+    reason = "Panack needs panack.json to read the package's name, version and dependencies."
+    help = "Check the dependency path in the declaring manifest. If the path is wrong, correct the path. If the path is right, restore the missing panack.json or obtain a complete copy of the package."
+  } else if code == "PKG_MANIFEST_INVALID" {
+    phase = "reading panack.json"
+    reason = "Panack cannot use the package definition until the reported problem is corrected."
+    help = "Correct the reported field in panack.json, then retry your command.\n\nSee the package manifest specification:\n" + manifest_specification()
+  } else if code == "PKG_DEPENDENCY_PATH" || code == "PKG_CONTAINMENT" {
+    phase = "checking package paths"
+    reason = "Panack requires local directory dependencies within a downloaded package to stay inside the containing archive or Git repository."
+    help = "If you maintain this package, include the required library within that source and correct the dependency path. Otherwise, ask the package maintainer for a corrected package."
+  } else if code == "PKG_LAYOUT" {
+    phase = "checking source directories"
+    reason = "These directories overlap, so the same source files could belong to both packages. Panack requires separate source directories for each package."
+    help = "Check the source field in each panack.json. Correct the paths or move the source files so neither source directory contains the other.\n\nSee the package manifest specification:\n" + manifest_specification()
+  } else if code == "PKG_DEPENDENCY_CYCLE" {
+    reason = "Following these dependency declarations leads back to a package already being resolved. Panack does not allow circular dependencies."
+    help = "Check the dependency chain and the dependencies sections of those packages' manifests. Remove or redirect the declaration that creates the cycle, then retry your command."
+  } else if code == "PKG_VERSION_CONFLICT" {
+    reason = "Panack requires one version of each package name throughout the dependency graph. The two package declarations name different versions."
+    help = "Check the dependency paths and versions in the reported package manifests. Choose compatible dependencies that use the same version of this package, then retry your command."
+  } else if code == "PKG_IDENTITY_CONFLICT" {
+    reason = "These directories declare the same package name and version, but refer to separate physical package directories. Panack cannot choose which copy to use."
+    help = "Correct the dependency paths so all references to this package use the same directory, then retry your command."
+  } else if code == "PKG_LIMIT" {
+    phase = "checking size and count limits"
+    reason = "Panack stopped because the reported resource limit was exceeded."
+    help = "Reduce the affected size or count to the stated limit. If you do not maintain the package, ask the package maintainer for a package within the limit."
+  } else if code.starts_with_at("PKG_ARCHIVE_", 0) && code != "PKG_ARCHIVE_CHECKSUM" {
+    phase = "unpacking the archive"
+    reason = "Panack has stopped extraction."
+    help = "Obtain a valid copy of the archive and retry your command. If a fresh copy produces the same error, ask the package maintainer to recreate the archive. A replacement must still match the checksums in an existing lockfile."
+    if code == "PKG_ARCHIVE_UNSUPPORTED" {
+      reason = "Panack accepts POSIX ustar archives containing ordinary files, directories and supported per-file PAX metadata."
+      help = "If you maintain this package, recreate the archive using the supported format and entries. Otherwise, ask the package maintainer for a compatible archive."
+    } else if code == "PKG_ARCHIVE_PATH_INVALID" || code == "PKG_ARCHIVE_PATH_CONFLICT" {
+      reason = "Panack cannot create a portable package directory from the reported paths."
+      help = "If you maintain this package, correct the reported paths and recreate the archive. Otherwise, ask the package maintainer for a corrected archive."
+    } else if code == "PKG_ARCHIVE_EXPANDED_LIMIT" {
+      reason = "Panack has stopped decompression because the expanded archive data exceeds 256 MiB. This limit includes file contents, archive headers, padding and metadata."
+      help = "Ask the package maintainer for an archive within this limit."
+    } else if code == "PKG_ARCHIVE_COMPRESSED_LIMIT" {
+      reason = "The source archive exceeds Panack's 64 MiB compressed-size limit."
+      help = "Ask the package maintainer for a smaller archive."
+    } else if code == "PKG_ARCHIVE_METADATA_LIMIT" {
+      reason = "PAX metadata describes an archive entry."
+      help = "Ask the package maintainer to reduce that metadata and recreate the archive."
+    } else if code == "PKG_ARCHIVE_NUMBER_LIMIT" || code == "PKG_ARCHIVE_ENTRY_LIMIT" || code == "PKG_ARCHIVE_HEADER_LIMIT" {
+      reason = "Panack has stopped extraction because the reported archive limit was exceeded."
+      help = "If you maintain this package, reduce the reported value or count and recreate the archive. Otherwise, ask the package maintainer for an archive within Panack's limits."
+    }
+  } else if code == "PKG_ARCHIVE" {
+    phase = "unpacking the archive"
+    reason = "Panack has stopped unpacking the archive."
+    help = "If you maintain this package, correct the reported archive problem and recreate the archive. Otherwise, ask the package maintainer for a corrected archive. A replacement must still match the checksums in an existing lockfile; accepting changed contents requires a deliberate update."
+  } else if code == "PKG_HTTP" {
+    phase = "downloading the archive"
+    reason = "Panack could not obtain a complete usable archive."
+    help = "Retry your command after correcting the reported download problem."
+  } else if code == "PKG_HTTP_STATUS" {
+    phase = "checking the download response"
+    reason = "The server did not return the requested archive."
+    help = "Check that the URL provides a direct archive download. If the URL is correct, report the archive URL and HTTP status to the server administrator."
+  } else if code == "PKG_REDIRECT" {
+    phase = "following a download redirect"
+    reason = "Panack could not follow the archive server's redirect."
+    help = "Use a direct HTTPS archive URL, or ask the server administrator to correct the redirect."
+  } else if code == "PKG_GIT_VERSION" {
+    help = "Install Git 2.29 or newer, or put a supported Git installation earlier on PATH, then retry your command. Git is needed only when Panack must obtain a Git dependency."
+  } else if code == "PKG_GIT_VERSION_UNKNOWN" {
+    help = "Check the Git executable by running git --version. Use a Git 2.29 or newer installation that reports its version in the standard Git format, then retry your command."
+  } else if code == "PKG_GIT_START" {
+    help = "Check that the Git executable exists and can be run by the account running Panack. Correct the reported system error, then retry your command."
+  } else if code == "PKG_GIT_INTERRUPTED" {
+    reason = "The signal alone does not identify why the process was terminated."
+    help = "Check why Git was terminated in this environment, then retry your command."
+  } else if code == "PKG_GIT_TIMEOUT" {
+    help = "Retry your command. If Git repeatedly exceeds Panack's 60-second time limit, check access to the repository from this environment and report the problem to the repository administrator."
+  } else if code == "PKG_GIT_OUTPUT_LIMIT" {
+    help = "Git produced more than Panack's 16 MiB process-output limit. If you maintain the package, reduce the repository's file listing or diagnostic output. Otherwise, report this error to the package maintainer."
+  } else if code == "PKG_GIT_RESPONSE" {
+    help = "Retry your command. If the problem persists, report this error with your Git and Panack versions."
+  } else if code == "PKG_GIT_REF_NOT_FOUND" {
+    help = "Check the ref field in the dependency's Git declaration. Use an existing branch, tag or complete commit ID, then retry your command."
+  } else if code == "PKG_GIT_REF_AMBIGUOUS" {
+    help = "Set ref to the full branch name (refs/heads/...) or tag name (refs/tags/...) to identify which reference you want, then retry your command."
+  } else if code == "PKG_GIT_SUBMODULE" {
+    reason = "A submodule refers to another Git repository. Panack does not fetch submodule contents for packages."
+    help = "If you maintain this package, provide the required files without a submodule or declare the other package as a dependency in panack.json. Otherwise, ask the package maintainer for a compatible package."
+  } else if code == "PKG_GIT_LFS" {
+    reason = "Git LFS stores file contents separately from the Git repository. Panack does not download those contents."
+    help = "If you maintain this package, provide the required file contents without Git LFS, for example in a complete package archive. Otherwise, ask the package maintainer for a compatible package."
+  } else if code == "PKG_GIT_PATH" || code == "PKG_GIT_CONTENT" || code == "PKG_GIT_LIMIT" {
+    help = "If you maintain this package, correct the reported repository contents. Otherwise, ask the package maintainer for a compatible package."
+  } else if code == "PKG_SYMLINK_INVALID" || code == "PKG_SYMLINK_ESCAPE" || code == "PKG_SYMLINK_LIMIT" {
+    help = "If you maintain this package, correct the symbolic link so its relative target stays inside the repository. Otherwise, ask the package maintainer for a corrected package."
+  } else if code == "PKG_GIT_RESOLVE" {
+    phase = "looking up a Git branch or tag"
+    reason = "Panack could not select a Git commit for this dependency."
+    help = "Check the repository URL and ref field in panack.json. Correct the reported selection problem, then retry your command."
+  } else if code == "PKG_GIT_FETCH" {
+    phase = "preparing files from Git"
+    reason = "Panack could not prepare the required Git package files. A Git exit status alone does not identify the cause."
+    help = "Check that the repository is accessible from the environment running Panack and that the required commit is available. Correct the reported problem, then retry your command."
+  } else if code == "PKG_GIT_REQUIRED" {
+    phase = "finding Git"
+    reason = "Panack uses Git to obtain this dependency and requires Git version 2.29 or newer."
+    help = "Install Git, or make an existing installation available on PATH in the environment running Panack. Check that Git is available by running git --version, then retry your command."
+  } else if code == "PKG_PUBLICATION" {
+    phase = "saving packages"
+    reason = "Earlier packages or the lockfile may already have been saved."
+    help = "Correct the reported filesystem problem. If a lockfile exists, run panack deps restore to prepare the dependencies recorded in that lockfile. If Panack could not create the initial lockfile, retry your original command."
+  } else if code == "PKG_CHANGED" {
+    reason = "Panack cannot verify a consistent set of package files while those files are changing."
+    help = "Wait for other operations writing these files to finish, then retry your command."
+  } else if code == "PKG_FILESYSTEM" {
+    phase = "accessing files"
+    reason = "The required filesystem operation failed."
+    help = "Correct the reported filesystem problem, then retry your command. Check access using the account running Panack."
+  } else if code == "PKG_SELECTIVE" || code == "PKG_DEPENDENCY_UNKNOWN" || code == "PKG_DEPENDENCY_NOT_SELECTED" || code == "PKG_PROJECT_CHANGED" {
+    phase = "checking selected dependencies"
+    reason = "Panack has stopped this update without changing the lockfile."
+    help = "Correct the reported selection problem, then retry your command."
+  } else if code == "PKG_TOOL" {
+    phase = "checking the Panack installation"
+    reason = "Panack could not complete an internal operation."
+    help = "Check the Panack installation and its required native libraries. If the error persists, report the error with your Panack version and operating system."
+  } else if code == "PKG_USAGE" {
+    phase = "reading the command"
+    reason = "Panack could not understand this package command."
+    help = "Use panack deps lock to create a lockfile, panack deps update to accept dependency changes, or panack deps restore to prepare recorded packages. Add --project /path/to/panack.json to select the project. Only restore accepts --offline."
+  }
+  PackageProblem(code, message, phase, reason, help, [])
+}
+
+pub pure manifest_specification(): Str {
+  "https://github.com/sproates/panackelty/blob/main/docs/design/MODULE_PACKAGE_DESIGN.md#package-roots-manifest-and-source-distribution"
+}
+
+pub pure checksum_problem(root: Str): PackageProblem {
+  problem_label(explain_problem(package_problem("PKG_CACHE_CHECKSUM", "Cannot use the local package copy because its checksum does not match the lockfile."),
+    "Panack calculated a checksum for the local package files. That checksum does not match the checksum recorded in the lockfile.",
+    "Save any edits you want to keep elsewhere before restoring these files.\n\nTo restore the local package files to the contents identified by the lockfile, run:"), "Local package directory", root)
+}
+
+pub pure publication_problem(destination: Str, code: Str, state_record: Bool): PackageProblem {
+  problem_label(problem_label(explain_problem(package_problem("PKG_PUBLICATION",
+    if state_record && code == "destination_conflict" { "Cannot save the package state record because the destination is not a regular file." }
+    else if state_record { "Cannot save the record of prepared local packages: " + host_detail(code) + "." }
+    else { "Cannot save the prepared package directory: " + host_detail(code) + "." }),
+    if state_record { "Panack saved the package directories, but could not save the state record used to verify those directories against the lockfile." }
+    else { "Panack stopped while saving prepared packages. The lockfile may already have been saved, and other package directories may already have been replaced." },
+    if code == "destination_conflict" {
+      "Preserve any contents you need before moving the conflicting destination elsewhere. Then prepare the packages recorded in the lockfile by running:"
+    } else {
+      "Correct the reported filesystem problem at the destination. Check access using the account running Panack, then prepare the packages recorded in the lockfile by running:"
+    }), if state_record { "Destination file" } else { "Destination directory" }, destination), "Recovery operation", "restore")
+}
+
+pub pure problem_value(problem: PackageProblem, label: Str): Str {
+  mut value = ""
+  for context in problem.contexts { if context.label == label { value = context.value } }
+  value
+}
+
+// Use the known cause at the detection site, rather than listing all possible
+// failures in the same error family.
+pub pure explain_problem(problem: PackageProblem, reason: Str, help: Str): PackageProblem {
+  PackageProblem(problem.code, problem.message, problem.phase, reason, help, problem.contexts)
+}
+
+pub pure problem_context(problem: PackageProblem, context: Str): PackageProblem {
+  problem_label(problem, "Context", context)
+}
+
+pub pure problem_dependency(problem: PackageProblem, context: Str): PackageProblem {
+  problem_label(problem, "Dependency", context)
+}
+
+pub pure problem_label(problem: PackageProblem, label: Str, context: Str): PackageProblem {
+  mut contexts = [ProblemContext(label, context)]
+  for existing in problem.contexts { contexts = contexts.append(existing) }
+  PackageProblem(problem.code, problem.message, problem.phase, problem.reason, problem.help, contexts)
+}
+
+// Escape terminal controls in paths and supplied text. Do not render raw Git
+// stderr or HTTP headers: those can contain server-controlled credentials.
+pub pure diagnostic_text(text: Str): Str {
+  mut safe = ""
+  for index in 0..text.len() {
+    character = text.slice(index, index + 1)
+    encoded = character.encode_utf8()
+    if character == "\n" { safe = safe + "\\n" }
+    else if character == "\r" { safe = safe + "\\r" }
+    else if character == "\t" { safe = safe + "\\t" }
+    else if encoded.at(0) < 32 || encoded.at(0) == 127 || (encoded.length() == 2 && encoded.at(0) == 194 && encoded.at(1) >= 128 && encoded.at(1) <= 159) { safe = safe + "?" }
+    else { safe = safe + character }
+  }
+  safe
+}
+
+pure diagnostic_quote(text: Str): Str {
+  mut quoted = "'"
+  for index in 0..text.len() {
+    character = text.slice(index, index + 1)
+    quoted = quoted + if character == "'" { "'\"'\"'" } else { character }
+  }
+  quoted + "'"
+}
+
+pub pure render_problem(problem: PackageProblem, manifest: Str, operation: Str): Str {
+  mut message = problem.message
+  restore = problem.code == "PKG_CACHE_MISSING" || problem.code == "PKG_CACHE_INVALID" ||
+    problem.code == "PKG_CACHE_CHECKSUM" || problem.code == "PKG_CACHE_STATE_MISSING" || problem.code == "PKG_CACHE_STATE_INVALID"
+  action = if operation == "project preparation (network-free)" || operation == "run" || operation == "check" { "build this project" }
+    else if operation.starts_with_at("deps restore", 0) { "restore the dependencies" }
+    else if operation.starts_with_at("deps update", 0) { "update the dependencies" }
+    else { "finish this command" }
+  alias = problem_value(problem, "Dependency name")
+  package = problem_value(problem, "Package")
+  subject = if alias == "" { "the package" } else { "dependency '" + alias + "'" + if package == "" { "" } else { " (package '" + package + "')" } }
+  if problem.code == "PKG_CACHE_MISSING" { message = "Cannot " + action + " because " + subject + " is missing locally." }
+  if problem.code == "PKG_CACHE_CHECKSUM" { message = "Cannot " + action + " because the local copy of " + subject + " has changed." }
+  if problem.code == "PKG_ARCHIVE_CHECKSUM" { message = "Cannot " + (if operation.starts_with_at("deps restore", 0) { "restore " } else { "use " }) + subject + " because its source archive's checksum does not match the lockfile." }
+  display_code = if problem.code == "PKG_CACHE_CHECKSUM" { "PKG_CACHE_INVALID" } else if problem.code == "PKG_ARCHIVE_CHECKSUM" { "PKG_INTEGRITY" } else { problem.code }
+  if problem.code == "PKG_LOCK_MISSING" { message = "Cannot " + action + " because its lockfile is missing." }
+  mut output = "panack: error[" + display_code + "]: " + diagnostic_text(message) + "\n"
+  if manifest != "" {
+    output = output + "\n  Project: " + diagnostic_text(manifest) + "\n"
+    if problem.code == "PKG_LOCK_MISSING" || problem.code == "PKG_LOCK_REQUIRED" {
+      output = output + "  Missing file: " + diagnostic_text(paths.parent(manifest) + "/panack.lock.json") + "\n"
+    } else if problem.code.starts_with_at("PKG_LOCK_", 0) || problem.code.starts_with_at("PKG_CACHE_", 0) || problem.code == "PKG_PUBLICATION" || problem.code == "PKG_INTEGRITY" || problem.code == "PKG_ARCHIVE_CHECKSUM" || problem.code == "PKG_DEPENDENCY_UNKNOWN" || problem.code == "PKG_DEPENDENCY_NOT_SELECTED" || problem.code == "PKG_PROJECT_CHANGED" {
+      output = output + "  Lockfile: " + diagnostic_text(paths.parent(manifest) + "/panack.lock.json") + "\n"
+    }
+  }
+  if problem.code != "PKG_LOCK_MISSING" {
+    mut edges: Nat = 0
+    for context in problem.contexts { if context.label == "Dependency" { edges = edges + 1 } }
+    for context in problem.contexts {
+      display = context.label != "Recovery operation" && context.label != "Update dependency" && (!(context.label == "Dependency name" || context.label == "Package") || !(problem.code == "PKG_CACHE_MISSING" || problem.code == "PKG_CACHE_CHECKSUM")) &&
+        !(context.label == "Dependency declared in" && context.value == manifest) &&
+        !(context.label == "Dependency" && edges == 1)
+      if display { output = output + "  " + context.label + ": " + diagnostic_text(context.value) + "\n" }
+    }
+  }
+
+  reason = if problem.code == "PKG_ARCHIVE_CHECKSUM" && !operation.starts_with_at("deps restore", 0) {
+    "Panack checked the source archive against the lockfile. The archive's checksum does not match the recorded checksum, so Panack has refused to use the archive."
+  } else { problem.reason }
+  if reason != "" { output = output + "\n" + reason + "\n" }
+
+  if problem.help != "" { output = output + "\n" + problem.help }
+  if manifest != "" && diagnostic_text(manifest) == manifest {
+    if problem.code == "PKG_LOCK_MISSING" || problem.code == "PKG_LOCK_REQUIRED" {
+      output = output + "\n\n  panack deps lock --project " + diagnostic_quote(manifest)
+    } else if problem.code == "PKG_ARCHIVE_CHECKSUM" {
+      output = output + "\n\n  panack deps restore --project " + diagnostic_quote(manifest)
+      update_alias = problem_value(problem, "Update dependency")
+      if update_alias != "" && diagnostic_text(update_alias) == update_alias {
+        output = output + "\n\nIf you intend to use the changed archive instead, review its contents before running:"
+        output = output + "\n\n  panack deps update --project " + diagnostic_quote(manifest) + " " + diagnostic_quote(update_alias)
+        output = output + "\n\nRunning this update will change the lockfile to record the new dependency selection and checksums."
+      }
+    } else if restore {
+      output = output + "\n\n  panack deps restore --project " + diagnostic_quote(manifest)
+      output = output + if problem.code == "PKG_CACHE_CHECKSUM" { "\n\nRunning this command will replace the local copy without changing the lockfile." } else { "\n\nRunning this command will restore the local packages without changing the lockfile." }
+      if problem.code != "PKG_CACHE_MISSING" {
+        output = output + "\n\nPanack will check the restored package checksums against the lockfile before using the packages."
+      }
+      output = output + "\n\nAn internet connection is needed if remote packages must be downloaded."
+    } else if problem.code == "PKG_PUBLICATION" && problem_value(problem, "Recovery operation") == "restore" {
+      output = output + "\n\n  panack deps restore --project " + diagnostic_quote(manifest)
+      output = output + "\n\nRunning this command will prepare the local packages without changing the lockfile. An internet connection is needed if remote packages must be downloaded."
+    }
+  }
+  output
+}
+
+pub pure package_result[T](result: Result[T, Str], code: Str): Result[T, PackageProblem] {
+  match result { Error(message) => Error(package_problem(code, message)), Ok(value) => Ok(value) }
+}
+
+pub pure host_detail(code: Str): Str {
+  if code == "not_found" { "the path does not exist (not_found)" }
+  else if code == "permission_denied" { "the account running Panack does not have permission (permission_denied)" }
+  else if code == "already_exists" { "the destination already exists (already_exists)" }
+  else if code == "not_directory" { "a path component is not a directory (not_directory)" }
+  else if code == "not_regular_file" { "the path does not identify a regular file (not_regular_file)" }
+  else if code == "is_directory" { "the path is a directory, but a file is required (is_directory)" }
+  else if code == "not_empty" { "the directory is not empty (not_empty)" }
+  else if code == "symlink_loop" { "the path contains a symbolic-link loop (symlink_loop)" }
+  else if code == "io_error" { "the operating system could not complete the file operation (io_error)" }
+  else if code == "launch_failed" { "the process could not be started; check that the executable exists and can be run (launch_failed)" }
+  else if code == "invalid_path" { "the path is not valid for this operation (invalid_path)" }
+  else if code == "invalid_parent" { "the parent directory could not be opened safely (invalid_parent)" }
+  else if code == "parent_changed" { "the parent directory was replaced during this command (parent_changed)" }
+  else if code == "stage_changed" { "the temporary package directory was replaced during this command (stage_changed)" }
+  else if code == "destination_conflict" { "the destination is not a replaceable package directory (destination_conflict)" }
+  else if code == "publication_failed" { "the filesystem could not move the prepared package into its destination (publication_failed)" }
+  else if code == "cleanup_failed" { "the filesystem could not remove temporary files (cleanup_failed)" }
+  else if code == "create_failed" { "the filesystem could not create the temporary directory (create_failed)" }
+  else if code == "open_failed" { "the filesystem could not open the temporary directory (open_failed)" }
+  else if code == "resource_limit" { "the operation reached a system resource limit (resource_limit)" }
+  else if code == "unsupported" || code == "unsupported_host" { "this operation is not supported by this Panack installation (" + code + ")" }
+  else if code == "filesystem_error" { "the filesystem operation failed; no more specific cause was reported (filesystem_error)" }
+  else { "the system reported " + code }
+}

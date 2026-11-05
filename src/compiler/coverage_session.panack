@@ -113,7 +113,7 @@ coverage_session_read(directory: Str, roots: [CoverageRoot]): CoverageSessionRes
     totals = totals.append(coverage_zero(root.mapped.bytecode))
   }
   mut executions: Nat = 0
-  match source_map_read(directory + "/registry", 33554432) {
+  match source_map_read(directory + "/registry", 134217728) {
     Error(error) => {
       valid = false
     },
@@ -198,7 +198,7 @@ coverage_session_read(directory: Str, roots: [CoverageRoot]): CoverageSessionRes
           kind == "process\n".encode_utf8()
       }) && source_map_matches(directory + "/claim-" + id, "claimed\n".encode_utf8())
     if valid {
-      match source_map_read(directory + "/raw-" + id, 33554432) {
+      match source_map_read(directory + "/raw-" + id, 134217728) {
         Error(error) => {
           valid = false
         },

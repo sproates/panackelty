@@ -29,6 +29,7 @@ version=$(sed -n '1p' VERSION)
 cat > "$work/app/panack.json" <<MANIFEST
 {"schema":1,"package":"tests.http_app","version":"0.1.0","language":"modules-v1","toolchain":"$version","source":"src","entry":"main.panack","exports":{},"dependencies":{"http":{"path":"../../../packages/http"}}}
 MANIFEST
+./bin/panack deps lock --project "$work/app/panack.json" > /dev/null
 for probe in parser_test routed_test; do
     ./bin/panack run "packages/http/src/$probe.panack"
     ./bin/panack compile "packages/http/src/$probe.panack" -o "$work/$probe.bc" > /dev/null

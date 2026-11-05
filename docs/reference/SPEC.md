@@ -557,21 +557,102 @@ and inference from the expected return type are also deferred.
 ## Guarded types
 
 ```panackelty
-type Positive = Int where value > 0
-type Port = Nat where value >= 1 && value <= 65535
+type Positive = Int where number => number > 0
+type Port = Nat where port => port >= 1 && port <= 65535
 ```
 
-A guarded type is a nominal refinement of a primitive scalar. `value` denotes
-the candidate value. The initial decidable guard language contains literals,
-`value`, comparisons, `&&`, `||`, and arithmetic.
+For a complete request handler, public error fields and alpha.14 migration steps, see
+the [validated domain types guide](../guides/VALIDATED_DOMAIN_TYPES.md).
+
+A guarded type gives a base type a name and a checked requirement. The identifier
+before `=>` names the candidate within this condition. To migrate an existing
+guard that uses `value`, write `where value =>` before its condition. A line
+break after `=>` or before `&&` continues the guard. Numeric guards support
+parentheses, comparisons, `&&`, `||`, and the existing arithmetic expressions.
 
 The checker accepts a conversion only when it can prove the target guard from
 the value's literal, facts introduced by a surrounding `if`, or the invariant
 of a guarded source type with a compatible primitive base. A guarded source
 does not prove a stricter target unless its invariant entails that target
-guard. The checker does not silently insert a runtime check. A future
-`check<T>(expression): Result<T, GuardError>` operation will be the explicit
-boundary for untrusted values.
+guard. The checker does not silently insert a runtime check. Use
+`validate[Type](input)` to check a runtime value explicitly.
+
+String and collection guards can constrain the number of Unicode scalar values,
+array elements, map entries or distinct set members. Both bounds are inclusive.
+Use a non-negative constant, optionally computed using closed natural addition,
+multiplication or subtraction. Group requirements with parentheses and `&&`.
+
+```panackelty
+type Label = Str where s =>
+  s != "" && s.len() <= 80
+  && s.is_non_blank() && s.has_no_control_characters()
+
+type ShortList = [Str] where items => items.len() >= 1 && items.len() <= 4
+type TwoKeys = Map[Str,Nat] where entries => entries.len() <= 2
+type Participants = Set[Str] where names => names.len() >= 1
+```
+
+For strings, `s != ""` and `s.len() >= 1` establish the same minimum.
+`is_non_blank()` requires a character outside Unicode 17.0.0 White_Space.
+`has_no_control_characters()` excludes U+0000–001F and U+007F–009F. Empty text
+is blank and contains zero control characters. Both predicates and the four
+`len()` methods are available in ordinary code. Replacing a map entry or adding
+a duplicate set member preserves its count.
+
+`Label("North")` and an annotation such as `label: Label = "North"` ask the
+compiler to prove the requirements. Panack uses literal content, collection
+construction, established guarded types and facts from control flow. Assignment
+invalidates facts about the previous value. Known violations and missing proofs
+produce different diagnostics at the use site and identify the guard declaration.
+Contradictory bounds report both locations.
+
+When a guarded result is required, each value-producing branch of an
+`if` expression must satisfy that type. A branch may already carry the
+guard or may supply a base value whose facts prove it. A literal supplied
+where an array of guarded elements is required is checked element by element,
+including nested literals. These conversions use static proof. A guarded
+array can be indexed directly with the usual natural index and bounds checks.
+
+#### Runtime validation
+
+`validate[Type](input)` takes one value of the declared base type, evaluates it
+once, and returns `Result[Type, ValidationError]`. The success case carries the
+original value. A wrong base type or unsupported target is a compilation error.
+Numeric validation supports comparisons, Boolean combinations, and arithmetic
+on the candidate and constants. Division and remainder require a positive
+natural literal divisor. An alternative joined with `||` is one requirement.
+
+On failure, `error.failures` contains one entry per failed written conjunct in
+declaration order, including failures after a passing condition. Each entry has
+the target identity, location, requirement and observed facts. A control failure
+records only the first offending scalar and its zero-based scalar index.
+`error.render()` returns a heading and a paragraph per failure. Rendering uses
+one-based character positions and omits the input and trailing newline. The
+caller chooses whether to display the error. Public data types live in
+`stdlib/validation`; calling `validate` and rendering an inferred error require
+no import.
+
+#### Relationships between record fields
+
+```panackelty
+record Range { start: Int, end: Int }
+type OrderedRange = Range where r => r.start <= r.end
+```
+
+Use `<` or `<=` between two direct fields with the same underlying ordered
+numeric type. Combine requirements using `&&`. The compiler can prove an
+ordering from numeric constructor literals, a comparison on the same record
+in a branch, or a compatible guarantee the value already carries. Passing
+a guarded record through a typed call, generic or collection preserves its
+type. Reading a field gives its declared type, including its own guard.
+
+To change a field, construct a complete base record. For example,
+`Range(new_start, previous.end)` keeps the old end and requires a fresh proof
+or explicit validation. `validate[OrderedRange](candidate)` reports one failure
+per broken relationship, with the left and right field names in order.
+The original guarded value remains available even if its replacement fails.
+`panack explain` links static proofs and runtime checks to the declared rule.
+A source map links the emitted comparison back to that rule.
 
 This separation is important: arbitrary user code in guards would make type
 checking non-terminating. Guards therefore remain total, pure, and within a
@@ -681,6 +762,10 @@ pure greeting(name: Str, attempts: Nat): Str {
   "Hello, ${name}; attempt ${attempts}"
 }
 ```
+
+A closed interpolation containing anything other than a local identifier is a
+compile-time error. Assign a field, index or call result to a local first. To
+produce literal placeholder text, concatenate `"$" + "{name}"`.
 
 Interpolation accepts `Nat`, `Int`, `Dec`, `Rat`, `Unit`, `Str`, `Bool`, and guarded scalar
 types. It is pure string construction, not I/O. Indexing uses a `Nat` and returns
@@ -1017,7 +1102,7 @@ Reads fail without partial data when their explicit byte limit is exceeded.
 Writes create or truncate a file and may leave partial contents on failure;
 they promise neither atomic replacement nor durable storage. New ordinary file
 and directory permissions are 0666 and 0777 filtered by the caller's umask.
-Synchronous file data and read limits are capped at 32 MiB. Special files are rejected after
+Synchronous file data and read limits are capped at 128 MiB. Special files are rejected after
 opening with nonblocking flags; these calls are not a general stream API.
 
 `FileMetadata { kind: FileKind, size: Nat }` describes the final directory entry
@@ -1097,6 +1182,25 @@ network or listener permission. Native CLI execution permits these operations;
 server children inherit the parent's filesystem grant, but never its listener
 grant. Existing synchronous filesystem calls remain unavailable in async bodies.
 
+### Confined symbolic-link operations
+
+`filesystem_stage.symlink(handle: Nat, relative: Path, target: Path)` returns
+`Result[Unit,HostError]`. It exclusively creates a symbolic link beneath the
+retained stage directory, refusing parent traversal and symlinked ancestors.
+It never overwrites an existing entry or opens the target. Targets retain their
+native bytes and must be nonempty, NUL-free and at most 4096 bytes, subject to
+host limits. The caller decides whether absolute, dangling or escaping targets
+are appropriate; package acquisition imposes its own containment policy.
+
+`bounded_filesystem.read_link(root: Path, relative: Path)` returns
+`Result[Bytes,HostError]`. It opens directory ancestors without following links,
+then returns the final link's native target bytes without dereferencing it.
+The root follows staging's documented system-directory-alias handling on macOS.
+Relative paths cannot be absolute or traverse parents. Missing paths, regular
+files, symlinked ancestors and targets exceeding 4096 bytes fail explicitly.
+The read is bounded; it does not promise stability across subsequent calls.
+Both operations are native-only and return `unsupported` in the browser.
+
 ### Process execution
 
 ```panack
@@ -1119,7 +1223,16 @@ Arguments exclude argv[0], are UTF-8 encoded, and reject NUL. Explicitly invokin
 `/bin/sh` opts into that shell's parsing. Environment entries use `NAME=value`
 and override the invocation's captured environment only in the child; empty
 names, missing `=`, duplicate names, and NUL are rejected. Empty values are
-allowed. Environment deletion and native-byte argument construction are deferred.
+allowed. Native-byte argument construction is deferred.
+
+`process.run_isolated` has the same signature, limits and termination semantics,
+but supplies exactly the explicit environment entries. An empty list gives an
+empty environment. It neither inherits invocation variables nor injects an
+automatic coverage ticket. During coverage collection it marks the session
+incomplete because the child is unobserved, even if the caller supplies a ticket
+explicitly. `process.run` retains its inherited-environment
+behaviour. Environment isolation is not a filesystem or process sandbox, and
+does not prevent a child from reading its normal configuration files.
 
 The parent concurrently writes stdin and drains stdout and stderr, closing stdin
 when exhausted or when the child closes it. The output limit applies to the sum
@@ -1472,6 +1585,18 @@ are 10 seconds, 64 KiB of response headers and 1 MiB of body. Hard limits are
 60 seconds, 64 KiB and 1 MiB respectively. The transport also caps total raw
 response bytes at 16 MiB.
 
+`stdlib/http_stream` supplies a separate blocking raw transport for command-line
+stream consumers. `open(host, port, tls, request, response_limit, timeout_ms)`
+returns an invocation-local handle; connection work starts on `read(handle)`.
+Each read returns at most 16 KiB, with empty bytes marking EOF. `close(handle)`
+releases the connection and invalidates the handle. The request is bounded at
+64 KiB, raw response at 256 MiB, timeout at 60 seconds and handle allocation at
+512 per invocation. The absolute deadline includes time between reads. Handles
+are never reused within an invocation, and VM teardown releases abandoned ones.
+These operations return `Result[...,Str]` and cannot be called from async or
+pure functions. They reuse verified libcurl transport; HTTP framing, redirects
+and application policy remain in Panack code. Buffered client limits are unchanged.
+
 The package accepts HTTP and HTTPS URLs with ASCII DNS names or dotted IPv4
 addresses. It rejects IPv6, user information, fragments, non-ASCII hosts,
 control characters and unsupported schemes. Requests use origin-form paths and
@@ -1499,7 +1624,9 @@ sidecar without changing language semantics or executable bytecode v9.
 --instruction PC` validates the pair by local recompilation and returns a direct
 expression, enclosing lowered expression, or explicit unavailable result. Ranges
 are half-open Unicode code-point offsets with one-based line/column coordinates.
-Lookup does not execute source, and ordinary runtime diagnostics do not consult
+A reverse lookup uses `--source-file MODULE --source-at LINE COLUMN` in place
+of the function and instruction selectors. Invalid or stale inputs fail
+validation with status 1. Lookup does not execute source, and ordinary runtime diagnostics do not consult
 maps. The [source-map contract](../guides/SOURCE_MAPS.md) defines identity, source
 closure, compatibility, I/O bounds, output safety and source disclosure.
 
@@ -1528,7 +1655,10 @@ facts. Other unsupported proof rules remain unchanged. A local
 proved obligation does not imply whole-program validity; unproved does not imply
 a runtime counterexample. Unsupported/invalid operands and unavailable evidence
 are explicit. Generic results describe definitions, not specialisations. No user
-code executes and no bytecode or files are emitted. See the
+code executes. In a terminal, the function query opens a source-led explorer
+with decisions, supporting origins and generated instructions for successful
+projects. These instructions are compiled in memory. Piped output and
+`--text` retain the plain report. See the
 [command contract](../guides/COMPILER_EXPLANATIONS.md) for exit status, source bounds,
 positions and deliberate limits. Bytecode v9 and numeric semantics are unchanged.
 
@@ -1548,3 +1678,45 @@ legacy acceptance tests with owned-dispatch and old-syntax rejection coverage.
 Backend fixtures name internal operations explicitly and do not define the
 public language. The [P12 report](../design/type-owned-dispatch/p12-legacy-removal.md)
 records the boundary and validation.
+
+## Dependency locks on next
+
+The separate Panack package tool implements local directories, local/HTTPS archives and Git snapshots from the
+[package contract](../design/PACKAGE_MANAGEMENT_CONTRACT.md): explicit lock,
+update (optionally restricted to root aliases), and offline restore. Project
+check/compile/run require a current lock for dependencies and validate existing
+materialized snapshots without acquiring sources. Local directory source edits
+remain live; manifest and archive changes require explicit update.
+HTTPS archive declarations use `{"archive":"https://host/package.tar.gz"}`.
+The lock retains the declared URL and SHA-256 of compressed bytes. Redirects
+are limited to five HTTPS hops, with credentials, queries and fragments rejected.
+Downloads enforce the 64 MiB compressed and 256 MiB expanded bounds while
+streaming. A missing or corrupt remote cache requires an online explicit restore;
+`--offline` verifies existing remote entries and never repairs them from the network.
+Each HTTP response has a 60-second deadline.
+Git dependencies use `{"git":{"url":"https://host/repo.git","ref":"v1","subdir":"packages/lib"}}`.
+The optional ref defaults to the remote HEAD at lock/update time; the optional
+subdirectory defaults to `.`. Branch/tag resolution is explicit and ambiguous
+short names fail. The lock stores the full commit and object format, never a
+moving selector. Git 2.29+ must be on PATH for acquisition; warm commands do not
+invoke Git. Each commit has one shared source-keyed snapshot. Sibling path
+edges stay within it and become Git lock edges; source imports remain bounded
+by each individual package root. Git redirects fail closed. See the
+[Git integration record](../design/PACKAGE_GIT_INTEGRATION_ACCEPTANCE.md).
+Archive and lock policy do not execute inside the compiler.
+Package-tool failures return status 1 and emit structured human-readable
+diagnostics on stderr: a PKG error-family code, cause, phase, available dependency
+context, explanation and safe recovery guidance. Successful output is unchanged.
+Messages never expose raw Git stderr or remote credentials, and do not infer a
+specific cause from an ambiguous Git exit status. No machine-readable diagnostic
+mode is introduced. See the [verified examples](../design/PACKAGE_DIAGNOSTIC_EXAMPLES.md).
+
+The tool uses generic native modules `stdlib/filesystem_stage`,
+`stdlib/bounded_filesystem`, `stdlib/gzip` and `stdlib/digest`. Their bounded
+operations return `Result[..., HostError]`; handles belong to one VM invocation,
+are never reused during it, and reject use after close. SHA-256 uses OpenSSL EVP,
+gzip uses zlib, and both operate on chunks of at most 64 KiB. Native filesystem
+staging publishes one complete directory atomically. See the
+[adapter contracts](../../src/stdlib/README.md#native-streaming-and-confined-filesystem-adapters-on-next)
+for limits, cleanup and platform restrictions. These modules introduce no
+arbitrary foreign-function interface or new bytecode version.

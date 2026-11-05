@@ -1,0 +1,9 @@
+import stdlib/process as process
+import stdlib/path as path
+import stdlib/time as time
+import stdlib/bytes as byte_buffer
+pure forbidden(): Void {
+  result = process.run_isolated(path.current(), [], byte_buffer.empty(),
+    path.current(), [], time.seconds(1), 100)
+}
+main(): Void {}

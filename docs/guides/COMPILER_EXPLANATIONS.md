@@ -13,9 +13,36 @@ iteration and field access type checks, Boolean condition requirements for
 `if` and `while`, and `match` variant membership. It also reports retained proof-bearing guarded
 conversions, natural-number subtraction and effect-boundary evidence, and
 array/conditional/match/generic parameter type joins for one function. It reads
-source; it does not
-execute the program, emit bytecode, write files, or consume a source-map sidecar. This guide describes the native alpha.14 command. Use the matching compiler;
-older installations retain their release-specific explanation support.
+source without executing the program.
+
+In a terminal, the function query opens an interactive explorer. Select a source
+statement, press Enter to see its compiler decisions, then open a decision for
+the explanation and supporting source. Left returns to the same selection.
+Press **n** to find the first rejected or unproved decision. Successful projects
+also show their emitted instructions and the source construct that produced
+each instruction. The explorer compiles these in memory.
+
+```sh
+panack explain program.panack --function main
+panack explain --text program.panack --function main
+```
+
+A pipe selects the plain report automatically. Explicit location queries retain
+their plain output. The installed tool includes the explorer and terminal
+adapter. A source checkout builds them on first use.
+
+## Retained decisions
+
+The checker now retains native-intrinsic arguments, first and subsequent generic
+constraints, contextual constraint solutions, callback component checks,
+specialized guarded-argument proofs and local-resource effect dependencies.
+Reassigned numeric bounds carry their invalidating source location. Ordinary
+checking leaves explanation-only records disabled.
+
+The table below maps the current decision families to their retained facts.
+The original gap audit remains in the definitive delivery checklist.
+The final inventory includes the decisions introduced by GI#435 Validated domain types.
+[Delivery checklist](../roadmap/records/next-release--agreed-scope-2026-10-06.md#gi180-definitive-alpha15-delivery-checklist-28-october-2026)
 
 ## Completion target for GI #134
 
@@ -28,71 +55,39 @@ If the checker did make a decision but the explanation does not cover it yet,
 that is an implementation gap, not an acceptable unavailable result. No relevant
 decision should be silently omitted.
 
-The query families documented below are delivered partial coverage, not a claim
-that the target is complete. Before selecting further implementation slices,
-inventory the relevant checker decisions and map each one to its explanation
-output and regression coverage. This target concerns decisions made while
-checking functions; it does not by itself expand ordinary diagnostic wording,
-change language semantics, or add parse/resolution or compilation-provenance
-explanations.
+The maintained inventory maps the current function-checking decisions to their
+evidence and regression coverage. Release acceptance also reconciles the new
+domain-type decisions introduced by GI#435. Parsing and name-resolution failures
+remain frontend diagnostics. Compilation provenance has its own inventory and
+[source-map contract](SOURCE_MAPS.md).
 
 ## Function-checking decision inventory
 
-The normal project loader calls the module-body checker and the effect checker;
-Explain asks those same passes to retain evidence. The table maps those active
-decision families to the current output and known gaps. “Covered” means there is
-an explanation regression for accepted, rejected, and/or unavailable outcomes
-where that outcome is reachable; it does not mean every special case in the
-family is complete.
+The project loader runs the body and effect checkers. Explanation queries ask
+those same passes to retain the decisions they actually make. Ordinary checking
+leaves the optional evidence disabled. The public CLI regressions live in
+`tests/functional/cases/cli_explanations/main.panack`; the body and effect
+regressions live in `tests/runner/compiler_suites/module_bindings.panack`.
 
-| Checker decision family | Checker source site | Explain evidence and regression source | Remaining coverage gap |
-| --- | --- | --- | --- |
-| Local types and function results | `bind_body_block` records annotated initializers and assignments; `body_incomplete_local` classifies unresolved locals; function result compatibility is retained while checking the body. | `BindingTypeEvidence`, `AssignmentTypeEvidence`, and `ReturnTypeEvidence`; compiler-module and CLI cases in `tests/runner/compiler_module_bindings_unit.panack` and `tests/functional/cases/cli_explanations/main.panack`. | The local result is reported, but a complete account of how constraints, generic substitution, and later solutions produced that type is not retained. Deferred and incomplete-result reasons need broader source attribution. `Void` rejection for unannotated bindings has no dedicated evidence record. |
-| Call arguments and arity | `body_call`, `body_call_arity_evidence`, `body_explicit_type_argument_arity_evidence`, and the `body_check_*_core_call` helpers in `module_bodies.panack`. | `CallArgumentEvidence` and type-check evidence rendered by `explanations.panack`; focused module tests and the CLI fixture cover direct, constructor, indirect, core, TCP/HTTP, and selected builtin families. | The call sites are mapped, but coverage is representative rather than exhaustive across every builtin and every rejection/deferred path. Generic substitutions are visible in expected argument types; their complete inference trail is not. |
-| Explicit type-argument counts | `body_call`, `body_check_special_core_call`, and `body_retain_rejected_type_argument_arity`. | Type-argument-arity evidence; module and CLI regressions cover generic functions, non-generic calls, and generic record/enum constructors. | Resolution failures are outside this body-checking scope. The complete set of accepted type-argument-bearing targets still needs fixture-by-fixture confirmation. |
-| Generic inference and constraints | `body_infer`, `body_unify`, `body_apply_solutions`, `body_finish_constraints`, `body_solve`, and `body_call`. | Selected repeated-parameter joins use `TypeJoinEvidence`; inferred locals and substituted call arguments have output. Regressions live in the module-binding unit suite and CLI explanation fixture. | First-source inference, failed or deferred inference reasons, constraint application, and every hole/unification decision are not retained as a complete trace. This is a confirmed implementation gap. |
-| Type joins and result types | `body_join`, `check_body_array`, `body_check_collection_core_call`, `check_body_conditional`, `bind_body_match`, and `body_infer`. | `TypeJoinEvidence` reports array, concatenation, conditional, match, and selected repeated-generic joins. Module and CLI regressions exercise accepted, rejected, and unavailable cases. | Other constraints that refine an expression result or alter an inferred type have not yet been mapped to evidence; join-site reachability is not exhaustive. |
-| Operators and expression requirements | `check_body_operation`, `check_body_index`, `check_body_field`, `body_iteration_item`, `check_body_conditional`, `bind_body_match`, and `bind_body_string`. | `OperatorTypeEvidence` and `BodyTypeCheckEvidence`; regressions cover operands/results, index receiver and position, fields, loop iterables, branch conditions, match rules, and interpolation scalar requirements. | Special core operations are listed separately below. Deferred decisions need source-specific reasons wherever the checker has facts that explain the deferral. |
-| Non-value use requirements | `bind_body_block` and `check_body_array`. | `BodyTypeCheckEvidence` records the existing rejection of `Void` in local storage and array elements; module and CLI regressions cover both. | Other value-use sites are inventoried under calls and specialized core operations. |
-| Specialized core calls and callbacks | `body_check_special_core_call` dispatches to the text, bytes, path, filesystem, time, environment, TCP/HTTP, collection, rational-conversion, and typed-intrinsic checkers. `body_check_collection_core_call` checks callback effect, arity, parameter, and result contracts, and now retains Array, Map, and Set receiver-shape decisions. | Argument, receiver, and callback evidence is rendered by `explanations.panack`; module-binding and CLI regressions cover accepted, rejected, and unavailable collection receivers, both concat operands, and callback purity, arity, parameter, result, and missing-type outcomes. | `body_check_typed_intrinsic` retains argument evidence for `fs_read`, `fs_read_beneath`, `fs_write`, `fs_metadata`, `fs_list`, `fs_directories_overlap`, `fs_create_directory`, `fs_remove_file`, `fs_remove_directory`, `fs_temp_file`, and `fs_temp_directory`. Decisions for `run_bytecode_args`, `process_exit`, `process_run`, `host_sleep`, `host_decode_utf8`, `read_file`, `file_exists`, `read_bytes`, and `write_bytes` lack it. The remaining callback generic-hole and invalid-callable branches need explicit case coverage. |
-| Match rules and payload bindings | `bind_body_match` checks subject, variant membership, duplicate arms, payload binding count/type, exhaustiveness, and arm-result joins. | `BodyTypeCheckEvidence` and `TypeJoinEvidence`; compiler-module and CLI regressions include generic payload substitution and unresolved subject types. | Name-resolution failures are outside scope. Deferred/malformed body patterns and every variant/payload decision branch still need exhaustive outcome mapping. |
-| Proof obligations | `body_guard_conversion`, `body_proves_nat_subtraction`, and the condition-fact helpers in `module_bodies.panack`. | `GuardConversionEvidence` and subtraction proof records rendered by `explanations.panack`; proof unit tests and CLI cases cover guarded conversions and Nat subtraction facts. | The proof-producing source paths need a complete audit to ensure no type/proof obligation is embedded in a specialized operation or generic constraint without its own explanation evidence. |
-| Effects | `module_effect_call`, `module_effect_expression`, and `check_module_effects` in `module_effects.panack`. | `EffectEvidence`; compiler explanation unit and CLI regressions cover call/await boundaries, invalid-body availability, deferred-body retained boundaries, and representative effects. An indirect call with an unresolved callable effect is retained as an unavailable boundary with its source. | Declaration-level effect decisions and effects carried through inferred callable/generic types are not yet mapped exhaustively to evidence and source facts. |
+| Decision family | Checker sites | Retained evidence and interpretation |
+| --- | --- | --- |
+| Locals and function results | `bind_body_block`, `body_incomplete_local`, function-result compatibility | Initializer, annotation, assignment and return requirements retain actual and required types. Unannotated locals retain the checked initializer type. Contextual constraints record their solutions or failure. |
+| Calls and argument counts | `body_call`, `body_call_arity_evidence`, specialized core-call helpers | Direct, indirect, constructor and host calls retain performed count and argument checks, including HTTP state and handler shape. Rejected parents preserve already checked children. Zero-argument calls have count evidence. |
+| Explicit type arguments | `body_explicit_type_argument_arity_evidence`, `body_retain_rejected_type_argument_arity` | Accepted and rejected argument counts, followed by argument checks against substituted parameter types when checking reaches them. |
+| Generic inference and contextual constraints | `body_infer`, `body_finish_constraints`, `body_solve` | First and repeated generic constraints, parameter identity, earlier argument source, constraint applications, resulting types and specific unresolved/conflicting outcomes. The trace describes the existing inference rules. |
+| Type joins | `body_join` callers in arrays, conditionals, matches, concatenation, equality and generic inference | Input types, resulting type and accepted/rejected/undetermined outcome. Generic joins link their earlier constraint. |
+| Operators and expression requirements | `check_body_operation`, `check_body_index`, `check_body_field`, `body_iteration_item`, `bind_body_string` | Operand/result types, indexed receiver/position, field lookup, iterable and interpolation requirements. Field failures distinguish the receiver and field causes retained by checking. |
+| Non-value use | `bind_body_block`, `check_body_array` | The performed rejection of storing Void or using it as an array element. |
+| Collection callbacks | `body_check_collection_core_call` | Callback type and aggregate result, plus each performed purity, arity, parameter and result requirement. Checking can stop after an early failure. |
+| Match arms and payloads | `bind_body_match` | Subject, variant membership, uniqueness, payload count/types, exhaustiveness and arm-result joins. Missing subject/variant information leaves the dependent requirement undetermined. |
+| Proof obligations | `body_guard_conversion`, `body_subtraction_evidence`, `body_require_value` | Guarded conversion and Nat subtraction outcomes, source-type guarantees, branch bounds and their origins, and assignment origins when mutation invalidates a bound. Specialized argument checks retain their performed proofs. |
+| Effects | `module_effect_call`, `module_local_functions`, `check_module_effects` | Call/await boundaries, declared/callable effects and the actual local-resource permission with supporting wrapper calls. Invalid bodies and global failures have explicit phase availability. |
+| Callable references | `FunctionExpr` in the body checker | Non-generic callable acceptance and the rejection requiring a wrapper around a generic function reference. |
 
-The source-site inventory exposed checker decisions that currently have no
-dedicated explanation evidence:
-
-- Collection receiver evidence now records the actual receiver type, the
-  required Array, Map, Set, or Map-or-Set shape, the source span, and whether
-  the checker accepted, rejected, or could not determine the shape. `concat`
-  reports each operand independently.
-- `body_check_typed_intrinsic` checks argument types for process, host and
-  legacy file operations, but currently retains argument evidence only for the
-  enumerated `fs_*` subset in the table above.
-These are confirmed gaps because the checker already makes and diagnoses the
-decision; they must not be represented as acceptable “unavailable” outcomes.
-Separately, several evidence renderers use a generic unavailable reason instead
-of the specific unresolved fact, and generic inference retains only selected
-joins rather than the complete hole/constraint history.
-The interpolation decision is covered by the implementation slice,
-including unresolved and guarded local types, with ordinary diagnostics and
-checking behavior unchanged.
-The separate rejection of `Void` in inferred local storage and array elements
-is also covered, with the existing diagnostic behavior unchanged.
-The current effect slice retains unresolved indirect-call boundaries as
-unavailable and reports retained boundaries from deferred function bodies with
-their partial-check status. It does not claim completeness for callable effect
-inference or declaration-level effect decisions.
-
-This inventory maps the active function-body type/effect decision families to
-their checker sites, explanation record families, regression suites, and known
-evidence gaps. “Covered” remains local to the listed cases; it does not claim
-every branch is complete. The gaps are implementation work, not accepted
-omissions. Parse, name-resolution, signature-declaration, and
-compilation-provenance questions are recorded separately because they are
-outside this issue's function-body decision scope. Each implementation slice
-must add evidence at the decision site, preserve ordinary checking behavior,
-and cover its reachable outcomes.
+An unavailable result identifies an unresolved fact or a check that could not
+run. The explorer reports partial checking and retains the decisions reached
+before failure. Acceptance and source-attribution evidence are recorded in
+[Compiler understanding acceptance](../COMPILER_UNDERSTANDING_ACCEPTANCE.md).
 
 For staged multi-module projects, qualify a query with the portable module
 identity, for example `--function project/library.panack:lookup`. A bare name
@@ -115,8 +110,8 @@ main(): Void { print(remaining(5)); }
 obligation, right constant `2`, retained lower bound `2`, and the true branch of
 `n >= 2`, with the original source ranges of both expressions. If the subtraction
 is changed to `n - 3`, the same bound is reported as insufficient. A write that
-invalidates a guard also discards its origin; a subsequent fresh guard supplies
-new evidence. False branches are labelled explicitly.
+invalidates a guard clears the bound and retains the assignment location. A
+subsequent fresh guard supplies new evidence. False branches are labelled explicitly.
 
 ## Meaning of the output
 
@@ -132,9 +127,13 @@ new evidence. False branches are labelled explicitly.
 - `subtraction: unavailable` covers other numeric domains, invalid operands, or
   no recorded subtraction in the requested function. Parsing/resolution failures
   can prevent checking entirely. Missing source positions are also explicit.
-- Type and purity failures retain ordinary diagnostics on stderr and exit status
+- In the plain report, type and purity failures retain ordinary diagnostics on stderr and exit status
   1. Accepted projects exit 0, including a valid function with no supported
   explanation. Invalid arguments or a missing function in a valid project exit 1.
+
+The interactive explorer displays compilation failure while remaining open for
+investigation. Quitting normally exits 0. Automation should use the plain report,
+which preserves compilation exit status.
 
 ## Inferred local types
 
@@ -175,17 +174,15 @@ forms. Path checks cover the typed arguments to `path_from_text`,
 `path_from_native`, `path_append`, `path_to_text`, `path_native_bytes`,
 `path_display`, `path_absolute`, `path_directory`, `path_filename`,
 `path_join`, `path_suffix`, `path_parent`, `path_is_absolute`,
-`path_with_suffix` and `path_resolve`. Other generic collection-call joins,
-callback contracts for other operations, and other builtins remain outside
-these slices. The environment checks cover the
+`path_with_suffix` and `path_resolve`. The type-join and callback sections describe those decisions separately. The environment checks cover the
 string key arguments to `environment_get` and `environment_has`. Diagnostics and
 exit status remain unchanged. Time checks cover arguments to `duration_nanoseconds`,
 `duration_ticks`, `duration_from_seconds`, `instant_add`, `instant_difference` and
 `instant_before`. Direct calls to resolved function declarations and record/enum
 constructors also report whether the supplied argument count matches the
 declared inputs, with the call source range, expected and supplied counts, and
-the existing accepted or rejected outcome. Core builtins, indirect calls and
-explicit type-argument counts remain uncovered call-arity decisions.
+the existing accepted or rejected outcome. Core builtins and indirect calls also report performed argument-count checks.
+Explicit type arguments have a separate count requirement.
 
 ## Array callback contracts
 
@@ -219,9 +216,10 @@ included here; diagnostics and exit status remain unchanged.
 
 For each assignment to an existing local, the explanation reports the assigned
 value's checked type against the local's known type, with accepted, rejected or
-unavailable and the value's source range. This describes type compatibility
-only; a separate immutability error can still reject the assignment. Diagnostics
-and exit status remain unchanged.
+unavailable and the value's source range. Type compatibility and permission to reassign are separate decisions. The
+mutability explanation states whether the binding was declared with `mut` and
+why reassignment is allowed or rejected. Diagnostics and exit status remain
+unchanged.
 
 ## Checked type joins
 
@@ -231,9 +229,9 @@ the two results of an `if` expression, successive match arm results, or repeated
 arguments that constrain one generic function type parameter. Each entry
 identifies the join context and source location, both input types, the resulting
 type when determined, and whether the join was accepted, rejected or
-unavailable. For generic calls, only repeated constraints
-that reach the checker's join operation are shown; this is not a complete trace
-of generic inference. An unavailable join means the checker could not derive a
+unavailable. Generic calls retain the first constraint for each type parameter,
+subsequent constraints and the earlier argument that they depend on. Contextual
+constraint applications retain their requirement, outcome and resulting type. An unavailable join means the checker could not derive a
 complete result from the available types; it does not imply that the types are
 incompatible. Rejected joins keep the original diagnostic and exit status. This
 query does not add coercions or change type inference.
@@ -343,6 +341,15 @@ stderr: the original type-first diagnostics are preserved, and the project remai
 rejected. There is no separate
 capability taxonomy such as Network or Filesystem in this output.
 
+## String and collection requirements
+
+For a domain conversion, open the source statement and choose a domain
+constraint. Each conjunct has its own outcome. Panack shows the size or text
+fact it established, and the supporting source opens the declaration where
+that requirement was written. The text query includes the same information
+under `checked type requirements`. A missing proof means the available facts
+allow more than one outcome.
+
 ## Guarded-conversion explanations
 
 The query reports conversions into a guarded type when the checker consults
@@ -366,21 +373,18 @@ ordinary project checking keeps the evidence collections empty.
 
 ## Boundaries and cost
 
-This first query covers binary Nat subtraction in function definitions. Generic
-functions are checked once at their definition; output does not claim call-site
-specialisation or runtime path execution. Imported definitions keep their own
-source locations. A query can include multiple subtraction obligations in checker
-traversal order, including nested subtractions and both branches.
+Functions are checked at their definitions, including shared generic bodies.
+The checker reports the evidence it used. An unproved requirement can still
+succeed for some runtime inputs. For domain guards, the requirement links to
+its declaration. When a condition or initializer supplies supporting facts,
+its source is available separately. A write that clears prior domain facts can
+explain why proof is missing. The caller's validation input is checked at
+compile time; a valid call schedules each written requirement for runtime.
+Inspecting the caller in a terminal also shows decisions and instructions
+originating in imported guards under their own module names.
 
-The checker adds the narrow guarded-source conversion described above;
-explanation mode records that same checker decision. Other proof rules and
-acceptance semantics are unchanged. Variable-to-variable relations, compound
-guard inference and arithmetic constant folding are not added.
-The original checker may reject mathematically safe expressions outside its
-supported proof rules. Constant values are retained, but declaration/initializer
-provenance chains are not; the operation range identifies the operands being
-checked. Type-declaration guards are not part of this function query. General type explanations, transitive effect explanations, compilation provenance, suggested requirements, change
-predictions and runtime value derivations remain separate programme work.
+The report describes static checking and compilation. Runtime paths, transitive
+value histories and counterfactual changes are outside its scope.
 
 Only the explicit query retains subtraction/effect evidence, lower-bound origins,
 and guarded-conversion decisions. Ordinary checking carries empty
@@ -411,5 +415,6 @@ Acceptance coverage lives in `tests/runner/compiler_explanations_unit.panack`,
 `tests/runner/compiler_module_bindings_unit.panack` and
 `tests/functional/cases/cli_explanations`, plus the existing mutation/checker,
 bootstrap and public-CLI suites. Measurements and limitations are recorded in
-[the validation profile](../../tests/VALIDATION_PROFILE.md). This bounded delivery
-completes neither #134's whole types/effects/proof scope nor programme #180.
+[the validation profile](../../tests/VALIDATION_PROFILE.md). This historical baseline predates the current completion delivery. Current
+measurements and acceptance are recorded in
+[Compiler understanding acceptance](../COMPILER_UNDERSTANDING_ACCEPTANCE.md).

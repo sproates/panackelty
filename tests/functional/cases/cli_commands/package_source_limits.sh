@@ -23,7 +23,7 @@ awk 'BEGIN {
 
 status=0
 PANACKELTY_VERSION="$version" PANACKELTY_STDLIB_PATH="$stdlib" \
-    ./panack-vm run "$compiler" check --project "$app/panack.json" \
+    ./bin/panack check --project "$app/panack.json" \
     > "$work/stdout" 2> "$work/stderr" || status=$?
 if [ "$status" -eq 1 ] && [ ! -s "$work/stdout" ] &&
     grep -F 'package source read failed (output_limit)' "$work/stderr" >/dev/null; then

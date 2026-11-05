@@ -1,0 +1,8 @@
+panack: error[PKG_MANIFEST_INVALID]: Cannot use the selected manifest because its filename is not panack.json.
+
+  Project: <workspace>/app/good.json
+  Selected file: <workspace>/app/good.json
+
+Panack requires the package manifest to be named panack.json in the package's root directory.
+
+Pass the path to the package's panack.json using --project. If this is the intended manifest, rename the file to panack.json.

@@ -61,7 +61,23 @@ For migration from earlier releases, see the
 Runnable [owned and generic method examples](examples/README.md#type-owned-methods-alpha14)
 show custom APIs, Map coexistence and typed callbacks.
 
+The unreleased `next` branch adds [explicit locks and local, archive and Git dependencies](docs/guides/TOOLCHAIN.md#locked-local-dependencies-on-next) through a separate package tool written in Panack.
+[Package diagnostics](docs/design/PACKAGE_DIAGNOSTIC_EXAMPLES.md) explain failures, show dependency context and guide safe recovery.
+Run `panack deps --help` for lock, update and restore guidance, including offline behaviour.
+Its generic host APIs also provide exact-environment process launch and confined
+symbolic-link operations; see the [standard-library contracts](src/stdlib/README.md).
+Git dependencies support pinned HTTPS commits and shared repository subdirectories on `next`.
+Its generic `stdlib/http_stream` transport supports bounded blocking reads for
+command-line consumers. The installed package workflow includes both tools; [final acceptance](docs/design/PACKAGE_FINAL_ACCEPTANCE.md) covers all four source forms together, relocation and offline builds.
+
 ## Explore
+
+On `next`, a function query in a terminal opens the interactive compiler explorer:
+`panack explain program.panack --function main`. Choose a source statement,
+inspect its decisions and follow supporting source. Use `--text` immediately
+after `explain` for the plain report. See the
+[explanation guide](docs/guides/COMPILER_EXPLANATIONS.md). This command checks the
+program without running it.
 
 | I want to… | Start here |
 | --- | --- |
@@ -80,3 +96,6 @@ show custom APIs, Map coexistence and typed callbacks.
 See [contributor guidance](CONTRIBUTING.md) for the development workflow and
 [security policy](SECURITY.md) for reporting vulnerabilities.
 Panackelty is [MIT licensed](LICENSE); the photograph has its own attribution above.
+The native digest adapter uses OpenSSL 3 or later under
+[Apache 2.0](docs/licenses/OpenSSL-Apache-2.0.txt). Archive collision tables use
+[Unicode data](docs/licenses/Unicode-License.txt).

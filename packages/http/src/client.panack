@@ -1,12 +1,12 @@
-import project/parser::{parse_response}
-import project/transport::{exchange}
-import project/types::{HttpError.ConnectFailure, HttpError.DnsFailure,
+import "parser.panack"::{parse_response}
+import "transport.panack"::{exchange}
+import "types.panack"::{HttpError.ConnectFailure, HttpError.DnsFailure,
   HttpError.InvalidLimits, HttpError.InvalidUrl, HttpError.LimitExceeded,
   HttpError.ProtocolError, HttpError.TlsFailure, HttpError.Timeout,
   HttpError.TransportFailure, HttpError.UnsupportedHost}
 import stdlib/bytes as byte_buffer
 
-pub import project/types::{Header, HttpError, Response}
+pub import "types.panack"::{Header, HttpError, Response}
 
 pub record ClientLimits {
   timeout_ms: Nat,
@@ -14,7 +14,7 @@ pub record ClientLimits {
   body_limit: Nat
 }
 
-record ParsedUrl {
+pub record ParsedUrl {
   host: Str,
   port: Nat,
   tls: Bool,
@@ -110,7 +110,7 @@ pure parse_port(data: Bytes, start: Nat, end: Nat): Result[Nat,HttpError] {
   }
 }
 
-pure parse_url(url: Str): Result[ParsedUrl,HttpError] {
+pub pure parse_url(url: Str): Result[ParsedUrl,HttpError] {
   data: Bytes = url.encode_utf8()
   size: Nat = byte_length(data)
   mut invalid_char = false
@@ -195,7 +195,7 @@ pure parse_url(url: Str): Result[ParsedUrl,HttpError] {
   }
 }
 
-pure transport_error(message: Str): HttpError {
+pub pure transport_error(message: Str): HttpError {
   if message == "HTTP DNS failed" { DnsFailure() }
   else if message == "HTTP connection failed" { ConnectFailure() }
   else if message == "HTTP TLS verification failed" || message == "HTTP TLS failed" { TlsFailure() }

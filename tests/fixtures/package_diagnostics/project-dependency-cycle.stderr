@@ -1,0 +1,10 @@
+panack: error[PKG_DEPENDENCY_CYCLE]: Cannot resolve dependency 'self' because the dependency chain returns to the project package.
+
+  Project: <workspace>/app/panack.json
+  Dependency directory: <workspace>/app
+  Dependency name: self
+  Repeated package directory: <workspace>/app
+
+Following these dependency declarations leads back to a package already being resolved. Panack does not allow circular dependencies.
+
+Check the dependency chain and the dependencies sections of those packages' manifests. Remove or redirect the declaration that creates the cycle, then retry your command.

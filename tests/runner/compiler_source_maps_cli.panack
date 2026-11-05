@@ -83,30 +83,37 @@ main(): Void {
       expected: Str = "source-map: expression\nfunction: project/library.panack:pick\ninstruction: 2\nfile: project/library.panack\nrange: 85..97\nstart: 3:47\nend: 3:59\nexpression: items[index]\n"
       results = results.append(map_command("imported generic exact location", lookup, 0, expected, ""))
       results = results.append(map_command("lowered condition attribution", map_lookup(artifact, source, sidecar, "project/library.panack:choose", "1"), 0,
-        "source-map: lowered\nfunction: project/library.panack:choose\ninstruction: 1\nfile: project/library.panack\nrange: 135..159\nstart: 4:36\nend: 4:60\nexpression: if flag { 1 } else { 2 }\n", ""))
-      for point in ["3", "4294967295"] {
+        "source-map: lowered\nfunction: project/library.panack:choose\ninstruction: 1\nfile: project/library.panack\nrange: 135..159\nstart: 4:36\nend: 4:60\nexpression: if flag { 1 } else { 2 }\nreason: Select the branch specified by the if expression.\n", ""))
+      for point in ["4", "4294967295"] {
         results = results.append(map_command("unmapped or out-of-range PC", map_lookup(artifact, source, sidecar, "project/library.panack:pick", point), 0, "source-map: unavailable\n", ""))
       }
       results = results.append(map_command("unknown function", map_lookup(artifact, source, sidecar, "missing", "2"), 0, "source-map: unavailable\n", ""))
+      reverse = ["locate", artifact, "--source", source, "--source-map", sidecar, "--source-file", "project/library.panack", "--source-at"]
+      results = results.append(map_command("reverse maps index to shared generic code", reverse.concat(["3","52"]), 0,
+        "Source: items[index]\nproject/library.panack:pick (shared generic body) instruction 2: INDEX_GET\n", ""))
+      results = results.append(map_command("reverse distinguishes import with no code", reverse.concat(["2","9"]), 0,
+        "This import selects a module at compile time. It produces no standalone instructions.\n", ""))
+      results = results.append(map_command("reverse distinguishes no source construct", reverse.concat(["1","1"]), 0,
+        "No recorded source construct covers this position.\n", ""))
       saved: Bytes = map_read(sidecar)
       saved_size: Nat = saved.length()
       for invalid in [byte_buffer.empty(), "PANACKMAP2\n".encode_utf8(), byte_buffer.empty().push(255),
-          map_changed(saved, 0, 0), map_changed(saved, if saved_size > 0 { saved_size - 1 } else { 0 }, 1), saved.join("padding".encode_utf8())] {
+          map_changed(saved, 0, 0), map_changed(saved, if saved_size > 0 { saved_size - 1 } else { 0 }, 255), saved.join("padding".encode_utf8())] {
         map_write(broken, invalid)
-        results = results.append(map_command("malformed or forged map", map_lookup(artifact, source, broken, "project/library.panack:pick", "2"), 0, "source-map: unavailable\n", ""))
+        results = results.append(map_command("malformed or forged map", map_lookup(artifact, source, broken, "project/library.panack:pick", "2"), 1, "", "cannot validate"))
       }
-      results = results.append(map_command("missing map", map_lookup(artifact, source, root + "/missing", "project/library.panack:pick", "2"), 0, "source-map: unavailable\n", ""))
-      results = results.append(map_command("missing artifact", map_lookup(root + "/missing.bc", source, sidecar, "project/library.panack:pick", "2"), 0, "source-map: unavailable\n", ""))
+      results = results.append(map_command("missing map", map_lookup(artifact, source, root + "/missing", "project/library.panack:pick", "2"), 1, "", "cannot validate"))
+      results = results.append(map_command("missing artifact", map_lookup(root + "/missing.bc", source, sidecar, "project/library.panack:pick", "2"), 1, "", "cannot validate"))
       map_write(ordinary, "not bytecode".encode_utf8())
-      results = results.append(map_command("mismatched artifact", map_lookup(ordinary, source, sidecar, "project/library.panack:pick", "2"), 0, "source-map: unavailable\n", ""))
+      results = results.append(map_command("mismatched artifact", map_lookup(ordinary, source, sidecar, "project/library.panack:pick", "2"), 1, "", "cannot validate"))
       for changed in [source, library, unused] {
         previous: Bytes = map_read(changed)
         map_write(changed, previous.join("\n// changed\n".encode_utf8()))
-        results = results.append(map_command("stale closure " + changed, lookup, 0, "source-map: unavailable\n", ""))
+        results = results.append(map_command("stale closure " + changed, lookup, 1, "", "cannot validate"))
         map_write(changed, previous)
       }
       map_write(library, byte_buffer.empty().push(255))
-      results = results.append(map_command("invalid UTF8 source", lookup, 0, "source-map: unavailable\n", ""))
+      results = results.append(map_command("invalid UTF8 source", lookup, 1, "", "cannot validate"))
       map_write(library, lib_text.encode_utf8())
       results = results.append(map_command("restored closure", lookup, 0, expected, ""))
       for outputs in [[root + "/collision.bc", root + "/collision.bc"], [artifact, broken], [second, source], [root + "/new.bc", library]] {
@@ -114,7 +121,7 @@ main(): Void {
       }
       results = results.append(std_testing.expect("source never overwritten", map_read(source) == original.encode_utf8() && map_read(library) == lib_text.encode_utf8(), "output destroyed source"))
       results = results.append(map_command("pair publication failure", ["compile", source, "-o", root + "/partial.bc", "--source-map", root + "/missing/map"], 1, "", "discard any partial output"))
-      results = results.append(map_command("partial pair unavailable", map_lookup(root + "/partial.bc", source, root + "/missing/map", "project/library.panack:pick", "2"), 0, "source-map: unavailable\n", ""))
+      results = results.append(map_command("partial pair rejected", map_lookup(root + "/partial.bc", source, root + "/missing/map", "project/library.panack:pick", "2"), 1, "", "cannot validate"))
       // Staged module emission must retain each body's original source spans.
       // Bare names cannot select between same-spelled declarations.
       map_write(source, "import \"library.panack\" as left\nimport \"right.panack\" as right\nmain(): Void { print(left.duplicate()); print(right.duplicate()); }\n".encode_utf8())
@@ -139,8 +146,8 @@ main(): Void {
       original_right: Bytes = map_read(other)
       map_write(other, "pub pure duplicate(): Nat { 23 }\n".encode_utf8())
       results = results.append(map_command("stale staged module map unavailable",
-        map_lookup(identity_artifact, source, identity_map, "project/right.panack:duplicate", "0"), 0,
-        "source-map: unavailable\n", ""))
+        map_lookup(identity_artifact, source, identity_map, "project/right.panack:duplicate", "0"), 1,
+        "", "cannot validate"))
       map_write(other, original_right)
       map_write(source, original.encode_utf8())
       map_write(library, lib_text.encode_utf8())

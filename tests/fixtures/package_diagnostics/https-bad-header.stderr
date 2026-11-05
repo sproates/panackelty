@@ -1,0 +1,11 @@
+panack: error[PKG_HTTP_PROTOCOL]: Cannot finish downloading the archive because the server's HTTP response is incorrectly formatted.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/bad-header.tar.gz
+  Dependency name: lib
+  Response detail: HTTP header is missing a colon
+
+Panack cannot safely determine the complete archive contents from this response.
+
+Retry your command. If the same error continues, report the archive URL and response detail to the server administrator.

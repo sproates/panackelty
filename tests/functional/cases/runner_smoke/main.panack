@@ -26,7 +26,7 @@ main(): Void {
     std_host.stderr("error: cached runner transcript cannot establish fresh coverage; unset PANACK_TEST_RUNNER_REPORT")
     std_host.exit(1)
   }
-  names = ["async_await", "callables", "cli_check_disasm", "cli_commands", "cli_diagnostic_display", "cli_environment_files", "cli_explanations", "cli_rational_failures", "collections", "compiler_lexer", "compiler_skeleton", "core_methods", "guard_fact_refresh", "hello_world",
+  names = ["async_await", "callables", "cli_check_disasm", "cli_commands", "cli_diagnostic_display", "cli_environment_files", "cli_explanations", "cli_explanations_proofs", "cli_rational_failures", "collections", "compiler_lexer", "compiler_skeleton", "core_methods", "domain_constraints", "guard_fact_refresh", "hello_world",
     "host_capabilities", "host_process", "host_types", "local_inference",
     "modules", "optional_else", "owned_async_handlers", "owned_callbacks", "owned_core_methods", "owned_generic_methods", "owned_imports", "owned_intrinsics", "owned_method_dispatch", "owned_methods",
     "owned_server_map", "owned_server_map_alias", "owned_server_map_facade",
@@ -39,10 +39,12 @@ main(): Void {
     expected_text = "${expected_text}PASS case/${name}/source\nPASS case/${name}/compile\nPASS case/${name}/bytecode\n"
   }
   expected_text = "${expected_text}PASS selected fixture count\n"
-  examples = ["callables", "collections_and_bytes", "decimal", "euler001",
-    "euler001_iterative", "euler002", "euler003", "euler004", "euler005",
-    "fibonacci", "fizzbuzz", "generic_functions", "generic_methods", "guards", "lexer_foundation",
-    "option_result", "owned_methods", "palindrome", "strings", "vm_arithmetic", "vm_branch_call",
+  examples = ["callables", "collections_and_bytes", "count_votes", "decimal", "decode_message",
+    "euler001", "euler001_iterative", "euler002", "euler003", "euler004", "euler005",
+    "fibonacci", "find_files", "fizzbuzz", "generic_functions", "generic_methods", "guards", "host_failures", "infinite_stream",
+    "lexer_foundation", "option_result", "owned_methods", "palindrome", "pipe_input",
+    "read_temporary_note", "report_failures_only", "strings", "test_booking_limits",
+    "testing_report", "text_preview", "unique_names", "validated_dispatch", "vm_arithmetic", "vm_branch_call",
     "vm_loop", "public_api", "trip_planner", "twin_sensors"]
   for name in examples {
     expected_text = "${expected_text}PASS example/${name}/source\nPASS example/${name}/compile\nPASS example/${name}/bytecode\n"
@@ -60,7 +62,7 @@ main(): Void {
     "guard_not_proven", "if_without_else_value", "immutable_assignment",
     "import_cycle", "imported_unknown_name", "inference_empty_array",
     "inference_immutable", "inference_impure_callable", "inference_shadowing",
-    "inference_type_change", "inference_void", "invalid_import_suffix",
+    "inference_type_change", "inference_void", "interpolation_expression", "invalid_import_suffix",
     "invalid_logical_import", "invalid_logical_segment", "legacy_function_keyword",
     "main_parameters", "method_collection_receiver", "missing_import",
     "missing_main", "negative_natural", "non_exhaustive_match", "opaque_path",
@@ -74,7 +76,7 @@ main(): Void {
     "owned_server_map_duplicate", "owned_server_map_foreign", "owned_server_map_get_arity",
     "owned_server_map_map_arity", "owned_server_map_no_fallback", "owned_server_map_private",
     "owned_server_map_purity", "owned_server_map_put_type", "owned_wrong_argument",
-    "pure_clock", "pure_io", "same_line_without_separator",
+    "private_signature_import", "pure_clock", "pure_io", "same_line_without_separator",
     "stdlib_legacy_api_removed",
     "trailing_semicolon_value", "unexpected_character", "unknown_name",
     "unknown_type", "while_condition_type"]
@@ -88,13 +90,13 @@ main(): Void {
     }
     expected_text = "${expected_text}PASS failure/${name}/no artifact\n"
   }
-  expected = "${expected_text}PASS selected failure count\ntests: 538, failures: 0\n".encode_utf8()
+  expected = "${expected_text}PASS selected failure count\ntests: 589, failures: 0\n".encode_utf8()
   command = TestCommand(runner_path("./bin/panack"),
     ["run", "tests/runner/main.panack"], byte_buffer.empty(), std_path.current(),
     runner_test_environment(),
     // This deadline encloses the entire fixture corpus, including nested
     // compiler and package checks; individual commands keep their own bounds.
-    std_time.seconds(600), 1048576)
+    std_time.seconds(1800), 1048576)
   result = match std_environment.get("PANACK_TEST_RUNNER_REPORT") {
     Some(report_path) => {
       match std_filesystem.read(runner_path(report_path), 1048576) {

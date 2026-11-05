@@ -18,6 +18,12 @@ methods using lexical scope and checked identity, with no receiver-to-global
 fallback. Receiver arrows are rejected. See the
 [compiler notes](../../src/compiler/README.md#type-owned-methods).
 
+The body checker lowers a `validate[Type](input)` call into a block with one
+private local for the input. The normalised guard produces calls bound to the
+bundled validation module by identity. That Panack module builds ordered
+failure data and renders messages. The saved program executes ordinary calls
+and Result constructors on the VM.
+
 ## Overview
 
 Panackelty is a compiled language whose execution contract is its bytecode virtual
@@ -130,6 +136,46 @@ Core owns native validation, the runtime bundle contract and coverage generation
 reports independently. The website owns compatibility coverage landing pages.
 
 ## Compiler pipeline
+
+Package errors carry a `PackageProblem` from acquisition, graph and lock boundaries
+to the command renderer. It retains a code, cause, phase, explanation, recovery
+advice and labelled contexts. Graph traversal prepends declaring edges without
+flattening the leaf cause. Native/transport failures are adapted within the
+package tool; raw Git stderr and remote headers are withheld. Diagnostic rendering
+escapes terminal controls and quotes suggested POSIX commands. It changes neither
+the compiler descriptor nor the bootstrap inputs.
+
+Project package resolution now has a separate Panackelty package tool under
+`src/packages/`, built as `build/tools/panack-packages.bc` from the saved seed.
+The tool and compiler share records, generic JSON/path validation and the strict
+resolved-project descriptor under `src/project_model/`. For a project command,
+`bin/panack` asks the package tool to prepare a temporary descriptor, then gives
+that descriptor to the compiler. Package-only source edits rebuild the package
+tool without rebuilding the compiler or refreshing its seed. The compiler
+validates the descriptor and retains its physical root and source containment
+checks; lock and archive policy stays outside compiler implementation modules.
+Active manifest source policy is in `src/packages/manifest.panack`. The original
+shared full-manifest parser is frozen, unused by package commands, to avoid
+changing the existing compiler/bootstrap input in P03a. Its removal belongs to
+a separately reviewed compiler cleanup; it is not a second maintained policy.
+
+Generic native adapters supply bounded file I/O, confined staging, zlib streams
+and OpenSSL EVP digests. Panack modules under `src/packages` own archive
+validation, graph acquisition, lock policy, Unicode collision checks and cache
+verification. HTTPS acquisition uses `packages/http/src/stream.panack` for
+response framing and bounded body folds into the existing gzip/tar pipeline.
+The generic `fold_body_with_errors` preserves the consumer's error type and maps
+HTTP errors separately. Archive extraction failures therefore stop streaming
+with their structured package cause, without being encoded as protocol errors.
+The original `fold_body` interface delegates to the same implementation.
+The package tool owns redirect policy, pin verification and offline decisions.
+Its build depends on the HTTP package sources; compiler sources do not depend
+on this acquisition path. Directory handles and no-follow operations keep writes beneath a
+private stage. Atomic rename/exchange publishes one fully verified package at a
+time. Lock-bound state lives outside package sources in `.panack_modules/.state`.
+A failure after some entries are published requires restore; publication is not
+a transaction spanning the complete graph. VM completion, traps and synchronous
+process exit release outstanding adapter handles.
 
 P05's method owner metadata distinguishes nominal declaration identities from
 closed built-in family tags. Built-in declarations are accepted only in the
@@ -597,7 +643,7 @@ runs for the same pull request while preserving runs on `main`. Its validation
 matrix partitions the canonical check into shared suites; focused developer
 targets are not run again before them.
 
-The CI packaging job is an explicit Ubuntu 22.04 x86-64 and macOS 14 arm64
+The CI packaging job is an explicit Ubuntu 22.04 x86-64 and macOS 15 arm64
 matrix. Five clean suites per platform cover the complete check and package
 proofs with only allowlisted commands visible, including bootstrap, native
 conformance, exact-archive smoke testing, checksum generation and the packaged
@@ -1262,6 +1308,13 @@ uses libcurl multi connect-only mode; neither libcurl's HTTP parser nor its
 types and error strings cross the source boundary. The package owns response
 framing and typed errors. The backend is replaceable after alpha.13 evidence.
 
+The same adapter provides `stdlib/http_stream` for blocking command-line
+consumers. It retains one 16 KiB receive buffer per connection and counts total
+raw bytes against the caller's bound. A VM-owned handle table closes abandoned
+connections at teardown and is reset in child/task invocation contexts. Neither
+HTTP framing nor package acquisition policy enters the native adapter. The
+existing async exchange path retains its original buffered API.
+
 ## Implicit core and standard methods
 
 The loader loads the toolchain-owned `src/stdlib/core.panack` before the entry module, using the same canonical visited set. Value-dot calls select checked owned declarations; the temporary arrow-call syntax is rejected. Namespace/value classification happens before body binding; lexical values shadow namespace aliases, and neither path falls back to globals. The old core compatibility helpers are removed. All core functions use checked emission; local types and source positions survive tooling rechecks. Generic checking and purity use their source signatures. Core enums are shared with the compiler, replacing its duplicate Result definition. Reachable core algorithms are emitted through existing calls; unused core algorithms are omitted. No VM, opcode or bytecode-v9 contract changes are required. Other stdlib modules remain explicit. Native packages and browser assets must carry the matching core source and compiler seed.
@@ -1557,6 +1610,28 @@ limits, stable-tree assumptions, compatibility and partial output handling.
 The old test-only JSON/checksum sidecar and compiler adapter are removed; the
 native observer now exercises these public commands against actual VM PCs.
 
+## Interactive compiler explanations and complete origins
+
+`tools/explain/main.panack` consumes the existing explained loader, checked body
+records and source-mapped emitter. It groups decisions by original source,
+then presents requirements, outcomes and supporting origins. It does not run a
+second type checker or execute the inspected program. The small native terminal
+adapter translates keys and resize events; Panack implements navigation and
+rendering. Installation packages both artifacts. The launcher uses the terminal
+interface for function queries on a TTY and retains plain output for pipes and
+`--text`.
+
+Statement and block spans survive parsing and module emission. Instruction
+origins carry lowering reasons and may share an instruction index, including
+call/await relationships. Validated `locate` queries work in both directions;
+invalid artifact/source pairs fail before selection. Explanation retention also
+records first and subsequent inference constraints, contextual applications,
+callback components, local-resource permissions, proof invalidation and
+assignment mutability. Ordinary checking does not retain these records.
+
+See [acceptance evidence](../COMPILER_UNDERSTANDING_ACCEPTANCE.md) for the finite
+inventories, real-project audits and remaining domain-type integration.
+
 ## U3 first query: retained subtraction evidence, 2026-10-02
 
 `check_program_evidence` uses the same checker traversal and subtraction decision
@@ -1656,10 +1731,11 @@ The dispatcher and bytecode format are unchanged. See
 
 ## Coverage container bounds
 
-Coverage plans, session registries and raw records have a 32 MiB container bound.
-Individual compiler/artifact/inventory identity blobs remain limited to 16 MiB;
+Coverage plans, session registries and raw records have a 128 MiB container bound.
+Compiler/artifact identity blobs remain limited to 16 MiB; inventory blobs allow
+64 MiB.
 instruction-cell, execution-count and total-session budgets are unchanged.
-Synchronous filesystem reads/writes allow 32 MiB so the exporter and self-hosted
+Synchronous filesystem reads/writes allow 128 MiB so the exporter and self-hosted
 reporter can exchange these bounded containers. Rooted/async filesystem, directory
 listing, process-output and HTTP limits retain their separate contracts.
 
@@ -1707,3 +1783,76 @@ of sockets. These modules are not exported as a completed routed-server API.
 The VM records structured fault categories separately from error text; recovery
 is not enabled until request ownership and cleanup are implemented. Existing HTTP
 client and low-level service contracts remain unchanged during this foundation.
+
+### Generic acquisition prerequisites
+
+The process runtime shares one bounded launch/collection implementation between
+`process.run` and `process.run_isolated`. The latter constructs an exact explicit
+environment and omits automatic coverage-ticket propagation. Existing callers
+retain inheritance and coverage behaviour. The compiler grants each operation
+only to its designated standard-library wrapper.
+
+The staging adapter also supports exclusive symbolic-link creation beneath its
+retained directory handle. Bounded link inspection opens ancestors without
+following links and reads the final link's native target bytes. The adapter does
+not interpret Git trees or package containment rules. Those policies remain in
+the separately compiled Panack package tool. P03b uses these generic additions
+for controlled Git acquisition.
+
+P03b implements that acquisition boundary in four Panack modules:
+`git_process` owns the isolated Git invocation, `git_inventory` validates tree
+records, `git_links` checks physical link containment, and `git_snapshot` builds
+the staged snapshot and canonical digests. Git supplies verified object access;
+Panack owns source validation, bounds, materialisation and rejection policy.
+The caller receives the stage only after validation and must publish or discard
+it. P03c adds `git_refs` for explicit selector resolution, `git_cache` for
+whole-snapshot verification and physical subdirectory resolution, and
+`git_acquisition` for locked acquisition and shared publication. The graph owns
+one physical snapshot per URL/object-format/commit and turns sibling path edges
+into Git lock edges. The package manifest types evolve within `src/packages`;
+the frozen compiler parser and resolved descriptor remain unchanged. Neither
+P03b nor P03c introduces a compiler or native operation.
+
+Package diagnostic detection sites may replace family-level explanations with
+the known cause and matching recovery advice. Native filesystem codes receive
+plain-language descriptions; unknown codes remain explicit. Archive and Git
+validation retain the same bounds while distinguishing path, metadata and link
+failures in their explanations.
+
+Package command validation runs before filesystem or acquisition work. Selected
+updates require an existing lock before graph resolution. Input diagnostics
+distinguish read failures and byte bounds from JSON/record validation; graph
+errors retain conflicting directories, versions and dependency chains. These
+changes remain within the independently compiled Panack package tool.
+
+### Compiler validation progress observation
+
+The compiler-source fixture uses a native supervisor and a separately linked
+test VM to observe module checking and compilation stages. Compile-time test
+hooks in VM execution are absent from normal builds; compiler-specific observation
+and deadline policy live under `tests/compiler_watchdog`. This does not add a
+compiler host capability or change the seed. Module passes have independent hang
+allowances, with an outer process backstop and saved failure evidence. See the
+[watchdog guide](../../tests/compiler_watchdog/README.md).
+
+## Local source-coverage preparation reuse
+
+`scripts/source_coverage_cache.cjs` owns the repository collector's disposable
+preparation cache. It binds canonical roots, compiler/VM identities, source and
+resolution inputs and generation settings; authenticates receipts with a separate
+private local key; and publishes complete validated plans atomically. A hit copies
+verified preparation into the current private workspace before the existing
+bounded reader checks source and inventory identity. The baseline runner retains
+ownership of fresh execution, assertions, sessions and report generation.
+Compiler/VM interfaces and coverage formats do not change. The cache is not a
+source of test outcomes, and the coverage publisher still receives static reports
+only. See the [cache contract](../COVERAGE_PERFORMANCE_BASELINE.md#slice-b-local-authenticated-plan-reuse).
+
+`scripts/source_coverage_hosted.cjs` owns the hosted transport boundary: successful
+core `next` producer selection, bounded import and local reauthentication. The
+workflow downloads the selected immutable artifact with digest enforcement;
+only then does the importer treat its producer as trusted. Receipt contents
+alone never confer remote trust. Preparation artifacts contain no local key or
+execution evidence and are distinct from the static publisher's exact report
+name. Failed transport or import causes fresh preparation. See the
+[hosted contract](../COVERAGE_PERFORMANCE_BASELINE.md#slice-c-hosted-preparation-and-matched-acceptance).

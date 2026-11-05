@@ -30,6 +30,36 @@ No new numeric performance gate is introduced. GI#106 reassessment and RM#56
 representative runtime measurements retain their existing ownership and next
 actions; this feature delivery does not close them.
 
+P03c delivery observation (25 October 2026): canonical `make check` passed in
+699 seconds (unit 404 seconds) against P03b's previous 680-second run (unit
+399 seconds). This adds Git manifest/lock/shared-snapshot acceptance and is not
+a matched performance experiment. A small local TLS diamond measured 0.67-second
+cold lock and 0.18-second warm project run; the latter was 0.19 seconds in the
+full run. Shared snapshots avoid duplicate acquisition/hash work within a graph;
+file hashing uses 64 KiB reads. The package-tool handoff test proves no compiler
+or seed rebuild after package-only edits. Keep the existing GI#106 alpha.15
+validation-latency disposition: the delivery maintainer owns representative
+baseline and bounded improvements, with owner acceptance still required. No
+new speed threshold, waived assertion or completed performance milestone is
+claimed. See [P03c evidence](../../design/PACKAGE_GIT_INTEGRATION_ACCEPTANCE.md).
+
+P03d adds mixed remote-source acceptance tests without changing production
+code, so there is no package runtime performance impact. Validation includes
+additional selective updates and failure recovery against private TLS peers.
+Canonical `make check` passed in 792 seconds versus the previous 699-second
+P03c run, with different workloads and machine conditions. The
+[remote acceptance record](../../design/PACKAGE_REMOTE_ACCEPTANCE.md) retains
+that qualification; GI#106 ownership and owner acceptance remain unchanged.
+
+P04a formats diagnostics only on failure and keeps bounded dependency
+context. Successful acquisition and digest algorithms are unchanged; no runtime
+speedup is claimed. Diagnostic acceptance adds transcript comparisons and recovery
+commands to validation. Canonical make check passed in 709 seconds on macOS
+arm64, versus 792 seconds for P03d under different workloads and conditions;
+this is not a matched performance comparison.
+GI#106 validation-latency ownership and owner acceptance remain unchanged. The
+package-tool handoff check continues to prove compiler build independence.
+
 The modules programme remains the principal feature initiative;
 its checked declaration/signature identity slice merged in PR#275 as `0bcf092`;
 bounded body identities merged in PR#284 as `9f8f8a0`. Ordinary expressions and
@@ -213,3 +243,31 @@ Governance acceptance was recorded in PR#264. The build baseline adds repeated
 correctness-checked evidence and independent review of scope, budget applicability
 and the outstanding remediation disposition. Website impact: no public feature,
 artifact, page or release pin changes; this is contributor tooling and policy.
+
+The P04a wording correction retains acquisition algorithms and all existing
+resource bounds. Git collision checks retain the conflicting path name for the
+error message, within the existing entry/path limits. No new network or file
+operations are added and no performance improvement is claimed. Validation
+includes the expanded cause-specific tests. Canonical make check passed in
+784 seconds on macOS arm64, compared with the earlier 709-second P04a run.
+The workload and machine conditions differ; these are observations, not a
+matched performance comparison.
+
+
+### RM#154 preparation reuse disposition, 28 October 2026
+
+[Final acceptance](../../COVERAGE_PERFORMANCE_BASELINE.md#final-acceptance-28-october-2026)
+meets the agreed timing targets: local repeat/reporting improvements 88.70%/88.75%,
+cold/dependency regressions 0.65%/2.35%. Hosted collection is 30m22s cold and
+3m35s warm. Warm collector RSS is 1125–1140 MiB versus 931–1056 MiB in the
+available uncached repeat/reporting observations; separate subprocess peaks
+fall to 330–342 MiB. Total simultaneous memory and a complete three-sample old
+collector baseline are unavailable; no overall memory-saving claim is made.
+
+Disposition: finish the bounded alpha.15 optimisation as directed by the owner,
+retain current bounds and disclose the warm collector memory cost and slow cold
+path. The subsequent coverage-approach review owns assessment of cold preparation
+and retained decoded plans after alpha.15, allocated to alpha.16. No further
+optimisation or new collection is a gate for this accepted bounded task. The
+implementation remains the responsibility of the core coverage maintainer; the
+next action is the separately scoped review, not an automatic repair campaign.

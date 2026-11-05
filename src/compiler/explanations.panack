@@ -2,8 +2,9 @@ pub import project/src/compiler/loader::{LoadedProject}
 pub import project/src/compiler/source_maps::{SourceMapFunctionSelector}
 import project/src/compiler/source_maps::{source_identifier, source_map_escape, source_map_location, source_map_function_selector}
 import project/src/compiler/types::{SourceSpan}
-import project/src/compiler/module_bodies::{BoundBody, BodyNode.BodyBinding, BodyNode.BodyLiteral, BodyNode.BodyInterpolation, BodyNode.BodyLocalUse, BodyNode.BodyFunction, BodyNode.BodyCall, BodyNode.BodyArray, BodyNode.BodyUnary, BodyNode.BodyBinary, BodyNode.BodyField, BodyNode.BodyIndex, BodyNode.BodyIf, BodyNode.BodyBlock, BodyNode.BodyMatch, BodyNode.BodyAssignment, BodyNode.BodyWhile, BodyNode.BodyFor, BodyNode.BodyEmpty, GuardConversionEvidence, ReturnTypeEvidence, CallArgumentEvidence, BindingTypeEvidence, AssignmentTypeEvidence, TypeJoinEvidence, CollectionCallbackEvidence, OperatorTypeEvidence, BodyTypeCheckEvidence, body_call_argument_evidence, body_binding_type_evidence, body_assignment_type_evidence, body_type_join_evidence, body_collection_callback_evidence, body_operator_type_evidence, body_type_check_evidence, body_type_text, body_type_complete, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
-import project/src/compiler/module_signatures::{SignatureType}
+pub import project/src/compiler/module_bodies::{BoundBody, GuardConversionEvidence}
+import project/src/compiler/module_bodies::{body_subtraction_evidence_entries, BodyNode.BodyBinding, BodyNode.BodyLiteral, BodyNode.BodyInterpolation, BodyNode.BodyLocalUse, BodyNode.BodyFunction, BodyNode.BodyCall, BodyNode.BodyArray, BodyNode.BodyUnary, BodyNode.BodyBinary, BodyNode.BodyField, BodyNode.BodyIndex, BodyNode.BodyIf, BodyNode.BodyBlock, BodyNode.BodyMatch, BodyNode.BodyAssignment, BodyNode.BodyWhile, BodyNode.BodyFor, BodyNode.BodyEmpty, ReturnTypeEvidence, CallArgumentEvidence, BindingTypeEvidence, AssignmentTypeEvidence, TypeJoinEvidence, CollectionCallbackEvidence, OperatorTypeEvidence, BodyTypeCheckEvidence, body_call_argument_evidence, body_binding_type_evidence, body_assignment_type_evidence, body_type_join_evidence, body_collection_callback_evidence, body_operator_type_evidence, body_type_check_evidence, body_type_text, body_type_complete, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
+pub import project/src/compiler/module_signatures::{SignatureType}
 import project/src/compiler/module_bindings::{DeclarationIdentity, source_module_identity}
 import project/src/compiler/checker::{Bounds}
 pub import project/src/compiler/checker::{SubtractionEvidence}
@@ -110,6 +111,10 @@ pure render_subtraction_evidence(
         }
       }
     }
+    match decision.invalidated_at {
+      None() => {}, Some(site) => { output = output + "\nA reassignment invalidated the earlier bound.\n" +
+        explanation_location(Some(site), sources, root, stdlib_root) }
+    }
     output = output + if decision.rule == "constants" {
       "\nreason: retained constant values satisfy the obligation"
     } else {
@@ -187,6 +192,12 @@ pure explanation_function_effect_status(
   found
 }
 
+pub pure effect_belongs_to(entry: EffectEvidence, selector: SourceMapFunctionSelector): Bool {
+  (entry.function_name == selector.identity.name || entry.function_name == selector.emitted_name) &&
+    (if entry.owner_file == "" { explanation_span_matches(entry.span,selector.source_path) }
+     else { entry.owner_file == selector.source_path })
+}
+
 pure render_subtraction_explanations(
   project: LoadedProject,
   selector: SourceMapFunctionSelector,
@@ -205,17 +216,23 @@ pure render_subtraction_explanations(
   mut output: Str = "program: ${state}\nfunction: ${displayed_function}\nscope: Nat subtraction; generic definitions, not call-site specialisations"
   mut count: Nat = 0
 
-  for entry in project.evidence {
-    if (entry.function_name == selector.identity.name || entry.function_name == selector.emitted_name) &&
-      explanation_span_matches(entry.span, source_path) {
-      output = output + "\n\n" + render_subtraction_evidence(
-        entry,
-        project.sources,
-        root,
-        stdlib_root
-      )
-      count = count + 1
+  mut entries: [SubtractionEvidence] = []
+  mut bound = false
+  for function in project.module_bodies {
+    if function.signature.binding.identity == selector.identity {
+      bound = true
+      entries = body_subtraction_evidence_entries(function.body)
     }
+  }
+  if !bound {
+    for entry in project.evidence {
+      if (entry.function_name == selector.identity.name || entry.function_name == selector.emitted_name) &&
+          explanation_span_matches(entry.span,source_path) { entries = entries.append(entry) }
+    }
+  }
+  for entry in entries {
+    output = output + "\n\n" + render_subtraction_evidence(entry,project.sources,root,stdlib_root)
+    count = count + 1
   }
   if count == 0 {
     output = output + "\n\nsubtraction: unavailable\nreason: no subtraction evidence was retained for this function"
@@ -268,6 +285,10 @@ pure render_effect_evidence(
       "\nawaited: no"
     }
   }
+  for edge in entry.dependencies {
+    output = output + "\nLocal resource call: " + source_map_escape(edge.target) + "\n" +
+      explanation_location(Some(edge.span), sources, root, stdlib_root)
+  }
   if entry.violations.len() > 0 {
     for reason in entry.violations {
       output = output + "\nreason: " + source_map_escape(reason)
@@ -282,7 +303,9 @@ pure render_effect_evidence(
         if entry.target_effect == "unavailable" {
           "\nreason: the indirect call was checked, but its callable effect could not be determined"
         } else {
-          if entry.target_effect == "pure" {
+          if entry.basis == "local resource permission" {
+            "\nreason: every effectful direct call in the wrapper is permitted on a local resource"
+          } else if entry.target_effect == "pure" {
             "\nreason: pure call is permitted in this context"
           } else {
             "\nreason: ordinary function permits this effectful call"
@@ -295,15 +318,21 @@ pure render_effect_evidence(
   output
 }
 
-pure body_guard_conversions(body: BoundBody): [GuardConversionEvidence] {
+pub pure body_guard_conversions(body: BoundBody): [GuardConversionEvidence] {
+  mut entries = body_local_guard_conversions(body)
+  for argument in body_call_argument_evidence(body) { entries = entries.concat(argument.proofs) }
+  entries
+}
+
+pure body_local_guard_conversions(body: BoundBody): [GuardConversionEvidence] {
   mut entries: [GuardConversionEvidence] = body.guard_conversions
   for child in body.children {
-    entries = entries.concat(body_guard_conversions(child))
+    entries = entries.concat(body_local_guard_conversions(child))
   }
   entries
 }
 
-pure body_inferred_locals(body: BoundBody): [BoundBody] {
+pub pure body_inferred_locals(body: BoundBody): [BoundBody] {
   mut entries: [BoundBody] = []
   match body.node {
     BodyBinding(local, type, mutable, inferred, type_evidence) => match inferred {
@@ -312,7 +341,7 @@ pure body_inferred_locals(body: BoundBody): [BoundBody] {
     },
     BodyLiteral(value) => {},
     BodyInterpolation(parts) => {},
-    BodyLocalUse(local) => {},
+    BodyLocalUse(local, captured_domain) => {},
     BodyFunction(binding) => {},
     BodyCall(target, types, call_arguments) => {},
     BodyArray() => {},
@@ -321,7 +350,7 @@ pure body_inferred_locals(body: BoundBody): [BoundBody] {
     BodyField(name) => {},
     BodyIndex() => {},
     BodyIf(has_else) => {},
-    BodyBlock(has_tail) => {},
+    BodyBlock(has_tail, original_span, statement_spans) => {},
     BodyMatch(targets, bindings, spans) => {},
     BodyAssignment(local, assignment_evidence) => {},
     BodyWhile() => {},
@@ -334,7 +363,7 @@ pure body_inferred_locals(body: BoundBody): [BoundBody] {
   entries
 }
 
-pure inferred_local_type(body: BoundBody): Option[SignatureType] {
+pub pure inferred_local_type(body: BoundBody): Option[SignatureType] {
   match body.node {
     BodyBinding(local, type, mutable, inferred, type_evidence) => match type {
       Some(value) => Some(value),
@@ -342,7 +371,7 @@ pure inferred_local_type(body: BoundBody): Option[SignatureType] {
     },
     BodyLiteral(value) => None(),
     BodyInterpolation(parts) => None(),
-    BodyLocalUse(local) => None(),
+    BodyLocalUse(local, captured_domain) => None(),
     BodyFunction(binding) => None(),
     BodyCall(target, types, call_arguments) => None(),
     BodyArray() => None(),
@@ -351,7 +380,7 @@ pure inferred_local_type(body: BoundBody): Option[SignatureType] {
     BodyField(name) => None(),
     BodyIndex() => None(),
     BodyIf(has_else) => None(),
-    BodyBlock(has_tail) => None(),
+    BodyBlock(has_tail, original_span, statement_spans) => None(),
     BodyMatch(targets, bindings, spans) => None(),
     BodyAssignment(local, assignment_evidence) => None(),
     BodyWhile() => None(),
@@ -365,7 +394,7 @@ pure explanation_expression_node(body: BoundBody): Bool {
     BodyBinding(local, type, mutable, inferred, type_evidence) => false,
     BodyLiteral(value) => true,
     BodyInterpolation(parts) => true,
-    BodyLocalUse(local) => true,
+    BodyLocalUse(local, captured_domain) => true,
     BodyFunction(binding) => true,
     BodyCall(target, types, call_arguments) => true,
     BodyArray() => true,
@@ -374,7 +403,7 @@ pure explanation_expression_node(body: BoundBody): Bool {
     BodyField(name) => true,
     BodyIndex() => true,
     BodyIf(has_else) => true,
-    BodyBlock(has_tail) => true,
+    BodyBlock(has_tail, original_span, statement_spans) => true,
     BodyMatch(targets, bindings, spans) => true,
     BodyAssignment(local, assignment_evidence) => false,
     BodyWhile() => false,
@@ -717,16 +746,21 @@ pure render_type_join_evidence(
   left: Str = source_map_escape(render_inferred_type(evidence.left))
   right: Str = source_map_escape(render_inferred_type(evidence.right))
   result: Str = source_map_escape(render_inferred_type(evidence.result))
-  "checked type join: ${status}\ncontext: ${context}\n" + explanation_location(
+  mut output = "checked type join: ${status}\ncontext: ${context}\n" + explanation_location(
     Some(evidence.span), sources, root, stdlib_root
-  ) + "\ninput types: ${left} and ${right}\nresulting type: ${result}" + match evidence.accepted {
+  ) + (if evidence.left == None() && evidence.binder_index != None() { "\nfirst argument constraint: " + right } else { "\ninput types: ${left} and ${right}" }) + "\nresulting type: ${result}" + match evidence.accepted {
     Some(accepted) => if accepted {
-      "\nreason: the checker combined these input types using its existing compatibility rules"
+      if evidence.left == None() && evidence.binder_index != None() { "\nreason: this argument supplies the first constraint for the type parameter" } else { "\nreason: the checker combined these input types using its existing compatibility rules" }
     } else {
       "\nreason: the checker rejected these incompatible input types"
     },
     None() => "\nreason: the checker did not determine a complete join from the available input types"
   }
+  match evidence.dependency {
+    None() => {},
+    Some(span) => { output = output + "\nearlier constraint:\n" + explanation_location(Some(span),sources,root,stdlib_root) }
+  }
+  output
 }
 
 pure render_type_join_explanations(
@@ -815,10 +849,10 @@ pure render_type_check_evidence(
   root: Str,
   stdlib_root: Str
 ): Str {
-  status: Str = match evidence.accepted {
+  status: Str = if evidence.context == "runtime validation" { "checked at runtime" } else if evidence.context == "domain constraint" && evidence.accepted == None() { "unproved" } else { match evidence.accepted {
     Some(accepted) => if accepted { "accepted" } else { "rejected" },
     None() => "unavailable"
-  }
+  } }
   actual: Str = source_map_escape(render_inferred_type(evidence.actual))
   context: Str = source_map_escape(evidence.context)
   expected: Str = source_map_escape(evidence.expected)
@@ -852,7 +886,7 @@ pure render_type_check_evidence(
       if match_decision { "subject type" } else { "actual type" }
     }
   }
-  expected_label: Str = if call_arity { "argument counts" } else {
+  expected_label: Str = if evidence.context == "runtime validation" || evidence.context == "domain constraint" || evidence.context == "supporting guard fact" { "requirement" } else if call_arity { "argument counts" } else {
     if type_argument_arity { "type argument counts" } else {
       if string_interpolation { "allowed interpolation types" } else {
         if void_value_requirement { "required value" } else {
@@ -877,7 +911,8 @@ pure render_type_check_evidence(
     (if count_decision { "" } else { "\n${actual_label}: ${actual}" }) +
     "\n${expected_label}: ${expected}" +
     (if count_decision { "" } else { "\nresulting type: ${result}" }) +
-    match evidence.accepted {
+    (if evidence.dependency != None() { (if evidence.context == "domain constraint" || evidence.context == "runtime validation" { "\nGuard declaration:\n" } else if evidence.context == "supporting guard fact" { "\nSupporting source:\n" } else { "\nPrior constraint:\n" }) + explanation_location(evidence.dependency, sources, root, stdlib_root) } else { "" }) +
+    if evidence.reason != "" { "\nreason: " + source_map_escape(evidence.reason) } else { match evidence.accepted {
       Some(accepted) => if accepted {
         if call_arity {
           "\nreason: the existing checker accepted the supplied argument count"
@@ -952,7 +987,7 @@ pure render_type_check_evidence(
         }
         }
       }
-    }
+    } }
 }
 
 pure render_type_check_explanations(
@@ -1140,7 +1175,7 @@ pure render_inferred_local(
     },
     BodyLiteral(value) => "inferred local: unavailable",
     BodyInterpolation(parts) => "inferred local: unavailable",
-    BodyLocalUse(local) => "inferred local: unavailable",
+    BodyLocalUse(local, captured_domain) => "inferred local: unavailable",
     BodyFunction(binding) => "inferred local: unavailable",
     BodyCall(target, types, call_arguments) => "inferred local: unavailable",
     BodyArray() => "inferred local: unavailable",
@@ -1149,7 +1184,7 @@ pure render_inferred_local(
     BodyField(name) => "inferred local: unavailable",
     BodyIndex() => "inferred local: unavailable",
     BodyIf(has_else) => "inferred local: unavailable",
-    BodyBlock(has_tail) => "inferred local: unavailable",
+    BodyBlock(has_tail, original_span, statement_spans) => "inferred local: unavailable",
     BodyMatch(targets, bindings, spans) => "inferred local: unavailable",
     BodyAssignment(local, assignment_evidence) => "inferred local: unavailable",
     BodyWhile() => "inferred local: unavailable",
@@ -1217,6 +1252,18 @@ pure render_guard_conversion(
     Some(bounds) => {
       facts: Str = render_guard_bounds(bounds)
       output = output + "\nfacts: ${facts}"
+      for origin in [bounds.lower_origin, bounds.upper_origin] {
+        match origin {
+          None() => {},
+          Some(guard) => { output = output + (if guard.truth { "\nTrue branch:\n" } else { "\nFalse branch:\n" }) +
+            explanation_location(guard.span, sources, root, stdlib_root) }
+        }
+      }
+      match bounds.invalidated_at {
+        None() => {},
+        Some(site) => { output = output + "\nReassignment invalidated the prior facts:\n" +
+          explanation_location(Some(site), sources, root, stdlib_root) }
+      }
     }
   }
   output = output + if entry.proven == Some(true) {
@@ -1383,8 +1430,7 @@ pub pure render_function_explanations(
     } else {
       mut count: Nat = 0
       for entry in project.effects {
-        if (entry.function_name == selector.identity.name || entry.function_name == selector.emitted_name) &&
-          explanation_span_matches(entry.span, selector.source_path) {
+        if effect_belongs_to(entry,selector) {
           output = output + "\n\n" + render_effect_evidence(
             entry,
             project.sources,

@@ -34,8 +34,9 @@ MANIFEST
 run_ok() {
     label=$1
     manifest=$2
+    PANACKELTY_VERSION="$version" PANACKELTY_STDLIB_PATH="$stdlib" ./bin/panack deps lock --project "$manifest" > "$work/lock.out"
     if PANACKELTY_VERSION="$version" PANACKELTY_STDLIB_PATH="$stdlib" \
-        ./panack-vm run "$compiler" check --project "$manifest" \
+        ./bin/panack check --project "$manifest" \
         > "$work/stdout" 2> "$work/stderr"; then
         if [ "$(cat "$work/stdout")" = 'ok' ] && [ ! -s "$work/stderr" ]; then
             printf 'PASS %s\n' "$label"
@@ -54,7 +55,7 @@ run_rejected() {
     expected=$3
     status=0
     PANACKELTY_VERSION="$version" PANACKELTY_STDLIB_PATH="$stdlib" \
-        ./panack-vm run "$compiler" check --project "$manifest" \
+        ./bin/panack check --project "$manifest" \
         > "$work/stdout" 2> "$work/stderr" || status=$?
     if [ "$status" -eq 1 ] && [ ! -s "$work/stdout" ] &&
         grep -F "$expected" "$work/stderr" >/dev/null; then
@@ -81,7 +82,7 @@ run_rejected 'nested version conflict' "$app/panack.json" \
 write_app "$app" \
     '{"geometry":{"path":"../geometry"},"math_direct":{"path":"../math-v1-copy"}}'
 run_rejected 'nested package identity resolves to multiple roots' "$app/panack.json" \
-    'package example.math_support@1.0.0 resolves to multiple physical roots'
+    'package example.math_support@1.0.0 was found in two different directories'
 
 packages="$work/packages"
 i=1
@@ -107,7 +108,7 @@ run_ok '64 package manifests accepted' "$app/panack.json"
 dependencies=$(make_fanout_dependencies 64)
 write_app "$app" "$dependencies"
 run_rejected '65 package manifests rejected' "$app/panack.json" \
-    'package dependency graph exceeds 64 packages'
+    'project and its dependencies contain more than 64 packages'
 
 edges="$work/edges"
 write_library "$edges/shared" example.edge_target 1.0.0 '{}'
@@ -129,7 +130,7 @@ run_ok '256 dependency edges accepted' "$app/panack.json"
 dependencies=$(make_edge_dependencies 257)
 write_app "$app" "$dependencies"
 run_rejected '257 dependency edges rejected' "$app/panack.json" \
-    'package dependency graph exceeds 256 edges'
+    'dependencies contain more than 256 package-to-package references'
 
 make_chain() {
     count=$1
@@ -153,4 +154,4 @@ manifest=$(make_chain 31)
 run_ok '32 package levels accepted' "$manifest"
 manifest=$(make_chain 32)
 run_rejected '33 package levels rejected' "$manifest" \
-    'package dependency graph exceeds 32 package levels'
+    'dependencies are nested more than 32 packages deep'

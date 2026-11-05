@@ -1,0 +1,17 @@
+pub import stdlib/host::{HostError}
+
+pub record GzipChunk { consumed: Nat, data: Bytes, finished: Bool }
+
+// Each step consumes a prefix of input and emits at most 64 KiB. Pass finish
+// only for the final input; continue with its unconsumed suffix until finished.
+pub open(output_limit: Nat): Result[Nat, HostError] {
+  gzip_open(output_limit)
+}
+
+pub step(handle: Nat, input: Bytes, finish: Bool): Result[GzipChunk, HostError] {
+  gzip_step(handle, input, finish)
+}
+
+pub close(handle: Nat): Result[Unit, HostError] {
+  gzip_close(handle)
+}

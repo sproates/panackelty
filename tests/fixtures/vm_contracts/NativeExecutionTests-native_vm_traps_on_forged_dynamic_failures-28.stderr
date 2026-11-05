@@ -1,1 +1,1 @@
-error: VM trap: len requires Str, Bytes, or Array
+error: VM trap: len requires Str, Bytes, Array, Map, or Set

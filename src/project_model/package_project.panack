@@ -1,0 +1,15 @@
+pub import stdlib/package_filesystem::{FilesystemRootIdentity}
+pub import project/src/project_model/package_manifest::{PackageManifestExport}
+
+// A resolved edge binds one owner-scoped import alias to a package root.
+// The identities are captured by the package tool and checked again by the compiler.
+pub record ManifestDependencyProject {
+  owner_root_identity: FilesystemRootIdentity,
+  alias: Str,
+  package_root: Str,
+  source_root: Str,
+  exported_modules: [PackageManifestExport],
+  package: Str,
+  version: Str,
+  root_identity: FilesystemRootIdentity
+}

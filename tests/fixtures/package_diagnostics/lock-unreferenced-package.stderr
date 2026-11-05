@@ -1,0 +1,10 @@
+panack: error[PKG_LOCK_INVALID]: Cannot use panack.lock.json because its dependency records are invalid.
+
+  Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
+
+The lockfile contains a record for package 'demo.library@1.0.0', but no dependency chain from the project reaches that package.
+
+If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.
+
+Creating a new lockfile may select different dependencies.

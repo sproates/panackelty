@@ -7,17 +7,20 @@ PASS explicit manifest package compile
 PASS manifest-only library checks each exported module without main
 PASS package export escape symlink setup
 PASS package exports reject symlink escapes
+PASS local dependency fixture creates lock
 PASS manifest application checks declared local library
 PASS manifest application runs declared local library
 PASS manifest application compiles declared local library
 PASS manifest application bytecode retains local library
 PASS local dependency hides unexported modules
 PASS local dependency aliases must be declared
+PASS second application fixture creates lock
 PASS second manifest application shares the local library
 PASS package identity cannot come from multiple roots
 PASS package source roots cannot overlap the app root
 PASS nested dependency roots cannot overlap their parent
 PASS declared package path must contain a manifest
+PASS nested dependency fixture refreshes lock
 PASS nested diamond dependency checks
 PASS manifest application runs nested and direct paths to one library
 PASS manifest application compiles nested and direct paths to one library
@@ -47,6 +50,7 @@ PASS manifest-only library compile requires an entry
 PASS manifest-only library run requires an entry
 PASS manifest-only library requires an export
 PASS manifest-only library rejects invalid export
+PASS direct dependency fixture refreshes lock
 PASS manifest application recompiles direct dependencies after nested checks
 PASS manifest package relocation fixture
 PASS relocated manifest package source run
@@ -55,4 +59,4 @@ PASS program arguments
 PASS program stderr and exit
 PASS help command name
 PASS version
-tests: 57, failures: 0
+tests: 61, failures: 0

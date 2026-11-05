@@ -1,3 +1,8 @@
 pub pure empty(): Bytes {
   bytes()
 }
+
+// Shared bounded byte slicing; the primitive retains its bootstrap ABI name.
+pub pure slice(data: Bytes, start: Nat, end: Nat): Bytes {
+  http_bytes_slice(data, start, end)
+}

@@ -37,6 +37,33 @@ adjacent `.sha256` file from the Releases page:
 
 Windows and other architectures are not part of the initial preview.
 
+### Package dependencies in the upcoming alpha.15 release
+
+Git is optional. Git 2.29 or newer is required to fetch Git dependencies,
+including indirect dependencies. Local packages and HTTPS archive packages do
+not otherwise require Git. Verified cached Git packages can be used without
+invoking Git. This package workflow is currently available on `next`; the
+alpha.14 installation described here does not include it.
+
+On Apple silicon the minimum for alpha.15 is macOS 15. For macOS 14, use the alpha.14 download above.
+
+The alpha.15 distribution includes the separate package tool alongside the
+compiler. Keep the complete toolchain directory together when moving it; linking
+`bin/panack` onto PATH is supported. No source checkout, compiler build tools,
+command-line `curl` or command-line `tar` are needed to use package commands.
+The download instructions themselves still use `curl` and `tar`.
+
+On Ubuntu 22.04, the VM needs the runtime packages `libcurl4`, `zlib1g` and
+`libssl3`, plus `ca-certificates` for HTTPS trust. These are runtime requirements;
+the `-dev` packages are only needed for source builds. On supported macOS,
+curl and zlib come from the operating system and OpenSSL crypto is linked into
+the VM. Users of the macOS download do not need Homebrew or an OpenSSL install.
+
+Run `panack deps --help` for the package workflow, or `panack deps restore
+--help` for the same reference from a specific command. Package commands require
+the matching `share/panackelty/panack-packages-v1.bc` artifact. Running previously
+compiled bytecode does not require that artifact.
+
 ### Optional: install with one command
 
 This is an additional route for readers who prefer an installer. The manual
@@ -187,7 +214,7 @@ Positioned errors also show the source line and a caret. Tabs expand to
 four-column stops; Unicode and control characters appear as `\u{hex}` escapes
 to keep the caret aligned.
 
-The alpha.11 toolchain produces the output below.
+The alpha.14 toolchain produces the output below.
 
 <!-- quick-start-output-begin -->
 ```text
@@ -249,3 +276,13 @@ Panackelty completely:
 rm "$HOME/.local/bin/panack"
 rm -rf "$HOME/.local/opt/panackelty"
 ```
+
+### Building the unreleased package tool
+
+A source build of `next` includes a separate Panack package-tool artifact.
+Install the libcurl, OpenSSL 3 and zlib development files described in the
+[development guide](../internals/DEVELOPMENT.md), then use `make` and `make install`.
+The installed launcher, compiler, package tool and standard library must come
+from the same build. The package tool is not required to run already compiled
+bytecode. Projects with dependencies use the
+[explicit lock workflow](TOOLCHAIN.md#locked-local-dependencies-on-next).

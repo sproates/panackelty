@@ -1,0 +1,10 @@
+panack: error[PKG_HTTP]: Cannot use the download because the server applied an additional content encoding.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/encoded.tar.gz
+  Dependency name: lib
+
+Panack needs the original .tar.gz bytes to verify the archive checksum. HTTP Content-Encoding would change the representation being checked.
+
+Ask the server administrator to serve the .tar.gz file directly, without HTTP Content-Encoding, or with Content-Encoding: identity. Then retry your command.

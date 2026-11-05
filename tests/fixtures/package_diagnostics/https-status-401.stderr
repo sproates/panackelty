@@ -1,0 +1,9 @@
+panack: error[PKG_HTTP_STATUS]: Cannot download the archive because the server requires authentication.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/status-401.tar.gz
+  Dependency name: lib
+  Server response: HTTP 401
+
+Panack requires an archive URL that can be downloaded without signing in. Ask the package maintainer for a suitable download URL.

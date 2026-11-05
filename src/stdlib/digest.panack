@@ -1,0 +1,9 @@
+pub import stdlib/host::{HostError}
+
+// Native SHA-256 contexts belong to this VM invocation. Update accepts at most
+// 64 KiB; finish consumes the handle and returns exactly 32 bytes. Close consumes
+// an unfinished handle. Stale handles are errors; VM exit releases live contexts.
+pub sha256_open(): Result[Nat, HostError] { digest_sha256_open() }
+pub update(handle: Nat, data: Bytes): Result[Unit, HostError] { digest_update(handle, data) }
+pub finish(handle: Nat): Result[Bytes, HostError] { digest_finish(handle) }
+pub close(handle: Nat): Result[Unit, HostError] { digest_close(handle) }

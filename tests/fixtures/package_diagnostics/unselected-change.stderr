@@ -1,0 +1,8 @@
+panack: error[PKG_DEPENDENCY_NOT_SELECTED]: Cannot complete this update without also changing dependency 'lib'.
+
+  Project: <workspace>/Ian's app/panack.json
+  Lockfile: <workspace>/Ian's app/panack.lock.json
+
+Your command did not select this dependency. Panack has stopped because the update would also change this dependency. Panack has not changed the lockfile.
+
+If you intend to update this dependency too, include its declaration name in your update command. Otherwise, undo the change to this dependency in panack.json and retry your original command.

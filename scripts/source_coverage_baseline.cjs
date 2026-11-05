@@ -5,6 +5,7 @@ const childProcess = require('node:child_process');
 const {regular,sha,sessionRecords,readPlan,readSession,observations,union,totals,writeReport} = require('./source_coverage.cjs');
 const {validateManifest} = require('./source_coverage_manifest.cjs');
 const {checkManifestPolicy,checkPolicy} = require('./source_coverage_policy.cjs');
+const {createPlanCache} = require('./source_coverage_cache.cjs');
 const checkout = path.resolve(__dirname,'..');
 function command(args, timeout = 180000, extraEnv = {}) {
   const started = Date.now();
@@ -19,7 +20,7 @@ function exportPlan(tool,entry,prefix) {
   // for the smaller compiler plan alone. Allow bounded runner variation.
   if (command(['./bin/panack','run',tool,entry,prefix],300000,{PANACKELTY_BOOTSTRAP_ROOT:checkout}) !== 'plan: wrote\n') throw Error(`Unexpected export response: ${entry}`);
 }
-function baseline(output, allowDirty = false) {
+function baseline(output, allowDirty = false, options = {}) {
   const manifestBytes = regular(path.join(checkout,'tests/source_coverage/manifest.json'));
   const manifest = JSON.parse(manifestBytes);
   const tracked = command(['git','ls-files','src']).trim().split('\n').filter(p=>p.endsWith('.panack')).sort();
@@ -36,14 +37,25 @@ function baseline(output, allowDirty = false) {
   const vm = regular(path.join(checkout,'panack-vm'));
   const plans = new Map(), groups = [], sessions = [], seen = new Set();
   const tool = path.join(work,'export.bc');
-  command(['./bin/panack','compile','tests/source_coverage/export.panack','-o',tool],180000,
-    {PANACKELTY_BOOTSTRAP_ROOT:checkout});
+  let cache, toolReady = false;
+  if (options.cache !== false) {
+    try { cache = createPlanCache({checkout,directory:path.resolve(options.cacheDirectory || path.join(checkout,'build/source-plan-cache')),compiler,vm}); }
+    catch (error) { console.log(`Plan cache unavailable; generating fresh preparation: ${error.message}`); }
+  }
+  function generate(entry,prefix) {
+    if (!toolReady) {
+      command(['./bin/panack','compile','tests/source_coverage/export.panack','-o',tool],180000,
+        {PANACKELTY_BOOTSTRAP_ROOT:checkout});
+      toolReady = true;
+    }
+    exportPlan(tool,entry,prefix);
+  }
   function plan(entry) {
     if (!plans.has(entry)) {
       console.log(`Plan: ${entry}`);
       const prefix = path.join(work,`plan-${plans.size}`);
-      exportPlan(tool,entry,prefix);
-      plans.set(entry,readPlan(prefix,entry,checkout,compiler));
+      if (cache) plans.set(entry,cache.get(entry,prefix,p=>generate(entry,p)));
+      else { generate(entry,prefix);plans.set(entry,readPlan(prefix,entry,checkout,compiler)); }
     }
     return plans.get(entry);
   }
@@ -87,6 +99,7 @@ function baseline(output, allowDirty = false) {
     } else throw Error('Unknown compiler manifest entry');
   }
   if (sessions.length !== 1+manifest.units.length+manifest.functional.length+manifest.compiler.length) throw Error('Incomplete test manifest');
+  if (cache) cache.assertCurrent();
   for (const p of plans.values()) for (const s of p.sources) if (sha(regular(path.join(checkout,s.path))) !== s.hash) throw Error('Source changed during collection');
   if (!compiler.equals(regular(path.join(checkout,'bootstrap/compiler-v9.bc'))) || !vm.equals(regular(path.join(checkout,'panack-vm')))) throw Error('Toolchain changed during collection');
   if (command(['git','rev-parse','HEAD']).trim() !== commit || !manifestBytes.equals(regular(path.join(checkout,'tests/source_coverage/manifest.json')))) throw Error('Checkout or manifest changed during collection');
@@ -106,9 +119,17 @@ function baseline(output, allowDirty = false) {
 }
 module.exports = {baseline,exportPlan};
 if (require.main === module) {
-  const args = process.argv.slice(2), allowDirty = args.includes('--allow-dirty');
-  const positional = args.filter(a=>a!=='--allow-dirty');
-  if (positional.length > 1) throw Error('Usage: source_coverage_baseline.cjs [output] [--allow-dirty]');
-  try { baseline(path.resolve(positional[0] || path.join(checkout,'build/source-coverage')),allowDirty); }
+  const args = process.argv.slice(2), positional = [], options = {};
+  let allowDirty = false;
+  for (let i=0;i<args.length;i++) {
+    if (args[i] === '--allow-dirty') allowDirty = true;
+    else if (args[i] === '--no-plan-cache') options.cache = false;
+    else if (args[i] === '--plan-cache' && args[i+1] && !args[i+1].startsWith('--')) options.cacheDirectory = args[++i];
+    else if (args[i].startsWith('--')) throw Error(`Unknown or incomplete option: ${args[i]}`);
+    else positional.push(args[i]);
+  }
+  if (options.cache === false && options.cacheDirectory) throw Error('Choose either --no-plan-cache or --plan-cache, not both');
+  if (positional.length > 1) throw Error('Usage: source_coverage_baseline.cjs [output] [--allow-dirty] [--no-plan-cache | --plan-cache PATH]');
+  try { baseline(path.resolve(positional[0] || path.join(checkout,'build/source-coverage')),allowDirty,options); }
   catch (error) { console.error(error.message); process.exitCode=1; }
 }

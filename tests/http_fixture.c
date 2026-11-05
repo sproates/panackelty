@@ -46,6 +46,14 @@ static bool headers_complete(const char *request, size_t length)
 
 static void respond(int descriptor, const char *target)
 {
+    if (!strcmp(target, "/large")) {
+        const char *head = "HTTP/1.1 200 OK\r\nContent-Length: 33554432\r\nConnection: close\r\n\r\n";
+        if (send_all(descriptor, head, strlen(head)) != 0) return;
+        char block[8192]; memset(block, 'Z', sizeof(block));
+        for (size_t i = 0; i < 4096; i++)
+            if (send_all(descriptor, block, sizeof(block)) != 0) return;
+        return;
+    }
     static const char ok[] =
         "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n"
         "X-Repeat: one\r\nX-Repeat: two\r\nConnection: close\r\n\r\nok";

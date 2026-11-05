@@ -8,4 +8,16 @@ main(): Void {
   print("Panackelty".slice(0, 3))
   print("Panackelty".starts_with("Pan"))
   print("Aλ🙂".reverse())
+
+  // Str positions count Unicode scalars; Bytes positions count encoded bytes.
+  text = "Aλ🙂"
+  encoded = text.encode_utf8()
+  print(text.len())
+  print(encoded.length())
+  for index in 0..text.len() {
+    character = text[index]
+    print("character: ${character}")
+  }
+  print(encoded.decode_utf8())
+  print("report.panack".ends_with(".panack"))
 }

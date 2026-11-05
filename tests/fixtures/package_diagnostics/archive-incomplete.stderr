@@ -1,0 +1,9 @@
+panack: error[PKG_ARCHIVE_INCOMPLETE]: Cannot unpack the archive because the archive ended before its contents and end marker were complete.
+
+  Project: <workspace>/app/panack.json
+  Source archive: <workspace>/source.tar.gz
+  Dependency name: lib
+
+Panack has stopped extraction.
+
+Obtain a valid copy of the archive and retry your command. If a fresh copy produces the same error, ask the package maintainer to recreate the archive. A replacement must still match the checksums in an existing lockfile.

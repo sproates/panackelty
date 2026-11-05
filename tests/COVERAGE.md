@@ -1,5 +1,19 @@
 # Specification coverage
 
+Shared compiler-test preparation preserves the existing assertions and standalone
+entry points; suite bodies now live in `runner/compiler_suites/`. Each selected
+suite runs in its own process. The real dispatcher and probe-cache regression in
+`unit/harness/compiler_shared.sh` checks one-suite selection, missing/unknown
+selection, injected assertion failure, direct/transitive invalidation, corruption,
+incomplete publication and missing-suite recovery. No validation cadence changes.
+
+The P03a HTTP prerequisite adds raw streaming transport contracts: a 32 MiB
+transfer read in chunks of at most 16 KiB, total-limit failure, stale and foreign
+handles, deadline expiry between reads and invocation cleanup. HTTP client
+fixtures exercise the streaming wrapper through source and saved bytecode,
+including trusted and untrusted TLS. This is transport evidence, not remote
+package acceptance or an execution-coverage percentage.
+
 The compiler-free fixture inventory preflight has isolated mutation regressions
 for missing, stale, duplicate and reordered examples, output pairing, runner counts,
 smoke totals and Makefile rejection before build phases. It supplements the
@@ -219,7 +233,7 @@ Status meanings:
 | Panackelty-hosted fixture orchestration | `runner/main.panack`; `functional/cases/runner_smoke`; `functional/cases/stdlib_module_api`; `functional/failures/stdlib_legacy_api_removed`; `functional/cases/cli_check_disasm`; `functional/cases/cli_commands`; `functional/cases/cli_environment_files`; `functional/cases/cli_diagnostic_display`; `functional/cases/cli_rational_failures`; `runner/compiler_driver.panack`; `unit/harness/runner.sh` | **Covered** — thirty selected success fixtures and twenty-five example programs run source, compile, and bytecode with byte-exact streams/status; sixty failure fixtures check exact normalized diagnostics for check/compile and absent artifacts; fourteen also check run/disasm. The new module API fixture covers `prelude.path.from_text`, the `prelude.byte_buffer` alias alongside the `bytes()` constructor, and distinct `numeric.divide` and `prelude.time.divide` calls; its failure companion requires legacy `path_string_*` and Str-based trapping filesystem imports to be rejected. Source and bytecode checks, matching disassembly, malformed bytecode and legacy extension rejection, bare-path execution, default compile output, arguments, stderr/exit status, help and version, environment override, text and binary file round trips, missing paths, invalid UTF-8, and permission denial on unprivileged POSIX hosts, paired example discovery, explicit artifact and workspace cleanup, deterministic reports, injected output/diagnostic mismatches, missing fixture expectations, nonempty-workspace recovery, isolated inherited environment for `stdlib`, and checkout-bound compiler `source.path` are covered. The canonical check captures one complete runner report during the native oracle smoke execution and checks its exact bytes in both functional smoke modes; standalone targets still run the full runner. |
 | Native C11 seed VM | `runner/vm_unit.panack`; `native_oracle_contracts.sh`; portable vectors | **Covered** for strict C11 compilation, bounded decoding and verification, exhaustive truncations, shared and forged malformed artifacts, differential program output, large integers, exact decimals, collections, UTF-8, host arguments/environment/status, nested execution, forged dynamic traps, byte-identical self-hosted compilation, and running the complete compiler. |
 | Verified self-hosted seed refresh | `seed_refresh.sh`; `make bootstrap-check` | **Covered** for recorded input digest verification before execution, fresh verified compiler stages 2–4, compiler/library byte identity, exact conformance output, failure preservation, locks/signals/concurrent edits, publication and idempotence. A real refresh uses a restricted `PATH`; failure injection uses a shell fake VM. |
-| Reproducible native distribution | `unit/harness/bootstrap.sh`; `make bootstrap-check`; `unit/harness/distribution.sh`; `unit/harness/layout.sh`; `native_conformance.sh`; `release_archive_smoke.sh`; `quick_start.sh`; `make package` | **Covered** for seed verification, corrupt-seed rejection in an isolated checkout with shared VM inode/byte preservation, stage-2/stage-3 compiler and standard-library identity, installed layout with bundled logical standard-library imports, canonical release and bytecode version reporting, native conformance, and a friendly single-root archive containing the launcher, native VM, compiler seed, standard-library sources, license, user-facing release documents, and the complete tested example set. Distribution regressions also exercise functional compiler handoff, packaging, checksums, and the documented quick start from a checkout path containing spaces and parentheses, plus an installation destination with those characters. The archive structure test rejects unsafe or unexpected paths, files, ownership metadata, and platform sidecars; checksum coverage recomputes and compares the published SHA-256 digest, and a relocated packaged tour example executes with its exact expected output. The exact-artifact release gate relocates the final archive, removes development tools from `PATH`, creates its inputs outside the checkout, and verifies help, version, source checking and execution, compilation, bytecode execution, argument forwarding, standard-library discovery, and malformed-bytecode rejection. Alpha.12 extended that relocated archive gate to exercise inventory, inventory-check, coverage-run, coverage-session, coverage-aggregate and coverage-report using the namespace trip-planner example. The current SP1 first-gate acceptance adds the two-application shared-library and package-tree relocation fixture against the packaged, relocated compiler, VM and standard library, including source and saved-bytecode execution from an unrelated working directory. The final package gate extracts its source and expected transcript from the packaged installation guide, then verifies checksum, install, version, check, source execution, compilation, bytecode execution, upgrade, and removal from a clean home and runtime-only `PATH`. Workflow contract coverage verifies PR and main-only push triggers, cancellation of superseded PR runs, and shared canonical suites across the validation matrix plus isolated full coverage on each packaging platform. Native build-flag coverage checks the optimisation default, user overrides, and retained strict C11 warnings. Workflow contract coverage fixes the independent packaging matrix at Ubuntu 22.04 x86-64 and macOS 14 arm64, retains checksums and build provenance beside both archives, and rejects premature publication. The tag workflow additionally requires an exact canonical version tag, complete validation, both successful package jobs, downloaded checksum and provenance verification, and write permission isolated to final prerelease publication. |
+| Reproducible native distribution | `unit/harness/bootstrap.sh`; `make bootstrap-check`; `unit/harness/distribution.sh`; `unit/harness/layout.sh`; `native_conformance.sh`; `release_archive_smoke.sh`; `quick_start.sh`; `make package` | **Covered** for seed verification, corrupt-seed rejection in an isolated checkout with shared VM inode/byte preservation, stage-2/stage-3 compiler and standard-library identity, installed layout with bundled logical standard-library imports, canonical release and bytecode version reporting, native conformance, and a friendly single-root archive containing the launcher, native VM, compiler seed, standard-library sources, license, user-facing release documents, and the complete tested example set. Distribution regressions also exercise functional compiler handoff, packaging, checksums, and the documented quick start from a checkout path containing spaces and parentheses, plus an installation destination with those characters. The archive structure test rejects unsafe or unexpected paths, files, ownership metadata, and platform sidecars; checksum coverage recomputes and compares the published SHA-256 digest, and a relocated packaged tour example executes with its exact expected output. The exact-artifact release gate relocates the final archive, removes development tools from `PATH`, creates its inputs outside the checkout, and verifies help, version, source checking and execution, compilation, bytecode execution, argument forwarding, standard-library discovery, and malformed-bytecode rejection. Alpha.12 extended that relocated archive gate to exercise inventory, inventory-check, coverage-run, coverage-session, coverage-aggregate and coverage-report using the namespace trip-planner example. The current SP1 first-gate acceptance adds the two-application shared-library and package-tree relocation fixture against the packaged, relocated compiler, VM and standard library, including source and saved-bytecode execution from an unrelated working directory. The final package gate extracts its source and expected transcript from the packaged installation guide, then verifies checksum, install, version, check, source execution, compilation, bytecode execution, upgrade, and removal from a clean home and runtime-only `PATH`. Workflow contract coverage verifies PR and main-only push triggers, cancellation of superseded PR runs, and shared canonical suites across the validation matrix plus isolated full coverage on each packaging platform. Native build-flag coverage checks the optimisation default, user overrides, and retained strict C11 warnings. Workflow contract coverage fixes the independent packaging matrix at Ubuntu 22.04 x86-64 and macOS 15 arm64, retains checksums and build provenance beside both archives, and rejects premature publication. The tag workflow additionally requires an exact canonical version tag, complete validation, both successful package jobs, downloaded checksum and provenance verification, and write permission isolated to final prerelease publication. |
 | CI-only validation routing | `scripts/ci_scope.sh`; `scripts/validate_change.sh`; `tests/ci_scope.sh`; `tests/workflow_yaml.sh`; `tests/unit/harness/layout.sh`; `tests/source_coverage/route.test.cjs` | **Covered** for the explicit configuration-only allowlist, workflow-only versus mixed-product routing, matching local/hosted focused checks, YAML syntax and top-level job structure, source-coverage skip gates, stable required-check results, and existing workflow/layout contracts. Product paths and unlisted CI inputs retain full validation. |
 | Public bug reporting | `.github/ISSUE_TEMPLATE/bug_report.yml`; `unit/harness/layout.sh`; `CONTRIBUTING.md` | **Covered** by a required GitHub issue form for version, platform, minimal source, command, expected behavior, actual output, and saved-bytecode behavior; blank issues are disabled and security reports are redirected to the private channel. |
 | Public project website | [website repository](https://github.com/sproates/panackelty-website) | Independently validated and published; no core website test dependency. |
@@ -510,9 +524,19 @@ functional runner. `tests/ci_sanitize.sh` compares standalone and partitioned
 operation multiplicity and injects compile, verify, execution, stderr and output
 failures; invalid selections fail before executing the VM. The standalone
 sanitizer and coverage targets execute all three shared implementations.
+`tests/ci_scope.sh` checks Make's expanded prerequisite graph so standalone
+package-aware suites prepare the separate package tool even in a clean build,
+while the native VM build remains independent. `tests/ci_sanitize.sh` also
+checks that ordinary CLI/package-tool preparation precedes each instrumented
+suite, whose artifacts live in a separate build directory.
 Distribution regressions also retain the shared VM inode and bytes while
 building and installing from an isolated checkout, detecting accidental relinks
 that can disrupt concurrent compiler commands.
+The spaced-checkout fixture gives clean toolchain preparation and archive/release
+checks separate bounded commands, retaining the same content and relocation
+assertions without sharing one timeout across compilation and acceptance.
+Installation from prepared artifacts rejects unexpected HTTP-server compilation;
+its build prerequisite is the package-tool artifact rather than a phony target.
 
 `tests/ci_partition.sh` executes the actual canonical unit recipe with stubbed
 suites at one, two and three workers. It checks exact suite multiplicity, worker
@@ -826,6 +850,51 @@ span/emitter/control-flow tests. Native-PC and coherent binary-forgery checks us
 the separate observer suite above. Hostile concurrent output-directory mutation,
 source-free verification and authenticated original producers are outside the
 [explicit contract](../docs/guides/SOURCE_MAPS.md).
+
+## Static string and collection guards
+
+The `domain_constraints` functional case runs through source and saved bytecode.
+It covers branch proofs, different guarded types, supplementary and decomposed
+text, map replacement, duplicate set members and base methods on guarded values.
+The `cli_explanations` fixture checks per-requirement evidence, declaration
+locations, contradictory and unsupported guards, missing proofs, definite
+failures and mutation. Compiler contract tests enumerate all 25 Unicode 17.0.0
+whitespace scalars and their neighbouring boundaries, and check every C0/C1
+control boundary.
+Runtime validation extends the same source and saved-bytecode fixture with ordered multi-rule errors, success, single evaluation, collection counts and numeric alternatives. Compiler contracts also assert the structured fields and scalar offsets.
+
+Record relationships extend those fixtures across imports, generic calls, storage,
+replacement and reassignment. The compiler contracts check both field locations,
+relation and safe facts. The CLI checks source-linked proof and runtime
+explanations, plus reverse lookup of the saved comparison instruction.
+
+Guard context regressions cover conditional branches, nested guarded elements,
+ordinary indexing on a guarded array and single-source control classification.
+
+The [installed domain-type acceptance](../docs/VALIDATED_DOMAIN_TYPES_ACCEPTANCE.md)
+also checks the public dispatch example and reports comparable proof and
+runtime costs.
+
+## Explicit guard bindings
+
+Parser and resolver tests cover the required name, arrow and lexical scope.
+Numeric checker and CLI cases exercise conversions between guards with different
+binding names. The semicolonless functional case executes a multiline numeric
+guard with parentheses and alternatives through source and saved bytecode. The
+checker also rejects a literal outside both alternatives.
+
+## Compiler understanding delivery acceptance
+
+The [acceptance record](../docs/COMPILER_UNDERSTANDING_ACCEPTANCE.md) maps the
+maintained checker and emission inventories to their regression evidence.
+Module-binding tests cover retention on/off, first and repeated generic
+constraints, callback components, host requirements and assignment mutability.
+Public explanation and source-map CLI tests cover the corresponding outcomes
+and invalid artifact/source pairs. `tools/explain/test.exp` exercises real
+terminal navigation and restoration against checkout and installed commands.
+`runner/compiler_origin_audit.panack` audits every instruction in real package
+and compiler projects; this is explicit delivery acceptance, not an additional
+heavy recurring unit suite. New GI#435 decisions require later integration.
 
 ## U3 first subtraction explanation query
 
@@ -1378,3 +1447,248 @@ query-header assertion is restricted to the installed example; the original
 contract fixture uses its unchanged common checks. `tests/http_package.sh` also
 runs the public lifecycle program from source and bytecode and compares shutdown
 output. The playbook embeds the matching example source and manifests.
+
+## GI#200 P02 local dependency evidence
+
+`tests/package_dependencies.sh` runs complete programs through the public CLI
+with live directories, local archives and an archive-owned transitive archive.
+It asserts lock no-op bytes, stale manifests, selective update refusal outside
+the selected subgraph, source and saved-bytecode output, corrupt-cache repair,
+changed archive rejection, symlinked cache/state refusal, staging cleanup,
+relocation and offline restore without lock changes. The existing package graph
+boundary and relocation fixtures now create explicit locks.
+
+The package probes cover canonical lock serialization and digest requirements,
+lock depth boundaries, strict resolved descriptors including cycles, independent
+SHA-256/tree vectors, Unicode case folding, malformed PAX sizes and duplicate
+keys. Archive streaming fixtures reject corrupt/truncated gzip, links, duplicate
+paths and full Unicode case collisions. Native adapter tests assert consumed
+handles, bounded chunks/output, atomic replacement, parent substitution refusal,
+concatenated gzip members and cleanup; they also pass ASan/UBSan.
+
+The new package and generic adapter sources are explicitly unmeasured in the
+source-execution coverage manifest. These assertions do not claim a coverage
+percentage or change the existing eligible-source denominator or thresholds.
+
+## GI#200 P03a HTTPS archive evidence
+
+`tests/package_https.sh` runs complete projects through the public CLI against
+an instrumented local TLS peer. It verifies independent compressed SHA-256,
+redirect identity, source and bytecode output, warm/cold/corrupt cache behaviour,
+changed-byte rejection, selective updates, relocation, transitive archives,
+remote-manifest containment, TLS trust, URL policy and failure cleanup. Request
+counts prove ordinary commands and offline operations do not access the peer.
+Existing local dependency tests remain part of `make check`.
+
+The HTTP package fixtures exercise streamed fixed-length, chunked and
+close-delimited bodies, truncation, ambiguous framing and size limits through
+source and bytecode execution. The TLS workflow runs HTTPS package acceptance
+on Linux and macOS. These behavioural checks do not establish a source execution
+coverage percentage for the new acquisition module.
+
+The P03b generic prerequisite exercises exact and empty child environments against
+inherited Git configuration and coverage-ticket variables, alongside unchanged
+inherited-process behaviour. Native staging tests verify raw link-target bytes,
+dangling and absolute targets, exclusive creation, consumed handles, no-follow
+ancestors and traversal rejection. The existing `host_process` and
+`host_capabilities` functional cases assert these public wrappers through source
+and saved bytecode, including process limits, timeouts and cleanup. Isolated
+processes do not automatically propagate child coverage tickets; an active
+session is explicitly incomplete. The coverage-session regression proves both
+the exact environment and rejection of a complete aggregate.
+
+## GI#200 P03b controlled Git acquisition
+
+`package_git_unit.panack` covers inventory modes, object identities, UTF-8,
+paths, duplicate/case collisions, size limits and physical symlink containment.
+`package_git.sh` runs complete programs through the public CLI in source and
+saved-bytecode form against a private HTTPS Git CGI peer. It independently
+checks source/tree hashes, raw file bytes, symlinks and a 17 MiB binary blob;
+exercises SHA-1/SHA-256 repositories; rejects unavailable commits, untrusted TLS,
+credential-bearing URLs, missing Git, unsafe links, submodules, LFS, redirects,
+authentication and interrupted transport; and checks cleanup and preservation
+of a previously published snapshot. Hostile inherited helper/template/filter
+configuration cannot execute its marker script. Linux and macOS run the fixture
+in the HTTP TLS workflow. These are behaviour assertions, not source-execution
+coverage percentages. P03c integration coverage is described below.
+
+## GI#200 P03c Git package integration
+
+`tests/package_git.sh` also runs `tests/package_git_integration.sh`. Complete
+programs through public project check/compile/run and saved bytecode assert
+annotated tags, default HEAD, full refs and commits, SHA-1/SHA-256 repositories,
+root packages, linked subdirectories, sibling diamonds and repeated aliases.
+The HTTPS peer counts TCP connections to prove warm and offline commands do not
+contact it. Tests assert unchanged locks after moved refs, exact-commit cold
+restore, corrupt-cache repair, atomic selective-update rejection and snapshot
+versus package-private containment. New manifest/ref/lock boundary assertions
+live in the existing package unit runners. These are behavioural assertions;
+the three new production modules remain explicitly unmeasured in the source
+coverage inventory, with eligible sources and thresholds unchanged.
+P03d still owns the broader cross-source acceptance matrix; P04 owns installed
+all-source workflows. See the [integration record](../docs/design/PACKAGE_GIT_INTEGRATION_ACCEPTANCE.md).
+
+P03d extends `tests/package_git_integration.sh` with mixed Git/HTTPS graphs,
+selective update pin and transport isolation, separate interrupted HTTP/Git
+restores, unavailable locked commits and changed archive bytes. Failure checks
+compare the complete cache tree plus exact lock/state bytes. See the
+[remote-source acceptance matrix](../docs/design/PACKAGE_REMOTE_ACCEPTANCE.md).
+
+P04a and its diagnostic follow-up provide 74 diagnostic unit assertions and public-command transcript/recovery
+acceptance in `tests/package_diagnostics.sh`. One hundred exact
+transcripts are checked against the examples document. Tests execute suggested
+commands with apostrophes/spaces in the project path, verify complete program
+output and preserve pins after cache repair or rejected content. Existing remote
+fixtures assert safe TLS/status/Git explanations and secret rejection on Linux
+and macOS. The diagnostic, input-diagnostic and command-diagnostic modules are explicitly unmeasured by the bounded
+source-coverage corpus; this makes no source coverage percentage claim.
+
+The P04a wording review tests distinct causes for unknown dependency names,
+unselected changes, changed project versions, DNS/TLS/timeouts and archive path
+and numeric bounds. Existing archive and Git rejection tests retain their
+assertions and now check cause-specific explanations for unsafe links.
+
+The follow-up also checks JSON line/column reporting, syntax versus package-setting failures, state/access failures versus checksum mismatches, and separate HTTP authentication, rate-limit and server-error explanations. Full-path recovery transcripts remain tied to actual public command output.
+
+The PR#587 UTF-8 regression exercises the public manifest-loading path with an
+invalid byte and asserts the complete encoding diagnostic and unchanged lockfile.
+Unit checks also cover shared lockfile encoding guidance and absent text location.
+
+The Git diagnostic correction adds 74 Git unit assertions and public-command
+checks for version detection, missing/default/ambiguous references, malformed
+responses, launch failure, signal termination and nonzero exit. Six additional
+exact transcripts cover old Git, a missing reference, submodules, LFS pointers,
+an absolute symbolic link and the 40-link bound. Controlled Git executables test
+otherwise difficult process failures; real HTTPS repositories test repository
+contents, cache recovery and pin preservation. Raw stderr is excluded, failures
+leave no lockfile or abandoned stage, and ordinary builds still invoke no Git.
+
+The archive diagnostic correction adds 22 archive/stream unit assertions and
+15 exact public CLI transcripts for malformed gzip/tar/PAX data, unsupported
+entries and metadata, invalid paths, conflicts, numeric bounds and absent root
+manifests. Each public rejection checks source context and staging cleanup.
+Typed HTTP callback failures are tested for sized, chunked and close-delimited
+bodies; HTTP framing failures are mapped separately. The real TLS archive suite
+checks that invalid gzip remains an archive error. Existing streamed compressed,
+expanded, entry and header bounds remain exercised. Restore tests distinguish
+matching archive bytes from a mismatched extracted-tree checksum and preserve
+the previous lock, state and usable package.
+
+The general-validation correction adds 23 exact public transcripts for command
+arguments, selected updates without a lock, file kinds and access, manifest/lock
+byte bounds, JSON depth, invalid lock records, application dependencies, cycles,
+conflicting versions/directories and overlapping source roots. The tests check
+no initial lock on rejection, preservation of existing files and execution of
+the suggested initial-lock command. Permission cases run on non-root POSIX hosts.
+
+The lock/publication correction adds 18 exact public transcripts and brings the
+lock parser unit suite to 27 assertions. It covers lock schema, JSON record and
+field types, unsupported fields, checksums, source declarations, missing or
+duplicate packages, multiple versions, and changed project/dependency manifests.
+Every malformed-lock scenario compares the rejected file byte for byte.
+Publication tests preserve a conflicting symlink and its target, distinguish a
+state-record destination conflict, execute the suggested restore commands and
+run the recovered program. Semantic errors without a source offset no longer
+claim line 1, column 1. HTTP redirect/response variants remain outstanding.
+
+P04a completion audits all 24 package modules. HTTPS transcript cases distinguish
+redirect destinations, downgrade/scheme policy, content/transfer encoding, response
+syntax, truncation, size and status. Failed updates preserve the existing lock and
+package files. Unknown manifest fields print their actual names; directory conflicts
+name and preserve the conflicting path. The finite acceptance record is
+[`PACKAGE_DIAGNOSTIC_ACCEPTANCE.md`](../docs/design/PACKAGE_DIAGNOSTIC_ACCEPTANCE.md).
+
+## GI#200 P04b installed package workflow
+
+Release smoke executes package help and local archive lock/update/restore through
+a relocated, symlinked installed command. The launched command has no Git, curl,
+tar or build tools on PATH. It verifies the restored lock is unchanged, compiled
+program output, missing-package-tool failure and bytecode independence. Native
+library inspection rejects missing or non-system runtime dependencies. Existing
+distribution tests retain the complete installed-file inventory.
+
+The HTTP TLS workflow repeats tests/package_https.sh through a relocated install
+on Ubuntu 22.04 and macOS 14 with the same restricted command environment. Real
+TLS, checksum failures, redirects, cache recovery and network-free command
+connection counts retain their existing assertions. P04c mixed-source final
+acceptance remains separate.
+
+## GI#200 P04c final acceptance
+
+The [final matrix](../docs/design/PACKAGE_FINAL_ACCEPTANCE.md) maps the completed
+contract to executable evidence. tests/package_git_integration.sh now combines
+all four sources and transitive imports, independently regenerates identical
+locks, relocates the tree, observes zero TCP/Git activity and unchanged lock/cache
+bytes for ordinary routes, then repeats with the peer stopped. Local source
+edits remain live; stale/missing locks and missing/corrupt caches fail without
+implicit repair. Explicit local offline restore and bytecode without sources
+are verified. The HTTP TLS workflow repeats the integration suite through the
+installed toolchain on Linux/macOS, retaining Git diamond and containment tests.
+No production-source coverage classification or threshold changes.
+
+## Compiler progress watchdog
+
+The complete compiler-source fixture retains byte-exact output assertions while
+using per-module/per-stage hang bounds. Native budget and subprocess contracts
+cover cumulative healthy work, non-renewing function activity, silent children,
+forced cleanup, missing/partial progress, launch failure, five injected compiler
+stalls and recovery. The separate observer VM and native supervisor are test-only;
+normal VM frame layout and the compiler seed are unchanged. See
+[the watchdog guide](compiler_watchdog/README.md) for evidence locations and limits.
+
+## Alpha.15 source-inventory capacity
+
+Inventories allow 64 MiB; compiler and bytecode identities remain 16 MiB.
+Native tests cover a 64 MiB inventory through root and inherited sessions,
+one-byte-over rejection, and the unchanged bytecode limit. Reader tests validate
+64 MiB identities, reject oversized inventories and 128 MiB containers, and retain
+small metadata bounds. Self-hosted inventory tests distinguish limit failures
+from missing compiler identity; coverage decoding accepts valid containers above
+32 MiB. The host-file functional fixture now exercises the 128 MiB synchronous
+I/O ceiling, lower caller read budgets, oversized requests and preservation of
+existing bytes on rejected writes. Rooted/async filesystem and process bounds
+remain unchanged. See [baseline evidence](../docs/COVERAGE_PERFORMANCE_BASELINE.md).
+
+### RM#154 local plan-cache verification
+
+The source-coverage cache tests cover authenticated persistent hits, private run
+copies, source changes despite preserved timestamps, added/renamed/removed
+resolution candidates, compiler/VM/launcher/manifest invalidation, and presentation
+changes that retain reuse. Corruption cases include altered receipts and payload
+hashes, missing/unexpected members, symlinks, hard links, truncation and size bounds.
+Interrupted generation, concurrent publication, publication failure and changed
+source/trust state fail safely or regenerate, without caching execution results.
+The native source-parity target also runs a real dependency fixture: a cache hit
+executes afresh, a dependency edit changes executable output, and all sessions
+have distinct identities. Full workload performance acceptance remains separate.
+
+Hosted preparation tests reject failed/unrelated/fork producers, mismatched
+commits, missing digests, expired/oversized artifacts and malformed identities.
+Import tests discard altered members, unexpected files, links and stale inputs;
+a fresh local key authenticates the imported copies without restoring the old
+key. The native parity target additionally imports a real prepared program,
+executes it afresh, then changes its dependency and checks the new output.
+Workflow contracts preserve digest enforcement, fresh collection and separate
+preparation/report artifact paths.
+
+## RM#155 API recipe assertions
+
+The functional example corpus checks exact source and saved-bytecode transcripts
+for Unicode scalar/UTF-8 byte lengths and text iteration (`strings`), persistent
+collections and missing-key handling (`collections_and_bytes`), a deliberate test
+failure and returned count (`testing_report`), and bounded filesystem reads,
+process launch failure, child exit/signal/output and cleanup (`host_failures`).
+The host recipe uses a unique temporary directory and fixed POSIX shell input.
+It makes no timeout-performance, concurrency or browser support claim.
+
+Eight additional worked tasks check truncation at a Unicode scalar boundary,
+malformed UTF-8, vote counting, ordered deduplication, table-driven assertions,
+failure-only reports, temporary-file round trips and bounded child output. Each
+has an independently specified transcript in the functional example corpus.
+
+The archive duplicate-path fixture stores two distinct files under the same
+member name. This exercises duplicate regular entries on GNU tar and macOS tar
+without relying on implementation-specific options.
+The separate symbolic-link rejection remains intact.
+
+The [final compiler-understanding acceptance](../docs/COMPILER_UNDERSTANDING_ACCEPTANCE.md#final-alpha15-integration) records domain-proof retention, cross-module terminal navigation, source-map round trips and realistic instruction-origin audits.

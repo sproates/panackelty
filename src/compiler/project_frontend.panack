@@ -1,6 +1,7 @@
 pub import project/src/compiler/loader::{LoadedProject}
 import project/src/compiler/loader::{loaded_package_binding_graph}
-pub import project/src/compiler/package_project::{ManifestDependencyProject, FilesystemRootIdentity}
+pub import project/src/project_model/package_project::{ManifestDependencyProject}
+pub import stdlib/package_filesystem::{FilesystemRootIdentity}
 import project/src/compiler/module_emission::{ModuleBindingGraph, ModuleEmissionResult, module_emission_program}
 pub import project/src/compiler/module_bindings::{ModuleIdentity}
 pub import project/src/compiler/parser::{Program}

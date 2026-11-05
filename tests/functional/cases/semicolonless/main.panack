@@ -1,13 +1,15 @@
 import "helper.panack" as helper
 
-type Positive = Nat where value > 0
+type AllowedAnswer = Nat where number =>
+  (number == 42 || number == 43)
+  && number > 0
 
 main(): Void {
   answer: Nat = helper.add(
     20,
     22
   )
-  checked: Positive = 42
+  checked: AllowedAnswer = 42
   mut values: [Nat] = [
     answer,
     checked + 1

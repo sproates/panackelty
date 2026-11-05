@@ -1,0 +1,5 @@
+panack: error[PKG_USAGE]: Cannot run the package command because --project has no manifest path.
+
+Panack has not read or changed any package files.
+
+Supply the path to the project's panack.json immediately after --project.

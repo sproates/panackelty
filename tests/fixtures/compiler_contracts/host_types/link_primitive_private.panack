@@ -1,0 +1,4 @@
+import stdlib/path as path
+main(): Void {
+  result = fs_read_link(path.current(), path.current())
+}

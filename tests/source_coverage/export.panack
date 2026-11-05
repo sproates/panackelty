@@ -8,7 +8,7 @@ import project/src/compiler/module_bindings::{DeclarationIdentity, source_module
 import project/src/compiler/module_emission::{module_emission_symbol}
 import project/src/compiler/module_resolution::{resolve_module_path, ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget}
 import project/src/compiler/emitter::{SourceMappedProgram}
-import project/src/compiler/source_inventory::{inventory_module, serialize_source_inventory}
+import project/src/compiler/source_inventory::{inventory_module, serialize_source_inventory_checked}
 import project/src/compiler/source_maps::{source_map_blob, source_map_join, source_map_position, source_map_write, source_snapshots, source_snapshots_unchanged}
 import project/src/bytecode/codec::{encode_text, encode_u8, encode_u32, serialize_bytecode, sort_functions}
 
@@ -49,8 +49,8 @@ main(): Void {
   project = load_project_for_inventory(entry)
   match coverage_mapped_project(project, entry, project_root, stdlib) {
     Error(diagnostics) => {
-      for diagnostic in diagnostics { eprint(diagnostic.message); }
-      eprint("coverage plan: checked namespace failed")
+      for diagnostic in diagnostics { std_host.stderr(diagnostic.message); }
+      std_host.stderr("coverage plan: checked namespace failed")
       std_host.exit(1)
     },
     Ok(mapped) => coverage_plan(project, mapped, entry, project_root, source_root, stdlib, compiler, args)
@@ -68,8 +68,12 @@ coverage_plan(
   args: [Str]
 ): Void {
   artifact = serialize_bytecode(mapped.bytecode)
-  inner = serialize_source_inventory(project, artifact, compiler, entry, source_root, stdlib)
+  inner = match serialize_source_inventory_checked(project, artifact, compiler, entry, source_root, stdlib) {
+    Error(problem) => { std_host.stderr("coverage plan: " + problem); std_host.exit(1); "".encode_utf8() },
+    Ok(data) => data
+  }
   inventory = source_map_join(["PANACKINVENTORY1\n".encode_utf8(), encode_u32(1), source_map_blob(inner)], 0, 3)
+  if inventory.length() > 67108864 { std_host.stderr("coverage plan: source inventory envelope exceeds the 64 MiB serialized-size limit"); std_host.exit(1); }
   codes = sort_functions(mapped.bytecode.functions)
   mut indices: Map[Str,Nat] = map()
   mut probes: Map[Str,Map[Str,[EmissionProbe]]] = map()
@@ -103,7 +107,7 @@ coverage_plan(
   header = source_map_join(chunks, 0, chunks.len())
   if !source_map_write(args[1] + ".plan", header) {
     size = header.length()
-    eprint("coverage plan: header output failure (${size} bytes)")
+    std_host.stderr("coverage plan: header output failure (${size} bytes)")
     std_host.exit(1)
   }
   mut source_number: Nat = 0
@@ -163,12 +167,12 @@ coverage_plan(
           }
           chunks = chunks.append(source_map_join([encode_text(item.id), encode_text(item.kind), encode_text(item.detail), source_map_position(item.span.start), source_map_position(item.span.end), encode_u32(function), encode_u32(start), encode_u32(end), encode_u8(mode)], 0, 9))
         }
-        if !source_map_write(args[1] + ".source-${source_number}.plan", source_map_join(chunks, 0, chunks.len())) { eprint("coverage plan: source output failure"); std_host.exit(1); }
+        if !source_map_write(args[1] + ".source-${source_number}.plan", source_map_join(chunks, 0, chunks.len())) { std_host.stderr("coverage plan: source output failure"); std_host.exit(1); }
         source_number = source_number + 1
       }
     }
   }
-  if !source_snapshots_unchanged(project) || inner.length() == 0 { eprint("coverage plan: source changed"); std_host.exit(1); }
-  if source_number != snapshots.len() || !source_map_write(args[1] + ".bc", artifact) || !source_map_write(args[1] + ".inv", inventory) { eprint("coverage plan: output failure"); std_host.exit(1); }
+  if !source_snapshots_unchanged(project) { std_host.stderr("coverage plan: source changed"); std_host.exit(1); }
+  if source_number != snapshots.len() || !source_map_write(args[1] + ".bc", artifact) || !source_map_write(args[1] + ".inv", inventory) { std_host.stderr("coverage plan: output failure"); std_host.exit(1); }
   print("plan: wrote")
 }

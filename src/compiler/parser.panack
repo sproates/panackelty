@@ -1,3 +1,4 @@
+import project/src/compiler/expression_contracts::{decode_string_literal, split_interpolated_string}
 pub import project/src/compiler/lexer::{lex, Token, Diagnostic, SourcePos, SourceSpan, TokenKind, TokenKind.Identifier, TokenKind.Number, TokenKind.DecimalNumber, TokenKind.StringLiteral, TokenKind.Punctuation}
 
 // Build located syntax and retain module metadata without enabling staged features.
@@ -70,7 +71,7 @@ pub record MatchArm {
 
 pub enum TopLevel {
   ImportDeclaration(Str),
-  TypeDeclaration(Str, Str, Expr),
+  TypeDeclaration(Str, Str, Str, Expr),
   RecordDeclaration(Str, [Str], [RecordField]),
   EnumDeclaration(Str, [Str], [EnumVariant]),
   // Name, value parameters, return type, purity, async effect, body, type parameters.
@@ -121,7 +122,7 @@ pub pure indexed_program(declarations: [TopLevel]): Program {
   for declaration in declarations {
     match declaration {
       ImportDeclaration(path) => {},
-      TypeDeclaration(name, base, guard) => {
+      TypeDeclaration(name, base, guard_name, guard) => {
         types = types.put(name, index)
       },
       RecordDeclaration(name, parameters, fields) => {
@@ -159,7 +160,9 @@ pub enum BlockValue {
 
 pub record Block {
   statements: [Statement],
-  value: BlockValue
+  value: BlockValue,
+  span: Option[SourceSpan],
+  statement_spans: [SourceSpan]
 }
 
 record ParsedExpr {
@@ -326,6 +329,23 @@ record ParsedFunctionParameterList {
   values: [FunctionParameter],
   type_spans: [SourceSpan],
   next: Nat
+}
+
+// The splitter reports a decoded character offset. Walk the original token
+// to account for escape pairs and physical newlines in the source location.
+pure interpolation_position(token: Token, offset: Nat): SourcePos {
+  mut raw: Nat = 1
+  mut decoded: Nat = 0
+  mut line = token.position.line
+  mut column = token.position.column + 1
+  while decoded < offset {
+    if token.text[raw] == "\\" { raw = raw + 1; column = column + 1 }
+    if token.text[raw] == "\n" { line = line + 1; column = 1 }
+    else { column = column + 1 }
+    raw = raw + 1
+    decoded = decoded + 1
+  }
+  SourcePos(token.position.file, token.position.offset + raw, line, column)
 }
 
 pure parse_error(message: Str, position: SourcePos): Diagnostic {
@@ -875,7 +895,13 @@ pure discard_block_result(block: Block): Block {
     NoBlockValue() => block.statements,
     TailBlockValue(value) => block.statements.append(ExpressionStatement(value))
   }
-  Block(statements, NoBlockValue())
+  spans = match block.value {
+    NoBlockValue() => block.statement_spans,
+    TailBlockValue(value) => match expression_span(value) {
+      Some(site) => block.statement_spans.append(site), None() => block.statement_spans
+    }
+  }
+  Block(statements, NoBlockValue(), block.span, spans)
 }
 
 pure parse_if_branches(
@@ -899,9 +925,9 @@ pure parse_if_branches(
             discard_block_result(yes.value)
           }
           no_block: Block = if chain.exhaustive {
-            Block([], TailBlockValue(nested.value))
+            Block([], TailBlockValue(nested.value), expression_span(nested.value), [])
           } else {
-            Block([ExpressionStatement(nested.value)], NoBlockValue())
+            Block([ExpressionStatement(nested.value)], NoBlockValue(), expression_span(nested.value), [token_span(tokens, alternative, nested.next)])
           }
           value: Expr = IfExpr(condition.value, yes_block, no_block, true)
           expression: ParsedExpr = ParsedExpr(
@@ -925,7 +951,7 @@ pure parse_if_branches(
       }
     }
   } else {
-    no: Block = Block([], NoBlockValue())
+    no: Block = Block([], NoBlockValue(), None(), [])
     value: Expr = IfExpr(condition.value, yes.value, no, false)
     expression: ParsedExpr = ParsedExpr(
       located_expression(tokens, index, yes.next, value),
@@ -1043,10 +1069,16 @@ pure parse_primary(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] 
               ))
             } else {
               if token.kind == StringLiteral() {
-                Ok(ParsedExpr(
-                  located_expression(tokens, index, index + 1, StringExpr(token.text)),
-                  index + 1
-                ))
+                match split_interpolated_string(decode_string_literal(token.text)).invalid {
+                  None() => Ok(ParsedExpr(
+                    located_expression(tokens, index, index + 1, StringExpr(token.text)),
+                    index + 1
+                  )),
+                  Some(offset) => Error(parse_error(
+                    "string interpolation requires a local name; assign the expression to a local, then interpolate that name",
+                    interpolation_position(token, offset)
+                  ))
+                }
               } else {
                 if token.text == "true" || token.text == "false" {
                   Ok(ParsedExpr(
@@ -1380,6 +1412,7 @@ pub pure parse_complete(tokens: [Token]): Result[Expr, Diagnostic] {
 pure parse_while_statement(
   tokens: [Token],
   statements: [Statement],
+  spans: [SourceSpan],
   index: Nat
 ): Result[ParsedBlock, Diagnostic] {
   match parse_expression(tokens, index + 1) {
@@ -1392,7 +1425,7 @@ pure parse_while_statement(
             body.next
           }
           statement: Statement = WhileStatement(condition.value, body.value)
-          parse_block_items(tokens, statements.append(statement), next)
+          parse_block_items(tokens, statements.append(statement), spans.append(token_span(tokens, index, body.next)), next)
         },
         Error(error) => Error(error)
       }
@@ -1404,6 +1437,7 @@ pure parse_while_statement(
 pure parse_for_statement(
   tokens: [Token],
   statements: [Statement],
+  spans: [SourceSpan],
   index: Nat
 ): Result[ParsedBlock, Diagnostic] {
   variable_index: Nat = index + 1
@@ -1429,7 +1463,7 @@ pure parse_for_statement(
                 iterable.value,
                 body.value
               )
-              parse_block_items(tokens, statements.append(statement), next)
+              parse_block_items(tokens, statements.append(statement), spans.append(token_span(tokens, index, body.next)), next)
             },
             Error(error) => Error(error)
           }
@@ -1443,13 +1477,14 @@ pure parse_for_statement(
 pure parse_block_items(
   tokens: [Token],
   statements: [Statement],
+  spans: [SourceSpan],
   index: Nat
 ): Result[ParsedBlock, Diagnostic] {
   if index >= tokens.len() {
     Error(parse_error("expected closing brace", token_position(tokens, index)))
   } else {
     if tokens[index].text == "}" {
-      Ok(ParsedBlock(Block(statements, NoBlockValue()), index + 1))
+      Ok(ParsedBlock(Block(statements, NoBlockValue(), None(), spans), index + 1))
     } else {
       if tokens[index].text == "mut" ||
         (tokens[index].kind == Identifier() &&
@@ -1503,10 +1538,10 @@ pure parse_block_items(
                         initializer
                       )
                       if value.next < tokens.len() && tokens[value.next].text == ";" {
-                        parse_block_items(tokens, statements.append(statement), value.next + 1)
+                        parse_block_items(tokens, statements.append(statement), spans.append(token_span(tokens, index, value.next)), value.next + 1)
                       } else {
                         if value.next < tokens.len() && tokens[value.next].text == "}" {
-                          parse_block_items(tokens, statements.append(statement), value.next)
+                          parse_block_items(tokens, statements.append(statement), spans.append(token_span(tokens, index, value.next)), value.next)
                         } else {
                           Error(parse_error(
                             "expected line break, semicolon, or closing brace after binding",
@@ -1525,10 +1560,10 @@ pure parse_block_items(
         }
       } else {
         if tokens[index].text == "while" {
-          parse_while_statement(tokens, statements, index)
+          parse_while_statement(tokens, statements, spans, index)
         } else {
           if tokens[index].text == "for" {
-            parse_for_statement(tokens, statements, index)
+            parse_for_statement(tokens, statements, spans, index)
           } else {
             if tokens[index].kind == Identifier() &&
               index + 1 < tokens.len() &&
@@ -1538,10 +1573,10 @@ pure parse_block_items(
                 Ok(value) => {
                   statement: Statement = AssignmentStatement(name, value.value)
                   if value.next < tokens.len() && tokens[value.next].text == ";" {
-                    parse_block_items(tokens, statements.append(statement), value.next + 1)
+                    parse_block_items(tokens, statements.append(statement), spans.append(token_span(tokens, index, value.next)), value.next + 1)
                   } else {
                     if value.next < tokens.len() && tokens[value.next].text == "}" {
-                      parse_block_items(tokens, statements.append(statement), value.next)
+                      parse_block_items(tokens, statements.append(statement), spans.append(token_span(tokens, index, value.next)), value.next)
                     } else {
                       Error(parse_error(
                         "expected line break, semicolon, or closing brace after assignment",
@@ -1559,13 +1594,13 @@ pure parse_block_items(
                     statement: Statement = ExpressionStatement(expression.value)
                     parse_block_items(
                       tokens,
-                      statements.append(statement),
+                      statements.append(statement), spans.append(token_span(tokens, index, expression.next)),
                       expression.next + 1
                     )
                   } else {
                     if expression.next < tokens.len() && tokens[expression.next].text == "}" {
                       Ok(ParsedBlock(
-                        Block(statements, TailBlockValue(expression.value)),
+                        Block(statements, TailBlockValue(expression.value), None(), spans),
                         expression.next + 1
                       ))
                     } else {
@@ -1591,7 +1626,11 @@ pure parse_block(tokens: [Token], index: Nat): Result[ParsedBlock, Diagnostic] {
     Error(parse_error("expected opening brace", token_position(tokens, index)))
   } else {
     statements: [Statement] = []
-    parse_block_items(tokens, statements, index + 1)
+    match parse_block_items(tokens, statements, [], index + 1) {
+      Error(problem) => Error(problem),
+      Ok(parsed) => Ok(ParsedBlock(Block(parsed.value.statements, parsed.value.value,
+        Some(token_span(tokens, index, parsed.next)), parsed.value.statement_spans), parsed.next))
+    }
   }
 }
 
@@ -1619,37 +1658,49 @@ pure parse_type_declaration(tokens: [Token], index: Nat): Result[ParsedTopLevel,
       Error(parse_error("expected = after type name", token_position(tokens, equals_index)))
     } else {
       base_index: Nat = equals_index + 1
-      if base_index >= tokens.len() || tokens[base_index].kind != Identifier() {
-        Error(parse_error("expected guarded type base", token_position(tokens, base_index)))
-      } else {
-        where_index: Nat = base_index + 1
-        if where_index >= tokens.len() || tokens[where_index].text != "where" {
-          Error(parse_error(
-            "expected where after guarded type base",
-            token_position(tokens, where_index)
-          ))
-        } else {
-          match parse_expression(tokens, where_index + 1) {
-            Ok(guard) => {
-              declaration: TopLevel = TypeDeclaration(
-                tokens[name_index].text,
-                tokens[base_index].text,
-                guard.value
-              )
-              if guard.next == tokens.len() {
-                Ok(ParsedTopLevel(declaration, [token_span(tokens, base_index, base_index + 1)], guard.next))
-              } else {
-                if tokens[guard.next].text == ";" {
-                  Ok(ParsedTopLevel(declaration, [token_span(tokens, base_index, base_index + 1)], guard.next + 1))
-                } else {
-                  Error(parse_error(
-                    "expected line break or semicolon after type declaration",
-                    token_position(tokens, guard.next)
-                  ))
-                }
+      match parse_type_ref(tokens, base_index) {
+        Error(problem) => {
+          Error(parse_error("expected guarded type base", token_position(tokens, base_index)))
+        },
+        Ok(base) => {
+          where_index: Nat = base.next
+          if where_index >= tokens.len() || tokens[where_index].text != "where" {
+            Error(parse_error(
+              "expected where after guarded type base",
+              token_position(tokens, where_index)
+            ))
+          } else {
+            guard_name_index = where_index + 1
+            arrow_index = guard_name_index + 1
+            if guard_name_index >= tokens.len() || tokens[guard_name_index].kind != Identifier() {
+              Error(parse_error("expected a guard binding after where", token_position(tokens, guard_name_index)))
+            } else if arrow_index >= tokens.len() || tokens[arrow_index].text != "=>" {
+              Error(parse_error("expected => after guard binding", token_position(tokens, arrow_index)))
+            } else {
+              match parse_expression(tokens, arrow_index + 1) {
+                Ok(guard) => {
+                  declaration: TopLevel = TypeDeclaration(
+                    tokens[name_index].text,
+                    base.text,
+                    tokens[guard_name_index].text,
+                    guard.value
+                  )
+                  if guard.next == tokens.len() {
+                    Ok(ParsedTopLevel(declaration, [base.span], guard.next))
+                  } else {
+                    if tokens[guard.next].text == ";" {
+                      Ok(ParsedTopLevel(declaration, [base.span], guard.next + 1))
+                    } else {
+                      Error(parse_error(
+                        "expected line break or semicolon after type declaration",
+                        token_position(tokens, guard.next)
+                      ))
+                    }
+                  }
+                },
+                Error(error) => Error(error)
               }
-            },
-            Error(error) => Error(error)
+            }
           }
         }
       }
@@ -2184,7 +2235,7 @@ pure parse_impl_items(
           parse_impl_items(tokens, declarations.append(method), syntax.append(metadata), owner, owner_span, owner_parameters, owner_type, parsed.next)
         },
         ImportDeclaration(path) => Error(parse_error("expected method", token_position(tokens, index))),
-        TypeDeclaration(name, base, guard) => Error(parse_error("expected method", token_position(tokens, index))),
+        TypeDeclaration(name, base, guard_name, guard) => Error(parse_error("expected method", token_position(tokens, index))),
         RecordDeclaration(name, types, fields) => Error(parse_error("expected method", token_position(tokens, index))),
         EnumDeclaration(name, types, variants) => Error(parse_error("expected method", token_position(tokens, index)))
       }
@@ -2325,7 +2376,7 @@ pub pure module_execution_diagnostics(module: ParsedModule): [Diagnostic] {
         aliases = aliases.add(name)
       },
       ImportDeclaration(path) => {},
-      TypeDeclaration(name, base, guard) => {},
+      TypeDeclaration(name, base, guard_name, guard) => {},
       RecordDeclaration(name, parameters, fields) => {},
       FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {}
     }
@@ -2677,9 +2728,9 @@ pure render_function_declaration(
 pure render_top_level(declaration: TopLevel): Str {
   match declaration {
     ImportDeclaration(path) => "import \"${path}\";",
-    TypeDeclaration(name, base, guard) => {
+    TypeDeclaration(name, base, guard_name, guard) => {
       guard_text: Str = render_expr(guard)
-      "type ${name} = ${base} where ${guard_text};"
+      "type ${name} = ${base} where ${guard_name} => ${guard_text};"
     },
     RecordDeclaration(name, parameters, fields) => render_record_declaration(
       name,
@@ -2987,12 +3038,12 @@ pure declaration_requires_namespaces(
 ): Bool {
   match declaration {
     ImportDeclaration(path) => false,
-    TypeDeclaration(name, base, guard) => type_has_qualification(base) ||
+    TypeDeclaration(name, base, guard_name, guard) => type_has_qualification(base) ||
       expression_requires_namespaces(
       guard,
       aliases,
-      if aliases.has("value") {
-        locals.add("value")
+      if aliases.has(guard_name) {
+        locals.add(guard_name)
       } else {
         locals
       }),

@@ -1,0 +1,14 @@
+panack: error[PKG_PUBLICATION]: Cannot save the prepared package directory: the destination is not a replaceable package directory (destination_conflict).
+
+  Project: <workspace>/Ian's app/panack.json
+  Lockfile: <workspace>/Ian's app/panack.lock.json
+  Package: demo.library@1.0.0
+  Destination directory: <workspace>/Ian's app/.panack_modules/demo.library
+
+Panack stopped while saving prepared packages. The lockfile may already have been saved, and other package directories may already have been replaced.
+
+Preserve any contents you need before moving the conflicting destination elsewhere. Then prepare the packages recorded in the lockfile by running:
+
+  panack deps restore --project '<workspace>/Ian'"'"'s app/panack.json'
+
+Running this command will prepare the local packages without changing the lockfile. An internet connection is needed if remote packages must be downloaded.

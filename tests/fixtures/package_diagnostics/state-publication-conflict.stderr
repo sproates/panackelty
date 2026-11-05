@@ -1,0 +1,13 @@
+panack: error[PKG_PUBLICATION]: Cannot save the package state record because the destination is not a regular file.
+
+  Project: <workspace>/Ian's app/panack.json
+  Lockfile: <workspace>/Ian's app/panack.lock.json
+  Destination file: <workspace>/Ian's app/.panack_modules/.state/lock.json
+
+Panack saved the package directories, but could not save the state record used to verify those directories against the lockfile.
+
+Preserve any contents you need before moving the conflicting destination elsewhere. Then prepare the packages recorded in the lockfile by running:
+
+  panack deps restore --project '<workspace>/Ian'"'"'s app/panack.json'
+
+Running this command will prepare the local packages without changing the lockfile. An internet connection is needed if remote packages must be downloaded.

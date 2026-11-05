@@ -1,0 +1,11 @@
+panack: error[PKG_LOCK_INVALID]: Cannot use panack.lock.json because its dependency records are invalid.
+
+  Project: <workspace>/app/panack.json
+  Lockfile: <workspace>/app/panack.lock.json
+  Location: line 1, column 281
+
+A Git source's 'commit' must contain the complete commit ID: 40 lowercase hexadecimal characters for sha1, or 64 for sha256.
+
+If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.
+
+Creating a new lockfile may select different dependencies.

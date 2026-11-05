@@ -1,0 +1,6 @@
+panack: error[PKG_FILESYSTEM]: Cannot read panack.json: the path does not identify a regular file (not_regular_file).
+
+  Project: <workspace>/app/panack.json
+  File: <workspace>/app/panack.json
+
+Correct the reported filesystem problem, then retry your command. Check access using the account running Panack.

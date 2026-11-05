@@ -1,0 +1,10 @@
+panack: error[PKG_LOCK_MISSING]: Cannot build this project because its lockfile is missing.
+
+  Project: <workspace>/Ian's app/panack.json
+  Missing file: <workspace>/Ian's app/panack.lock.json
+
+The lockfile records the exact dependencies the project uses and belongs alongside panack.json.
+
+If you have an existing lockfile for this project, restore that file to the expected location. Otherwise, create one by running:
+
+  panack deps lock --project '<workspace>/Ian'"'"'s app/panack.json'

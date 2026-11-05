@@ -1,0 +1,10 @@
+panack: error[PKG_REDIRECT]: Cannot download the archive because the server sent a redirect without a destination (Location header).
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/no-location.tar.gz
+  Dependency name: lib
+
+Panack stopped before following this redirect. The rejected destination is omitted because server-provided URLs can contain secrets.
+
+Ask the server administrator to correct the redirect or the package maintainer to provide a direct HTTPS archive URL. Retry your command once the download is available.

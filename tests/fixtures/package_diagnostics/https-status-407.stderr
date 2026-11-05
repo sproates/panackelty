@@ -1,0 +1,9 @@
+panack: error[PKG_HTTP_STATUS]: Cannot download the archive because the proxy requires authentication.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/status-407.tar.gz
+  Dependency name: lib
+  Server response: HTTP 407
+
+Check the proxy access requirements in the environment running Panack. Ask the network administrator how to make this download accessible.

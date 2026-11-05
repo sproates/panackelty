@@ -1,3 +1,5 @@
+import stdlib/filesystem_stage as staging
+import stdlib/bounded_filesystem as bounded
 import stdlib/filesystem as std_filesystem
 import stdlib/host as std_host
 import stdlib/process as std_process
@@ -11,6 +13,40 @@ pure path(text: Str): Path { std_path.from_text(text).value_or(std_path.current(
 pure outcome[T](result: Result[T,HostError]): Str {
   match result { Ok(value) => "ok", Error(error) => error.code }
 }
+link_capabilities(): Void {
+  match std_filesystem.temp_directory(path("/tmp")) {
+    Error(problem) => print(problem.code),
+    Ok(parent) => {
+      match staging.begin(parent) {
+        Error(problem) => print(problem.code),
+        Ok(handle) => {
+          print(outcome(staging.directory(handle, path("nested"))))
+          print(outcome(staging.write(handle, path("nested/data"), "payload".encode_utf8(), 0)))
+          print(outcome(staging.symlink(handle, path("nested/link"), path("data"))))
+          print(outcome(staging.symlink(handle, path("dangling"), path("absent"))))
+          print(outcome(staging.symlink(handle, path("parent"), path("nested"))))
+          match staging.path(handle) {
+            Error(problem) => print(problem.code),
+            Ok(root) => {
+              print(bounded.read_link(root, path("nested/link")).value_or(byte_buffer.empty()) == "data".encode_utf8())
+              print(bounded.read_link(root, path("dangling")).value_or(byte_buffer.empty()) == "absent".encode_utf8())
+              print(outcome(bounded.read_link(root, path("parent/link"))) != "ok")
+              print(outcome(bounded.read_link(root, path("../escape"))) != "ok")
+              print(outcome(bounded.read_link(root, path("nested/data"))) != "ok")
+            }
+          }
+          print(outcome(staging.symlink(handle, path("parent/escape"), path("data"))) != "ok")
+          print(outcome(staging.symlink(handle, path("../escape"), path("data"))) != "ok")
+          print(outcome(staging.symlink(handle, path("nested/link"), path("other"))) != "ok")
+          print(outcome(staging.close(handle)))
+          print(outcome(staging.symlink(handle, path("closed"), path("data"))))
+        }
+      }
+      print(outcome(std_filesystem.remove_directory(parent)))
+    }
+  }
+}
+
 main(): Void {
   print(outcome(std_host.sleep(std_time.from_nanoseconds(-1))))
   print(outcome(std_host.sleep(std_time.seconds(31536001))))
@@ -74,4 +110,5 @@ main(): Void {
   print(outcome(std_process.run(path("/bin/sh"), ["-c", "sleep 5"], byte_buffer.empty(), std_path.current(), [], std_time.milliseconds(20), 10)))
   print(outcome(std_process.run(path("/bin/sh"), ["-c", "printf too-long"], byte_buffer.empty(), std_path.current(), [], std_time.seconds(1), 1)))
   print(outcome(std_process.run(path("/bin/sh"), [], byte_buffer.empty(), std_path.current(), ["INVALID"], std_time.seconds(1), 10)))
+  link_capabilities()
 }

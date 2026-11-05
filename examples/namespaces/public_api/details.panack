@@ -5,3 +5,5 @@ pure make_label(city: Str, days: Nat): Str {
 pub pure trip_label(): Str {
   make_label("Granada", 3)
 }
+
+pub record Trip { city: Str, days: Nat }

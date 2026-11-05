@@ -1,0 +1,43 @@
+import stdlib/filesystem as fs
+import stdlib/host as host
+import stdlib/host::{HostError}
+import stdlib/path as paths
+
+round_trip(file: Path): Result[Str, HostError] {
+  match fs.write(file, "practice at six".encode_utf8()) {
+    Error(problem) => Error(problem),
+    Ok(unit) => {
+      match fs.read(file, 64) {
+        Error(problem) => Error(problem),
+        Ok(data) => host.decode_utf8(data)
+      }
+    }
+  }
+}
+
+main(): Void {
+  match fs.temp_file(paths.current()) {
+    Error(problem) => {
+      host.stderr(problem.code)
+      host.exit(1)
+    },
+    Ok(file) => {
+      note = round_trip(file)
+      cleanup = fs.remove_file(file)
+      match cleanup {
+        Error(problem) => {
+          host.stderr(problem.code)
+          host.exit(1)
+        },
+        Ok(unit) => {}
+      }
+      match note {
+        Error(problem) => {
+          host.stderr(problem.code)
+          host.exit(1)
+        },
+        Ok(text) => print(text)
+      }
+    }
+  }
+}

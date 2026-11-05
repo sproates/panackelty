@@ -1,0 +1,9 @@
+// Blocking raw HTTP transport for bounded command-line streaming consumers.
+// HTTP framing belongs to the HTTP package. Empty bytes mark EOF.
+pub open(host: Str, port: Nat, tls: Bool, request: Bytes,
+  response_limit: Nat, timeout_ms: Nat): Result[Nat, Str] {
+  http_stream_open(host, port, tls, request, response_limit, timeout_ms)
+}
+
+pub read(handle: Nat): Result[Bytes, Str] { http_stream_read(handle) }
+pub close(handle: Nat): Result[Unit, Str] { http_stream_close(handle) }

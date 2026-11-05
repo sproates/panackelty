@@ -83,6 +83,75 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
+- **GI#435 final examples.** At alpha.15 promotion the website maintainer can use the [accepted dispatch example and transcript](../../guides/VALIDATED_DOMAIN_TYPES.md) for the tour and the explicit-binding migration for existing users.
+- **GI#435 record relationships.** At alpha.15 promotion, the website maintainer
+  can use the tested ordered-range replacement to show where a runtime
+  comparison comes from and how its failure identifies both fields.
+- **GI#435 runtime validation.** On alpha.15 promotion, the website maintainer should show a successful `validate` call and the two failures returned for an empty label, using the verified domain-constraints transcript.
+- **GI#435 static string and collection guards.** On alpha.15 promotion, add
+  the Label example and document Unicode scalar length, both text predicates,
+  Map/Set counts and proof-only construction. Core release and website
+  maintainers own the versioned examples and playground update.
+
+- **GI#435 explicit guard bindings.** At alpha.15 promotion, migrate numeric
+  guard declarations in the language tour, playground and examples to the
+  explicit binding syntax. Published alpha.14 examples target the earlier
+  compiler. Core release and website maintainers own the promotion check.
+
+- **GI#180 interactive compiler explanations: Feature accepted on merge; pending release promotion.**
+  After the matching native release, update the explanation guide and examples
+  to show source-first terminal navigation, decision details, supporting source
+  and generated instructions. Document `--text` for scripts. Preserve alpha.14
+  examples until promotion; do not imply that the terminal explorer executes the
+  inspected program. Ownership: core release and website maintainers. Evidence:
+  [compiler understanding acceptance](../../COMPILER_UNDERSTANDING_ACCEPTANCE.md).
+
+P04c final acceptance completes the package implementation on merge. The package
+follow-ups below still require a matching native release before promotion;
+[final evidence](../../design/PACKAGE_FINAL_ACCEPTANCE.md) records that boundary.
+
+- **P04b installed package workflow: Pending release and final acceptance.**
+  On alpha.15 promotion, include package help, the separate installed tool,
+  Ubuntu runtime libraries and macOS system/static library requirements. Explain
+  that Git is optional for local and HTTPS archives, and that package commands
+  do not need command-line curl or tar. Keep alpha.14 instructions unchanged.
+  Ownership: core release and website maintainers. Evidence:
+  [installed-workflow acceptance](dependency-management--idea.md#p04b-installed-workflow-acceptance).
+
+- **P04a diagnostics: Pending release and final acceptance.** Promote the new
+  package explanations and recovery examples only after P04b/P04c acceptance
+  and a matching native release. The examples document is future article source
+  material, not an instruction to publish an article. Ownership: core release
+  and website maintainers. Evidence: [verified examples](../../design/PACKAGE_DIAGNOSTIC_EXAMPLES.md).
+
+- **P03c Git dependencies: Pending release and final acceptance.** Add HTTPS Git
+  manifests, full-commit locks, Git 2.29+ installation, sibling/shared snapshot
+  examples, offline requirements and direct-URL/no-redirect limitations after
+  P04 and a matching native release. P03d remote-source acceptance is complete
+  on merge; its mixed-source evidence does not claim installed-workflow acceptance.
+  Keep published alpha.14 claims unchanged.
+  Ownership: core release and website maintainers; evidence:
+  [Git integration acceptance](../../design/PACKAGE_GIT_INTEGRATION_ACCEPTANCE.md).
+
+- **P03a HTTPS archives: Pending release.** After matching native release and
+  final acceptance, add HTTPS archive declarations, pinned restore/update and
+  offline-cache requirements to package examples. Keep alpha.14 claims unchanged
+  and do not imply Git support. Ownership: core release and website maintainers;
+  evidence: [HTTPS acceptance](../../design/PACKAGE_HTTPS_ACCEPTANCE.md).
+
+- **P03a streaming transport prerequisite: Pending release.** Document
+  `stdlib/http_stream` as blocking raw transport only when a matching native
+  release is available. Preserve the existing async HTTP client's 1 MiB body
+  limit in current website examples. Do not claim remote package support from
+  this prerequisite. Ownership: core release and website maintainers.
+
+- **GI#200 local package locks: Pending release.** On release of the matching
+  native toolchain, update package examples, installation prerequisites and
+  capability descriptions for explicit locks, local archive restore and the
+  separate Panack package tool. Keep alpha.14 instructions unchanged. Remote
+  source claims require P03/P04 acceptance. Ownership: core release and website
+  maintainers; evidence is the [P02 acceptance record](../../design/PACKAGE_LOCAL_ACCEPTANCE.md).
+
 - **Alpha.14 methods, HTTP and documentation: Done, 21 October 2026.**
   Website PR #51 published GI#518/GI#525 learning material and the HTTP slice of
   GI#552 after verifying the native alpha.14 and browser 0.2.1 releases. The

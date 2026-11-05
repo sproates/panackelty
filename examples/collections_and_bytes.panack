@@ -10,6 +10,14 @@ main(): Void {
   mut answers: Map[Str,Nat] = map()
   answers = answers.put("ultimate", 42)
   print(answers.get("ultimate"))
+  // get requires a present key; test membership before reading optional input.
+  if answers.has("missing") {
+    print(answers.get("missing"))
+  } else {
+    print("missing key")
+  }
+  empty: [Nat] = []
+  print(empty.first().value_or(99))
 
   mut names: Set[Str] = set()
   names = names.add("Panackelty")

@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-      - run: node --test tests/source_coverage/reader.test.cjs tests/source_coverage/manifest.test.cjs tests/source_coverage/policy.test.cjs tests/source_coverage/route.test.cjs tests/source_coverage/release_gate.test.cjs
+      - run: node --test tests/source_coverage/reader.test.cjs tests/source_coverage/cache.test.cjs tests/source_coverage/hosted.test.cjs tests/source_coverage/manifest.test.cjs tests/source_coverage/policy.test.cjs tests/source_coverage/route.test.cjs tests/source_coverage/release_gate.test.cjs
 
   workflow_validation:
     name: Workflow configuration validation
@@ -94,7 +94,7 @@ jobs:
           - target: linux-x86_64
             runner: ubuntu-22.04
           - target: macos-arm64
-            runner: macos-14
+            runner: macos-15
     runs-on: ${{ matrix.runner }}
     env:
       VALIDATION_JOBS: ${{ matrix.suite == 'compiler' && '3' || '2' }}
@@ -108,7 +108,7 @@ jobs:
         if: runner.os == 'Linux' && needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
         run: |
           sudo apt-get update
-          sudo apt-get install --yes libcurl4-openssl-dev
+          sudo apt-get install --yes libcurl4-openssl-dev zlib1g-dev libssl-dev
 
       - name: Validate and package with an isolated command environment
         if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
@@ -151,6 +151,7 @@ jobs:
           name: validation-profile-${{ matrix.target }}-${{ matrix.suite }}-${{ github.run_id }}
           path: |
             validation-profile.tsv
+            build/**/validation/compiler-watchdog/**
             validation-timings.tsv
           if-no-files-found: warn
 
@@ -192,7 +193,7 @@ jobs:
       - name: Install native HTTP client dependency
         run: |
           sudo apt-get update
-          sudo apt-get install --yes libcurl4-openssl-dev
+          sudo apt-get install --yes libcurl4-openssl-dev zlib1g-dev libssl-dev
       - name: Run bounded compiler and runtime smoke
         run: make check-no-interpreter CI_SUITE=next-smoke
 
@@ -219,7 +220,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install --yes libcurl4-openssl-dev
+          sudo apt-get install --yes libcurl4-openssl-dev zlib1g-dev libssl-dev
 
       - name: Run project checks
         if: contains(fromJSON('["compiler", "runtime"]'), matrix.suite)
@@ -283,6 +284,7 @@ jobs:
           path: |
             validation-timings.tsv
             validation-profile.tsv
+            build/**/validation/compiler-watchdog/**
           if-no-files-found: warn
 
   # Only these short compatibility gates use always(). Expensive jobs retain

@@ -38,7 +38,7 @@ function checkPolicy(report,policy,{commit,manifestHash,allowDirty=false}={}) {
     new Set(report.sessions.map(s=>s.id)).size===expectedSessions.length &&
     expectedSessions.every(id=>report.sessions.some(s=>s.id===id && Number.isSafeInteger(s.executions) && s.executions>0)),'incomplete sessions');
   for(const f of report.files) {
-    requireThat(/^src\/(compiler|bytecode|stdlib)\/.+\.panack$/.test(f.path) && /^[a-f0-9]{64}$/.test(f.hash),'invalid source identity');
+    requireThat(/^src\/(compiler|bytecode|packages|project_model|stdlib)\/.+\.panack$/.test(f.path) && /^[a-f0-9]{64}$/.test(f.hash),'invalid source identity');
     requireThat(f.lines && Array.isArray(f.functions) && Array.isArray(f.branches) && Array.isArray(f.exclusions),'missing source rows');
     for(const kind of ['functions','branches']) requireThat(new Set(f[kind].map(r=>r.id)).size===f[kind].length,'duplicate source item');
     for(const kind of kinds) {

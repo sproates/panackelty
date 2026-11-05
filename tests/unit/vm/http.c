@@ -10,6 +10,8 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <signal.h>
+#include <sys/wait.h>
 
 static Value *text(const char *s)
 {
@@ -182,8 +184,93 @@ static void deadline_readiness_race(void)
     assert(http_transport_classify_wait(100, deadline, 1, POLLNVAL) == VM_HTTP_WAIT_TIMEOUT);
 }
 
+static Value *stream_payload(Value *result, const char *variant)
+{
+    assert(result && result->kind == V_VARIANT);
+    assert(!strcmp(result->as.named.name, variant));
+    return result->as.named.values[0];
+}
+
+static void bounded_stream(bool limited)
+{
+    size_t port;
+    int server = listener(&port);
+    pid_t child = fork();
+    assert(child >= 0);
+    if (!child) {
+        signal(SIGPIPE, SIG_IGN);
+        int peer = accept(server, NULL, NULL);
+        if (peer < 0) _exit(1);
+        uint8_t input[2048];
+        size_t used = 0;
+        while (!contains(input, used, "\r\n\r\n")) {
+            ssize_t n = read(peer, input + used, sizeof(input) - used);
+            if (n <= 0) _exit(2);
+            used += (size_t)n;
+        }
+        uint8_t block[8192];
+        memset(block, 0x5a, sizeof(block));
+        size_t total = 32 * 1024 * 1024, sent = 0;
+        while (sent < total) {
+            ssize_t n = write(peer, block, sizeof(block));
+            if (n <= 0) break;
+            sent += (size_t)n;
+        }
+        close(peer);
+        close(server);
+        _exit(limited || sent == total ? 0 : 3);
+    }
+    close(server);
+    VM vm = {0}, other = {0};
+    Value *args[6];
+    arguments(args, port, false);
+    release(args[4]); args[4] = value_size(limited ? 100 : 32 * 1024 * 1024);
+    Value *opened = http_stream_call(&vm, "http_stream_open", args);
+    Value *handle = stream_payload(opened, "Ok");
+    Value *read_args[] = {handle};
+    Value *wrong_owner = http_stream_call(&other, "http_stream_read", read_args);
+    stream_payload(wrong_owner, "Error"); release(wrong_owner);
+    size_t received = 0;
+    for (;;) {
+        Value *result = http_stream_call(&vm, "http_stream_read", read_args);
+        if (limited) { stream_payload(result, "Error"); release(result); break; }
+        Value *chunk = stream_payload(result, "Ok");
+        assert(chunk->kind == V_BYTES && chunk->as.bytes.length <= 16384);
+        size_t size = chunk->as.bytes.length;
+        for (size_t i = 0; i < size; i++) assert(chunk->as.bytes.data[i] == 0x5a);
+        received += size;
+        release(result);
+        if (!size) break;
+    }
+    assert(limited || received == 32 * 1024 * 1024);
+    Value *closed = http_stream_call(&vm, "http_stream_close", read_args);
+    stream_payload(closed, "Ok"); release(closed);
+    closed = http_stream_call(&vm, "http_stream_read", read_args);
+    stream_payload(closed, "Error"); release(closed);
+    release(opened); release_arguments(args);
+    http_stream_destroy(&vm);
+    assert(!vm.http_streams);
+    int status;
+    assert(waitpid(child, &status, 0) == child && WIFEXITED(status) && WEXITSTATUS(status) == 0);
+}
+
 void http_transport_contracts(void)
 {
+    VM stream_vm = {0};
+    Value *stream_args[6];
+    arguments(stream_args, 1, false);
+    release(stream_args[5]); stream_args[5] = value_size(1);
+    Value *opened = http_stream_call(&stream_vm, "http_stream_open", stream_args);
+    Value *stream_handle[] = {stream_payload(opened, "Ok")};
+    (void)poll(NULL, 0, 5);
+    Value *expired = http_stream_call(&stream_vm, "http_stream_read", stream_handle);
+    Value *message = stream_payload(expired, "Error");
+    assert(contains(message->as.bytes.data, message->as.bytes.length, "timed out"));
+    release(expired); release(opened); release_arguments(stream_args);
+    http_stream_destroy(&stream_vm);
+    http_stream_destroy(&stream_vm);
+    bounded_stream(false);
+    bounded_stream(true);
     deadline_readiness_race();
     malformed_arguments();
     for (size_t repeat = 0; repeat < 8; repeat++) {

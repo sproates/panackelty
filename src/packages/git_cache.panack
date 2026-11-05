@@ -1,0 +1,122 @@
+pub import project/src/packages/diagnostic::{PackageProblem}
+import project/src/packages/diagnostic::{package_problem, problem_label, package_result, checksum_problem, host_detail, problem_value, explain_problem}
+pub import project/src/packages/git_inventory::{GitEntry}
+import project/src/packages/git_links::{git_resolve_link}
+import project/src/packages/tree_digest::{ArchiveEntry, tree_length, tree_feed_file}
+import project/src/packages/tar_header::{normalize_package_path}
+import project/src/packages/sha256::{sha256_new, sha256_feed, sha256_finish, sha256_close}
+import project/src/project_model/utf8::{valid_utf8}
+import stdlib/filesystem as filesystem
+import stdlib/filesystem::{FileKind.Directory, FileKind.RegularFile, FileKind.SymbolicLink}
+import stdlib/bounded_filesystem as bounded
+import stdlib/path as path
+
+pub record GitCacheInventory { entries: [GitEntry], links: Map[Str, Str], bytes: Nat }
+pure checked_path(value: Str): Path { path.from_text(value).value_or(path.current()) }
+pure entry_less(left: GitEntry, right: GitEntry): Bool { left.path < right.path }
+
+scan_git_cache(root: Str, relative: Str, inventory: GitCacheInventory): Result[GitCacheInventory, PackageProblem] {
+  match filesystem.list_directory(checked_path(root + "/" + relative)) {
+    Error(problem) => Error(package_problem("PKG_FILESYSTEM", "Cannot list the local Git package directory: " + host_detail(problem.code))),
+    Ok(children) => {
+      mut current = inventory
+      mut failure: Option[PackageProblem] = None()
+      for child in children {
+        if failure == None() {
+          match child.to_text() {
+            Error(problem) => { failure = Some(package_problem("PKG_CACHE_INVALID", "Cannot use the local Git package because a path is not valid UTF-8 text.")) },
+            Ok(name) => {
+              joined = if relative == "" { name } else { relative + "/" + name }
+              match normalize_package_path(joined) {
+                Error(problem) => { failure = Some(problem_label(package_problem("PKG_CACHE_INVALID", "Cannot use the local Git package because " + problem.message + "."), "Local path", root + "/" + joined)) },
+                Ok(normalized) => if normalized != joined { failure = Some(package_problem("PKG_CACHE_INVALID", "Cannot use the local Git package because a path cannot be used consistently on supported systems.")) }
+                else {
+                  match filesystem.metadata(checked_path(root + "/" + joined)) {
+                    Error(problem) => { failure = Some(package_problem("PKG_FILESYSTEM", "Cannot inspect a local Git package entry: " + host_detail(problem.code))) },
+                    Ok(info) => {
+                      kind = if info.kind == Directory() { "D" } else if info.kind == RegularFile() { "F" }
+                        else if info.kind == SymbolicLink() { "L" } else { "" }
+                      mut size = if kind == "D" { 0 } else { info.size }
+                      if kind == "" { failure = Some(package_problem("PKG_CACHE_INVALID", "Cannot use the local Git package because the directory contains an entry other than a regular file, directory or symbolic link.")) }
+                      if kind == "L" {
+                        match bounded.read_link(checked_path(root), checked_path(joined)) {
+                          Error(problem) => { failure = Some(package_problem("PKG_FILESYSTEM", "Cannot read a local Git symbolic link: " + host_detail(problem.code))) },
+                          Ok(bytes) => if !valid_utf8(bytes) { failure = Some(package_problem("PKG_CACHE_INVALID", "Cannot use the local Git package because a symbolic link target is not valid UTF-8 text.")) }
+                            else {
+                              size = bytes.length()
+                              current = GitCacheInventory(current.entries, current.links.put(joined, bytes.decode_utf8()), current.bytes)
+                            }
+                        }
+                      }
+                      if current.entries.len() >= 16384 { failure = Some(package_problem("PKG_CACHE_INVALID", "Cannot use the local Git package because its files, directories and symbolic links exceed Panack's limit of 16,384 entries.")) }
+                      else if current.bytes + size > 268435456 { failure = Some(package_problem("PKG_CACHE_INVALID", "Cannot use the local Git package because its file contents and link targets exceed Panack's 256 MiB limit.")) }
+                      if failure == None() {
+                        current = GitCacheInventory(current.entries.append(GitEntry(joined, "", kind, size)), current.links, current.bytes + size)
+                        if kind == "D" {
+                          match scan_git_cache(root, joined, current) {
+                            Error(problem) => { failure = Some(problem) }, Ok(next) => { current = next }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      match failure { Some(problem) => Error(problem), None() => Ok(current) }
+    }
+  }
+}
+
+verify_git_cache_inner(root: Str, expected: Str): Result[Map[Str, Str], PackageProblem] {
+  match scan_git_cache(root, "", GitCacheInventory([], map(), 0)) {
+    Error(problem) => Error(problem),
+    Ok(inventory) => {
+      mut hash = sha256_feed(sha256_new(), "PANACK-PACKAGE-TREE".encode_utf8().push(0))
+      hash = sha256_feed(hash, "v1".encode_utf8().push(0))
+      mut failure: Option[PackageProblem] = None()
+      for entry in inventory.entries.sort_by(@entry_less) {
+        if failure == None() {
+          name = entry.path.encode_utf8()
+          hash = sha256_feed(hash, entry.kind.encode_utf8())
+          hash = sha256_feed(hash, tree_length(name.length()))
+          hash = sha256_feed(hash, name)
+          hash = sha256_feed(hash, tree_length(entry.size))
+          if entry.kind == "L" {
+            target = inventory.links.get(entry.path)
+            match git_resolve_link(entry.path, target, inventory.links) {
+              Error(problem) => { failure = Some(problem_label(explain_problem(package_problem("PKG_CACHE_INVALID", "Cannot use the local Git package because a symbolic link is invalid."), problem.message, package_problem("PKG_CACHE_INVALID", "").help), "Symbolic link", entry.path)) }, Ok(resolved) => {}
+            }
+            hash = sha256_feed(hash, target.encode_utf8())
+          } else if entry.kind == "F" {
+            match tree_feed_file(hash, root, ArchiveEntry(entry.path, entry.size, false, true)) {
+              Error(problem) => { failure = Some(problem) }, Ok(next) => { hash = next }
+            }
+          }
+        }
+      }
+      match failure {
+        Some(problem) => { sha256_close(hash); Error(problem) },
+        None() => match package_result(sha256_finish(hash), "PKG_TOOL") {
+          Error(problem) => Error(problem),
+          Ok(actual) => if actual != expected { Error(checksum_problem(root)) }
+            else { Ok(inventory.links) }
+        }
+      }
+    }
+  }
+}
+
+pub pure git_package_subdir(subdir: Str, links: Map[Str, Str]): Result[Str, PackageProblem] {
+  git_resolve_link("package", subdir, links)
+}
+
+pub verify_git_cache(root: Str, expected: Str): Result[Map[Str, Str], PackageProblem] {
+  match verify_git_cache_inner(root, expected) {
+    Error(problem) => Error(if problem_value(problem, "Local package directory") == "" { problem_label(problem, "Local package directory", root) } else { problem }),
+    Ok(links) => Ok(links)
+  }
+}

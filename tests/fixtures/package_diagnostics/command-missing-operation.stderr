@@ -1,0 +1,5 @@
+panack: error[PKG_USAGE]: Cannot run panack deps because no operation was supplied.
+
+Panack has not read or changed any package files.
+
+Choose lock, update or restore, followed by --project /path/to/panack.json.

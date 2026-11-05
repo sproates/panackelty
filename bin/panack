@@ -18,12 +18,14 @@ if [ -x "$source_root/panack-vm" ] && [ -f "$source_root/bootstrap/compiler-v9.b
   vm="$source_root/panack-vm"
   compiler="$source_root/bootstrap/compiler-v9.bc"
   stdlib="$source_root/src/stdlib"
+  package_tool="$source_root/build/tools/panack-packages.bc"
   version_file="$source_root/VERSION"
 else
   prefix=$(CDPATH= cd -- "$directory/.." && pwd)
   vm="$prefix/libexec/panackelty/panack-vm"
   compiler="$prefix/share/panackelty/compiler-v9.bc"
   stdlib="$prefix/share/panackelty/stdlib"
+  package_tool="$prefix/share/panackelty/panack-packages-v1.bc"
   version_file="$prefix/share/panackelty/VERSION"
 fi
 
@@ -46,19 +48,118 @@ export PANACKELTY_STDLIB_PATH
 PANACKELTY_COMPILER_PATH=$compiler
 export PANACKELTY_COMPILER_PATH
 
+require_package_tool() {
+  if [ ! -f "$package_tool" ]; then
+    printf '%s\n\n  Missing file: %s\n\n' \
+      'panack: package tool not found. Panack cannot run package or project commands.' \
+      "$package_tool" >&2
+    if [ "$compiler" = "$source_root/bootstrap/compiler-v9.bc" ]; then
+      printf "Run 'make package-tool' in this source checkout:\n\n  %s\n" "$source_root" >&2
+    else
+      printf '%s\n' 'Reinstall the complete Panackelty toolchain from the same release.' >&2
+    fi
+    exit 127
+  fi
+}
+
+# Pipelines and explicit text queries retain the compiler's plain output.
+if [ "${1-}" = explain ]; then
+  interactive=false
+  case "${2-}" in
+    --text) shift 2; set -- explain "$@" ;;
+    --interactive) interactive=true; shift 2 ;;
+    *) if [ -t 0 ] && [ -t 1 ] && [ "$#" = 4 ] && [ "$3" = --function ]; then interactive=true; shift; fi ;;
+  esac
+  if [ "$interactive" = true ]; then
+    if [ "$#" != 3 ] || [ "$2" != --function ]; then
+      echo 'Usage: panack explain SOURCE --function NAME' >&2
+      exit 2
+    fi
+    if [ -f "$source_root/tools/explain/build.mk" ]; then
+      make -s -C "$source_root" -f tools/explain/build.mk || exit 1
+      terminal="$source_root/build/explain/terminal"
+      explorer="$source_root/build/explain/explorer.bc"
+    else
+      terminal="$prefix/libexec/panackelty/panack-terminal"
+      explorer="$prefix/share/panackelty/panack-explain.bc"
+    fi
+    exec "$terminal" "$vm" run "$explorer" "$@"
+  fi
+fi
+
 case "${1-}" in
+  --help|"")
+    "$vm" run "$compiler" "$@" || exit $?
+    printf '\n%s\n' 'Package dependencies:' \
+      '       panack deps lock --project PATH' \
+      '       panack deps update --project PATH [ALIAS...]' \
+      '       panack deps restore --project PATH [--offline]' \
+      '       panack deps --help' \
+      'Project check, compile and run never fetch or restore dependencies.'
+    exit 0
+    ;;
+  deps)
+    require_package_tool
+    shift
+    exec "$vm" run "$package_tool" deps "$@"
+    ;;
+  check|compile|run)
+    command=$1
+    if [ "${2-}" = "--project" ]; then
+      project=${3-}
+      if [ -z "$project" ]; then
+        echo "panack: --project requires a panack.json path" >&2
+        exit 2
+      fi
+      require_package_tool
+      shift 3
+      descriptor=$(mktemp "${TMPDIR:-/tmp}/panack-resolved.XXXXXX") || {
+        echo "panack: cannot create a temporary resolved-project descriptor" >&2
+        exit 1
+      }
+      child=
+      project_signal() {
+        trap - HUP INT TERM
+        status=1
+        if [ -n "$child" ]; then
+          kill -"$1" "$child" 2>/dev/null || :
+          wait "$child"
+          status=$?
+        fi
+        rm -f "$descriptor"
+        exit "$status"
+      }
+      trap 'rm -f "$descriptor"' 0
+      trap 'project_signal HUP' HUP
+      trap 'project_signal INT' INT
+      trap 'project_signal TERM' TERM
+      status=0
+      "$vm" run "$package_tool" prepare --project "$project" <&0 > "$descriptor" &
+      child=$!
+      wait "$child" || status=$?
+      child=
+      if [ "$status" -eq 0 ]; then
+        "$vm" run "$compiler" "$command" --resolved-project "$descriptor" "$@" <&0 &
+        child=$!
+        wait "$child" || status=$?
+        child=
+      fi
+      rm -f "$descriptor"
+      trap - 0 HUP INT TERM
+      exit "$status"
+    fi
+    if [ "$command" != compile ]; then
+      case "${2-}" in
+        *.bc)
+          artifact=$2
+          shift 2
+          exec "$vm" "$command" "$artifact" "$@"
+          ;;
+      esac
+    fi
+    ;;
   coverage-run|coverage-session)
     exec "$vm" "$@"
-    ;;
-  run|check)
-    command=$1
-    artifact=${2-}
-    case "$artifact" in
-      *.bc)
-        shift 2
-        exec "$vm" "$command" "$artifact" "$@"
-        ;;
-    esac
     ;;
   *.bc)
     artifact=$1

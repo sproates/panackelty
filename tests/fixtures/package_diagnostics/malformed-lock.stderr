@@ -1,0 +1,11 @@
+panack: error[PKG_LOCK_INVALID]: Cannot understand panack.lock.json because it contains invalid JSON.
+
+  Project: <workspace>/Ian's app/panack.json
+  Lockfile: <workspace>/Ian's app/panack.lock.json
+  Location: line 1, column 2
+
+JSON property names must be enclosed in double quotes. Panack expected an opening double quote at this location.
+
+If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.
+
+Creating a new lockfile may select different dependencies.

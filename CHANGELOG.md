@@ -6,6 +6,56 @@ in `docs/releases/RELEASE_POLICY.md`.
 
 ## Unreleased
 
+## 0.1.0-alpha.15 — 2026-11-05
+
+### Supported systems
+
+- The Apple silicon archive requires macOS 15 or newer. Users on macOS 14 can continue using alpha.14. The Linux x86-64 minimum is Ubuntu 22.04.
+
+### Packages
+
+- Declare dependencies on local directories, local archives, HTTPS archives or pinned Git sources. Use `panack deps lock`, `restore` and `update` with `--project panack.json` to manage a project explicitly. Restore a previously acquired graph offline using its lockfile. Git is optional for projects that use only local and HTTPS dependencies.
+- Package diagnostics identify the dependency, the affected file or source and the action that can resolve the problem.
+
+### Validated domain types and compiler explanations
+
+- Explore domain proofs and their supporting source, including guarded
+  collection and indirect calls. Imported validation rules retain their own
+  source in the terminal and their caller's identity in the plain report.
+
+- Guard records with relationships between numeric fields. Prove an ordered
+  range at construction or validate a replacement at runtime. Explanations
+  and saved source maps identify the comparison in the guard declaration.
+
+- Validate runtime inputs with `validate[Type](input)`. Errors retain every failed requirement in declaration order and can render a separate explanation for each one.
+
+- Add compile-time string and collection guards. Check non-empty and non-blank
+  strings, Unicode scalar length, control characters, and array, map and set
+  sizes. The compiler distinguishes an invalid value from a missing proof.
+  `panack explain` links each checked requirement to its declaration.
+
+- Guarded type declarations now name their candidate, for example
+  `type Positive = Nat where n => n > 0`. To migrate an existing guard,
+  insert `value =>` immediately after `where`.
+
+- Explore compiler decisions interactively with `panack explain`. Navigate source
+  statements, inspect types, inference, callbacks, proofs and effects, and follow
+  supporting source. Plain reports remain available with `--text` or a pipe.
+- Extend instruction origins to stores, loop control, implicit results and
+  returns. Reverse source-map queries show emitted instructions, shared generic
+  bodies and declarations without standalone code. Invalid artifact/source
+  pairs fail validation before any location is reported.
+
+- Panack now reports unsupported expressions inside string interpolation at the
+  opening dollar sign. Bind the expression to a local first. To keep literal
+  placeholder text that earlier versions printed unchanged, use concatenation,
+  for example `"$" + "{name[0]}"`.
+
+### Development tools
+
+- Reuse verified test preparation across coverage runs while executing the tests afresh. Shared compiler-test preparation also reduces the cost of full and focused validation.
+- New runnable examples include directory-tree searches, an HTTP include example and typed request dispatch.
+
 ## 0.1.0-alpha.14 — 2026-10-21
 
 ### Features and fixes

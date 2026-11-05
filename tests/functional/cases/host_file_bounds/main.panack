@@ -12,14 +12,14 @@ main(): Void {
     Error(error) => print(error.code),
     Ok(file) => {
       mut data = buffer.empty().push(97)
-      for index in 0..25 { data = data.join(data) }
+      for index in 0..27 { data = data.join(data) }
       print(data.length())
       print(outcome(filesystem.write(file, data)))
-      print(filesystem.read(file, 33554432).value_or(buffer.empty()) == data)
-      print(outcome(filesystem.read(file, 33554431)))
-      print(outcome(filesystem.read(file, 33554433)))
+      print(filesystem.read(file, 134217728).value_or(buffer.empty()) == data)
+      print(outcome(filesystem.read(file, 134217727)))
+      print(outcome(filesystem.read(file, 134217729)))
       print(outcome(filesystem.write(file, data.push(98))))
-      print(filesystem.read(file, 33554432).value_or(buffer.empty()) == data)
+      print(filesystem.read(file, 134217728).value_or(buffer.empty()) == data)
       print(outcome(filesystem.remove_file(file)))
     }
   }

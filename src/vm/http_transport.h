@@ -2,6 +2,7 @@
 #define PANACKELTY_HTTP_TRANSPORT_H
 
 #include "value.h"
+#include "vm.h"
 #include <stdint.h>
 
 typedef enum {
@@ -24,5 +25,7 @@ VMHttpTransport *http_transport_start(Value **arguments);
 bool http_transport_poll(VMHttpTransport *transport, unsigned max_wait_ms);
 Value *http_transport_result(const VMHttpTransport *transport);
 void http_transport_destroy(VMHttpTransport *transport);
+Value *http_stream_call(VM *vm, const char *name, Value **arguments);
+void http_stream_destroy(VM *vm);
 
 #endif

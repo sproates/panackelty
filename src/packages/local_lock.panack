@@ -1,0 +1,319 @@
+import project/src/packages/input_diagnostic::{input_problem, input_read_problem}
+pub import project/src/packages/diagnostic::{PackageProblem}
+import project/src/packages/diagnostic::{problem_value, host_detail, package_problem, problem_dependency, package_result, problem_label, explain_problem}
+import project/src/packages/git_acquisition::{AcquiredGit, git_containing, git_relative, git_package_root}
+import project/src/packages/manifest::{parse_package_manifest, PackageManifest, PackageManifestDependency}
+import stdlib/compiler_paths as paths
+pub import project/src/packages/project_graph::{ManifestProject}
+import project/src/packages/project_graph::{package_project_from_manifest}
+import project/src/project_model/resolved_project::{ResolvedPackage, ResolvedProject}
+import project/src/project_model/package_manifest::{
+  manifest_json_string_field, ManifestJsonMember,
+  ManifestJsonValue.ManifestJsonObject, ManifestJsonValue.ManifestJsonString
+}
+pub import project/src/packages/lock::{PackageLock}
+import project/src/packages/lock::{PackageLockPackage, PackageLockEdge,
+  parse_package_lock, serialize_package_lock, normalize_dependency_path}
+import project/src/packages/sha256::{sha256_bytes}
+pub import project/src/packages/acquisition::{ArchiveSource}
+import stdlib/environment as environment
+import stdlib/path as path
+import stdlib/filesystem as filesystem
+import stdlib/bounded_filesystem as bounded_filesystem
+import stdlib/filesystem::{FileKind.RegularFile, FileKind.Directory, FileKind.SymbolicLink}
+import stdlib/package_filesystem as package_filesystem
+
+record LockedManifest {
+  manifest: PackageManifest,
+  digest: Str
+}
+
+read_locked_manifest(package: ResolvedPackage, toolchain: Str): Result[LockedManifest, PackageProblem] {
+  match path.from_text(package.package_root) {
+    Error(problem) => Error(problem_label(package_problem("PKG_FILESYSTEM", "Cannot read the package because its directory path cannot be represented on this system."), "Directory", package.package_root)),
+    Ok(root) => match path.from_text("panack.json") {
+      Error(problem) => Error(package_problem("PKG_TOOL", "Cannot read panack.json because Panack could not construct the manifest filename.")),
+      Ok(relative) => match package_filesystem.read_beneath(root, relative, 65536) {
+        Error(problem) => Error(input_read_problem("panack.json", package.package_root + "/panack.json", problem.code, false)),
+        Ok(read) => if read.identity != package.identity {
+          Error(problem_label(package_problem("PKG_CHANGED", "Cannot finish reading panack.json because the package directory was replaced during this command."), "Directory", package.package_root))
+        } else {
+          match parse_package_manifest(read.contents, toolchain) {
+            Error(problem) => Error(problem_label(input_problem("panack.json", read.contents, problem, false), "File", package.package_root + "/panack.json")),
+            Ok(manifest) => if manifest.package != package.name || manifest.version != package.version ||
+              paths.resolve(paths.join(package.package_root, manifest.source)) != package.source_root ||
+              manifest.exports != package.exports ||
+              match manifest.entry {
+                None() => package.entry != None(),
+                Some(entry) => package.entry != Some(paths.resolve(paths.join(package.source_root, entry)))
+              } {
+              Error(problem_label(package_problem("PKG_CHANGED", "Cannot finish reading the package because its name, version or source settings changed during this command."), "Manifest", package.package_root + "/panack.json"))
+            } else {
+              match package_result(sha256_bytes(read.contents), "PKG_TOOL") {
+                Error(problem) => Error(problem),
+                Ok(hash) => Ok(LockedManifest(manifest, hash))
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+pure local_edges(
+  package: ResolvedPackage,
+  declarations: [PackageManifestDependency],
+  archives: [ArchiveSource],
+  gits: [AcquiredGit],
+  packages: [ResolvedPackage]
+): [PackageLockEdge] {
+  mut edges: [PackageLockEdge] = []
+  for declaration in declarations {
+    for resolved in package.dependencies {
+      if resolved.alias == declaration.alias {
+        mut fields: [ManifestJsonMember] = [
+          ManifestJsonMember("kind", ManifestJsonString(declaration.kind), 0),
+          ManifestJsonMember(if declaration.path.starts_with_at("https://", 0) { "url" } else { "path" },
+            ManifestJsonString(if declaration.path.starts_with_at("https://", 0) { declaration.path } else { normalize_dependency_path(declaration.path) }), 0)
+        ]
+        if declaration.kind == "archive" {
+          for archive in archives {
+            if resolved.target == archive.name + "@" + archive.version {
+              fields = fields.append(ManifestJsonMember("archive_sha256", ManifestJsonString(archive.archive_hash), 0))
+            }
+          }
+        }
+        for target in packages {
+          if target.id == resolved.target {
+            match git_containing(target.package_root, gits) {
+              None() => {},
+              Some(snapshot) => {
+                fields = [
+                  ManifestJsonMember("kind", ManifestJsonString("git"), 0),
+                  ManifestJsonMember("url", ManifestJsonString(snapshot.source.url), 0),
+                  ManifestJsonMember("subdir", ManifestJsonString(git_relative(target.package_root, snapshot)), 0),
+                  ManifestJsonMember("object_format", ManifestJsonString(snapshot.source.object_format), 0),
+                  ManifestJsonMember("commit", ManifestJsonString(snapshot.source.commit), 0)
+                ]
+              }
+            }
+          }
+        }
+        edges = edges.append(PackageLockEdge(declaration.alias, resolved.target, ManifestJsonObject(fields)))
+      }
+    }
+  }
+  edges
+}
+
+pub current_local_lock(project: ManifestProject): Result[PackageLock, PackageProblem] {
+  toolchain: Str = environment.get("PANACKELTY_VERSION").value_or("")
+  resolved: ResolvedProject = package_project_from_manifest(project, project.dependencies, toolchain)
+  mut root_hash: Str = ""
+  mut root_edges: [PackageLockEdge] = []
+  mut packages: [PackageLockPackage] = []
+  mut failure: Option[PackageProblem] = None()
+  for package in resolved.packages {
+    if failure == None() {
+      match read_locked_manifest(package, toolchain) {
+        Error(problem) => { failure = Some(problem) },
+        Ok(read) => {
+          for declaration in read.manifest.dependencies {
+            source: Str = if declaration.path.starts_with_at("https://", 0) { declaration.path }
+              else { paths.resolve(paths.join(package.package_root, declaration.path)) }
+            mut agrees: Bool = false
+            for edge in package.dependencies {
+              if edge.alias == declaration.alias {
+                for target in resolved.packages {
+                  if target.id == edge.target {
+                    if declaration.kind == "git" {
+                      for snapshot in project.gits {
+                        if snapshot.source.url == declaration.path {
+                          match git_package_root(snapshot, declaration.subdir) {
+                            Error(problem) => {}, Ok(root) => { agrees = agrees || root == target.package_root }
+                          }
+                        }
+                      }
+                    } else if declaration.kind == "path" {
+                      match git_containing(package.package_root, project.gits) {
+                        None() => { agrees = source == target.package_root },
+                        Some(snapshot) => match git_package_root(snapshot, git_relative(package.package_root, snapshot) + "/" + declaration.path) {
+                          Error(problem) => {}, Ok(root) => { agrees = root == target.package_root }
+                        }
+                      }
+                    } else { for archive in project.archives {
+                      agrees = agrees || (archive.root == target.package_root && archive.source == source)
+                    } }
+                  }
+                }
+              }
+            }
+            if !agrees { failure = Some(problem_label(package_problem("PKG_CHANGED", "Cannot finish preparing the lockfile because a dependency source changed during this command."), "Manifest", package.package_root + "/panack.json")) }
+          }
+          edges: [PackageLockEdge] = local_edges(package, read.manifest.dependencies, project.archives, project.gits, resolved.packages)
+          if edges.len() != package.dependencies.len() {
+            failure = Some(problem_label(package_problem("PKG_CHANGED", "Cannot finish preparing the lockfile because the dependency declarations changed during this command."), "Manifest", package.package_root + "/panack.json"))
+          } else if package.id == resolved.root {
+            root_hash = read.digest
+            root_edges = edges
+          } else {
+            mut tree: Option[Str] = None()
+            for archive in project.archives { if archive.root == package.package_root { tree = Some(archive.tree_hash) } }
+            match git_containing(package.package_root, project.gits) {
+              None() => {}, Some(snapshot) => { tree = Some(snapshot.tree) }
+            }
+            packages = packages.append(PackageLockPackage(
+              package.name, package.version, read.digest, tree, edges
+            ))
+          }
+        }
+      }
+    }
+  }
+  match failure {
+    Some(problem) => Error(problem),
+    None() => Ok(PackageLock(project.package, project.version, root_hash, toolchain, root_edges, packages))
+  }
+}
+
+pub read_local_lock(root: Str): Result[Option[PackageLock], PackageProblem] {
+  match path.from_text(root + "/panack.lock.json") {
+    Error(problem) => Error(package_problem("PKG_LOCK_INVALID", "Cannot access the lockfile because its filesystem path is invalid.")),
+    Ok(lock_path) => match filesystem.metadata(lock_path) {
+      Error(problem) => if problem.code == "not_found" { Ok(None()) } else { Error(problem_label(package_problem("PKG_FILESYSTEM", "Cannot inspect panack.lock.json: " + host_detail(problem.code) + "."), "File", root + "/panack.lock.json")) },
+      Ok(metadata) => if metadata.kind != RegularFile() {
+        Error(explain_problem(package_problem("PKG_LOCK_INVALID", "Cannot use panack.lock.json because the path identifies " +
+          if metadata.kind == Directory() { "a directory." } else if metadata.kind == SymbolicLink() { "a symbolic link." } else { "a special filesystem entry." }),
+          "Panack requires the lockfile itself to be a regular file.",
+          "Preserve any contents you need before moving the conflicting entry elsewhere. Then restore a regular lockfile for this project at the lockfile path."))
+      } else {
+        match filesystem.read(lock_path, 1048576) {
+          Error(problem) => Error(input_read_problem("panack.lock.json", root + "/panack.lock.json", problem.code, true)),
+          Ok(data) => match parse_package_lock(data) {
+            Error(problem) => Error(input_problem("panack.lock.json", data, problem, true)),
+            Ok(lock) => Ok(Some(lock))
+          }
+        }
+      }
+    }
+  }
+}
+
+pub write_local_lock(root: Str, lock: PackageLock): Result[Unit, PackageProblem] {
+  match path.from_text(root + "/panack.lock.json") {
+    Error(problem) => Error(package_problem("PKG_LOCK_INVALID", "Cannot access the lockfile because its filesystem path is invalid.")),
+    Ok(destination) => match bounded_filesystem.atomic_write(destination, serialize_package_lock(lock).encode_utf8()) {
+      Error(problem) => Error(problem_label(explain_problem(package_problem("PKG_PUBLICATION", "Cannot save panack.lock.json: " + host_detail(problem.code) + "."),
+        "Panack stopped before publishing the prepared packages.",
+        "Correct the reported filesystem problem at the destination path, then retry your command. Check access using the account running Panack."), "Destination file", root + "/panack.lock.json")),
+      Ok(unit) => Ok(())
+    }
+  }
+}
+
+pub pure locks_match(left: PackageLock, right: PackageLock): Bool {
+  serialize_package_lock(left) == serialize_package_lock(right)
+}
+
+pub verify_local_lock(project: ManifestProject): Result[Unit, PackageProblem] {
+  if project.dependencies.len() == 0 {
+    Ok(())
+  } else {
+    match read_local_lock(project.package_root) {
+      Error(problem) => Error(problem),
+      Ok(existing) => match existing {
+        None() => Error(package_problem("PKG_LOCK_MISSING", "missing lockfile")),
+        Some(lock) => match current_local_lock(project) {
+          Error(problem) => Error(problem),
+          Ok(current) => if locks_match(lock, current) {
+            Ok(())
+          } else {
+            Error(lock_mismatch(lock, current, project))
+          }
+        }
+      }
+    }
+  }
+}
+
+// Compare verified data, not diagnostic text, to separate a changed declaration
+// from changed content. The caller already established that the locks differ.
+pub pure lock_mismatch(previous: PackageLock, current: PackageLock, project: ManifestProject): PackageProblem {
+  archives = project.archives
+  mut problem = package_problem("PKG_LOCK_STALE", "Cannot use the lockfile because the current package definitions do not match its dependency records.")
+  for package in current.packages {
+    for old in previous.packages {
+      if old.name == package.name {
+        if old.manifest_sha256 != package.manifest_sha256 {
+          problem = problem_label(package_problem("PKG_LOCK_STALE", "Cannot use the lockfile because a dependency manifest has changed since the lockfile was created."), "Package", package.name + "@" + package.version)
+        }
+        if old.version == package.version && old.tree_sha256 != package.tree_sha256 {
+          problem = package_problem("PKG_INTEGRITY", "Cannot use package '" + package.name + "@" + package.version + "' because its file checksum does not match the checksum recorded in the lockfile.")
+          for archive in archives {
+            if archive.name == package.name && archive.version == package.version {
+              problem = explain_problem(package_problem("PKG_INTEGRITY", "Cannot use the extracted package files because their checksum does not match the checksum recorded in the lockfile."),
+                "The archive's checksum matched, but the extracted files failed the separate package checksum check. Panack has refused to use those files.",
+                "Retry the restore. If the mismatch persists, report this error with your Panack version and the package source. Keep the existing lockfile while investigating.")
+              problem = problem_label(problem_label(problem_label(problem, "Source archive", archive.source), "Expected package checksum", old.tree_sha256.value_or("")), "Extracted package checksum", archive.tree_hash)
+            }
+          }
+          for edge in current.dependencies {
+            if edge.package == package.name + "@" + package.version {
+              problem = problem_dependency(problem, current.root_name + " -> " + edge.alias)
+            }
+          }
+        }
+      }
+    }
+  }
+  match changed_archive_edge(previous.dependencies, current.dependencies) {
+    None() => {},
+    Some(alias) => { problem = archive_mismatch(alias, current.dependencies, archives, true) }
+  }
+  for package in current.packages { for old in previous.packages {
+    if package.name == old.name && package.version == old.version {
+      match changed_archive_edge(old.dependencies, package.dependencies) {
+        None() => {},
+        Some(alias) => { problem = problem_dependency(archive_mismatch(alias, package.dependencies, archives, false), package.name + " -> " + alias) }
+      }
+    }
+  } }
+  if previous.root_manifest_sha256 != current.root_manifest_sha256 {
+
+    problem = package_problem("PKG_LOCK_STALE", "Cannot use the lockfile because the project manifest has changed since the lockfile was created.")
+  }
+  if problem.code == "PKG_LOCK_STALE" {
+    for dependency in project.dependencies {
+      if problem_value(problem, "Package") == dependency.package + "@" + dependency.version {
+        problem = problem_label(problem, "Manifest", dependency.package_root + "/panack.json")
+      }
+    }
+  }
+  problem
+}
+
+pure changed_archive_edge(previous: [PackageLockEdge], current: [PackageLockEdge]): Option[Str] {
+  mut changed: Option[Str] = None()
+  for edge in current { for old in previous {
+    if edge.alias == old.alias {
+      before = manifest_json_string_field(old.source, "archive_sha256").value_or("")
+      after = manifest_json_string_field(edge.source, "archive_sha256").value_or("")
+      if before != "" && after != "" && before != after { changed = Some(edge.alias) }
+    }
+  } }
+  changed
+}
+
+pure archive_mismatch(alias: Str, edges: [PackageLockEdge], archives: [ArchiveSource], direct: Bool): PackageProblem {
+  mut problem = problem_label(explain_problem(package_problem("PKG_ARCHIVE_CHECKSUM", "Cannot restore the dependency because its source archive's checksum does not match the lockfile."),
+    "Panack tried to restore the local files originally extracted from the source archive, but the archive's checksum does not match the checksum recorded in the lockfile. The archive bytes differ from the bytes used to calculate that checksum. Panack has refused to use that archive.",
+    "To restore the recorded dependency, obtain the original archive, put that archive at the source archive path, then run:"), "Dependency name", alias)
+  if direct { problem = problem_label(problem, "Update dependency", alias) }
+  for edge in edges { if edge.alias == alias {
+    for archive in archives { if edge.package == archive.name + "@" + archive.version {
+      problem = problem_label(problem_label(problem, "Source archive", archive.source), "Package", archive.name)
+    } }
+  } }
+  problem
+}

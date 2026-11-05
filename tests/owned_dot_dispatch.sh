@@ -110,10 +110,10 @@ import "library.panack"::{get}
 main(): Void { get = 1; print(get) }
 SOURCE
 reject 'conflicts with an import binding'
-# Guard's implicit value also shadows an alias; method checking remains typed.
+# The guard's declared receiver is a local even when an import has that name.
 cat > "$work/main.panack" <<'SOURCE'
-import "library.panack" as value
-type Ending = Str where value.ends_with("x")
+import "library.panack" as text
+type Ending = Str where text => text.is_non_blank()
 main(): Void {}
 SOURCE
 ./bin/panack check "$work/main.panack" > /dev/null

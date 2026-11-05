@@ -1,3 +1,4 @@
+import project/src/compiler/domain_guards::{record_rules, domain_base, domain_declaration_errors}
 import project/src/compiler/owned_intrinsics::{owned_intrinsic_declarations}
 import project/src/compiler/module_bindings::{builtin_owner_arity, builtin_owner_module}
 pub import project/src/compiler/module_resolution::{ModuleBindingGraph, ResolvedModuleUses, ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant, ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget, binding_graph_module, binding_graph_target, module_identity_in, resolve_module_expression_uses, resolve_module_path_inner, resolve_module_type, module_import_names, module_reserved_binding}
@@ -256,7 +257,7 @@ pub pure signature_type(
               EnumDeclaration(name, types, variants) => {
                 arity = types.len()
               },
-              TypeDeclaration(name, base, guard) => {},
+              TypeDeclaration(name, base, guard_name, guard) => {},
               ImportDeclaration(path) => {
                 failure = Some("import is not a nominal type")
               },
@@ -358,7 +359,7 @@ pub pure check_module_signatures(
       Ok(owner_declaration) => match owner_declaration {
         RecordDeclaration(name, types, fields) => { owner_arity = Some(types.len()) },
         EnumDeclaration(name, types, variants) => { owner_arity = Some(types.len()) },
-        TypeDeclaration(name, base, guard) => {},
+        TypeDeclaration(name, base, guard_name, guard) => {},
         ImportDeclaration(path) => {},
         FunctionDeclaration(name, values, result, pure_flag, async_flag, body, types) => {}
       }
@@ -397,11 +398,21 @@ pub pure check_module_signatures(
     mut result_void: Bool = false
     match declaration {
       ImportDeclaration(path) => {},
-      TypeDeclaration(declared, base, guard) => {
+      TypeDeclaration(declared, base, guard_name, guard) => {
         name = declared
         fields = [RecordField("base", base)]
-        if !is_scalar_base(base) || base == "Rat" || base == "Unit" {
-          diagnostics = diagnostics.append(Diagnostic("guarded type base must be a scalar, got " + base, if syntax.type_spans.len() > 0 { syntax.type_spans[0].start } else { syntax.span.start }))
+        if domain_base(base) {
+          diagnostics = diagnostics.concat(domain_declaration_errors(guard, guard_name, base, syntax.span))
+        } else if !is_scalar_base(base) || base == "Rat" || base == "Unit" {
+          position = if syntax.type_spans.len() > 0 { syntax.type_spans[0].start } else { syntax.span.start }
+          resolved = resolve_module_type(graph,module.bindings.identity,type_shape(base).base)
+          record_base = match resolved { Ok(binding) => binding.kind == ModuleRecord(), Error(message) => false }
+          if !record_base {
+            diagnostics = diagnostics.append(Diagnostic("unsupported guarded type base " + base + ". Use a supported scalar, collection or record.",position))
+          } else if record_rules(guard,guard_name,syntax.span).len() == 0 {
+            diagnostics = diagnostics.append(Diagnostic("Compare two direct fields of " + guard_name +
+              " using < or <=. Combine field relationships with &&.",syntax.span.start))
+          }
         }
         if syntax.is_public {
           uses: ResolvedModuleUses = resolve_module_expression_uses(
@@ -409,7 +420,7 @@ pub pure check_module_signatures(
             module.bindings.identity,
             guard,
             syntax.span,
-            set().add("value")
+            set().add(guard_name)
           )
           diagnostics = diagnostics.concat(uses.diagnostics)
           for reference in uses.references {

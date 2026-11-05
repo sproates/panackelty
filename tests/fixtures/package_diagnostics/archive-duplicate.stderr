@@ -1,0 +1,10 @@
+panack: error[PKG_ARCHIVE_PATH_CONFLICT]: Cannot unpack the archive because the archive contains the same path more than once.
+
+  Project: <workspace>/app/panack.json
+  Source archive: <workspace>/source.tar.gz
+  Dependency name: lib
+  Archive entry: data
+
+Panack cannot create a portable package directory from the reported paths.
+
+If you maintain this package, correct the reported paths and recreate the archive. Otherwise, ask the package maintainer for a corrected archive.

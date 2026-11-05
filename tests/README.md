@@ -30,9 +30,17 @@ contracts; `make check` requires neither Node, Playwright nor WASI.
 
 The suites combine Panackelty probes, native C tests, shell harness checks,
 and public CLI tests. The runner (`runner/main.panack`) checks twenty-five
-selected success cases, twenty-five examples, and forty-one expected failures.
+selected success cases, thirty-five examples, and forty-one expected failures.
 `make functional` also checks the self-hosted compiler driver and exercises
 `runner_smoke` from source and saved bytecode.
+
+The complete compiler-source fixture uses a [module progress watchdog](compiler_watchdog/README.md)
+instead of an aggregate compilation deadline. Module passes and other compiler
+stages each have a 90-second hang allowance; the enclosing 600-second process
+limit is a final backstop. Failure evidence is retained under
+`build/validation/compiler-watchdog` and archived by hosted validation.
+`make compiler-watchdog-check` exercises deliberate stalls and recovery using
+native test helpers, without changing the installed compiler or its seed.
 
 `make semantic-impact-experiment` runs the bounded compiler-evidence prediction
 experiment with Node 24+. It runs in pull-request Linux/macOS compiler CI; the
@@ -108,6 +116,27 @@ bytecode has a checked digest; failed compilation and inputs changed during
 compilation are never published. Every invocation executes the probe and its
 assertions. Instrumented VMs have separate keys and build directories. `make clean`
 removes all cached bytecode.
+Nine heavy compiler suites keep their standalone `tests/runner/compiler_*_unit.panack`
+entry points, with unchanged assertions in `tests/runner/compiler_suites/`.
+Make prepares `compiler_shared_unit.panack` once, then uses the existing worker
+pool to run each selected suite in a separate VM process. Selection is explicit;
+an unknown or missing suite fails with status 2. Full and focused targets retain
+their existing suite selections. Only compilation is shared, never test results.
+
+To run one suite using the shared artifact:
+
+```sh
+PANACK_PROBE_GROUP=compiler_checker_unit \
+  sh tests/run_probe.sh tests/runner/compiler_shared_unit.panack
+```
+
+The standalone checker command still works and compiles only its own import
+closure. Changing any shared suite or transitive import invalidates the shared
+artifact. `tests/unit/harness/compiler_shared.sh` proves exact selection, fresh
+assertions, failure propagation, dependency invalidation and recovery from corrupt
+or incomplete cached artifacts. Both commands are development checks; required
+pre-merge, nightly and release validation remain unchanged.
+
 The compiler integration driver and snapshot helper use the same cache; fixture
 programs still exercise the public CLI. The shell harness compiles its runner
 once per group and reuses it across isolated failure-injection scenarios.
@@ -187,7 +216,9 @@ clean suite partitions on Linux and macOS plus all seven Linux validation
 lanes. It builds and uploads one distribution per platform in the
 `conformance-bytecode` partition; the bootstrap lane retains fixed-point and
 seed-refresh checks without repeating package creation. Manual runs can select
-`next` or `main`. Full Check runs targeting `main` retain the complete matrices
+a branch, including a repair branch before merge; `next` is the default. Select
+the workflow revision containing this input when testing an unmerged change.
+Full Check runs targeting `main` retain the complete matrices
 and package checks. GitHub only starts scheduled workflows defined on the
 repository's default branch, so the nightly workflow must be present on `main`
 even though its scheduled job checks out `next`. CI uses these shared targets:
@@ -948,3 +979,36 @@ query-header assertion is restricted to the installed example; the original
 contract fixture uses its unchanged common checks. `tests/http_package.sh` also
 runs the public lifecycle program from source and bytecode and compares shutdown
 output. The playbook embeds the matching example source and manifests.
+
+### Source-coverage plan reuse
+
+`make source-coverage-baseline` uses the local preparation cache described in the
+[source-coverage reference](../docs/reference/SOURCE_COVERAGE.md#local-preparation-cache).
+Use `node scripts/source_coverage_baseline.cjs OUTPUT --no-plan-cache` for an
+uncached comparison. Every collection executes its selected assertions afresh.
+`make source-coverage-report-tests` checks bounded readers, cache integrity and
+real compiler/VM parity, including a dependency edit that changes program output.
+
+Hosted preparation selection/import tests run in `source-coverage-report-tests`
+and the fast source-policy job. The real parity fixture also exercises a new
+runner's trust key and a fresh execution after import. Hosted acceptance requires
+separate cold and warm Source coverage dispatches on `next`; compare the logged
+preparation decisions, full session lists/nonces and static report identities.
+Preparation transport never bypasses the collector or its policy gate.
+
+
+## Interactive compiler explanations
+
+Build the explorer and exercise the public terminal command from the checkout root.
+
+```sh
+make explain-tool
+expect tools/explain/test.exp
+```
+
+The PTY test navigates accepted and rejected programs, opens a supporting
+condition, returns to the previous selection and checks terminal restoration
+on quit and Ctrl-C. Set `PANACK_BIN` to an installed executable to repeat the
+checks against the distribution. The source-map CLI suite covers reverse lookup
+and artifact validation. The instruction-source suite checks origins for every
+instruction in its real-source fixtures and unchanged executable bytes.

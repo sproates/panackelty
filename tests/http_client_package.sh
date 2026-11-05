@@ -4,7 +4,7 @@ panack_bin=${PANACK_BIN:-./bin/panack}
 fixture=${PANACK_HTTP_FIXTURE:-build/vm/http_fixture}
 repo=$(pwd)
 if [ "$#" -eq 0 ]; then
-    for case_name in ok missing chunked close truncated duplicate oversize bad-url ipv6 timeout connect-failure tls-ok tls-wrong-host tls-untrusted tls-late dns-failure dns-late installed; do
+    for case_name in ok missing chunked close truncated duplicate oversize bad-url ipv6 timeout connect-failure tls-ok tls-wrong-host tls-untrusted tls-late stream tls-stream tls-stream-untrusted body-stream body-chunked body-chunk-limit body-close body-truncated body-duplicate body-oversize dns-failure dns-late installed; do
         echo "HTTP client fixture: $case_name"
         sh "$0" "$case_name"
     done
@@ -270,6 +270,82 @@ async main(): Unit {
 }
 SOURCE
 
+case "$selected_case" in
+    body-*)
+        body_path=/ok; body_expected=ok; body_failure=false; body_limit=1048576
+        case "$selected_case" in
+            body-chunked) body_path=/chunked; body_expected=hello ;;
+            body-chunk-limit) body_path=/chunked; body_limit=3; body_failure=true ;;
+            body-close) body_path=/close; body_expected='close body' ;;
+            body-truncated) body_path=/truncated; body_failure=true ;;
+            body-duplicate) body_path=/duplicate; body_failure=true ;;
+            body-oversize) body_path=/oversize; body_limit=3; body_failure=true ;;
+        esac
+        cat > "$app/src/main.panack" <<SOURCE
+import http/stream as http
+import stdlib/bytes as byte_buffer
+pure expect(value: Bool): Unit { checked = [0][if value { 0 } else { 1 }]; () }
+pure collect(state: Bytes, chunk: Bytes): Result[Bytes,http.HttpError] { Ok(state.join(chunk)) }
+main(): Void {
+  mut failed: Bool = false
+  match http.open_response("http://127.0.0.1:$http_port$body_path", 10000, $body_limit) {
+    Error(problem) => { failed = true; () },
+    Ok(response) => {
+      expect(response.status == 200)
+      match http.fold_body(response, byte_buffer.empty(), @collect, $body_limit) {
+        Error(problem) => { failed = true; () },
+        Ok(data) => { expect(data == "$body_expected".encode_utf8()) }
+      }
+      expect(match http.close_response(response) { Ok(unit) => true, Error(problem) => false })
+    }
+  }
+  expect(failed == $body_failure)
+  print("stream passed")
+}
+SOURCE
+        ;;
+    stream|tls-stream|tls-stream-untrusted)
+        stream_host=127.0.0.1; stream_port=$http_port; stream_tls=false; stream_path=/large
+        stream_minimum=33554432; stream_failure=false
+        if [ "$selected_case" != stream ]; then
+            stream_host=localhost; stream_port=$tls_port; stream_tls=true; stream_path=/ok
+            stream_minimum=2
+        fi
+        if [ "$selected_case" = tls-stream-untrusted ]; then stream_failure=true; fi
+        cat > "$app/src/main.panack" <<SOURCE
+import stdlib/http_stream as stream
+pure expect(value: Bool): Unit { checked = [0][if value { 0 } else { 1 }]; () }
+main(): Void {
+  request = "GET $stream_path HTTP/1.1\r\nHost: $stream_host\r\nConnection: close\r\n\r\n".encode_utf8()
+  match stream.open("$stream_host", $stream_port, $stream_tls, request, 67174400, 10000) {
+    Error(problem) => { expect(false) },
+    Ok(handle) => {
+      mut total: Nat = 0
+      mut done: Bool = false
+      mut failed: Bool = false
+      while !done {
+        match stream.read(handle) {
+          Error(problem) => { failed = true; done = true },
+          Ok(chunk) => {
+            expect(chunk.length() <= 16384)
+            total = total + chunk.length()
+            done = chunk.length() == 0
+          }
+        }
+      }
+      expect(failed == $stream_failure)
+      if !failed { expect(total > $stream_minimum) }
+      expect(match stream.close(handle) { Ok(unit) => true, Error(problem) => false })
+      expect(match stream.read(handle) { Error(problem) => true, Ok(chunk) => false })
+    }
+  }
+  print("stream passed")
+}
+SOURCE
+        ;;
+esac
+
+"$panack_bin" deps lock --project "$app/panack.json" >/dev/null
 "$panack_bin" check --project "$app/panack.json" >/dev/null
 "$panack_bin" compile --project "$app/panack.json" -o "$work/client.bc" >/dev/null
 case "$selected_case" in
@@ -289,10 +365,15 @@ case "$selected_case" in
             preload_path="$(pwd -P)/$work/http_dns_delay.so"
             ;;
     esac
+    # Preload must target the VM directly on macOS. Resolve through the package
+    # tool first, then pass its ordinary descriptor to the source compiler.
+    PANACKELTY_STDLIB_PATH="$(pwd -P)/src/stdlib" PANACKELTY_VERSION="$version" \
+        ./panack-vm run build/tools/panack-packages.bc prepare --project "$app/panack.json" \
+        > "$work/resolved.json"
     for mode in source bytecode; do
         rm -f "$work/dns-started" "$work/dns-finished" "$work/dns-failure"
         if [ "$mode" = source ]; then
-            set -- run "$(pwd -P)/bootstrap/compiler-v9.bc" run --project "$app/panack.json"
+            set -- run "$(pwd -P)/bootstrap/compiler-v9.bc" run --resolved-project "$work/resolved.json"
         else
             set -- run "$work/client.bc"
         fi
@@ -324,6 +405,18 @@ case "$selected_case" in
 esac
 case "$selected_case" in
     connect-failure|dns-failure|dns-late) ;;
+    stream|tls-stream|tls-stream-untrusted|body-*)
+        if [ "$selected_case" = tls-stream-untrusted ]; then
+            env -u CURL_CA_BUNDLE "$panack_bin" run --project "$app/panack.json" > "$work/source.stdout"
+            env -u CURL_CA_BUNDLE "$panack_bin" run "$work/client.bc" > "$work/bytecode.stdout"
+        else
+            env CURL_CA_BUNDLE="$work/ca.crt" "$panack_bin" run --project "$app/panack.json" > "$work/source.stdout"
+            env CURL_CA_BUNDLE="$work/ca.crt" "$panack_bin" run "$work/client.bc" > "$work/bytecode.stdout"
+        fi
+        printf 'stream passed\n' > "$work/expected.stdout"
+        cmp "$work/expected.stdout" "$work/source.stdout"
+        cmp "$work/expected.stdout" "$work/bytecode.stdout"
+        ;;
     tls-untrusted)
         env -u CURL_CA_BUNDLE "$panack_bin" run --project "$app/panack.json"
         env -u CURL_CA_BUNDLE "$panack_bin" run "$work/client.bc"

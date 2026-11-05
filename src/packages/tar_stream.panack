@@ -1,0 +1,219 @@
+pub import project/src/packages/diagnostic::{PackageProblem}
+import project/src/packages/diagnostic::{host_detail, package_problem, problem_label, explain_problem, manifest_specification}
+import project/src/packages/tar_header::{archive_problem}
+pub import project/src/packages/case_fold::{CaseFolder}
+import project/src/packages/case_fold::{case_folder, fold_path}
+pub import project/src/packages/tar_header::{TarHeader, PaxHeader}
+import project/src/packages/tar_header::{parse_tar_header, parse_pax, tar_normalize_path, tar_zero}
+import stdlib/bytes as byte_buffer
+import stdlib/filesystem_stage as staging
+import stdlib/path as path
+
+pub record ArchiveEntry { path: Str, size: Nat, directory: Bool, explicit: Bool }
+pub record ArchiveIndex { entries: [ArchiveEntry], keys: Map[Str, Nat], folder: CaseFolder }
+pub record TarStream {
+  index: ArchiveIndex,
+  mode: Str,
+  buffer: Bytes,
+  current: TarHeader,
+  remaining: Nat,
+  padding: Nat,
+  headers: Nat,
+  zero_headers: Nat,
+  pax: Option[PaxHeader],
+  root_seen: Bool
+}
+
+pure tar_difference(left: Nat, right: Nat): Nat {
+  signed_left: Int = left
+  ((signed_left - right) / 1).nat()
+}
+
+pub pure tar_stream_new(): TarStream {
+  TarStream(ArchiveIndex([], map(), case_folder()), "header", byte_buffer.empty(), TarHeader("", 0, ""), 0, 0, 0, 0, None(), false)
+}
+
+add_archive_entry(
+  stage: Nat, index: ArchiveIndex, name: Str, size: Nat, directory: Bool, explicit: Bool
+): Result[ArchiveIndex, PackageProblem] {
+  key: Str = fold_path(index.folder, name)
+  if index.keys.has(key) {
+      position: Nat = index.keys.get(key)
+      entry: ArchiveEntry = index.entries[position]
+      if entry.path != name {
+        Error(problem_label(problem_label(archive_problem("PKG_ARCHIVE_PATH_CONFLICT", "two archive paths differ only in letter case"), "First archive path", entry.path), "Conflicting archive path", name))
+      } else if entry.directory != directory {
+        Error(problem_label(archive_problem("PKG_ARCHIVE_PATH_CONFLICT", "the archive uses the same path for both a file and a directory"), "Archive entry", name))
+      } else if !entry.directory || (entry.explicit && explicit) {
+        Error(problem_label(archive_problem("PKG_ARCHIVE_PATH_CONFLICT", "the archive contains the same path more than once"), "Archive entry", name))
+      } else if explicit && !entry.explicit {
+        mut entries: [ArchiveEntry] = []
+        for cursor in 0..index.entries.len() {
+          entries = entries.append(if cursor == position { ArchiveEntry(name, size, directory, true) } else { index.entries[cursor] })
+        }
+        Ok(ArchiveIndex(entries, index.keys, index.folder))
+      } else { Ok(index) }
+  } else if index.entries.len() >= 16384 { Error(archive_problem("PKG_ARCHIVE_ENTRY_LIMIT", "the files and directories, including implicit parent directories, exceed Panack's limit of 16,384 filesystem entries")) }
+    else {
+      match path.from_text(name) {
+        Error(problem) => Error(archive_problem("PKG_ARCHIVE_PATH_INVALID", "an archive path cannot be represented on this system")),
+        Ok(relative) => {
+          created = if directory { staging.directory(stage, relative) }
+            else if size == 0 { staging.write(stage, relative, byte_buffer.empty(), 0) }
+            else { Ok(()) }
+          match created {
+            Error(problem) => Error(problem_label(package_problem("PKG_FILESYSTEM", "Cannot create an archive entry in the temporary package directory: " + host_detail(problem.code)), "Archive entry", name)),
+            Ok(unit) => Ok(ArchiveIndex(index.entries.append(ArchiveEntry(name, size, directory, explicit)),
+              index.keys.put(key, index.entries.len()), index.folder))
+          }
+        }
+      }
+    }
+}
+
+prepare_archive_entry(stage: Nat, entries: ArchiveIndex, header: TarHeader): Result[ArchiveIndex, PackageProblem] {
+  mut current: ArchiveIndex = entries
+  mut failure: Option[PackageProblem] = None()
+  for index in 0..header.path.len() {
+    if header.path[index] == "/" && failure == None() {
+      match add_archive_entry(stage, current, header.path.slice(0, index), 0, true, false) {
+        Error(problem) => { failure = Some(problem) },
+        Ok(next) => { current = next }
+      }
+    }
+  }
+  match failure {
+    Some(problem) => Error(problem),
+    None() => add_archive_entry(stage, current, header.path, header.size, header.kind == "directory", true)
+  }
+}
+
+pub tar_stream_feed(stage: Nat, state: TarStream, input: Bytes): Result[TarStream, PackageProblem] {
+  mut entries: ArchiveIndex = state.index
+  mut mode: Str = state.mode
+  mut buffer: Bytes = state.buffer
+  mut current: TarHeader = state.current
+  mut remaining: Nat = state.remaining
+  mut padding: Nat = state.padding
+  mut headers: Nat = state.headers
+  mut zeros: Nat = state.zero_headers
+  mut pax: Option[PaxHeader] = state.pax
+  mut root_seen: Bool = state.root_seen
+  mut offset: Nat = 0
+  mut failure: Option[PackageProblem] = None()
+  while offset < input.length() && failure == None() {
+    available: Nat = tar_difference(input.length(), offset)
+    if mode == "end" {
+      if !tar_zero(byte_buffer.slice(input, offset, input.length())) { failure = Some(archive_problem("PKG_ARCHIVE_INVALID", "the archive contains unexpected data after its end marker")) }
+      offset = input.length()
+    } else if mode == "header" {
+      needed: Nat = tar_difference(512, buffer.length())
+      take: Nat = if available < needed { available } else { needed }
+      buffer = buffer.join(byte_buffer.slice(input, offset, offset + take))
+      offset = offset + take
+      if buffer.length() == 512 {
+        if tar_zero(buffer) {
+          zeros = zeros + 1
+          if zeros == 2 { mode = "end" }
+        } else if zeros != 0 { failure = Some(archive_problem("PKG_ARCHIVE_INCOMPLETE", "the end marker is incomplete; two empty 512-byte blocks are required")) }
+        else if headers >= 16384 { failure = Some(archive_problem("PKG_ARCHIVE_HEADER_LIMIT", "the archive exceeds Panack's limit of 16,384 tar headers")) }
+        else {
+          headers = headers + 1
+          match parse_tar_header(buffer) {
+            Error(problem) => { failure = Some(problem) },
+            Ok(header) => {
+              current = header
+              if header.kind == "pax" {
+                if pax != None() { failure = Some(archive_problem("PKG_ARCHIVE_INVALID", "a PAX metadata entry is followed by another metadata entry instead of the file it describes")) }
+                else if header.size > 65536 { failure = Some(archive_problem("PKG_ARCHIVE_METADATA_LIMIT", "a PAX metadata entry exceeds Panack's 64 KiB limit")) }
+                else { mode = "pax" }
+              } else {
+                match pax {
+                  None() => {},
+                  Some(metadata) => { current = TarHeader(metadata.path.value_or(header.path), metadata.size.value_or(header.size), header.kind) }
+                }
+                pax = None()
+                if current.kind == "directory" && (current.path == "." || current.path == "./") {
+                  if root_seen { failure = Some(archive_problem("PKG_ARCHIVE_PATH_CONFLICT", "the archive lists its top-level directory more than once")) }
+                  else if current.size != 0 { failure = Some(archive_problem("PKG_ARCHIVE_INVALID", "the top-level directory entry contains file data")) }
+                  root_seen = true
+                  mode = "header"
+                } else {
+                match tar_normalize_path(current.path) {
+                  Error(problem) => { failure = Some(problem) },
+                  Ok(name) => {
+                    current = TarHeader(name, current.size, current.kind)
+                    if current.kind == "directory" && current.size != 0 { failure = Some(archive_problem("PKG_ARCHIVE_INVALID", "the archive contains file data for an entry marked as a directory")) }
+                    else {
+                      match prepare_archive_entry(stage, entries, current) {
+                        Error(problem) => { failure = Some(problem) },
+                        Ok(next) => { entries = next; mode = "file" }
+                      }
+                    }
+                  }
+                }
+              }
+                }
+              remaining = current.size
+              padding = (tar_difference(512, current.size % 512)) % 512
+              if remaining == 0 {
+                if mode == "pax" { failure = Some(archive_problem("PKG_ARCHIVE_INVALID", "a PAX metadata entry is empty")) }
+                else { mode = "header" }
+              }
+            }
+          }
+        }
+        buffer = byte_buffer.empty()
+      }
+    } else if mode == "padding" {
+      take: Nat = if available < padding { available } else { padding }
+      if !tar_zero(byte_buffer.slice(input, offset, offset + take)) { failure = Some(archive_problem("PKG_ARCHIVE_INVALID", "the archive contains nonzero data where padding is required")) }
+      offset = offset + take
+      padding = tar_difference(padding, take)
+      if padding == 0 { mode = "header" }
+    } else {
+      take: Nat = if available < remaining { available } else { remaining }
+      chunk: Bytes = byte_buffer.slice(input, offset, offset + take)
+      if mode == "pax" { buffer = buffer.join(chunk) }
+      else {
+        match path.from_text(current.path) {
+          Error(problem) => { failure = Some(archive_problem("PKG_ARCHIVE_PATH_INVALID", "an archive entry path cannot be represented on this system")) },
+          Ok(relative) => match staging.write(stage, relative, chunk, tar_difference(current.size, remaining)) {
+            Error(problem) => { failure = Some(problem_label(package_problem("PKG_FILESYSTEM", "Cannot write an extracted package file: " + host_detail(problem.code)), "Archive entry", current.path)) },
+            Ok(unit) => {}
+          }
+        }
+      }
+      offset = offset + take
+      remaining = tar_difference(remaining, take)
+      if remaining == 0 {
+        if mode == "pax" {
+          match parse_pax(buffer) {
+            Error(problem) => { failure = Some(problem) },
+            Ok(metadata) => { pax = Some(metadata) }
+          }
+          buffer = byte_buffer.empty()
+        }
+        mode = if padding == 0 { "header" } else { "padding" }
+      }
+    }
+  }
+  match failure {
+    Some(problem) => Error(problem),
+    None() => Ok(TarStream(entries, mode, buffer, current, remaining, padding, headers, zeros, pax, root_seen))
+  }
+}
+
+pub pure tar_stream_finish(state: TarStream): Result[[ArchiveEntry], PackageProblem] {
+  if state.pax != None() {
+    Error(archive_problem("PKG_ARCHIVE_INVALID", "the archive ends with PAX metadata that has no following file"))
+  } else if state.mode != "end" {
+    Error(archive_problem("PKG_ARCHIVE_INCOMPLETE", "the archive ended before its contents and end marker were complete"))
+  } else {
+    mut manifest: Bool = false
+    for entry in state.index.entries {
+      manifest = manifest || (entry.path == "panack.json" && !entry.directory)
+    }
+    if manifest { Ok(state.index.entries) } else { Error(explain_problem(package_problem("PKG_MANIFEST_MISSING", "Cannot use the archive because the archive has no panack.json at its top level."), "Panack expects panack.json at the archive's top level, alongside the package's source directory.", "If you maintain this package, recreate the archive with that layout. Otherwise, ask the package maintainer for a corrected archive.\n\nSee the package manifest specification:\n" + manifest_specification())) }
+  }
+}

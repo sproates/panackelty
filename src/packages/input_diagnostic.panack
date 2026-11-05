@@ -1,0 +1,77 @@
+// Keep package input explanations outside the compiler's shared JSON parser.
+pub import project/src/packages/diagnostic::{PackageProblem}
+import project/src/packages/diagnostic::{package_problem, explain_problem, problem_label, manifest_specification, diagnostic_text, host_detail}
+pub import project/src/project_model/package_manifest::{PackageManifestError}
+import project/src/project_model/package_manifest::{parse_bounded_json}
+import project/src/project_model/utf8::{valid_utf8}
+
+pub pure input_limit_problem(filename: Str, lock: Bool): PackageProblem {
+  limit = if lock { "1 MiB (1048576 bytes)" } else { "64 KiB (65536 bytes)" }
+  explain_problem(package_problem(if lock { "PKG_LOCK_INVALID" } else { "PKG_MANIFEST_INVALID" },
+    "Cannot process " + filename + " because the file exceeds Panack's " + limit + " size limit."),
+    "Panack stopped reading the file at the size limit. This error does not establish whether the file contains valid JSON.",
+    "Reduce the file's size without removing required information, then retry your command. If the project needs a larger file, report this limit with your Panack version.")
+}
+
+pub pure input_read_problem(filename: Str, location: Str, code: Str, lock: Bool): PackageProblem {
+  problem_label(if code == "output_limit" { input_limit_problem(filename, lock) }
+    else if code == "not_found" && !lock { package_problem("PKG_MANIFEST_MISSING", "Cannot load the package because panack.json is missing.") }
+    else { explain_problem(package_problem("PKG_FILESYSTEM",
+      "Cannot read " + filename + ": " + host_detail(code) + "."), "",
+      "Correct the reported filesystem problem, then retry your command. Check access using the account running Panack.") },
+    if code == "not_found" { "Missing file" } else { "File" }, location)
+}
+
+pub pure encoding_problem(filename: Str, lock: Bool): PackageProblem {
+  explain_problem(package_problem(if lock { "PKG_LOCK_INVALID" } else { "PKG_MANIFEST_INVALID" },
+    "Cannot understand " + filename + " because the file is not valid UTF-8 text."), "",
+    "Save the file using UTF-8 encoding, or obtain a valid copy, then retry your command.")
+}
+
+pub pure input_problem(filename: Str, data: Bytes, error: PackageManifestError, lock: Bool): PackageProblem {
+  if data.length() > (if lock { 1048576 } else { 65536 }) { input_limit_problem(filename, lock) }
+  else if !valid_utf8(data) { encoding_problem(filename, lock) }
+  else { valid_input_problem(filename, data, error, lock) }
+}
+
+pure valid_input_problem(filename: Str, data: Bytes, error: PackageManifestError, lock: Bool): PackageProblem {
+  code = if lock { "PKG_LOCK_INVALID" } else { "PKG_MANIFEST_INVALID" }
+  mut message = "Cannot use " + filename + if lock { " because its dependency records are invalid." } else { " because its package settings are invalid." }
+  mut detail = error.message
+  mut syntax_error = false
+  mut help = if lock {
+    "If you edited this file, correct the reported problem or undo the edit. Otherwise, obtain a valid copy of this project's lockfile.\n\nCreating a new lockfile may select different dependencies."
+  } else {
+    "Correct the reported setting, then retry your command.\n\nSee the package manifest specification:\n" + manifest_specification()
+  }
+  match parse_bounded_json(data, if lock { 1048576 } else { 65536 }) {
+    Ok(value) => {},
+    Error(syntax) => {
+      syntax_error = true
+      message = "Cannot understand " + filename + " because it contains invalid JSON."
+      if syntax.message == "manifest JSON nesting exceeds 32 levels" {
+        message = "Cannot process " + filename + " because its JSON exceeds Panack's 32-level nesting limit."
+      }
+      if detail == "expected JSON string" {
+        detail = "JSON property names must be enclosed in double quotes. Panack expected an opening double quote at this location."
+      }
+      if syntax.message == "manifest JSON nesting exceeds 32 levels" {
+        help = "Reduce the JSON nesting to at most 32 levels without removing required information, then retry your command."
+      } else if !lock { help = "Correct the reported JSON problem, then retry your command." }
+    }
+  }
+  mut line: Nat = 1
+  mut column: Nat = 1
+  for index in 0..error.offset {
+    if index < data.length() {
+      byte = data.at(index)
+      if byte == 10 { line = line + 1; column = 1 }
+      else if byte < 128 || byte >= 192 { column = column + 1 }
+    }
+  }
+  problem = explain_problem(package_problem(code, message), diagnostic_text(detail), help)
+  // Semantic input checks often have no source offset. Do not claim that the
+  // offending record is at the first character of the file.
+  if !syntax_error && error.offset == 0 { problem }
+  else { problem_label(problem, "Location", "line ${line}, column ${column}") }
+}

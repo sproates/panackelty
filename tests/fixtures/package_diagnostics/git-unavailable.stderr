@@ -1,0 +1,13 @@
+panack: error[PKG_GIT_FETCH]: Cannot finish the Git operation because Git exited with status 128.
+
+  Project: <workspace>/app/panack.json
+  Package: git.root
+  Repository: https://localhost:<port>/sha.git
+  Dependency name: left
+  Requested commit: <locked-commit>
+  Git operation: fetching the requested commit
+  Exit status: 128
+
+Panack could not prepare the required Git package files. A Git exit status alone does not identify the cause.
+
+Check that the repository is accessible from the environment running Panack and that the required commit is available. Correct the reported problem, then retry your command.

@@ -1,0 +1,383 @@
+// Normalise only the documented string and collection predicates. Keep each
+// written conjunct and its source even when two requirements are equivalent.
+import project/src/compiler/parser as ast
+pub import project/src/compiler/parser::{Expr, SourceSpan, Diagnostic}
+import project/src/compiler/parser::{Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr}
+
+pub enum DomainRequirement { Minimum(Nat), Maximum(Nat), NonBlank, ControlFree }
+pub record DomainRule { requirement: DomainRequirement, source: SourceSpan }
+enum GuardTerm { Candidate, Length, Constant(Nat), EmptyText, Conditions([DomainRule]), Unsupported }
+
+pub pure domain_collection_base(base: Str): Bool {
+  base.starts_with("[") || base.starts_with("Array[") || base.starts_with("Map[") || base.starts_with("Set[")
+}
+
+pub pure domain_base(base: Str): Bool { base == "Str" || domain_collection_base(base) }
+
+pure method_term(receiver: Expr, method: Str, arguments: [Expr], types: [Str],
+  binding: Str, text: Bool, span: SourceSpan): GuardTerm {
+  if ast.unlocated_expression(receiver) != NameExpr(binding) || arguments.len() != 0 || types.len() != 0 {
+    Unsupported()
+  } else if method == "len" { Length() }
+  else if text && method == "is_non_blank" { Conditions([DomainRule(NonBlank(), span)]) }
+  else if text && method == "has_no_control_characters" { Conditions([DomainRule(ControlFree(), span)]) }
+  else { Unsupported() }
+}
+
+pure term(expression: Expr, binding: Str, text: Bool, span: SourceSpan): GuardTerm {
+  mut result: GuardTerm = Unsupported()
+  match expression {
+    LocatedExpr(site, inner, types) => { result = term(inner, binding, text, site) },
+    NameExpr(name) => if name == binding { result = Candidate() },
+    NatExpr(n) => { result = Constant(n) },
+    StringExpr(raw) => if raw == "\"\"" { result = EmptyText() },
+    DotCallExpr(receiver, method, arguments, types) => {
+      result = method_term(receiver, method, arguments, types, binding, text, span)
+    },
+    OwnedCallExpr(receiver, method, arguments, types) => {
+      result = method_term(receiver, method, arguments, types, binding, text, span)
+    },
+    BinaryExpr(op, left, right) => {
+      lhs = term(left, binding, text, span)
+      rhs = term(right, binding, text, span)
+      match rhs {
+        Constant(n) => if lhs == Length() {
+          if op == ">=" { result = Conditions([DomainRule(Minimum(n), span)]) }
+          else if op == "<=" { result = Conditions([DomainRule(Maximum(n), span)]) }
+        } else {
+          // Closed natural arithmetic can supply a bound without evaluating user code.
+          match lhs {
+            Constant(a) => if op == "+" { result = Constant(a + n) }
+              else if op == "*" { result = Constant(a * n) }
+              else if op == "-" && a >= n {
+                signed: Int = a
+                result = Constant(((signed - n) / 1).nat())
+              },
+            Unsupported() => {}, Candidate() => {}, Length() => {}, EmptyText() => {}, Conditions(rules) => {}
+          }
+        },
+        EmptyText() => if text && op == "!=" && lhs == Candidate() {
+          result = Conditions([DomainRule(Minimum(1), span)])
+        },
+        Conditions(b) => if op == "&&" {
+          match lhs {
+            Conditions(a) => { result = Conditions(a.concat(b)) },
+            Unsupported() => {}, Candidate() => {}, Length() => {}, Constant(n) => {}, EmptyText() => {}
+          }
+        },
+        Unsupported() => {}, Candidate() => {}, Length() => {}
+      }
+    },
+    DecimalExpr(n) => {}, BoolExpr(b) => {}, FunctionExpr(name) => {}, ArrayExpr(items) => {},
+    UnaryExpr(op, inner) => {}, CallExpr(name, args, types) => {}, FieldExpr(owner, field) => {},
+    IndexExpr(owner, index) => {}, IfExpr(test, yes, no, has_else) => {}, BlockExpr(block) => {},
+    MatchExpr(value, arms) => {}
+  }
+  result
+}
+
+pub pure domain_rules(guard: Expr, binding: Str, base: Str, site: SourceSpan): [DomainRule] {
+  match term(guard, binding, base == "Str", site) {
+    Conditions(rules) => rules,
+    Unsupported() => [], Candidate() => [], Length() => [], Constant(n) => [], EmptyText() => []
+  }
+}
+
+pub pure domain_declaration_errors(guard: Expr, binding: Str, base: Str, site: SourceSpan): [Diagnostic] {
+  rules = domain_rules(guard, binding, base, site)
+  mut errors: [Diagnostic] = []
+  if rules.len() == 0 {
+    allowed = if base == "Str" { "a length bound, a non-empty comparison, is_non_blank() or has_no_control_characters()" }
+      else { "a length bound with >= or <= and a non-negative constant" }
+    position = ast.expression_span(guard).value_or(site)
+    errors = errors.append(Diagnostic("unsupported guard for " + base + ". Use " + allowed +
+      " on " + binding + ". Combine requirements with &&.", position.start))
+  } else {
+    mut minimum: Nat = 0
+    mut minimum_site = site
+    mut maximum: Option[Nat] = None()
+    mut maximum_site = site
+    for rule in rules {
+      match rule.requirement {
+        Minimum(n) => if n > minimum { minimum = n; minimum_site = rule.source },
+        Maximum(n) => if n <= maximum.value_or(n) { maximum = Some(n); maximum_site = rule.source },
+        NonBlank() => if minimum < 1 { minimum = 1; minimum_site = rule.source },
+        ControlFree() => {}
+      }
+    }
+    match maximum {
+      None() => {},
+      Some(limit) => if minimum > limit {
+        errors = errors.append(Diagnostic("these bounds conflict. This guard requires " + rule_text(Minimum(minimum),base) + " but allows " + rule_text(Maximum(limit),base) + ".", minimum_site.start))
+          .append(Diagnostic("the conflicting maximum is declared here. Choose compatible bounds.", maximum_site.start))
+      }
+    }
+  }
+  errors
+}
+
+pub record FieldOrder { left: Str, op: Str, right: Str }
+pub record FieldNumber { field: Str, value: Rat }
+pub record RecordRule { order: FieldOrder, source: SourceSpan }
+
+pure direct_field(expression: Expr, binding: Str): Str {
+  path = ast.expression_reference_path(expression)
+  tail = ast.reference_tail(path)
+  if ast.reference_head(path) == binding && ast.reference_head(tail) == tail { tail } else { "" }
+}
+
+pub pure record_rules(expression: Expr, binding: Str, site: SourceSpan): [RecordRule] {
+  mut rules: [RecordRule] = []
+  mut valid = true
+  for part in guard_conjuncts(expression) {
+    mut accepted = false
+    match ast.unlocated_expression(part) {
+      BinaryExpr(op,lhs,rhs) => {
+        left = direct_field(lhs,binding)
+        right = direct_field(rhs,binding)
+        if (op == "<" || op == "<=") && left != "" && right != "" {
+          rules = rules.append(RecordRule(FieldOrder(left,op,right),ast.expression_span(part).value_or(site)))
+          accepted = true
+        }
+      },
+      LocatedExpr(s,v,ts) => {}, NameExpr(n) => {}, NatExpr(n) => {}, DecimalExpr(n) => {},
+      BoolExpr(b) => {}, StringExpr(s) => {}, FunctionExpr(n) => {}, ArrayExpr(items) => {},
+      UnaryExpr(op,v) => {}, CallExpr(n,args,ts) => {}, OwnedCallExpr(v,n,args,ts) => {},
+      DotCallExpr(v,n,args,ts) => {}, FieldExpr(v,n) => {}, IndexExpr(v,i) => {},
+      IfExpr(c,y,n,h) => {}, BlockExpr(b) => {}, MatchExpr(v,arms) => {}
+    }
+    valid = valid && accepted
+  }
+  if valid { rules } else { [] }
+}
+
+// Explanation-only sources carry the facts at this site, without a recursive
+// copy of their own history. Ordinary checking keeps the list empty.
+pub record DomainFactOrigin { source: SourceSpan, reason: Str, facts: DomainFacts }
+pub record DomainFacts {
+  minimum: Nat, maximum: Option[Nat],
+  non_blank: Option[Bool], control_free: Option[Bool],
+  keys: Option[Set[Str]], orders: [FieldOrder], numbers: [FieldNumber], origins: [DomainFactOrigin]
+}
+
+pub pure size_facts(minimum: Nat, maximum: Option[Nat], non_blank: Option[Bool], control_free: Option[Bool], keys: Option[Set[Str]]): DomainFacts {
+  DomainFacts(minimum,maximum,non_blank,control_free,keys,[],[],[])
+}
+
+pub pure record_facts(orders: [FieldOrder], numbers: [FieldNumber]): DomainFacts {
+  DomainFacts(0,None(),None(),None(),None(),orders,numbers,[])
+}
+
+pub pure with_fact_source(facts: DomainFacts, observed: DomainFacts, source: SourceSpan, reason: Str): DomainFacts {
+  snapshot = DomainFacts(observed.minimum,observed.maximum,observed.non_blank,observed.control_free,observed.keys,
+    observed.orders,observed.numbers,[])
+  DomainFacts(facts.minimum,facts.maximum,facts.non_blank,facts.control_free,facts.keys,
+    facts.orders,facts.numbers,facts.origins.append(DomainFactOrigin(source,reason,snapshot)))
+}
+
+pub pure unknown_facts(): DomainFacts { size_facts(0, None(), None(), None(), None()) }
+
+pub pure declared_facts(rules: [DomainRule]): DomainFacts {
+  mut minimum: Nat = 0
+  mut maximum: Option[Nat] = None()
+  mut non_blank: Option[Bool] = None()
+  mut controls: Option[Bool] = None()
+  for rule in rules {
+    match rule.requirement {
+      Minimum(n) => if n > minimum { minimum = n },
+      Maximum(n) => if n <= maximum.value_or(n) { maximum = Some(n) },
+      NonBlank() => { non_blank = Some(true); if minimum == 0 { minimum = 1 } },
+      ControlFree() => { controls = Some(true) }
+    }
+  }
+  size_facts(minimum, maximum, non_blank, controls, None())
+}
+
+pub pure rule_outcome(rule: DomainRequirement, facts: DomainFacts): Option[Bool] {
+  match rule {
+    Minimum(n) => if facts.minimum >= n { Some(true) }
+      else if facts.maximum.value_or(n) < n { Some(false) } else { None() },
+    Maximum(n) => if facts.minimum > n { Some(false) }
+      else { match facts.maximum { Some(upper) => if upper <= n { Some(true) } else { None() }, None() => None() } },
+    NonBlank() => if facts.maximum == Some(0) { Some(false) } else { facts.non_blank },
+    ControlFree() => if facts.maximum == Some(0) { Some(true) } else { facts.control_free }
+  }
+}
+
+pure count_text(n: Nat, base: Str): Str {
+  unit = if base == "Str" { if n == 1 { "Unicode scalar value" } else { "Unicode scalar values" } }
+    else if base.starts_with("Map[") { if n == 1 { "map entry" } else { "map entries" } }
+    else if base.starts_with("Set[") { if n == 1 { "distinct set element" } else { "distinct set elements" } }
+    else { if n == 1 { "array element" } else { "array elements" } }
+  "${n} " + unit
+}
+
+pub pure fact_text(rule: DomainRequirement, facts: DomainFacts, base: Str): Str {
+  match rule {
+    NonBlank() => if facts.maximum == Some(0) { "The string is empty." }
+      else if facts.non_blank == Some(false) { "Every character is Unicode whitespace." }
+      else if facts.non_blank == Some(true) { "The string contains a character outside Unicode whitespace." } else { "" },
+    ControlFree() => if facts.control_free == Some(false) { "The string contains a control character." }
+      else if facts.control_free == Some(true) { "The string contains no control characters." } else { "" },
+    Minimum(n) => size_fact_text(facts, base),
+    Maximum(n) => size_fact_text(facts, base)
+  }
+}
+
+pure size_fact_text(facts: DomainFacts, base: Str): Str {
+  if facts.maximum == Some(facts.minimum) { "The value contains " + count_text(facts.minimum,base) + "." }
+  else if facts.minimum > 0 && facts.maximum != None() {
+    "The value contains at least " + count_text(facts.minimum,base) + " and at most " + count_text(facts.maximum.value_or(0),base) + "."
+  } else if facts.minimum > 0 { "The value contains at least " + count_text(facts.minimum,base) + "." }
+  else { match facts.maximum { Some(n) => "The value contains at most " + count_text(n,base) + ".", None() => "" } }
+}
+
+pub pure rule_text(rule: DomainRequirement, base: Str): Str {
+  match rule {
+    Minimum(n) => "at least " + count_text(n, base),
+    Maximum(n) => "at most " + count_text(n, base),
+    NonBlank() => "at least one character outside Unicode whitespace",
+    ControlFree() => "text free of control characters"
+  }
+}
+
+// A fact can reach a join through both arms. Keep one copy per observation.
+pure merge_fact_origins(left: [DomainFactOrigin], right: [DomainFactOrigin]): [DomainFactOrigin] {
+  if left.len() == 0 { right } else if right.len() == 0 || left == right { left } else {
+    mut seen: Set[DomainFactOrigin] = set()
+    mut merged: [DomainFactOrigin] = []
+    for origin in left.concat(right) {
+      if !seen.has(origin) { seen = seen.add(origin); merged = merged.append(origin) }
+    }
+    merged
+  }
+}
+
+pub pure combine_facts(a: DomainFacts, b: DomainFacts): DomainFacts {
+  minimum = if a.minimum > b.minimum { a.minimum } else { b.minimum }
+  maximum = match a.maximum {
+    None() => b.maximum,
+    Some(n) => Some(if b.maximum.value_or(n) < n { b.maximum.value_or(n) } else { n })
+  }
+  DomainFacts(minimum, maximum,
+    if b.non_blank != None() { b.non_blank } else { a.non_blank },
+    if b.control_free != None() { b.control_free } else { a.control_free },
+    if b.keys != None() { b.keys } else { a.keys }, a.orders.concat(b.orders), a.numbers.concat(b.numbers), merge_fact_origins(a.origins,b.origins))
+}
+
+// Facts available after a choice must hold for either result.
+pub pure common_facts(a: DomainFacts, b: DomainFacts): DomainFacts {
+  lower = if a.minimum < b.minimum { a.minimum } else { b.minimum }
+  upper: Option[Nat] = match a.maximum {
+    None() => None(),
+    Some(x) => match b.maximum { None() => None(), Some(y) => Some(if x > y { x } else { y }) }
+  }
+  mut orders: [FieldOrder] = []
+  for prior in a.orders { for other in b.orders { if other == prior { orders = orders.append(prior) } } }
+  mut numbers: [FieldNumber] = []
+  for prior in a.numbers { for other in b.numbers { if other == prior { numbers = numbers.append(prior) } } }
+  DomainFacts(lower, upper,
+    if a.non_blank == b.non_blank { a.non_blank } else { None() },
+    if a.control_free == b.control_free { a.control_free } else { None() },
+    if a.keys == b.keys { a.keys } else { None() }, orders, numbers, merge_fact_origins(a.origins,b.origins))
+}
+
+pure validation_call(name: Str, arguments: [Expr]): Expr {
+  CallExpr("$validation." + name, arguments, [])
+}
+
+pure validation_literal(value: Str): Expr {
+  // Source paths may contain literal interpolation syntax. End a literal at
+  // each dollar sign so no generated string can refer to a caller's local.
+  mut parts: Option[Expr] = None()
+  mut escaped = ""
+  mut index: Nat = 0
+  while index < value.len() {
+    ch = value[index]
+    if ch == "\\" || ch == "\"" { escaped = escaped + "\\" }
+    escaped = escaped + ch
+    if ch == "$" {
+      part = StringExpr("\"" + escaped + "\"")
+      parts = Some(match parts { None() => part, Some(prior) => BinaryExpr("+",prior,part) })
+      escaped = ""
+    }
+    index = index + 1
+  }
+  last = StringExpr("\"" + escaped + "\"")
+  match parts { None() => last, Some(prior) => BinaryExpr("+",prior,last) }
+}
+
+pub pure guard_conjuncts(guard: Expr): [Expr] {
+  match ast.unlocated_expression(guard) {
+    BinaryExpr(op, left, right) => if op == "&&" {
+      guard_conjuncts(left).concat(guard_conjuncts(right))
+    } else { [guard] },
+    LocatedExpr(span,v,ts) => [], NameExpr(n) => [guard], NatExpr(n) => [guard], DecimalExpr(n) => [guard],
+    BoolExpr(b) => [guard], StringExpr(s) => [guard], FunctionExpr(n) => [guard], ArrayExpr(items) => [guard],
+    UnaryExpr(op,v) => [guard], CallExpr(n,args,ts) => [guard], OwnedCallExpr(v,n,args,ts) => [guard],
+    DotCallExpr(v,n,args,ts) => [guard], FieldExpr(v,n) => [guard], IndexExpr(v,i) => [guard],
+    IfExpr(condition,yes,no,has_else) => [guard], BlockExpr(b) => [guard], MatchExpr(v,arms) => [guard]
+  }
+}
+
+// Division and remainder must be total for every input.
+pure validation_positive_divisor(value: Expr): Bool {
+  mut positive = false
+  match ast.unlocated_expression(value) {
+    NatExpr(n) => { positive = n > 0 },
+    LocatedExpr(span,v,ts) => {}, DecimalExpr(n) => {}, NameExpr(n) => {}, BoolExpr(b) => {},
+    UnaryExpr(op,v) => {}, BinaryExpr(op,left,right) => {}, StringExpr(s) => {}, FunctionExpr(n) => {},
+    ArrayExpr(items) => {}, CallExpr(n,args,ts) => {}, OwnedCallExpr(v,n,args,ts) => {},
+    DotCallExpr(v,n,args,ts) => {}, FieldExpr(v,n) => {}, IndexExpr(v,i) => {},
+    IfExpr(condition,yes,no,has_else) => {}, BlockExpr(b) => {}, MatchExpr(v,arms) => {}
+  }
+  positive
+}
+
+pub pure runtime_numeric_supported(guard: Expr, binding: Str): Bool {
+  match ast.unlocated_expression(guard) {
+    BinaryExpr(op,left,right) => (op == "&&" || op == "||" || op == "==" || op == "!=" ||
+      op == "<" || op == "<=" || op == ">" || op == ">=" || op == "+" || op == "*" || op == "-" ||
+      ((op == "/" || op == "%") && validation_positive_divisor(right))) &&
+      runtime_numeric_supported(left,binding) && runtime_numeric_supported(right,binding),
+    NameExpr(n) => n == binding, NatExpr(n) => true, DecimalExpr(n) => true, BoolExpr(b) => true,
+    UnaryExpr(op,v) => (op == "!" || op == "-") && runtime_numeric_supported(v,binding),
+    LocatedExpr(span,v,ts) => false, StringExpr(s) => false, FunctionExpr(n) => false, ArrayExpr(items) => false,
+    CallExpr(n,args,ts) => false, OwnedCallExpr(v,n,args,ts) => false, DotCallExpr(v,n,args,ts) => false,
+    FieldExpr(v,n) => false, IndexExpr(v,i) => false, IfExpr(condition,yes,no,has_else) => false,
+    BlockExpr(b) => false, MatchExpr(v,arms) => false
+  }
+}
+
+pub pure runtime_validation_expression(guard: Expr, binding: Str, base: Str, target_name: Str, span: SourceSpan): Expr {
+  candidate = NameExpr(binding)
+  mut checks = validation_call("begin",[validation_literal(target_name)])
+  if domain_base(base) {
+    unit = if base == "Str" { "UnicodeScalars" } else if base.starts_with("Map[") { "MapEntries" }
+      else if base.starts_with("Set[") { "SetElements" } else { "ArrayElements" }
+    count = OwnedCallExpr(candidate,"len",[],[])
+    for rule in domain_rules(guard,binding,base,span) {
+      checks = match rule.requirement {
+        Minimum(n) => validation_call("minimum",[checks,validation_call(unit,[]),NatExpr(n),count]),
+        Maximum(n) => validation_call("maximum",[checks,validation_call(unit,[]),NatExpr(n),count]),
+        NonBlank() => validation_call("nonblank",[checks,candidate]),
+        ControlFree() => validation_call("control_free",[checks,candidate])
+      }
+      checks = LocatedExpr(rule.source,checks,[])
+    }
+  } else if record_rules(guard,binding,span).len() > 0 {
+    for rule in record_rules(guard,binding,span) {
+      order = rule.order
+      test = LocatedExpr(rule.source,BinaryExpr(order.op,FieldExpr(candidate,order.left),FieldExpr(candidate,order.right)),[])
+      checks = validation_call("relation",[checks,validation_literal(order.left),validation_literal(order.right),
+        BoolExpr(order.op == "<"),test])
+      checks = LocatedExpr(rule.source,checks,[])
+    }
+  } else {
+    for term in guard_conjuncts(guard) {
+      checks = validation_call("numeric",[checks,validation_literal(ast.render_expr(term)),term])
+      checks = LocatedExpr(ast.expression_span(term).value_or(span),checks,[])
+    }
+  }
+  validation_call("finish",[checks,candidate])
+}

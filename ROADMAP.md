@@ -17,53 +17,30 @@ issue was created for this repair. Completion evidence is recorded in the PR.
 
 ## Next: alpha.15
 
-The owner-agreed [delivery order](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#agreed-alpha15-delivery-order--26-october-2026)
-is GI#409: Compiler/stdlib boundary assessment; GI#106: Validation speed;
-RM#154: Faster coverage; GI#180: Compiler understanding foundations;
-GI#435: Validated domain types; RM#155: Authoring friction; integrated acceptance.
-Compiler-understanding acceptance includes the new domain-type decisions.
-Implementation has not started; the next delivery is the GI#409 assessment.
+GI#409: Compiler/stdlib boundary assessment is complete on next (PR#635).
+The [assessment](docs/COMPILER_STDLIB_BOUNDARY_ASSESSMENT.md) verifies the full
+42-file closure and five change cases. Retain source organisation. Narrower
+package-tool prerequisites were considered in GI#106 and remain unselected. Native coupling
+stays in alpha.16. No refactor is delivered.
 
-The [26 October clarification](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#alpha15-explanation-provenance-and-domain-type-clarification)
-requires complete function-checker explanations and comprehensive, truthful
-instruction/source attribution. The [GI#180: Compiler understanding completion
-scope](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#gi180-compiler-understanding-agreed-alpha15-completion-scope)
-now defines two checked inventories, five delivery slices and complete acceptance.
-Implementation remains unstarted. GI#435's six-constraint semantic scope is now agreed in
-[RM#153](docs/roadmap/records/language-direction-and-differentiation--exploration.md#rm-153).
-Explicit guard bindings, `validate[Type](input)` and ordered structured failures
-are agreed. Alpha.15 also permits multiline conditions and parenthesised `&&`
-expressions for the new constraints. Existing numeric `||` remains supported; its
-extension to the new families is scheduled for alpha.16. The [consolidated
-contract](docs/design/VALIDATED_DOMAIN_TYPES.md), approved in PR#616, defines syntax,
-error structures, Unicode rules, examples and delivery boundaries;
-its new proof decisions also require explanations.
+GI#106: Validation speed — alpha.15 milestone done. The owner accepted the
+implementation and replay on 27 October 2026; implementation is merged in PR#637.
+[Acceptance evidence](docs/VALIDATION_SPEED_ACCEPTANCE.md) meets the agreed targets:
+clean full validation is 16.1% faster, compiler-edit checks 20.05% faster, and
+hosted initial compiler checks 24.9%/36.8% faster. Regression guards passed,
+including the ordinary four-worker setting. The bounded alpha.15 milestone is accepted;
+the wider GI#106 issue is not closed. No tests or validation cadence were removed.
 
-[GI#409: Compiler/stdlib boundary assessment](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-152)
-has an agreed dependency-map, five-case change-impact and recommendation deliverable.
-No refactor is included; the assessment has not started.
+RM#154: Faster coverage is complete for alpha.15. PR#644 delivers local preparation reuse and PR#645 hosted persistence. Matched local acceptance shows 88.70% faster repeats and 88.75% faster reporting changes; cold/dependency regressions are 0.65%/2.35%, within the agreed 10% limit. Hosted collection fell from 30m22s to 3m35s with all 29 preparations reused and 31 fresh sessions per run. [Evidence and limitations](docs/COVERAGE_PERFORMANCE_BASELINE.md#final-acceptance-28-october-2026). Cold preparation remains slow; redesign is outside this completed optimisation.
 
-[RM#154: Faster coverage](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154)
-has an agreed four-workload baseline, safely reusable plans and fresh-execution
-acceptance. Agree the measured target before cache implementation. Profiling
-and implementation remain unstarted.
-
-[RM#155: Authoring friction](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-155)
-has a fixed remaining list: diagnose unsupported interpolation, provide tested
-API examples, and explain public-signature type visibility. Inventory preflight
-and onboarding/interpolation guidance are already delivered on next. The three
-remaining improvements are agreed scope, not started implementation.
-
-GI#106's [bounded validation-speed milestone](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#alpha15-validation-speed)
-now has an agreed scope: five baseline workloads, at most three selected
-improvements, preserved validation requirements and measured owner acceptance.
-Baseline and implementation have not started; the wider issue remains separate.
+For the current release summary, read [Next release status](docs/NEXT_RELEASE_STATUS.md).
+Keep that summary current alongside the detailed records when release work changes.
 
 Alpha.14 delivers type-owned methods and dot notation (GI#525), the routed HTTP
 server framework (GI#518), and the HTTP reference and runnable examples slice of
 GI#552. Alpha.15 takes forward the remaining foundation work under the agreed
-release rebalance, including the GI#106 test-speed milestone and the full
-implementation of package management (GI#200) in four sequenced packets.
+release rebalance, including package-management implementation (GI#200) and the
+GI#106 test-speed milestone.
 
 - [Release plans](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md)
 - [All roadmap records](docs/roadmap/README.md)
@@ -96,48 +73,67 @@ status beyond the explicitly selected HTTP documentation slice. No dates or new
 implementation authorisation are implied. Release validation/publication approval
 remain required; scope does not grow through optional candidates.
 
-**RM#44: Alpha.15 package-management packets P01–P04.** GI#200 remains open
-as the umbrella through final acceptance. The work is split into four packets:
-[P01: lock and restore contract](docs/roadmap/records/dependency-management--idea.md#p01),
+<a id="rm-44"></a>
+
+**RM#44: Alpha.15 package-management packets P01–P04.** Complete on merge of
+P04c final acceptance. [P01: lock and restore contract](docs/roadmap/records/dependency-management--idea.md#p01),
 [P02: locked local dependencies](docs/roadmap/records/dependency-management--idea.md#p02),
-[P03: pinned Git and archive sources](docs/roadmap/records/dependency-management--idea.md#p03),
-and [P04: `panack` workflow integration](docs/roadmap/records/dependency-management--idea.md#p04). Each has its own RM and GI reference in the detailed plan.
-The provisional packet weights are 15%, 25%, 35% and 25%, respectively, and sum
-to 100% of this GI#200 implementation plan. All are planned, with implementation
-not started. The sequence and acceptance are recorded in the
-[dependency-management plan](docs/roadmap/records/dependency-management--idea.md#alpha15-implementation-plan).
+[P03: pinned remote sources](docs/roadmap/records/dependency-management--idea.md#p03),
+and [P04: `panack` workflow integration](docs/roadmap/records/dependency-management--idea.md#p04)
+are sequenced in the [package-management plan](docs/roadmap/records/dependency-management--idea.md#alpha15-implementation-plan).
+Their provisional weights are 15%, 25%, 35% and 25% of GI#200, respectively.
+P01 is accepted in PR#571. P02 merged as PR#575, taking weighted
+completion to 40%. P03a completes on merge of PR#578, taking estimated weighted
+completion to 50.5%. P03b completes on merge of PR#580, taking the total to
+62.75% under the same P03 allocation. P03c completes on merge of PR#581,
+raising the total to 69.75%. [P03d remote-source acceptance](docs/design/PACKAGE_REMOTE_ACCEPTANCE.md)
+completed P03, taking the accepted subtotal to 75%. Git and archive diagnostic
+corrections retain specific causes and document real CLI output. The final
+[P04a diagnostic audit](docs/design/PACKAGE_DIAGNOSTIC_ACCEPTANCE.md) covers all
+24 package modules, with 100 exact CLI transcripts and no remaining wording batch.
+P04a completes on merge of [PR#593](https://github.com/sproates/panackelty/pull/593) after local and hosted validation,
+bringing weighted programme completion to 87.5%. Weights are unchanged;
+P04b completes on merge of the installed-workflow delivery, taking the total to
+93.75%. Its finite acceptance covers package help, relocated archive operations,
+installed HTTPS without Git, native library paths and missing-tool behaviour.
+P04c completes [final installed acceptance](docs/design/PACKAGE_FINAL_ACCEPTANCE.md)
+on merge, closing GI#569 and GI#200 at 100%. The four-source, relocated and
+offline workflow is verified alongside existing failure/containment tests.
+Native release publication remains separate. The three tracked slices are:
+[P04a diagnostics, P04b installed workflow and P04c final acceptance](docs/roadmap/records/dependency-management--idea.md#p04-delivery-slices). PR#573 reverted the initial P02
+implementation to the P01 baseline. The P01
+[contract](docs/design/PACKAGE_MANAGEMENT_CONTRACT.md) defines lock and restore
+behaviour. The [implementation boundaries](docs/design/PACKAGE_MANAGEMENT_IMPLEMENTATION.md)
+require a separately built Panackelty package tool, zlib for gzip and a small
+compiler-handoff proof before archive implementation. PR#575 implements the
+local workflow; the [acceptance record](docs/design/PACKAGE_LOCAL_ACCEPTANCE.md)
+records verification, performance evidence and publication limits.
+Website changes wait for a matching native release
+and are recorded in the website follow-up register.
+P03a starts with the [bounded HTTP streaming prerequisite](docs/design/HTTP_STREAMING_ACCEPTANCE.md),
+followed by [HTTPS archive acquisition](docs/design/PACKAGE_HTTPS_ACCEPTANCE.md).
+P03b adds [controlled Git acquisition](docs/design/PACKAGE_GIT_ACQUISITION_ACCEPTANCE.md)
+in PR#580; prerequisites alone earn no additional programme completion.
+[PR#579](https://github.com/sproates/panackelty/pull/579) delivers the approved
+P03b generic process/filesystem prerequisite on merge: exact child
+environments, confined staged link creation and link-target inspection. This
+prepares controlled Git acquisition without moving package policy into native
+code. PR#580 stages exact Git commits with isolated configuration, raw blob
+extraction, canonical hashes, safe symlinks and cleanup on failure. Public Git
+manifests, locks and shared snapshot graphs are delivered by P03c; see its
+[integration record](docs/design/PACKAGE_GIT_INTEGRATION_ACCEPTANCE.md). The alpha.16 coupling
+task stays separate.
+
+<a id="rm-158"></a> [RM#158](docs/roadmap/records/dependency-management--idea.md#rm-158),
+<a id="rm-159"></a> [RM#159](docs/roadmap/records/dependency-management--idea.md#rm-159),
+<a id="rm-160"></a> [RM#160](docs/roadmap/records/dependency-management--idea.md#rm-160) and
+<a id="rm-161"></a> [RM#161](docs/roadmap/records/dependency-management--idea.md#rm-161).
 
 The original modules/packages/HTTP programme baseline remains **90/100 earned**;
-P7's 10 points remain unearned on that original baseline, and GI#200 is now
-planned for Alpha.15 implementation. Its packet weights are a separate baseline
-within GI#200 and are not added to the SP1 total. Alpha.13 release acceptance is
-complete. RM#156 records the GI#518 selection and RM#157 records the performance
-outcome.
+P7 retains its deferred 10-point allocation. Alpha.13 release acceptance is complete.
+RM#156 records the GI#518 selection and RM#157 records the performance outcome.
+RM#158–RM#161 identify the Alpha.15 package-management packets.
 **Next available roadmap identifier: RM#162.**
-
-<a id="rm-158"></a>
-
-P01 · RM#158: Lock and restore contract. See the
-[packet plan](docs/roadmap/records/dependency-management--idea.md#p01) and
-[GI#566](https://github.com/sproates/panackelty/issues/566).
-
-<a id="rm-159"></a>
-
-P02 · RM#159: Locked local dependencies. See the
-[packet plan](docs/roadmap/records/dependency-management--idea.md#p02) and
-[GI#567](https://github.com/sproates/panackelty/issues/567).
-
-<a id="rm-160"></a>
-
-P03 · RM#160: Pinned remote sources. See the
-[packet plan](docs/roadmap/records/dependency-management--idea.md#p03) and
-[GI#568](https://github.com/sproates/panackelty/issues/568).
-
-<a id="rm-161"></a>
-
-P04 · RM#161: `panack` workflow integration. See the
-[packet plan](docs/roadmap/records/dependency-management--idea.md#p04) and
-[GI#569](https://github.com/sproates/panackelty/issues/569).
 
 ## Example inventory preflight — 2026-10-20
 
@@ -210,6 +206,60 @@ The [specification](docs/reference/SPEC.md#type-owned-methods-next)
 records its limits. Runtime performance uses existing direct calls; extra work is
 confined to parsing and checking arrow calls. Website: no current-release claim
 changes are needed for this unreleased experiment; reassess at release selection.
+
+## Compiler fixture progress deadlines: 26 October 2026
+
+The compiler-source fixture now detects stalled module passes and compiler
+stages instead of applying one 90-second deadline to a complete compilation.
+Function activity does not renew module deadlines. The enclosing process bound
+remains a final backstop. A native test supervisor and separately instrumented
+test VM retain paths, function observations, timings and original output for
+the next investigation; production compiler policy and the seed are unchanged.
+
+Done: normal runtime validation includes progress-budget contracts, deliberate
+compiler stalls and recovery; the existing source/bytecode fixture assertions
+remain. Hosted workflows retain failure evidence. Full local and hosted
+validation results are recorded in the delivery PR. No issue was created solely
+for this repair. The original scheduled timeout's cause remains unconfirmed;
+focused measurements support cumulative healthy work as a hypothesis only.
+This changes hang detection, not the performance acceptance criteria under
+GI#106. Performance cost is confined to native test observation and bounded
+fault tests. Website impact: none; installation and language behaviour are
+unchanged. See [watchdog contracts and evidence](tests/compiler_watchdog/README.md).
+
+## Nightly package-tool preparation repair: 26 October 2026
+
+Nightly run `40176587642` failed package-aware CLI assertions because isolated
+compiler, runtime, conformance, sanitizer and coverage suites had not built
+`build/tools/panack-packages.bc`. The full `make check` prepared that artifact,
+so its successful results did not expose the missing standalone prerequisites.
+The affected entry points now prepare the separate package tool before tests
+run. Instrumented suites prepare the ordinary CLI artifact before switching
+build directories; `make native` remains independent of package management.
+
+Regression checks cover the expanded Make dependency graph and sanitizer
+preparation order. Completion requires full local validation and the affected
+hosted nightly suites, with results recorded in the delivery PR. No issue was
+created solely for this repair. No product behaviour, compiler or seed changes
+are included. Performance impact is limited to building the required package
+tool once in an otherwise unprepared suite. Website: no impact; released APIs
+and installation instructions are unchanged.
+
+Post-merge nightly acceptance passed 16 of 17 jobs. The isolated Linux compiler
+job then repeated a separate 90-second timeout in the spaced-checkout
+distribution fixture. That fixture now prepares the native VM and package tool
+before running archive and release checks. Both commands retain
+90-second safety limits; all checksum, installation, relocation and shared-VM
+assertions remain. This separates build preparation from the release check
+without changing product performance criteria. The follow-up PR records local
+validation and the final hosted rerun.
+The HTTP-server bytecode target also now depends on the package-tool artifact,
+not its phony convenience target. Installation reuses prepared bytecode while
+source, seed, VM and package-tool changes still invalidate it. The distribution
+fixture asserts that a prepared installation does not invoke compilation.
+Manual nightly dispatch accepts a branch name so repairs can be tested before
+merge. Scheduled runs still select `next`, and workflow permissions remain
+read-only.
 
 ## Nightly HTTP fixture repair — 2026-10-19
 

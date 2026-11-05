@@ -1,0 +1,6 @@
+panack: error[PKG_MANIFEST_INVALID]: Cannot understand panack.json because the file is not valid UTF-8 text.
+
+  Project: <workspace>/Ian's app/panack.json
+  File: <workspace>/Ian's app/panack.json
+
+Save the file using UTF-8 encoding, or obtain a valid copy, then retry your command.

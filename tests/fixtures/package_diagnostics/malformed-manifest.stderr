@@ -1,0 +1,9 @@
+panack: error[PKG_MANIFEST_INVALID]: Cannot understand panack.json because it contains invalid JSON.
+
+  Project: <workspace>/Ian's app/panack.json
+  File: <workspace>/Ian's app/panack.json
+  Location: line 1, column 2
+
+JSON property names must be enclosed in double quotes. Panack expected an opening double quote at this location.
+
+Correct the reported JSON problem, then retry your command.

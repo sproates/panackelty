@@ -1,0 +1,11 @@
+panack: error[PKG_HTTP_STATUS]: Cannot download the archive because the server could not find the requested archive.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/missing.tar.gz
+  Dependency name: lib
+  Server response: HTTP 404
+
+Check the archive URL in panack.json. If the URL is incorrect, correct the URL and retry your command.
+
+If the URL is correct, ask the package maintainer where the archive is available.

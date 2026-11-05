@@ -9,7 +9,7 @@ pass
 case_name=large-cli-fixture-compilation-bound
 contains tests/runner/main.panack 'compile_timeout = if execution_timeout == 120 { 60 } else { 20 }'
 contains tests/runner/main.panack 'label == "case/stdlib", compile_timeout)'
-contains tests/unit/harness/runner.sh 'cli_commands|cli_explanations) fixture_timeout=360'
+contains tests/unit/harness/runner.sh 'cli_commands|cli_explanations|cli_explanations_proofs) fixture_timeout=360'
 pass
 case_name=isolated-environment-retains-tls-fixture-tool
 contains tests/without_interpreter.sh 'curl-config openssl'
@@ -33,7 +33,7 @@ case_name=ci-packages-every-supported-release-target
 contains .github/workflows/check.yml 'target: linux-x86_64
             runner: ubuntu-22.04'
 contains .github/workflows/check.yml 'target: macos-arm64
-            runner: macos-14'
+            runner: macos-15'
 contains .github/workflows/check.yml 'runs-on: ${{ matrix.runner }}'
 contains .github/workflows/check.yml 'run: make check-no-interpreter'
 contains .github/workflows/check.yml 'uses: actions/upload-artifact@v6'
@@ -67,6 +67,9 @@ contains .github/workflows/profile.yml 'libcurl4-openssl-dev'
 pass
 case_name=nightly-package-workflow-targets-next
 contains .github/workflows/nightly-packages.yml 'schedule:'
+contains .github/workflows/nightly-packages.yml 'type: string'
+contains .github/workflows/nightly-packages.yml 'default: next'
+contains .github/workflows/nightly-packages.yml 'contents: read'
 contains .github/workflows/nightly-packages.yml "ref: \${{ inputs.branch || 'next' }}"
 contains .github/workflows/nightly-packages.yml 'suite: [compiler, runtime, bootstrap, conformance-source, conformance-bytecode]'
 contains .github/workflows/nightly-packages.yml 'make check-no-interpreter CI_SUITE=${{ matrix.suite }}'
@@ -91,7 +94,7 @@ contains .github/workflows/release.yml 'run: make package'
 contains .github/workflows/release.yml 'target: linux-x86_64
             runner: ubuntu-22.04'
 contains .github/workflows/release.yml 'target: macos-arm64
-            runner: macos-14'
+            runner: macos-15'
 contains .github/workflows/release.yml 'needs: [validate, package]'
 contains .github/workflows/release.yml 'uses: actions/download-artifact@v7'
 contains .github/workflows/release.yml 'sha256sum -c "${archive}.sha256"'
@@ -105,8 +108,7 @@ case_name=bug-report-form-requires-actionable-reproduction-details
 contains .github/ISSUE_TEMPLATE/bug_report.yml 'name: Bug report'
 contains .github/ISSUE_TEMPLATE/bug_report.yml 'panack --version'
 contains .github/ISSUE_TEMPLATE/bug_report.yml SECURITY.md
-contains CONTRIBUTING.md 'choose
-**Bug report**'
+contains_collapsed_whitespace CONTRIBUTING.md 'then choose **Bug report**. Include:'
 contains CONTRIBUTING.md 'private reporting channel'
 pass
 case_name=readme-quick-start-is-an-executable-release-gate
@@ -127,7 +129,7 @@ contains Makefile '@$(MAKE) --no-print-directory functional'
 contains Makefile '@$(MAKE) --no-print-directory quick-start'
 contains Makefile 'package: native-check
 	$(MAKE) quick-start'
-contains tests/quick_start.sh 'for utility in awk cmp dirname gzip ln mkdir mv readlink rm tar; do'
+contains tests/quick_start.sh 'for utility in awk cmp dirname gzip ln mkdir mktemp mv readlink rm tar; do'
 pass
 case_name=layout-version-and-implementation
 sh tests/no_python.sh

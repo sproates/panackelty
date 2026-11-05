@@ -1,0 +1,16 @@
+panack: error[PKG_CACHE_MISSING]: Cannot build this project because dependency 'lib' (package 'demo.library') is missing locally.
+
+  Project: <workspace>/Ian's app/panack.json
+  Lockfile: <workspace>/Ian's app/panack.lock.json
+  Source archive: <workspace>/library.tar.gz
+  Missing directory: <workspace>/Ian's app/.panack_modules/demo.library
+
+The lockfile records this dependency, but Panack cannot find its local files.
+
+Restore the packages identified by the lockfile by running:
+
+  panack deps restore --project '<workspace>/Ian'"'"'s app/panack.json'
+
+Running this command will restore the local packages without changing the lockfile.
+
+An internet connection is needed if remote packages must be downloaded.

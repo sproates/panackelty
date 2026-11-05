@@ -1,0 +1,113 @@
+import "external.panack"::{Port as RemotePort, Range, OrderedRange, checked_range, pass_through, rebuilt}
+type Label = Str where text =>
+  text != "" && text.len() <= 2
+  && text.is_non_blank() && text.has_no_control_characters()
+
+type Short = Str where candidate => candidate.len() <= 3
+type Names = [Str] where items => items.len() >= 1 && items.len() <= (1 + 1)
+type OneEntry = Map[Str,Nat] where values => values.len() >= 1 && values.len() <= 1
+type OneMember = Set[Nat] where values => values.len() >= 1 && values.len() <= 1
+
+pure checked_label(input: Str): Label {
+  if input.len() >= 1 && input.len() <= 2 && input.is_non_blank() && input.has_no_control_characters() {
+    input
+  } else { "?" }
+}
+
+pure widen(label: Label): Short { label }
+
+main(): Void {
+  print(widen(checked_label("𐐷")))
+  print(Label("é").len())
+  print(checked_label("\t"))
+  names = ["first", "second"]
+  print(Names(names).len())
+  by_name = map().put("same", 1)
+  print(OneEntry(by_name.put("same", 9)).get("same"))
+  print(OneMember(set().add(5).add(5)).len())
+  print("​".is_non_blank())
+  print(" ".has_no_control_characters())
+  exercise_validation()
+  exercise_record_validation()
+  exercise_guard_context()
+}
+
+type Alternative = Int where n => (n < 2 || n > 8) && n != 4
+
+counted_input(): Str {
+  print("evaluated input")
+  ""
+}
+
+show_label(input: Str): Void {
+  match validate[Label](input) {
+    Ok(label) => print(label),
+    Error(problem) => {
+      print(problem.failures.len())
+      print(problem.render())
+    }
+  }
+}
+
+exercise_validation(): Void {
+  show_label(counted_input())
+  show_label("𐐷")
+  show_label("  ")
+  show_label("𐐷\tprivate")
+  match validate[Names]([]) { Ok(names) => print(names.len()), Error(problem) => print(problem.render()) }
+  match validate[OneEntry](map().put("secret",1).put("secret",2)) {
+    Ok(entries) => print(entries.len()), Error(problem) => print(problem.render())
+  }
+  match validate[OneMember](set().add(1).add(2)) {
+    Ok(items) => print(items.len()), Error(problem) => print(problem.render())
+  }
+  match validate[Alternative](4) { Ok(n) => print(n), Error(problem) => print(problem.render()) }
+  match validate[Alternative](9) { Ok(n) => print(n), Error(problem) => print(problem.render()) }
+  match validate[RemotePort](65536) {
+    Ok(port) => print(port),
+    Error(problem) => { print(problem.target_type.ends_with("external.panack:Port")); print(problem.render()) }
+  }
+}
+
+record Window { first: Nat, middle: Nat, last: Nat, label: Label }
+type WindowInOrder = Window where w => w.first < w.middle && w.middle <= w.last
+record Pair[T] { left: T, right: T }
+type IncreasingDecimal = Pair[Dec] where p => p.left < p.right
+type IncreasingRational = Pair[Rat] where p => p.left < p.right
+
+exercise_record_validation(): Void {
+  initial = OrderedRange(Range(-2,5))
+  saved = pass_through([initial])
+  previous = saved[0]
+  print(rebuilt(previous).start)
+  print(checked_range(Range(2,2)).end)
+  replacement = Range(6,previous.end)
+  match validate[OrderedRange](replacement) {
+    Ok(value) => print(value.start), Error(problem) => print(problem.render())
+  }
+  original = WindowInOrder(Window(1,2,3,Label("OK")))
+  match validate[WindowInOrder](Window(3,2,1,original.label)) {
+    Ok(w) => print(w.label), Error(problem) => { print(problem.failures.len()); print(problem.render()) }
+  }
+  print(original.label)
+  print(IncreasingDecimal(Pair(1.01,1.1)).right)
+  print(IncreasingRational(Pair(1 / 3, 2 / 5)).left)
+}
+
+type Word = Str where s => s.is_non_blank()
+type WordQueue = [Word] where q => q.len() >= 1
+
+pure choose_word(input: Str): Word {
+  if input.is_non_blank() { Word(input) } else { "guest" }
+}
+
+pure first(words: [[Word]]): Word { words[0][0] }
+
+exercise_guard_context(): Void {
+  print(choose_word("Ada"))
+  print(choose_word(""))
+  print(first([["first","second"]]))
+  words: [Word] = [Word("one"),"two"]
+  queue = WordQueue([words[1],"three"])
+  print(queue[0])
+}

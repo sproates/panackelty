@@ -1,0 +1,11 @@
+panack: error[PKG_HTTP_LIMIT]: Cannot finish downloading the archive because the archive exceeds Panack's 64 MiB download limit.
+
+  Project: <workspace>/app/panack.json
+  Package: test.archive
+  Source archive: https://localhost:<port>/oversize.tar.gz
+  Dependency name: lib
+  Response detail: response body
+
+Panack stopped the download at the response limit.
+
+Ask the package maintainer for an archive within this limit.

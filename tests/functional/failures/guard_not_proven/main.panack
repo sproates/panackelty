@@ -1,4 +1,4 @@
-type Positive = Int where value > 0
+type Positive = Int where value => value > 0
 
 main(): Void {
   invalid: Positive = 0

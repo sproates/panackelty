@@ -3,8 +3,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const MAX = 16 * 1024 * 1024; // Individual compiler/artifact/inventory identities.
-const MAX_CONTAINER = 32 * 1024 * 1024;
+const MAX = 16 * 1024 * 1024; // Compiler/artifact identities and source segments.
+const MAX_INVENTORY = 64 * 1024 * 1024;
+const MAX_CONTAINER = 128 * 1024 * 1024;
 const U64 = (1n << 64n) - 1n;
 const sha = b => crypto.createHash('sha256').update(b).digest('hex');
 const fail = message => { throw new Error(message); };
@@ -18,7 +19,7 @@ class Reader {
   u8() { return this.bytes(1)[0]; }
   u32() { return this.bytes(4).readUInt32BE(); }
   u64() { return this.bytes(8).readBigUInt64BE(); }
-  blob() { const n = this.u32(); if (n > MAX) fail('Oversized coverage blob'); return this.bytes(n); }
+  blob(limit = MAX) { const n = this.u32(); if (n > limit) fail('Oversized coverage blob'); return this.bytes(n); }
   text() { const b = this.blob(), s = b.toString('utf8'); if (!Buffer.from(s).equals(b)) fail('Invalid UTF-8'); return s; }
   count(max) { const n = this.u32(); if (n > max) fail('Coverage count limit'); return n; }
   end() { if (this.offset !== this.data.length) fail('Trailing coverage data'); }
@@ -50,11 +51,11 @@ function sourcePath(name, entry, checkout) {
 function readPlan(prefix, entry, checkout, compiler) {
   let r = new Reader(regular(prefix + '.plan', MAX_CONTAINER));
   r.magic('PANACKPLAN1\n');
-  const compilerBytes = r.blob(), artifact = r.blob(), inventory = r.blob();
-  if (!compilerBytes.equals(compiler) || !artifact.equals(regular(prefix + '.bc')) || !inventory.equals(regular(prefix + '.inv'))) fail('Plan identity mismatch');
+  const compilerBytes = r.blob(), artifact = r.blob(), inventory = r.blob(MAX_INVENTORY);
+  if (!compilerBytes.equals(compiler) || !artifact.equals(regular(prefix + '.bc')) || !inventory.equals(regular(prefix + '.inv', MAX_INVENTORY))) fail('Plan identity mismatch');
   const envelope = new Reader(inventory); envelope.magic('PANACKINVENTORY1\n');
   if (envelope.u32() !== 1) fail('Expected single-root plan inventory');
-  const inv = new Reader(envelope.blob()); envelope.end();
+  const inv = new Reader(envelope.blob(MAX_INVENTORY)); envelope.end();
   inv.magic('PANACKINV1\nlocal-replay-v9\n');
   if (!inv.blob().equals(compiler)) fail('Inventory compiler mismatch');
   const inventoryEntry = inv.text();
@@ -110,7 +111,7 @@ function readPlan(prefix, entry, checkout, compiler) {
 function readRaw(data, plan) {
   if (data.length > MAX_CONTAINER) fail('Oversized coverage record');
   const r = new Reader(data); r.magic('PANACKCOV1\n');
-  if (!r.blob().equals(plan.artifact) || !r.blob().equals(plan.inventory) || r.u32() !== plan.functions.length) fail('Raw identity mismatch');
+  if (!r.blob().equals(plan.artifact) || !r.blob(MAX_INVENTORY).equals(plan.inventory) || r.u32() !== plan.functions.length) fail('Raw identity mismatch');
   const result = [];
   let cells = 0;
   for (const f of plan.functions) {
@@ -148,7 +149,7 @@ function readSession(directory, plans, seen) {
   const nonce = reg.bytes(16).toString('hex');
   if (seen.has(nonce)) fail('Duplicate session'); seen.add(nonce);
   if (reg.count(16) !== plans.length) fail('Registry count mismatch');
-  for (const p of plans) if (!reg.blob().equals(p.artifact) || !reg.blob().equals(p.inventory)) fail('Registry identity mismatch');
+  for (const p of plans) if (!reg.blob().equals(p.artifact) || !reg.blob(MAX_INVENTORY).equals(p.inventory)) fail('Registry identity mismatch');
   reg.end();
   if (!regular(path.join(directory,'closed')).equals(Buffer.from('closed\n'))) fail('Unclosed session');
   const ids = names.filter(n => n.startsWith('expect-')).map(n => n.slice(7));

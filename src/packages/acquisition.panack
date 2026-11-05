@@ -1,0 +1,315 @@
+import project/src/packages/input_diagnostic::{input_problem, input_read_problem}
+pub import project/src/packages/diagnostic::{PackageProblem}
+import project/src/packages/diagnostic::{publication_problem, host_detail, package_problem, problem_context, package_result, problem_label, explain_problem}
+import project/src/packages/manifest::{parse_package_manifest}
+import project/src/packages/remote_archive::{stage_remote_archive}
+pub import project/src/packages/lock::{PackageLock, PackageLockEdge, PackageLockPackage}
+import project/src/packages/lock::{lock_package_id, serialize_package_lock}
+import project/src/packages/archive::{StagedArchive, stage_archive, discard_archive}
+import project/src/packages/tree_digest::{tree_digest, verify_tree_problem}
+import project/src/packages/sha256::{Sha256, sha256_new, sha256_feed, sha256_finish, sha256_bytes, sha256_close}
+import project/src/project_model/package_manifest::{manifest_json_string_field}
+import stdlib/path as path
+import stdlib/filesystem as filesystem
+import stdlib/filesystem::{FileKind.Directory, FileKind.RegularFile}
+import stdlib/bounded_filesystem as bounded
+import stdlib/filesystem_stage as staging
+import stdlib/environment as environment
+
+pub record ArchiveSource {
+  source: Str,
+  root: Str,
+  name: Str,
+  version: Str,
+  archive_hash: Str,
+  manifest_hash: Str,
+  tree_hash: Str,
+  stage: Option[Nat]
+}
+
+pub record AcquisitionOptions { root: Str, materialize: Bool, locked: Option[PackageLock], offline: Bool, refresh: Bool, aliases: [Str], boundary: Option[Str] }
+
+pub pure locked_edge(lock: PackageLock, owner: Str, alias: Str): Option[PackageLockEdge] {
+  mut edges: [PackageLockEdge] = []
+  if owner == lock_package_id(lock.root_name, lock.root_version) { edges = lock.dependencies }
+  else { for package in lock.packages {
+    if owner == lock_package_id(package.name, package.version) { edges = package.dependencies }
+  } }
+  mut found: Option[PackageLockEdge] = None()
+  for edge in edges { if edge.alias == alias { found = Some(edge) } }
+  found
+}
+
+pub pure locked_package(lock: PackageLock, id: Str): Option[PackageLockPackage] {
+  mut found: Option[PackageLockPackage] = None()
+  for package in lock.packages {
+    if lock_package_id(package.name, package.version) == id { found = Some(package) }
+  }
+  found
+}
+
+pub ensure_directory(name: Str, create: Bool): Result[Unit, PackageProblem] {
+  match path.from_text(name) {
+    Error(problem) => Error(problem_label(package_problem("PKG_FILESYSTEM", "Cannot access the package directory because its path cannot be represented on this system."), "Directory", name)),
+    Ok(directory) => match filesystem.metadata(directory) {
+      Ok(info) => if info.kind == Directory() { Ok(()) }
+        else { Error(problem_label(explain_problem(package_problem("PKG_FILESYSTEM", "Cannot prepare the local packages because a required directory path identifies a different kind of file."), "Panack has not replaced the conflicting path.", "Preserve any contents you need before moving the conflicting path elsewhere, then retry your command."), "Required directory", name)) },
+      Error(problem) => if problem.code == "not_found" && create {
+        match filesystem.create_directory(directory) {
+          Error(creation_error) => Error(problem_label(package_problem("PKG_FILESYSTEM", "Cannot create the package directory: " + host_detail(creation_error.code) + "."), "Directory", name)),
+          Ok(completed_1) => ensure_directory(name, false)
+        }
+      } else if problem.code == "not_found" { Error(problem_label(package_problem("PKG_CACHE_MISSING", "Cannot use the package because its local directory is missing."), "Missing directory", name)) }
+      else { Error(problem_label(package_problem("PKG_FILESYSTEM", "Cannot inspect the package directory: " + host_detail(problem.code) + "."), "Directory", name)) }
+    }
+  }
+}
+
+pub hash_archive_file(name: Str): Result[Str, PackageProblem] {
+  match path.from_text(name) {
+    Error(problem) => Error(problem_label(package_problem("PKG_FILESYSTEM", "Cannot read the archive because its path cannot be represented on this system."), "Source archive", name)),
+    Ok(file) => {
+      mut hash: Sha256 = sha256_new()
+      mut offset: Nat = 0
+      mut done: Bool = false
+      mut failure: Option[PackageProblem] = None()
+      while !done && failure == None() {
+        match bounded.read_chunk(file, offset, 65536) {
+          Error(problem) => { failure = Some(package_problem("PKG_FILESYSTEM", "Cannot read the source archive: " + host_detail(problem.code))) },
+          Ok(bytes) => {
+            offset = offset + bytes.length()
+            if offset > 67108864 { failure = Some(package_problem("PKG_ARCHIVE_COMPRESSED_LIMIT", "Cannot read the source archive because the archive exceeds Panack's 64 MiB compressed-size limit.")) }
+            else { hash = sha256_feed(hash, bytes) }
+            done = bytes.length() == 0
+          }
+        }
+      }
+      match failure {
+        Some(problem) => { sha256_close(hash); Error(problem) },
+        None() => package_result(sha256_finish(hash), "PKG_TOOL")
+      }
+    }
+  }
+}
+
+inspect_staged_archive(source: Str, archive: StagedArchive): Result[ArchiveSource, PackageProblem] {
+  match path.from_text(archive.root + "/panack.json") {
+    Error(problem) => Error(package_problem("PKG_MANIFEST_INVALID", "Cannot read the extracted panack.json because its path cannot be represented on this system.")),
+    Ok(file) => match filesystem.read(file, 65536) {
+      Error(problem) => Error(input_read_problem("panack.json", source + "!/panack.json", problem.code, false)),
+      Ok(bytes) => match parse_package_manifest(bytes, environment.get("PANACKELTY_VERSION").value_or("")) {
+        Error(problem) => Error(problem_label(input_problem("panack.json", bytes, problem, false), "File", source + "!/panack.json")),
+        Ok(manifest) => match package_result(sha256_bytes(bytes), "PKG_TOOL") {
+          Error(problem) => Error(problem),
+          Ok(manifest_hash) => match tree_digest(archive.root, archive.entries) {
+            Error(problem) => Error(problem),
+            Ok(tree_hash) => Ok(ArchiveSource(source, archive.root, manifest.package,
+              manifest.version, archive.compressed_sha256, manifest_hash, tree_hash, Some(archive.handle)))
+          }
+        }
+      }
+    }
+  }
+}
+
+cached_archive(options: AcquisitionOptions, source: Str, owner: Str, alias: Str): Result[ArchiveSource, PackageProblem] {
+  match options.locked {
+    None() => Error(package_problem("PKG_LOCK_MISSING", "missing lockfile")),
+    Some(lock) => match locked_edge(lock, owner, alias) {
+      None() => Error(package_problem("PKG_LOCK_STALE", "Cannot use this archive dependency because the lockfile does not record the dependency.")),
+      Some(edge) => match locked_package(lock, edge.package) {
+        None() => Error(package_problem("PKG_LOCK_INVALID", "Cannot use this dependency because its package record is missing from the lockfile.")),
+        Some(package) => match manifest_json_string_field(edge.source, "archive_sha256") {
+          Error(problem) => Error(package_problem("PKG_LOCK_STALE", "Cannot use this archive dependency because the lockfile does not record an archive checksum for the dependency.")),
+          Ok(expected) => match if source.starts_with_at("https://", 0) { Ok(expected) } else { hash_archive_file(source) } {
+            Error(problem) => Error(problem),
+            Ok(actual) => if actual != expected { Error(package_problem("PKG_INTEGRITY", "Cannot use the source archive because its SHA-256 checksum does not match the checksum recorded in the lockfile.")) }
+            else {
+              root: Str = options.root + "/.panack_modules/" + package.name
+              match ensure_directory(root, false) {
+                Error(problem) => Error(problem),
+                Ok(completed_2) => match package.tree_sha256 {
+                  None() => Error(package_problem("PKG_LOCK_INVALID", "Cannot verify the archive package files because the lockfile does not record their checksum.")),
+                  Some(tree) => match verify_tree_problem(root, tree) {
+                    Error(problem) => Error(problem),
+                    Ok(completed_3) => Ok(ArchiveSource(source, root, package.name, package.version,
+                      actual, package.manifest_sha256, tree, None()))
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+acquire_local_archive(options: AcquisitionOptions, source: Str, owner: Str, alias: Str,
+  previous: [ArchiveSource]): Result[ArchiveSource, PackageProblem] {
+  mut known: Option[ArchiveSource] = None()
+  for acquired in previous { if acquired.source == source { known = Some(acquired) } }
+  match known {
+    Some(acquired) => Ok(acquired),
+    None() => if !options.materialize && options.locked == None() {
+      Error(package_problem("PKG_LOCK_MISSING", "missing lockfile"))
+    } else { match ensure_directory(options.root + "/.panack_modules", options.materialize) {
+      Error(problem) => Error(problem),
+      Ok(completed_4) => if !options.materialize { cached_archive(options, source, owner, alias) }
+      else {
+        match stage_archive(options.root + "/.panack_modules", source) {
+          Error(problem) => Error(problem),
+          Ok(archive) => {
+            result = inspect_staged_archive(source, archive)
+            match result {
+              Ok(acquired) => Ok(acquired),
+              Error(problem) => { cleanup = discard_archive(archive); Error(problem) }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+}
+
+verify_cache_state_inner(root: Str, lock: PackageLock): Result[Unit, PackageProblem] {
+  mut archives: Bool = false
+  for package in lock.packages { if package.tree_sha256 != None() { archives = true } }
+  if !archives { Ok(()) } else {
+    match ensure_directory(root + "/.panack_modules", false) {
+      Error(problem) => Error(problem),
+      Ok(completed_5) => match ensure_directory(root + "/.panack_modules/.state", false) {
+        Error(problem) => Error(problem),
+        Ok(completed_6) => match path.from_text(root + "/.panack_modules/.state/lock.json") {
+          Error(problem) => Error(package_problem("PKG_FILESYSTEM", "Cannot access the package state record because its path cannot be represented on this system.")),
+          Ok(file) => match filesystem.metadata(file) {
+            Error(problem) => Error(if problem.code == "not_found" { package_problem("PKG_CACHE_STATE_MISSING", "Cannot verify the local packages because Panack's package state record is missing.") } else { package_problem("PKG_FILESYSTEM", "Cannot inspect the package state record: " + host_detail(problem.code)) }),
+            Ok(info) => if info.kind != RegularFile() { Error(package_problem("PKG_FILESYSTEM", "Cannot use the package state record because the path is not an ordinary file.")) }
+            else { match filesystem.read(file, 1048576) {
+              Error(problem) => Error(package_problem("PKG_FILESYSTEM", "Cannot read the package state record: " + host_detail(problem.code))),
+              Ok(bytes) => if bytes == serialize_package_lock(lock).encode_utf8() { Ok(()) }
+                else { Error(package_problem("PKG_CACHE_STATE_INVALID", "Cannot verify the local packages because Panack's package state record does not match the lockfile.")) }
+            } }
+          }
+        }
+      }
+    }
+  }
+}
+
+pub publish_archives(root: Str, sources: [ArchiveSource], lock: PackageLock): Result[Unit, PackageProblem] {
+  mut pending: Bool = false
+  for package in lock.packages { pending = pending || package.tree_sha256 != None() }
+  if !pending { Ok(()) } else {
+    // All graph and lock validation precedes this per-entry commit. Each exchange
+    // preserves its previous entry if that exchange fails; this is not a
+    // multi-package transaction. State is published only after all entries.
+    match ensure_directory(root + "/.panack_modules/.state", true) {
+      Error(problem) => Error(problem),
+      Ok(completed_7) => {
+        mut failure: Option[PackageProblem] = None()
+        for source in sources {
+          if failure == None() { match source.stage {
+            None() => {},
+            Some(handle) => match path.from_text(source.name) {
+              Error(problem) => { failure = Some(package_problem("PKG_TOOL", "Cannot save the prepared package because Panack produced an invalid destination name.")) },
+              Ok(name) => match staging.publish(handle, name, true) {
+                Error(problem) => { failure = Some(problem_label(publication_problem(root + "/.panack_modules/" + source.name, problem.code, false), "Package", source.name + "@" + source.version)) },
+                Ok(completed_8) => {}
+              }
+            }
+          } }
+        }
+        match failure {
+          Some(problem) => Error(problem),
+          None() => match path.from_text(root + "/.panack_modules/.state/lock.json") {
+            Error(problem) => Error(package_problem("PKG_FILESYSTEM", "Cannot access the package state record because its path cannot be represented on this system.")),
+            Ok(file) => match bounded.atomic_write(file, serialize_package_lock(lock).encode_utf8()) {
+              Error(problem) => {
+                // The generic atomic-write error may not describe a conflicting
+                // file kind. Inspect the destination after failure; never infer
+                // its kind from the host's error text.
+                code = match filesystem.metadata(file) {
+                  Ok(info) => if info.kind != RegularFile() { "destination_conflict" } else { problem.code },
+                  Error(unavailable) => problem.code
+                }
+                Error(publication_problem(root + "/.panack_modules/.state/lock.json", code, true))
+              },
+              Ok(completed_9) => Ok(())
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+remote_pin(options: AcquisitionOptions, source: Str, owner: Str, alias: Str): Result[Str, PackageProblem] {
+  match options.locked {
+    None() => Error(package_problem("PKG_LOCK_MISSING", "missing lockfile")),
+    Some(lock) => match locked_edge(lock, owner, alias) {
+      None() => Error(package_problem("PKG_LOCK_STALE", "Cannot use this HTTPS archive dependency because the lockfile does not record the dependency.")),
+      Some(edge) => match manifest_json_string_field(edge.source, "url") {
+        Error(problem) => Error(package_problem("PKG_LOCK_STALE", "Cannot use this HTTPS archive dependency because the lockfile does not record an HTTPS archive URL for the dependency.")),
+        Ok(url) => if url != source { Error(package_problem("PKG_LOCK_STALE", "Cannot use this HTTPS archive dependency because its URL differs from the URL recorded in the lockfile.")) }
+          else { match manifest_json_string_field(edge.source, "archive_sha256") {
+            Error(problem) => Error(package_problem("PKG_LOCK_INVALID", "Cannot verify the HTTPS archive because its checksum is missing from the lockfile.")), Ok(hash) => Ok(hash)
+          } }
+      }
+    }
+  }
+}
+
+pub acquire_archive(options: AcquisitionOptions, source: Str, owner: Str, alias: Str,
+  previous: [ArchiveSource]): Result[ArchiveSource, PackageProblem] {
+  if !source.starts_with_at("https://", 0) { acquire_local_archive(options, source, owner, alias, previous) }
+  else {
+    pin = if options.refresh { Ok("") } else { remote_pin(options, source, owner, alias) }
+    match pin {
+      Error(problem) => Error(problem),
+      Ok(expected) => {
+        mut known: Option[ArchiveSource] = None()
+        for acquired in previous { if acquired.source == source { known = Some(acquired) } }
+        match known {
+          Some(acquired) => if expected != "" && acquired.archive_hash != expected { Error(package_problem("PKG_INTEGRITY", "Cannot use the source archive because its SHA-256 checksum does not match the checksum recorded in the lockfile.")) } else { Ok(acquired) },
+          None() => {
+            cached = if options.refresh { Error(package_problem("PKG_GRAPH", "refresh requested")) } else {
+              match options.locked {
+                None() => Error(package_problem("PKG_LOCK_MISSING", "missing lockfile")),
+                Some(lock) => match verify_cache_state(options.root, lock) {
+                  Error(problem) => Error(problem),
+                  Ok(unit) => cached_archive(options, source, owner, alias)
+                }
+              }
+            }
+            match cached {
+              Ok(acquired) => Ok(acquired),
+              Error(cache_problem) => if options.offline || !options.materialize {
+                Error(problem_context(cache_problem, "remote archive cache; this command cannot download replacement content"))
+              } else { match ensure_directory(options.root + "/.panack_modules", true) {
+                Error(problem) => Error(problem),
+                Ok(unit) => match stage_remote_archive(options.root + "/.panack_modules", source) {
+                  Error(problem) => Error(problem),
+                  Ok(archive) => {
+                    result = if expected != "" && expected != archive.compressed_sha256 {
+                      Error(package_problem("PKG_INTEGRITY", "Cannot use the source archive because its SHA-256 checksum does not match the checksum recorded in the lockfile."))
+                    } else { inspect_staged_archive(source, archive) }
+                    match result { Ok(acquired) => Ok(acquired), Error(problem) => { closed = discard_archive(archive); Error(problem) } }
+                  }
+                }
+              } }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+pub verify_cache_state(root: Str, lock: PackageLock): Result[Unit, PackageProblem] {
+  match verify_cache_state_inner(root, lock) {
+    Error(problem) => Error(problem_label(problem, "Package state file", root + "/.panack_modules/.state/lock.json")),
+    Ok(done) => Ok(done)
+  }
+}

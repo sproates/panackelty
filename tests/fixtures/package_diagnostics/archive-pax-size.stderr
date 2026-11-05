@@ -1,0 +1,9 @@
+panack: error[PKG_ARCHIVE_INVALID]: Cannot unpack the archive because the PAX size field must contain decimal digits only.
+
+  Project: <workspace>/app/panack.json
+  Source archive: <workspace>/source.tar.gz
+  Dependency name: lib
+
+PAX metadata describes the file that follows it in the archive.
+
+Obtain a valid copy of the archive and retry your command. If a fresh copy produces the same error, ask the package maintainer to recreate the archive. A replacement must still match the checksums in an existing lockfile.

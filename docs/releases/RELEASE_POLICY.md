@@ -10,7 +10,7 @@ recommended for production systems or irreplaceable data.
 The initial preview targets:
 
 - Ubuntu 22.04 or newer on x86-64
-- macOS 14 or newer on Apple silicon (arm64)
+- Apple silicon (arm64) running macOS 15 or newer for alpha.15. Alpha.14 supports macOS 14 or newer.
 
 Each supported release archive must pass the exact-artifact smoke test on its
 target system. Other POSIX-like systems may work from source but are best effort.

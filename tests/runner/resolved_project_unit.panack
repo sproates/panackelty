@@ -1,0 +1,90 @@
+import project/src/project_model/resolved_project::{
+  parse_resolved_project,
+  ResolvedPackageEdge, serialize_resolved_project
+}
+import stdlib/package_filesystem::{FilesystemRootIdentity}
+import stdlib/testing as std_testing
+import stdlib/testing::{TestResult}
+import stdlib/host as std_host
+
+pure descriptor_fixture(): Str {
+  "{\"schema\":1,\"root\":\"example.app@1.0.0\",\"toolchain\":\"0.1.0-alpha.15\",\"packages\":[{\"id\":\"example.app@1.0.0\",\"name\":\"example.app\",\"version\":\"1.0.0\",\"package_root\":\"/tmp/app\",\"source_root\":\"/tmp/app/src\",\"entry\":\"/tmp/app/src/main.panack\",\"exports\":[],\"root_device\":1,\"root_inode\":2,\"dependencies\":[{\"alias\":\"geometry\",\"target\":\"example.geometry@1.0.0\"}]},{\"id\":\"example.geometry@1.0.0\",\"name\":\"example.geometry\",\"version\":\"1.0.0\",\"package_root\":\"/tmp/geometry\",\"source_root\":\"/tmp/geometry/src\",\"entry\":null,\"exports\":[{\"module\":\"api\",\"path\":\"api.panack\"}],\"root_device\":1,\"root_inode\":3,\"dependencies\":[]}]}"
+}
+
+pure descriptor_accepts(data: Str): Bool {
+  match parse_resolved_project(data.encode_utf8()) {
+    Ok(project) => true,
+    Error(error) => false
+  }
+}
+
+pure descriptor_error(data: Str): Str {
+  match parse_resolved_project(data.encode_utf8()) {
+    Ok(project) => "accepted",
+    Error(error) => error.message
+  }
+}
+
+main(): Void {
+  mut results: [TestResult] = []
+  match parse_resolved_project(descriptor_fixture().encode_utf8()) {
+    Error(error) => {
+      results = results.append(std_testing.expect("valid resolved project", false, error.message))
+    },
+    Ok(project) => {
+      results = results.append(std_testing.expect("root and dependency identities",
+        project.root == "example.app@1.0.0" && project.packages.len() == 2 &&
+          project.packages[0].dependencies[0] == ResolvedPackageEdge(
+            "geometry", "example.geometry@1.0.0"
+          ) && project.packages[1].identity == FilesystemRootIdentity(1, 3),
+        "descriptor values did not round-trip"))
+      round_trip: Str = serialize_resolved_project(project)
+      results = results.append(std_testing.expect("resolved project canonical serialization parses",
+        descriptor_accepts(round_trip), descriptor_error(round_trip)))
+      results = results.append(std_testing.equal_str("resolved project uses the committed schema-1 fixture",
+        round_trip, descriptor_fixture()))
+    }
+  }
+  results = results.append(std_testing.equal_str("unsupported schema rejected",
+    descriptor_error(replace_first(descriptor_fixture(), "\"schema\":1", "\"schema\":2")),
+    "unsupported resolved-project descriptor schema"))
+  results = results.append(std_testing.expect("unknown descriptor field rejected",
+    descriptor_error(replace_first(descriptor_fixture(), "{\"schema\":1", "{\"extra\":true,\"schema\":1")) != "accepted",
+    "unknown descriptor field accepted"))
+  results = results.append(std_testing.expect("duplicate descriptor field rejected",
+    !descriptor_accepts(replace_first(descriptor_fixture(), "{\"schema\":1", "{\"schema\":1,\"schema\":1")),
+    "duplicate descriptor field accepted"))
+  results = results.append(std_testing.expect("dangling dependency rejected",
+    !descriptor_accepts(replace_first(descriptor_fixture(), "example.geometry@1.0.0\"}]", "example.missing@1.0.0\"}]")),
+    "dangling package edge accepted"))
+  results = results.append(std_testing.expect("unreachable package rejected",
+    !descriptor_accepts(replace_first(descriptor_fixture(), "\"dependencies\":[]}]}", "\"dependencies\":[]},{\"id\":\"example.unused@1.0.0\",\"name\":\"example.unused\",\"version\":\"1.0.0\",\"package_root\":\"/tmp/unused\",\"source_root\":\"/tmp/unused/src\",\"entry\":null,\"exports\":[],\"root_device\":1,\"root_inode\":4,\"dependencies\":[]}]}")),
+    "unreachable package accepted"))
+  results = results.append(std_testing.expect("physical root cannot have two identities",
+    !descriptor_accepts(replace_first(descriptor_fixture(), "\"root_inode\":3", "\"root_inode\":2")),
+    "conflicting physical root accepted"))
+  results = results.append(std_testing.expect("reserved dependency alias rejected",
+    !descriptor_accepts(replace_first(descriptor_fixture(), "\"alias\":\"geometry\"", "\"alias\":\"stdlib\"")),
+    "reserved alias accepted"))
+  results = results.append(std_testing.expect("export parent traversal rejected",
+    !descriptor_accepts(replace_first(descriptor_fixture(), "api.panack", "../private.panack")),
+    "escaping export accepted"))
+  results = results.append(std_testing.expect("descriptor dependency cycle rejected",
+    !descriptor_accepts(replace_first(descriptor_fixture(), "\"dependencies\":[]}]}",
+      "\"dependencies\":[{\"alias\":\"app\",\"target\":\"example.app@1.0.0\"}]}]}")),
+    "dependency cycle accepted"))
+  failures: Nat = std_testing.report(results)
+  if failures > 0 { std_host.exit(1) }
+}
+
+pure replace_first(value: Str, needle: Str, replacement: Str): Str {
+  mut index: Nat = 0
+  mut found: Bool = false
+  while index + needle.len() <= value.len() && !found {
+    if value.slice(index, index + needle.len()) == needle { found = true }
+    else { index = index + 1 }
+  }
+  if found {
+    value.slice(0, index) + replacement + value.slice(index + needle.len(), value.len())
+  } else { value }
+}

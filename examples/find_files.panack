@@ -1,0 +1,57 @@
+import stdlib/filesystem as fs
+import stdlib/filesystem::{FileKind.Directory, FileKind.RegularFile}
+import stdlib/host as host
+import stdlib/path as paths
+
+pure before(left: Str, right: Str): Bool { left < right }
+
+fail(message: Str): Void {
+  host.stderr(message)
+  host.exit(1)
+}
+
+// list_directory gives us names within this directory, so keep a separate
+// relative path for the results we will print.
+find_files(directory: Path, prefix: Str, suffix: Str): [Str] {
+  mut matches: [Str] = []
+  match fs.list_directory(directory) {
+    Error(problem) => fail("Cannot list " + directory.display() + ": " + problem.code),
+    Ok(entries) => {
+      for entry in entries {
+        match entry.to_text() {
+          Error(problem) => fail("A filename in " + directory.display() + " is not valid UTF-8."),
+          Ok(name) => {
+            relative = prefix + name
+            match directory.join(entry) {
+              Error(problem) => fail("Cannot join " + directory.display() + " and " + name),
+              Ok(child) => match fs.metadata(child) {
+                Error(problem) => fail("Cannot inspect " + child.display() + ": " + problem.code),
+                Ok(info) => {
+                  if info.kind == Directory() {
+                    matches = matches.concat(find_files(child, relative + "/", suffix))
+                  } else if info.kind == RegularFile() && name.ends_with(suffix) {
+                    matches = matches.append(relative)
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  matches
+}
+
+main(): Void {
+  args = host.arguments()
+  if args.len() > 2 { fail("Usage: find_files [directory [suffix]]") }
+  root = args.first().value_or("examples/namespaces")
+  suffix = if args.len() == 2 { args[1] } else { ".panack" }
+  match paths.from_text(root) {
+    Error(problem) => fail("Invalid directory path: " + root),
+    Ok(directory) => {
+      for name in find_files(directory, "", suffix).sort_by(@before) { print(name) }
+    }
+  }
+}

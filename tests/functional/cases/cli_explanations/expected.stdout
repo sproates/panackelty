@@ -243,4 +243,22 @@ PASS validation rejects the wrong input type
 PASS validation requires a declared guard
 PASS validation explains its call shape
 PASS validation treats a module name as literal data
-tests: 245, failures: 0
+PASS reversed record literal
+PASS strict guard rejects equal fields
+PASS reassignment loses a record proof
+PASS writes in a condition invalidate record evidence
+PASS mixed numeric field types
+PASS text fields cannot form a numeric relationship
+PASS reject nested record comparisons
+PASS reject arithmetic in record relationships
+PASS function returning a base record loses the guarantee
+PASS same-shaped records keep their own identity
+PASS static record proof links the declared relationship
+PASS runtime check distinguishes scheduling from proof
+PASS compile record relationship with source map
+PASS record comparison bytecode maps back to the imported guard
+PASS two ordered inputs do not prove a mixed replacement
+PASS mutation during reconstruction loses the shared origin
+PASS a transformed string must establish its target guard again
+PASS an appended collection must establish its target guard again
+tests: 263, failures: 0

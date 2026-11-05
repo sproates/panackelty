@@ -758,7 +758,46 @@ main(): Void {
       explain_write(labelled_source, "type Word = Str where s => s.is_non_blank()\nmain(): Void { match validate[Word](\"\") { Ok(w) => print(w), Error(problem) => print(problem.target_type) } }\n")
       results = results.append(explain_run("validation treats a module name as literal data", ["run", labelled_source], 0,
         [interpolation + ".panack:Word"], [], ""))
-      for file in [source, library, artifact, labelled_source] {
+      explain_write(source, "record Range { start: Int, end: Int }\ntype Ordered = Range where r => r.start <= r.end\nmain(): Void { print(Ordered(Range(5,2))) }\n")
+      results = results.append(explain_run("reversed record literal", ["check",source],1,[],[],"violates the requirement"))
+      explain_write(source, "record Range { start: Int, end: Int }\ntype Ordered = Range where r => r.start < r.end\nmain(): Void { print(Ordered(Range(2,2))) }\n")
+      results = results.append(explain_run("strict guard rejects equal fields", ["check",source],1,[],[],"violates the requirement"))
+      explain_write(source, "record Range { start: Int, end: Int }\ntype Ordered = Range where r => r.start <= r.end\nprobe(input: Range): Ordered { mut v = Range(1,2); v = input; Ordered(v) }\nmain(): Void {}\n")
+      results = results.append(explain_run("reassignment loses a record proof", ["check",source],1,[],[],"cannot prove"))
+      explain_write(source, "record Range { start: Int, end: Int }\ntype Ordered = Range where r => r.start <= r.end\nprobe(input: Range): Void { mut v = input; if v.start <= v.end && (if true { v = Range(5,2); true } else { true }) { ordered: Ordered = v; } }\nmain(): Void {}\n")
+      results = results.append(explain_run("writes in a condition invalidate record evidence", ["check",source],1,[],[],"cannot prove"))
+      explain_write(source, "record Range { start: Nat, end: Int }\ntype Ordered = Range where r => r.start <= r.end\nmain(): Void {}\n")
+      results = results.append(explain_run("mixed numeric field types", ["check",source],1,[],[],"same underlying ordered numeric type"))
+      explain_write(source, "record Range { start: Str, end: Str }\ntype Ordered = Range where r => r.start <= r.end\nmain(): Void {}\n")
+      results = results.append(explain_run("text fields cannot form a numeric relationship", ["check",source],1,[],[],"same underlying ordered numeric type"))
+      explain_write(source, "record Inner { n: Nat }\nrecord Outer { a: Inner, b: Inner }\ntype Ordered = Outer where o => o.a.n < o.b.n\nmain(): Void {}\n")
+      results = results.append(explain_run("reject nested record comparisons", ["check",source],1,[],[],"Compare two direct fields"))
+      explain_write(source, "record Range { start: Int, end: Int }\ntype Ordered = Range where r => r.start + 1 <= r.end\nmain(): Void {}\n")
+      results = results.append(explain_run("reject arithmetic in record relationships", ["check",source],1,[],[],"Compare two direct fields"))
+      explain_write(source, "record Range { start: Int, end: Int }\ntype Ordered = Range where r => r.start <= r.end\npure changed(r: Ordered): Range { Range(r.end,r.start) }\npure probe(r: Ordered): Ordered { changed(r) }\nmain(): Void {}\n")
+      results = results.append(explain_run("function returning a base record loses the guarantee", ["check",source],1,[],[],"cannot prove"))
+      explain_write(source, "record Range { start: Int, end: Int }\ntype Ordered = Range where r => r.start <= r.end\nrecord Other { start: Int, end: Int }\nmain(): Void { print(validate[Ordered](Other(1,2))) }\n")
+      results = results.append(explain_run("same-shaped records keep their own identity", ["check",source],1,[],[],"expected"))
+      explain_write(library,"pub record Span { start: Int, end: Int }\npub type Ordered = Span where s => s.start <= s.end\n")
+      explain_write(source,"import project/library::{Span, Ordered}\npure fixed(): Ordered { Ordered(Span(2,3)) }\nmain(): Void { match validate[Ordered](Span(3,2)) { Ok(s) => print(s.start), Error(e) => print(e.render()) } }\n")
+      results = results.append(explain_run("static record proof links the declared relationship", ["explain",source,"--function","fixed"],0,
+        ["context: domain constraint","Guard declaration:","source: project/library.panack:2:","s.start <= s.end"],[],""))
+      results = results.append(explain_run("runtime check distinguishes scheduling from proof", ["explain",source,"--function","main"],0,
+        ["checked at runtime","context: runtime validation","Guard declaration:","source: project/library.panack:2:"],[],""))
+      relation_bc = root + "/relation.bc"
+      relation_map = root + "/relation.map"
+      results = results.append(explain_run("compile record relationship with source map", ["compile",source,"-o",relation_bc,"--source-map",relation_map],0,["wrote source map"],[],""))
+      results = results.append(explain_run("record comparison bytecode maps back to the imported guard", ["locate",relation_bc,"--source",source,"--source-map",relation_map,"--source-file","project/library.panack","--source-at","2","40"],0,
+        ["Source: s.start <= s.end","project/main.panack:main instruction","BINARY|<="],[],""))
+      explain_write(source,"record R { a: Int, b: Int }\ntype Ordered = R where r => r.a <= r.b\npure test(x: Ordered,y: Ordered): Ordered { Ordered(R(x.a,y.b)) }\nmain(): Void {}\n")
+      results = results.append(explain_run("two ordered inputs do not prove a mixed replacement",["check",source],1,[],[],"cannot prove"))
+      explain_write(source,"record R { a: Int, b: Int, note: Bool }\ntype Ordered = R where r => r.a <= r.b\npure test(x: Ordered,y: Ordered): Ordered { mut v = x; Ordered(R(v.a,(if true { v = y; v.b } else { v.b }),true)) }\nmain(): Void {}\n")
+      results = results.append(explain_run("mutation during reconstruction loses the shared origin",["check",source],1,[],[],"cannot prove"))
+      explain_write(source,"type Short = Str where s => s.len() <= 2\npure test(x: Short): Short { x + \"!\" }\nmain(): Void {}\n")
+      results = results.append(explain_run("a transformed string must establish its target guard again",["check",source],1,[],[],"cannot prove"))
+      explain_write(source,"type One = [Nat] where a => a.len() <= 1\npure test(x: One): One { x.append(1) }\nmain(): Void {}\n")
+      results = results.append(explain_run("an appended collection must establish its target guard again",["check",source],1,[],[],"cannot prove"))
+      for file in [source, library, artifact, labelled_source, relation_bc, relation_map] {
         match std_filesystem.remove_file(explain_path(file)) { Ok(done) => {}, Error(error) => { results = results.append(std_testing.expect("cleanup", false, error.code)); } }
       }
       std_filesystem.remove_file(explain_path(other))

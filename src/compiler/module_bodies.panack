@@ -1,5 +1,5 @@
 pub import project/src/compiler/domain_guards::{DomainFacts}
-import project/src/compiler/domain_guards::{runtime_validation_expression, runtime_numeric_supported, common_facts, combine_facts, DomainRule, domain_base, domain_rules, rule_outcome, fact_text, rule_text, declared_facts, unknown_facts}
+import project/src/compiler/domain_guards::{guard_conjuncts, record_rules, FieldOrder, FieldNumber, size_facts, record_facts, runtime_validation_expression, runtime_numeric_supported, common_facts, combine_facts, DomainRule, domain_base, domain_rules, rule_outcome, fact_text, rule_text, declared_facts, unknown_facts}
 import project/src/compiler/resolver::{is_builtin}
 import project/src/compiler/owned_intrinsics::{owned_intrinsic_lowering}
 import project/src/compiler/module_bindings::{module_declaration_display, builtin_owner_arity, method_owner_name}
@@ -10,7 +10,7 @@ import project/src/compiler/module_resolution::{ResolvedModuleUses, ResolvedModu
 import project/src/compiler/parser::{Statement, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue, BlockValue.NoBlockValue, BlockValue.TailBlockValue, Block, Program, MatchArm, MatchPattern, ParsedModule, ParsedTypeRef, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, DeclarationSyntax, RecordField, FunctionParameter, EnumVariant, expression_span, expression_reference_path, reference_head, unlocated_expression, render_expr}
 import project/src/compiler/lexer::{prior_index}
 import project/src/compiler/types::{SourcePos}
-import project/src/compiler/checker::{TypeInfo, SubtractionDecision, GuardOrigin, GuardedTypeLookup, condition_facts, render_type, prove_guard_bounds}
+import project/src/compiler/checker::{is_scalar_base, TypeInfo, SubtractionDecision, GuardOrigin, GuardedTypeLookup, condition_facts, render_type, prove_guard_bounds}
 import project/src/compiler/expression_contracts::{decode_string_literal, split_interpolated_string, scalar_arithmetic_result, scalar_compatible_numeric, scalar_numeric}
 pub import project/src/compiler/module_signatures::{SignatureEffect, SignatureEffect.SignaturePure, SignatureEffect.SignatureOrdinary, SignatureEffect.SignatureAsync, SignatureTypeIdentity, SignatureTypeIdentity.SignatureCore, SignatureTypeIdentity.SignatureNominal, SignatureTypeIdentity.SignatureParameter, SignatureTypeIdentity.SignatureCallable, SignatureTypeIdentity.SignatureHole, SignatureType, SignatureSlot, ModuleSignature}
 pub import project/src/compiler/module_bindings::{LoadedModule, ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleDeclarationKind, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant}
@@ -460,11 +460,18 @@ pure with_domain_facts(facts: Map[Str,Bounds], key: Str, domain: DomainFacts): M
     prior.lower_origin, prior.upper_origin, prior.invalidated_at, Some(domain)))
 }
 
+pure record_guard(base: Str): Bool { !domain_base(base) && !is_scalar_base(base) }
+
 pure domain_initial_flow(signatures: [ModuleSignature]): Map[Str,Bounds] {
   mut result: Map[Str,Bounds] = map()
   for signature in signatures {
     if signature.binding.kind == ModuleGuardedType() && signature.slots.len() == 1 {
       family = signature.slots[0].type.identity
+      match family {
+        SignatureNominal(owner) => { result = result.put("$record",Bounds(false,0,false,0,None(),None(),None(),None()))
+          result = result.put("$domain",result.get("$record")) },
+        SignatureCore(n) => {}, SignatureParameter(owner,i) => {}, SignatureCallable(e) => {}, SignatureHole(owner,p,i) => {}
+      }
       if family == SignatureCore("Str") || family == SignatureCore("Array") ||
         family == SignatureCore("Map") || family == SignatureCore("Set") {
         result = result.put("$domain", Bounds(false, 0, false, 0, None(), None(), None(), None()))
@@ -620,6 +627,112 @@ pure domain_literal_key(value: BoundBody): Option[Str] {
   key
 }
 
+pure record_constant(value: BoundBody): Option[Rat] {
+  mut result: Option[Rat] = None()
+  match value.node {
+    BodyLiteral(literal) => match unlocated_expression(literal) {
+      NatExpr(number) => {
+        result = Some(number / 1)
+      },
+      LocatedExpr(position, inner, located_type_argument_spans) => {},
+      DecimalExpr(text) => {
+        mut digits = ""
+        mut divisor: Nat = 1
+        mut fraction = false
+        for i in 0..text.len() {
+          if text[i] == "." { fraction = true } else {
+            digits = digits + text[i]
+            if fraction { divisor = divisor * 10 }
+          }
+        }
+        result = Some(digits.parse_nat() / divisor)
+      },
+      StringExpr(text) => {},
+      BoolExpr(flag) => {},
+      NameExpr(name) => {},
+      FunctionExpr(name) => {},
+      ArrayExpr(items) => {},
+      UnaryExpr(operator, operand) => {},
+      BinaryExpr(operator, left, right) => {},
+      CallExpr(name, arguments, types) => {},
+      OwnedCallExpr(target, name, arguments, types) => {},
+      DotCallExpr(target, name, arguments, types) => {},
+      FieldExpr(target, field) => {},
+      IndexExpr(target, index) => {},
+      IfExpr(condition, yes, no, has_else) => {},
+      BlockExpr(block) => {},
+      MatchExpr(subject, arms) => {}
+    },
+    BodyInterpolation(parts) => {},
+    BodyLocalUse(identity, captured_domain) => {},
+    BodyFunction(binding) => {},
+    BodyCall(target, types, call_arguments) => {},
+    BodyArray() => {},
+    BodyUnary(operator) => if operator == "-" && value.children.len() == 1 {
+      match record_constant(value.children[0]) { Some(n) => { result = Some(-n) }, None() => {} }
+    },
+    BodyBinary(operator) => if operator == "/" && value.children.len() == 2 {
+      match record_constant(value.children[0]) {
+        Some(n) => match record_constant(value.children[1]) {
+          Some(d) => if d != 0 { result = Some(n / d) }, None() => {}
+        }, None() => {}
+      }
+    },
+    BodyField(field) => {},
+    BodyIndex() => {},
+    BodyIf(has_else) => {},
+    BodyBlock(has_tail, original_span, statement_spans) => {},
+    BodyMatch(targets, bindings, spans) => {},
+    BodyBinding(identity, type, mutable, inferred, type_evidence) => {},
+    BodyAssignment(identity, assignment_evidence) => {},
+    BodyWhile() => {},
+    BodyFor(identity) => {},
+    BodyEmpty() => {}
+  }
+  result
+}
+
+// Rebuilding a base record can retain an ordering between two copied fields.
+// Require the same source local for both reads, and discard the relationship
+// if any constructor argument writes that local between evaluations.
+pure constructed_record_facts(context: BodyContext, value: BoundBody, signature: ModuleSignature): DomainFacts {
+  mut numbers: [FieldNumber] = []
+  mut copied: Map[Str,BodyLocalIdentity] = map()
+  mut candidates: [FieldOrder] = []
+  mut i: Nat = 0
+  for slot in signature.slots {
+    if i < value.children.len() {
+      child = value.children[i]
+      match record_constant(child) {
+        Some(n) => { numbers = numbers.append(FieldNumber(slot.name,n)) }, None() => {}
+      }
+      if child.node == BodyField(slot.name) && child.children.len() == 1 {
+        receiver = child.children[0]
+        match domain_observation(receiver) {
+          Some(prior) => if prior.property == "value" {
+            copied = copied.put(slot.name,prior.local)
+            source = value_domain_facts(context,receiver)
+            for order in source.orders { if order.left == slot.name { candidates = candidates.append(order) } }
+            for field in source.numbers { if field.field == slot.name { numbers = numbers.append(field) } }
+          }, None() => {}
+        }
+      }
+    }
+    i = i + 1
+  }
+  mut retained: [FieldOrder] = []
+  if candidates.len() > 0 {
+    writes = body_invalidate_assigned_locals(map(),value)
+    for order in candidates {
+      owner = copied.get(order.left)
+      if copied.has(order.right) && copied.get(order.right) == owner && !writes.has(body_fact_key(owner)) {
+        retained = retained.append(order)
+      }
+    }
+  }
+  record_facts(retained,numbers)
+}
+
 pure value_domain_facts(context: BodyContext, value: BoundBody): DomainFacts {
   mut facts = unknown_facts()
   match value.type {
@@ -627,6 +740,10 @@ pure value_domain_facts(context: BodyContext, value: BoundBody): DomainFacts {
     Some(type) => match body_guard_spec(context, type) {
       Some(guard) => if domain_base(guard.base) {
         facts = declared_facts(domain_rules(guard.guard, guard.guard_name, guard.base, value.span))
+      } else if record_guard(guard.base) {
+        mut orders: [FieldOrder] = []
+        for rule in record_rules(guard.guard,guard.guard_name,value.span) { orders = orders.append(rule.order) }
+        facts = record_facts(orders,[])
       },
       None() => {}
     }
@@ -635,7 +752,7 @@ pure value_domain_facts(context: BodyContext, value: BoundBody): DomainFacts {
     BodyLiteral(literal) => match unlocated_expression(literal) {
       StringExpr(raw) => {
         text = decode_string_literal(raw)
-        facts = DomainFacts(text.len(), Some(text.len()), Some(text.is_non_blank()),
+        facts = size_facts(text.len(), Some(text.len()), Some(text.is_non_blank()),
           Some(text.has_no_control_characters()), None())
       },
       LocatedExpr(site, inner, types) => {},
@@ -650,13 +767,23 @@ pure value_domain_facts(context: BodyContext, value: BoundBody): DomainFacts {
     },
     BodyArray() => {
       count = value.children.len()
-      facts = DomainFacts(count, Some(count), None(), None(), None())
+      facts = size_facts(count, Some(count), None(), None(), None())
     },
     BodyCall(target, types, evidence) => {
+      if context.facts.has("$record") {
+        match target {
+          BodyDeclaration(binding) => if binding.kind == ModuleRecord() {
+            match body_signature(context.signatures,binding.identity) {
+              Some(signature) => { facts = constructed_record_facts(context,value,signature) },
+              None() => {}
+            }
+          }, BodyCore(name) => {}
+        }
+      }
       operation = domain_operation(target)
       if operation == "map" || operation == "set" {
         keys: Set[Str] = set()
-        facts = DomainFacts(0, Some(0), None(), None(), Some(keys))
+        facts = size_facts(0, Some(0), None(), None(), Some(keys))
       } else if (operation == "map_put" || operation == "set_add") && value.children.len() >= 2 {
         prior = value_domain_facts(context, value.children[0])
         mut minimum = if prior.minimum == 0 { 1 } else { prior.minimum }
@@ -671,7 +798,7 @@ pure value_domain_facts(context: BodyContext, value: BoundBody): DomainFacts {
             }, None() => {}
           }, None() => {}
         }
-        facts = DomainFacts(minimum, maximum, None(), None(), keys)
+        facts = size_facts(minimum, maximum, None(), None(), keys)
       }
     },
     BodyBlock(has_tail, original_span, statement_spans) => if has_tail && value.children.len() > 0 {
@@ -699,6 +826,29 @@ pure value_domain_facts(context: BodyContext, value: BoundBody): DomainFacts {
   facts
 }
 
+pure record_outcome(order: FieldOrder, facts: DomainFacts): Option[Bool] {
+  mut answer: Option[Bool] = None()
+  mut left: Option[Rat] = None()
+  mut right: Option[Rat] = None()
+  for field in facts.numbers {
+    if field.field == order.left { left = Some(field.value) }
+    if field.field == order.right { right = Some(field.value) }
+  }
+  match left {
+    Some(a) => match right {
+      Some(b) => { answer = Some(if order.op == "<" { a < b } else { a <= b }) }, None() => {}
+    }, None() => {}
+  }
+  if order.left == order.right { answer = Some(order.op == "<=") }
+  for known in facts.orders {
+    if known.left == order.left && known.right == order.right &&
+       (known.op == order.op || known.op == "<") { answer = Some(true) }
+    if known.left == order.right && known.right == order.left &&
+       (known.op == "<" || order.op == "<") { answer = Some(false) }
+  }
+  answer
+}
+
 pure domain_conversion(context: BodyContext, value: BoundBody, actual: SignatureType,
   expected: SignatureType, target: GuardedTypeLookup): BodyGuardConversionDecision {
   base = domain_base_type(context, expected)
@@ -715,22 +865,49 @@ pure domain_conversion(context: BodyContext, value: BoundBody, actual: Signature
     accepted = false
   } else {
     facts = value_domain_facts(context, value)
-    rules = domain_rules(target.guard, target.guard_name, target.base, value.span)
-    accepted = rules.len() > 0
-    for rule in rules {
-      outcome = rule_outcome(rule.requirement, facts)
-      requirement = rule_text(rule.requirement, target.base)
-      conclusion = match outcome {
-        Some(pass) => if pass { "The value satisfies the requirement: " + requirement + "." }
-          else { "The value violates the requirement: " + requirement + "." },
-        None() => "Panack cannot prove this value meets the requirement: " + requirement + "."
+    if record_guard(target.base) {
+      rules = record_rules(target.guard,target.guard_name,value.span)
+      accepted = rules.len() > 0
+      for rule in rules {
+        order = rule.order
+        requirement = "field '" + order.left + "' " + (if order.op == "<" { "less than" } else { "less than or equal to" }) + " field '" + order.right + "'"
+        outcome = record_outcome(order,facts)
+        condition = order.left + " " + order.op + " " + order.right
+        mut reason = match outcome {
+          Some(pass) => if pass { "Panack proved " + condition + "." } else { "The record violates the requirement " + condition + "." },
+          None() => "Panack cannot prove " + condition + " for this record."
+        }
+        for field in facts.numbers {
+          if field.field == order.left || field.field == order.right {
+            name = field.field
+            number = field.value
+            reason = reason + " Field '" + name + "' is ${number}."
+          }
+        }
+        accepted = accepted && outcome == Some(true)
+        if context.retain_guard_conversions || outcome != Some(true) {
+          checks = checks.append(BodyTypeCheckEvidence("domain constraint",body_guard_source_span(value),Some(actual),
+            requirement,Some(expected),outcome,reason,Some(rule.source)))
+        }
       }
-      detail = fact_text(rule.requirement, facts, target.base)
-      reason = conclusion + (if detail == "" { "" } else { " " + detail })
-      accepted = accepted && outcome == Some(true)
-      if context.retain_guard_conversions || outcome != Some(true) {
-        checks = checks.append(BodyTypeCheckEvidence("domain constraint", body_guard_source_span(value), Some(actual),
-          requirement, Some(expected), outcome, reason, Some(rule.source)))
+    } else {
+      rules = domain_rules(target.guard, target.guard_name, target.base, value.span)
+      accepted = rules.len() > 0
+      for rule in rules {
+        outcome = rule_outcome(rule.requirement, facts)
+        requirement = rule_text(rule.requirement, target.base)
+        conclusion = match outcome {
+          Some(pass) => if pass { "The value satisfies the requirement: " + requirement + "." }
+            else { "The value violates the requirement: " + requirement + "." },
+          None() => "Panack cannot prove this value meets the requirement: " + requirement + "."
+        }
+        detail = fact_text(rule.requirement, facts, target.base)
+        reason = conclusion + (if detail == "" { "" } else { " " + detail })
+        accepted = accepted && outcome == Some(true)
+        if context.retain_guard_conversions || outcome != Some(true) {
+          checks = checks.append(BodyTypeCheckEvidence("domain constraint", body_guard_source_span(value), Some(actual),
+            requirement, Some(expected), outcome, reason, Some(rule.source)))
+        }
       }
     }
   }
@@ -781,7 +958,7 @@ pure body_guard_conversion(
   match value.type {
     None() => {},
     Some(actual) => match body_guard_spec(context, expected) {
-      Some(target) => if domain_base(target.base) {
+      Some(target) => if domain_base(target.base) || record_guard(target.base) {
         result = Some(domain_conversion(context, value, actual, expected, target))
       } else { match actual.identity {
         SignatureCore(actual_base) => {
@@ -846,7 +1023,7 @@ pure body_guard_conversion(
             SignatureCallable(effect) => "",
             SignatureHole(owner, path, index) => ""
           }
-          if (domain_base(source.base) && domain_base_type(context, actual) == Some(expected)) ||
+          if ((domain_base(source.base) || record_guard(source.base)) && domain_base_type(context, actual) == Some(expected)) ||
             target_base == source.base ||
             (source.base == "Nat" && target_base == "Int") {
             result = Some(BodyGuardConversionDecision(Some(true), None(), []))
@@ -1224,7 +1401,12 @@ pure domain_observation(node: BoundBody): Option[DomainObservation] {
     BodyArray() => {},
     BodyUnary(op) => {},
     BodyBinary(op) => {},
-    BodyField(field) => {},
+    BodyField(field) => if node.children.len() == 1 {
+      match domain_observation(node.children[0]) {
+        Some(parent) => if parent.property == "value" { observation = Some(DomainObservation(parent.local,"field:" + field)) },
+        None() => {}
+      }
+    },
     BodyIndex() => {},
     BodyIf(has_else) => {},
     BodyBlock(tail, site, spans) => {},
@@ -1247,7 +1429,7 @@ pure domain_count_test(op: Str, n: Nat, truth: Bool): DomainFacts {
   if n > 0 && ((op == "<" && truth) || (op == ">=" && !truth)) { maximum = Some(n - 1) }
   if (op == "==" && truth) || (op == "!=" && !truth) { minimum = n; maximum = Some(n) }
   if n == 0 && ((op == "!=" && truth) || (op == "==" && !truth)) { minimum = 1 }
-  DomainFacts(minimum, maximum, None(), None(), None())
+  size_facts(minimum, maximum, None(), None(), None())
 }
 
 pure domain_branch_fact(facts: Map[Str,Bounds], writes: Map[Str,Bounds],
@@ -1281,6 +1463,17 @@ pure domain_condition(condition: BoundBody, facts: Map[Str,Bounds],
               Some(n) => { result = domain_branch_fact(facts, writes, observation.local, domain_count_test(op,n,truth)) },
               None() => {}
             }
+          } else if observation.property.starts_with("field:") && (op == "<" || op == "<=" || op == ">" || op == ">=") {
+            match domain_observation(right) {
+              Some(other) => if other.local == observation.local && other.property.starts_with("field:") {
+                a = observation.property.slice(6,observation.property.len())
+                b = other.property.slice(6,other.property.len())
+                forward = (op == "<" || op == "<=") == truth
+                strict = (op == "<" || op == ">") == truth
+                relation = FieldOrder(if forward { a } else { b },if strict { "<" } else { "<=" },if forward { b } else { a })
+                result = domain_branch_fact(facts,writes,other.local,record_facts([relation],[]))
+              }, None() => {}
+            }
           } else if (op == "==" || op == "!=") && observation.property == "value" && domain_literal_key(right) == Some("text:") {
             result = domain_branch_fact(facts, writes, observation.local, domain_count_test(op,0,truth))
           }
@@ -1289,10 +1482,10 @@ pure domain_condition(condition: BoundBody, facts: Map[Str,Bounds],
     },
     BodyCall(target, types, evidence) => match domain_observation(condition) {
       Some(observation) => if observation.property == "is_non_blank" {
-        extra = DomainFacts(if truth { 1 } else { 0 }, None(), Some(truth), None(), None())
+        extra = size_facts(if truth { 1 } else { 0 }, None(), Some(truth), None(), None())
         result = domain_branch_fact(facts, writes, observation.local, extra)
       } else if observation.property == "has_no_control_characters" {
-        extra = DomainFacts(if truth { 0 } else { 1 }, None(), None(), Some(truth), None())
+        extra = size_facts(if truth { 0 } else { 1 }, None(), None(), Some(truth), None())
         result = domain_branch_fact(facts, writes, observation.local, extra)
       },
       None() => {}
@@ -1770,7 +1963,7 @@ pure domain_method_receiver(context: BodyContext, method: Str, checked: BodyResu
   match checked.body.type {
     Some(type) => match type.identity {
       SignatureNominal(owner) => match body_guard_spec(context,type) {
-        Some(spec) => if domain_base(spec.base) {
+        Some(spec) => if domain_base(spec.base) || record_guard(spec.base) {
           match resolve_owned_method(context.graph, owner, method) {
             Ok(binding) => {},
             Error(message) => match domain_base_type(context,type) {
@@ -1896,7 +2089,7 @@ pure bind_runtime_validation(context: BodyContext, arguments: [Expr], types: [St
       Error(message) => body_failure(message,span),
       Ok(target) => match body_guard_spec(context,target) {
         None() => body_failure("Runtime validation requires a guarded type. " + types[0] + " has no declared guard.",span),
-        Some(spec) => if !domain_base(spec.base) &&
+        Some(spec) => if !domain_base(spec.base) && !record_guard(spec.base) &&
           !(scalar_numeric(spec.base) && runtime_numeric_supported(spec.guard,spec.guard_name)) {
           body_failure("Runtime validation does not support the guard declared for " + types[0] + ".",span)
         } else {
@@ -1918,7 +2111,15 @@ pure bind_runtime_validation(context: BodyContext, arguments: [Expr], types: [St
           output = match tail.body.type {
             Some(result) => Some(SignatureType(result.identity,[target,error_type])), None() => None()
           }
-          BodyResult(BoundBody(BodyBlock(true,Some(span),[span]),span,[binding.body,tail.body],output,[],[],[],[],[],[]),
+          mut evidence: [BodyTypeCheckEvidence] = []
+          if context.retain_guard_conversions {
+            for term in guard_conjuncts(spec.guard) {
+              evidence = evidence.append(BodyTypeCheckEvidence("runtime validation",span,Some(base),
+                render_expr(term),output,None(),"Panack checks this requirement when validate runs.",
+                expression_span(term)))
+            }
+          }
+          BodyResult(BoundBody(BodyBlock(true,Some(span),[span]),span,[binding.body,tail.body],output,[],[],[],[],[],evidence),
             refined.diagnostics.concat(required.diagnostics).concat(tail.diagnostics),
             refined.deferred.concat(required.deferred).concat(tail.deferred))
         }
@@ -1942,7 +2143,7 @@ pure body_call(
     BodyDeclaration(binding) => if binding.kind == ModuleGuardedType() {
       type = SignatureType(SignatureNominal(binding.identity), [])
       match body_guard_spec(context, type) {
-        Some(spec) => if domain_base(spec.base) { guarded = Some(type) },
+        Some(spec) => if domain_base(spec.base) || record_guard(spec.base) { guarded = Some(type) },
         None() => {}
       }
     },
@@ -5489,6 +5690,20 @@ pub pure check_module_bodies(
 
 // Guard predicates are declaration contracts. Their synthetic bodies are used
 // only for validation/effect checking, never added to the emitted function list.
+pure record_operand_errors(context: BodyContext, term: BoundBody): [Diagnostic] {
+  mut errors: [Diagnostic] = []
+  if term.node == BodyBinary("&&") {
+    for child in term.children { errors = errors.concat(record_operand_errors(context,child)) }
+  } else if term.children.len() == 2 {
+    left = body_operation_scalar(context,term.children[0])
+    right = body_operation_scalar(context,term.children[1])
+    if left != right || !scalar_numeric(left) {
+      errors = [Diagnostic("A record relationship requires two fields with the same underlying ordered numeric type.",term.span.start)]
+    }
+  }
+  errors
+}
+
 pub pure check_module_guards(graph: ModuleBindingGraph, modules: [LoadedModule], signatures: [ModuleSignature], module: LoadedModule): CheckedModuleBodies {
   mut functions: [BoundFunctionBody] = []
   mut diagnostics: [Diagnostic] = []
@@ -5503,6 +5718,9 @@ pub pure check_module_guards(graph: ModuleBindingGraph, modules: [LoadedModule],
             local: BodyLocal = BodyLocal(BodyLocalIdentity(owner, [0], guard_name), Some(signature.slots[0].type), false)
             checked: BodyResult = bind_body_expression(context, guard, signature.binding.span, map().put(guard_name, local), [1])
             required: BodyResult = body_require_value(context, checked.body, SignatureType(SignatureCore("Bool"), []), "type guard")
+            if record_guard(base) && checked.diagnostics.len() == 0 {
+              diagnostics = diagnostics.concat(record_operand_errors(context,checked.body))
+            }
             diagnostics = diagnostics.concat(checked.diagnostics).concat(required.diagnostics)
             if checked.deferred.len() > 0 || required.deferred.len() > 0 {
               diagnostics = diagnostics.append(Diagnostic("type guard is not completely checked", signature.binding.span.start))
@@ -5795,7 +6013,7 @@ pure check_body_operation(
                     ordered: Bool = operator != "==" && operator != "!="
                     valid = (left == right || numeric_pair) && a != "Void" && b != "Void"
                     if ordered {
-                      valid = valid && (scalar_numeric(a) || a == "Str")
+                      valid = (valid || (a == "Dec" && b == "Dec")) && (scalar_numeric(a) || a == "Str")
                     } else {
                       if !numeric_pair && left != right && a != "Void" && b != "Void" {
                         joined_operands = body_join(context, left, right)
@@ -6581,7 +6799,7 @@ pure body_refine(context: BodyContext, checked: BodyResult, expected: SignatureT
         Some(proven) => if proven {
           match checked.body.type {
             Some(actual) => match body_guard_spec(context, expected) {
-              Some(spec) => if domain_base(spec.base) {
+              Some(spec) => if domain_base(spec.base) || record_guard(spec.base) {
                 body_apply_solutions(context, with_evidence,
                   body_solutions(actual, domain_base_type(context, expected).value_or(expected)))
               } else { with_evidence },
@@ -7267,7 +7485,13 @@ pure check_body_field(context: BodyContext, checked: BodyResult, field: Str): Bo
   mut reason = "The receiver type could not be determined."
   mut accepted: Option[Bool] = None()
 
-  match checked.body.children[0].type {
+  receiver = match checked.body.children[0].type {
+    Some(t) => match body_guard_spec(context,t) {
+      Some(g) => if record_guard(g.base) { domain_base_type(context,t) } else { Some(t) },
+      None() => Some(t)
+    }, None() => None()
+  }
+  match receiver {
     None() => {
       deferred = deferred.append(checked.body.span)
     },

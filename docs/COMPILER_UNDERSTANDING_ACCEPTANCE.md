@@ -95,7 +95,11 @@ partition and conformance-control regressions cover this build path.
 Final real-project audits and checkout/installed terminal checks passed against
 the refreshed seed. Comparable cost measurements are recorded below. Hosted
 checks remain a separate exact-head merge gate.
-GI#180 remains open for the final cross-feature acceptance after GI#435.
+The domain-constraints and public explanation fixtures also verify GI#435
+static proof, known failure and runtime-check evidence. The imported record
+guard is shown at its declaration. A reverse lookup on its comparison finds
+the instructions emitted in the validating caller. GI#180 remains open for
+the final cross-feature acceptance after GI#435.
 
 
 ## Cost measurement method

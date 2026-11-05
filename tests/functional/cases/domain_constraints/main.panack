@@ -1,4 +1,4 @@
-import "external.panack"::{Port as RemotePort}
+import "external.panack"::{Port as RemotePort, Range, OrderedRange, checked_range, pass_through, rebuilt}
 type Label = Str where text =>
   text != "" && text.len() <= 2
   && text.is_non_blank() && text.has_no_control_characters()
@@ -28,6 +28,7 @@ main(): Void {
   print("​".is_non_blank())
   print(" ".has_no_control_characters())
   exercise_validation()
+  exercise_record_validation()
 }
 
 type Alternative = Int where n => (n < 2 || n > 8) && n != 4
@@ -65,4 +66,29 @@ exercise_validation(): Void {
     Ok(port) => print(port),
     Error(problem) => { print(problem.target_type.ends_with("external.panack:Port")); print(problem.render()) }
   }
+}
+
+record Window { first: Nat, middle: Nat, last: Nat, label: Label }
+type WindowInOrder = Window where w => w.first < w.middle && w.middle <= w.last
+record Pair[T] { left: T, right: T }
+type IncreasingDecimal = Pair[Dec] where p => p.left < p.right
+type IncreasingRational = Pair[Rat] where p => p.left < p.right
+
+exercise_record_validation(): Void {
+  initial = OrderedRange(Range(-2,5))
+  saved = pass_through([initial])
+  previous = saved[0]
+  print(rebuilt(previous).start)
+  print(checked_range(Range(2,2)).end)
+  replacement = Range(6,previous.end)
+  match validate[OrderedRange](replacement) {
+    Ok(value) => print(value.start), Error(problem) => print(problem.render())
+  }
+  original = WindowInOrder(Window(1,2,3,Label("OK")))
+  match validate[WindowInOrder](Window(3,2,1,original.label)) {
+    Ok(w) => print(w.label), Error(problem) => { print(problem.failures.len()); print(problem.render()) }
+  }
+  print(original.label)
+  print(IncreasingDecimal(Pair(1.01,1.1)).right)
+  print(IncreasingRational(Pair(1 / 3, 2 / 5)).left)
 }

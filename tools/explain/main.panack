@@ -201,8 +201,8 @@ pure facts(project: LoadedProject, function: BoundFunctionBody, selected: Source
   }
   for e in body_type_check_evidence(body) {
     base = requirement(e.span,e.context,e.actual,source_map_escape(e.expected),e.accepted)
-    links = match e.dependency { None() => [], Some(site) => origin(project,site,if e.context == "domain constraint" { "Guard requirement declared here" } else { "Earlier constraint" }) }
-    rows = rows.append(Decision(e.span,base.label,base.verdict,base.why + (if e.reason == "" { "" } else { " " + source_map_escape(e.reason) }),links))
+    links = match e.dependency { None() => [], Some(site) => origin(project,site,if e.context == "domain constraint" || e.context == "runtime validation" { "Guard requirement declared here" } else { "Earlier constraint" }) }
+    rows = rows.append(Decision(e.span,base.label,if e.context == "runtime validation" { "Checked at runtime" } else { base.verdict },base.why + (if e.reason == "" { "" } else { " " + source_map_escape(e.reason) }),links))
   }
   for e in project.effects {
     if e.function_name == selected.identity.name || e.function_name == selected.emitted_name {

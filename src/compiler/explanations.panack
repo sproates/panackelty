@@ -837,10 +837,10 @@ pure render_type_check_evidence(
   root: Str,
   stdlib_root: Str
 ): Str {
-  status: Str = match evidence.accepted {
+  status: Str = if evidence.context == "runtime validation" { "checked at runtime" } else { match evidence.accepted {
     Some(accepted) => if accepted { "accepted" } else { "rejected" },
     None() => "unavailable"
-  }
+  } }
   actual: Str = source_map_escape(render_inferred_type(evidence.actual))
   context: Str = source_map_escape(evidence.context)
   expected: Str = source_map_escape(evidence.expected)
@@ -874,7 +874,7 @@ pure render_type_check_evidence(
       if match_decision { "subject type" } else { "actual type" }
     }
   }
-  expected_label: Str = if call_arity { "argument counts" } else {
+  expected_label: Str = if evidence.context == "runtime validation" || evidence.context == "domain constraint" { "requirement" } else if call_arity { "argument counts" } else {
     if type_argument_arity { "type argument counts" } else {
       if string_interpolation { "allowed interpolation types" } else {
         if void_value_requirement { "required value" } else {
@@ -899,7 +899,7 @@ pure render_type_check_evidence(
     (if count_decision { "" } else { "\n${actual_label}: ${actual}" }) +
     "\n${expected_label}: ${expected}" +
     (if count_decision { "" } else { "\nresulting type: ${result}" }) +
-    (if evidence.dependency != None() { (if evidence.context == "domain constraint" { "\nGuard declaration:\n" } else { "\nPrior constraint:\n" }) + explanation_location(evidence.dependency, sources, root, stdlib_root) } else { "" }) +
+    (if evidence.dependency != None() { (if evidence.context == "domain constraint" || evidence.context == "runtime validation" { "\nGuard declaration:\n" } else { "\nPrior constraint:\n" }) + explanation_location(evidence.dependency, sources, root, stdlib_root) } else { "" }) +
     if evidence.reason != "" { "\nreason: " + source_map_escape(evidence.reason) } else { match evidence.accepted {
       Some(accepted) => if accepted {
         if call_arity {

@@ -1,1 +1,14 @@
 pub type Port = Nat where n => n >= 1 && n <= 65535
+
+pub record Range { start: Int, end: Int }
+pub type OrderedRange = Range where r => r.start <= r.end
+
+pub pure pass_through[T](value: T): T { value }
+pub pure checked_range(r: Range): OrderedRange {
+  if r.start <= r.end { OrderedRange(r) } else { OrderedRange(Range(0,0)) }
+}
+
+pub pure rebuilt(previous: OrderedRange): OrderedRange {
+  candidate = Range(previous.start,previous.end)
+  OrderedRange(candidate)
+}

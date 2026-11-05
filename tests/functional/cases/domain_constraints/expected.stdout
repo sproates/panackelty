@@ -41,3 +41,17 @@ true
 Cannot validate the value as Port.
 
 Port requires (n <= 65535), but that condition is false.
+-2
+2
+Cannot validate the value as OrderedRange.
+
+OrderedRange requires field 'start' to be less than or equal to field 'end', but that relationship is not satisfied.
+2
+Cannot validate the value as WindowInOrder.
+
+WindowInOrder requires field 'first' to be less than field 'middle', but that relationship is not satisfied.
+
+WindowInOrder requires field 'middle' to be less than or equal to field 'last', but that relationship is not satisfied.
+OK
+1.1
+1/3

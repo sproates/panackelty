@@ -79,12 +79,18 @@ SHA-256 is `8f8a1a197436ad53cdcbcc0b517a29c09b02382fe5684787738dc113fb76c5bf`.
 The standard-library SHA-256 is
 `823a5f93fe2886a44b680cb09c1d634bdf6aa8fc0f5cdff57510cfe743eb8a0d`.
 
-The final local `make check` passed on macOS arm64 in 957 seconds, including
+The implementation at `b1f125e` passed local `make check` on macOS arm64 in
+957 seconds, including
 unit, functional, bootstrap, packaged-release and quick-start checks. Unit work
 took 559 seconds; bootstrap ran alongside it in 275 seconds. Functional work
 took 291 seconds and packaged-release smoke took 19 seconds. Printed historical
 timing-budget warnings are not current acceptance thresholds. The final unit
 run includes the assignment-mutability decision and source-span regression.
+
+Clean-checkout packaging and conformance dry runs also pass. The explorer's
+VM prerequisite delegates to the native build when no executable exists, so
+recursive dry runs do not depend on an already-built checkout. CI routing,
+partition and conformance-control regressions cover this build path.
 
 Final real-project audits and checkout/installed terminal checks passed against
 the refreshed seed. Comparable cost measurements are recorded below. Hosted

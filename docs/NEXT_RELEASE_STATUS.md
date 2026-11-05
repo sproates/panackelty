@@ -3,7 +3,7 @@
 Updated: 5 November 2026. Release: **v0.1.0-alpha.15**. Integration branch: **next**.
 Latest published release: **v0.1.0-alpha.14**. Publication date: not agreed.
 
-**All seven alpha.15 feature workstreams are accepted on next. The [release candidate (PR #664)](https://github.com/sproates/panackelty/pull/664) is under validation for promotion to main.**
+**All seven alpha.15 feature workstreams are accepted on next. [PR #664](https://github.com/sproates/panackelty/pull/664) promoted the verified candidate to main. Publication awaits owner approval.**
 
 This is the current release-status source of truth. Read this file for a quick
 status answer; follow evidence links when investigating a particular item.
@@ -165,10 +165,8 @@ The order and scope weights remain unchanged. GI#409 assessment delivery is reco
 
 ## Release readiness and next action
 
-- The candidate carries the alpha.15 version, release notes and seven regenerated bundled project locks. Finish candidate validation and review the promotion PR
-  against the [release policy](releases/RELEASE_POLICY.md).
-- Promotion, package/install release checks and owner publication approval remain.
-  Complete product acceptance on next does not mean a feature has shipped.
+- All 28 applicable promotion checks passed, including Ubuntu 22.04 and macOS 15 archive validation. The tree on main at `eb2e5f9` matches the tested candidate.
+- Next, obtain owner approval for publication and follow the [release policy](releases/RELEASE_POLICY.md). Verify public assets before updating installer defaults and website downloads.
 - Latest supporting repair: [PR#601](https://github.com/sproates/panackelty/pull/601)
   merged into main adds upload retries and failure-time network evidence.
   The original DNS cause is unconfirmed. [Scheduled nightly 40666115194](https://github.com/sproates/panackelty/actions/runs/40666115194) succeeded on 28 October with the repairs in place. This confirms a successful scheduled run, not the original DNS cause, and adds no earned scope credit.

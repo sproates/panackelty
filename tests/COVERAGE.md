@@ -1,5 +1,11 @@
 # Specification coverage
 
+The [VM concatenation trial](../docs/VM_CONCAT_TRIAL.md) adds native assertions
+for empty and Unicode results, embedded NUL bytes, overflow rejection and shared
+array-element ownership, plus constructor allocation-failure sweeps. Candidate
+native suites and two compiled functional fixtures passed; full product
+validation and adoption of this trial remain pending.
+
 VM direct-call resolution has native regressions for verified builtin/function
 links, changed-target re-verification, failed-verification invalidation, and
 verified async calls across host suspension/completion. Existing ownership,

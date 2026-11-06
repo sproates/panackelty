@@ -294,6 +294,36 @@ static void construct_text(void)
     release(result);
 }
 
+static void concatenate_text(void)
+{
+    Value *result = value_data_join(V_STR, (const uint8_t *)"hello", 5,
+                                   (const uint8_t *)"world", 5);
+    assert((result != NULL) == !fault_triggered());
+    release(result);
+}
+
+static void concatenate_array(void)
+{
+    Value *result = value_array_concat(left, left);
+    assert((result != NULL) == !fault_triggered());
+    release(result);
+}
+
+static void concatenation_faults(void)
+{
+    fault_reset(0);
+    sweep("concatenate text", concatenate_text);
+    Value *item = value_size(7);
+    assert(item);
+    left = value_sequence(V_ARRAY, &item, 1);
+    assert(left);
+    sweep("concatenate shared array", concatenate_array);
+    assert(item->refs == 2 && left->refs == 1);
+    release(left);
+    release(item);
+    left = NULL;
+}
+
 static void arithmetic(void)
 {
     const char *error = NULL;
@@ -833,6 +863,12 @@ void console_write_faults(void);
 
 int main(int argc, char **argv)
 {
+    concatenation_faults();
+    if (argc == 2 && !strcmp(argv[1], "concat")) {
+        assert(fault_live() == 0);
+        puts("concatenation allocation failures: ok");
+        return 0;
+    }
     root_read_faults();
     console_write_faults();
     if (argc == 3) {

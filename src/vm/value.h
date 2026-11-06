@@ -110,6 +110,11 @@ Value *value_size(size_t number);
 
 /* Copies bytes. V_STR callers supply valid UTF-8; cached offsets assume that invariant. */
 Value *value_data(ValueKind kind, const uint8_t *data, size_t length);
+/* Copy borrowed byte spans into one owned result. NULL is allowed for empty spans. */
+Value *value_data_join(ValueKind kind, const uint8_t *left, size_t left_length,
+                      const uint8_t *right, size_t right_length);
+/* Both inputs must be arrays; the result retains their elements independently. */
+Value *value_array_concat(const Value *left, const Value *right);
 
 /* Copies the container and retains each child; the input array stays caller-owned. */
 Value *value_sequence(ValueKind kind, Value **items, size_t count);

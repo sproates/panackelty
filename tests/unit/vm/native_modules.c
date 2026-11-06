@@ -1055,8 +1055,52 @@ static void artifact_returns_void(const char *path)
     free_program(&program);
 }
 
+static void concatenation_preserves_values(void)
+{
+    Value *empty = value_data_join(V_STR, NULL, 0, NULL, 0);
+    assert(empty && empty->as.bytes.length == 0 && empty->as.bytes.characters == 0);
+    assert(empty->as.bytes.ascii && empty->as.bytes.data[0] == 0);
+    release(empty);
+    const uint8_t left[] = {'A', 0, 0xc3, 0xa9};
+    const uint8_t right[] = {0xf0, 0x9f, 0x98, 0x80};
+    Value *text = value_data_join(V_STR, left, sizeof(left), right, sizeof(right));
+    assert(text && text->as.bytes.length == 8 && text->as.bytes.characters == 4);
+    assert(!text->as.bytes.ascii && text->as.bytes.data[8] == 0);
+    assert(!memcmp(text->as.bytes.data, left, sizeof(left)));
+    assert(!memcmp(text->as.bytes.data + sizeof(left), right, sizeof(right)));
+    release(text);
+    assert(!value_data_join(V_BYTES, NULL, SIZE_MAX, NULL, 0));
+    assert(!value_data_join(V_BYTES, NULL, SIZE_MAX - 1, NULL, 1));
+    Value *item = value_size(42);
+    Value *a = value_sequence(V_ARRAY, &item, 1);
+    Value *joined = value_array_concat(a, a);
+    assert(joined && joined->as.sequence.count == 2 && item->refs == 4);
+    release(a);
+    release(item);
+    assert(joined->as.sequence.items[0] == joined->as.sequence.items[1]);
+    assert(joined->as.sequence.items[0]->refs == 2);
+    release(joined);
+    a = value_sequence(V_ARRAY, NULL, 0);
+    joined = value_array_concat(a, a);
+    assert(joined && joined->as.sequence.count == 0);
+    release(joined);
+    release(a);
+    Value huge = {.kind = V_ARRAY}, one = {.kind = V_ARRAY};
+    huge.as.sequence.count = SIZE_MAX;
+    one.as.sequence.count = 1;
+    assert(!value_array_concat(&huge, &one));
+    huge.as.sequence.count = SIZE_MAX / sizeof(Value *) + 1;
+    one.as.sequence.count = 0;
+    assert(!value_array_concat(&huge, &one));
+}
+
 int main(int argc, char **argv)
 {
+    concatenation_preserves_values();
+    if (argc == 2 && !strcmp(argv[1], "concat")) {
+        puts("native concatenation contracts: ok");
+        return 0;
+    }
     if (argc == 2 && !strcmp(argv[1], "call-links")) {
         direct_call_links_follow_verified_program();
         verifier_rejects_forged_structures();

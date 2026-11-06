@@ -155,6 +155,16 @@ Value *value_size(size_t number)
 
 Value *value_data(ValueKind kind, const uint8_t *data, size_t length)
 {
+    return value_data_join(kind, data, length, NULL, 0);
+}
+
+Value *value_data_join(ValueKind kind, const uint8_t *left, size_t left_length,
+                      const uint8_t *right, size_t right_length)
+{
+    if (left_length == SIZE_MAX || right_length > SIZE_MAX - left_length - 1) {
+        return NULL;
+    }
+    size_t length = left_length + right_length;
     Value *v = value_new(kind);
     if (!v) {
         return NULL;
@@ -164,12 +174,16 @@ Value *value_data(ValueKind kind, const uint8_t *data, size_t length)
         free(v);
         return NULL;
     }
-    if (length) {
-        memcpy(v->as.bytes.data, data, length);
+    if (left_length) {
+        memcpy(v->as.bytes.data, left, left_length);
+    }
+    if (right_length) {
+        memcpy(v->as.bytes.data + left_length, right, right_length);
     }
     v->as.bytes.data[length] = 0;
     v->as.bytes.length = length;
     if (kind == V_STR) {
+        const uint8_t *data = v->as.bytes.data;
         v->as.bytes.ascii = true;
         for (size_t i = 0; i < length; i++) {
             if ((data[i] & 0xc0) != 0x80) {
@@ -179,6 +193,31 @@ Value *value_data(ValueKind kind, const uint8_t *data, size_t length)
                 v->as.bytes.ascii = false;
             }
         }
+    }
+    return v;
+}
+
+Value *value_array_concat(const Value *left, const Value *right)
+{
+    size_t n = left->as.sequence.count, m = right->as.sequence.count;
+    if (m > SIZE_MAX - n || n + m > SIZE_MAX / sizeof(Value *)) {
+        return NULL;
+    }
+    Value *v = value_new(V_ARRAY);
+    if (!v) {
+        return NULL;
+    }
+    v->as.sequence.items = calloc(n + m, sizeof(Value *));
+    if (n + m && !v->as.sequence.items) {
+        free(v);
+        return NULL;
+    }
+    v->as.sequence.count = n + m;
+    for (size_t i = 0; i < n; i++) {
+        v->as.sequence.items[i] = retain(left->as.sequence.items[i]);
+    }
+    for (size_t i = 0; i < m; i++) {
+        v->as.sequence.items[n + i] = retain(right->as.sequence.items[i]);
     }
     return v;
 }

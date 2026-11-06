@@ -67,4 +67,4 @@ The [release checklist](https://github.com/sproates/panackelty/blob/main/docs/re
 | Website candidate | PR #70 passed assembly, release integrity and browser integration. Earlier article edits were owner-approved; this final promotion changes no articles. |
 | Website publication | Run 42220421756 passed deployed-byte/provenance verification; live alpha.15 execution passed. |
 
-**Alpha.15 rollout is complete as of 6 November 2026.** The current summary remains on `next` until the following release is opened. GI#410 is a historical candidate umbrella; its issue now points to the agreed future allocations and does not represent unfinished alpha.15 scope.
+**Alpha.15 rollout is complete as of 6 November 2026.** The [final status snapshot](../ALPHA15_FINAL_STATUS.md) preserves the completed workstream table; `docs/NEXT_RELEASE_STATUS.md` now tracks alpha.16. GI#410 is a historical candidate umbrella; its issue now points to the agreed future allocations and does not represent unfinished alpha.15 scope.

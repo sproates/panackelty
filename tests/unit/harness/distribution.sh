@@ -25,11 +25,15 @@ done
 # Builds must own the executable they relink; a symlink shares the live root VM.
 cp "$root/panack-vm" "$checkout/panack-vm"
 cd "$checkout"
-# Prepare the copied VM and package tool before archive and release checks.
-# Their clean builds must not consume the release-check command's whole limit.
-# Packaging builds the HTTP server itself. Both commands remain bounded, and
-# the copied checkout owns every artifact.
-capture 0 90 make native package-tool
+# A cold explorer build compiles much of the compiler itself (84s standalone
+# on hosted Linux). Bound that build independently from packaging and smoke.
+prepare_tools() {
+    tool_build=$1
+    capture 0 90 make "BUILD_DIR=$tool_build" native package-tool
+    capture 0 240 make "BUILD_DIR=$tool_build" explain-tool
+    capture 0 90 make "BUILD_DIR=$tool_build" "$tool_build/tools/http-server.bc"
+}
+prepare_tools build
 capture 0 90 make quick-start
 set -- "$checkout"/build/panackelty-*.tar.gz
 test "$#" = 1 && test -f "$1" || fail 'expected exactly one archive'
@@ -46,6 +50,7 @@ equal_files "$archive.sha256" "$work/checksum"
 pass
 case_name=archive-members-and-relocation
 cd "$checkout"
+prepare_tools "$work/archive-build"
 capture 0 90 make package-archive "BUILD_DIR=$work/archive-build"
 set -- "$work"/archive-build/panackelty-*.tar.gz
 test "$#" = 1 && test -f "$1" || fail 'expected exactly one custom-build archive'
@@ -111,7 +116,7 @@ cd "$checkout"
 destination=$work/'installation with spaces (test)'
 # The custom BUILD_DIR archive relinked this checkout's VM. Prepare its default
 # tool artifacts before timing installation, which must reuse their bytecode.
-capture 0 90 make native package-tool explain-tool build/tools/http-server.bc
+prepare_tools build
 capture 0 30 make install "DESTDIR=$destination" PREFIX=/usr/local
 absent "$work/stdout" './bin/panack compile'
 installed=$destination/usr/local

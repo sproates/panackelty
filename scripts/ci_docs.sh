@@ -30,7 +30,7 @@ ci_readme_without_informational_copy() {
             if ($0 == coverage_end) { coverage_ends++; coverage_end_line = NR }
             if (index($0, coverage_legacy_begin) == 1) { legacy_coverage_begins++; legacy_coverage_begin_line = NR }
             if (index($0, coverage_legacy_end) == 1) { legacy_coverage_ends++; legacy_coverage_end_line = NR }
-            if ($0 == boundary) { boundaries++; boundary_line = NR }
+            if ($0 == boundary || $0 == "## Get started") { boundaries++; boundary_line = NR }
         }
         END {
             if (boundaries != 1) exit 2

@@ -21,6 +21,17 @@ expect() {
         exit 1
     fi
 }
+# Exercise the release fixture wrapper with each profile, capturing the exact
+# deadline it passes to supervision. The real stall tests below use short clocks.
+cat > "$work/read-budget" <<'SH'
+#!/bin/sh
+printf '%s\n' "$1"
+SH
+chmod +x "$work/read-budget"
+for profile in ordinary sanitizer; do
+    actual=$(PANACK_COMPILER_WATCHDOG_PROFILE=$profile PANACK_COMPILER_WATCHDOG_BINARY="$work/read-budget" PANACK_COMPILER_WATCHDOG_DIR="$work/profile" sh tests/compiler_watchdog/run.sh run probe)
+    case "$profile:$actual" in ordinary:90|sanitizer:120) ;; *) echo "unexpected watchdog budget $profile:$actual" >&2; exit 1 ;; esac
+done
 mkdir "$work/healthy"
 expect 0 "$watchdog" 0.5 "$work/healthy" "$watchdog" --test-child healthy
 for mode in heartbeats silent partial missing; do

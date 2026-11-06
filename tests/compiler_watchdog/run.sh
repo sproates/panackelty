@@ -15,4 +15,9 @@ observer=${PANACK_COMPILER_WATCHDOG_VM:-$root/build/vm/compiler-observer-vm}
 PANACKELTY_BOOTSTRAP_ROOT=$root
 PANACKELTY_STDLIB_PATH=$root/src/stdlib
 export PANACKELTY_BOOTSTRAP_ROOT PANACKELTY_STDLIB_PATH
-exec "$supervisor" 90 "$evidence" "$observer" run "${SEED_COMPILER:-bootstrap/compiler-v9.bc}" "$@"
+case "${PANACK_COMPILER_WATCHDOG_PROFILE:-ordinary}" in
+    ordinary) seconds=90 ;;
+    sanitizer) seconds=120 ;;
+    *) echo "Unknown compiler watchdog profile: $PANACK_COMPILER_WATCHDOG_PROFILE" >&2; exit 2 ;;
+esac
+exec "$supervisor" "$seconds" "$evidence" "$observer" run "${SEED_COMPILER:-bootstrap/compiler-v9.bc}" "$@"

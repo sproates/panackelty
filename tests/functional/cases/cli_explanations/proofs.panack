@@ -1,0 +1,475 @@
+import stdlib/process as std_process
+import stdlib/testing as std_testing
+import stdlib/testing_files as std_testing_files
+import stdlib/testing::{TestResult}
+import stdlib/time as std_time
+import stdlib/path as std_path
+import stdlib/filesystem as std_filesystem
+import stdlib/bytes as byte_buffer
+import stdlib/environment as std_environment
+import stdlib/host as std_host
+
+import "support.panack"::{explain_path, explain_write, explain_run, explain_contains}
+
+main(): Void {
+  match std_testing_files.workspace_create(explain_path("/tmp")) {
+    Error(error) => { std_host.stderr("workspace failed"); std_host.exit(1); },
+    Ok(workspace) => {
+      root: Str = workspace.root.to_text().value_or("")
+      source: Str = root + "/main.panack"
+      library: Str = root + "/library.panack"
+      other: Str = root + "/right.panack"
+      artifact: Str = root + "/main.bc"
+      interpolation: Str = "$" + "{name}"
+      mut results: [TestResult] = []
+      original: Str = "import project/library as library\nmain(): Void { print(library.remaining[Str](\"x\", 5)); print(library.remaining[Nat](7, 4)); }\n"
+      explain_write(source, "probe(flag: Bool): Int { if flag { 1 } else { -2 } }\nmain(): Void {}\n")
+      results = results.append(explain_run("conditional result explains the combined type", ["explain", source, "--function", "probe"], 0,
+        ["checked type join: accepted", "context: conditional result", "input types: Nat and Int", "resulting type: Int"], [], ""))
+      explain_write(source, "enum Choice { First, Second }\nprobe(value: Choice): Int { match value { First() => 1, Second() => -2 } }\nmain(): Void {}\n")
+      results = results.append(explain_run("match arms explain the combined type", ["explain", source, "--function", "probe"], 0,
+        ["checked type join: accepted", "context: match result", "input types: Nat and Int", "resulting type: Int"], [], ""))
+      explain_write(source, "pure combine[T](left: T, right: T): T { left }\nprobe(): Int { combine(1, -2) }\nmain(): Void {}\n")
+      results = results.append(explain_run("generic calls explain repeated type parameter joins", ["explain", source, "--function", "probe"], 0,
+        ["checked type join: accepted", "context: generic parameter T for combine", "context: first constraint for T for combine", "earlier constraint:", "expression: 1", "input types: Nat and Int", "resulting type: Int"], [], ""))
+      explain_write(source, "pure combine[T](left: T, right: T): T { left }\nprobe(): Nat { combine(1, \"wrong\") }\nmain(): Void {}\n")
+      results = results.append(explain_run("rejected generic inference join preserves checker diagnostic", ["explain", source, "--function", "probe"], 1,
+        ["checked type join: rejected", "context: generic parameter T for combine", "input types: Nat and Str", "resulting type: unavailable"], [], "inference for combine: incompatible types Nat and Str"))
+      explain_write(source, "pure combine[T](left: T, right: T): T { left }\nprobe(): Int { combine(1, 3 / 2) }\nmain(): Void {}\n")
+      results = results.append(explain_run("unresolved generic inference join is explicit", ["explain", source, "--function", "probe"], 1,
+        ["checked type join: unavailable", "context: generic parameter T for combine", "input types: Nat and Rat", "resulting type: unavailable", "did not determine a complete join"], [], "argument 2 to combine is Rat, expected Nat"))
+      explain_write(source, "probe(): Int { 1 + -2 }\nmain(): Void {}\n")
+      results = results.append(explain_run("accepted binary operator explains operand and result types", ["explain", source, "--function", "probe"], 0,
+        ["operator type checks:", "operator type check: accepted", "operator: +", "left operand type: Nat", "right operand type: Int", "resulting expression type: Int"], [], ""))
+      explain_write(source, "probe(): Int { -1 }\nmain(): Void {}\n")
+      results = results.append(explain_run("accepted unary operator marks right operand not applicable", ["explain", source, "--function", "probe"], 0,
+        ["operator type check: accepted", "operator: -", "left operand type: Nat", "right operand: not applicable", "resulting expression type: Int"], [], ""))
+      explain_write(source, "probe(): Nat { 1 + \"wrong\" }\nmain(): Void {}\n")
+      results = results.append(explain_run("rejected operator explains operand type mismatch", ["explain", source, "--function", "probe"], 1,
+        ["operator type check: rejected", "operator: +", "left operand type: Nat", "right operand type: Str", "resulting expression type: unavailable"], [], "operator + does not accept Nat and Str"))
+      explain_write(source, "probe(): Nat { missing + 1 }\nmain(): Void {}\n")
+      results = results.append(explain_run("unresolved operator operand is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["operator type check: unavailable", "operator: +", "left operand type: unavailable", "right operand type: Nat", "resulting expression type: unavailable", "did not determine the required operand types"], [], "unknown local value missing"))
+      explain_write(source, "probe(values: [Nat], position: Nat): Nat { values[position] }\nmain(): Void {}\n")
+      results = results.append(explain_run("accepted index explains receiver and position types", ["explain", source, "--function", "probe"], 0,
+        ["checked type requirements:", "checked type requirement: accepted", "context: index receiver", "actual type: Array[Nat]", "expected type: Str, Bytes or Array[T]", "resulting type: Nat", "context: index position", "actual type: Nat", "expected type: Nat", "resulting type: not applicable"], [], ""))
+      explain_write(source, "probe(value: Nat): Nat { value[0] }\nmain(): Void {}\n")
+      results = results.append(explain_run("rejected index receiver preserves checker diagnostic", ["explain", source, "--function", "probe"], 1,
+        ["context: index receiver", "checked type requirement: rejected", "expression: value", "actual type: Nat", "expected type: Str, Bytes or Array[T]"], [], "indexing requires Str, Bytes or array, got Nat"))
+      explain_write(source, "probe(values: [Nat], position: Str): Nat { values[position] }\nmain(): Void {}\n")
+      results = results.append(explain_run("rejected index position preserves checker diagnostic", ["explain", source, "--function", "probe"], 1,
+        ["context: index position", "checked type requirement: rejected", "expression: position", "actual type: Str", "expected type: Nat"], [], "index is Str, expected Nat"))
+      explain_write(source, "probe(): Nat { missing[0] }\nmain(): Void {}\n")
+      results = results.append(explain_run("unresolved index receiver is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["context: index receiver", "checked type requirement: unavailable", "actual type: unavailable", "expected type: Str, Bytes or Array[T]", "did not determine a complete type decision"], [], "unknown local value missing"))
+      explain_write(source, "probe(): Nat { for item in [1, 2] { item }; 0 }\nmain(): Void {}\n")
+      results = results.append(explain_run("accepted array iteration explains its item type", ["explain", source, "--function", "probe"], 0,
+        ["checked type requirements:", "checked type requirement: accepted", "context: for iterable", "actual type: Array[Nat]", "expected type: Range, Bytes or Array[T]", "resulting type: Nat"], [], ""))
+      explain_write(source, "probe(): Nat { for item in true { 0 }; 0 }\nmain(): Void {}\n")
+      results = results.append(explain_run("rejected iteration source preserves checker diagnostic", ["explain", source, "--function", "probe"], 1,
+        ["context: for iterable", "checked type requirement: rejected", "expression: true", "actual type: Bool", "expected type: Range, Bytes or Array[T]"], [], "for requires Range, Bytes or array, got Bool"))
+      explain_write(source, "probe(): Nat { for item in missing { 0 }; 0 }\nmain(): Void {}\n")
+      results = results.append(explain_run("unresolved iteration source is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["context: for iterable", "checked type requirement: unavailable", "actual type: unavailable", "expected type: Range, Bytes or Array[T]", "did not determine a complete type decision"], [], "unknown local value missing"))
+      explain_write(source, "probe(flag: Bool): Nat { if flag { 1 } else { 2 } }\nmain(): Void {}\n")
+      results = results.append(explain_run("accepted if condition explains its Bool requirement", ["explain", source, "--function", "probe"], 0,
+        ["context: if condition", "checked type requirement: accepted", "actual type: Bool", "expected type: Bool", "resulting type: not applicable"], [], ""))
+      explain_write(source, "probe(): Nat { if 1 { 1 } else { 2 } }\nmain(): Void {}\n")
+      results = results.append(explain_run("rejected if condition preserves checker diagnostic", ["explain", source, "--function", "probe"], 1,
+        ["context: if condition", "checked type requirement: rejected", "actual type: Nat", "expected type: Bool"], [], "if condition is Nat, expected Bool"))
+      explain_write(source, "probe(): Nat { if missing { 1 } else { 2 } }\nmain(): Void {}\n")
+      results = results.append(explain_run("unresolved if condition is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["context: if condition", "checked type requirement: unavailable", "actual type: unavailable", "expected type: Bool", "did not determine a complete type decision"], [], "unknown local value missing"))
+      explain_write(source, "probe(flag: Bool): Void { while flag {} }\nmain(): Void {}\n")
+      results = results.append(explain_run("accepted while condition explains its Bool requirement", ["explain", source, "--function", "probe"], 0,
+        ["context: while condition", "checked type requirement: accepted", "actual type: Bool", "expected type: Bool", "resulting type: not applicable"], [], ""))
+      explain_write(source, "enum Choice { First, Second }; probe(value: Choice): Nat { match value { First() => 1 } }\nmain(): Void {}\n")
+      results = results.append(explain_run("valid match variant remains accepted when match is non-exhaustive", ["explain", source, "--function", "probe"], 1,
+        ["program: rejected", "context: match variant", "checked type requirement: accepted", "expression: First()", "actual type: main.panack:Choice", "expected type: variant of main.panack:Choice", "resulting type: not applicable"], [], "non-exhaustive match; missing Second"))
+      explain_write(source, "enum Choice { First }; enum Other { Second }; probe(value: Choice): Nat { match value { Second() => 1 } }\nmain(): Void {}\n")
+      results = results.append(explain_run("wrong match variant explains enum membership rejection", ["explain", source, "--function", "probe"], 1,
+        ["context: match variant", "checked type requirement: rejected", "expression: Second()", "actual type: main.panack:Choice", "expected type: variant of main.panack:Choice"], [], "pattern Second is not a variant of the matched enum"))
+      explain_write(source, "enum Choice { First }; probe(): Nat { match missing { First() => 1 } }\nmain(): Void {}\n")
+      results = results.append(explain_run("unresolved match subject leaves variant membership unavailable", ["explain", source, "--function", "probe"], 1,
+        ["context: match subject", "checked match decision: unavailable", "decision rule: enum type", "context: match variant", "checked type requirement: unavailable", "actual type: unavailable", "expected type: variant of the matched enum", "did not determine a complete type decision"], [], "unknown local value missing"))
+      results = results.append(explain_run("unresolved match subject leaves exhaustiveness unavailable", ["explain", source, "--function", "probe"], 1,
+        ["context: match exhaustiveness", "checked match decision: unavailable", "subject type: unavailable", "decision rule: all variants of the matched enum are covered", "did not determine a complete type decision"], [], "unknown local value missing"))
+      explain_write(source, "enum Choice { First, Second }; probe(value: Choice): Nat { match value { First() => 1, Second() => 2 } }\nmain(): Void {}\n")
+      results = results.append(explain_run("exhaustive match explains complete variant coverage", ["explain", source, "--function", "probe"], 0,
+        ["context: match subject", "checked match decision: accepted", "decision rule: enum type", "context: match exhaustiveness", "checked match decision: accepted", "subject type: main.panack:Choice", "decision rule: all variants of main.panack:Choice are covered", "context: match arm uniqueness", "checked match decision: accepted", "reason: the existing checker accepted this match rule"], [], ""))
+      explain_write(source, "probe(value: Nat): Nat { match value { None() => 0 } }\nmain(): Void {}\n")
+      results = results.append(explain_run("non-enum match subject explains rejection", ["explain", source, "--function", "probe"], 1,
+        ["context: match subject", "checked match decision: rejected", "subject type: Nat", "decision rule: enum type", "context: match exhaustiveness", "checked match decision: unavailable", "decision rule: all variants of an enum subject are covered"], [], "match requires an enum, got Nat"))
+      explain_write(source, "enum Choice { First, Second }; probe(value: Choice): Nat { match value { First() => 1 } }\nmain(): Void {}\n")
+      results = results.append(explain_run("non-exhaustive match explains missing variants", ["explain", source, "--function", "probe"], 1,
+        ["context: match exhaustiveness", "checked match decision: rejected", "decision rule: all variants of main.panack:Choice are covered; missing Second", "reason: the existing checker rejected this match rule"], [], "non-exhaustive match; missing Second"))
+      explain_write(source, "enum Choice { First }; probe(value: Choice): Nat { match value { First() => 1, First() => 2 } }\nmain(): Void {}\n")
+      results = results.append(explain_run("duplicate match arm explains uniqueness rejection", ["explain", source, "--function", "probe"], 1,
+        ["context: match arm uniqueness", "checked match decision: rejected", "decision rule: variant First appears at most once in this match", "reason: the existing checker rejected this match rule"], [], "duplicate match arm First"))
+      explain_write(source, "enum Choice[T] { Pick(T), Empty }; probe(value: Choice[Nat]): Nat { match value { Pick() => 1, Empty() => 0 } }\nmain(): Void {}\n")
+      results = results.append(explain_run("match payload binding count explains rejection", ["explain", source, "--function", "probe"], 1,
+        ["context: match payload bindings", "checked match decision: rejected", "decision rule: expected 1 binding(s) for variant Pick; found 0", "reason: the existing checker rejected this match rule"], [], "pattern Pick expects 1 bindings"))
+      explain_write(source, "enum Choice[T] { Pick(T), Empty }; probe(value: Choice[Nat]): Nat { match value { Pick(item) => item, Empty() => 0 } }\nmain(): Void {}\n")
+      results = results.append(explain_run("accepted match payload binding count explains arity", ["explain", source, "--function", "probe"], 0,
+        ["context: match payload bindings", "checked match decision: accepted", "decision rule: expected 1 binding(s) for variant Pick; found 1"], [], ""))
+      results = results.append(explain_run("generic match payload explains substituted binding type", ["explain", source, "--function", "probe"], 0,
+        ["checked match payload type: accepted", "context: match payload type", "matched enum type: main.panack:Choice[Nat]", "payload source: binding item receives payload 1 of Pick", "resulting type: Nat", "the checker substituted this variant payload type for the pattern binding"], [], ""))
+      explain_write(source, "enum Choice[T] { Pick(T), Empty }; probe(): Nat { match missing { Pick(item) => 1, Empty() => 0 } }\nmain(): Void {}\n")
+      results = results.append(explain_run("unresolved generic match payload type is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["checked match payload type: unavailable", "context: match payload type", "matched enum type: unavailable", "payload source: binding item receives payload 1 of Pick", "resulting type: unavailable", "could not determine the matched enum type needed for payload substitution"], [], "unknown local value missing"))
+      explain_write(source, "record Box[T] { value: T }; probe(box: Box[Nat]): Nat { box.value }\nmain(): Void {}\n")
+      results = results.append(explain_run("accepted generic record field explains receiver and result types", ["explain", source, "--function", "probe"], 0,
+        ["context: field access", "checked type requirement: accepted", "actual type: main.panack:Box[Nat]", "expected type: record with field value", "resulting type: Nat"], [], ""))
+      explain_write(source, "probe(value: Nat): Nat { value.value }\nmain(): Void {}\n")
+      results = results.append(explain_run("rejected non-record field receiver preserves diagnostic", ["explain", source, "--function", "probe"], 1,
+        ["context: field access", "checked type requirement: rejected", "actual type: Nat", "expected type: record with field value"], [], "field access requires a record, got Nat"))
+      explain_write(source, "record Box { value: Nat }; probe(): Nat { missing.value }\nmain(): Void {}\n")
+      results = results.append(explain_run("unresolved field receiver is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["context: field access", "checked type requirement: unavailable", "actual type: unavailable", "expected type: record with field value", "The receiver type could not be determined."], [], "unknown local value missing"))
+      explain_write(source, "probe(flag: Bool): Rat { if flag { 1 } else { 3 / 2 } }\nmain(): Void {}\n")
+      results = results.append(explain_run("unresolved branch join is explicit", ["explain", source, "--function", "probe"], 1,
+        ["checked type join: unavailable", "context: conditional result", "input types: Nat and Rat", "resulting type: unavailable", "did not determine a complete join"], [], "function is not completely checked for identity emission: probe"))
+      explain_write(source, "probe(): Void { unresolved = []; }\nmain(): Void {}\n")
+      results = results.append(explain_run("incomplete inferred local is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["inferred local: unresolved", "inferred type: unavailable", "initializer did not determine a complete type"], ["inferred type: Array"], "cannot infer"))
+      results = results.append(explain_run("type-at does not explain an invalid body", ["explain", source, "--function", "probe", "--type-at", "1", "30"], 1,
+        ["checked expression type: unavailable", "function body type checking did not complete"], [], "cannot infer"))
+      explain_write(source, original)
+      explain_write(library, "// \u03bb\ud83d\ude42\npub pure remaining[T](item: T, n: Nat): Nat {\n  if n >= 2 { n - 2 } else { 0 }\n}\n")
+      results = results.append(explain_run("imported generic proof", ["explain", source, "--function", "remaining"], 0,
+        ["program: accepted", "function: remaining", "subtraction: proved", "source: project/library.panack:3:15-3:20\nexpression: n - 2", "left lower bound: 2", "guard branch: true\nsource: project/library.panack:3:6-3:12\nexpression: n >= 2"], ["subtraction: unproved"], ""))
+      results = results.append(explain_run("type-at preserves imported generic expression source", ["explain", source, "--function", "remaining", "--type-at", "3", "17"], 0,
+        ["checked expression type: Nat", "source: project/library.panack:3:15-3:20\nexpression: n - 2"], [], ""))
+      explain_write(library, "pub type Positive = Nat where value => value > 0\npub pure inspect[T](tag: T, value: Nat): Void {\n  if value > 0 { positive: Positive = value; }\n}\n")
+      explain_write(source, "import project/library as library\nmain(): Void { library.inspect[Str](\"tag\", 2); }\n")
+      results = results.append(explain_run("imported generic guarded conversion attribution", ["explain", source, "--function", "inspect"], 0,
+        ["guarded conversion: proved", "source: project/library.panack:3:", "conversion: Nat -> library.panack:Positive", "target guard: (value > 0)", "facts: value >= 1", "retained value facts satisfy the target guard"], ["guarded conversion: unproved"], ""))
+      explain_write(source, "type Positive = Nat where value => value > 0\ntype NonNegative = Nat where candidate => candidate >= 0\npure inspect(value: Nat): Void { if value > 0 { positive: Positive = value; } }\nmain(): Void {}\n")
+      results = results.append(explain_run("guarded conversion cites local branch facts", ["explain", source, "--function", "inspect"], 0,
+        ["guarded conversions:", "guarded conversion: proved", "conversion: Nat -> main.panack:Positive", "target guard: (value > 0)", "facts: value >= 1", "retained value facts satisfy the target guard"], ["guarded conversion: unproved"], ""))
+      explain_write(source, "type Positive = Nat where value => value > 0\ntype NonNegative = Nat where candidate => candidate >= 0\npure inspect(value: Positive): Void { broad: NonNegative = value; }\nmain(): Void {}\n")
+      results = results.append(explain_run("guarded source proves a broader guarded target", ["explain", source, "--function", "inspect"], 0,
+        ["guarded conversion: proved", "conversion: main.panack:Positive -> main.panack:NonNegative", "source guard: (value > 0)", "target guard: (candidate >= 0)", "facts: value >= 1"], ["guarded conversion: unproved"], ""))
+      explain_write(source, "type Positive = Nat where value => value > 0\npure inspect(): Positive { 0 }\nmain(): Void {}\n")
+      results = results.append(explain_run("rejected guarded conversion explains missing proof", ["explain", source, "--function", "inspect"], 1,
+        ["program: rejected", "guarded conversion: unproved", "source: project/main.panack:2:", "expression: 0", "conversion: Nat -> main.panack:Positive", "facts: value >= 0 and value <= 0", "do not prove the target guard"], [], "return of inspect is Nat, expected main.panack:Positive"))
+      explain_write(source, "type Positive = Nat where value => value > 0\npure inspect(value: Positive): Nat { value }\nmain(): Void {}\n")
+      results = results.append(explain_run("guarded to base widening has no proof conversion", ["explain", source, "--function", "inspect"], 0,
+        ["guarded conversions: none"], ["guarded conversion:"], ""))
+      results = results.append(explain_run("query does not execute main", ["explain", source, "--function", "main"], 0,
+        ["subtraction: unavailable", "no subtraction evidence"], ["\n3\n", "\n2\n"], ""))
+      results = results.append(explain_run("unknown function", ["explain", source, "--function", "absent"], 1,
+        [], [], "unknown function absent"))
+      explain_write(source, "main(): Void { print(3); print(2); }\n")
+      results = results.append(explain_run("ordinary source executes", [source], 0,
+        ["3\n2\n"], ["program:"], ""))
+      results = results.append(explain_run("ordinary compile", ["compile", source, "-o", artifact], 0,
+        ["wrote "], [], ""))
+      results = results.append(explain_run("ordinary bytecode executes", [artifact], 0,
+        ["3\n2\n"], ["program:"], ""))
+      explain_write(source, "main(): Void { mut n: Nat = 3; if n >= 2 { n = 0; print(n - 2); } }")
+      results = results.append(explain_run("stale guard is not cited", ["explain", source, "--function", "main"], 1,
+        ["program: rejected", "subtraction: unproved", "does not establish a runtime failure"], ["left lower bound", "guard branch"], "Nat subtraction may underflow"))
+      explain_write(source, "main(): Void { mut n: Nat = 3; if n >= 2 { n = 4; if n > 2 { print(n - 3); } } }")
+      results = results.append(explain_run("fresh guard is cited", ["explain", source, "--function", "main"], 0,
+        ["subtraction: proved", "left lower bound: 3", "expression: n > 2"], ["left lower bound: 2"], ""))
+      explain_write(source, "pure f(n: Nat): Nat { if n < 2 { 0 } else { n - 2 } } main(): Void {}")
+      results = results.append(explain_run("false branch proof", ["explain", source, "--function", "f"], 0,
+        ["subtraction: proved", "guard branch: false", "expression: n < 2"], [], ""))
+      explain_write(source, "main(): Void { print(5 - 2); }")
+      results = results.append(explain_run("constant proof", ["explain", source, "--function", "main"], 0,
+        ["subtraction: proved", "left constant: 5", "right constant: 2", "retained constant values"], ["guard branch"], ""))
+      explain_write(source, "pure f(n: Nat, m: Nat): Nat { if n >= m { n - m } else { 0 } } main(): Void {}")
+      results = results.append(explain_run("unsupported relationship remains unproved", ["explain", source, "--function", "f"], 1,
+        ["subtraction: unproved", "right constant: unknown"], ["guard branch"], "Nat subtraction may underflow"))
+      explain_write(source, "main(): Void { n: Int = 3; print(n - 1); }")
+      results = results.append(explain_run("Int explanation unavailable", ["explain", source, "--function", "main"], 0,
+        ["program: accepted", "subtraction: unavailable", "only explains Nat"], ["subtraction: proved"], ""))
+      explain_write(source, "main(): Void { print(true - 1); }")
+      results = results.append(explain_run("invalid operand explanation unavailable", ["explain", source, "--function", "main"], 1,
+        ["program: rejected", "subtraction: unavailable", "operand checking failed"], ["subtraction: proved"], "does not accept Bool and Nat"))
+      for expression in ["3 - 1.0", "3.0 - 1", "true - (-1)"] {
+        explain_write(source, "main(): Void { print(" + expression + "); }")
+        results = results.append(explain_run("incompatible numeric operands", ["explain", source, "--function", "main"], 1,
+        ["program: rejected", "subtraction: unavailable", "operand checking failed"], ["subtraction: unproved", "obligation: left >= right"], "does not accept"))
+      }
+      explain_write(source, "pure f(): Nat { print(1); 5 - 2 } main(): Void {}")
+      results = results.append(explain_run("local proof does not accept impure program", ["explain", source, "--function", "f"], 1,
+        ["program: rejected", "subtraction: proved"], ["program: accepted"], "pure"))
+      explain_write(source, "main(): Void { print(5 - 2); print(unknown); }")
+      results = results.append(explain_run("local constant proof survives an unrelated unknown value", ["explain", source, "--function", "main"], 1,
+        ["program: rejected", "subtraction: proved", "retained constant values satisfy the obligation"], ["program: accepted"], "unknown"))
+      explain_write(source, "main(): Void { ??? }")
+      results = results.append(explain_run("syntax failure has no fabricated proof", ["explain", source, "--function", "main"], 1,
+        ["program: rejected", "subtraction: unavailable"], ["subtraction: proved"], "error:"))
+      results = results.append(explain_run("missing source", ["explain", root + "/missing.panack", "--function", "main"], 1,
+        ["program: rejected", "subtraction: unavailable"], ["subtraction: proved"], "missing source module"))
+      for args in [["explain"], ["explain", artifact, "--function", "main"], ["explain", source, "--function", ""],
+          ["explain", source, "--other", "main"], ["explain", source, "--function", "main", "extra"]] {
+        results = results.append(explain_run("invalid explain arguments", args, 1, [], ["program:"], "explain usage"))
+      }
+      match std_process.run(explain_path("/usr/bin/env"), ["-u", "PANACKELTY_STDLIB_PATH", "./panack-vm", "run",
+          "bootstrap/compiler-v9.bc", "explain", source, "--function", "main"], byte_buffer.empty(), std_path.current(), [], std_time.seconds(15), 1048576) {
+        Error(error) => { results = results.append(std_testing.expect("missing embedded stdlib configuration", false, "command failed")); },
+        Ok(actual) => { results = results.append(std_testing.expect("missing embedded stdlib configuration",
+          actual.exit_code == 1 && actual.signal == 0 && explain_contains(actual.stderr.decode_utf8(), "standard library root is not configured") &&
+          !explain_contains(actual.stderr.decode_utf8(), "VM trap"), actual.stderr.decode_utf8())); }
+      }
+      explain_write(library, "// \u03bb\ud83d\ude42\npub pure inspect[T](item: T): Void { print(item); }\n")
+      explain_write(source, "import project/library as library\nmain(): Void {}\n")
+      results = results.append(explain_run("imported generic effect rejection", ["explain", source, "--function", "inspect"], 1,
+        ["effect boundary: rejected", "source: project/library.panack:2:38-2:49", "expression: print(item)", "context: pure", "callee: print", "callee effect: ordinary", "pure function cannot call impure function print"], ["effect boundary: allowed"], "pure function cannot call impure function print"))
+      explain_write(source, "pure silent(): Nat { 1 } main(): Void { print(silent()); }")
+      results = results.append(explain_run("allowed effect boundaries", ["explain", source, "--function", "main"], 0,
+        ["effect boundary: allowed", "callee: print", "ordinary function permits", "callee: main.panack:silent", "pure call is permitted"], ["effect boundary: rejected"], ""))
+      results = results.append(explain_run("no calls has no invented evidence", ["explain", source, "--function", "silent"], 0,
+        ["effects: unavailable", "no call or await boundary"], ["effect boundary:"], ""))
+      explain_write(source, "type Positive = Nat where value => value > 0\nprobe(name: Positive): Str { print(name); \"hello " + interpolation + "\" }\nmain(): Void {}\n")
+      results = results.append(explain_run("deferred function retains its checked effect boundaries", ["explain", source, "--function", "probe"], 1,
+        ["effect boundary: allowed", "callee: print", "function status: type checking is deferred; these are the effect boundaries the checker retained"], ["effects: unavailable", "no call or await boundary"], "function is not completely checked for identity emission: probe"))
+      explain_write(source, "pure answer(): Nat { 42 } pure probe(): Nat { f: Fn[Nat] = @answer; f.call() } main(): Void {}")
+      results = results.append(explain_run("callable declared effect", ["explain", source, "--function", "probe"], 1,
+        ["effect boundary: rejected", "expression: f.call()", "classification basis: checked declaration identity", "callee effect: ordinary"], [], "pure function cannot call impure function core.panack:Fn.call"))
+      explain_write(source, "async child(): Nat { 42 } async main(): Unit { n = await child(); () }")
+      results = results.append(explain_run("allowed async await", ["explain", source, "--function", "main"], 0,
+        ["effect boundary: allowed", "context: async", "callee effect: async", "awaited: yes", "async call is awaited inside an async function"], ["effect boundary: rejected", "\n42\n"], ""))
+      explain_write(source, "async main(): Unit { print(42); () }")
+      results = results.append(explain_run("async blocking rejection", ["explain", source, "--function", "main"], 1,
+        ["effect boundary: rejected", "context: async", "async function cannot call blocking function print"], [], "async function cannot call blocking function print"))
+      explain_write(source, "async child(): Nat { 42 } async main(): Unit { await child(); () }")
+      results = results.append(explain_run("discarded await explains rejection", ["explain", source, "--function", "main"], 1,
+        ["effect boundary: rejected", "boundary: await result", "bind, match or return a non-Unit await result"], [], "non-Unit await result"))
+      explain_write(source, "main(): Void { n: Bool = 1; print(n); }")
+      results = results.append(explain_run("type failure skips effects", ["explain", source, "--function", "main"], 1,
+        ["effects: unavailable", "type checking prevented the effect pass"], ["effect boundary:"], "binding n is Nat, expected Bool"))
+      explain_write(source, "pure broken(): Nat { true } pure probe(): Nat { broken() } main(): Void { print(1); }")
+      results = results.append(explain_run("valid caller with invalid callee body", ["explain", source, "--function", "probe"], 1,
+        ["program: rejected", "effect boundary: allowed", "callee: main.panack:broken", "classification basis: checked declaration identity", "callee effect: pure"], ["effect boundary: rejected"], "return of broken is Bool"))
+      results = results.append(explain_run("invalid body explicitly unavailable", ["explain", source, "--function", "broken"], 1,
+        ["effects: unavailable", "function body type checking"], ["effect boundary:"], "return of broken is Bool"))
+      explain_write(library, "// \u03bb\ud83d\ude42\npub pure inspect[T](item: T): Void { print(item); }\n")
+      explain_write(source, "import project/library as library\nmain(): Void { n: Bool = 1; m: Nat = true; }\n")
+      results = results.append(explain_run("recover imported generic rejection", ["explain", source, "--function", "inspect"], 1,
+        ["program: rejected", "effect boundary: rejected", "source: project/library.panack:2:38-2:49", "expression: print(item)", "pure function cannot call impure function print"], ["effect boundary: allowed"], "binding n is Nat, expected Bool"))
+      // The explanation's stderr must equal ordinary diagnostics byte for byte,
+      // including order; recovered purity violations appear only in evidence.
+      match std_process.run(explain_path("./bin/panack"), ["check", source], byte_buffer.empty(), std_path.current(), [], std_time.seconds(15), 1048576) {
+        Error(error) => { results = results.append(std_testing.expect("recovery diagnostic parity", false, "check failed")); },
+        Ok(ordinary) => {
+          match std_process.run(explain_path("./bin/panack"), ["explain", source, "--function", "inspect"], byte_buffer.empty(), std_path.current(), [], std_time.seconds(15), 1048576) {
+            Error(error) => { results = results.append(std_testing.expect("recovery diagnostic parity", false, "explain failed")); },
+            Ok(explained) => { results = results.append(std_testing.expect("recovery diagnostic parity", ordinary.exit_code == 1 && explained.exit_code == 1 && ordinary.stderr == explained.stderr, explained.stderr.decode_utf8())); }
+          }
+        }
+      }
+      for invalid in ["ordinary(): Nat { 1 } pure bad(): Nat { cb: PureFn[Nat] = @ordinary; cb.call() }",
+          "bad(): Void { 42.call(); }", "async child(): Nat { 1 } async bad(): Bool { await child() }",
+          "bad(): Void { for cb in 42 { cb.call(); } }"] {
+        explain_write(source, "main(): Void { print(1); } " + invalid)
+        results = results.append(explain_run("invalid inferred types never yield effects", ["explain", source, "--function", "bad"], 1,
+        ["effects: unavailable", "function body type checking"], ["effect boundary:"], "error:"))
+        results = results.append(explain_run("valid sibling survives invalid inferred types", ["explain", source, "--function", "main"], 1,
+        ["program: rejected", "effect boundary: allowed", "callee: print"], ["effects: unavailable"], "error:"))
+      }
+      for invalid in ["bad(x: Missing): Void {}", "type Bad = Nat where value => 1;", "record Bad { x: Nat, x: Bool }", "enum Bad { Value(Missing) }"] {
+        explain_write(source, "main(): Void { print(1); } " + invalid)
+        results = results.append(explain_run("global declaration prevents recovery", ["explain", source, "--function", "main"], 1,
+        ["effects: unavailable", "global declaration checking"], ["effect boundary:"], "error:"))
+      }
+      explain_write(source, "main(): Void { print(1); }")
+      results = results.append(explain_run("repaired source has fresh accepted evidence", ["explain", source, "--function", "main"], 0,
+        ["program: accepted", "effect boundary: allowed"], ["effects: unavailable"], ""))
+      explain_write(source, "main(): Void { unknown(); }")
+      results = results.append(explain_run("resolution failure skips effects", ["explain", source, "--function", "main"], 1,
+        ["effects: unavailable", "function body type checking"], ["effect boundary:"], "unknown"))
+      explain_write(source, "main(): Void { ??? }")
+      results = results.append(explain_run("syntax failure skips effects", ["explain", source, "--function", "main"], 1,
+        ["effects: unavailable"], ["effect boundary:"], "error:"))
+      explain_write(source, "import \"library.panack\" as left\nimport \"right.panack\" as right\nmain(): Void { print(left.duplicate()); print(right.duplicate()); }\n")
+      explain_write(library, "pub duplicate(): Nat { print(11); 11 }\n")
+      explain_write(other, "pub duplicate(): Nat { print(22); 22 }\n")
+      results = results.append(explain_run("qualified explanation selects left identity",
+        ["explain", source, "--function", "project/library.panack:duplicate"], 0,
+        ["program: accepted", "function: project/library.panack:duplicate", "source: project/library.panack:", "expression: print(11)"],
+        ["expression: print(22)"], ""))
+      results = results.append(explain_run("qualified explanation selects right identity",
+        ["explain", source, "--function", "project/right.panack:duplicate"], 0,
+        ["program: accepted", "function: project/right.panack:duplicate", "source: project/right.panack:", "expression: print(22)"],
+        ["expression: print(11)"], ""))
+      results = results.append(explain_run("ambiguous explanation selector rejected",
+        ["explain", source, "--function", "duplicate"], 1,
+        [], [], "ambiguous function selector duplicate"))
+      results = results.append(explain_run("wrong explanation identity rejected",
+        ["explain", source, "--function", "project/missing.panack:duplicate"], 1,
+        [], [], "mismatched module identity selector"))
+      explain_write(source, "pure probe(input: Nat): Nat { mut value = input; if value >= 2 { value = input; value - 2 } else { 0 } }\nmain(): Void {}\n")
+      results = results.append(explain_run("reassignment explains invalidated subtraction bound", ["explain", source, "--function", "probe"], 1,
+        ["subtraction: unproved", "A reassignment invalidated the earlier bound.", "source: project/main.panack:1:74-1:79", "expression: input"], [], "Nat subtraction may underflow"))
+      explain_write(source, "type Small = Nat where value => value <= 10\npure probe(value: Nat): Void { if value <= 10 { small: Small = value; } }\nmain(): Void {}\n")
+      results = results.append(explain_run("upper-bound conversion links its condition", ["explain", source, "--function", "probe"], 0,
+        ["guarded conversion: proved", "True branch:", "expression: value <= 10"], [], ""))
+      explain_write(source, "import stdlib/http_runtime as runtime\nasync probe(connection: HttpConnectionState[Nat,Nat]): Nat { runtime.body_size(connection) }\nmain(): Void {}\n")
+      results = results.append(explain_run("async local-resource permission links the wrapper call", ["explain", source, "--function", "probe"], 0,
+        ["effect boundary: allowed", "classification basis: local resource permission", "Local resource call: http_body_size", "source: stdlib/http_runtime.panack:", "expression: http_body_size(connection)"], [], ""))
+      explain_write(source, "type Label = Str where label => label.len() <= 2\npure probe(): Label { Label(\"é\") }\nmain(): Void {}\n")
+      results = results.append(explain_run("domain proof cites its declaration", ["explain", source, "--function", "probe"], 0,
+        ["context: domain constraint", "at most 2 Unicode scalar values", "Guard declaration:", "label.len() <= 2", "The value contains 1 Unicode scalar value."], [], ""))
+      explain_write(source, "type Short = Str where s => s.len() <= 2\npure probe(input: Str): Short { input }\nmain(): Void {}\n")
+      results = results.append(explain_run("unknown string proof explains the missing bound", ["explain", source, "--function", "probe"], 1,
+        ["context: domain constraint", "Panack cannot prove", "Guard declaration:"], [], "Panack cannot prove this value meets the requirement: at most 2 Unicode scalar values."))
+      explain_write(source, "type Word = Str where w => w != \"\"\nmain(): Void { print(Word(\"\")) }\n")
+      results = results.append(explain_run("empty string fails non-empty requirement", ["check", source], 1,
+        [], [], "at least 1 Unicode scalar value. The value contains 0 Unicode scalar values."))
+      explain_write(source, "type One = Str where s => s.len() <= 1\nmain(): Void { print(One(\"é\")) }\n")
+      results = results.append(explain_run("literal scalar maximum counts decomposed text", ["check", source], 1,
+        [], [], "at most 1 Unicode scalar value. The value contains 2 Unicode scalar values."))
+      explain_write(source, "type Word = Str where w => w.is_non_blank()\nmain(): Void { print(Word(\"　\")) }\n")
+      results = results.append(explain_run("Unicode whitespace fails non-blank requirement", ["check", source], 1,
+        [], [], "Every character is Unicode whitespace."))
+      explain_write(source, "type Line = Str where w => w.has_no_control_characters()\nmain(): Void { print(Line(\"a\\tb\")) }\n")
+      results = results.append(explain_run("control character fails static content requirement", ["check", source], 1,
+        [], [], "The string contains a control character."))
+      explain_write(source, "type Names = [Str] where names =>\n  names.len() >= 4 && names.len() <= 2\nmain(): Void {}\n")
+      results = results.append(explain_run("reject contradictory size bounds at declaration", ["check", source], 1,
+        [], [], "at least 4 array elements but allows at most 2 array elements"))
+      explain_write(source, "type Word = Str where w => w != \"\" || w.is_non_blank()\nmain(): Void {}\n")
+      results = results.append(explain_run("reject new string alternatives", ["check", source], 1,
+        [], [], "unsupported guard for Str"))
+      explain_write(source, "type Word = Str where w => w.ends_with(\"x\")\nmain(): Void {}\n")
+      results = results.append(explain_run("reject arbitrary text methods in guards", ["check", source], 1,
+        [], [], "unsupported guard for Str"))
+      explain_write(source, "type Names = [Str] where a => a.len() >= a.len()\nmain(): Void {}\n")
+      results = results.append(explain_run("reject dynamic size bound", ["check", source], 1,
+        [], [], "unsupported guard for [Str]"))
+      explain_write(source, "type Names = [Str] where a => a.len() >= 1\nmain(): Void { print(Names([])) }\n")
+      results = results.append(explain_run("reject empty array from non-empty domain", ["check", source], 1,
+        [], [], "1 array element. The value contains 0 array elements."))
+      explain_write(source, "type Names = [Str] where a => a.len() <= 1\npure probe(a: [Str]): Names { Names(a) }\nmain(): Void {}\n")
+      results = results.append(explain_run("unknown collection size requires proof", ["check", source], 1,
+        [], [], "Panack cannot prove this value meets the requirement: at most 1 array element."))
+      explain_write(source, "type Names = [Str] where a => a.len() >= 1\nmain(): Void { print(Names([1])) }\n")
+      results = results.append(explain_run("guarded collection preserves element identity", ["check", source], 1,
+        [], [], "construction is Array[Nat], expected"))
+      explain_write(source, "type Two = Map[Str,Nat] where m => m.len() >= 2\nmain(): Void { print(Two(map().put(\"a\",1).put(\"a\",2))) }\n")
+      results = results.append(explain_run("map replacement does not increase entry count", ["check", source], 1,
+        [], [], "at least 2 map entries. The value contains 1 map entry."))
+      explain_write(source, "type Two = Set[Nat] where s => s.len() >= 2\nmain(): Void { print(Two(set().add(1).add(1))) }\n")
+      results = results.append(explain_run("duplicate set addition does not increase count", ["check", source], 1,
+        [], [], "at least 2 distinct set elements. The value contains 1 distinct set element."))
+      explain_write(source, "type Short = Str where s => s.len() <= 2\npure probe(a: Str): Void { mut s = a; if s.len() <= 2 { s = \"long\"; checked: Short = s; } }\nmain(): Void {}\n")
+      results = results.append(explain_run("assignment invalidates a branch size proof", ["check", source], 1,
+        [], [], "at most 2 Unicode scalar values. The value contains 4 Unicode scalar values."))
+      explain_write(source, "type Short = Str where s => s.len() <= 2\npure probe(a: Str): Void { mut s = a; if s.len() <= 2 && (if true { s = \"long\"; true } else { true }) { checked: Short = s; } }\nmain(): Void {}\n")
+      results = results.append(explain_run("mutation in a later condition cannot revive an earlier bound", ["check", source], 1,
+        [], [], "Panack cannot prove"))
+      explain_write(source, "type Label = Str where s => s.is_non_blank()\nmain(): Void { print(validate[Label](42)) }\n")
+      results = results.append(explain_run("validation rejects the wrong input type", ["check", source], 1,
+        [], [], "input to validate[Label] is Nat, expected Str"))
+      explain_write(source, "main(): Void { print(validate[Str](\"text\")) }\n")
+      results = results.append(explain_run("validation requires a declared guard", ["check", source], 1,
+        [], [], "Str has no declared guard"))
+      explain_write(source, "type Label = Str where s => s.is_non_blank()\nmain(): Void { print(validate[Label,Label](\"x\")) }\n")
+      results = results.append(explain_run("validation explains its call shape", ["check", source], 1,
+        [], [], "Use validate[Type](value) with one guarded type and one value"))
+      labelled_source = root + "/" + interpolation + ".panack"
+      explain_write(labelled_source, "type Word = Str where s => s.is_non_blank()\nmain(): Void { match validate[Word](\"\") { Ok(w) => print(w), Error(problem) => print(problem.target_type) } }\n")
+      results = results.append(explain_run("validation treats a module name as literal data", ["run", labelled_source], 0,
+        [interpolation + ".panack:Word"], [], ""))
+      explain_write(source, "record Range { start: Int, end: Int }\ntype Ordered = Range where r => r.start <= r.end\nmain(): Void { print(Ordered(Range(5,2))) }\n")
+      results = results.append(explain_run("reversed record literal", ["check",source],1,[],[],"violates the requirement"))
+      explain_write(source, "record Range { start: Int, end: Int }\ntype Ordered = Range where r => r.start < r.end\nmain(): Void { print(Ordered(Range(2,2))) }\n")
+      results = results.append(explain_run("strict guard rejects equal fields", ["check",source],1,[],[],"violates the requirement"))
+      explain_write(source, "record Range { start: Int, end: Int }\ntype Ordered = Range where r => r.start <= r.end\nprobe(input: Range): Ordered { mut v = Range(1,2); v = input; Ordered(v) }\nmain(): Void {}\n")
+      results = results.append(explain_run("reassignment loses a record proof", ["check",source],1,[],[],"cannot prove"))
+      explain_write(source, "record Range { start: Int, end: Int }\ntype Ordered = Range where r => r.start <= r.end\nprobe(input: Range): Void { mut v = input; if v.start <= v.end && (if true { v = Range(5,2); true } else { true }) { ordered: Ordered = v; } }\nmain(): Void {}\n")
+      results = results.append(explain_run("writes in a condition invalidate record evidence", ["check",source],1,[],[],"cannot prove"))
+      explain_write(source, "record Range { start: Nat, end: Int }\ntype Ordered = Range where r => r.start <= r.end\nmain(): Void {}\n")
+      results = results.append(explain_run("mixed numeric field types", ["check",source],1,[],[],"same underlying ordered numeric type"))
+      explain_write(source, "record Range { start: Str, end: Str }\ntype Ordered = Range where r => r.start <= r.end\nmain(): Void {}\n")
+      results = results.append(explain_run("text fields cannot form a numeric relationship", ["check",source],1,[],[],"same underlying ordered numeric type"))
+      explain_write(source, "record Inner { n: Nat }\nrecord Outer { a: Inner, b: Inner }\ntype Ordered = Outer where o => o.a.n < o.b.n\nmain(): Void {}\n")
+      results = results.append(explain_run("reject nested record comparisons", ["check",source],1,[],[],"Compare two direct fields"))
+      explain_write(source, "record Range { start: Int, end: Int }\ntype Ordered = Range where r => r.start + 1 <= r.end\nmain(): Void {}\n")
+      results = results.append(explain_run("reject arithmetic in record relationships", ["check",source],1,[],[],"Compare two direct fields"))
+      explain_write(source, "record Range { start: Int, end: Int }\ntype Ordered = Range where r => r.start <= r.end\npure changed(r: Ordered): Range { Range(r.end,r.start) }\npure probe(r: Ordered): Ordered { changed(r) }\nmain(): Void {}\n")
+      results = results.append(explain_run("function returning a base record loses the guarantee", ["check",source],1,[],[],"cannot prove"))
+      explain_write(source, "record Range { start: Int, end: Int }\ntype Ordered = Range where r => r.start <= r.end\nrecord Other { start: Int, end: Int }\nmain(): Void { print(validate[Ordered](Other(1,2))) }\n")
+      results = results.append(explain_run("same-shaped records keep their own identity", ["check",source],1,[],[],"expected"))
+      explain_write(library,"pub record Span { start: Int, end: Int }\npub type Ordered = Span where s => s.start <= s.end\n")
+      explain_write(source,"import project/library::{Span, Ordered}\npure fixed(): Ordered { Ordered(Span(2,3)) }\nmain(): Void { match validate[Ordered](Span(3,2)) { Ok(s) => print(s.start), Error(e) => print(e.render()) } }\n")
+      results = results.append(explain_run("static record proof links the declared relationship", ["explain",source,"--function","fixed"],0,
+        ["context: domain constraint","Guard declaration:","source: project/library.panack:2:","s.start <= s.end"],[],""))
+      results = results.append(explain_run("runtime check distinguishes scheduling from proof", ["explain",source,"--function","main"],0,
+        ["checked at runtime","context: runtime validation","Guard declaration:","source: project/library.panack:2:"],[],""))
+      relation_bc = root + "/relation.bc"
+      relation_map = root + "/relation.map"
+      results = results.append(explain_run("compile record relationship with source map", ["compile",source,"-o",relation_bc,"--source-map",relation_map],0,["wrote source map"],[],""))
+      results = results.append(explain_run("record comparison bytecode maps back to the imported guard", ["locate",relation_bc,"--source",source,"--source-map",relation_map,"--source-file","project/library.panack","--source-at","2","40"],0,
+        ["Source: s.start <= s.end","project/main.panack:main instruction","BINARY|<="],[],""))
+      explain_write(source,"record R { a: Int, b: Int }\ntype Ordered = R where r => r.a <= r.b\npure test(x: Ordered,y: Ordered): Ordered { Ordered(R(x.a,y.b)) }\nmain(): Void {}\n")
+      results = results.append(explain_run("two ordered inputs do not prove a mixed replacement",["check",source],1,[],[],"cannot prove"))
+      explain_write(source,"record R { a: Int, b: Int, note: Bool }\ntype Ordered = R where r => r.a <= r.b\npure test(x: Ordered,y: Ordered): Ordered { mut v = x; Ordered(R(v.a,(if true { v = y; v.b } else { v.b }),true)) }\nmain(): Void {}\n")
+      results = results.append(explain_run("mutation during reconstruction loses the shared origin",["check",source],1,[],[],"cannot prove"))
+      explain_write(source,"type Short = Str where s => s.len() <= 2\npure test(x: Short): Short { x + \"!\" }\nmain(): Void {}\n")
+      results = results.append(explain_run("a transformed string must establish its target guard again",["check",source],1,[],[],"cannot prove"))
+      explain_write(source,"type One = [Nat] where a => a.len() <= 1\npure test(x: One): One { x.append(1) }\nmain(): Void {}\n")
+      results = results.append(explain_run("an appended collection must establish its target guard again",["check",source],1,[],[],"cannot prove"))
+      explain_write(source, "type Word = Str where s => s.is_non_blank()\npure choose(b: Bool): Word { if b { Word(\"hi\") } else { \"\" } }\nmain(): Void {}\n")
+      results = results.append(explain_run("mixed conditional rejects the failing branch", ["check",source],1,[],[],"The string is empty. Guard declared"))
+      explain_write(source, "type Word = Str where s => s.is_non_blank()\npure choose(b: Bool,s: Str): Word { if b { s } else { Word(\"hi\") } }\nmain(): Void {}\n")
+      results = results.append(explain_run("mixed conditional requires proof for unknown input", ["check",source],1,[],[],"Panack cannot prove"))
+      explain_write(source, "type Word = Str where s => s.is_non_blank()\npure take(a: [[Word]]): Void {}\nmain(): Void { take([[\"hello\",\"\"]]) }\n")
+      results = results.append(explain_run("nested literal reports its failing word", ["check",source],1,[],[],"The string is empty. Guard declared"))
+      explain_write(source, "type Word = Str where s => s.is_non_blank()\npure take(a: [Word]): Void {}\npure test(s: Str): Void { take([s]) }\nmain(): Void {}\n")
+      results = results.append(explain_run("unknown array element requires proof", ["check",source],1,[],[],"Panack cannot prove"))
+      explain_write(source, "type Word = Str where s => s.is_non_blank()\npure take(a: [Word]): Void {}\npure test(a: [Str]): Void { take(a) }\nmain(): Void {}\n")
+      results = results.append(explain_run("base array cannot acquire element guarantees", ["check",source],1,[],[],"proof for each array element"))
+      explain_write(source, "type Word = Str where s => s.is_non_blank()\ntype Names = [Str] where a => a.len() >= 1\npure bad(a: Names): Str { a[\"key\"] }\nmain(): Void {}\n")
+      results = results.append(explain_run("guarded array still requires a natural index", ["check",source],1,[],[],"index is Str, expected Nat"))
+      explain_write(source, "type Word = Str where s => s.is_non_blank()\ntype One = Map[Str,Nat] where m => m.len() >= 1\npure bad(a: One): Nat { a[0] }\nmain(): Void {}\n")
+      results = results.append(explain_run("guarded map uses ordinary indexing restrictions", ["check",source],1,[],[],"indexing requires Str, Bytes or array"))
+      explain_write(source, "type Word = Str where s => s.is_non_blank()\ntype Queue = [Word] where a => a.len() >= 1\nmain(): Void { print(Queue([]).len()) }\n")
+      results = results.append(explain_run("array size proof still required after checking its elements", ["check",source],1,[],[],"at least 1 array element"))
+      explain_write(source, "type Word = Str where s => s.is_non_blank()\ntype Queue = [Word] where a => a.len() >= 1\nmain(): Void { print(Queue([\"\"])[0]) }\n")
+      results = results.append(explain_run("array size cannot satisfy its element guard", ["check",source],1,[],[],"The string is empty."))
+      explain_write(source, "type Word = Str where s => s.is_non_blank()\ntype Queue = [Word] where a => a.len() >= 1\nmain(): Void { print(Queue([\"ok\"])[1]) }\n")
+      results = results.append(explain_run("guarded array indexing retains the VM bounds check", ["run",source],1,[],[],"index is out of bounds"))
+      explain_write(source, "type Word = Str where s => s.is_non_blank()\npure probe(words: [Word]): [Word] { words.append(\"ok\") }\nmain(): Void {}\n")
+      results = results.append(explain_run("append retains the guarded item proof", ["explain",source,"--function","probe"],0,
+        ["context: domain constraint", "expression: \"ok\"", "Guard declaration:", "The value satisfies the requirement"],[],""))
+      explain_write(source, "type Word = Str where s => s.is_non_blank()\npure probe(m: Map[Str,Word]): Map[Str,Word] { m.put(\"key\",\"\") }\nmain(): Void {}\n")
+      results = results.append(explain_run("map retains its guarded value rejection", ["explain",source,"--function","probe"],1,
+        ["context: domain constraint", "The string is empty.", "Guard declaration:"],[],"string is empty"))
+      explain_write(source, "type Word = Str where s => s.is_non_blank()\npure probe(s: Set[Word]): Set[Word] { s.add(\"ok\") }\nmain(): Void {}\n")
+      results = results.append(explain_run("set retains its guarded item proof", ["explain",source,"--function","probe"],0,
+        ["context: domain constraint", "expression: \"ok\"", "Guard declaration:"],[],""))
+      explain_write(source, "type Word = Str where s => s.is_non_blank()\npure probe(f: PureFn[Word,Str]): Str { f.call(\"ok\") }\nmain(): Void {}\n")
+      results = results.append(explain_run("indirect call retains domain requirements", ["explain",source,"--function","probe"],0,
+        ["context: domain constraint", "expression: \"ok\"", "Guard declaration:"],[],""))
+      explain_write(source, "type Word = Str where s => s.is_non_blank()\npure probe(): Void { result = validate[Word](12); }\nmain(): Void {}\n")
+      results = results.append(explain_run("invalid validation input reports its stopping point", ["explain",source,"--function","probe"],1,
+        ["context: validation input", "actual type: Nat", "Panack cannot run this validation call."],["context: runtime validation"],"expected Str"))
+      explain_write(source, "type Tiny = Str where s => s.len() <= 2\npure probe(input: Str): Tiny { if input.len() <= 2 { Tiny(input) } else { Tiny(\"ok\") } }\nmain(): Void {}\n")
+      results = results.append(explain_run("branch domain proof points to establishing condition", ["explain",source,"--function","probe"],0,
+        ["context: supporting guard fact", "Supporting source:", "expression: input.len() <= 2", "This condition is true here."],[],""))
+      explain_write(source, "type Tiny = Str where s => s.len() <= 2\npure probe(input: Str,next: Str): Void { mut s = input; if s.len() <= 2 { s = next; result: Tiny = s; } }\nmain(): Void {}\n")
+      results = results.append(explain_run("write invalidates a domain branch fact", ["explain",source,"--function","probe"],1,
+        ["context: domain constraint", "checked type requirement: unproved", "A write invalidated the earlier facts", "Supporting source:"],[],"cannot prove"))
+      explain_write(library,"pub type Small = Int where n => n - 1 <= 10\npub pure probe(): Nat { 3 - 2 }\n")
+      explain_write(source,"import project/library::{Small}\npure probe(n: Int): Void { answer = validate[Small](n); }\nmain(): Void {}\n")
+      results = results.append(explain_run("imported validation keeps the caller's effects and subtraction",["explain",source,"--function","project/main.panack:probe"],0,
+        ["source: project/library.panack:1:","expression: n - 1","callee: validation.panack:numeric"],["expression: 3 - 2"],""))
+      results = results.append(explain_run("same-named sibling excludes the caller's generated checks",["explain",source,"--function","project/library.panack:probe"],0,
+        ["expression: 3 - 2"],["callee: validation.panack:numeric","context: runtime validation"],""))
+      explain_write(source,"main(): Void { result = validate[Str](\"ok\"); }\n")
+      results = results.append(explain_run("rejected validation target explains the skipped requirements",["explain",source,"--function","main"],1,
+        ["context: validation target","Str has no declared guard"],["context: runtime validation","context: validation input"],"Str has no declared guard"))
+      for file in [source, library, artifact, labelled_source, relation_bc, relation_map] {
+        match std_filesystem.remove_file(explain_path(file)) { Ok(done) => {}, Error(error) => { results = results.append(std_testing.expect("cleanup", false, error.code)); } }
+      }
+      std_filesystem.remove_file(explain_path(other))
+      match workspace.remove_empty() { Ok(done) => {}, Error(error) => { results = results.append(std_testing.expect("workspace cleanup", false, error.code)); } }
+      if std_testing.report(results) > 0 { std_host.exit(1); }
+    }
+  }
+}

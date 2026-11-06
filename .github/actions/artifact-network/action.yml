@@ -1,0 +1,12 @@
+name: Artifact network evidence
+description: Record bounded, unauthenticated network diagnostics after upload failure.
+inputs:
+  artifact:
+    required: true
+    description: Failed artifact name
+  attempt:
+    required: true
+    description: Failed attempt number
+runs:
+  using: node24
+  main: index.cjs

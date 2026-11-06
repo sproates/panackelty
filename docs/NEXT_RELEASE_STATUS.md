@@ -28,6 +28,18 @@ for GI#170: Inference assessment and the five for RM#157: Performance review,
 now allocated to alpha.16. The remaining denominator is 90; the Weight column
 sums to 100%. No remaining task was re-estimated. The final GI#180 integration earns its existing 20 points once. These provisional scope weights track feature acceptance. Release checks, promotion and publication are separate.
 
+## Alpha.16 allocation: real-program fixes
+
+Owner decision, 6 November 2026: **RM#162: Real-program fixes** is a planned
+alpha.16 implementation workstream, with unknown scope and effort. It reserves
+capacity to fix obstacles discovered while building real programs, then verify
+that the originating program can continue. Recording issues alone is not the
+outcome. Individual fixes get concrete reproductions and acceptance; the owner
+agrees the discovery cutoff and any explicit following-release deferrals.
+This adds no unfinished alpha.15 work and changes none of its completion weights.
+[Canonical allocation](https://github.com/sproates/panackelty/blob/main/ROADMAP.md#rm-162)
+was recorded by [PR #674](https://github.com/sproates/panackelty/pull/674).
+
 ## Deferred to the following release
 
 Owner decision, 26 October: [GI#170 inference/diagnostics assessment](https://github.com/sproates/panackelty/issues/170)

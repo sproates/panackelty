@@ -44,4 +44,4 @@ All eight public assets match their retained release artifacts byte for byte and
 
 Alpha.15 targets Ubuntu 22.04 or newer on x86-64 and macOS 15 or newer on Apple silicon. GitHub retired its macOS 14 runner on 2 November. Alpha.14 remains available for macOS 14.
 
-The installer default and published download instructions still select alpha.14. Updating those defaults and website downloads is follow-up work. The published browser runtime bundle supplies the dependency for a browser release; it does not itself update the website playground.
+Core PR #668 merged as `ec0a0f4` after all hosted checks passed. The published installer default selects alpha.15. Website PR #68 merged as `8eb3944`; publication run 42191989577 passed deployment and exact-byte/provenance verification. The owner approved the preview and all article edits. Live homepage, downloads and explanation guidance were verified on 6 November 2026. The published browser runtime bundle supplies the dependency for a browser release; it does not itself update the website playground.

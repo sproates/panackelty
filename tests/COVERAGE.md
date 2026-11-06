@@ -1,5 +1,12 @@
 # Specification coverage
 
+The [indexed-local trial](../docs/VM_LOCAL_SLOTS_TRIAL.md) adds native checks for
+parameter-slot ordering, replacement ownership, uninitialised branch locals,
+verification invalidation/re-preparation and locals across async suspension.
+Allocation sweeps cover preparation and indexed-frame failures. The candidate
+passed native suites and five compiled functional fixtures; full product
+validation and adoption remain pending.
+
 The [VM concatenation trial](../docs/VM_CONCAT_TRIAL.md) adds native assertions
 for empty and Unicode results, embedded NUL bytes, overflow rejection and shared
 array-element ownership, plus constructor allocation-failure sweeps. Candidate

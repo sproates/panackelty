@@ -49,6 +49,8 @@ typedef struct {
     size_t pc, stack_count, stack_capacity, local_count, local_capacity;
     Value **stack;
     Local *locals;
+    Value **local_slots;
+    bool indexed_locals;
 } Frame;
 
 struct VMExecution {
@@ -106,8 +108,11 @@ static Value *stack_pop(Frame *frame, VM *vm)
 }
 
 /* Local lookup borrows the reference; callers retain it before pushing. */
-static Value *local_get(Frame *frame, const char *name)
+static Value *local_get(Frame *frame, const char *name, size_t slot)
 {
+    if (frame->indexed_locals) {
+        return slot < frame->local_count ? frame->local_slots[slot] : NULL;
+    }
     for (size_t i = frame->local_count; i-- > 0;) {
         if (!strcmp(frame->locals[i].name, name)) {
             return frame->locals[i].value;
@@ -117,8 +122,17 @@ static Value *local_get(Frame *frame, const char *name)
 }
 
 /* Replacing a local releases its old reference. Consumes value even on failure. */
-static bool local_put(Frame *frame, const char *name, Value *value)
+static bool local_put(Frame *frame, const char *name, size_t slot, Value *value)
 {
+    if (frame->indexed_locals) {
+        if (slot >= frame->local_count) {
+            release(value);
+            return false;
+        }
+        release(frame->local_slots[slot]);
+        frame->local_slots[slot] = value;
+        return true;
+    }
     for (size_t i = 0; i < frame->local_count; i++) {
         if (!strcmp(frame->locals[i].name, name)) {
             release(frame->locals[i].value);
@@ -154,11 +168,16 @@ static void frame_free(Frame *frame)
         release(frame->stack[i]);
     }
     for (size_t i = 0; i < frame->local_count; i++) {
-        free(frame->locals[i].name);
-        release(frame->locals[i].value);
+        if (frame->indexed_locals) {
+            release(frame->local_slots[i]);
+        } else {
+            free(frame->locals[i].name);
+            release(frame->locals[i].value);
+        }
     }
     free(frame->stack);
     free(frame->locals);
+    free(frame->local_slots);
 }
 
 static Value *constant_value(const Constant *c)
@@ -218,12 +237,23 @@ static bool frame_push(VMExecution *execution, Function *function, Value **argum
 #ifdef PANACK_VM_TEST_OBSERVER
     VM_TEST_FRAME_ENTER(frame, function, arguments);
 #endif
+    if (execution->vm->program && execution->vm->program->resolved_locals) {
+        frame->indexed_locals = true;
+        if (function->local_count) {
+            frame->local_slots = calloc(function->local_count, sizeof(Value *));
+        }
+        if (function->local_count && !frame->local_slots) {
+            execution->vm->error = "native VM out of memory";
+            return false;
+        }
+        frame->local_count = function->local_count;
+    }
     for (size_t i = 0; i < function->param_count; i++) {
         if (!arguments[i]) {
             execution->vm->error = "VM trap: invalid function argument";
             return false;
         }
-        if (!local_put(frame, function->params[i], retain(arguments[i]))) {
+        if (!local_put(frame, function->params[i], i, retain(arguments[i]))) {
             execution->vm->error = "native VM out of memory";
             return false;
         }
@@ -730,7 +760,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
             }
             break;
         case OP_LOAD:
-            v = local_get(frame, instruction->name);
+            v = local_get(frame, instruction->name, instruction->local_slot);
             if (!v) {
                 vm->error = "VM trap: uninitialized local";
                 break;
@@ -741,7 +771,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
             break;
         case OP_STORE:
             v = stack_pop(frame, vm);
-            if (v && !local_put(frame, instruction->name, v)) {
+            if (v && !local_put(frame, instruction->name, instruction->local_slot, v)) {
                 goto oom;
             }
             break;
@@ -949,12 +979,12 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
                 release(v);
                 goto oom;
             }
-            if (!local_put(frame, instruction->name, v)) {
+            if (!local_put(frame, instruction->name, instruction->local_slot, v)) {
                 goto oom;
             }
             break;
         case OP_ITER_NEXT:
-            v = local_get(frame, instruction->name);
+            v = local_get(frame, instruction->name, instruction->local_slot);
             if (!v || v->kind != V_ITER) {
                 vm->error = "VM trap: invalid iterator";
                 break;
@@ -989,7 +1019,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
                 vm->error = "VM trap: value is not iterable";
                 break;
             }
-            if (!b || !local_put(frame, instruction->name2, b)) {
+            if (!b || !local_put(frame, instruction->name2, instruction->local_slot2, b)) {
                 goto oom;
             }
             break;

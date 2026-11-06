@@ -1055,6 +1055,52 @@ static void artifact_returns_void(const char *path)
     free_program(&program);
 }
 
+static void indexed_locals_preserve_bindings(void)
+{
+    char *params[] = {"z", "a"};
+    Instruction main_code[] = {{.op = OP_CONST, .constant = {.tag = 5}}, {.op = OP_RETURN}};
+    Instruction code[] = {{.op = OP_LOAD, .name = "z"}, {.op = OP_STORE, .name = "saved"},
+                          {.op = OP_LOAD, .name = "a"}, {.op = OP_STORE, .name = "z"},
+                          {.op = OP_LOAD, .name = "saved"}, {.op = OP_RETURN}};
+    Function functions[] = {{.name = "main", .ins = main_code, .ins_count = 2},
+                            {.name = "read", .params = params, .param_count = 2,
+                             .ins = code, .ins_count = 6}};
+    Program program = {.count = 2, .functions = functions};
+    const char *error = NULL;
+    assert(verify(&program, &error) && program.resolved_locals);
+    assert(code[0].local_slot == 0 && code[2].local_slot == 1);
+    assert(code[1].local_slot == code[4].local_slot && functions[1].local_count == 3);
+    Value *args[] = {value_bool(true), value_bool(false)};
+    VM vm = {.program = &program};
+    Value *result = execute(&vm, &functions[1], args);
+    assert(result == args[0] && result->as.boolean && !vm.error);
+    release(result);
+    assert(args[0]->refs == 1 && args[1]->refs == 1);
+    release(args[0]);
+    release(args[1]);
+
+    /* Verification must not make a skipped assignment appear initialised. */
+    Instruction skipped[] = {{.op = OP_JUMP, .target = 3},
+                             {.op = OP_CONST, .constant = {.tag = 4, .boolean = true}},
+                             {.op = OP_STORE, .name = "branch"},
+                             {.op = OP_LOAD, .name = "branch"}, {.op = OP_RETURN}};
+    functions[0].ins = skipped;
+    functions[0].ins_count = 5;
+    assert(verify(&program, &error));
+    vm = (VM){.program = &program};
+    result = execute(&vm, &functions[0], NULL);
+    assert(!result && vm.error && strstr(vm.error, "local"));
+
+    skipped[0].target = 99;
+    assert(!verify(&program, &error) && !program.resolved_locals && !program.resolved_calls);
+    skipped[0].target = 1;
+    assert(verify(&program, &error));
+    vm = (VM){.program = &program};
+    result = execute(&vm, &functions[0], NULL);
+    assert(result && result->kind == V_BOOL && result->as.boolean && !vm.error);
+    release(result);
+}
+
 static void concatenation_preserves_values(void)
 {
     Value *empty = value_data_join(V_STR, NULL, 0, NULL, 0);
@@ -1096,6 +1142,11 @@ static void concatenation_preserves_values(void)
 
 int main(int argc, char **argv)
 {
+    indexed_locals_preserve_bindings();
+    if (argc == 2 && !strcmp(argv[1], "locals")) {
+        puts("native indexed-local contracts: ok");
+        return 0;
+    }
     concatenation_preserves_values();
     if (argc == 2 && !strcmp(argv[1], "concat")) {
         puts("native concatenation contracts: ok");

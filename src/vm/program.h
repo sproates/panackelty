@@ -25,9 +25,16 @@ typedef struct {
     size_t count;
     char **items;
     Constant constant;
-    /* Borrowed execution links, derived by verification; never serialized. */
-    const struct Builtin *resolved_builtin;
-    struct Function *resolved_function;
+    /* Derived by verification, never serialized. The opcode selects the member. */
+    union {
+        struct {
+            const struct Builtin *resolved_builtin;
+            struct Function *resolved_function;
+        };
+        struct {
+            size_t local_slot, local_slot2;
+        };
+    };
 } Instruction;
 
 typedef struct Function {
@@ -37,6 +44,7 @@ typedef struct Function {
     size_t param_count, ins_count;
     char **params;
     Instruction *ins;
+    size_t local_count; /* Derived execution slots; parameters occupy the prefix. */
 } Function;
 
 typedef struct {
@@ -45,6 +53,7 @@ typedef struct {
     /* Verification proves immutable function names are in canonical order. */
     bool verified_function_order;
     bool resolved_calls; /* Published only after successful verification. */
+    bool resolved_locals;
 } Program;
 
 /* Wire values are fixed by bytecode/FORMAT.md. */

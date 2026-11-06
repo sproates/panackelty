@@ -89,10 +89,12 @@ static void decode_program(void)
     Program program;
     const char *error = NULL;
     bool decoded = decode(bytes, sizeof(bytes), &program, &error);
+    bool verified = decoded && verify(&program, &error);
     if (!fault_triggered()) {
-        assert(decoded && verify(&program, &error));
+        assert(decoded && verified);
     } else {
-        assert(!decoded && error);
+        assert(!verified && error);
+        assert(!program.resolved_locals);
     }
     free_program(&program);
     free_program(&program);
@@ -299,6 +301,35 @@ static void concatenate_text(void)
     Value *result = value_data_join(V_STR, (const uint8_t *)"hello", 5,
                                    (const uint8_t *)"world", 5);
     assert((result != NULL) == !fault_triggered());
+    release(result);
+}
+
+static void indexed_locals_allocations(void)
+{
+    Instruction instructions[] = {
+        {.op = OP_CONST, .constant = {.tag = 4, .boolean = true}},
+        {.op = OP_STORE, .name = "value"}, {.op = OP_LOAD, .name = "value"},
+        {.op = OP_STORE, .name = "copy"}, {.op = OP_LOAD, .name = "copy"},
+        {.op = OP_CALL, .name = "read", .arity = 1},
+        {.op = OP_RETURN}};
+    char *params[] = {"argument"};
+    Instruction reader[] = {{.op = OP_LOAD, .name = "argument"}, {.op = OP_RETURN}};
+    Function functions[] = {{.name = "main", .ins = instructions, .ins_count = 7},
+                            {.name = "read", .params = params, .param_count = 1,
+                             .ins = reader, .ins_count = 2}};
+    Program program = {.functions = functions, .count = 2};
+    const char *error = NULL;
+    if (!verify(&program, &error)) {
+        assert(fault_triggered() && error && !program.resolved_locals && !program.resolved_calls);
+        return;
+    }
+    VM vm = {.program = &program};
+    Value *result = execute(&vm, &functions[0], NULL);
+    if (fault_triggered()) {
+        assert(!result && vm.error);
+    } else {
+        assert(result && !vm.error && result->kind == V_BOOL && result->as.boolean);
+    }
     release(result);
 }
 
@@ -622,10 +653,12 @@ static void decode_artifact(void)
     Program program;
     const char *error = NULL;
     bool ok = decode(artifact, artifact_length, &program, &error);
+    bool verified = ok && verify(&program, &error);
     if (!fault_triggered()) {
-        assert(ok && verify(&program, &error));
+        assert(ok && verified);
     } else {
-        assert(!ok && error);
+        assert(!verified && error);
+        assert(!program.resolved_locals);
     }
     free_program(&program);
 }
@@ -863,6 +896,7 @@ void console_write_faults(void);
 
 int main(int argc, char **argv)
 {
+    sweep("indexed locals preparation and frame ownership", indexed_locals_allocations);
     concatenation_faults();
     if (argc == 2 && !strcmp(argv[1], "concat")) {
         assert(fault_live() == 0);

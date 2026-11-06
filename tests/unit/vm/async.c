@@ -256,15 +256,21 @@ static void verified_calls_survive_async_wait(void)
                                {.op = OP_RETURN}};
     Instruction reader[] = {{.op = OP_LOAD, .name = "fail"},
                             {.op = OP_AWAIT_CALL, .name = "async_fake_read", .arity = 1},
+                            {.op = OP_STORE, .name = "result"},
+                            {.op = OP_LOAD, .name = "fail"},
+                            {.op = OP_POP},
+                            {.op = OP_LOAD, .name = "result"},
                             {.op = OP_RETURN}};
     Function functions[] = {{.name = "main", .is_async = true, .ins = main_code, .ins_count = 5},
                             {.name = "read", .is_async = true, .params = parameters,
-                             .param_count = 1, .ins = reader, .ins_count = 3}};
+                             .param_count = 1, .ins = reader, .ins_count = 7}};
     Program program = {.count = 2, .functions = functions};
     const char *error = NULL;
     assert(verify(&program, &error) && program.resolved_calls);
     assert(main_code[1].resolved_function == &functions[1]);
     assert(reader[1].resolved_builtin);
+    assert(program.resolved_locals && reader[0].local_slot == reader[3].local_slot);
+    assert(reader[2].local_slot == reader[5].local_slot);
     VM vm = {.program = &program};
     VMTasks *tasks = vm_tasks_create(&vm, 1, 1, &error);
     assert(tasks && !error);

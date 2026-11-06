@@ -657,7 +657,7 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         return NULL;
     }
     if (!execution->embedded || entry->pure || builtin_is_local_state(entry)) {
-        return builtin_call(vm, entry->name, arguments);
+        return entry->call(vm, entry->name, arguments);
     }
     if (!strcmp(entry->name, "run_bytecode") || !strcmp(entry->name, "run_bytecode_args")) {
         vm->error = "VM trap: nested execution is unavailable in resumable mode";
@@ -1093,8 +1093,11 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
                 free(args);
                 break;
             }
-            const Builtin *built = builtin(instruction->name);
-            Function *called = built ? NULL : program_function(vm->program, instruction->name);
+            const Builtin *built = vm->program->resolved_calls
+                ? instruction->resolved_builtin : builtin(instruction->name);
+            Function *called = vm->program->resolved_calls
+                ? instruction->resolved_function
+                : (built ? NULL : program_function(vm->program, instruction->name));
             if ((!built && !called) ||
                 instruction->arity != (built ? built->arity : called->param_count) ||
                 !verify_call_edge(function, called, built && built->pure,

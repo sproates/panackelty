@@ -56,6 +56,7 @@ static void infer_local_effects(Program *program)
 bool verify(Program *p, const char **error)
 {
     p->verified_function_order = false;
+    p->resolved_calls = false;
     infer_local_effects(p);
     Function *main = program_function(p, "main");
     if (!main) {
@@ -116,6 +117,8 @@ bool verify(Program *p, const char **error)
                     *error = "call to unknown function";
                     return false;
                 }
+                instruction->resolved_builtin = b;
+                instruction->resolved_function = b ? NULL : called;
                 size_t arity = b ? b->arity : called->param_count;
                 if (instruction->arity != arity) {
                     *error = "call arity mismatch";
@@ -135,5 +138,6 @@ bool verify(Program *p, const char **error)
         }
     }
     p->verified_function_order = true;
+    p->resolved_calls = true;
     return true;
 }

@@ -9,7 +9,7 @@
 
 /* One registry supplies arity, purity, and implementation selection. */
 
-typedef struct {
+typedef struct Builtin {
     const char *name;
     uint8_t arity;
     bool pure;

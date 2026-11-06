@@ -737,6 +737,37 @@ static void nested_calls_preserve_caller_ownership(void)
 
 /* Direct semantic verification of decoded objects; wire-level vectors also run
  * through the public native decoder and the Panackelty codec. */
+/* Execution links are derived, refreshed on re-verification, and disabled on failure. */
+static void direct_call_links_follow_verified_program(void)
+{
+    Instruction helper[] = {{.op = OP_CONST, .constant = {.tag = 5}}, {.op = OP_RETURN}};
+    Instruction body[] = {{.op = OP_CALL, .name = "$unit"}, {.op = OP_POP},
+                          {.op = OP_CALL, .name = "helper"}, {.op = OP_RETURN}};
+    Function functions[] = {{.name = "helper", .ins_count = 2, .ins = helper},
+                            {.name = "main", .ins_count = 4, .ins = body}};
+    Program program = {.count = 2, .functions = functions};
+    const char *error = NULL;
+    assert(verify(&program, &error) && program.resolved_calls);
+    assert(body[0].resolved_builtin == builtin("$unit") && !body[0].resolved_function);
+    assert(!body[2].resolved_builtin && body[2].resolved_function == &functions[0]);
+    VM vm = {.program = &program};
+    Value *result = execute(&vm, &functions[1], NULL);
+    assert(result && !vm.error);
+    release(result);
+    body[2].name = "$unit";
+    assert(verify(&program, &error) && program.resolved_calls);
+    assert(body[2].resolved_builtin == builtin("$unit") && !body[2].resolved_function);
+    body[2].name = "missing";
+    assert(!verify(&program, &error) && !program.resolved_calls);
+    assert(strstr(error, "unknown function"));
+    body[2].name = "helper";
+    body[2].arity = 1;
+    assert(!verify(&program, &error) && !program.resolved_calls);
+    assert(strstr(error, "arity"));
+    body[2].arity = 0;
+    assert(verify(&program, &error) && program.resolved_calls);
+}
+
 static void verifier_rejects_forged_structures(void)
 {
     Instruction instructions[] = {{.op = OP_CONST, .constant = {.tag = 5}},
@@ -1026,6 +1057,15 @@ static void artifact_returns_void(const char *path)
 
 int main(int argc, char **argv)
 {
+    if (argc == 2 && !strcmp(argv[1], "call-links")) {
+        direct_call_links_follow_verified_program();
+        verifier_rejects_forged_structures();
+        frames_release_arguments_on_return_and_trap();
+        nested_calls_preserve_caller_ownership();
+        builtin_domains_preserve_errors_and_results();
+        puts("native call-link contracts: ok");
+        return 0;
+    }
     if (argc == 3 && !strcmp(argv[1], "http-writer")) {
         http_writer_artifact(argv[2]);
         return 0;
@@ -1124,6 +1164,7 @@ int main(int argc, char **argv)
     record_module_progress("frame_ownership");
     nested_calls_preserve_caller_ownership();
     record_module_progress("nested_calls");
+    direct_call_links_follow_verified_program();
     verifier_rejects_forged_structures();
     record_module_progress("verifier");
     decode_mutations_release_partial_programs();

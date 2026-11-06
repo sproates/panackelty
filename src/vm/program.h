@@ -25,9 +25,12 @@ typedef struct {
     size_t count;
     char **items;
     Constant constant;
+    /* Borrowed execution links, derived by verification; never serialized. */
+    const struct Builtin *resolved_builtin;
+    struct Function *resolved_function;
 } Instruction;
 
-typedef struct {
+typedef struct Function {
     char *name;
     bool pure, is_async;
     bool local_effect; /* Derived by verification; never trusted from bytecode. */
@@ -41,6 +44,7 @@ typedef struct {
     Function *functions;
     /* Verification proves immutable function names are in canonical order. */
     bool verified_function_order;
+    bool resolved_calls; /* Published only after successful verification. */
 } Program;
 
 /* Wire values are fixed by bytecode/FORMAT.md. */

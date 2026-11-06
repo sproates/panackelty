@@ -3,7 +3,7 @@
 Updated: 6 November 2026. Release: **v0.1.0-alpha.15**. Integration branch: **next**.
 Latest published release: **v0.1.0-alpha.15**, published 6 November 2026.
 
-**Alpha.15 is published. All seven feature workstreams are accepted. The [public archives are verified](releases/ALPHA15_RELEASE_ACCEPTANCE.md#publication-record). Installer and native website promotion are in review. Browser promotion remains follow-up work.**
+**Alpha.15 is published. All seven feature workstreams are accepted. The [public archives are verified](releases/ALPHA15_RELEASE_ACCEPTANCE.md#publication-record). Installer defaults and native website promotion are live and verified. Browser promotion remains separate follow-up work.**
 
 This is the current release-status source of truth. Read this file for a quick
 status answer; follow evidence links when investigating a particular item.

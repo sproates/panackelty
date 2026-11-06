@@ -3,8 +3,8 @@
 Updated: 6 November 2026. Release: **v0.1.0-alpha.16**. Integration branch: **next**.
 Latest published release: **v0.1.0-alpha.15**, published 6 November 2026.
 
-**Alpha.16: build useful programs. Ready to begin delivery; feature work has not
-started.** Alpha.15 is complete, including native archives, installer, browser
+**Alpha.16: build useful programs. RM#162 investigation has started; no feature
+implementation is complete.** Alpha.15 is complete, including native archives, installer, browser
 playground and website. Its [final status snapshot](ALPHA15_FINAL_STATUS.md) and
 [release acceptance](releases/ALPHA15_RELEASE_ACCEPTANCE.md) preserve the evidence.
 
@@ -21,7 +21,7 @@ and linked work records. Update this summary whenever release work changes.
 | [GI#168: Subprocess examples](https://github.com/sproates/panackelty/issues/168) | Planned. Reuse existing examples and verify the remaining installed workflows. |
 | [GI#169: Tiny build tool](https://github.com/sproates/panackelty/issues/169) | Planned. A useful small program, not a production build system. |
 | [GI#138: Tested guides](https://github.com/sproates/panackelty/issues/138), with [GI#310: Examples](https://github.com/sproates/panackelty/issues/310) | Planned. Coordinate guides with runnable examples; do not count the same delivery twice. |
-| [RM#162: Real-program fixes](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-162) | Planned. Scope and effort emerge from actual use. Fix selected obstacles and verify the originating programs; agree a release cutoff. This core planning placeholder requires no website update. |
+| [RM#162: Real-program fixes](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-162) | In progress: investigating HTTP healthcheck uptime. Alpha.15 rejects `time.now()` inside async functions while accepting the same call in an ordinary function. No fix implemented yet. Scope and effort emerge from actual use; verify each originating program and agree a release cutoff. No website update. |
 | [GI#170: Inference/diagnostics assessment](https://github.com/sproates/panackelty/issues/170) | Planned assessment. No inference implementation or architecture is selected. |
 | [RM#157: Performance review](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-157) | Planned review and bounded improvements. Workloads, targets and selected improvements still need agreement. |
 | [GI#435: Guard alternatives](https://github.com/sproates/panackelty/issues/435) | Planned follow-on for string, collection and record-relationship guards: proof rules and diagnostics need design. Numeric alternatives already work; the alpha.15 contract remains complete. |
@@ -39,13 +39,19 @@ alpha.17 unless the owner chooses another destination.
 
 ## Branch readiness and next action
 
-- Reconcile `main` into `next`, retaining the published alpha.15 product tree,
-  installer defaults, release fixes and end-to-end release checklist. Preserve
-  the later alpha.15 completion evidence from `next`.
+- PR #676 reconciled `main` into `next`, retaining the published alpha.15 product tree,
+  installer defaults, release fixes and end-to-end release checklist, together
+  with the later alpha.15 completion evidence from `next`.
 - `VERSION` remains the released alpha.15 baseline until an actual alpha.16
   development/version change is needed. No alpha.16 artifacts are published.
-- Select the first allocated item and define its bounded remaining outcome using
-  existing code and evidence. This reconciliation starts no feature implementation.
+- RM#162 first finding: enable a monotonic clock read in an async HTTP handler
+  without permitting blocking I/O or marking clock reads pure. The existing
+  native implementation calls `clock_gettime(CLOCK_MONOTONIC)`; the restriction
+  is the current async effect contract, not a missing clock implementation.
+  On 6 November, the checkout alpha.15 compiler accepted an ordinary `main`
+  binding `reading = time.now()` and rejected the identical async body with
+  `async function cannot call blocking function time.panack:now`.
+  Next: settle the narrow API/effect change, then verify a real uptime endpoint.
 - Follow the [release checklist](releases/RELEASE_CHECKLIST.md) for alpha.16:
   packages, installer and browser must be ready before the final website publication.
 - Website scope remains unchanged by owner direction. Website PR #74 is closed.

@@ -3,7 +3,7 @@
 Updated: 6 November 2026. Release: **v0.1.0-alpha.15**. Integration branch: **next**.
 Latest published release: **v0.1.0-alpha.15**, published 6 November 2026.
 
-**Alpha.15 is published. All seven feature workstreams are accepted. The [public archives are verified](releases/ALPHA15_RELEASE_ACCEPTANCE.md#publication-record). Installer defaults, website downloads and browser promotion remain follow-up work.**
+**Alpha.15 is published. All seven feature workstreams are accepted. The [public archives are verified](releases/ALPHA15_RELEASE_ACCEPTANCE.md#publication-record). Installer and native website promotion are in review. Browser promotion remains follow-up work.**
 
 This is the current release-status source of truth. Read this file for a quick
 status answer; follow evidence links when investigating a particular item.
@@ -167,7 +167,8 @@ The order and scope weights remain unchanged. GI#409 assessment delivery is reco
 
 - Promotion PR #664 merged to main at `eb2e5f9`. Release workflow 42128267918 published the approved commit after validation.
 - Public native archives and the browser runtime bundle match their tested artifacts and SHA-256 digests. See the [release acceptance](releases/ALPHA15_RELEASE_ACCEPTANCE.md).
-- Next, update the installer defaults and download guidance to the verified release, then handle the tracked website/browser promotion.
+- [Core PR #668](https://github.com/sproates/panackelty/pull/668) promotes the installer default and download guidance. macOS published-archive/installer acceptance and installer safety checks pass; full local and hosted checks are running. Main merge requires owner approval.
+- [Website PR #68](https://github.com/sproates/panackelty-website/pull/68) promotes native alpha.15 downloads, guides and examples. All 47 local automation tests, page assembly and both native archive hashes pass; source/bytecode examples and the local-package example pass on macOS. Hosted checks, preview approval, merge and live verification remain. Browser stays v0.2.1 / alpha.14 until separately promoted.
 - Latest supporting repair: [PR#601](https://github.com/sproates/panackelty/pull/601)
   merged into main adds upload retries and failure-time network evidence.
   The original DNS cause is unconfirmed. [Scheduled nightly 40666115194](https://github.com/sproates/panackelty/actions/runs/40666115194) succeeded on 28 October with the repairs in place. This confirms a successful scheduled run, not the original DNS cause, and adds no earned scope credit.

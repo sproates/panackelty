@@ -40,8 +40,31 @@ All eight public assets match their retained release artifacts byte for byte and
 | macOS arm64 | `8fd885950ec743119210742ab6bfdff68cf75ef5538f2e90e41734d943e2284d` |
 | Browser runtime bundle | `fe7fd9cdddd378ff4c173cd3c075a912633cce3031d035cda1122274780bb2e3` |
 
-## Remaining promotion follow-up
+## Distribution and website promotion
 
 Alpha.15 targets Ubuntu 22.04 or newer on x86-64 and macOS 15 or newer on Apple silicon. GitHub retired its macOS 14 runner on 2 November. Alpha.14 remains available for macOS 14.
 
 Core PR #668 merged as `ec0a0f4` after all hosted checks passed. The published installer default selects alpha.15. Website PR #68 merged as `8eb3944`; publication run 42191989577 passed deployment and exact-byte/provenance verification. The owner approved the preview and all article edits. Live homepage, downloads and explanation guidance were verified on 6 November 2026. The published browser runtime bundle supplies the dependency for a browser release; it does not itself update the website playground.
+
+Browser v0.3.1 was published on 6 November 2026 by [run 42219286825](https://github.com/sproates/panackelty-browser/actions/runs/42219286825), from browser commit `79b3aa4e9870eed90b9ca529cf23d64900d32cfd`. It uses the released alpha.15 compiler and standard library. The public archive matches the candidate tested in PR #15 byte for byte.
+
+- Browser archive SHA-256: `fbb6b923cd16e56ebf7d0bff22535d03da2d670996589791d3b180c9e4cf4d8e`.
+- Asset identity: `c3400817abd333c3ba1eb9041925a79ba241b9ac23ea47eafcdd75f810c2f59c`.
+- Runtime contracts and all 27 Chromium, Firefox and WebKit tests passed. The website integration initially found the compiler download exceeded the preview server response limit; browser PR #15 compresses the compiler download to 198,578 bytes using standard gzip, preserving the 1,142,100 decompressed bytes. No native compiler or server limit changed.
+
+[Website PR #70](https://github.com/sproates/panackelty-website/pull/70) merged as `a8e2441a8975f5cfb2b5400d8d7d4338523a0bac`. All website integration checks passed in run 42219950778. [Publication run 42220421756](https://github.com/sproates/panackelty-website/actions/runs/42220421756) reused that validated artifact and passed deployed-byte and provenance verification. The live public playground identifies v0.3.1 / alpha.15. A live browser check compiled and ran a guarded string program: `validate[Label]("Ada")` printed `Ada`; validating the empty string reported two failed constraints.
+
+## End-to-end completion
+
+The [release checklist](https://github.com/sproates/panackelty/blob/main/docs/releases/RELEASE_CHECKLIST.md) now defines the publication order for future releases. This release required a corrective browser promotion after its earlier native website announcement. The final website deployment followed the verified browser release.
+
+| Stage | Verified outcome |
+| --- | --- |
+| Feature acceptance | All seven agreed workstreams accepted; evidence above. |
+| Native archives and runtime bundle | Public bytes match tested artifacts and published SHA-256 digests. |
+| Installer | Published default selects alpha.15; PR #668 and installed acceptance passed. |
+| Browser release | Public v0.3.1 archive matches the validated candidate; runtime contracts and three-engine checks passed. |
+| Website candidate | PR #70 passed assembly, release integrity and browser integration. Earlier article edits were owner-approved; this final promotion changes no articles. |
+| Website publication | Run 42220421756 passed deployed-byte/provenance verification; live alpha.15 execution passed. |
+
+**Alpha.15 rollout is complete as of 6 November 2026.** The current summary remains on `next` until the following release is opened. GI#410 is a historical candidate umbrella; its issue now points to the agreed future allocations and does not represent unfinished alpha.15 scope.

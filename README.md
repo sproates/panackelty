@@ -40,17 +40,17 @@ is also the name of this project's command-line tool.
 
 ## Get started
 
-**Latest native release: [0.1.0-alpha.14](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.14).**
-Available for Linux x86-64 and macOS Apple silicon. This is a developer preview:
+**Latest native release: [0.1.0-alpha.15](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.15).**
+Available for Ubuntu 22.04+ x86-64 and macOS 15+ Apple silicon. This is a developer preview:
 source APIs and bytecode may change between releases.
 
 1. [Install the release](docs/guides/INSTALLATION.md), with checksum verification.
 2. [Take the language tour](docs/guides/LANGUAGE_TOUR.md) and run the examples.
 3. [Use the toolchain](docs/guides/TOOLCHAIN.md) to check, compile and explain programs.
 
-Alpha.14 adds type-owned methods and a routed HTTP server framework, with HTTP
-API references and a playbook of runnable examples. It also includes local packages,
-native HTTP clients, compiler explanations and a static file server.
+Alpha.15 adds locked local, HTTPS and Git dependencies, validated domain types,
+and interactive compiler explanations with source and instruction provenance.
+It also includes the routed HTTP server framework, HTTP clients and static file server.
 Read the [release notes](CHANGELOG.md) and [compatibility policy](docs/releases/RELEASE_POLICY.md).
 
 Alpha.14 includes [type-owned methods](docs/reference/SPEC.md#type-owned-methods-next) for records, enums and built-in types. The alpha.14 compiler uses owned dot calls, without receiver-to-global fallback; the temporary arrow syntax is removed.

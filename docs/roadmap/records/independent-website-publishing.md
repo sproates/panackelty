@@ -83,6 +83,13 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
+- **Alpha.15 native promotion in preparation, 6 November 2026.** Public native
+  archives and the browser dependency bundle are verified. Core installation
+  guidance now selects alpha.15 and requires macOS 15+. The separate website PR
+  must update pins, downloads, guarded syntax and explanation guidance, then
+  pass release/example checks and preview review before deployment. The
+  playground remains on its independently pinned browser release until promoted.
+
 - **GI#435 final examples.** At alpha.15 promotion the website maintainer can use the [accepted dispatch example and transcript](../../guides/VALIDATED_DOMAIN_TYPES.md) for the tour and the explicit-binding migration for existing users.
 - **GI#435 record relationships.** At alpha.15 promotion, the website maintainer
   can use the tested ordered-range replacement to show where a runtime

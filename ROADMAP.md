@@ -60,7 +60,9 @@ through alpha.19 remain planned. See the
   coverage, selected friction improvements, and the GI#106 test-speed milestone.
 - **alpha.16:** build useful programs: typed service exchanges, file discovery,
   subprocess examples, a tiny build tool, tested guides, GI#170: Inference assessment
-  and RM#157: Performance review.
+  and RM#157: Performance review. [RM#162: Real-program fixes](#rm-162) reserves
+  implementation capacity for obstacles discovered while building real programs;
+  its scope and effort are not yet known.
 - **alpha.17:** everyday development: one editor, source-aware runtime errors and
   Homebrew installation.
 - **alpha.18:** interactive/connected applications: browser event handlers and
@@ -133,7 +135,12 @@ The original modules/packages/HTTP programme baseline remains **90/100 earned**;
 P7 retains its deferred 10-point allocation. Alpha.13 release acceptance is complete.
 RM#156 records the GI#518 selection and RM#157 records the performance outcome.
 RM#158–RM#161 identify the Alpha.15 package-management packets.
-**Next available roadmap identifier: RM#162.**
+<a id="rm-162"></a> **[RM#162: Real-program fixes](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-162)**
+is planned for alpha.16. Fix obstacles encountered while building real programs;
+scope and effort are unknown, and this is an implementation allocation rather
+than an issue-gathering exercise.
+
+**Next available roadmap identifier: RM#163.**
 
 ## Example inventory preflight — 2026-10-20
 

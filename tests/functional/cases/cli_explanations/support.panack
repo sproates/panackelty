@@ -1,0 +1,41 @@
+import stdlib/process as std_process
+import stdlib/testing as std_testing
+pub import stdlib/testing::{TestResult}
+import stdlib/time as std_time
+import stdlib/path as std_path
+import stdlib/filesystem as std_filesystem
+import stdlib/bytes as byte_buffer
+import stdlib/environment as std_environment
+import stdlib/host as std_host
+
+pub pure explain_path(text: Str): Path { std_path.from_text(text).value_or(std_path.current()) }
+pub pure explain_contains(text: Str, part: Str): Bool {
+  mut found: Bool = false
+  for offset in 0..text.len() { if text.starts_with_at(part, offset) { found = true; } }
+  found
+}
+pub explain_write(path: Str, text: Str): Void {
+  match std_filesystem.write(explain_path(path), text.encode_utf8()) {
+    Ok(done) => {}, Error(error) => { std_host.stderr("fixture write failed"); std_host.exit(1); }
+  }
+}
+pub explain_run(name: Str, arguments: [Str], status: Nat, required: [Str], forbidden: [Str], diagnostic: Str): TestResult {
+  mut command: Str = "./bin/panack"
+  mut command_arguments: [Str] = arguments
+  if (std_environment.get("PANACK_TEST_COMPILER") != None()) {
+    command = "/usr/bin/env"
+    command_arguments = ["-u", "PANACKELTY_BOOTSTRAP_ROOT", "./panack-vm", "run", std_environment.get("PANACK_TEST_COMPILER").value_or("")]
+    for argument in arguments { command_arguments = command_arguments.append(argument) }
+  }
+  match std_process.run(explain_path(command), command_arguments, byte_buffer.empty(), std_path.current(), [], std_time.seconds(15), 1048576) {
+    Error(error) => std_testing.expect(name, false, "command failed: " + error.code),
+    Ok(actual) => {
+      text: Str = actual.stdout.decode_utf8()
+      mut valid: Bool = actual.exit_code == status && actual.signal == 0
+      for part in required { if !explain_contains(text, part) { valid = false; } }
+      for part in forbidden { if explain_contains(text, part) { valid = false; } }
+      valid = valid && if diagnostic == "" { actual.stderr == byte_buffer.empty() } else { explain_contains(actual.stderr.decode_utf8(), diagnostic) }
+      std_testing.expect(name, valid, text + "; " + actual.stderr.decode_utf8())
+    }
+  }
+}

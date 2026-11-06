@@ -193,7 +193,7 @@ Save this as `http-client-example/panack.json`:
   "package": "examples.http_client",
   "version": "0.1.0",
   "language": "modules-v1",
-  "toolchain": "0.1.0-alpha.14",
+  "toolchain": "0.1.0-alpha.15",
   "source": "src",
   "entry": "main.panack",
   "exports": {},
@@ -206,6 +206,7 @@ Save this as `http-client-example/panack.json`:
 From the directory containing both folders, run:
 
 ```sh
+./panackelty/bin/panack deps lock --project http-client-example/panack.json
 ./panackelty/bin/panack run --project http-client-example/panack.json
 ```
 

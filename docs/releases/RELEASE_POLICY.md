@@ -1,5 +1,10 @@
 # Panackelty release policy
 
+Follow the [end-to-end release checklist](RELEASE_CHECKLIST.md) for the complete
+rollout across core, installer, browser and website. Website publication is the
+final delivery step, after the packages, installer and updated playground are
+verified. The gates below describe individual parts, not overall completion.
+
 Panackelty `0.1.0-alpha.14` is the latest published developer preview. Its public
 native archives passed release acceptance on 21 October 2026. It is intended for learning,
 experimentation, feedback, and non-critical terminal programs. It is not yet
@@ -10,7 +15,7 @@ recommended for production systems or irreplaceable data.
 The initial preview targets:
 
 - Ubuntu 22.04 or newer on x86-64
-- macOS 14 or newer on Apple silicon (arm64)
+- Apple silicon (arm64) running macOS 15 or newer for alpha.15. Alpha.14 supports macOS 14 or newer.
 
 Each supported release archive must pass the exact-artifact smoke test on its
 target system. Other POSIX-like systems may work from source but are best effort.
@@ -122,4 +127,6 @@ source/version pins, browser pins and displayed claims. A separate website PR
 promotes an existing release after archive/example validation and preview review.
 Core release preparation records any website follow-up through the
 [website impact process](../roadmap/ROADMAP_PROCESS.md#website-impact-and-follow-ups).
-Publishing a release never starts or schedules that follow-up automatically.
+Publishing a core release does not automate that promotion. The release owner
+must complete it in the order defined by the end-to-end checklist before
+declaring the overall release complete.

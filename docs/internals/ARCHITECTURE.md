@@ -643,7 +643,7 @@ runs for the same pull request while preserving runs on `main`. Its validation
 matrix partitions the canonical check into shared suites; focused developer
 targets are not run again before them.
 
-The CI packaging job is an explicit Ubuntu 22.04 x86-64 and macOS 14 arm64
+The CI packaging job is an explicit Ubuntu 22.04 x86-64 and macOS 15 arm64
 matrix. Five clean suites per platform cover the complete check and package
 proofs with only allowlisted commands visible, including bootstrap, native
 conformance, exact-archive smoke testing, checksum generation and the packaged

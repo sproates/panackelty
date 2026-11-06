@@ -9,7 +9,7 @@ pass
 case_name=large-cli-fixture-compilation-bound
 contains tests/runner/main.panack 'compile_timeout = if execution_timeout == 120 { 60 } else { 20 }'
 contains tests/runner/main.panack 'label == "case/stdlib", compile_timeout)'
-contains tests/unit/harness/runner.sh 'cli_commands|cli_explanations) fixture_timeout=360'
+contains tests/unit/harness/runner.sh 'cli_commands|cli_explanations|cli_explanations_proofs) fixture_timeout=360'
 pass
 case_name=isolated-environment-retains-tls-fixture-tool
 contains tests/without_interpreter.sh 'curl-config openssl'
@@ -33,7 +33,7 @@ case_name=ci-packages-every-supported-release-target
 contains .github/workflows/check.yml 'target: linux-x86_64
             runner: ubuntu-22.04'
 contains .github/workflows/check.yml 'target: macos-arm64
-            runner: macos-14'
+            runner: macos-15'
 contains .github/workflows/check.yml 'runs-on: ${{ matrix.runner }}'
 contains .github/workflows/check.yml 'run: make check-no-interpreter'
 contains .github/workflows/check.yml 'uses: actions/upload-artifact@v6'
@@ -94,7 +94,7 @@ contains .github/workflows/release.yml 'run: make package'
 contains .github/workflows/release.yml 'target: linux-x86_64
             runner: ubuntu-22.04'
 contains .github/workflows/release.yml 'target: macos-arm64
-            runner: macos-14'
+            runner: macos-15'
 contains .github/workflows/release.yml 'needs: [validate, package]'
 contains .github/workflows/release.yml 'uses: actions/download-artifact@v7'
 contains .github/workflows/release.yml 'sha256sum -c "${archive}.sha256"'

@@ -122,6 +122,7 @@ check-compiler-impl: $(STAGE2_COMPILER) compiler-integration-probe compiler-shar
 		tests/runner/compiler_lexer_unit.panack \
 		tests/runner/package_manifest_unit.panack
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROFILE) functional/cli-explanations $(PROBE) tests/runner/main.panack --case cli_explanations
+	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROFILE) functional/cli-explanations-proofs $(PROBE) tests/runner/main.panack --case cli_explanations_proofs
 	@$(PROFILE) functional/case/cli_commands $(PROBE) tests/runner/main.panack --case cli_commands
 	@$(PROFILE) functional/failures $(PROBE) tests/runner/main.panack --failures-only
 
@@ -363,6 +364,7 @@ native-oracle-contracts-impl: $(BUILD_DIR)/vm/panack-vm native-module-build $(ST
 SANITIZE_SUITE ?= all
 
 # Reject unknown suites before performing any build.
+native-sanitize: export PANACK_COMPILER_WATCHDOG_PROFILE := sanitizer
 native-sanitize:
 	@case "$(SANITIZE_SUITE)" in all|vm|oracle|runner) ;; *) echo "unknown sanitizer suite" >&2; exit 2 ;; esac
 	@$(MAKE) --no-print-directory native package-tool

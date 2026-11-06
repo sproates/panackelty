@@ -29,9 +29,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-14]
+        os: [ubuntu-22.04, macos-15]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 5
+    # Covers source and relocated-archive checks for TLS, HTTPS and Git.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
         with:

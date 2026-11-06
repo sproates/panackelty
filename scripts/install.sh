@@ -6,13 +6,13 @@ LC_ALL=C
 export LC_ALL
 umask 077
 fail() { printf 'panack installer: %s\n' "$*" >&2; exit 1; }
-version=0.1.0-alpha.14
+version=0.1.0-alpha.15
 remove=false
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --version) [ "$#" -ge 2 ] || fail '--version requires a value'; version=$2; shift ;;
         --uninstall) remove=true ;;
-        --help) printf '%s\n' 'Usage: sh install.sh [--version 0.1.0-alpha.14 | --uninstall]' 'Uses $HOME/.local/opt/panackelty-installer and $HOME/.local/bin/panack.' 'Never edits shell startup files; do not run with sudo.'; exit 0 ;;
+        --help) printf '%s\n' 'Usage: sh install.sh [--version 0.1.0-alpha.15 | --uninstall]' 'Uses $HOME/.local/opt/panackelty-installer and $HOME/.local/bin/panack.' 'Never edits shell startup files; do not run with sudo.'; exit 0 ;;
         *) fail "unknown argument: $1" ;;
     esac
     shift
@@ -69,10 +69,14 @@ case "$(uname -s)-$(uname -m)" in
     Darwin-arm64)
         major=$(sw_vers -productVersion | cut -d . -f 1)
         case "$major" in ''|*[!0-9]*) fail 'cannot detect macOS version' ;; esac
-        [ "$major" -ge 14 ] || fail 'requires macOS 14 or newer'
+        case "$version" in
+            0.1.0-alpha.[0-9]|0.1.0-alpha.1[0-4]) minimum=14 ;;
+            *) minimum=15 ;;
+        esac
+        [ "$major" -ge "$minimum" ] || fail "Panackelty $version requires macOS $minimum or newer on Apple silicon"
         platform=macos-arm64
         ;;
-    *) fail 'supported targets: Ubuntu 22.04+ x86_64 and macOS 14+ arm64' ;;
+    *) fail 'supported targets: Ubuntu 22.04+ x86_64 and macOS on Apple silicon' ;;
 esac
 for utility in curl tar mktemp; do command -v "$utility" >/dev/null || fail "missing command: $utility"; done
 if [ "$platform" = linux-x86_64 ]; then

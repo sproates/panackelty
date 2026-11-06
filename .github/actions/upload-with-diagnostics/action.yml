@@ -1,0 +1,102 @@
+name: Upload artifact with failure diagnostics
+description: Three bounded attempts with network evidence after every failure.
+inputs:
+  name:
+    required: true
+    description: Artifact name
+  path:
+    required: true
+    description: Paths to upload
+  retention-days:
+    default: '14'
+    description: Retention period
+  if-no-files-found:
+    default: warn
+    description: Missing-file behaviour
+outputs:
+  attempt:
+    description: Successful attempt number
+    value: ${{ steps.result.outputs.attempt }}
+runs:
+  using: composite
+  steps:
+    - name: Upload attempt 1
+      id: attempt1
+      if: ${{ !cancelled() }}
+      continue-on-error: true
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+        retention-days: ${{ inputs.retention-days }}
+        if-no-files-found: ${{ inputs.if-no-files-found }}
+    - name: Diagnose failed attempt 1
+      if: ${{ !cancelled() && steps.attempt1.outcome == 'failure' }}
+      continue-on-error: true
+      uses: ./.nightly-ci/.github/actions/artifact-network
+      with:
+        artifact: ${{ inputs.name }}
+        attempt: '1'
+    - name: Wait before retry
+      if: ${{ !cancelled() && steps.attempt1.outcome == 'failure' }}
+      shell: bash
+      run: sleep 10
+    - name: Upload attempt 2
+      id: attempt2
+      if: ${{ !cancelled() && steps.attempt1.outcome == 'failure' }}
+      continue-on-error: true
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      with:
+        name: ${{ inputs.name }}-retry-2
+        path: ${{ inputs.path }}
+        retention-days: ${{ inputs.retention-days }}
+        if-no-files-found: ${{ inputs.if-no-files-found }}
+    - name: Diagnose failed attempt 2
+      if: ${{ !cancelled() && steps.attempt2.outcome == 'failure' }}
+      continue-on-error: true
+      uses: ./.nightly-ci/.github/actions/artifact-network
+      with:
+        artifact: ${{ inputs.name }}
+        attempt: '2'
+    - name: Wait before retry
+      if: ${{ !cancelled() && steps.attempt2.outcome == 'failure' }}
+      shell: bash
+      run: sleep 30
+    - name: Upload attempt 3
+      id: attempt3
+      if: ${{ !cancelled() && steps.attempt2.outcome == 'failure' }}
+      continue-on-error: true
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      with:
+        name: ${{ inputs.name }}-retry-3
+        path: ${{ inputs.path }}
+        retention-days: ${{ inputs.retention-days }}
+        if-no-files-found: ${{ inputs.if-no-files-found }}
+    - name: Diagnose failed attempt 3
+      if: ${{ !cancelled() && steps.attempt3.outcome == 'failure' }}
+      continue-on-error: true
+      uses: ./.nightly-ci/.github/actions/artifact-network
+      with:
+        artifact: ${{ inputs.name }}
+        attempt: '3'
+    - name: Report upload result
+      id: result
+      if: ${{ !cancelled() }}
+      shell: bash
+      env:
+        FIRST: ${{ steps.attempt1.outcome }}
+        SECOND: ${{ steps.attempt2.outcome }}
+        THIRD: ${{ steps.attempt3.outcome }}
+        ARTIFACT_NAME: ${{ inputs.name }}
+      run: |
+        if [[ "$FIRST" == success ]]; then echo 'attempt=1' >> "$GITHUB_OUTPUT"; exit 0; fi
+        if [[ "$SECOND" == success ]]; then attempt=2
+        elif [[ "$THIRD" == success ]]; then attempt=3
+        else
+          echo 'Artifact upload failed after three attempts; see the network diagnostics in this job log.'
+          echo 'Artifact upload exhausted three attempts. Network evidence is in the job log.' >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+        fi
+        echo "attempt=$attempt" >> "$GITHUB_OUTPUT"
+        printf 'Artifact upload recovered on attempt %s. Artifact: %s-retry-%s\n' "$attempt" "$ARTIFACT_NAME" "$attempt"
+        printf 'Artifact upload recovered on attempt %s; the artifact has the corresponding retry suffix. Network evidence is in the job log.\n' "$attempt" >> "$GITHUB_STEP_SUMMARY"

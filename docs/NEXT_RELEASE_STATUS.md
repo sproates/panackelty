@@ -1,9 +1,9 @@
 # Next release status
 
-Updated: 5 November 2026. Release: **v0.1.0-alpha.15**. Integration branch: **next**.
-Latest published release: **v0.1.0-alpha.14**. Publication date: not agreed.
+Updated: 6 November 2026. Release: **v0.1.0-alpha.15**. Integration branch: **next**.
+Latest published release: **v0.1.0-alpha.15**, published 6 November 2026.
 
-**All seven alpha.15 feature workstreams are accepted on next. The release candidate is in preparation for promotion to main.**
+**Alpha.15 is published. All seven feature workstreams are accepted. The [public archives are verified](releases/ALPHA15_RELEASE_ACCEPTANCE.md#publication-record). Installer defaults and core download guidance now select alpha.15. Website downloads and browser promotion remain follow-up work.**
 
 This is the current release-status source of truth. Read this file for a quick
 status answer; follow evidence links when investigating a particular item.
@@ -14,12 +14,12 @@ and linked issues retain the detailed requirements and decisions.
 
 | Item | Current state and remaining acceptance | Weight | Complete | Earned |
 | --- | --- | ---: | ---: | ---: |
-| [GI#200 Packages](https://github.com/sproates/panackelty/issues/200) | Accepted on next: local folders/archives, HTTPS archives, pinned Git, diagnostics and installed acceptance. [P04c evidence](design/PACKAGE_FINAL_ACCEPTANCE.md), PR#595. Not yet released. | 30/90 | 100% | 30/90 |
-| [GI#180 Compiler understanding](https://github.com/sproates/panackelty/issues/180) | Complete on merge. [Final integration acceptance](COMPILER_UNDERSTANDING_ACCEPTANCE.md#final-alpha15-integration) reconciles checker decisions and instruction origins against GI#435, including installed terminal navigation, realistic project audits and retention costs. | 20/90 | 100% | 20/90 |
+| [GI#200 Packages](https://github.com/sproates/panackelty/issues/200) | Accepted on next: local folders/archives, HTTPS archives, pinned Git, diagnostics and installed acceptance. [P04c evidence](design/PACKAGE_FINAL_ACCEPTANCE.md), PR#595. Released in alpha.15. | 30/90 | 100% | 30/90 |
+| [GI#180 Compiler understanding](https://github.com/sproates/panackelty/issues/180) | Complete. [Final integration acceptance](COMPILER_UNDERSTANDING_ACCEPTANCE.md#final-alpha15-integration) reconciles checker decisions and instruction origins against GI#435, including installed terminal navigation, realistic project audits and retention costs. | 20/90 | 100% | 20/90 |
 | [GI#435 Validated domain types](https://github.com/sproates/panackelty/issues/435) | [PR #661](https://github.com/sproates/panackelty/pull/661) completed acceptance for guarded conditionals, array elements, indexing and the shared control-character check. See the [installed acceptance and cost results](VALIDATED_DOMAIN_TYPES_ACCEPTANCE.md) and [migration guide](guides/VALIDATED_DOMAIN_TYPES.md). | 20/90 | 100% | 20/90 |
 | [GI#409 Compiler/stdlib boundary](https://github.com/sproates/panackelty/issues/409) | Assessment complete on next (PR#635): 42-file closure verified, five change cases evidenced, recommendation to retain source organisation and assess narrower build dependencies in GI#106. [Evidence](COMPILER_STDLIB_BOUNDARY_ASSESSMENT.md). No refactor. | 5/90 | 100% | 5/90 |
 | [RM#154 Faster coverage](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-154) | Complete: local reuse PR#644 and hosted persistence PR#645. Local repeat/reporting medians improve 88.70%/88.75%; cold/dependency regressions 0.65%/2.35%. Hosted 30m22s → 3m35s with 29 cache hits and 62 distinct sessions across two runs. [Final evidence and limits](COVERAGE_PERFORMANCE_BASELINE.md#final-acceptance-28-october-2026). Cold preparation remains slow. | 5/90 | 100% | 5/90 |
-| [RM#155 Authoring friction](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-155) | Complete on merge. Inventory preflight and contributor guidance shipped earlier. [PR #652](https://github.com/sproates/panackelty/pull/652) delivered the tested recipes on next. Final acceptance covers the source-located interpolation diagnostic, literal-text migration and [public-signature example](../examples/namespaces/README.md#returning-a-type-from-another-module). | 5/90 | 100% | 5/90 |
+| [RM#155 Authoring friction](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-155) | Complete. Inventory preflight and contributor guidance shipped earlier. [PR #652](https://github.com/sproates/panackelty/pull/652) delivered the tested recipes on next. Final acceptance covers the source-located interpolation diagnostic, literal-text migration and [public-signature example](../examples/namespaces/README.md#returning-a-type-from-another-module). | 5/90 | 100% | 5/90 |
 | [GI#106 Validation speed](https://github.com/sproates/panackelty/issues/106) | Shared compiler-test preparation merged into next (PR#637). [Replay evidence](VALIDATION_SPEED_ACCEPTANCE.md): clean full 16.1% faster, compiler edit 20.05% faster, hosted initial compiler 24.9%/36.8% faster. All guards passed, including four workers. Owner accepted the alpha.15 milestone on 27 October 2026. Wider issue remains open. | 5/90 | 100% | 5/90 |
 | **Total** | **All agreed feature workstreams accepted.** | **100%** | **100%** | **90/90** |
 
@@ -165,10 +165,9 @@ The order and scope weights remain unchanged. GI#409 assessment delivery is reco
 
 ## Release readiness and next action
 
-- Candidate prepared with the alpha.15 version, release notes and regenerated bundled locks. Verify distribution and
-  promotion against the [release policy](releases/RELEASE_POLICY.md).
-- Promotion, package/install release checks and owner publication approval remain.
-  Complete product acceptance on next does not mean a feature has shipped.
+- Promotion PR #664 merged to main at `eb2e5f9`. Release workflow 42128267918 published the approved commit after validation.
+- Public native archives and the browser runtime bundle match their tested artifacts and SHA-256 digests. See the [release acceptance](releases/ALPHA15_RELEASE_ACCEPTANCE.md).
+- This promotion updates the installer default and core download guidance to alpha.15, with macOS 15+ and explicit guarded-type migration guidance. Website and browser promotion remain separate.
 - Latest supporting repair: [PR#601](https://github.com/sproates/panackelty/pull/601)
   merged into main adds upload retries and failure-time network evidence.
   The original DNS cause is unconfirmed. [Scheduled nightly 40666115194](https://github.com/sproates/panackelty/actions/runs/40666115194) succeeded on 28 October with the repairs in place. This confirms a successful scheduled run, not the original DNS cause, and adds no earned scope credit.

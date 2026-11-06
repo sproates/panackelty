@@ -94,11 +94,11 @@ case_name=installer-clean-repeat-upgrade-and-rollback
 fixture 0.1.0-alpha.14
 cp "$work/assets/$asset" "$work/pristine.tar.gz"
 cp "$work/assets/$asset.sha256" "$work/pristine.sha256"
-install_ok
+install_ok --version 0.1.0-alpha.14
 contains "$work/out" 'export PATH='
 first=$(readlink "$prefix/current")
 test "$("$link" --version)" = 'panack 0.1.0-alpha.14 (bytecode 9)' || fail 'installed command'
-install_ok
+install_ok --version 0.1.0-alpha.14
 test "$(readlink "$prefix/current")" = "$first" || fail repeat-link
 fixture 0.1.0-alpha.15
 if [ "$fixture_system" = Darwin ]; then
@@ -108,7 +108,7 @@ if [ "$fixture_system" = Darwin ]; then
     test "$(readlink "$prefix/current")" = "$first" || fail 'changed installed release on unsupported macOS'
     unset fixture_macos
 fi
-install_ok --version 0.1.0-alpha.15
+install_ok
 test "$("$link" --version)" = 'panack 0.1.0-alpha.15 (bytecode 9)' || fail upgraded-command
 test -d "$prefix/$first" || fail 'old release not retained'
 install_ok --version 0.1.0-alpha.14
@@ -148,13 +148,13 @@ asset=panackelty-0.1.0-alpha.14-$platform.tar.gz
 cp "$work/pristine.tar.gz" "$work/assets/$asset"
 cp "$work/pristine.sha256" "$work/assets/$asset.sha256"
 chmod -x "$prefix/$first/bin/panack-native"
-reject 'installed release cannot run native compiler'
+reject 'installed release cannot run native compiler' --version 0.1.0-alpha.14
 chmod +x "$prefix/$first/bin/panack-native"
 chmod -x "$prefix/$first/bin/panack"
-reject 'installed release cannot run'
+reject 'installed release cannot run' --version 0.1.0-alpha.14
 chmod +x "$prefix/$first/bin/panack"
 printf 'user change\n' >> "$prefix/$first/bin/panack"
-reject 'installed release differs'
+reject 'installed release differs' --version 0.1.0-alpha.14
 contains "$prefix/$first/bin/panack" 'user change'
 pass
 case_name=installer-lock-interruption-and-removal

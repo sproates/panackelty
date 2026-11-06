@@ -16,7 +16,8 @@ extract() {
 HOME="$work/home with spaces"
 export HOME
 unset SUDO_USER
-sh "$root/scripts/install.sh" --version 0.1.0-alpha.14
+sh "$root/scripts/install.sh"
+sh "$root/scripts/install.sh" --version 0.1.0-alpha.15
 extract quick-start-program "$work/hello.panack"
 extract quick-start-output "$work/expected"
 extract release-install-commands "$work/commands"

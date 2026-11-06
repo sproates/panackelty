@@ -85,6 +85,12 @@ string-producing operation uses the same constructor, including concatenation,
 interpolation, slicing, reversal, decoding, and host inputs; bounds and UTF-8
 validation remain in place.
 
+String addition, byte append/concatenation and array concatenation construct the
+result directly in its final allocation, avoiding a temporary combined buffer.
+Byte storage retains its trailing NUL; concatenated arrays retain each element
+independently. Input storage is never modified. Constructors reject size overflow
+before allocating or reading inputs.
+
 Array append uses bounded sharing between an immutable prefix and its next
 version, amortizing eligible repeated growth while preserving retained snapshots.
 A bounded ownership check sends possible cycles and large object graphs to the

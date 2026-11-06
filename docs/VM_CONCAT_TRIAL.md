@@ -12,10 +12,12 @@ copy and free per operation. String Unicode character counting still scans the
 result; array elements retain their existing reference-counted ownership.
 Length overflow is rejected before allocating or reading inputs.
 
-The normal checkout VM has **not** been replaced by this candidate. This trial
-uses separate baseline/candidate build directories. It is not yet a completed
-product change: focused verification passed, but final `make check` and adoption
-remain outstanding. No CI, PR, integration merge or website change.
+The owner approved adoption after the trial. The normal checkout VM has been
+rebuilt with this change; final local `make check` passed on 7 November 2026
+(820 seconds, exit 0), including unit, functional, bootstrap, package/install,
+release-smoke and quick-start checks. The original
+trial used separate baseline/candidate build directories. No CI, PR, integration
+merge, installed-release replacement or website change.
 
 ## Measurements
 
@@ -52,6 +54,9 @@ bootstrap hash `9fb5c3837e87901f12fe0768099dc8c81a5aaf531735ce53c84a6573a62f066d
   candidate VM, then their saved bytecode ran with exact expected stdout. This
   directly exercised the VM; the installed CLI was not replaced for the trial.
 - Reviewed the source diff and ran `git diff --check`.
+- After adoption approval, rebuilt the normal VM and passed full `make check`.
+  The historical timing warnings remain advisory; this run is correctness
+  evidence, not a claim of improved whole-suite performance.
 
 ## Repeat the operation benchmark
 

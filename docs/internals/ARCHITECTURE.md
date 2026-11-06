@@ -1866,3 +1866,9 @@ effect checks remain. Indirect calls retain runtime resolution. Names remain for
 diagnostics, and neither these links nor any new opcode are serialized. Native
 embedders must retain an immutable verified Program throughout execution and
 re-verify after replacing instructions. See [VM ownership](../../src/vm/README.md).
+
+String addition, byte append/concatenation and array concatenation allocate final
+result storage directly, without a temporary concatenated buffer. Byte storage
+retains its trailing NUL and strings retain cached Unicode metadata. Array
+results retain each element independently of the input arrays. Size overflow is
+rejected before allocating or reading inputs; serialized bytecode is unchanged.

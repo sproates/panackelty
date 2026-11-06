@@ -24,10 +24,56 @@ Implementation and release publication remain separate decisions.
 | --- | --- | --- |
 | alpha.14: methods and HTTP | Released: GI#525 type-owned methods/dot notation, GI#518 routed HTTP framework, and the HTTP reference and runnable examples slice of [GI#552](https://github.com/sproates/panackelty/issues/552). | Release validation passed and native artifacts are published. [GI#555](https://github.com/sproates/panackelty/issues/555) coloured diagnostics was not included. The wider GI#552 standard-library reference remains separate. |
 | alpha.15: strengthen the foundations | Remaining compiler understanding GI#180 (GI#173 provenance and GI#134 explanations); GI#435 validated domain types with multiline, parenthesised conjunctions; GI#409 compiler-facing stdlib assessment; full package-management implementation GI#200, arranged as P01–P04 under RM#44 and tracked as RM#158–RM#161; RM#154 faster coverage, RM#155 selected friction improvements; GI#106 validation-speed milestone. | All previously agreed bounded outcomes remain. Package-management implementation follows the [P01–P04 plan](dependency-management--idea.md#alpha15-implementation-plan); GI#200 stays open through final acceptance. Test-speed acceptance stays here rather than moving with the old alpha.15 theme. |
-| alpha.16: build useful programs | GI#170 inference/diagnostics assessment; GI#166 typed HTTP exchanges, GI#167 recursive file discovery, GI#168 subprocess examples, GI#169 tiny build tool, GI#138 tested guides coordinated with GI#310; RM#157 performance review and bounded quick wins; GI#435 alternatives (`&#124;&#124;`) for the new string, collection and record-relationship guards, including proof rules and diagnostics; existing numeric alternatives are preserved. | Prove installed success/failure workflows; no general RPC framework or production build system. Full GI#552 API-reference completion and GI#553 load profiling were only proposed for old alpha.15; their corresponding candidate slot is now alpha.16, not an automatic commitment. |
+| alpha.16: build useful programs | [RM#162: Real-program fixes](#rm-162), an explicit implementation allocation with scope discovered during use; GI#170 inference/diagnostics assessment; GI#166 typed HTTP exchanges, GI#167 recursive file discovery, GI#168 subprocess examples, GI#169 tiny build tool, GI#138 tested guides coordinated with GI#310; RM#157 performance review and bounded quick wins; GI#435 alternatives (`&#124;&#124;`) for the new string, collection and record-relationship guards, including proof rules and diagnostics; existing numeric alternatives are preserved. | Prove installed success/failure workflows; no general RPC framework or production build system. Full GI#552 API-reference completion and GI#553 load profiling were only proposed for old alpha.15; their corresponding candidate slot is now alpha.16, not an automatic commitment. |
 | alpha.17: improve everyday development | GI#139 one-editor support, GI#136 source-aware runtime errors, GI#147 Homebrew installation. | No full language server/debugger commitment. GI#555's proposed fallback slot moves here if not selected for alpha.14. |
 | alpha.18: interactive and connected applications | GI#165 browser event handlers; GI#142 bounded service/library contract testing. | Contract design follows concrete use cases; no general DOM/UI framework. Docker toolchain images (GI#146) and Linux ARM64 releases (GI#145) remain optional. |
 | alpha.19: improve language ergonomics | GI#274 error propagation and further GI#435 guard families, subject to design/evidence. | Beyond alpha.15's strings, collection sizes and cross-field records. Targeted inference and remaining stdlib discoverability may support the release; they are not automatic gates. |
+
+### Real-program fixes — alpha.16 allocation, 6 November 2026
+
+<a id="rm-162"></a>
+
+**RM#162: Real-program fixes. Status: Planned for alpha.16. Scope and effort: unknown.**
+
+Reserve a real delivery workstream for issues encountered while the owner builds
+useful programs in Panackelty. Its purpose is to fix the problems and return to
+the program that exposed them, not merely to produce an issue list or defer the
+work to a later release. This is part of alpha.16, not spare-time work after the
+named features. No number of fixes, time budget or percentage weight is yet agreed.
+
+The earlier attempt to read the system clock inside an HTTP response handler
+illustrates the kind of obstacle this workstream covers. It is context, not a
+claim that the same problem remains unfixed in the current release; reproduce
+each case against the current toolchain first.
+
+Eligible discoveries include correctness defects, missing capabilities needed by
+the real program, API or effect restrictions, confusing diagnostics, and tooling
+or documentation gaps that obstruct normal use. Preserve the intended language
+and safety contracts; fixing friction does not mean bypassing a valid check.
+
+For each discovery, record the concrete program/use case, reproduction, expected
+behaviour and smallest useful fix. Define the individual outcome when it becomes
+known, implement it, add proportionate regression coverage and affected guidance,
+and verify that the original program can continue. Reuse existing work items
+where they cover the same outcome; do not count one fix twice under this slot and
+a named alpha.16 workstream. Creating an issue alone does not complete the fix.
+
+The workstream runs alongside building the real programs. Routine fixes within
+this remit can proceed through normal delivery; ask for a decision when a fix
+requires a material design choice or threatens the release's size or schedule.
+Do not silently substitute a workaround or put the problem back in the backlog.
+If deferral is agreed, allocate it explicitly to alpha.17 under the release
+deferral rule unless the owner chooses another destination.
+
+Because discoveries are open-ended, the workstream has no invented fixed task
+count or automatic 100% completion when its current list is empty. At the
+alpha.16 scope cutoff agreed with the owner, account for every selected finding:
+delivered and verified against its originating program, or explicitly deferred
+with its release allocation. Do not promise to discover or fix every possible
+issue before shipping.
+
+Website follow-up: include this practical discovery-and-fix workstream in the
+alpha.16 roadmap summary; no change to published alpha.15 claims or articles.
 
 ### Inference assessment allocation, 26 October 2026
 

@@ -1,7 +1,9 @@
 # VM direct-call lookup trial
 
-Local experiment, 6 November 2026; owner requested a quick trial with no bytecode
-format change or CI. Baseline source: `976adb6`. Not accepted for integration.
+Local experiment and development adoption, 6 November 2026. The owner requested
+using the optimisation on the current branch after local verification. No
+bytecode format change or CI. Baseline source: `976adb6`. No integration merge
+or release publication is implied.
 
 ## Change
 
@@ -67,22 +69,32 @@ Passed:
 - Decoder corpus using async fixture: 18,844 mutations and 1,346 truncations.
 - Documentation links and whitespace review.
 
-Incomplete/failed probes, retained explicitly:
+### Resolution of the initial failed probes
 
-- The aggregate native module suite first hit the sandbox's socket-bind denial.
-  Retrying with host permissions stopped at `peers[i] >= 0` in
-  `tcp_server.c:outbound_contracts`. Cause is unresolved; no claim that the whole
-  native suite passed or that the failure is unrelated to the candidate.
-- Invoking the generic resumable-artifact helper on the async fixture failed its
-  completion assertion. That helper was not demonstrated to drive the fixture's
-  async host waits. CLI execution of the same fixture passes; this failed probe
-  is not claimed as async resumable acceptance. The synchronous owned-methods
-  fixture passes the helper.
+The TCP outbound fixture replaced a function's instruction body after verifying
+its Program. The new body lacked resolved links. Re-verifying that changed test
+program before execution fixes the failure and preserves all socket assertions.
+The complete native module suite now passes using the normal checkout VM.
+This enforces the same verified-program lifetime contract as normal loading;
+it does not relax runtime checks or suppress a network failure.
 
-No full check, CI, publication, installation or bootstrap refresh. This experiment
-is complete as a trial, not as a production implementation. Before integration,
-resolve the native-suite failure, review async suspension coverage and memory
-cost, and run applicable delivery checks under the owner's workflow directions.
+The generic resumable-artifact helper supports synchronous print workloads,
+stops on VM_WAITING, and expects a Void result. It is not the correct driver for
+the async fixture. A new native regression verifies direct function and builtin
+links, advances one instruction at a time, observes a pending fake host read,
+supplies its typed completion and verifies successful Unit completion/cleanup.
+That test runs in the full native module suite and passes. Source/saved-bytecode
+async fixture execution also passed in the trial.
+
+The normal checkout panack-vm has been rebuilt with the optimisation. Final local
+`make check` passed on 6 November 2026 (exit 0, 787 seconds), including unit,
+functional, bootstrap, packaging and release-smoke checks. The historical
+120-second warning was emitted; this is not a matched before/after full-suite
+benchmark and establishes no full-suite speedup or regression. Bootstrap stage 2
+reproduced the existing seed SHA-256. Local development adoption is complete.
+No compiler-source, bootstrap, wire-format, system installation or website change.
+No CI or push. The full suite is being run once for development adoption rather
+than for every exploratory measurement.
 
 ## Reproduction
 

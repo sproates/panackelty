@@ -183,6 +183,14 @@ and executor share those names. Numeric operations report through an error point
 and do not depend on VM state. The verifier and executor use one builtin registry,
 so effects, arities and implementation routing are kept together.
 
+Verification also resolves direct CALL/AWAIT_CALL targets to borrowed builtin or
+function pointers in the decoded instructions. These links are never serialized;
+version-9 bytes and names are unchanged. They become usable only when verification
+succeeds. A loaded program must stay immutable during execution; native callers
+that replace instructions must re-verify before starting another execution.
+Re-verification disables old links until successful. Runtime effect/arity checks
+remain, and indirect callable values still resolve their actual runtime targets.
+
 ## Ownership and editing conventions
 
 Constructors normally return one owned reference. Collection constructors retain

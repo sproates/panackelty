@@ -1856,3 +1856,13 @@ alone never confer remote trust. Preparation artifacts contain no local key or
 execution evidence and are distinct from the static publisher's exact report
 name. Failed transport or import causes fresh preparation. See the
 [hosted contract](../COVERAGE_PERFORMANCE_BASELINE.md#slice-c-hosted-preparation-and-matched-acceptance).
+
+## VM direct-call preparation
+
+After successful bytecode verification, direct CALL and AWAIT_CALL instructions
+carry borrowed links to builtin registry entries or functions in their owning
+Program. Execution uses these links without repeated name lookup; call arity and
+effect checks remain. Indirect calls retain runtime resolution. Names remain for
+diagnostics, and neither these links nor any new opcode are serialized. Native
+embedders must retain an immutable verified Program throughout execution and
+re-verify after replacing instructions. See [VM ownership](../../src/vm/README.md).

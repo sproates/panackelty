@@ -1,5 +1,11 @@
 # Specification coverage
 
+VM direct-call resolution has native regressions for verified builtin/function
+links, changed-target re-verification, failed-verification invalidation, and
+verified async calls across host suspension/completion. Existing ownership,
+forged-bytecode and TCP assertions remain. See the
+[lookup experiment and local adoption](../docs/VM_CALL_LOOKUP_TRIAL.md).
+
 Shared compiler-test preparation preserves the existing assertions and standalone
 entry points; suite bodies now live in `runner/compiler_suites/`. Each selected
 suite runs in its own process. The real dispatcher and probe-cache regression in

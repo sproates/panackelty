@@ -54,7 +54,14 @@ Do not mark a clock read pure: its result depends on external state.
 The counter is a state-model gap, not a clock/effect diagnostic problem. Immutable
 context values cannot become shared mutable state merely by relaxing call checks.
 
-## Proposed bounded delivery — awaiting scope agreement
+## Historical proposal — revised during owner discussion
+
+The [discussion record](ASYNC_DESIGN_DISCUSSION.md) supersedes the direction below:
+the owner prefers async standard-library counterparts selected through `/async`
+imports. General ordinary-effect permission is not the selected clock fix.
+State, closures and capture rules remain open design questions.
+
+### Original proposal
 
 1. Generalise the existing compiler/VM permission mechanism to represent a small,
    explicit set of synchronous effects permitted during async execution. Include

@@ -21,7 +21,7 @@ and linked work records. Update this summary whenever release work changes.
 | [GI#168: Subprocess examples](https://github.com/sproates/panackelty/issues/168) | Planned. Reuse existing examples and verify the remaining installed workflows. |
 | [GI#169: Tiny build tool](https://github.com/sproates/panackelty/issues/169) | Planned. A useful small program, not a production build system. |
 | [GI#138: Tested guides](https://github.com/sproates/panackelty/issues/138), with [GI#310: Examples](https://github.com/sproates/panackelty/issues/310) | Planned. Coordinate guides with runnable examples; do not count the same delivery twice. |
-| [RM#162: Real-program fixes](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-162) | In progress: [async capability investigation](ASYNC_USEFUL_PROGRAMS_INVESTIGATION.md) reproduces the clock restriction and separate callback-state gap. A bounded general-purpose effects/state proposal is ready for scope agreement; no fix implemented yet. Scope and effort emerge from actual use; verify each originating program and agree a release cutoff. No website update. |
+| [RM#162: Real-program fixes](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-162) | In progress: [async capability investigation](ASYNC_USEFUL_PROGRAMS_INVESTIGATION.md) reproduces the clock restriction and separate callback-state gap. The [discussion record](ASYNC_DESIGN_DISCUSSION.md) captures the preferred async-module API direction; state and closures remain exploratory. No fix implemented yet. Scope and effort emerge from actual use; verify each originating program and agree a release cutoff. No website update. |
 | [GI#170: Inference/diagnostics assessment](https://github.com/sproates/panackelty/issues/170) | Planned assessment. No inference implementation or architecture is selected. |
 | [RM#157: Performance review](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-157) | Planned review and bounded improvements. Workloads, targets and selected improvements still need agreement. |
 | [GI#435: Guard alternatives](https://github.com/sproates/panackelty/issues/435) | Planned follow-on for string, collection and record-relationship guards: proof rules and diagnostics need design. Numeric alternatives already work; the alpha.15 contract remains complete. |
@@ -51,7 +51,9 @@ alpha.17 unless the owner chooses another destination.
   On 6 November, the checkout alpha.15 compiler accepted an ordinary `main`
   binding `reading = time.now()` and rejected the identical async body with
   `async function cannot call blocking function time.panack:now`.
-  Next: settle the narrow API/effect change, then verify a real uptime endpoint.
+  Next: define an async clock counterpart under the preferred `/async` module
+  convention, then verify a real uptime endpoint. State/closure design is not
+  committed scope.
 - Follow the [release checklist](releases/RELEASE_CHECKLIST.md) for alpha.16:
   packages, installer and browser must be ready before the final website publication.
 - Website scope remains unchanged by owner direction. Website PR #74 is closed.

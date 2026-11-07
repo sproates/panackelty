@@ -1292,8 +1292,59 @@ static void collection_indexes_preserve_semantics(void)
     }
 }
 
+static void call_argument_buffers_preserve_order(void)
+{
+    const size_t counts[] = {0, 1, 8, 9, 255};
+    for (size_t indirect = 0; indirect < 2; indirect++) {
+        for (size_t test = 0; test < sizeof(counts) / sizeof(*counts); test++) {
+            size_t count = counts[test], used = 0;
+            char names[255][8];
+            char *params[255];
+            Instruction code[258] = {0};
+            if (indirect) code[used++] = (Instruction){.op = OP_CONST,
+                .constant = {.tag = 3, .text = "target", .text_length = 6}};
+            for (size_t i = 0; i < count; i++) {
+                snprintf(names[i], sizeof(names[i]), "p%zu", i);
+                params[i] = names[i];
+                code[used++] = (Instruction){.op = OP_CONST,
+                    .constant = {.tag = 4, .boolean = i + 1 == count}};
+            }
+            code[used++] = (Instruction){.op = indirect ? OP_CALL_VALUE : OP_CALL,
+                .name = "target", .arity = (uint8_t)count};
+            code[used++] = (Instruction){.op = OP_RETURN};
+            Instruction target[] = {
+                {.op = count ? OP_LOAD : OP_CONST, .name = count ? params[count - 1] : NULL,
+                 .constant = {.tag = 4, .boolean = true}}, {.op = OP_RETURN}};
+            Function functions[] = {{.name = "main", .ins = code, .ins_count = used},
+                {.name = "target", .ins = target, .ins_count = 2,
+                 .params = params, .param_count = count}};
+            Program program = {.functions = functions, .count = 2};
+            const char *error = NULL;
+            assert(verify(&program, &error));
+            VM vm = {.program = &program};
+            Value *result = execute(&vm, &functions[0], NULL);
+            assert(result && !vm.error && result->kind == V_BOOL && result->as.boolean);
+            release(result);
+            if (count || indirect) {
+                /* Skip one push: the call must clean up every argument popped before underflow. */
+                size_t skipped = count ? indirect + count - 1 : 0;
+                code[skipped] = (Instruction){.op = OP_JUMP, .target = (uint32_t)(skipped + 1)};
+                assert(verify(&program, &error));
+                vm = (VM){.program = &program};
+                assert(!execute(&vm, &functions[0], NULL));
+                assert(vm.error && !strcmp(vm.error, "VM trap: operand stack underflow"));
+            }
+        }
+    }
+}
+
 int main(int argc, char **argv)
 {
+    call_argument_buffers_preserve_order();
+    if (argc == 2 && !strcmp(argv[1], "arguments")) {
+        puts("native call argument contracts: ok");
+        return 0;
+    }
     collection_indexes_preserve_semantics();
     if (argc == 2 && !strcmp(argv[1], "collections")) {
         puts("native collection index contracts: ok");

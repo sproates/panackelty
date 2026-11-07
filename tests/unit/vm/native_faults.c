@@ -25,6 +25,42 @@ static uint8_t operation;
 static Value *left, *right;
 static size_t sweeps;
 static Value *index_fixture;
+static uint8_t argument_count;
+static bool argument_indirect, argument_underflow;
+
+static void call_argument_allocations(void)
+{
+    char *params[] = {"a", "b", "c", "d", "e", "f", "g", "h", "i"};
+    Instruction code[12] = {0};
+    size_t used = 0;
+    if (argument_indirect) code[used++] = (Instruction){.op = OP_CONST,
+        .constant = {.tag = 3, .text = "target", .text_length = 6}};
+    for (size_t i = 0; i < argument_count; i++) {
+        code[used++] = (Instruction){.op = OP_CONST,
+            .constant = {.tag = 4, .boolean = i + 1 == argument_count}};
+    }
+    if (argument_underflow) code[used - 1] = (Instruction){.op = OP_JUMP, .target = (uint32_t)used};
+    code[used++] = (Instruction){.op = argument_indirect ? OP_CALL_VALUE : OP_CALL,
+        .name = "target", .arity = argument_count};
+    code[used++] = (Instruction){.op = OP_RETURN};
+    Instruction target[] = {{.op = OP_LOAD, .name = params[argument_count - 1]}, {.op = OP_RETURN}};
+    Function functions[] = {{.name = "main", .ins = code, .ins_count = used},
+        {.name = "target", .params = params, .param_count = argument_count, .ins = target, .ins_count = 2}};
+    Program program = {.functions = functions, .count = 2};
+    const char *error = NULL;
+    if (!verify(&program, &error)) {
+        assert(fault_triggered() && error);
+        return;
+    }
+    VM vm = {.program = &program};
+    Value *result = execute(&vm, &functions[0], NULL);
+    if (fault_triggered() || argument_underflow) {
+        assert(!result && vm.error);
+    } else {
+        assert(result && !vm.error && result->kind == V_BOOL && result->as.boolean);
+    }
+    release(result);
+}
 
 static void collection_index_allocations(void)
 {
@@ -928,6 +964,13 @@ void console_write_faults(void);
 
 int main(int argc, char **argv)
 {
+    for (size_t mode = 0; mode < 4; mode++) {
+        argument_indirect = (mode & 1) != 0;
+        argument_underflow = (mode & 2) != 0;
+        for (argument_count = 8; argument_count <= 9; argument_count++) {
+            sweep("inline/heap call argument ownership", call_argument_allocations);
+        }
+    }
     Value *index_items[64];
     for (size_t i = 0; i < 64; i++) {
         index_items[i] = value_size(i);

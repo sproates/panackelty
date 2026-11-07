@@ -39,6 +39,8 @@ typedef struct {
     Value *value;
 } Local;
 
+enum { INLINE_CALL_ARGUMENTS = 8 };
+
 typedef struct {
     Function *function;
 #ifdef PANACK_VM_TEST_OBSERVER
@@ -1109,7 +1111,11 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
         case OP_AWAIT_CALL:
         case OP_CALL: {
             bool called_function = false;
-            Value **args = calloc(instruction->arity, sizeof(Value *));
+            /* Every used slot is filled below before invocation or cleanup.
+             * Callees retain values needed after this temporary array is released. */
+            Value *inline_args[INLINE_CALL_ARGUMENTS];
+            Value **args = instruction->arity <= INLINE_CALL_ARGUMENTS ? inline_args
+                                                  : calloc(instruction->arity, sizeof(Value *));
             if (instruction->arity && !args) {
                 goto oom;
             }
@@ -1120,7 +1126,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
                 for (size_t i = 0; i < instruction->arity; i++) {
                     release(args[i]);
                 }
-                free(args);
+                if (args != inline_args) free(args);
                 break;
             }
             const Builtin *built = vm->program->resolved_calls
@@ -1142,7 +1148,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
             for (size_t i = 0; i < instruction->arity; i++) {
                 release(args[i]);
             }
-            free(args);
+            if (args != inline_args) free(args);
             if (built && !called_function && execution->status == VM_YIELDED &&
                 ((!v && !vm->error) || (v && !stack_push(frame, v)))) {
                 goto oom;
@@ -1191,7 +1197,9 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
         case OP_AWAIT_VALUE:
         case OP_CALL_VALUE: {
             bool called_function = false;
-            Value **args = calloc(instruction->arity, sizeof(Value *));
+            Value *inline_args[INLINE_CALL_ARGUMENTS];
+            Value **args = instruction->arity <= INLINE_CALL_ARGUMENTS ? inline_args
+                                                  : calloc(instruction->arity, sizeof(Value *));
             if (instruction->arity && !args) {
                 goto oom;
             }
@@ -1203,7 +1211,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
                 for (size_t i = 0; i < instruction->arity; i++) {
                     release(args[i]);
                 }
-                free(args);
+                if (args != inline_args) free(args);
                 release(callable);
                 break;
             }
@@ -1215,7 +1223,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
                     for (size_t i = 0; i < instruction->arity; i++) {
                         release(args[i]);
                     }
-                    free(args);
+                    if (args != inline_args) free(args);
                     release(callable);
                     goto oom;
                 }
@@ -1247,7 +1255,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
             for (size_t i = 0; i < instruction->arity; i++) {
                 release(args[i]);
             }
-            free(args);
+            if (args != inline_args) free(args);
             release(callable);
             if (!called_function && execution->status == VM_YIELDED &&
                 ((!v && !vm->error) || (v && !stack_push(frame, v)))) {

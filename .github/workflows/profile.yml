@@ -83,12 +83,12 @@ jobs:
     timeout-minutes: 10
     outputs:
       digest: ${{ steps.measure.outputs.cache_digest }}
-    env:
-      PANACKELTY_COMPILE_CACHE_DIR: ${{ runner.temp }}/panack-compiler-cache-trial
     steps:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
+      - name: Select private cache directory
+        run: echo "PANACKELTY_COMPILE_CACHE_DIR=$RUNNER_TEMP/panack-compiler-cache-trial" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -124,12 +124,12 @@ jobs:
     name: Compiler cache warm
     runs-on: ubuntu-22.04
     timeout-minutes: 10
-    env:
-      PANACKELTY_COMPILE_CACHE_DIR: ${{ runner.temp }}/panack-compiler-cache-trial
     steps:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
+      - name: Select private cache directory
+        run: echo "PANACKELTY_COMPILE_CACHE_DIR=$RUNNER_TEMP/panack-compiler-cache-trial" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v6
         with:
           node-version: 24

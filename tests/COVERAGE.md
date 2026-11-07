@@ -1,5 +1,10 @@
 # Specification coverage
 
+The [shared Unit/Void trial](../docs/VM_SHARED_UNIT_VOID_TRIAL.md) checks distinct
+tags/equality, shared and heap ownership, container lifetime and allocation-free
+construction. Native/fault suites and five functional fixtures passed; full local
+validation awaits adoption.
+
 The [shared-Boolean trial](../docs/VM_SHARED_BOOLEANS_TRIAL.md) covers allocation-free
 construction, repeated/container ownership, ordinary heap Boolean lifetime, and
 shared inputs across async completion/cancellation. Native/fault suites and five

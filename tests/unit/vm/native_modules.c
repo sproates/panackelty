@@ -1372,8 +1372,37 @@ static void shared_booleans_preserve_values_and_ownership(void)
     assert(value_bool(true)->as.boolean && !value_bool(false)->as.boolean);
 }
 
+static void shared_unit_and_void_preserve_distinction(void)
+{
+    Value *unit = value_unit(), *empty = value_void();
+    assert(unit != empty && unit->kind == V_UNIT && empty->kind == V_VOID);
+    assert(!value_equal(unit, empty));
+    Value *owned_unit = value_new(V_UNIT), *owned_void = value_new(V_VOID);
+    assert(owned_unit && owned_void);
+    assert(value_equal(unit, owned_unit) && value_equal(empty, owned_void));
+    assert(retain(owned_unit)->refs == 2 && retain(owned_void)->refs == 2);
+    release(owned_unit);
+    release(owned_void);
+    assert(owned_unit->refs == 1 && owned_void->refs == 1);
+    release(owned_unit);
+    release(owned_void);
+    for (size_t i = 0; i < 1000; i++) {
+        Value *items[] = {retain(unit), retain(empty)};
+        Value *array = value_sequence(V_ARRAY, items, 2);
+        assert(array && array->as.sequence.items[0] == unit && array->as.sequence.items[1] == empty);
+        release(items[0]);
+        release(items[1]);
+        release(array);
+        assert(unit->refs == SIZE_MAX && empty->refs == SIZE_MAX);
+        assert(value_unit() == unit && value_void() == empty);
+    }
+    release(unit);
+    release(empty);
+}
+
 int main(int argc, char **argv)
 {
+    shared_unit_and_void_preserve_distinction();
     shared_booleans_preserve_values_and_ownership();
     call_argument_buffers_preserve_order();
     if (argc == 2 && !strcmp(argv[1], "arguments")) {

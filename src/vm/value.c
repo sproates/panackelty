@@ -127,9 +127,17 @@ Value *value_bool(bool value)
     return &boolean_values[value ? 1 : 0];
 }
 
+static Value unit_value = {.refs = SIZE_MAX, .kind = V_UNIT};
+static Value void_value = {.refs = SIZE_MAX, .kind = V_VOID};
+
+Value *value_unit(void)
+{
+    return &unit_value;
+}
+
 Value *value_void(void)
 {
-    return value_new(V_VOID);
+    return &void_value;
 }
 
 Value *value_big(ValueKind kind, const PnBigInt *number)

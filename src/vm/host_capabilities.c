@@ -72,7 +72,7 @@ static Value *hc_error(const char *op, const char *code, int e)
 
 static Value *hc_unit(void)
 {
-    return host_variant("Ok", value_new(V_UNIT));
+    return host_variant("Ok", value_unit());
 }
 
 static const char *hc_duration(Value *v, size_t *ns)

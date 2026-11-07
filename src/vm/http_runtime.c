@@ -14,7 +14,7 @@ struct VMHttpResource {
 
 static Value *outcome(const char *error)
 {
-    Value *payload = error ? value_data(V_STR, (const uint8_t *)error, strlen(error)) : value_new(V_UNIT);
+    Value *payload = error ? value_data(V_STR, (const uint8_t *)error, strlen(error)) : value_unit();
     if (!payload) return NULL;
     Value *result = named_value(V_VARIANT, error ? "Error" : "Ok", NULL, &payload, 1);
     release(payload);

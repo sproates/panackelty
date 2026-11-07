@@ -108,6 +108,8 @@ void release(Value *value);
 Value *value_new(ValueKind kind);
 /* Shared immutable Boolean; cannot fail. Balance ownership with retain/release as usual. */
 Value *value_bool(bool value);
+/* Distinct shared immutable Unit and Void values; cannot fail. */
+Value *value_unit(void);
 Value *value_void(void);
 Value *value_big(ValueKind kind, const PnBigInt *number);
 Value *value_size(size_t number);

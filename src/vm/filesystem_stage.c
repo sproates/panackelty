@@ -32,7 +32,7 @@ static Value *stage_error(const char *operation, const char *code, int error)
     return host_variant("Error", record);
 }
 #ifndef __EMSCRIPTEN__
-static Value *stage_ok(void) { return host_variant("Ok", value_new(V_UNIT)); }
+static Value *stage_ok(void) { return host_variant("Ok", value_unit()); }
 static char *stage_path(Value *value)
 {
     if (value->kind != V_PATH || !value->as.bytes.length || value->as.bytes.length > 4096 ||

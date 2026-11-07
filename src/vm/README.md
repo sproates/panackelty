@@ -230,7 +230,7 @@ or argument order.
 
 ## Ownership and editing conventions
 
-Boolean construction shares immutable immortal values; retain/release remain
+Boolean, Unit and Void construction shares immutable immortal values; retain/release remain
 valid but do not modify their reference counts. Other constructors normally
 return one owned reference. Collection constructors retain
 children; stack pop transfers a reference; local lookup borrows one. Header

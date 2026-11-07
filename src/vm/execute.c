@@ -485,7 +485,7 @@ static Value *server_call(VMExecution *execution, Value **arguments)
 
 static Value *http_unit_result(void)
 {
-    Value *unit = value_new(V_UNIT);
+    Value *unit = value_unit();
     if (!unit) return NULL;
     Value *result = named_value(V_VARIANT, "Ok", NULL, &unit, 1);
     release(unit);

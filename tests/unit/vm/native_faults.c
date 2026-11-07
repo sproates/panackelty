@@ -973,6 +973,15 @@ int main(int argc, char **argv)
     release(shared_yes);
     release(shared_no);
     assert(fault_attempts() == 0 && !fault_triggered() && fault_live() == 0);
+    fault_reset(1);
+    Value *shared_unit = value_unit(), *shared_void = value_void();
+    assert(shared_unit && shared_void && shared_unit != shared_void);
+    assert(shared_unit->kind == V_UNIT && shared_void->kind == V_VOID);
+    release(retain(shared_unit));
+    release(retain(shared_void));
+    release(shared_unit);
+    release(shared_void);
+    assert(fault_attempts() == 0 && !fault_triggered() && fault_live() == 0);
     fault_reset(0);
     for (size_t mode = 0; mode < 4; mode++) {
         argument_indirect = (mode & 1) != 0;

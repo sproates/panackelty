@@ -53,7 +53,7 @@ Value *gzip_stream_call(VM *vm, const char *name, Value **a)
     struct Decoder *decoder = &vm->gzip_streams->slots[number - 1];
     if (!strcmp(name, "gzip_close")) {
         inflateEnd(&decoder->stream); decoder->live = false;
-        return host_variant("Ok", value_new(V_UNIT));
+        return host_variant("Ok", value_unit());
     }
     if (strcmp(name, "gzip_step") || a[1]->kind != V_BYTES || a[1]->as.bytes.length > GZIP_CHUNK || a[2]->kind != V_BOOL)
         return gzip_error(name, "invalid_argument");

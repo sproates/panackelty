@@ -16,6 +16,9 @@ sentinel.
   `SIZE_MAX` reference count. Retain/release do not write or free these immortal
   objects; callers still balance ownership as usual and must not mutate them.
   Explicit heap-owned Booleans retain ordinary reference counting.
+- Unit and Void each use their own shared immutable static Value with the same
+  immortal ownership mechanism. Their tags remain distinct. `value_unit()` and
+  `value_void()` cannot fail; generic `value_new()` still allocates heap Values.
 - `Nat` and `Int` use a sign plus little-endian base-1,000,000,000 limbs. Zero
   has no limbs and is never negative.
 - `Rat` owns two arbitrary-precision integers. Construction reduces them by

@@ -69,7 +69,7 @@ typedef struct {
 } Iterator;
 
 struct Value {
-    size_t refs;
+    size_t refs; /* SIZE_MAX denotes an immutable immortal value. */
     ValueKind kind;
 
     union {
@@ -106,6 +106,7 @@ Value *retain(Value *value);
 void release(Value *value);
 
 Value *value_new(ValueKind kind);
+/* Shared immutable Boolean; cannot fail. Balance ownership with retain/release as usual. */
 Value *value_bool(bool value);
 Value *value_void(void);
 Value *value_big(ValueKind kind, const PnBigInt *number);

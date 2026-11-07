@@ -964,6 +964,16 @@ void console_write_faults(void);
 
 int main(int argc, char **argv)
 {
+    /* Boolean construction/ownership must not attempt an allocation. */
+    fault_reset(1);
+    Value *shared_yes = value_bool(true), *shared_no = value_bool(false);
+    assert(shared_yes && shared_no && shared_yes->as.boolean && !shared_no->as.boolean);
+    release(retain(shared_yes));
+    release(retain(shared_no));
+    release(shared_yes);
+    release(shared_no);
+    assert(fault_attempts() == 0 && !fault_triggered() && fault_live() == 0);
+    fault_reset(0);
     for (size_t mode = 0; mode < 4; mode++) {
         argument_indirect = (mode & 1) != 0;
         argument_underflow = (mode & 2) != 0;

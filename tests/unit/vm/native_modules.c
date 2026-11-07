@@ -1070,7 +1070,9 @@ static void indexed_locals_preserve_bindings(void)
     assert(verify(&program, &error) && program.resolved_locals);
     assert(code[0].local_slot == 0 && code[2].local_slot == 1);
     assert(code[1].local_slot == code[4].local_slot && functions[1].local_count == 3);
-    Value *args[] = {value_bool(true), value_bool(false)};
+    Value *args[] = {value_new(V_BOOL), value_new(V_BOOL)};
+    assert(args[0] && args[1]);
+    args[0]->as.boolean = true;
     VM vm = {.program = &program};
     Value *result = execute(&vm, &functions[1], args);
     assert(result == args[0] && result->as.boolean && !vm.error);
@@ -1338,8 +1340,41 @@ static void call_argument_buffers_preserve_order(void)
     }
 }
 
+static void shared_booleans_preserve_values_and_ownership(void)
+{
+    Value *no = value_bool(false), *yes = value_bool(true);
+    assert(no && yes && no != yes);
+    assert(!no->as.boolean && yes->as.boolean);
+    assert(no->kind == V_BOOL && yes->kind == V_BOOL);
+    for (size_t i = 0; i < 10000; i++) {
+        assert(value_bool(false) == no && value_bool(true) == yes);
+        Value *items[] = {retain(no), retain(yes), retain(yes)};
+        Value *array = value_sequence(V_ARRAY, items, 3);
+        assert(array && array->refs == 1);
+        for (size_t j = 0; j < 3; j++) release(items[j]);
+        release(array);
+        assert(no->refs == SIZE_MAX && yes->refs == SIZE_MAX);
+    }
+    Value *owned = value_new(V_BOOL);
+    assert(owned && owned->refs == 1);
+    owned->as.boolean = true;
+    assert(value_equal(owned, yes) && !value_equal(owned, no));
+    assert(retain(owned) == owned && owned->refs == 2);
+    release(owned);
+    assert(owned->refs == 1);
+    release(owned);
+    const char *error = NULL;
+    Value *same = binary_value(5, yes, yes, &error);
+    assert(same == yes && !error);
+    release(same);
+    release(no);
+    release(yes);
+    assert(value_bool(true)->as.boolean && !value_bool(false)->as.boolean);
+}
+
 int main(int argc, char **argv)
 {
+    shared_booleans_preserve_values_and_ownership();
     call_argument_buffers_preserve_order();
     if (argc == 2 && !strcmp(argv[1], "arguments")) {
         puts("native call argument contracts: ok");

@@ -29,7 +29,7 @@ Value *value_new(ValueKind kind)
 
 Value *retain(Value *v)
 {
-    if (v) {
+    if (v && v->refs != SIZE_MAX) {
         v->refs++;
     }
     return v;
@@ -37,7 +37,7 @@ Value *retain(Value *v)
 
 void release(Value *v)
 {
-    if (!v || --v->refs) {
+    if (!v || v->refs == SIZE_MAX || --v->refs) {
         return;
     }
     switch (v->kind) {
@@ -116,13 +116,15 @@ void release(Value *v)
     free(v);
 }
 
+/* Immortal immutable values: retain/release never write their reference counts. */
+static Value boolean_values[2] = {
+    {.refs = SIZE_MAX, .kind = V_BOOL, .as.boolean = false},
+    {.refs = SIZE_MAX, .kind = V_BOOL, .as.boolean = true},
+};
+
 Value *value_bool(bool value)
 {
-    Value *v = value_new(V_BOOL);
-    if (v) {
-        v->as.boolean = value;
-    }
-    return v;
+    return &boolean_values[value ? 1 : 0];
 }
 
 Value *value_void(void)

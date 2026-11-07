@@ -12,6 +12,10 @@ union payload. `Bool` stores its flag inline; `Unit` and `Void` need no payload.
 Their distinct tags prevent a successful Unit value from becoming a no-result
 sentinel.
 
+- Boolean construction shares two immutable static Values, marked with a
+  `SIZE_MAX` reference count. Retain/release do not write or free these immortal
+  objects; callers still balance ownership as usual and must not mutate them.
+  Explicit heap-owned Booleans retain ordinary reference counting.
 - `Nat` and `Int` use a sign plus little-endian base-1,000,000,000 limbs. Zero
   has no limbs and is never negative.
 - `Rat` owns two arbitrary-precision integers. Construction reduces them by

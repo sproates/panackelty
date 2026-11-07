@@ -8,6 +8,15 @@
 #include <assert.h>
 #include <string.h>
 
+/* These lifetime assertions deliberately exercise heap-owned inputs. */
+static Value *owned_bool(bool flag)
+{
+    Value *value = value_new(V_BOOL);
+    assert(value);
+    value->as.boolean = flag;
+    return value;
+}
+
 static char *parameters[] = {"fail"};
 static Instruction read_code[] = {{.op = OP_LOAD, .name = "fail"},
                                   {.op = OP_AWAIT_CALL, .name = "async_fake_read", .arity = 1},
@@ -30,7 +39,7 @@ static void completion_lifetimes(void)
         VM vm = {.program = &async_program};
         VMTasks *tasks = vm_tasks_create(&vm, 2, 1, &error);
         assert(tasks && !error);
-        Value *input = value_bool(mode == 1);
+        Value *input = owned_bool(mode == 1);
         Value *result = mode == 2 ? value_size(42) : vm_fake_read_result(mode == 1);
         assert(input && result);
         VMTaskId first = vm_tasks_spawn(tasks, (VMTaskId){0}, &async_functions[0], &input,
@@ -188,7 +197,7 @@ static void read_execution_contracts(void)
 {
     const char *error;
     VM vm = {.program = &async_program};
-    Value *input = value_bool(false);
+    Value *input = owned_bool(false);
     AsyncHost host = {.result = vm_fake_read_result(false)};
     assert(input && host.result);
     host.execution = vm_execution_create_async(&vm, &async_functions[1], &input,
@@ -225,7 +234,7 @@ static void independent_progress(void)
     const char *error;
     VM vm = {.program = &async_program};
     VMTasks *tasks = vm_tasks_create(&vm, 2, 1, &error);
-    Value *input = value_bool(false);
+    Value *input = owned_bool(false);
     Value *result = vm_fake_read_result(false);
     assert(tasks && input && result);
     VMTaskId first = vm_tasks_spawn(tasks, (VMTaskId){0}, &async_functions[0], &input,
@@ -297,8 +306,35 @@ static void verified_calls_survive_async_wait(void)
     release(result);
 }
 
+static void shared_booleans_survive_wait_and_cancellation(void)
+{
+    for (size_t cancel = 0; cancel < 2; cancel++) {
+        const char *error;
+        VM vm = {.program = &async_program};
+        Value *input = value_bool(false);
+        AsyncHost host = {.result = vm_fake_read_result(false)};
+        assert(host.result);
+        host.execution = vm_execution_create_async(&vm, &async_functions[1], &input,
+                                                    reentrant_read, &host, &error);
+        assert(host.execution && !error);
+        release(input); /* Drop the caller's ownership before the VM suspends. */
+        assert(vm_execution_advance(host.execution, 100) == VM_WAITING);
+        assert(input == value_bool(false) && input->refs == SIZE_MAX && !input->as.boolean);
+        if (!cancel) {
+            assert(vm_execution_complete_read(host.execution, host.result));
+            assert(vm_execution_advance(host.execution, 100) == VM_COMPLETED);
+            assert(vm_execution_result(host.execution) == host.result);
+        }
+        assert(vm_execution_destroy(host.execution));
+        assert(host.result->refs == 1 && input->refs == SIZE_MAX);
+        release(host.result);
+        assert(!value_bool(false)->as.boolean && value_bool(true)->as.boolean);
+    }
+}
+
 void async_contracts(void)
 {
+    shared_booleans_survive_wait_and_cancellation();
     verified_calls_survive_async_wait();
     independent_progress();
     read_execution_contracts();

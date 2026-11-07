@@ -130,3 +130,16 @@ branch pushes and PR updates remain CI-free under the alpha.16 workflow trial.
 The validated narrower-invalidation change and manual hosted trial are included
 in this follow-up integration. Local acceptance and the explicit hosted trial
 passed; ordinary next-branch CI runs on integration. The experiment branch is retained.
+
+## Incremental build profile, 8 November
+
+The [CI adoption assessment and edited-build profile](COMPILER_EDIT_PROFILE.md)
+found that the current next-push route performs no compiler preparation to cache.
+Cross-run nightly adoption remains separate; existing probe caches already reuse
+complete artifacts within a build tree. No automatic CI cache was enabled.
+The agreed profiling fallback completed: diagnostic edited-build time is dominated
+by checked-body decoding (4.54s) and fresh signatures (4.24s), while changed-body
+checking takes 0.17s. Normal edited compilation took 13.80s and matched fresh
+output. A cheaper decoder is the next proposed trial; no new implementation has
+started. The previous product integration passed in
+[run 42423346639](https://github.com/sproates/panackelty/actions/runs/42423346639).

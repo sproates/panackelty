@@ -1,3 +1,4 @@
+import project/src/compiler/module_cache::{ModuleCache, module_cache, cached_module_bodies, save_module_bodies}
 import project/src/compiler/compilation_cache::{CompilationCache, compilation_cache, cached_compilation, save_compilation, cache_trace}
 import stdlib/bytes as byte_buffer
 import project/src/compiler/path_support as path_support
@@ -15,7 +16,7 @@ import project/src/compiler/source_inventory::{run_inventory_command}
 import project/src/compiler/module_emission::{ModuleIdentity}
 import project/src/compiler/loader::{
   LoadedProject, LoadedProjectSources, load_project_sources, load_project_package_sources,
-  check_project_sources, load_project, load_project_package_for_check,
+  check_project_sources, check_project_sources_cached, load_project, load_project_package_for_check,
   load_project_explained, load_project_for_source_map
 }
 import project/src/project_model/package_project::{ManifestDependencyProject}
@@ -121,7 +122,7 @@ report_driver_error(message: Str): Nat {
 }
 
 pure driver_usage(): Str {
-  "usage: panack coverage-run ARTIFACT.bc INVENTORY RAW [arguments...]\n       panack coverage-session DIRECTORY ARTIFACT INVENTORY [ARTIFACT INVENTORY ...] -- [arguments...]\n       panack coverage-aggregate --source SOURCE INVENTORY [--source SOURCE INVENTORY ...] --session DIRECTORY [--session DIRECTORY ...]\n       panack coverage-report SOURCE.panack --inventory FILE --coverage RAW\n       panack inventory SOURCE.panack -o FILE [--include SOURCE.panack]\n       panack inventory-check SOURCE.panack --inventory FILE [--include SOURCE.panack]\n       panack FILE | panack {check,compile,run,disasm} FILE\n       panack check --project panack.json\n       panack compile --project panack.json [-o FILE]\n       panack run --project panack.json [arguments...]\n       panack explain SOURCE.panack --function NAME [--type-at LINE COLUMN]\n       panack compile SOURCE.panack -o ARTIFACT.bc --source-map MAP\n       panack locate ARTIFACT.bc --source SOURCE.panack --source-map MAP --function NAME --instruction PC"
+  "usage: panack coverage-run ARTIFACT.bc INVENTORY RAW [arguments...]\n       panack coverage-session DIRECTORY ARTIFACT INVENTORY [ARTIFACT INVENTORY ...] -- [arguments...]\n       panack coverage-aggregate --source SOURCE INVENTORY [--source SOURCE INVENTORY ...] --session DIRECTORY [--session DIRECTORY ...]\n       panack coverage-report SOURCE.panack --inventory FILE --coverage RAW\n       panack inventory SOURCE.panack -o FILE [--include SOURCE.panack]\n       panack inventory-check SOURCE.panack --inventory FILE [--include SOURCE.panack]\n       panack FILE | panack {check,compile,run,disasm} FILE\n       panack {check,compile} --incremental SOURCE.panack [-o FILE]\n       panack compile --incremental --project panack.json [-o FILE]\n       panack check --project panack.json\n       panack compile --project panack.json [-o FILE]\n       panack run --project panack.json [arguments...]\n       panack explain SOURCE.panack --function NAME [--type-at LINE COLUMN]\n       panack compile SOURCE.panack -o ARTIFACT.bc --source-map MAP\n       panack locate ARTIFACT.bc --source SOURCE.panack --source-map MAP --function NAME --instruction PC"
 }
 
 run_manifest_command(arguments: [Str]): Nat {
@@ -202,7 +203,13 @@ driver_run_cached_source(
   compiled: Result[Bytes, Str] = match cached {
     Some(artifact) => Ok(artifact),
     None() => {
-      loaded: LoadedProject = check_project_sources(source)
+      modules: Option[ModuleCache] = match cache {
+        None() => None(), Some(selected) => module_cache(source, selected)
+      }
+      checked = check_project_sources_cached(source, match modules {
+        None() => [], Some(selected) => cached_module_bodies(selected)
+      })
+      loaded: LoadedProject = checked.snapshot.project
       context = source.context
       identity = driver_entry_identity(loaded, source.entry_path, context.entry)
       match prepare_project_program_with_dependencies(
@@ -214,7 +221,14 @@ driver_run_cached_source(
           bytecode: BytecodeProgram = compile_program(program)
           artifact: Bytes = if command == "check" && cache == None() { byte_buffer.empty() } else { serialize_bytecode(bytecode) }
           match cache {
-            None() => {}, Some(selected) => save_compilation(selected, source, artifact)
+            None() => {}, Some(selected) => {
+              match modules {
+                None() => {}, Some(saved) => {
+                  if module_cache(source, selected) == Some(saved) { save_module_bodies(saved, checked) }
+                }
+              }
+              save_compilation(selected, source, artifact)
+            }
           }
           Ok(artifact)
         }

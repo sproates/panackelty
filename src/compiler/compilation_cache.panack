@@ -29,7 +29,7 @@ pub cache_trace(message: Str): Void {
 
 pure cache_magic(): Bytes { "PANACK-COMPILE-1\n".encode_utf8() }
 
-cache_digest(chunks: [Bytes]): Option[Bytes] {
+pub cache_digest(chunks: [Bytes]): Option[Bytes] {
   match digest.sha256_open() {
     Error(problem) => None(),
     Ok(handle) => {
@@ -56,7 +56,7 @@ cache_digest(chunks: [Bytes]): Option[Bytes] {
 
 // Use non-following bounded reads, including ancestors. Concurrent replacement
 // can produce a miss, never an unchecked partial artifact.
-cache_file(name: Str, limit: Nat): Option[Bytes] {
+pub cache_file(name: Str, limit: Nat): Option[Bytes] {
   match path.from_text(name) {
     Error(problem) => None(),
     Ok(file) => match filesystem.metadata(file) {

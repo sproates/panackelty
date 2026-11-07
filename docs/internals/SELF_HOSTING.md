@@ -1,5 +1,18 @@
 # Self-hosting roadmap
 
+## One-shot incremental compilation candidate, 7 November 2026
+
+The self-hosted compiler now supports the launcher
+`panack compile --incremental` workflow with private persisted module bodies.
+The cache codec and policy are Panack code; the optional codec generator runs
+only during development. No VM capability or bytecode-version change is needed.
+Stages 2, 3 and 4 reproduce compiler SHA-256
+`1f6c6d0f867429b44e4c151dd6cede9e7bc647e7720c500e83def26e0454fd47`.
+The standard-library artifact remains
+`823a5f93fe2886a44b680cb09c1d634bdf6aa8fc0f5cdff57510cfe743eb8a0d`.
+See [the cache contract and measurements](../COMPILER_PERSISTENT_REUSE.md).
+Final local `make check` passed in 551 seconds; integration remains pending.
+
 ## Package tool separation on next
 
 GI#200 P02 builds the Panack package tool separately from the compiler. The

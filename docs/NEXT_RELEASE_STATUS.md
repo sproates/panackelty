@@ -82,11 +82,15 @@ integration. Further experiments remain on feature/rm162-real-program-fixes.
   body reuse after edits is validated in [retained in-memory snapshots](COMPILER_MODULE_REUSE_TRIAL.md):
   an entry-module edit reused 46 of 47 modules and took 8.27s versus 15.48s fresh,
   with identical bytecode. All 54 focused cases and full local validation passed
-  (563 seconds). Persistence and ordinary CLI access remain unfinished; this
-  third trial does not yet speed separate CLI invocations after edits. The owner
-  selected a one-shot `panack compile --incremental` interface with Panack-managed
-  reuse between invocations; foreground watch work was parked. Persisted module
-  reuse is the remaining delivery, not another user-managed session. This continues RM#28: Incremental and modular builds
+  (563 seconds). [Persistent module reuse](COMPILER_PERSISTENT_REUSE.md) now
+  implements the selected one-shot `panack compile --incremental` interface in
+  the local candidate, with automatic private storage and fresh-process tests.
+  All 117 focused checks, 15 CLI groups and full local validation pass (551s).
+  Median self-compilation is 16.01s fresh, 20.67s cold incremental, 2.51s
+  unchanged and 14.02s after an entry-file edit reusing 48 of 49 modules.
+  The cache remains conservative and opt-in; integration and CI-cache wiring
+  are pending. Foreground watch work stays parked.
+  This continues RM#28: Incremental and modular builds
   alongside RM#157: Performance review, without declaring either complete.
 
 - PR #676 reconciled `main` into `next`, retaining the published alpha.15 product tree,

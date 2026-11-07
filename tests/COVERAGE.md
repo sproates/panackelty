@@ -1,5 +1,11 @@
 # Specification coverage
 
+[Persistent compilation reuse](../docs/COMPILER_PERSISTENT_REUSE.md) adds
+fresh-process edited-build tests to the CLI cache harness and codec round-trip/
+truncation tests to the module-bindings suite. All 117 focused checks and 15 CLI groups passed against the candidate;
+full local `make check` passed in 551 seconds. The help transcript is also
+verified from source and saved bytecode.
+
 The [checked-module trial](../docs/COMPILER_MODULE_REUSE_TRIAL.md) compares
 retained snapshots with fresh checking and emitted bytecode after leaf/entry
 edits, signature/effect failures, guards, implicit core changes, graph changes,

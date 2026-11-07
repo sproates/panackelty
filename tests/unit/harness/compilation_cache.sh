@@ -163,3 +163,61 @@ capture 0 15 "$panack" deps update --project "$work/application/panack.json"
 capture 0 15 "$panack" run --project "$work/application/panack.json"
 contains "$work/stderr" 'compile cache: miss'
 pass
+
+case_name=incremental-managed-one-shot-cache
+mkdir -p "$work/managed-project" "$work/user-cache"
+printf 'import "value.panack" as value\nmain(): Void { print(value.answer()) }\n' > "$work/managed-project/main.panack"
+printf 'pub pure answer(): Nat { 10 }\n' > "$work/managed-project/value.panack"
+capture 0 15 env PANACKELTY_COMPILE_CACHE_DIR= XDG_CACHE_HOME="$work/user-cache" "$panack" compile --incremental "$work/managed-project/main.panack" -o "$work/managed.bc"
+contains "$work/stderr" 'compile cache: miss'
+test -f "$work/user-cache/panackelty/compiler/compilation-v1.cache" || fail 'automatic cache missing'
+capture 0 15 env PANACKELTY_COMPILE_CACHE_DIR= XDG_CACHE_HOME="$work/user-cache" "$panack" compile --incremental "$work/managed-project/main.panack" -o "$work/managed-warm.bc"
+contains "$work/stderr" 'compile cache: hit'
+equal_files "$work/managed.bc" "$work/managed-warm.bc"
+pass
+
+case_name=incremental-entry-edit-reuses-unchanged-modules
+printf '\n// entry edit\n' >> "$work/managed-project/main.panack"
+capture 0 15 env PANACKELTY_COMPILE_CACHE_DIR= XDG_CACHE_HOME="$work/user-cache" "$panack" compile --incremental "$work/managed-project/main.panack" -o "$work/edited.bc"
+contains "$work/stderr" 'compile cache: module hits 2'
+capture 0 15 env PANACKELTY_COMPILE_CACHE_DIR= "$panack" compile "$work/managed-project/main.panack" -o "$work/edited-fresh.bc"
+equal_files "$work/edited.bc" "$work/edited-fresh.bc"
+pass
+
+case_name=incremental-transitive-invalidation-and-fresh-diagnostics
+printf 'pub pure answer(): Nat { 20 }\n' > "$work/managed-project/value.panack"
+capture 0 15 env PANACKELTY_COMPILE_CACHE_DIR= XDG_CACHE_HOME="$work/user-cache" "$panack" compile --incremental "$work/managed-project/main.panack" -o "$work/value-edited.bc"
+contains "$work/stderr" 'compile cache: module hits 1'
+capture 0 15 "$panack" run "$work/value-edited.bc"
+printf '20\n' > "$work/expected"
+equal_files "$work/expected" "$work/stdout"
+printf 'pub pure answer(value: Nat): Nat { value }\n' > "$work/managed-project/value.panack"
+capture failure 15 env PANACKELTY_COMPILE_CACHE_DIR= XDG_CACHE_HOME="$work/user-cache" "$panack" check --incremental "$work/managed-project/main.panack"
+cp "$work/stderr" "$work/incremental-error"
+capture failure 15 env PANACKELTY_COMPILE_CACHE_DIR= PANACKELTY_COMPILE_CACHE_TRACE= "$panack" check "$work/managed-project/main.panack"
+sed '/^compile cache: /d' "$work/incremental-error" > "$work/incremental-error-clean"
+equal_files "$work/incremental-error-clean" "$work/stderr"
+pass
+
+case_name=incremental-corrupt-module-falls-back
+printf 'pub pure answer(): Nat { 20 }\n' > "$work/managed-project/value.panack"
+rm "$work/user-cache/panackelty/compiler/compilation-v1.cache"
+for file in "$work/user-cache/panackelty/compiler"/module-*.cache; do printf 'broken' > "$file"; done
+capture 0 15 env PANACKELTY_COMPILE_CACHE_DIR= XDG_CACHE_HOME="$work/user-cache" "$panack" compile --incremental "$work/managed-project/main.panack" -o "$work/recovered.bc"
+contains "$work/stderr" 'compile cache: module hits 0'
+equal_files "$work/value-edited.bc" "$work/recovered.bc"
+pass
+
+case_name=incremental-unavailable-default-storage-is-optional
+printf 'not a directory' > "$work/blocked-cache"
+capture 0 15 env PANACKELTY_COMPILE_CACHE_DIR= XDG_CACHE_HOME="$work/blocked-cache" "$panack" check --incremental "$work/managed-project/main.panack"
+contains "$work/stderr" 'compile cache: disabled'
+pass
+
+case_name=incremental-global-type-source-invalidates-all-modules
+printf 'pub record Box { value: Nat }\npub pure answer(): Nat { 20 }\n' > "$work/managed-project/value.panack"
+capture 0 15 env PANACKELTY_COMPILE_CACHE_DIR= XDG_CACHE_HOME="$work/user-cache" "$panack" compile --incremental "$work/managed-project/main.panack" -o "$work/type-change.bc"
+contains "$work/stderr" 'compile cache: module hits 0'
+capture 0 15 env PANACKELTY_COMPILE_CACHE_DIR= "$panack" compile "$work/managed-project/main.panack" -o "$work/type-change-fresh.bc"
+equal_files "$work/type-change.bc" "$work/type-change-fresh.bc"
+pass

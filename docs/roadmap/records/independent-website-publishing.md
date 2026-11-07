@@ -83,6 +83,12 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
+- **Incremental compilation, alpha.16 candidate.** No live-site change is needed
+  for the current alpha.15 claims. After integration and release acceptance,
+  the release maintainer can add the opt-in command and its measured limitations
+  to the versioned toolchain guide. This records a release follow-up; it does not
+  authorize website edits or publication.
+
 - **Alpha.15 native promotion in preparation, 6 November 2026.** Public native
   archives and the browser dependency bundle are verified. Core installation
   guidance now selects alpha.15 and requires macOS 15+. The separate website PR
@@ -750,8 +756,12 @@ not module-level incremental checking. The next [module-reuse trial](../../COMPI
 has validated the in-memory invalidation boundary before persistence: 54 focused
 cases and full local checks passed (563 seconds). An entry-module edit reused
 46 of 47 modules, taking 8.27s versus 15.48s fresh with identical bytecode.
-Separate CLI invocations after edits do not yet benefit. Earlier release
-acceptance below remains historical evidence.
+The subsequent [persistent-reuse implementation](../../COMPILER_PERSISTENT_REUSE.md)
+adds separate-invocation body reuse and the agreed CLI. All 117 focused checks,
+15 CLI groups and full local validation passed (551 seconds). Median fresh/cold/
+unchanged/edited times are 16.01/20.67/2.51/14.02 seconds, with byte-identical
+artifacts. Integration is pending. Earlier release acceptance below remains
+historical evidence.
 
 ### Incremental command direction, 7 November 2026
 
@@ -767,7 +777,7 @@ Persisted build information must be disposable: a missing, incompatible or
 unusable cache causes fresh work, never a false successful build. This extends
 the validated module-invalidation work; the existing whole-build cache alone
 does not satisfy reuse after edits. The persisted representation and its safety,
-size and loading cost still need implementation and evidence. No watch loop or
+size and loading cost are being validated in the linked persistent-reuse delivery. No watch loop or
 background-process lifecycle is part of the agreed user-facing requirement.
 The internal mechanism is an implementation decision, not a choice the owner
 needs to make. No new VM capability or bytecode format is approved by this note.

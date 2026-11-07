@@ -104,7 +104,10 @@ modes retain their full evidence path; execution results are never cached.
 A separate [checked-module trial](../COMPILER_MODULE_REUSE_TRIAL.md) exposes
 session-local reuse through the compiler library. It invalidates changed modules
 and their transitive consumers, then recomputes global effects and emission. It
-has no persisted snapshot format or ordinary CLI session interface yet.
+also feeds [one-shot incremental compilation](../COMPILER_PERSISTENT_REUSE.md):
+private module files preserve ordinary checked bodies across invocations.
+The cache omits explanation history; fresh effect checks and emission consume
+the restored typed bodies. No VM capability or bytecode-format change is involved.
 
 ## Repository layout
 

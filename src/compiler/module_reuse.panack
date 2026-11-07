@@ -1,3 +1,4 @@
+pub import project/src/compiler/module_bodies::{BoundFunctionBody}
 pub import project/src/compiler/module_bindings::{LoadedModule, ModuleIdentity}
 import project/src/compiler/module_bindings::{ModulePackageIdentity.ToolchainModulePackage}
 pub import project/src/compiler/module_resolution::{ModuleBindingGraph}
@@ -75,4 +76,10 @@ pub pure reusable_body_modules(
     }
   }
   reusable
+}
+
+// Only the disk-cache reader supplies these after validating inputs and payload.
+pub record CachedModuleBodies {
+  identity: ModuleIdentity,
+  bodies: [BoundFunctionBody]
 }

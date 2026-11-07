@@ -1,4 +1,4 @@
-import project/src/compiler/module_reuse::{reusable_body_modules}
+pub import project/src/compiler/module_reuse::{reusable_body_modules, CachedModuleBodies}
 import project/src/compiler/path_support as path_support
 import stdlib/path as std_path
 import stdlib/filesystem as std_filesystem
@@ -1010,6 +1010,19 @@ pub pure check_project_sources(source: LoadedProjectSources): LoadedProject {
 pub pure check_project_sources_reusing(
   source: LoadedProjectSources, previous: Option[ProjectCheckSnapshot]
 ): ProjectCheckResult {
+  check_project_sources_with_reuse(source, previous, [])
+}
+
+pub pure check_project_sources_cached(
+  source: LoadedProjectSources, cached: [CachedModuleBodies]
+): ProjectCheckResult {
+  check_project_sources_with_reuse(source, None(), cached)
+}
+
+pure check_project_sources_with_reuse(
+  source: LoadedProjectSources, previous: Option[ProjectCheckSnapshot],
+  cached: [CachedModuleBodies]
+): ProjectCheckResult {
   loaded: ProjectLoadState = source.loaded
   resolved: Str = source.entry_path
   project_root: Str = source.context.project_root
@@ -1077,6 +1090,12 @@ pub pure check_project_sources_reusing(
         )
         retained_bodies = prior.project.module_bodies
       }
+    }
+  }
+  if !source.retain && previous == None() {
+    for item in cached {
+      reusable = reusable.append(item.identity)
+      retained_bodies = retained_bodies.concat(item.bodies)
     }
   }
   mut reused: [ModuleIdentity] = []

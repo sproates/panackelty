@@ -1,0 +1,79 @@
+// Plain-mode body codec. Evidence is deliberately not persisted.
+// The enclosing cache must verify the content digest and validate source/tool identity.
+record CacheReader { data: Bytes, offset: Nat, valid: Bool, depth: Nat, texts: [Str] }
+record CacheRead[T] { reader: CacheReader, value: T }
+
+pure failed(reader: CacheReader): CacheReader {
+  CacheReader(reader.data, reader.offset, false, reader.depth, reader.texts)
+}
+pure read_count(reader: CacheReader): CacheRead[Nat] {
+  if reader.valid && reader.offset + 4 <= reader.data.length() {
+    i: Nat = reader.offset
+    value: Nat = reader.data.at(i) * 16777216 + reader.data.at(i + 1) * 65536 +
+      reader.data.at(i + 2) * 256 + reader.data.at(i + 3)
+    CacheRead(CacheReader(reader.data, i + 4, true, reader.depth, reader.texts), value)
+  } else { CacheRead(failed(reader), 0) }
+}
+pure encode_Str(pool: Map[Str,Nat], value: Str): Bytes { encode_u32(pool.get(value)) }
+pure decode_raw_string(reader: CacheReader): CacheRead[Str] {
+  count = read_count(reader)
+  if count.reader.valid && count.value <= 16777216 &&
+      count.reader.offset + count.value <= reader.data.length() {
+    raw = byte_buffer.slice(reader.data, count.reader.offset, count.reader.offset + count.value)
+    if valid_utf8(raw) {
+      CacheRead(CacheReader(reader.data, count.reader.offset + count.value, true, reader.depth, reader.texts), raw.decode_utf8())
+    } else { CacheRead(failed(reader), "") }
+  } else { CacheRead(failed(reader), "") }
+}
+pure encode_Nat(pool: Map[Str,Nat], value: Nat): Bytes {
+  if value < 4294967295 { encode_u32(value) }
+  else { encode_u32(4294967295).join(encode_text("${value}")) }
+}
+pure decode_Nat(reader: CacheReader): CacheRead[Nat] {
+  small = read_count(reader)
+  if small.value < 4294967295 { small } else {
+    text = decode_raw_string(small.reader)
+    mut valid: Bool = text.reader.valid && text.value.len() > 0
+    for index in 0..text.value.len() {
+      valid = valid && text.value[index] >= "0" && text.value[index] <= "9"
+    }
+    if valid { CacheRead(text.reader, text.value.parse_nat()) }
+    else { CacheRead(failed(text.reader), 0) }
+  }
+}
+pure decode_Str(reader: CacheReader): CacheRead[Str] {
+  index = read_count(reader)
+  if index.reader.valid && index.value < reader.texts.len() {
+    CacheRead(index.reader, reader.texts[index.value])
+  } else { CacheRead(failed(index.reader), "") }
+}
+pure encode_Bool(pool: Map[Str,Nat], value: Bool): Bytes { encode_u32(if value { 1 } else { 0 }) }
+pure decode_Bool(reader: CacheReader): CacheRead[Bool] {
+  tag = read_count(reader)
+  CacheRead(if tag.value <= 1 { tag.reader } else { failed(tag.reader) }, tag.value == 1)
+}
+
+// GENERATED TYPES
+pub pure encode_checked_bodies(bodies: [BoundFunctionBody]): Bytes {
+  pool = collect_Array_BoundFunctionBody(TextPool(map(), []), bodies)
+  mut chunks: [Bytes] = [encode_u32(pool.texts.len())]
+  for text in pool.texts { chunks = chunks.append(encode_text(text)) }
+  chunks = chunks.append(encode_Array_BoundFunctionBody(pool.indices, bodies))
+  source_map_join(chunks, 0, chunks.len())
+}
+pub pure decode_checked_bodies(data: Bytes): Option[[BoundFunctionBody]] {
+  count = read_count(CacheReader(data, 0, true, 0, []))
+  mut reader: CacheReader = count.reader
+  mut texts: [Str] = []
+  if count.value > 1000000 || count.value > data.length() { reader = failed(reader) }
+  mut index: Nat = 0
+  while reader.valid && index < count.value {
+    text = decode_raw_string(reader)
+    reader = text.reader
+    texts = texts.append(text.value)
+    index = index + 1
+  }
+  result = decode_Array_BoundFunctionBody(CacheReader(data, reader.offset, reader.valid, 0, texts))
+  if result.reader.valid && result.reader.offset == data.length() { Some(result.value) }
+  else { None() }
+}

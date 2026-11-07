@@ -190,6 +190,12 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   project descriptors and toolchain bytes; hits skip checking/emission, never
   program execution. Tooling modes remain fresh. See the
   [unchanged-compilation trial](../../docs/COMPILER_UNCHANGED_REUSE_TRIAL.md).
+- `module_cache.panack` persists checked module bodies for one-shot incremental
+  builds, with transitive source keys, atomic publication and conservative global
+  type invalidation. `body_cache_codec.panack` is generated from the explicit
+  development schema in `scripts/generate_body_cache_codec.cjs`; it retains
+  ordinary emission/effect inputs, never explanation history. See
+  [persistent reuse](../../docs/COMPILER_PERSISTENT_REUSE.md).
 - `module_emission.panack` lowers fully identity-checked bodies and canonical
   function/type/variant identities to deterministic private names. Entry `main`
   remains the launch point; imported `main` functions are internalized. The
@@ -210,6 +216,10 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   identity emission for check/run/compile, validated `locate` and identity-
   qualified `explain` selection. Coordinated source/seed migration remains
   slice 8.
+  Usage output is asserted by
+  [the compiler-skeleton transcript](../../tests/functional/cases/compiler_skeleton/expected.stdout)
+  for both source and saved-bytecode execution; update and check that fixture
+  when changing the help text.
 - `main.panack` is the executable self-hosted compiler entry point.
 
 The public frontend, backend, project loader, and driver live here and execute

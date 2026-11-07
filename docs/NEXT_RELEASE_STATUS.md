@@ -6,7 +6,7 @@ Latest published release: **v0.1.0-alpha.15**, published 6 November 2026.
 **Alpha.16: build useful programs. Ten VM optimisation batches are delivered by
 this integration; further VM experiments are paused. Compiler reuse has been
 implemented and validated locally and is included in this integration ahead of
-larger language changes; hosted compiler integration CI is pending. RM#162 remains an investigation.** Alpha.15 is complete, including native archives, installer, browser
+larger language changes; compiler integration packaging passed, with a coverage-manifest correction in progress. RM#162 remains an investigation.** Alpha.15 is complete, including native archives, installer, browser
 playground and website. Its [final status snapshot](ALPHA15_FINAL_STATUS.md) and
 [release acceptance](releases/ALPHA15_RELEASE_ACCEPTANCE.md) preserve the evidence.
 
@@ -63,7 +63,7 @@ are not additive or a controlled cumulative speedup claim. Memory trade-offs,
 including literal retention, are recorded in the linked evidence.
 
 Under the alpha.16 workflow trial, development/PR CI is suppressed and integration
-into next starts hosted CI. The VM integration passed in [run 42349747971](https://github.com/sproates/panackelty/actions/runs/42349747971). The subsequent compiler integration result remains pending.
+into next starts hosted CI. The VM integration passed in [run 42349747971](https://github.com/sproates/panackelty/actions/runs/42349747971). Compiler PR #678 merged; Linux and macOS packaging passed, while the source-coverage policy job found missing manifest entries. The follow-up corrects those entries.
 No release, installer, global installation or website publication is part of this
 integration. Further experiments remain on feature/rm162-real-program-fixes.
 
@@ -84,12 +84,14 @@ integration. Further experiments remain on feature/rm162-real-program-fixes.
   with identical bytecode. All 54 focused cases and full local validation passed
   (563 seconds). [Persistent module reuse](COMPILER_PERSISTENT_REUSE.md) now
   implements the selected one-shot `panack compile --incremental` interface in
-  the local candidate, with automatic private storage and fresh-process tests.
+  `next` via PR #678, with automatic private storage and fresh-process tests.
   All 117 focused checks, 15 CLI groups and full local validation pass (551s).
   Median self-compilation is 16.01s fresh, 20.67s cold incremental, 2.51s
   unchanged and 14.02s after an entry-file edit reusing 48 of 49 modules.
-  The cache remains conservative and opt-in; integration and CI-cache wiring
-  are pending. Foreground watch work stays parked.
+  The cache remains conservative and opt-in. The narrower declaration rule now
+  passes 24 CLI groups and reuses 46/49 modules on an edited self-build (13.86s
+  versus 15.91s fresh). Final local validation is running, alongside the coverage
+  manifest correction. A separate manual hosted cache trial follows. Foreground watch work stays parked.
   This continues RM#28: Incremental and modular builds
   alongside RM#157: Performance review, without declaring either complete.
 

@@ -1772,3 +1772,13 @@ without relying on implementation-specific options.
 The separate symbolic-link rejection remains intact.
 
 The [final compiler-understanding acceptance](../docs/COMPILER_UNDERSTANDING_ACCEPTANCE.md#final-alpha15-integration) records domain-proof retention, cross-module terminal navigation, source-map round trips and realistic instruction-origin audits.
+
+### Incremental declaration invalidation
+
+The compilation-cache harness now has 24 groups. Its typed-module cases compare
+fresh and cached bytecode after actual body edits, require independent sibling
+reuse, and invalidate on guard/record/enum changes, deletion, moved coordinates
+and import aliases. Failed-body diagnostics match fresh checking; recovery
+reuses only unaffected modules. The coverage manifest includes the four compiler
+cache/reuse modules; the policy digest reviews declaration exclusions without
+claiming new execution coverage.

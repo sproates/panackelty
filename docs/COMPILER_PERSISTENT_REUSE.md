@@ -33,16 +33,17 @@ explanation/source-map path. Cached bodies deliberately omit explanation
 history and are never supplied to explanation-mode checking. Program execution
 is never cached.
 
-The first disk format is conservative:
+The disk format remains conservative:
 
 - Keys include exact toolchain bytes and paths, roots, resolved package data,
   module identities/order, source paths and source contents. Modification times
   are not evidence of unchanged input.
 - A source change invalidates that module and its transitive import consumers.
-- A change to implicit core or any source containing a type, record or enum
-  declaration invalidates every body. These declarations can contribute global
-  type facts. This may recheck more than necessary, but never assumes a changed
-  public declaration is harmless.
+- A change to implicit core, or to any import, type, record or enum declaration
+  invalidates every body. Declaration text, structural index and source
+  coordinates are inputs. An ordinary function-body edit in the same file can
+  reuse unrelated modules when those declarations and coordinates remain unchanged.
+  Moving a declaration still invalidates globally, preserving retained origins.
 - A graph/order, root or toolchain change invalidates stored bodies.
 - Only successful plain compilations seed the cache. Entries have content
   digests and bounded decoding. They are private trusted local compiler state,
@@ -68,8 +69,9 @@ format remains version 9; no native capability was added.
 
 ## Validation and measurements
 
-Implementation is included in this integration into `next`; hosted integration
-CI is pending. All 117 focused checks, 15 CLI groups, unchanged-program
+The initial implementation merged in [PR #678](https://github.com/sproates/panackelty/pull/678).
+Integration packaging passed on Linux and macOS; the coverage policy job found
+four missing source-manifest entries, corrected in the follow-up below. All 117 focused checks, 15 CLI groups, unchanged-program
 artifact compatibility and bootstrap fixed-point checks passed. Final
 `make check` passed in 551 seconds, including unit, functional, packaging,
 release-smoke and quick-start checks. The first full run caught a stale help
@@ -112,9 +114,38 @@ CI cache restoration/upload is not wired in this delivery; bootstrap proofs must
 is designed.
 
 This is an initial persistent module-body cache, not complete fine-grained
-incremental compilation. Fresh parsing and signatures, conservative type-source
+incremental compilation. Fresh parsing and signatures, conservative declaration
 invalidation, cache decoding and cold-cache construction remain costs.
 
 No website publication is part of this change. Website claims for alpha.15
 remain unchanged; an alpha.16 release guide can introduce the command after
 integration and release validation.
+
+## Narrower declaration invalidation
+
+The follow-up fingerprints non-function declaration source ranges separately
+from ordinary bodies. This removes the previous whole-file contribution for
+files that contain types. Global signatures, guards and effect closure remain
+fresh; changed modules and transitive import consumers are still rechecked.
+Imports remain global inputs because they can change how guarded bases resolve.
+This is module reuse, not individual-function reuse within the edited module.
+
+All 24 CLI groups pass, including a real body edit alongside a record, enum and
+guarded type; independent sibling reuse; changed guards, fields and variants;
+declaration removal; Unicode/position changes; same-width edits before a type;
+import alias changes; failed checks and recovery. Fresh and incremental bytecode
+and failure diagnostics match. Native-oracle artifact checks and regenerated
+bootstrap stages 2–4 agree. Final full local validation is running.
+
+Three isolated same-tree cycles changed the `module_magic` function in
+`module_cache.panack`, which also declares records. The edit changes emitted
+code; each edited incremental artifact matched its fresh counterpart. Medians:
+fresh 15.906s, cold incremental 20.655s, unchanged 2.447s, edited 13.860s with
+46 of 49 modules reused (12.86% less time than fresh). This measures a different
+edit from the earlier entry-file trial; the percentages are not cumulative.
+
+The coverage manifest now includes all four new compiler modules. The production
+parser/inventory reviewed 484 declaration exclusions over 51 eligible files:
+294 imports, 157 records and 33 enums. Executable functions remain eligible.
+All 77 fast policy tests pass; this is not a new coverage collection or a claim
+about coverage percentages.

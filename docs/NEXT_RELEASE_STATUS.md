@@ -128,5 +128,5 @@ separate hosted cache-reuse trial. Bootstrap proofs must remain fresh. Developme
 branch pushes and PR updates remain CI-free under the alpha.16 workflow trial.
 
 The validated narrower-invalidation change and manual hosted trial are included
-in this follow-up integration. Its next-branch CI result is pending; the earlier
-compiler integration and correction passed. The experiment branch is retained.
+in this follow-up integration. Local acceptance and the explicit hosted trial
+passed; ordinary next-branch CI runs on integration. The experiment branch is retained.

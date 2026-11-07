@@ -68,8 +68,8 @@ format remains version 9; no native capability was added.
 
 ## Validation and measurements
 
-Implementation is complete locally on `feature/rm162-real-program-fixes`;
-integration is pending. All 117 focused checks, 15 CLI groups, unchanged-program
+Implementation is included in this integration into `next`; hosted integration
+CI is pending. All 117 focused checks, 15 CLI groups, unchanged-program
 artifact compatibility and bootstrap fixed-point checks passed. Final
 `make check` passed in 551 seconds, including unit, functional, packaging,
 release-smoke and quick-start checks. The first full run caught a stale help

@@ -9,8 +9,10 @@ changes. This record defines the first implementation slice, its delivery
 evidence and subsequent reuse boundaries. The second slice is an opt-in
 [unchanged-compilation trial](COMPILER_UNCHANGED_REUSE_TRIAL.md); module-level
 body checking after edits is now validated through an explicit
-[in-memory checked-module snapshot](COMPILER_MODULE_REUSE_TRIAL.md). Persistence
-and a CLI session interface remain future work.
+[in-memory checked-module snapshot](COMPILER_MODULE_REUSE_TRIAL.md).
+[One-shot persistent reuse](COMPILER_PERSISTENT_REUSE.md) now makes that boundary
+available through `panack compile --incremental` and `panack check --incremental`.
+These validated changes are included in this integration into `next`.
 
 ## Original path assessed before the first slice
 
@@ -68,7 +70,7 @@ result containing retained evidence.
 
 ## First implementation slice: prepare a project once
 
-Status: implemented and validated locally on the development branch; not yet integrated into next.
+Status: implemented, validated locally and included in this integration into `next`.
 
 Make the loader's successful prepared program reusable within the same command.
 Retain an explicit association with the preparation context: entry identity,
@@ -168,8 +170,8 @@ that access. No product or test weakening was needed for this environment failur
 
 Local scratch evidence is in `build/compiler-preparation-reuse/`. It includes
 timings, observer traces, comparison scripts and validation logs; these are not
-new product dependencies. No CI or public publication has been requested for this
-slice. The globally installed toolchain is unchanged.
+new product dependencies. The owner subsequently requested integration of the compiler-reuse batch into
+`next`, with CI starting on integration. The globally installed toolchain is unchanged.
 
 ## Subsequent slices
 
@@ -178,8 +180,9 @@ validation precedes the compiler: the compiler fingerprints the resolved
 descriptor, rather than interpreting raw manifests or lockfiles itself. Fresh
 source discovery resolves the current reachable graph before every lookup.
 The checked-module stage has a validated in-memory body-reuse boundary, detailed
-in the linked trial; it does not yet persist snapshots or serve ordinary CLI
-invocations.
+in the linked trial. The subsequent persistent implementation serves ordinary
+one-shot CLI invocations. Narrower invalidation remains the next implementation
+step, followed by a separate hosted cache-reuse trial.
 
 1. **Reuse unchanged successful compilations across invocations.** Start with
    ordinary check/compile/run and a bounded local cache, not serialized checker

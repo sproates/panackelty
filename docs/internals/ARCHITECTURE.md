@@ -479,7 +479,11 @@ compiler lexing without changing bytecode or language semantics.
 
 The portable C11 seed VM under `src/vm/` independently decodes, verifies,
 and executes version-9 artifacts. Its reference-counted values and
-arbitrary-precision numerics use no third-party libraries. Fixed-expectation
+arbitrary-precision numerics use no third-party libraries. Boolean construction
+shares two immutable static Values with an immortal reference-count marker;
+retain/release leave those objects unchanged. Other heap Values retain ordinary
+reference counting. This avoids per-result Boolean allocation without changing
+bytecode or language semantics. Fixed-expectation
 tests run the complete program corpus and execute the Panackelty-hosted compiler
 on the native VM. An adversarial instruction corpus also requires the VM to trap
 on forged indirect

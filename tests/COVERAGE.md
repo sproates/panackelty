@@ -3,7 +3,8 @@
 The [shared-Boolean trial](../docs/VM_SHARED_BOOLEANS_TRIAL.md) covers allocation-free
 construction, repeated/container ownership, ordinary heap Boolean lifetime, and
 shared inputs across async completion/cancellation. Native/fault suites and five
-functional fixtures passed; full local validation awaits adoption.
+functional fixtures passed, followed by full local `make check` after adoption
+in the normal checkout VM (619 seconds).
 
 The [builtin-dispatch trial](../docs/VM_BUILTIN_DISPATCH_TRIAL.md) adds pure/host
 boundary checks for direct and indirect ordinary calls, with and without prepared

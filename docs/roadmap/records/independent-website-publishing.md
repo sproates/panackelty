@@ -767,6 +767,16 @@ body edit (13.86s versus 15.91s fresh). The separate
 Ordinary CI cache use remains disabled. Earlier release acceptance below remains
 historical evidence.
 
+### Edited-build assessment, 8 November 2026
+
+The [CI adoption assessment and phase profile](../../COMPILER_EDIT_PROFILE.md)
+completed without product changes. Next-push CI has no compiler preparation to
+accelerate; full/nightly cross-run reuse needs a separate selection against the
+existing probe artifact cache. The profiling fallback found checked-body decoding
+(4.54s) and fresh signatures (4.24s) dominate the edited path; changed-body
+checking is 0.17s. A decoder trial is proposed, not yet implemented. No automatic
+CI cache was enabled and no bootstrap proof was cached.
+
 ### Incremental command direction, 7 November 2026
 
 The owner expects an ordinary one-shot command such as

@@ -70,7 +70,8 @@ format remains version 9; no native capability was added.
 ## Validation and measurements
 
 The initial implementation merged in [PR #678](https://github.com/sproates/panackelty/pull/678).
-Integration packaging passed on Linux and macOS; the coverage policy job found
+Integration compatibility gates passed (full package builds are skipped on next
+pushes); the coverage policy job found
 four missing source-manifest entries, corrected in [PR #679](https://github.com/sproates/panackelty/pull/679).
 The corrected integration run passed. All 117 focused checks, 15 CLI groups, unchanged-program
 artifact compatibility and bootstrap fixed-point checks passed. Final
@@ -152,3 +153,7 @@ parser/inventory reviewed 484 declaration exclusions over 51 eligible files:
 294 imports, 157 records and 33 enums. Executable functions remain eligible.
 All 77 fast policy tests pass; this is not a new coverage collection or a claim
 about coverage percentages.
+
+The subsequent [edited-build profile](COMPILER_EDIT_PROFILE.md) separates cache
+decoding, signature checking and remaining frontend/emission work. It also
+records why automatic CI adoption was not enabled on the current next-push path.

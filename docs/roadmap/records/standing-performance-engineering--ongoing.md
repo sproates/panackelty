@@ -264,6 +264,19 @@ The workload and machine conditions differ; these are observations, not a
 matched performance comparison.
 
 
+### Incremental compiler follow-up, 8 November 2026
+
+The initial batch and coverage-manifest correction are integrated in PRs #678
+and #679 with green integration CI. Narrower declaration invalidation passed
+24 CLI groups and full local validation in 591s. A real body edit reused 46/49
+modules: local median 13.86s versus 15.91s fresh. The separate
+[hosted trial](../../COMPILER_HOSTED_CACHE_TRIAL.md) passed: on its warm runner,
+restored unchanged compilation took 4.83s versus 32.73s fresh, and an edited build
+took 21.11s versus 29.67s fresh. Outputs matched; save/restore overhead was about
+2s/1s. These are single hosted observations, not a full-pipeline speedup claim.
+The follow-up is included in this integration; automatic pipeline adoption remains
+separate. Bootstrap stays fresh and RM#157/GI#106 are not declared complete.
+
 ### RM#154 preparation reuse disposition, 28 October 2026
 
 [Final acceptance](../../COVERAGE_PERFORMANCE_BASELINE.md#final-acceptance-28-october-2026)

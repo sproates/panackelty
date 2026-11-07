@@ -1,12 +1,12 @@
 # Next release status
 
-Updated: 7 November 2026. Release: **v0.1.0-alpha.16**. Integration branch: **next**.
+Updated: 8 November 2026. Release: **v0.1.0-alpha.16**. Integration branch: **next**.
 Latest published release: **v0.1.0-alpha.15**, published 6 November 2026.
 
 **Alpha.16: build useful programs. Ten VM optimisation batches are delivered by
 this integration; further VM experiments are paused. Compiler reuse has been
 implemented and validated locally and is included in this integration ahead of
-larger language changes; compiler integration packaging passed, with a coverage-manifest correction in progress. RM#162 remains an investigation.** Alpha.15 is complete, including native archives, installer, browser
+larger language changes; compiler integration and its coverage-manifest correction are green. RM#162 remains an investigation.** Alpha.15 is complete, including native archives, installer, browser
 playground and website. Its [final status snapshot](ALPHA15_FINAL_STATUS.md) and
 [release acceptance](releases/ALPHA15_RELEASE_ACCEPTANCE.md) preserve the evidence.
 
@@ -63,7 +63,7 @@ are not additive or a controlled cumulative speedup claim. Memory trade-offs,
 including literal retention, are recorded in the linked evidence.
 
 Under the alpha.16 workflow trial, development/PR CI is suppressed and integration
-into next starts hosted CI. The VM integration passed in [run 42349747971](https://github.com/sproates/panackelty/actions/runs/42349747971). Compiler PR #678 merged; Linux and macOS packaging passed, while the source-coverage policy job found missing manifest entries. The follow-up corrects those entries.
+into next starts hosted CI. The VM integration passed in [run 42349747971](https://github.com/sproates/panackelty/actions/runs/42349747971). Compiler PR #678 merged; the missing coverage-manifest entries were corrected in PR #679. [Integration run 42422608096](https://github.com/sproates/panackelty/actions/runs/42422608096) passed.
 No release, installer, global installation or website publication is part of this
 integration. Further experiments remain on feature/rm162-real-program-fixes.
 
@@ -90,8 +90,11 @@ integration. Further experiments remain on feature/rm162-real-program-fixes.
   unchanged and 14.02s after an entry-file edit reusing 48 of 49 modules.
   The cache remains conservative and opt-in. The narrower declaration rule now
   passes 24 CLI groups and reuses 46/49 modules on an edited self-build (13.86s
-  versus 15.91s fresh). Final local validation is running, alongside the coverage
-  manifest correction. A separate manual hosted cache trial follows. Foreground watch work stays parked.
+  versus 15.91s fresh). Final local `make check` passed in 591 seconds (unit, functional, bootstrap,
+  packaging and installed smoke checks). The separate
+  [hosted cache trial](COMPILER_HOSTED_CACHE_TRIAL.md) passed: restored unchanged
+  compilation 4.83s versus 32.73s fresh; edited compilation 21.11s versus 29.67s
+  fresh on the same warm runner. Ordinary CI cache wiring is not enabled. Foreground watch work stays parked.
   This continues RM#28: Incremental and modular builds
   alongside RM#157: Performance review, without declaring either complete.
 
@@ -123,3 +126,7 @@ The owner selected integration of the validated batch, followed by narrower
 invalidation for function edits in files containing type declarations, then a
 separate hosted cache-reuse trial. Bootstrap proofs must remain fresh. Development
 branch pushes and PR updates remain CI-free under the alpha.16 workflow trial.
+
+The validated narrower-invalidation change and manual hosted trial are included
+in this follow-up integration. Local acceptance and the explicit hosted trial
+passed; ordinary next-branch CI runs on integration. The experiment branch is retained.

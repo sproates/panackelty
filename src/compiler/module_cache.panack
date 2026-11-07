@@ -47,18 +47,41 @@ pure digest_name(data: Bytes): Str {
   name
 }
 
-pure has_global_types(module: LoadedModule): Bool {
-  mut found: Bool = false
-  for declaration in module.parsed.program.declarations {
-    match declaration {
-      TypeDeclaration(name, base, binding, guard) => { found = true },
-      RecordDeclaration(name, parameters, fields) => { found = true },
-      EnumDeclaration(name, parameters, variants) => { found = true },
-      ImportDeclaration(value) => {},
-      FunctionDeclaration(name, parameters, output, pure_flag, async_flag, body, types) => {}
+// Keep declaration text and coordinates: cached bodies can retain type origins.
+// Import spellings are also global inputs, because they resolve guarded bases.
+// Function bodies still invalidate their own module and all import consumers.
+pure global_declaration_inputs(module: LoadedModule, text: Str): Option[[Bytes]] {
+  declarations = module.parsed.program.declarations
+  mut valid: Bool = declarations.len() == module.parsed.syntax.len()
+  mut chunks: [Bytes] = []
+  if valid {
+    for index in 0..declarations.len() {
+      include: Bool = match declarations[index] {
+        TypeDeclaration(name, base, binding, guard) => true,
+        RecordDeclaration(name, parameters, fields) => true,
+        EnumDeclaration(name, parameters, variants) => true,
+        ImportDeclaration(value) => true,
+        FunctionDeclaration(name, parameters, output, pure_flag, async_flag, body, types) => false
+      }
+      if include {
+        span = module.parsed.syntax[index].span
+        start = span.start
+        end = span.end
+        if end.offset < start.offset || end.offset > text.len() { valid = false }
+        else {
+          start_offset = start.offset
+          start_line = start.line
+          start_column = start.column
+          end_offset = end.offset
+          end_line = end.line
+          end_column = end.column
+          chunks = chunks.append(encode_text("${index}:${start_offset}:${start_line}:${start_column}:${end_offset}:${end_line}:${end_column}"))
+            .append(encode_text(text.slice(start.offset, end.offset)))
+        }
+      }
     }
   }
-  found
+  if valid { Some(chunks) } else { None() }
 }
 
 pub module_cache(source: LoadedProjectSources, cache: CompilationCache): Option[ModuleCache] {
@@ -79,15 +102,21 @@ pub module_cache(source: LoadedProjectSources, cache: CompilationCache): Option[
   mut hashes: [Bytes] = []
   for module in source.loaded.modules {
     common = common.append(identity_bytes(module.bindings.identity)).append(encode_text(module.source_path))
-    data = source.loaded.sources.get(module.source_path).encode_utf8()
+    text = source.loaded.sources.get(module.source_path)
+    data = text.encode_utf8()
     match cache_digest([encode_text(module.source_path), data]) {
       None() => { valid = false; hashes = hashes.append(byte_buffer.empty()) },
       Some(hash) => { hashes = hashes.append(hash) }
     }
-    // Type declarations contribute to global domain/record facts. Conservatively
-    // invalidate all bodies when any containing source changes, including core.
-    if has_global_types(module) || module.bindings.identity == ModuleIdentity(ToolchainModulePackage(), "core.panack") {
+    // Core remains implicit everywhere. Other modules contribute only their
+    // global declarations; an unrelated function edit need not discard all work.
+    if module.bindings.identity == ModuleIdentity(ToolchainModulePackage(), "core.panack") {
       common = common.append(data)
+    } else {
+      match global_declaration_inputs(module, text) {
+        None() => { valid = false },
+        Some(chunks) => { common = common.concat(chunks) }
+      }
     }
   }
   mut result: Option[ModuleCache] = None()

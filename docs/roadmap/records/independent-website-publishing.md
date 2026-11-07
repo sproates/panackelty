@@ -747,11 +747,10 @@ language changes. The [assessment and first slice](../../COMPILER_REUSE_ASSESSME
 identify duplicate preparation within an invocation and the later boundaries for
 unchanged-build and checked-module reuse. The first within-command reuse slice is
 complete locally, with a measured 3% self-compilation saving and passing full
-validation (518 seconds); integration is pending. The subsequent
+validation (518 seconds); integrated in PR #678. The subsequent
 [unchanged-compilation trial](../../COMPILER_UNCHANGED_REUSE_TRIAL.md) is implemented
 and validated locally: warm self-compilation 14.34s to 2.34s with identical
-bytecode, cold 15.04s, full `make check` passed in 572 seconds. Integration is
-pending. It is opt-in,
+bytecode, cold 15.04s, full `make check` passed in 572 seconds. Integrated in PR #678. It is opt-in,
 not module-level incremental checking. The next [module-reuse trial](../../COMPILER_MODULE_REUSE_TRIAL.md)
 has validated the in-memory invalidation boundary before persistence: 54 focused
 cases and full local checks passed (563 seconds). An entry-module edit reused
@@ -760,7 +759,12 @@ The subsequent [persistent-reuse implementation](../../COMPILER_PERSISTENT_REUSE
 adds separate-invocation body reuse and the agreed CLI. All 117 focused checks,
 15 CLI groups and full local validation passed (551 seconds). Median fresh/cold/
 unchanged/edited times are 16.01/20.67/2.51/14.02 seconds, with byte-identical
-artifacts. Integration is pending. Earlier release acceptance below remains
+artifacts. PR #678 integrated the batch; PR #679 corrected its coverage manifest
+and passed integration CI. The narrower declaration follow-up passes 24 CLI
+groups and full local validation (591s), with 46/49 modules reused after a real
+body edit (13.86s versus 15.91s fresh). The separate
+[hosted cache trial](../../COMPILER_HOSTED_CACHE_TRIAL.md) passed cold/warm jobs.
+Ordinary CI cache use remains disabled. Earlier release acceptance below remains
 historical evidence.
 
 ### Incremental command direction, 7 November 2026

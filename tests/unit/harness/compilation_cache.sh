@@ -221,3 +221,85 @@ contains "$work/stderr" 'compile cache: module hits 0'
 capture 0 15 env PANACKELTY_COMPILE_CACHE_DIR= "$panack" compile "$work/managed-project/main.panack" -o "$work/type-change-fresh.bc"
 equal_files "$work/type-change.bc" "$work/type-change-fresh.bc"
 pass
+
+# Independent sibling makes actual reuse visible after changing a typed module.
+case_name=incremental-body-edit-in-type-module
+printf 'import "value.panack" as value\nimport "other.panack" as other\nmain(): Void { print(value.answer()); print(other.answer()) }\n' > "$work/managed-project/main.panack"
+printf 'pub pure answer(): Nat { 7 }\n' > "$work/managed-project/other.panack"
+cat > "$work/managed-project/value.panack" <<'SOURCE'
+pub record Box { value: Nat }
+pub enum Choice { First, Second }
+pub type Small = Nat where n => n <= 50
+pub pure answer(): Nat { 20 }
+SOURCE
+incremental_compare() {
+    capture 0 15 env PANACKELTY_COMPILE_CACHE_DIR= XDG_CACHE_HOME="$work/user-cache" "$panack" compile --incremental "$work/managed-project/main.panack" -o "$work/narrow.bc"
+    contains "$work/stderr" "compile cache: module hits $1"
+    capture 0 15 env PANACKELTY_COMPILE_CACHE_DIR= "$panack" compile "$work/managed-project/main.panack" -o "$work/narrow-fresh.bc"
+    equal_files "$work/narrow.bc" "$work/narrow-fresh.bc"
+}
+replace_typed_source() {
+    sed "$1" "$work/managed-project/value.panack" > "$work/replacement"
+    mv "$work/replacement" "$work/managed-project/value.panack"
+}
+incremental_compare 0
+replace_typed_source 's/{ 20 }/{ 123 }/'
+incremental_compare 2
+capture 0 15 "$panack" run "$work/narrow.bc"
+printf '123\n7\n' > "$work/expected"
+equal_files "$work/expected" "$work/stdout"
+pass
+
+case_name=incremental-type-coordinate-change-invalidates
+# A leading multibyte character changes offsets and source locations.
+{ printf '// λ\n'; cat "$work/managed-project/value.panack"; } > "$work/replacement"
+mv "$work/replacement" "$work/managed-project/value.panack"
+incremental_compare 0
+pass
+
+case_name=incremental-guard-change-invalidates
+replace_typed_source 's/n <= 50/n <= 60/'
+incremental_compare 0
+pass
+
+case_name=incremental-record-change-invalidates
+replace_typed_source 's/value: Nat/value: Int/'
+incremental_compare 0
+pass
+
+case_name=incremental-enum-change-invalidates
+replace_typed_source 's/First, Second/First, Second, Third/'
+incremental_compare 0
+pass
+
+case_name=incremental-declaration-removal-invalidates
+replace_typed_source '/pub enum Choice/d'
+incremental_compare 0
+pass
+
+case_name=incremental-body-error-in-type-module-stays-fresh
+replace_typed_source 's/{ 123 }/{ "wrong" }/'
+capture failure 15 env PANACKELTY_COMPILE_CACHE_DIR= XDG_CACHE_HOME="$work/user-cache" "$panack" check --incremental "$work/managed-project/main.panack"
+contains "$work/stderr" 'compile cache: module hits 2'
+sed '/^compile cache: /d' "$work/stderr" > "$work/narrow-error"
+capture failure 15 env PANACKELTY_COMPILE_CACHE_DIR= PANACKELTY_COMPILE_CACHE_TRACE= "$panack" check "$work/managed-project/main.panack"
+equal_files "$work/narrow-error" "$work/stderr"
+replace_typed_source 's/{ "wrong" }/{ 321 }/'
+incremental_compare 2
+pass
+
+case_name=incremental-function-edit-before-type-preserves-coordinates
+# Even when declaration text is identical, moving it invalidates its origins.
+{ printf 'pure helper(): Nat { 1 }\n'; cat "$work/managed-project/value.panack"; } > "$work/replacement"
+mv "$work/replacement" "$work/managed-project/value.panack"
+incremental_compare 0
+replace_typed_source 's/helper(): Nat { 1 }/helper(): Nat { 2 }/'
+incremental_compare 2
+replace_typed_source 's/helper(): Nat { 2 }/helper(): Nat { 22 }/'
+incremental_compare 0
+pass
+
+case_name=incremental-import-alias-change-invalidates
+printf 'import "value.panack" as renamed\nimport "other.panack" as other\nmain(): Void { print(renamed.answer()); print(other.answer()) }\n' > "$work/managed-project/main.panack"
+incremental_compare 0
+pass

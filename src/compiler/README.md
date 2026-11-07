@@ -420,3 +420,9 @@ GI#525 P14. P12 removes the compatibility frontend and receiver wrappers.
 Internal operation strings and VM primitive identities are not caller APIs.
 See the [P11 report](../../docs/design/type-owned-dispatch/p11-remaining-callers.md)
 for seed evidence and the exact retained test-input boundary.
+
+When adding a production compiler module, update
+`tests/source_coverage/manifest.json` and review the associated policy digests.
+Run `node --test tests/source_coverage/manifest.test.cjs tests/source_coverage/policy.test.cjs`
+before integration. These quick inventory/policy checks are separate from
+`make check`; passing the full product suite does not establish manifest completeness.

@@ -99,6 +99,16 @@ independent-copy path.
 The [value model](VALUE_MODEL.md#persistent-array-append-storage) defines ownership,
 release order and allocation-failure behavior.
 
+Repeated Map get/has and Set has operations can memoize an index into the
+unchanged ordered entries. The current threshold is 32 entries and eight
+lookups. Supported scalar keys use hash lookup with equality-checked collisions;
+decimal, rational, compound and opaque keys retain the existing scan. Index
+allocation failure also falls back to scanning. Updates create an unindexed
+value; aliases and older snapshots keep their own index until final release.
+The index does not change ordering, equality, bytecode or per-Value allocation
+size. See the [collection-index record](../../docs/VM_COLLECTION_INDEX_TRIAL.md)
+for supported domains, measured workloads and memory costs.
+
 Rational arithmetic uses normalized arbitrary-precision numerator/denominator
 pairs. `Unit` has its own runtime tag; `.nat()` and `.dec()` perform exact checked
 conversions and trap rather than discard precision.

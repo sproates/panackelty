@@ -107,8 +107,10 @@ allocate 8 bytes plus 8 bytes per bucket: 520 bytes for 32 entries, 4,104 bytes
 for 256, and 65,544 bytes for 4,096. Bucket count rounding can increase overhead;
 keeping many independently indexed snapshots retains an index for each.
 
-This is a candidate trial. The normal checkout VM retains its previous four
-optimisations. Full local validation/adoption remain pending; no CI, PR, merge,
+The owner approved adoption. The normal checkout VM is rebuilt with this change,
+and full local `make check` passed on 7 November 2026 (682 seconds, exit 0).
+Validation included unit, functional, bootstrap, package/install, release-smoke
+and quick-start checks. The bootstrap hash remains unchanged. No CI, PR, merge,
 installed-release change or website change. This contributes evidence to RM#157:
 Performance review without completing its broader scope.
 
@@ -119,7 +121,9 @@ outputs matched the bootstrap hash. One pair is evidence of the observed cost,
 not a universal bound; many hot retained collections can use substantially more
 index memory than this compiler workload.
 
-Recommendation: retain the candidate for adoption for repeated scalar-key
-lookups, with the memory cost explicit. It does not improve compiler compilation
+Adopted locally for repeated scalar-key lookups, with the memory cost explicit.
+It does not improve compiler compilation
 in this trial. The small/one-off workload results do not show a material cost,
 but timing those millisecond workloads more precisely would require longer runs.
+The single full validation run is correctness evidence, not a controlled
+whole-suite speedup measurement. Historical timing warnings remain advisory.

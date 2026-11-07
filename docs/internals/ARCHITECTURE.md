@@ -1885,3 +1885,10 @@ rejected before allocating or reading inputs; serialized bytecode is unchanged.
 String addition combines the input code-point counts and ASCII flags instead
 of scanning the result. Constructors for raw-byte producers still calculate
 metadata by scanning; both paths share allocation and copying.
+
+Maps and sets may lazily memoize a scalar-key lookup index containing positions
+into their ordered entries. Equality resolves hash collisions, and updates
+produce a new unindexed value. Unsupported keys or index allocation failure
+retain the linear scan. The derived index changes neither observable ordering
+nor equality, is not serialized, and is freed with its owning value. See the
+[value model](../../src/vm/VALUE_MODEL.md) for ownership and the trial record.

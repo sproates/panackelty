@@ -140,11 +140,15 @@ record CacheRead[T] { reader: CacheReader, value: T }
 pure failed(reader: CacheReader): CacheReader {
   CacheReader(reader.data, reader.offset, false, reader.depth, reader.texts)
 }
+// Callers establish that four bytes are available before reading a word.
+pure word_at(data: Bytes, offset: Nat): Nat {
+  data.at(offset) * 16777216 + data.at(offset + 1) * 65536 +
+    data.at(offset + 2) * 256 + data.at(offset + 3)
+}
 pure read_count(reader: CacheReader): CacheRead[Nat] {
   if reader.valid && reader.offset + 4 <= reader.data.length() {
     i: Nat = reader.offset
-    value: Nat = reader.data.at(i) * 16777216 + reader.data.at(i + 1) * 65536 +
-      reader.data.at(i + 2) * 256 + reader.data.at(i + 3)
+    value: Nat = word_at(reader.data, i)
     CacheRead(CacheReader(reader.data, i + 4, true, reader.depth, reader.texts), value)
   } else { CacheRead(failed(reader), 0) }
 }
@@ -271,6 +275,19 @@ pure encode_SourcePos(pool: Map[Str,Nat], value: SourcePos): Bytes {
 }
 
 pure decode_SourcePos(reader: CacheReader): CacheRead[SourcePos] {
+  if reader.valid && reader.offset + 16 <= reader.data.length() {
+    file = word_at(reader.data, reader.offset)
+    offset = word_at(reader.data, reader.offset + 4)
+    line = word_at(reader.data, reader.offset + 8)
+    column = word_at(reader.data, reader.offset + 12)
+    if file < reader.texts.len() && offset < 4294967295 && line < 4294967295 && column < 4294967295 {
+      CacheRead(CacheReader(reader.data, reader.offset + 16, true, reader.depth, reader.texts),
+        SourcePos(reader.texts[file], offset, line, column))
+    } else { decode_SourcePos_general(reader) }
+  } else { decode_SourcePos_general(reader) }
+}
+
+pure decode_SourcePos_general(reader: CacheReader): CacheRead[SourcePos] {
   mut cursor: CacheReader = reader
   field_file = decode_Str(cursor)
   cursor = field_file.reader

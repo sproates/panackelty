@@ -99,3 +99,56 @@ succeeded and their expected artifacts matched. Documentation/link checks are
 the applicable repository validation; no full product suite or hosted performance
 run is required for this report. The prior product and integration acceptance
 remain valid.
+
+## Decoder trial, 8 November 2026
+
+The owner selected this follow-up. Source positions have a file dictionary index
+and three coordinates. Their usual representation is four fixed-width words.
+The trial decodes those words after one bounds check and constructs one reader,
+rather than allocating an intermediate reader for every field. The generated
+schema is asserted before emitting this specialisation. Large Nat coordinates
+retain the general decoder, and invalid indexes and truncated words still fail.
+The encoded format, checksums, identity keys, depth limits and bytecode version
+are unchanged. No cache bounds were relaxed.
+
+The isolated test decodes the same 49 module payloads, containing 1,076 function
+bodies, in separate VM invocations. Three pairs alternate old/new order.
+
+| Pair | Original decoder | Candidate decoder |
+| --- | ---: | ---: |
+| 1 | 4.654s | 4.257s |
+| 2 | 4.962s | 4.202s |
+| 3 | 4.833s | 4.251s |
+
+Median: 4.833s to 4.251s, a 12.0% reduction. These timings include file reads
+and VM startup. An initial incorrectly placed cache produced no module payloads;
+those empty-workload timings were discarded and the harness now requires both
+nonempty payloads and matching positive decoded-body counts.
+
+For the complete build comparison, the original seed at `814c81d` and candidate
+compile the same copied compiler sources using separate private caches. Each
+pair changes `module_magic` again, alternates compiler order, and compares both
+incremental artifacts with fresh compilation. There were no concurrent builds.
+
+| Pair | Original edited build | Candidate edited build | Fresh candidate |
+| --- | ---: | ---: | ---: |
+| 1 | 16.640s | 16.793s | 19.197s |
+| 2 | 15.790s | 15.074s | 19.282s |
+| 3 | 16.352s | 15.316s | 18.307s |
+
+Median edited time: 16.352s to 15.316s, a 6.3% reduction. Two pairs improved;
+the first was 0.153s slower, so this is a modest local result, not a universal
+speedup or hosted-pipeline claim. All pairs reused 46/49 modules and emitted
+identical bytecode to their fresh comparison. Single cold observations were
+23.747s/23.187s and unchanged observations 2.762s/2.822s (original/candidate);
+neither path is the target of this optimisation.
+
+Disposition: retain the bounded decoder improvement. Focused codec tests passed 81 assertions; all 24 incremental CLI
+groups and native-oracle artifact compatibility passed. The 77 coverage-policy
+checks passed; only the declaration-position exclusion digest changes, with no
+new exclusions or corpus changes. Bootstrap stages 2, 3 and 4 agree on
+`79a4717360930b7c77ea06dcfd758629adb24f73b61090db9471e19d56dafa10`;
+the standard-library artifact is unchanged. Final `make check` passed in 617s
+(unit 388s, bootstrap 136s in parallel), including functional and release smoke
+checks. This is an acceptance observation, not a matched suite-speed comparison. No website update is needed for this internal optimisation, and this
+does not complete RM#28/GI#106 or RM#157.

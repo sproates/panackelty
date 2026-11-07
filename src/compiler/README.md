@@ -194,7 +194,9 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   builds, with transitive source keys, atomic publication and conservative global
   type invalidation. `body_cache_codec.panack` is generated from the explicit
   development schema in `scripts/generate_body_cache_codec.cjs`; it retains
-  ordinary emission/effect inputs, never explanation history. See
+  ordinary emission/effect inputs, never explanation history. Source positions
+  use a checked fixed-width decoding path when their coordinates fit ordinary
+  words; larger coordinates use the general Nat decoder. The format is unchanged. See
   [persistent reuse](../../docs/COMPILER_PERSISTENT_REUSE.md).
 - `module_emission.panack` lowers fully identity-checked bodies and canonical
   function/type/variant identities to deterministic private names. Entry `main`

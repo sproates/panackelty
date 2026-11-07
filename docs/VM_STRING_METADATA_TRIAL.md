@@ -17,9 +17,9 @@ and returns an independent owned result. Allocation count, value layout and
 bytecode format are unchanged. No additional cache or retained storage is added.
 String interpolation and other raw-byte producers retain their existing path.
 
-This is a candidate trial, not adoption in the normal checkout VM. No CI, PR,
-merge, installed-release change or website change. Full product validation and
-normal-VM rebuilding remain for adoption after trial acceptance.
+The owner approved adoption. The normal checkout VM is rebuilt with this change,
+and full local `make check` passed on 7 November 2026 (729 seconds, exit 0).
+No CI, PR, merge, installed-release change or website change.
 
 ## Correctness
 
@@ -80,7 +80,14 @@ especially sensitive to scheduling noise. The large-string result demonstrates
 removing the extra scan; it is not a claim that complete programs become 94%
 faster. Copying the actual bytes remains necessary and scales with result size.
 
-Recommendation: retain this bounded candidate for adoption, primarily for its
-string-operation improvement. It adds no per-value metadata or retained memory.
-The normal checkout VM remains on the three previously adopted optimisations;
-full `make check` remains pending adoption approval. No CI was triggered.
+Adopted locally after owner approval, primarily for its string-operation
+improvement. It adds no per-value metadata or retained memory. The normal
+checkout VM now includes this and the three previously adopted optimisations.
+Full local validation included unit, functional, bootstrap, package/install,
+release-smoke and quick-start checks. The bootstrap hash remained unchanged.
+
+This full run took 729 seconds versus 690 seconds for the preceding adoption
+run. These are single whole-suite observations, not a controlled performance
+comparison; no whole-suite speedup is claimed. The earlier focused compilation
+comparisons showed only small gains. Historical timing warnings remain advisory.
+No tests were removed or weakened, and no CI was triggered.

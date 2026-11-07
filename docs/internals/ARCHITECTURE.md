@@ -1882,3 +1882,6 @@ result storage directly, without a temporary concatenated buffer. Byte storage
 retains its trailing NUL and strings retain cached Unicode metadata. Array
 results retain each element independently of the input arrays. Size overflow is
 rejected before allocating or reading inputs; serialized bytecode is unchanged.
+String addition combines the input code-point counts and ASCII flags instead
+of scanning the result. Constructors for raw-byte producers still calculate
+metadata by scanning; both paths share allocation and copying.

@@ -753,6 +753,25 @@ cases and full local checks passed (563 seconds). An entry-module edit reused
 Separate CLI invocations after edits do not yet benefit. Earlier release
 acceptance below remains historical evidence.
 
+### Incremental command direction, 7 November 2026
+
+The owner expects an ordinary one-shot command such as
+`panack compile --incremental main.panack -o main.bc`. Panack manages retained
+state, invalidation and fresh-build fallback, then exits normally. A foreground
+watcher is not the selected delivery. The watch prototype was parked without
+changing the validated product baseline or publishing it.
+
+The intended model is reuse across separate compiler invocations, following the
+user experience of [TypeScript incremental builds](https://www.typescriptlang.org/tsconfig/incremental.html).
+Persisted build information must be disposable: a missing, incompatible or
+unusable cache causes fresh work, never a false successful build. This extends
+the validated module-invalidation work; the existing whole-build cache alone
+does not satisfy reuse after edits. The persisted representation and its safety,
+size and loading cost still need implementation and evidence. No watch loop or
+background-process lifecycle is part of the agreed user-facing requirement.
+The internal mechanism is an implementation decision, not a choice the owner
+needs to make. No new VM capability or bytecode format is approved by this note.
+
 <a id="future-candidate-incremental-and-modular-builds"></a>
 
 Work record: [issue #106](https://github.com/sproates/panackelty/issues/106).

@@ -5,7 +5,8 @@ Latest published release: **v0.1.0-alpha.15**, published 6 November 2026.
 
 **Alpha.16: build useful programs. Ten VM optimisation batches are delivered by
 this integration; further VM experiments are paused. Compiler reuse has been
-assessed ahead of larger language changes. RM#162 remains an investigation.** Alpha.15 is complete, including native archives, installer, browser
+implemented and validated as a first local slice ahead of larger
+language changes. RM#162 remains an investigation.** Alpha.15 is complete, including native archives, installer, browser
 playground and website. Its [final status snapshot](ALPHA15_FINAL_STATUS.md) and
 [release acceptance](releases/ALPHA15_RELEASE_ACCEPTANCE.md) preserve the evidence.
 
@@ -24,7 +25,7 @@ and linked work records. Update this summary whenever release work changes.
 | [GI#138: Tested guides](https://github.com/sproates/panackelty/issues/138), with [GI#310: Examples](https://github.com/sproates/panackelty/issues/310) | Planned. Coordinate guides with runnable examples; do not count the same delivery twice. |
 | [RM#162: Real-program fixes](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-162) | In progress: [async capability investigation](ASYNC_USEFUL_PROGRAMS_INVESTIGATION.md) reproduces the clock restriction and separate callback-state gap. The [discussion record](ASYNC_DESIGN_DISCUSSION.md) captures the preferred async-module API direction; state and closures remain exploratory. No fix implemented yet. Scope and effort emerge from actual use; verify each originating program and agree a release cutoff. No website update. |
 | [GI#170: Inference/diagnostics assessment](https://github.com/sproates/panackelty/issues/170) | Planned assessment. No inference implementation or architecture is selected. |
-| [RM#157: Performance review](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-157) | Ten owner-requested VM optimisation batches delivered by this integration; details below. Final local `make check` passed in 593 seconds with unchanged compiler bytecode. Hosted integration CI is pending. Broader performance-review workloads, targets and completion criteria still need agreement; RM#157 is not complete. Further optimisation experiments are paused. |
+| [RM#157: Performance review](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-157) | Ten owner-requested VM optimisation batches delivered by this integration; details below. Final local `make check` passed in 593 seconds with unchanged compiler bytecode. Hosted integration CI is pending. Broader performance-review workloads, targets and completion criteria still need agreement; RM#157 is not complete. Further VM experiments are paused; the first compiler preparation-reuse slice passed local validation and awaits integration (see below). |
 | [GI#435: Guard alternatives](https://github.com/sproates/panackelty/issues/435) | Planned follow-on for string, collection and record-relationship guards: proof rules and diagnostics need design. Numeric alternatives already work; the alpha.15 contract remains complete. |
 | Native-interface/compiler decoupling | Allocated to alpha.16 in the [boundary record](roadmap/records/next-release--agreed-scope-2026-10-06.md). Define the bounded change using the completed [GI#409 assessment](COMPILER_STDLIB_BOUNDARY_ASSESSMENT.md); do not repeat the assessment. |
 | Coverage approach review | Allocated to alpha.16 in the [performance record](roadmap/records/standing-performance-engineering--ongoing.md). Review cold preparation and retained decoded plans; the alpha.15 optimisation is already accepted. |
@@ -70,10 +71,12 @@ integration. Further experiments remain on feature/rm162-real-program-fixes.
 
 - The owner selected compiler reuse before larger language changes. The
   [compiler reuse assessment](COMPILER_REUSE_ASSESSMENT.md) records the current
-  path, existing caches and invalidation risks. The first proposed product slice
+  path, existing caches and invalidation risks. The first product slice
   reuses successful project preparation within a command, eliminating duplicate
-  module lowering. Persistent unchanged-build and module-level reuse follow;
-  none is implemented yet. This continues RM#28: Incremental and modular builds
+  module lowering. It is complete locally with a measured 3% self-compilation
+  saving and a passing full local check (518 seconds); integration is pending.
+  Persistent unchanged-build and
+  module-level reuse are not implemented. This continues RM#28: Incremental and modular builds
   alongside RM#157: Performance review, without declaring either complete.
 
 - PR #676 reconciled `main` into `next`, retaining the published alpha.15 product tree,

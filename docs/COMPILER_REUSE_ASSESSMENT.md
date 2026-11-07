@@ -5,8 +5,8 @@ Related work: [RM#28: Incremental and modular builds](roadmap/records/independen
 and [RM#157: Performance review](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-157).
 
 The owner wants to avoid repeated compilation before undertaking larger language
-changes. This record defines a first implementation slice and the subsequent
-reuse boundaries. It does not deliver a cache or claim measured savings.
+changes. This record defines the first implementation slice, its delivery
+evidence and subsequent reuse boundaries. Persistent caching is not delivered.
 
 ## Existing path
 
@@ -64,7 +64,7 @@ result containing retained evidence.
 
 ## First implementation slice: prepare a project once
 
-Status: ready for implementation; assessment only so far.
+Status: implemented and validated locally on the development branch; not yet integrated into next.
 
 Make the loader's successful prepared program reusable within the same command.
 Retain an explicit association with the preparation context: entry identity,
@@ -103,6 +103,69 @@ Acceptance:
 No bytecode-format change, VM change, daemon, disk cache or language change is
 needed for this slice. Removing bytecode emission from `check` is a separate
 candidate, not an unexamined part of this change. Expected delivery: one product PR.
+
+### Implementation and observed results
+
+`LoadedProject.preparation` records the context only after successful lowering.
+The frontend reuses `program` when that context matches, identity and effect
+checking succeeded, and no non-staging diagnostics remain. Otherwise it retains
+the previous preparation path. Loading mode and evidence stay with the immutable
+loaded project; there is no cross-invocation or cross-mode cache. Root spellings
+must match exactly; a harmless spelling difference can miss reuse, not broaden it.
+
+The existing test-only compiler observer, without new instrumentation, recorded
+two `module_emission_program` calls for the baseline and one for the candidate
+on both compiler self-compilation and the resolved HTTP-server package project.
+Both pairs emitted identical bytecode. Sentinel-based unit tests independently
+distinguish reuse from lowering and exercise every context field, incomplete
+checks, diagnostic precedence, missing input and missing main, as well as plain,
+explained and inventory loading. This replaces the proposed new counter code.
+
+Alternating baseline/candidate timing pairs used the same normal VM and source
+tree. This task ran no builds or profiling alongside those timings. Baseline compiler is the saved
+alpha.15 seed at the start of this slice; candidate contains this slice.
+
+| Workload | Pairs | Baseline median | Candidate median | Less time |
+| --- | ---: | ---: | ---: | ---: |
+| Stdlib example | 5 | 0.080832 s | 0.078079 s | 3.41% |
+| Compiler self-compilation | 3 | 14.205127 s | 13.777691 s | 3.01% |
+
+Compiler pairs, baseline/candidate seconds: 14.205127/14.185008,
+14.323235/13.777018, 14.026048/13.777691. This is a modest local improvement,
+not a portable guarantee or a full-validation speed claim. Timed compiler output
+matched SHA-256 `1c6aada26cef66b2f5c23bc918b73226cff4ee2551a2cf7710c0eb48a03c8a35`
+in every run; stdlib output matched
+`823a5f93fe2886a44b680cb09c1d634bdf6aa8fc0f5cdff57510cfe743eb8a0d`.
+
+A separate macOS `/usr/bin/time -l` pair observed peak resident memory of
+385,220,608 bytes baseline and 352,616,448 bytes candidate. That is about 31 MiB
+less in this pair; it is not a repeated memory benchmark.
+
+Differential checks on the multi-module indexed-lookup fixture matched successful
+check, failed check (missing main), run and explain status/stdout/stderr, plus
+compiled bytecode and source-map bytes. Inventory payloads matched after checking
+and excluding their intentionally different embedded compiler bytes. Existing
+inventory tests continue to cover the full compiler-identity contract.
+
+All 35 focused preparation tests passed. Native oracle artifact contracts passed
+with the candidate. Bootstrap regeneration reached the same compiler hash through
+stages 2, 3 and 4 and preserved the stdlib artifact. The refreshed seed and digest
+are included; bytecode remains version 9.
+
+Final local `make check` passed (exit 0, 518 seconds), including unit, functional,
+bootstrap, packaging, relocated release smoke and quick-start checks. The existing
+120-second aggregate timing warning is advisory. This run duration is not a
+controlled comparison with earlier full-validation runs.
+
+The first full-check attempt stopped in packaged HTTP smoke because the restricted
+execution environment could not allocate a localhost port. The same port allocator
+and isolated smoke passed with host access; the complete check then passed with
+that access. No product or test weakening was needed for this environment failure.
+
+Local scratch evidence is in `build/compiler-preparation-reuse/`. It includes
+timings, observer traces, comparison scripts and validation logs; these are not
+new product dependencies. No CI or public publication has been requested for this
+slice. The globally installed toolchain is unchanged.
 
 ## Subsequent slices
 

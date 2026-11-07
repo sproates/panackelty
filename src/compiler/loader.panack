@@ -14,7 +14,8 @@ import project/src/compiler/module_bodies::{
   CheckedModuleBodies, check_module_guards, body_subtraction_evidence_entries, BodyCheckStatus.BodyIdentityChecked, check_module_bodies, check_module_bodies_explained
 }
 import project/src/compiler/module_effects::{CheckedModuleEffects, check_module_effects}
-import project/src/compiler/module_bindings::{ModuleBindings, ModuleIdentity, ModuleDeclarationKind.ModuleFunction, collect_module_bindings, loaded_module_declaration_index, module_binding_diagnostics, source_module_identity, source_package_module_identity, module_relative_path, module_programs}
+pub import project/src/compiler/module_bindings::{ModuleIdentity}
+import project/src/compiler/module_bindings::{ModuleBindings, ModuleDeclarationKind.ModuleFunction, collect_module_bindings, loaded_module_declaration_index, module_binding_diagnostics, source_module_identity, source_package_module_identity, module_relative_path, module_programs}
 import project/src/compiler/module_signatures::{CheckedModuleSignatures, check_module_signatures}
 import project/src/compiler/module_resolution::{ModuleImportEdge, module_graph_diagnostics}
 import project/src/compiler/module_emission::{ModuleEmissionResult, module_emission_program}
@@ -44,6 +45,17 @@ record ProjectLoadState {
   source_paths: [Str]
 }
 
+// A successful lowering belongs to this exact resolution context. Loading mode
+// and retained evidence belong to the immutable LoadedProject that owns it.
+pub record ProjectPreparationContext {
+  project_root: Str,
+  stdlib_root: Str,
+  entry: ModuleIdentity,
+  package_confined: Bool,
+  package_root_identity: FilesystemRootIdentity,
+  dependencies: [ManifestDependencyProject]
+}
+
 pub record LoadedProject {
   program: Program,
   modules: [LoadedModule],
@@ -56,7 +68,8 @@ pub record LoadedProject {
   identity_ready: Bool,
   function_types: Map[Str, Bool],
   module_signatures: [ModuleSignature],
-  module_bodies: [BoundFunctionBody]
+  module_bodies: [BoundFunctionBody],
+  preparation: Option[ProjectPreparationContext]
 }
 
 pure path_in_stack(stack: [Str], path: Str): Bool {
@@ -926,6 +939,7 @@ load_project_mode_with_configuration(
     core
   }
   mut program: Program = append_program_declarations(module_programs(loaded.modules))
+  mut preparation: Option[ProjectPreparationContext] = None()
   mut diagnostics: [Diagnostic] = []
   // Every source module uses checked identities. Parser staging markers belong
   // to the standalone syntax API, not a second executable language frontend.
@@ -1027,6 +1041,10 @@ load_project_mode_with_configuration(
       diagnostics = diagnostics.concat(emitted.diagnostics)
       if emitted.diagnostics.len() == 0 {
         program = emitted.program
+        preparation = Some(ProjectPreparationContext(
+          project_root, stdlib_root, entry_identity,
+          package_confined, package_root_identity, dependencies
+        ))
       }
     }
   }
@@ -1042,7 +1060,8 @@ load_project_mode_with_configuration(
     identity_ready,
     function_types,
     signatures,
-    bodies
+    bodies,
+    preparation
   )
 }
 

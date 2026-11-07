@@ -739,8 +739,10 @@ is governed by the 2026-10-12 owner direction under GI#106 below.
 **7 November 2026:** the owner resumed compiler-reuse assessment before larger
 language changes. The [assessment and first slice](../../COMPILER_REUSE_ASSESSMENT.md)
 identify duplicate preparation within an invocation and the later boundaries for
-unchanged-build and checked-module reuse. Assessment is recorded; implementation
-has not started. Earlier release acceptance below remains historical evidence.
+unchanged-build and checked-module reuse. The first within-command reuse slice is
+complete locally, with a measured 3% self-compilation saving and passing full
+validation (518 seconds); integration is pending. Persistent reuse is not implemented. Earlier release
+acceptance below remains historical evidence.
 
 <a id="future-candidate-incremental-and-modular-builds"></a>
 

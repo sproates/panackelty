@@ -1,5 +1,5 @@
 pub import project/src/compiler/loader::{LoadedProject}
-import project/src/compiler/loader::{loaded_package_binding_graph}
+import project/src/compiler/loader::{ProjectPreparationContext, loaded_package_binding_graph}
 pub import project/src/project_model/package_project::{ManifestDependencyProject}
 pub import stdlib/package_filesystem::{FilesystemRootIdentity}
 import project/src/compiler/module_emission::{ModuleBindingGraph, ModuleEmissionResult, module_emission_program}
@@ -44,25 +44,33 @@ pub pure prepare_project_program_with_dependencies(
   if diagnostics.len() > 0 {
     Error(diagnostics)
   } else {
-    graph: ModuleBindingGraph = loaded_package_binding_graph(
-      project.modules,
-      project_root,
-      stdlib_root,
-      package_confined,
-      package_root_identity,
-      dependencies
+    requested: ProjectPreparationContext = ProjectPreparationContext(
+      project_root, stdlib_root, entry,
+      package_confined, package_root_identity, dependencies
     )
-    emitted: ModuleEmissionResult = module_emission_program(
-      graph,
-      project.modules,
-      project.module_signatures,
-      project.module_bodies,
-      entry
-    )
-    if emitted.diagnostics.len() > 0 {
-      Error(emitted.diagnostics)
+    if project.identity_ready && project.effects_checked && project.preparation == Some(requested) {
+      Ok(project.program)
     } else {
-      Ok(emitted.program)
+      graph: ModuleBindingGraph = loaded_package_binding_graph(
+        project.modules,
+        project_root,
+        stdlib_root,
+        package_confined,
+        package_root_identity,
+        dependencies
+      )
+      emitted: ModuleEmissionResult = module_emission_program(
+        graph,
+        project.modules,
+        project.module_signatures,
+        project.module_bodies,
+        entry
+      )
+      if emitted.diagnostics.len() > 0 {
+        Error(emitted.diagnostics)
+      } else {
+        Ok(emitted.program)
+      }
     }
   }
 }

@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Review declaration exclusions for domain proof origins and effect ownership.",
-    "basis": "Reproduced the previous reviewed exclusion digest from 1e60e8d with the production inventory. Reviewed the new inventory: 246 imports, 146 records and 33 enums. Only declarations are excluded.",
-    "scopeChange": "Measured files, test corpus and unmeasured list are unchanged."
+    "reason": "Account for the four incremental compiler modules and review declaration exclusions after compiler reuse integration.",
+    "basis": "Computed with the production parser and inventory_module over every eligible source. Only imports, type refinements, records and enums are excluded; executable functions remain eligible.",
+    "scopeChange": "Add body_cache_codec, compilation_cache, module_cache and module_reuse to measured source eligibility. Existing corpus and unmeasured sources are unchanged. No coverage percentage is asserted by this review."
   },
-  "manifestHash": "d6a4a9aff279fb3c697f0f544eb9f69d656e99f53d8dcc8ff50351ad74c08096",
-  "exclusionHash": "732f569bc6cdc2df54524a708799805ed0a0cd6ae6289a26ecc4d6b8a4d6406c"
+  "manifestHash": "3e92b1881d541fc7ddacd4e6988079fc1160da863237c8b2926e65b11f8a7c6e",
+  "exclusionHash": "2489e6d59907d47ed49e313aefba85fba629255e938c41554c2cd46636dd7c72"
 }

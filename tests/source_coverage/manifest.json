@@ -3,6 +3,8 @@
   "name": "SC5 native source baseline v1",
   "eligible": [
     "src/bytecode/codec.panack", "src/bytecode/decoder.panack",
+    "src/compiler/body_cache_codec.panack", "src/compiler/compilation_cache.panack",
+    "src/compiler/module_cache.panack", "src/compiler/module_reuse.panack",
     "src/compiler/checker.panack", "src/compiler/coverage.panack", "src/compiler/coverage_session.panack",
     "src/compiler/diagnostics.panack", "src/compiler/domain_guards.panack", "src/compiler/driver.panack", "src/compiler/emitter.panack",
     "src/compiler/explanations.panack", "src/compiler/expression_contracts.panack", "src/compiler/filesystem_support.panack", "src/compiler/lexer.panack",

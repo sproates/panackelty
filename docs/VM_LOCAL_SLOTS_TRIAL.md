@@ -25,9 +25,12 @@ uninitialised-local trap, including assignments skipped by control flow. Slots
 remain in the frame across async suspension. Unverified native test programs keep
 the existing name-based execution path.
 
-This is a candidate experiment, not yet adoption in the normal checkout VM.
+The owner approved adoption after reviewing this experiment. The normal checkout
+VM is rebuilt with indexed locals and full local validation passed on 7 November
+2026 (`make check`, exit 0, 690 seconds).
 No CI, PR, merge, installed release, compiler source or bytecode format change.
-Full local product validation remains for adoption after trial acceptance.
+This includes unit, functional, bootstrap, package/install, release-smoke and
+quick-start checks. The compiler bootstrap hash remains unchanged.
 
 ## Profile
 
@@ -113,7 +116,12 @@ the compiler workload and a source importing all 28 stdlib modules under unique
 aliases for the stdlib workload. Alternate five stdlib pairs and three compiler
 pairs, retaining all samples and comparing output hashes. Run measurements alone.
 
-The trial supports adoption: it improves both measured compilation workloads,
-preserves bytecode and passes focused correctness checks. Full `make check` and
-rebuilding the normal checkout VM remain pending owner acceptance of adoption.
-The existing normal VM retains the two previously adopted optimisations.
+The owner approved adoption: the trial improves both measured compilation
+workloads, preserves bytecode and passes focused and full local correctness
+checks. This adds to the two previously adopted optimisations.
+
+The adoption `make check` took 690 seconds versus 820 seconds for the preceding
+concatenation adoption, a 130-second reduction (15.85%). Bootstrap took 174
+seconds versus 209 seconds. These are single sequential full-suite runs, not a
+controlled repeated benchmark or a hosted-CI performance guarantee. Historical
+timing-budget warnings remain advisory. No tests or checks were removed.

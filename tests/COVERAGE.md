@@ -4,8 +4,8 @@ The [indexed-local trial](../docs/VM_LOCAL_SLOTS_TRIAL.md) adds native checks fo
 parameter-slot ordering, replacement ownership, uninitialised branch locals,
 verification invalidation/re-preparation and locals across async suspension.
 Allocation sweeps cover preparation and indexed-frame failures. The candidate
-passed native suites and five compiled functional fixtures; full product
-validation and adoption remain pending.
+passed native suites and five compiled functional fixtures, then full local
+`make check` after adoption in the normal checkout VM.
 
 The [VM concatenation trial](../docs/VM_CONCAT_TRIAL.md) adds native assertions
 for empty and Unicode results, embedded NUL bytes, overflow rejection and shared

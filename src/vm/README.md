@@ -197,6 +197,15 @@ that replace instructions must re-verify before starting another execution.
 Re-verification disables old links until successful. Runtime effect/arity checks
 remain, and indirect callable values still resolve their actual runtime targets.
 
+Verification assigns each distinct local name a slot, with parameters first in
+argument order. LOAD, STORE and iterator instructions use those indexes instead
+of searching names. A frame allocates zeroed value slots, retains parameters and
+releases replaced or unwound values; an unassigned slot still traps on read.
+Slots remain valid across suspension. Preparation's sorted name table is temporary;
+only slot counts and instruction indexes remain. Indexes reuse the call-link
+storage for local-access opcodes and do not alter bytecode. Failed verification
+invalidates both caches. Unverified native test programs retain name-based access.
+
 ## Ownership and editing conventions
 
 Constructors normally return one owned reference. Collection constructors retain

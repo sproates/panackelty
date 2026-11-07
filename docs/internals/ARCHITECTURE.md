@@ -1857,7 +1857,7 @@ execution evidence and are distinct from the static publisher's exact report
 name. Failed transport or import causes fresh preparation. See the
 [hosted contract](../COVERAGE_PERFORMANCE_BASELINE.md#slice-c-hosted-preparation-and-matched-acceptance).
 
-## VM direct-call preparation
+## VM execution preparation
 
 After successful bytecode verification, direct CALL and AWAIT_CALL instructions
 carry borrowed links to builtin registry entries or functions in their owning
@@ -1866,6 +1866,16 @@ effect checks remain. Indirect calls retain runtime resolution. Names remain for
 diagnostics, and neither these links nor any new opcode are serialized. Native
 embedders must retain an immutable verified Program throughout execution and
 re-verify after replacing instructions. See [VM ownership](../../src/vm/README.md).
+
+Verification also assigns local-variable slots per function. Parameters occupy
+the first slots in argument order; LOAD, STORE and iterator instructions carry
+derived slot indexes. Call frames hold a zeroed array of value references, so
+skipped assignments retain the uninitialised-local trap. Slots survive async
+suspension and release their values when frames unwind. Slot indexes share the
+instruction's derived call-link storage and are never serialized. Failed
+verification invalidates both caches; unverified native test programs retain
+name-based local access. Preparation uses a temporary sorted name table, freed
+before execution.
 
 String addition, byte append/concatenation and array concatenation allocate final
 result storage directly, without a temporary concatenated buffer. Byte storage

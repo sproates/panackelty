@@ -5,7 +5,7 @@ Latest published release: **v0.1.0-alpha.15**, published 6 November 2026.
 
 **Alpha.16: build useful programs. Ten VM optimisation batches are delivered by
 this integration; further VM experiments are paused. Compiler reuse has been
-implemented and validated in two local slices ahead of larger
+implemented and validated in local trials ahead of larger
 language changes; integration is pending. RM#162 remains an investigation.** Alpha.15 is complete, including native archives, installer, browser
 playground and website. Its [final status snapshot](ALPHA15_FINAL_STATUS.md) and
 [release acceptance](releases/ALPHA15_RELEASE_ACCEPTANCE.md) preserve the evidence.
@@ -25,7 +25,7 @@ and linked work records. Update this summary whenever release work changes.
 | [GI#138: Tested guides](https://github.com/sproates/panackelty/issues/138), with [GI#310: Examples](https://github.com/sproates/panackelty/issues/310) | Planned. Coordinate guides with runnable examples; do not count the same delivery twice. |
 | [RM#162: Real-program fixes](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-162) | In progress: [async capability investigation](ASYNC_USEFUL_PROGRAMS_INVESTIGATION.md) reproduces the clock restriction and separate callback-state gap. The [discussion record](ASYNC_DESIGN_DISCUSSION.md) captures the preferred async-module API direction; state and closures remain exploratory. No fix implemented yet. Scope and effort emerge from actual use; verify each originating program and agree a release cutoff. No website update. |
 | [GI#170: Inference/diagnostics assessment](https://github.com/sproates/panackelty/issues/170) | Planned assessment. No inference implementation or architecture is selected. |
-| [RM#157: Performance review](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-157) | Ten owner-requested VM optimisation batches delivered by this integration; details below. Final local `make check` passed in 593 seconds with unchanged compiler bytecode. Hosted integration CI is pending. Broader performance-review workloads, targets and completion criteria still need agreement; RM#157 is not complete. Further VM experiments are paused; two compiler-reuse slices passed local validation and await integration (see below). |
+| [RM#157: Performance review](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-157) | Ten owner-requested VM optimisation batches delivered by this integration; details below. Final local `make check` passed in 593 seconds with unchanged compiler bytecode. Hosted integration CI is pending. Broader performance-review workloads, targets and completion criteria still need agreement; RM#157 is not complete. Further VM experiments are paused; two compiler-reuse slices and a retained-module trial passed local validation and await integration (see below). |
 | [GI#435: Guard alternatives](https://github.com/sproates/panackelty/issues/435) | Planned follow-on for string, collection and record-relationship guards: proof rules and diagnostics need design. Numeric alternatives already work; the alpha.15 contract remains complete. |
 | Native-interface/compiler decoupling | Allocated to alpha.16 in the [boundary record](roadmap/records/next-release--agreed-scope-2026-10-06.md). Define the bounded change using the completed [GI#409 assessment](COMPILER_STDLIB_BOUNDARY_ASSESSMENT.md); do not repeat the assessment. |
 | Coverage approach review | Allocated to alpha.16 in the [performance record](roadmap/records/standing-performance-engineering--ongoing.md). Review cold preparation and retained decoded plans; the alpha.15 optimisation is already accepted. |
@@ -79,7 +79,11 @@ integration. Further experiments remain on feature/rm162-real-program-fixes.
   is complete locally as an opt-in trial. Warm self-compilation fell from 14.34s
   to 2.34s with identical bytecode; cold compilation took 15.04s. Full local
   validation passed in 572 seconds. Integration is pending, and module-level
-  reuse after edits is not implemented. This continues RM#28: Incremental and modular builds
+  body reuse after edits is validated in [retained in-memory snapshots](COMPILER_MODULE_REUSE_TRIAL.md):
+  an entry-module edit reused 46 of 47 modules and took 8.27s versus 15.48s fresh,
+  with identical bytecode. All 54 focused cases and full local validation passed
+  (563 seconds). Persistence and ordinary CLI access remain unfinished; this
+  third trial does not yet speed separate CLI invocations after edits. This continues RM#28: Incremental and modular builds
   alongside RM#157: Performance review, without declaring either complete.
 
 - PR #676 reconciled `main` into `next`, retaining the published alpha.15 product tree,

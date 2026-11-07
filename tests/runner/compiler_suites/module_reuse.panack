@@ -1,0 +1,221 @@
+import project/src/compiler/loader::{LoadedProjectSources, ProjectLoadState, ProjectCheckResult, check_project_sources, check_project_sources_reusing, load_project_sources}
+import project/src/compiler/emitter::{compile_program}
+import project/src/bytecode/codec::{serialize_bytecode}
+import stdlib/testing as testing
+pub import stdlib/testing::{TestResult}
+import stdlib/testing_files as testing_files
+import stdlib/filesystem as filesystem
+import stdlib/path as path
+import stdlib/host as host
+
+pure fixture_path(text: Str): Path { path.from_text(text).value_or(path.current()) }
+
+write_source(root: Str, name: Str, source: Str): Void {
+  match filesystem.write(fixture_path(root + "/" + name), source.encode_utf8()) {
+    Ok(done) => {}, Error(problem) => {
+      host.stderr("module reuse fixture write failed")
+      host.exit(1)
+    }
+  }
+}
+
+pure was_reused(result: ProjectCheckResult, name: Str): Bool {
+  mut found: Bool = false
+  for identity in result.reused { found = found || identity.path == name }
+  found
+}
+
+pure equivalent(label: Str, result: ProjectCheckResult): [TestResult] {
+  fresh = check_project_sources(result.snapshot.source)
+  mut results: [TestResult] = [testing.expect(label + " matches fresh checking", result.snapshot.project == fresh, "retained project differs")]
+  if fresh.preparation != None() {
+    results = results.append(testing.expect(label + " emits identical bytecode",
+      serialize_bytecode(compile_program(result.snapshot.project.program)) == serialize_bytecode(compile_program(fresh.program)),
+      "bytecode differs"))
+  }
+  results
+}
+
+pub module_reuse_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  match testing_files.workspace_create(fixture_path("/tmp")) {
+    Error(problem) => { results = results.append(testing.expect("module reuse workspace", false, "creation failed")) },
+    Ok(workspace) => {
+      root: Str = workspace.root.to_text().value_or("")
+      entry: Str = root + "/main.panack"
+      main_source: Str = "import \"left.panack\" as left\nimport \"right.panack\" as right\nmain(): Void { print(left.answer()); print(right.answer()) }\n"
+      left_source: Str = "import \"leaf.panack\" as leaf\npub pure answer(): Nat { leaf.answer() }\n"
+      right_source: Str = "pub pure answer(): Nat { 10 }\n"
+      leaf_source: Str = "pub pure answer(): Nat { 1 }\n"
+      write_source(root, "main.panack", main_source)
+      write_source(root, "left.panack", left_source)
+      write_source(root, "right.panack", right_source)
+      write_source(root, "leaf.panack", leaf_source)
+      initial = check_project_sources_reusing(load_project_sources(entry), None())
+      results = results.concat(equivalent("cold", initial))
+      results = results.append(testing.expect(
+        "cold checks every module",
+        initial.reused.len() == 0 &&
+        initial.rechecked.len() == initial.snapshot.project.modules.len(),
+        "unexpected cold counts"
+      ))
+      warm = check_project_sources_reusing(load_project_sources(entry), Some(initial.snapshot))
+      results = results.concat(equivalent("unchanged", warm))
+      results = results.append(testing.expect(
+        "unchanged reuses every body module",
+        warm.rechecked.len() == 0 &&
+        warm.reused.len() == initial.rechecked.len(),
+        "reuse missing"
+      ))
+
+      write_source(root, "leaf.panack", "pub pure answer(): Nat { 200 }\n")
+      edited = check_project_sources_reusing(load_project_sources(entry), Some(initial.snapshot))
+      results = results.concat(equivalent("leaf edit", edited))
+      results = results.append(testing.expect(
+        "leaf edit invalidates transitive consumers only",
+        edited.rechecked.len() == 3 &&
+        was_reused(edited, "right.panack") &&
+        !was_reused(edited, "main.panack") &&
+        !was_reused(edited, "left.panack") &&
+        !was_reused(edited, "leaf.panack"),
+        "wrong invalidation closure"
+      ))
+      write_source(root, "main.panack", main_source + "// entry-only edit\n")
+      entry_edit = check_project_sources_reusing(load_project_sources(entry), Some(edited.snapshot))
+      results = results.concat(equivalent("entry edit", entry_edit))
+      results = results.append(testing.equal_nat("entry edit rechecks one module", entry_edit.rechecked.len(), 1))
+
+      write_source(root, "leaf.panack", "pub pure answer(value: Nat): Nat { value }\n")
+      invalid = check_project_sources_reusing(load_project_sources(entry), Some(entry_edit.snapshot))
+      results = results.concat(equivalent("signature rejection", invalid))
+      results = results.append(testing.expect(
+        "changed signature is rejected",
+        invalid.snapshot.project.diagnostics.len() > 0,
+        "stale success"
+      ))
+      write_source(root, "leaf.panack", leaf_source)
+      recovery = check_project_sources_reusing(load_project_sources(entry), Some(invalid.snapshot))
+      results = results.concat(equivalent("failed snapshot recovery", recovery))
+      results = results.append(testing.equal_nat("failed projects cannot seed reuse", recovery.reused.len(), 0))
+
+      write_source(root, "leaf.panack", "pub answer(): Nat { print(1); 1 }\n")
+      effect = check_project_sources_reusing(load_project_sources(entry), Some(recovery.snapshot))
+      results = results.concat(equivalent("effect rejection", effect))
+      results = results.append(testing.expect(
+        "effect change remains rejected",
+        effect.snapshot.project.diagnostics.len() > 0,
+        "stale effect permission"
+      ))
+      write_source(root, "leaf.panack", leaf_source)
+
+      write_source(root, "right.panack", "type Positive = Nat where value => value >= 1\n" + right_source)
+      guards = check_project_sources_reusing(load_project_sources(entry), Some(recovery.snapshot))
+      results = results.concat(equivalent("global guard change", guards))
+      results = results.append(testing.expect(
+        "guard fixture compiles",
+        guards.snapshot.project.preparation != None(),
+        "invalid guard fixture"
+      ))
+      results = results.append(testing.equal_nat("guard changes disable all reuse", guards.reused.len(), 0))
+      write_source(root, "right.panack", right_source)
+
+      write_source(root, "extra.panack", "pub pure answer(): Nat { 8 }\n")
+      write_source(root, "main.panack", "import \"extra.panack\" as extra\n" + main_source)
+      added = check_project_sources_reusing(load_project_sources(entry), Some(recovery.snapshot))
+      results = results.concat(equivalent("added module", added))
+      results = results.append(testing.equal_nat("changed module layout disables reuse", added.reused.len(), 0))
+      write_source(root, "main.panack", main_source)
+      removed = check_project_sources_reusing(load_project_sources(entry), Some(added.snapshot))
+      results = results.concat(equivalent("removed module", removed))
+      results = results.append(testing.equal_nat("removed module disables reuse", removed.reused.len(), 0))
+      write_source(root, "leaf.panack", "import \"left.panack\" as left\n" + leaf_source)
+      cycle = check_project_sources_reusing(load_project_sources(entry), Some(removed.snapshot))
+      results = results.concat(equivalent("import cycle", cycle))
+      results = results.append(testing.expect(
+        "cycles do not reuse success",
+        cycle.snapshot.project.diagnostics.len() > 0 &&
+        cycle.reused.len() == 0,
+        "cycle hidden"
+      ))
+      filesystem.remove_file(fixture_path(root + "/leaf.panack"))
+      missing = check_project_sources_reusing(load_project_sources(entry), Some(removed.snapshot))
+      results = results.concat(equivalent("missing source", missing))
+      results = results.append(testing.expect(
+        "missing source is rejected",
+        missing.snapshot.project.diagnostics.len() > 0,
+        "missing source hidden"
+      ))
+      write_source(root, "leaf.panack", leaf_source)
+
+      source = load_project_sources(entry)
+      explained_source = LoadedProjectSources(source.loaded, source.context, source.entry_path, true, source.require_main)
+      explained = check_project_sources_reusing(explained_source, Some(removed.snapshot))
+      results = results.concat(equivalent("explanation mode", explained))
+      results = results.append(testing.equal_nat("explanations remain fresh", explained.reused.len(), 0))
+      plain = check_project_sources_reusing(source, Some(explained.snapshot))
+      results = results.concat(equivalent("explanation to plain", plain))
+      results = results.append(testing.equal_nat("retained evidence cannot seed plain reuse", plain.reused.len(), 0))
+
+      loaded = source.loaded
+      mut core_sources = loaded.sources
+      for module in loaded.modules {
+        if module.bindings.identity.path == "core.panack" {
+          core_sources = core_sources.put(module.source_path, loaded.sources.get(module.source_path) + "\n")
+        }
+      }
+      core_source = LoadedProjectSources(ProjectLoadState(loaded.modules, loaded.visited,
+        loaded.diagnostics, core_sources, loaded.source_paths), source.context,
+        source.entry_path, source.retain, source.require_main)
+      core_edit = check_project_sources_reusing(core_source, Some(plain.snapshot))
+      results = results.concat(equivalent("implicit core edit", core_edit))
+      results = results.append(testing.equal_nat("core invalidates every module", core_edit.reused.len(), 0))
+      library_source = LoadedProjectSources(source.loaded, source.context, source.entry_path, false, false)
+      mode_change = check_project_sources_reusing(library_source, Some(plain.snapshot))
+      results = results.concat(equivalent("main requirement change", mode_change))
+      results = results.append(testing.equal_nat("mode change disables reuse", mode_change.reused.len(), 0))
+
+      write_source(root, "right.panack", left_source)
+      diamond = check_project_sources_reusing(load_project_sources(entry), None())
+      write_source(root, "leaf.panack", "pub pure answer(): Nat { 300 }\n")
+      diamond_edit = check_project_sources_reusing(load_project_sources(entry), Some(diamond.snapshot))
+      results = results.concat(equivalent("diamond leaf edit", diamond_edit))
+      results = results.append(testing.expect(
+        "both diamond consumers are invalidated",
+        diamond_edit.rechecked.len() == 4 &&
+        !was_reused(diamond_edit, "right.panack"),
+        "diamond consumer reused"
+      ))
+      write_source(root, "left.panack", "import \"right.panack\" as leaf\npub pure answer(): Nat { leaf.answer() }\n")
+      rewire = check_project_sources_reusing(load_project_sources(entry), Some(diamond_edit.snapshot))
+      results = results.concat(equivalent("rewired import", rewire))
+      results = results.append(testing.expect(
+        "rewired consumer is not reused",
+        !was_reused(rewire, "left.panack") &&
+        !was_reused(rewire, "main.panack"),
+        "stale import"
+      ))
+
+      relocated: Str = root + "/relocated"
+      filesystem.create_directory(fixture_path(relocated))
+      write_source(relocated, "main.panack", main_source)
+      write_source(relocated, "left.panack", left_source)
+      write_source(relocated, "right.panack", right_source)
+      write_source(relocated, "leaf.panack", leaf_source)
+      relocation = check_project_sources_reusing(load_project_sources(relocated + "/main.panack"), Some(plain.snapshot))
+      results = results.concat(equivalent("relocated source root", relocation))
+      results = results.append(testing.equal_nat(
+        "relocated roots cannot reuse old locations", relocation.reused.len(), 0
+      ))
+      for name in ["main.panack", "left.panack", "right.panack", "leaf.panack"] {
+        filesystem.remove_file(fixture_path(relocated + "/" + name))
+      }
+      filesystem.remove_directory(fixture_path(relocated))
+
+      for name in ["main.panack", "left.panack", "right.panack", "leaf.panack", "extra.panack"] {
+        filesystem.remove_file(fixture_path(root + "/" + name))
+      }
+      cleanup = workspace.remove_empty()
+    }
+  }
+  results
+}

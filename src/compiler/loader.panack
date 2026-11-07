@@ -1,3 +1,4 @@
+import project/src/compiler/module_reuse::{reusable_body_modules}
 import project/src/compiler/path_support as path_support
 import stdlib/path as std_path
 import stdlib/filesystem as std_filesystem
@@ -17,7 +18,7 @@ import project/src/compiler/module_effects::{CheckedModuleEffects, check_module_
 pub import project/src/compiler/module_bindings::{ModuleIdentity}
 import project/src/compiler/module_bindings::{ModuleBindings, ModuleDeclarationKind.ModuleFunction, collect_module_bindings, loaded_module_declaration_index, module_binding_diagnostics, source_module_identity, source_package_module_identity, module_relative_path, module_programs}
 import project/src/compiler/module_signatures::{CheckedModuleSignatures, check_module_signatures}
-import project/src/compiler/module_resolution::{ModuleImportEdge, module_graph_diagnostics}
+import project/src/compiler/module_resolution::{ModuleImportEdge, module_graph_diagnostics, module_identity_in}
 import project/src/compiler/module_emission::{ModuleEmissionResult, module_emission_program}
 import project/src/compiler/parser::{
   ParsedModule, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration,
@@ -62,6 +63,18 @@ pub record LoadedProjectSources {
   entry_path: Str,
   retain: Bool,
   require_main: Bool
+}
+
+// Session-local snapshots retain typed compiler values; they are not a disk format.
+pub record ProjectCheckSnapshot {
+  source: LoadedProjectSources,
+  project: LoadedProject
+}
+
+pub record ProjectCheckResult {
+  snapshot: ProjectCheckSnapshot,
+  reused: [ModuleIdentity],
+  rechecked: [ModuleIdentity]
 }
 
 pub record LoadedProject {
@@ -991,6 +1004,12 @@ load_project_sources_with_configuration(
 }
 
 pub pure check_project_sources(source: LoadedProjectSources): LoadedProject {
+  check_project_sources_reusing(source, None()).snapshot.project
+}
+
+pub pure check_project_sources_reusing(
+  source: LoadedProjectSources, previous: Option[ProjectCheckSnapshot]
+): ProjectCheckResult {
   loaded: ProjectLoadState = source.loaded
   resolved: Str = source.entry_path
   project_root: Str = source.context.project_root
@@ -1037,6 +1056,31 @@ pub pure check_project_sources(source: LoadedProjectSources): LoadedProject {
     loaded.modules, project_root, stdlib_root, package_confined, package_root_identity, dependencies
   )
   diagnostics = diagnostics.concat(module_graph_diagnostics(graph))
+  mut reusable: [ModuleIdentity] = []
+  mut retained_bodies: [BoundFunctionBody] = []
+  match previous {
+    None() => {},
+    Some(prior) => {
+      if !source.retain && !prior.source.retain &&
+          source.require_main == prior.source.require_main &&
+          source.context == prior.source.context &&
+          prior.project.preparation == Some(prior.source.context) &&
+          prior.project.identity_ready && prior.project.effects_checked &&
+          prior.project.diagnostics.len() == 0 {
+        prior_graph: ModuleBindingGraph = loaded_package_binding_graph(
+          prior.source.loaded.modules, project_root, stdlib_root,
+          package_confined, package_root_identity, dependencies
+        )
+        reusable = reusable_body_modules(
+          loaded.modules, loaded.sources, graph,
+          prior.source.loaded.modules, prior.source.loaded.sources, prior_graph
+        )
+        retained_bodies = prior.project.module_bodies
+      }
+    }
+  }
+  mut reused: [ModuleIdentity] = []
+  mut rechecked: [ModuleIdentity] = []
   mut signatures: [ModuleSignature] = []
   mut bodies: [BoundFunctionBody] = []
   mut effects: [EffectEvidence] = []
@@ -1061,8 +1105,20 @@ pub pure check_project_sources(source: LoadedProjectSources): LoadedProject {
     identity_ready = diagnostics.len() == 0
     signatures_valid: Bool = identity_ready
     for module in loaded.modules {
-      checked: CheckedModuleBodies = check_module_bodies_explained(
-        graph, loaded.modules, signatures, module, retain)
+      use_previous: Bool = signatures_valid && module_identity_in(reusable, module.bindings.identity)
+      checked: CheckedModuleBodies = if use_previous {
+        mut functions: [BoundFunctionBody] = []
+        for body in retained_bodies {
+          if body.signature.binding.identity.module == module.bindings.identity {
+            functions = functions.append(body)
+          }
+        }
+        reused = reused.append(module.bindings.identity)
+        CheckedModuleBodies(functions, [])
+      } else {
+        rechecked = rechecked.append(module.bindings.identity)
+        check_module_bodies_explained(graph, loaded.modules, signatures, module, retain)
+      }
       bodies = bodies.concat(checked.functions)
       diagnostics = diagnostics.concat(checked.diagnostics)
       identity_ready = identity_ready && checked.diagnostics.len() == 0
@@ -1108,7 +1164,7 @@ pub pure check_project_sources(source: LoadedProjectSources): LoadedProject {
       }
     }
   }
-  LoadedProject(
+  project: LoadedProject = LoadedProject(
     program,
     loaded.modules,
     diagnostics,
@@ -1123,6 +1179,7 @@ pub pure check_project_sources(source: LoadedProjectSources): LoadedProject {
     bodies,
     preparation
   )
+  ProjectCheckResult(ProjectCheckSnapshot(source, project), reused, rechecked)
 }
 
 // Build semantic edges only from the loader's normalized path decisions.

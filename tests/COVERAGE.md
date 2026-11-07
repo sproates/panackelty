@@ -1,5 +1,12 @@
 # Specification coverage
 
+The [checked-module trial](../docs/COMPILER_MODULE_REUSE_TRIAL.md) compares
+retained snapshots with fresh checking and emitted bytecode after leaf/entry
+edits, signature/effect failures, guards, implicit core changes, graph changes,
+cycles, missing sources, relocation and explanation-mode changes. The cases
+are registered in the compiler module-bindings suite. All 54 focused cases and
+the full local `make check` passed (563 seconds).
+
 The [unchanged-compilation trial](../docs/COMPILER_UNCHANGED_REUSE_TRIAL.md) adds
 CLI coverage in `tests/unit/harness/compilation_cache.sh`: warm/cold byte identity,
 fresh execution, launcher/toolchain identity, source and package invalidation,

@@ -8,7 +8,9 @@ The owner wants to avoid repeated compilation before undertaking larger language
 changes. This record defines the first implementation slice, its delivery
 evidence and subsequent reuse boundaries. The second slice is an opt-in
 [unchanged-compilation trial](COMPILER_UNCHANGED_REUSE_TRIAL.md); module-level
-incremental checking remains future work.
+body checking after edits is now validated through an explicit
+[in-memory checked-module snapshot](COMPILER_MODULE_REUSE_TRIAL.md). Persistence
+and a CLI session interface remain future work.
 
 ## Original path assessed before the first slice
 
@@ -175,6 +177,9 @@ Slice 1 below is now implemented as the linked opt-in trial. Fresh package-tool
 validation precedes the compiler: the compiler fingerprints the resolved
 descriptor, rather than interpreting raw manifests or lockfiles itself. Fresh
 source discovery resolves the current reachable graph before every lookup.
+The checked-module stage has a validated in-memory body-reuse boundary, detailed
+in the linked trial; it does not yet persist snapshots or serve ordinary CLI
+invocations.
 
 1. **Reuse unchanged successful compilations across invocations.** Start with
    ordinary check/compile/run and a bounded local cache, not serialized checker

@@ -746,7 +746,11 @@ validation (518 seconds); integration is pending. The subsequent
 and validated locally: warm self-compilation 14.34s to 2.34s with identical
 bytecode, cold 15.04s, full `make check` passed in 572 seconds. Integration is
 pending. It is opt-in,
-not module-level incremental checking. Earlier release
+not module-level incremental checking. The next [module-reuse trial](../../COMPILER_MODULE_REUSE_TRIAL.md)
+has validated the in-memory invalidation boundary before persistence: 54 focused
+cases and full local checks passed (563 seconds). An entry-module edit reused
+46 of 47 modules, taking 8.27s versus 15.48s fresh with identical bytecode.
+Separate CLI invocations after edits do not yet benefit. Earlier release
 acceptance below remains historical evidence.
 
 <a id="future-candidate-incremental-and-modular-builds"></a>

@@ -101,6 +101,10 @@ Source discovery and confinement remain fresh; an exact source/toolchain/descrip
 match reuses successful bytecode for check/compile/run. Semantic checking and
 emission are separated from source loading in the Panackelty loader. Tooling
 modes retain their full evidence path; execution results are never cached.
+A separate [checked-module trial](../COMPILER_MODULE_REUSE_TRIAL.md) exposes
+session-local reuse through the compiler library. It invalidates changed modules
+and their transitive consumers, then recomputes global effects and emission. It
+has no persisted snapshot format or ordinary CLI session interface yet.
 
 ## Repository layout
 

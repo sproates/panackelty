@@ -180,6 +180,11 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   to staged checking and emission. `LoadedProjectSources` separates fresh source
   discovery/parsing from `check_project_sources`, without changing ordinary
   loading or confinement requirements.
+- `module_reuse.panack` computes conservative body-reuse eligibility from exact
+  source snapshots and transitive import edges. The loader exposes
+  `check_project_sources_reusing` with an explicit session-local snapshot;
+  signatures, guards, global effects and final emission stay fresh. See the
+  [checked-module trial](../../docs/COMPILER_MODULE_REUSE_TRIAL.md).
 - `compilation_cache.panack` owns the opt-in private local cache for successful
   check/compile/run artifacts. It fingerprints exact source snapshots, resolved
   project descriptors and toolchain bytes; hits skip checking/emission, never

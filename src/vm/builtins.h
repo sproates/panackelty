@@ -9,10 +9,40 @@
 
 /* One registry supplies arity, purity, and implementation selection. */
 
-typedef struct {
+/* Internal execution routing; never encoded in bytecode. */
+typedef enum {
+    BUILTIN_ORDINARY,
+    BUILTIN_HTTP_CONNECTION_CONTINUE,
+    BUILTIN_HTTP_LISTEN_ORDINARY,
+    BUILTIN_HTTP_LISTEN_CONTEXTUAL,
+    BUILTIN_HTTP_CLOSE,
+    BUILTIN_HTTP_DESTROY,
+    BUILTIN_HTTP_CONNECTION_INVOKE,
+    BUILTIN_HTTP_TRANSPORT_EXCHANGE,
+    BUILTIN_TCP_SERVE,
+    BUILTIN_TCP_SERVICE,
+    BUILTIN_TCP_SERVE_STREAM,
+    BUILTIN_PROCESS_RUN,
+    BUILTIN_RUN_BYTECODE,
+    BUILTIN_RUN_BYTECODE_ARGS,
+    BUILTIN_HOST_ARGUMENTS_ASYNC,
+    BUILTIN_HOST_EXIT_ASYNC,
+    BUILTIN_HOST_STDOUT_ASYNC,
+    BUILTIN_HOST_STDERR_ASYNC,
+    BUILTIN_FS_READ_BENEATH_ASYNC,
+    BUILTIN_FS_ROOT_IDENTITY_ASYNC,
+    BUILTIN_TCP_SERVER_READ_CHUNK,
+    BUILTIN_TCP_EXCHANGE,
+    BUILTIN_ASYNC_FAKE_READ,
+    BUILTIN_PROCESS_EXIT,
+    BUILTIN_PRINT,
+} BuiltinDispatch;
+
+typedef struct Builtin {
     const char *name;
     uint8_t arity;
     bool pure;
+    BuiltinDispatch dispatch;
     Value *(*call)(VM *vm, const char *name, Value **arguments);
 } Builtin;
 

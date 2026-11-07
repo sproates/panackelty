@@ -39,6 +39,8 @@ typedef struct {
     Value *value;
 } Local;
 
+enum { INLINE_CALL_ARGUMENTS = 8 };
+
 typedef struct {
     Function *function;
 #ifdef PANACK_VM_TEST_OBSERVER
@@ -49,11 +51,15 @@ typedef struct {
     size_t pc, stack_count, stack_capacity, local_count, local_capacity;
     Value **stack;
     Local *locals;
+    Value **local_slots;
+    bool indexed_locals;
 } Frame;
 
 struct VMExecution {
     VM *vm;
     Frame *frames;
+    Value **constants;
+    size_t constant_count;
     size_t frame_count, frame_capacity;
     VMExecutionStatus status;
     Value *result;
@@ -106,8 +112,11 @@ static Value *stack_pop(Frame *frame, VM *vm)
 }
 
 /* Local lookup borrows the reference; callers retain it before pushing. */
-static Value *local_get(Frame *frame, const char *name)
+static Value *local_get(Frame *frame, const char *name, size_t slot)
 {
+    if (frame->indexed_locals) {
+        return slot < frame->local_count ? frame->local_slots[slot] : NULL;
+    }
     for (size_t i = frame->local_count; i-- > 0;) {
         if (!strcmp(frame->locals[i].name, name)) {
             return frame->locals[i].value;
@@ -117,8 +126,17 @@ static Value *local_get(Frame *frame, const char *name)
 }
 
 /* Replacing a local releases its old reference. Consumes value even on failure. */
-static bool local_put(Frame *frame, const char *name, Value *value)
+static bool local_put(Frame *frame, const char *name, size_t slot, Value *value)
 {
+    if (frame->indexed_locals) {
+        if (slot >= frame->local_count) {
+            release(value);
+            return false;
+        }
+        release(frame->local_slots[slot]);
+        frame->local_slots[slot] = value;
+        return true;
+    }
     for (size_t i = 0; i < frame->local_count; i++) {
         if (!strcmp(frame->locals[i].name, name)) {
             release(frame->locals[i].value);
@@ -154,11 +172,16 @@ static void frame_free(Frame *frame)
         release(frame->stack[i]);
     }
     for (size_t i = 0; i < frame->local_count; i++) {
-        free(frame->locals[i].name);
-        release(frame->locals[i].value);
+        if (frame->indexed_locals) {
+            release(frame->local_slots[i]);
+        } else {
+            free(frame->locals[i].name);
+            release(frame->locals[i].value);
+        }
     }
     free(frame->stack);
     free(frame->locals);
+    free(frame->local_slots);
 }
 
 static Value *constant_value(const Constant *c)
@@ -190,6 +213,35 @@ static Value *constant_value(const Constant *c)
     return value_void();
 }
 
+/* Cache owns one reference; each execution of the instruction gets another.
+ * Unverified native programs retain the uncached path. */
+static Value *execution_constant(VMExecution *execution, const Instruction *instruction)
+{
+    Program *program = execution->vm->program;
+    if (!program || !program->resolved_constants || instruction->constant.tag > 3) {
+        return constant_value(&instruction->constant);
+    }
+    if (!execution->constants) {
+        execution->constants = calloc(program->constant_count, sizeof(Value *));
+        if (!execution->constants) return NULL;
+        execution->constant_count = program->constant_count;
+    }
+    size_t slot = instruction->constant_slot;
+    if (slot >= execution->constant_count) return NULL;
+    if (!execution->constants[slot]) {
+        execution->constants[slot] = constant_value(&instruction->constant);
+    }
+    return retain(execution->constants[slot]);
+}
+
+static void constants_clear(VMExecution *execution)
+{
+    for (size_t i = 0; i < execution->constant_count; i++) release(execution->constants[i]);
+    free(execution->constants);
+    execution->constants = NULL;
+    execution->constant_count = 0;
+}
+
 /* Borrow arguments; each successfully installed local owns a retained reference.
  * Register partial frames before initialization so every failure is destroyable.
  */
@@ -218,12 +270,23 @@ static bool frame_push(VMExecution *execution, Function *function, Value **argum
 #ifdef PANACK_VM_TEST_OBSERVER
     VM_TEST_FRAME_ENTER(frame, function, arguments);
 #endif
+    if (execution->vm->program && execution->vm->program->resolved_locals) {
+        frame->indexed_locals = true;
+        if (function->local_count) {
+            frame->local_slots = calloc(function->local_count, sizeof(Value *));
+        }
+        if (function->local_count && !frame->local_slots) {
+            execution->vm->error = "native VM out of memory";
+            return false;
+        }
+        frame->local_count = function->local_count;
+    }
     for (size_t i = 0; i < function->param_count; i++) {
         if (!arguments[i]) {
             execution->vm->error = "VM trap: invalid function argument";
             return false;
         }
-        if (!local_put(frame, function->params[i], retain(arguments[i]))) {
+        if (!local_put(frame, function->params[i], i, retain(arguments[i]))) {
             execution->vm->error = "native VM out of memory";
             return false;
         }
@@ -453,7 +516,7 @@ static Value *server_call(VMExecution *execution, Value **arguments)
 
 static Value *http_unit_result(void)
 {
-    Value *unit = value_new(V_UNIT);
+    Value *unit = value_unit();
     if (!unit) return NULL;
     Value *result = named_value(V_VARIANT, "Ok", NULL, &unit, 1);
     release(unit);
@@ -476,14 +539,14 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
                                 bool *called_function)
 {
     *called_function = false;
-    if (!strcmp(entry->name, "http_connection_continue")) {
+    if (entry->dispatch == BUILTIN_HTTP_CONNECTION_CONTINUE) {
         if (tcp_server_http_continue(execution->vm, arguments[0])) {
             execution->waiting_read = true;
             execution->status = VM_WAITING;
         }
         return NULL;
     }
-    if (!strcmp(entry->name, "http_listen_ordinary") || !strcmp(entry->name, "http_listen_contextual")) {
+    if (entry->dispatch == BUILTIN_HTTP_LISTEN_ORDINARY || entry->dispatch == BUILTIN_HTTP_LISTEN_CONTEXTUAL) {
         VM *vm = execution->vm;
         Function *worker = http_worker_function(vm, arguments[1]);
         if (!worker) { vm->error = "VM trap: invalid HTTP worker"; return NULL; }
@@ -492,7 +555,7 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
             return NULL;
         }
         Value *result = http_runtime_listen(vm, arguments[0], worker,
-            !strcmp(entry->name, "http_listen_contextual"),
+            entry->dispatch == BUILTIN_HTTP_LISTEN_CONTEXTUAL,
             !execution->embedded || execution->network_enabled,
             !execution->embedded || execution->filesystem_enabled,
             !execution->embedded || execution->console_enabled);
@@ -507,10 +570,10 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         execution->yield_requested = true;
         return result;
     }
-    if (!strcmp(entry->name, "http_close") || !strcmp(entry->name, "http_destroy")) {
+    if (entry->dispatch == BUILTIN_HTTP_CLOSE || entry->dispatch == BUILTIN_HTTP_DESTROY) {
         VM *vm = execution->vm;
         if (arguments[0]->kind != V_HTTP_STATE || !arguments[0]->as.http_state ||
-            !http_runtime_request_close(vm->http_runtime, arguments[0], !strcmp(entry->name, "http_destroy"))) {
+            !http_runtime_request_close(vm->http_runtime, arguments[0], entry->dispatch == BUILTIN_HTTP_DESTROY)) {
             vm->error = "VM trap: invalid HTTP shutdown handle";
             return NULL;
         }
@@ -519,7 +582,7 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         execution->status = VM_WAITING;
         return NULL;
     }
-    if (!strcmp(entry->name, "http_connection_invoke")) {
+    if (entry->dispatch == BUILTIN_HTTP_CONNECTION_INVOKE) {
         Value *call_arguments[3];
         Function *handler = http_connection_handler(execution->vm, arguments, call_arguments);
         if (handler) {
@@ -529,23 +592,23 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         return NULL;
     }
     VM *vm = execution->vm;
-    if (vm->coverage && !vm->coverage_run && (!strcmp(entry->name, "$http_transport_exchange") ||
-        !strcmp(entry->name, "$tcp_serve") || !strcmp(entry->name, "tcp_service") ||
-        !strcmp(entry->name, "$tcp_serve_stream") || !strcmp(entry->name, "process_run") ||
-        !strcmp(entry->name, "run_bytecode") || !strcmp(entry->name, "run_bytecode_args"))) {
+    if (vm->coverage && !vm->coverage_run && (entry->dispatch == BUILTIN_HTTP_TRANSPORT_EXCHANGE ||
+        entry->dispatch == BUILTIN_TCP_SERVE || entry->dispatch == BUILTIN_TCP_SERVICE ||
+        entry->dispatch == BUILTIN_TCP_SERVE_STREAM || entry->dispatch == BUILTIN_PROCESS_RUN ||
+        entry->dispatch == BUILTIN_RUN_BYTECODE || entry->dispatch == BUILTIN_RUN_BYTECODE_ARGS)) {
         vm_coverage_gap(vm->coverage);
     }
-    if (!strcmp(entry->name, "tcp_service")) {
+    if (entry->dispatch == BUILTIN_TCP_SERVICE) {
         return service_call(execution, arguments);
     }
-    if (!strcmp(entry->name, "host_arguments_async")) {
+    if (entry->dispatch == BUILTIN_HOST_ARGUMENTS_ASYNC) {
         if (execution->embedded && !execution->console_enabled) {
             vm->error = "VM trap: invocation service is unavailable in this execution";
             return NULL;
         }
         return host_call(vm, "command_args", NULL);
     }
-    if (!strcmp(entry->name, "host_exit_async")) {
+    if (entry->dispatch == BUILTIN_HOST_EXIT_ASYNC) {
         if (arguments[0]->kind != V_NAT || !value_index(arguments[0], &execution->exit_status) ||
             execution->exit_status > 255) {
             vm->error = "VM trap: invalid process status";
@@ -556,12 +619,12 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         }
         return NULL;
     }
-    if (!strcmp(entry->name, "host_stdout_async") || !strcmp(entry->name, "host_stderr_async")) {
+    if (entry->dispatch == BUILTIN_HOST_STDOUT_ASYNC || entry->dispatch == BUILTIN_HOST_STDERR_ASYNC) {
         if (execution->embedded && !execution->console_enabled) {
             vm->error = "VM trap: console service is unavailable in this execution";
         } else {
             execution->console_write =
-                console_write_start(vm, arguments[0], !strcmp(entry->name, "host_stderr_async"));
+                console_write_start(vm, arguments[0], entry->dispatch == BUILTIN_HOST_STDERR_ASYNC);
             if (!execution->console_write && !vm->error) {
                 vm->error = "native VM out of memory";
             }
@@ -571,13 +634,13 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         }
         return NULL;
     }
-    if (!strcmp(entry->name, "fs_read_beneath_async") ||
-        !strcmp(entry->name, "fs_root_identity_async")) {
+    if (entry->dispatch == BUILTIN_FS_READ_BENEATH_ASYNC ||
+        entry->dispatch == BUILTIN_FS_ROOT_IDENTITY_ASYNC) {
         if (execution->embedded && !execution->filesystem_enabled) {
             vm->error = "VM trap: filesystem service is unavailable in this execution";
         } else {
             execution->root_read =
-                root_read_start(vm, arguments, !strcmp(entry->name, "fs_root_identity_async"));
+                root_read_start(vm, arguments, entry->dispatch == BUILTIN_FS_ROOT_IDENTITY_ASYNC);
             if (!execution->root_read && !vm->error) {
                 vm->error = "native VM out of memory";
             }
@@ -587,13 +650,13 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         }
         return NULL;
     }
-    if (!strcmp(entry->name, "$tcp_serve")) {
+    if (entry->dispatch == BUILTIN_TCP_SERVE) {
         return server_call(execution, arguments);
     }
-    if (!strcmp(entry->name, "$tcp_serve_stream")) {
+    if (entry->dispatch == BUILTIN_TCP_SERVE_STREAM) {
         return server_call_mode(execution, arguments, true);
     }
-    if (!strcmp(entry->name, "$tcp_server_read_chunk")) {
+    if (entry->dispatch == BUILTIN_TCP_SERVER_READ_CHUNK) {
         size_t limit;
         if (arguments[0]->kind != V_NAT || !value_index(arguments[0], &limit) || !limit ||
             limit > 16384 || !execution->embedded || !execution->read_wait ||
@@ -607,7 +670,7 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         }
         return NULL;
     }
-    if (!strcmp(entry->name, "$tcp_exchange")) {
+    if (entry->dispatch == BUILTIN_TCP_EXCHANGE) {
         if (execution->embedded && !execution->network_enabled) {
             vm->error = "VM trap: TCP service is unavailable in this execution";
         } else {
@@ -620,7 +683,7 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         }
         return NULL;
     }
-    if (!strcmp(entry->name, "$http_transport_exchange")) {
+    if (entry->dispatch == BUILTIN_HTTP_TRANSPORT_EXCHANGE) {
         if (execution->embedded && !execution->network_enabled) {
             vm->error = "VM trap: HTTP transport is unavailable in this execution";
         } else {
@@ -633,7 +696,7 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         }
         return NULL;
     }
-    if (!strcmp(entry->name, "async_fake_read")) {
+    if (entry->dispatch == BUILTIN_ASYNC_FAKE_READ) {
         if (arguments[0]->kind != V_BOOL) {
             vm->error = "VM trap: fake read requires Bool";
         } else if (!execution->embedded ||
@@ -647,7 +710,7 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         }
         return NULL;
     }
-    if (!strcmp(entry->name, "process_exit") &&
+    if (entry->dispatch == BUILTIN_PROCESS_EXIT &&
         (execution->embedded || http_runtime_active(vm->http_runtime))) {
         if (arguments[0]->kind != V_NAT || !value_index(arguments[0], &execution->exit_status)) {
             vm->error = "VM trap: invalid process status";
@@ -657,13 +720,13 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         return NULL;
     }
     if (!execution->embedded || entry->pure || builtin_is_local_state(entry)) {
-        return builtin_call(vm, entry->name, arguments);
+        return entry->call(vm, entry->name, arguments);
     }
-    if (!strcmp(entry->name, "run_bytecode") || !strcmp(entry->name, "run_bytecode_args")) {
+    if (entry->dispatch == BUILTIN_RUN_BYTECODE || entry->dispatch == BUILTIN_RUN_BYTECODE_ARGS) {
         vm->error = "VM trap: nested execution is unavailable in resumable mode";
         return NULL;
     }
-    if (execution->print_wait && !strcmp(entry->name, "print")) {
+    if (execution->print_wait && entry->dispatch == BUILTIN_PRINT) {
         if (execution->print_wait(execution->host_context, arguments[0], &vm->error)) {
             execution->status = VM_WAITING;
         } else if (!vm->error) {
@@ -724,13 +787,13 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
         size_t index, start, end;
         switch (instruction->op) {
         case OP_CONST:
-            v = constant_value(&instruction->constant);
+            v = execution_constant(execution, instruction);
             if (!v || !stack_push(frame, v)) {
                 goto oom;
             }
             break;
         case OP_LOAD:
-            v = local_get(frame, instruction->name);
+            v = local_get(frame, instruction->name, instruction->local_slot);
             if (!v) {
                 vm->error = "VM trap: uninitialized local";
                 break;
@@ -741,7 +804,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
             break;
         case OP_STORE:
             v = stack_pop(frame, vm);
-            if (v && !local_put(frame, instruction->name, v)) {
+            if (v && !local_put(frame, instruction->name, instruction->local_slot, v)) {
                 goto oom;
             }
             break;
@@ -949,12 +1012,12 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
                 release(v);
                 goto oom;
             }
-            if (!local_put(frame, instruction->name, v)) {
+            if (!local_put(frame, instruction->name, instruction->local_slot, v)) {
                 goto oom;
             }
             break;
         case OP_ITER_NEXT:
-            v = local_get(frame, instruction->name);
+            v = local_get(frame, instruction->name, instruction->local_slot);
             if (!v || v->kind != V_ITER) {
                 vm->error = "VM trap: invalid iterator";
                 break;
@@ -989,7 +1052,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
                 vm->error = "VM trap: value is not iterable";
                 break;
             }
-            if (!b || !local_put(frame, instruction->name2, b)) {
+            if (!b || !local_put(frame, instruction->name2, instruction->local_slot2, b)) {
                 goto oom;
             }
             break;
@@ -1079,7 +1142,11 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
         case OP_AWAIT_CALL:
         case OP_CALL: {
             bool called_function = false;
-            Value **args = calloc(instruction->arity, sizeof(Value *));
+            /* Every used slot is filled below before invocation or cleanup.
+             * Callees retain values needed after this temporary array is released. */
+            Value *inline_args[INLINE_CALL_ARGUMENTS];
+            Value **args = instruction->arity <= INLINE_CALL_ARGUMENTS ? inline_args
+                                                  : calloc(instruction->arity, sizeof(Value *));
             if (instruction->arity && !args) {
                 goto oom;
             }
@@ -1090,11 +1157,14 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
                 for (size_t i = 0; i < instruction->arity; i++) {
                     release(args[i]);
                 }
-                free(args);
+                if (args != inline_args) free(args);
                 break;
             }
-            const Builtin *built = builtin(instruction->name);
-            Function *called = built ? NULL : program_function(vm->program, instruction->name);
+            const Builtin *built = vm->program->resolved_calls
+                ? instruction->resolved_builtin : builtin(instruction->name);
+            Function *called = vm->program->resolved_calls
+                ? instruction->resolved_function
+                : (built ? NULL : program_function(vm->program, instruction->name));
             if ((!built && !called) ||
                 instruction->arity != (built ? built->arity : called->param_count) ||
                 !verify_call_edge(function, called, built && built->pure,
@@ -1109,7 +1179,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
             for (size_t i = 0; i < instruction->arity; i++) {
                 release(args[i]);
             }
-            free(args);
+            if (args != inline_args) free(args);
             if (built && !called_function && execution->status == VM_YIELDED &&
                 ((!v && !vm->error) || (v && !stack_push(frame, v)))) {
                 goto oom;
@@ -1158,7 +1228,9 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
         case OP_AWAIT_VALUE:
         case OP_CALL_VALUE: {
             bool called_function = false;
-            Value **args = calloc(instruction->arity, sizeof(Value *));
+            Value *inline_args[INLINE_CALL_ARGUMENTS];
+            Value **args = instruction->arity <= INLINE_CALL_ARGUMENTS ? inline_args
+                                                  : calloc(instruction->arity, sizeof(Value *));
             if (instruction->arity && !args) {
                 goto oom;
             }
@@ -1170,7 +1242,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
                 for (size_t i = 0; i < instruction->arity; i++) {
                     release(args[i]);
                 }
-                free(args);
+                if (args != inline_args) free(args);
                 release(callable);
                 break;
             }
@@ -1182,7 +1254,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
                     for (size_t i = 0; i < instruction->arity; i++) {
                         release(args[i]);
                     }
-                    free(args);
+                    if (args != inline_args) free(args);
                     release(callable);
                     goto oom;
                 }
@@ -1214,7 +1286,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
             for (size_t i = 0; i < instruction->arity; i++) {
                 release(args[i]);
             }
-            free(args);
+            if (args != inline_args) free(args);
             release(callable);
             if (!called_function && execution->status == VM_YIELDED &&
                 ((!v && !vm->error) || (v && !stack_push(frame, v)))) {
@@ -1349,6 +1421,7 @@ bool vm_execution_destroy(VMExecution *execution)
     digest_destroy(execution->vm);
     frames_clear(execution);
     free(execution->frames);
+    constants_clear(execution);
     release(execution->result);
     release(execution->http_waiting);
     execution->vm->execution = NULL;
@@ -1433,6 +1506,7 @@ Value *execute(VM *vm, Function *function, Value **arguments)
     digest_destroy(vm);
     frames_clear(&execution);
     free(execution.frames);
+    constants_clear(&execution);
     release(execution.http_waiting);
     vm->execution = NULL;
     if (owns_runtime && !vm->error && (execution.status == VM_EXITED || runtime.exit_requested)) {

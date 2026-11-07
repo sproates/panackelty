@@ -98,7 +98,7 @@ static void *write_worker(void *context)
     }
     operation->fd = -1;
     Value *result = error ? write_error(operation->standard_error, "io_error", error)
-                          : host_variant("Ok", value_new(V_UNIT));
+                          : host_variant("Ok", value_unit());
     pthread_mutex_lock(&operation->mutex);
     operation->result = result;
     operation->done = true;

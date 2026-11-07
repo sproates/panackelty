@@ -36,13 +36,13 @@ Value *builtins_http_state_call(VM *vm, const char *name, Value **a)
     }
     if (!strcmp(name, "http_state_fail_setup")) {
         http_state_set_error(state, "invalid route URI reference");
-        return value_new(V_UNIT);
+        return value_unit();
     }
     if (!strcmp(name, "http_state_register")) {
         REQUIRE(a[1]->kind == V_STR && a[2]->kind == V_STR && a[3]->kind == V_STR,
                 "VM trap: invalid HTTP registration operands");
         if (!http_state_register(state, a[1], a[2], a[3])) return NULL;
-        return value_new(V_UNIT);
+        return value_unit();
     }
     vm->error = "VM trap: unknown HTTP state operation";
     return NULL;
@@ -79,7 +79,7 @@ Value *builtins_http_writer_call(VM *vm, const char *name, Value **a)
             return NULL;
         }
         writer->status = status;
-        return value_new(V_UNIT);
+        return value_unit();
     }
     if (!strcmp(name, "http_writer_headers")) {
         REQUIRE(a[1]->kind == V_ARRAY, "VM trap: invalid HTTP headers operand");
@@ -93,13 +93,13 @@ Value *builtins_http_writer_call(VM *vm, const char *name, Value **a)
         Value *headers = retain(a[1]);
         release(writer->headers);
         writer->headers = headers;
-        return value_new(V_UNIT);
+        return value_unit();
     }
     if (!strcmp(name, "http_writer_commit")) {
         REQUIRE(a[1]->kind == V_BYTES, "VM trap: invalid HTTP wire operand");
         writer->wire = retain(a[1]);
         writer->completed = true;
-        return value_new(V_UNIT);
+        return value_unit();
     }
     vm->error = "VM trap: unknown HTTP writer operation";
     return NULL;

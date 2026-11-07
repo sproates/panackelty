@@ -150,7 +150,7 @@ static void finish_client(VMTcpServer *server, ServerClient *client, const char 
         server->active--;
         return;
     }
-    Value *outcome = error ? error_value(error) : result_value(true, value_new(V_UNIT));
+    Value *outcome = error ? error_value(error) : result_value(true, value_unit());
     if (!outcome) {
         trap(server, "native VM out of memory");
         return;

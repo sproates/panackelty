@@ -416,6 +416,12 @@ sentinel so the VM keeps one uniform calling convention even though `Void` is
 not a source value. Branch and iteration instructions change the current
 frame's program counter.
 
+Direct and indirect calls use a temporary eight-pointer stack buffer for up to
+eight arguments; larger calls use a heap array. Values needed beyond invocation
+are retained by the callee or host before that array is released. Awaited calls
+follow the same ownership contract. This changes allocation only, not bytecode
+or argument order.
+
 The native dispatcher keeps Panackelty call frames in an explicitly owned heap
 array. Direct and indirect calls push frames; returns transfer results and pop
 frames without recursive C execution. An internal resumable handle can advance
@@ -473,7 +479,11 @@ compiler lexing without changing bytecode or language semantics.
 
 The portable C11 seed VM under `src/vm/` independently decodes, verifies,
 and executes version-9 artifacts. Its reference-counted values and
-arbitrary-precision numerics use no third-party libraries. Fixed-expectation
+arbitrary-precision numerics use no third-party libraries. Boolean, Unit and Void construction
+shares immutable static Values with an immortal reference-count marker;
+retain/release leave those objects unchanged. Other heap Values retain ordinary
+reference counting. Unit and Void retain distinct tags. This avoids repeated scalar allocation without changing
+bytecode or language semantics. Fixed-expectation
 tests run the complete program corpus and execute the Panackelty-hosted compiler
 on the native VM. An adversarial instruction corpus also requires the VM to trap
 on forged indirect
@@ -826,7 +836,11 @@ stay private. Headers are self-contained declarations, not included implementati
 Value lifetime, exact arithmetic, rendering, UTF-8 traversal, and host services
 are separate translation units. Builtins are grouped into text, collections,
 numerics, nested execution, and host services. One registry supplies arity, purity,
-and handler selection to verification and execution. Nested execution intentionally
+and handler selection to verification and execution. Each entry also has a static
+internal execution classification, allowing special async/host dispatch without
+repeated name comparisons. Capability checks, coverage gaps and external host
+callback names retain their existing behavior; the classification is not encoded
+in bytecode. Nested execution intentionally
 calls back into the VM after decoding and verifying its child program.
 
 Array append can share a backing store between a prefix and one extension,
@@ -1856,3 +1870,48 @@ alone never confer remote trust. Preparation artifacts contain no local key or
 execution evidence and are distinct from the static publisher's exact report
 name. Failed transport or import causes fresh preparation. See the
 [hosted contract](../COVERAGE_PERFORMANCE_BASELINE.md#slice-c-hosted-preparation-and-matched-acceptance).
+
+## VM execution preparation
+
+After successful bytecode verification, direct CALL and AWAIT_CALL instructions
+carry borrowed links to builtin registry entries or functions in their owning
+Program. Execution uses these links without repeated name lookup; call arity and
+effect checks remain. Indirect calls retain runtime resolution. Names remain for
+diagnostics, and neither these links nor any new opcode are serialized. Native
+embedders must retain an immutable verified Program throughout execution and
+re-verify after replacing instructions. See [VM ownership](../../src/vm/README.md).
+
+Verification also assigns local-variable slots per function. Parameters occupy
+the first slots in argument order; LOAD, STORE and iterator instructions carry
+derived slot indexes. Call frames hold a zeroed array of value references, so
+skipped assignments retain the uninitialised-local trap. Slots survive async
+suspension and release their values when frames unwind. Slot indexes share the
+instruction's derived call-link storage and are never serialized. Failed
+verification invalidates both caches; unverified native test programs retain
+name-based local access. Preparation uses a temporary sorted name table, freed
+before execution.
+
+Verification assigns derived slots to Nat, Int, Decimal and string constant
+instructions. Each execution lazily allocates a pointer table and constructs each
+used literal once, retaining it until execution cleanup. Results retain their own
+references after the cache is released. The slots reuse instruction metadata and
+are not serialized. Separate executions have separate caches; unverified native
+programs keep uncached construction. See the
+[literal reuse measurements](../VM_LITERAL_REUSE_TRIAL.md) for memory retention
+and per-execution table costs.
+
+String addition, byte append/concatenation and array concatenation allocate final
+result storage directly, without a temporary concatenated buffer. Byte storage
+retains its trailing NUL and strings retain cached Unicode metadata. Array
+results retain each element independently of the input arrays. Size overflow is
+rejected before allocating or reading inputs; serialized bytecode is unchanged.
+String addition combines the input code-point counts and ASCII flags instead
+of scanning the result. Constructors for raw-byte producers still calculate
+metadata by scanning; both paths share allocation and copying.
+
+Maps and sets may lazily memoize a scalar-key lookup index containing positions
+into their ordered entries. Equality resolves hash collisions, and updates
+produce a new unindexed value. Unsupported keys or index allocation failure
+retain the linear scan. The derived index changes neither observable ordering
+nor equality, is not serialized, and is freed with its owning value. See the
+[value model](../../src/vm/VALUE_MODEL.md) for ownership and the trial record.

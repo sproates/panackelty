@@ -24,6 +24,81 @@ static Value *operand;
 static uint8_t operation;
 static Value *left, *right;
 static size_t sweeps;
+static Value *index_fixture;
+static uint8_t argument_count;
+static bool argument_indirect, argument_underflow;
+
+static size_t literal_budget;
+static uint8_t literal_tag;
+static void literal_cache_allocations(void)
+{
+    uint32_t limb = 123;
+    Instruction code[] = {{.op = OP_CONST, .constant = {.tag = literal_tag,
+        .number = {.sign = 1, .len = 1, .limbs = &limb}, .exponent = -2,
+        .text = "cached", .text_length = 6}},
+        {.op = OP_RETURN}};
+    Function fn = {.name = "main", .ins = code, .ins_count = 2};
+    Program program = {.functions = &fn, .count = 1};
+    const char *error = NULL;
+    if (!verify(&program, &error)) { assert(fault_triggered() && error); return; }
+    VM vm = {.program = &program};
+    VMExecution *run = vm_execution_create(&vm, &fn, NULL, NULL, NULL, &error);
+    if (!run) { assert(fault_triggered() && error); return; }
+    VMExecutionStatus result = vm_execution_advance(run, literal_budget);
+    if (fault_triggered()) assert(result == VM_TRAPPED && vm.error);
+    else assert(result == (literal_budget == 1 ? VM_YIELDED : VM_COMPLETED));
+    assert(vm_execution_destroy(run));
+}
+
+static void call_argument_allocations(void)
+{
+    char *params[] = {"a", "b", "c", "d", "e", "f", "g", "h", "i"};
+    Instruction code[12] = {0};
+    size_t used = 0;
+    if (argument_indirect) code[used++] = (Instruction){.op = OP_CONST,
+        .constant = {.tag = 3, .text = "target", .text_length = 6}};
+    for (size_t i = 0; i < argument_count; i++) {
+        code[used++] = (Instruction){.op = OP_CONST,
+            .constant = {.tag = 4, .boolean = i + 1 == argument_count}};
+    }
+    if (argument_underflow) code[used - 1] = (Instruction){.op = OP_JUMP, .target = (uint32_t)used};
+    code[used++] = (Instruction){.op = argument_indirect ? OP_CALL_VALUE : OP_CALL,
+        .name = "target", .arity = argument_count};
+    code[used++] = (Instruction){.op = OP_RETURN};
+    Instruction target[] = {{.op = OP_LOAD, .name = params[argument_count - 1]}, {.op = OP_RETURN}};
+    Function functions[] = {{.name = "main", .ins = code, .ins_count = used},
+        {.name = "target", .params = params, .param_count = argument_count, .ins = target, .ins_count = 2}};
+    Program program = {.functions = functions, .count = 2};
+    const char *error = NULL;
+    if (!verify(&program, &error)) {
+        assert(fault_triggered() && error);
+        return;
+    }
+    VM vm = {.program = &program};
+    Value *result = execute(&vm, &functions[0], NULL);
+    if (fault_triggered() || argument_underflow) {
+        assert(!result && vm.error);
+    } else {
+        assert(result && !vm.error && result->kind == V_BOOL && result->as.boolean);
+    }
+    release(result);
+}
+
+static void collection_index_allocations(void)
+{
+    Value *set = value_sequence(V_SET, index_fixture->as.sequence.items, index_fixture->as.sequence.count);
+    if (!set) {
+        assert(fault_triggered());
+        return;
+    }
+    for (size_t i = 0; i < 10; i++) {
+        /* Index allocation failure is optional: lookup must still succeed. */
+        assert(value_collection_find(set, index_fixture->as.sequence.items[i]) == i);
+    }
+    if (fault_triggered()) assert(!set->as.sequence.index);
+    else assert(set->as.sequence.index);
+    release(set);
+}
 
 /* Discover each operation's successful allocation count, then fail every site.
  * One final successful run also checks that failures did not corrupt inputs.
@@ -89,10 +164,12 @@ static void decode_program(void)
     Program program;
     const char *error = NULL;
     bool decoded = decode(bytes, sizeof(bytes), &program, &error);
+    bool verified = decoded && verify(&program, &error);
     if (!fault_triggered()) {
-        assert(decoded && verify(&program, &error));
+        assert(decoded && verified);
     } else {
-        assert(!decoded && error);
+        assert(!verified && error);
+        assert(!program.resolved_locals);
     }
     free_program(&program);
     free_program(&program);
@@ -292,6 +369,80 @@ static void construct_text(void)
     Value *result = value_data(V_STR, (const uint8_t *)"hello", 5);
     assert((result != NULL) == !fault_triggered());
     release(result);
+}
+
+static void concatenate_text(void)
+{
+    Value *result = value_data_join(V_STR, (const uint8_t *)"hello", 5,
+                                   (const uint8_t *)"world", 5);
+    assert((result != NULL) == !fault_triggered());
+    release(result);
+}
+
+static void concatenate_cached_text(void)
+{
+    Value *result = value_string_concat(left, right);
+    assert((result != NULL) == !fault_triggered());
+    release(result);
+    assert(left->refs == 1 && right->refs == 1);
+}
+
+static void indexed_locals_allocations(void)
+{
+    Instruction instructions[] = {
+        {.op = OP_CONST, .constant = {.tag = 4, .boolean = true}},
+        {.op = OP_STORE, .name = "value"}, {.op = OP_LOAD, .name = "value"},
+        {.op = OP_STORE, .name = "copy"}, {.op = OP_LOAD, .name = "copy"},
+        {.op = OP_CALL, .name = "read", .arity = 1},
+        {.op = OP_RETURN}};
+    char *params[] = {"argument"};
+    Instruction reader[] = {{.op = OP_LOAD, .name = "argument"}, {.op = OP_RETURN}};
+    Function functions[] = {{.name = "main", .ins = instructions, .ins_count = 7},
+                            {.name = "read", .params = params, .param_count = 1,
+                             .ins = reader, .ins_count = 2}};
+    Program program = {.functions = functions, .count = 2};
+    const char *error = NULL;
+    if (!verify(&program, &error)) {
+        assert(fault_triggered() && error && !program.resolved_locals && !program.resolved_calls);
+        return;
+    }
+    VM vm = {.program = &program};
+    Value *result = execute(&vm, &functions[0], NULL);
+    if (fault_triggered()) {
+        assert(!result && vm.error);
+    } else {
+        assert(result && !vm.error && result->kind == V_BOOL && result->as.boolean);
+    }
+    release(result);
+}
+
+static void concatenate_array(void)
+{
+    Value *result = value_array_concat(left, left);
+    assert((result != NULL) == !fault_triggered());
+    release(result);
+}
+
+static void concatenation_faults(void)
+{
+    fault_reset(0);
+    sweep("concatenate text", concatenate_text);
+    left = value_data(V_STR, (const uint8_t *)"hello", 5);
+    right = value_data(V_STR, (const uint8_t *)"\xce\xbb", 2);
+    assert(left && right);
+    sweep("concatenate cached text", concatenate_cached_text);
+    release(left);
+    release(right);
+    right = NULL;
+    Value *item = value_size(7);
+    assert(item);
+    left = value_sequence(V_ARRAY, &item, 1);
+    assert(left);
+    sweep("concatenate shared array", concatenate_array);
+    assert(item->refs == 2 && left->refs == 1);
+    release(left);
+    release(item);
+    left = NULL;
 }
 
 static void arithmetic(void)
@@ -592,10 +743,12 @@ static void decode_artifact(void)
     Program program;
     const char *error = NULL;
     bool ok = decode(artifact, artifact_length, &program, &error);
+    bool verified = ok && verify(&program, &error);
     if (!fault_triggered()) {
-        assert(ok && verify(&program, &error));
+        assert(ok && verified);
     } else {
-        assert(!ok && error);
+        assert(!verified && error);
+        assert(!program.resolved_locals);
     }
     free_program(&program);
 }
@@ -833,6 +986,57 @@ void console_write_faults(void);
 
 int main(int argc, char **argv)
 {
+    /* Boolean construction/ownership must not attempt an allocation. */
+    fault_reset(1);
+    Value *shared_yes = value_bool(true), *shared_no = value_bool(false);
+    assert(shared_yes && shared_no && shared_yes->as.boolean && !shared_no->as.boolean);
+    release(retain(shared_yes));
+    release(retain(shared_no));
+    release(shared_yes);
+    release(shared_no);
+    assert(fault_attempts() == 0 && !fault_triggered() && fault_live() == 0);
+    fault_reset(1);
+    Value *shared_unit = value_unit(), *shared_void = value_void();
+    assert(shared_unit && shared_void && shared_unit != shared_void);
+    assert(shared_unit->kind == V_UNIT && shared_void->kind == V_VOID);
+    release(retain(shared_unit));
+    release(retain(shared_void));
+    release(shared_unit);
+    release(shared_void);
+    assert(fault_attempts() == 0 && !fault_triggered() && fault_live() == 0);
+    fault_reset(0);
+    for (literal_tag = 0; literal_tag <= 3; literal_tag++) {
+        for (literal_budget = 1; literal_budget <= 2; literal_budget++) {
+            sweep("literal cache ownership", literal_cache_allocations);
+        }
+    }
+    for (size_t mode = 0; mode < 4; mode++) {
+        argument_indirect = (mode & 1) != 0;
+        argument_underflow = (mode & 2) != 0;
+        for (argument_count = 8; argument_count <= 9; argument_count++) {
+            sweep("inline/heap call argument ownership", call_argument_allocations);
+        }
+    }
+    Value *index_items[64];
+    for (size_t i = 0; i < 64; i++) {
+        index_items[i] = value_size(i);
+        assert(index_items[i]);
+    }
+    index_fixture = value_sequence(V_SET, index_items, 64);
+    assert(index_fixture);
+    sweep("optional collection index", collection_index_allocations);
+    release(index_fixture);
+    for (size_t i = 0; i < 64; i++) {
+        assert(index_items[i]->refs == 1);
+        release(index_items[i]);
+    }
+    sweep("indexed locals preparation and frame ownership", indexed_locals_allocations);
+    concatenation_faults();
+    if (argc == 2 && !strcmp(argv[1], "concat")) {
+        assert(fault_live() == 0);
+        puts("concatenation allocation failures: ok");
+        return 0;
+    }
     root_read_faults();
     console_write_faults();
     if (argc == 3) {

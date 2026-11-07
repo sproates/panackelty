@@ -440,19 +440,7 @@ Value *binary_value_classified(uint8_t op, Value *a, Value *b, const char **erro
         return value_bool(result);
     }
     if (op == 0 && a->kind == V_STR && b->kind == V_STR) {
-        if (a->as.bytes.length > SIZE_MAX - b->as.bytes.length) {
-            return NULL;
-        }
-        size_t n = a->as.bytes.length + b->as.bytes.length;
-        uint8_t *data = malloc(n);
-        if (!data) {
-            return NULL;
-        }
-        memcpy(data, a->as.bytes.data, a->as.bytes.length);
-        memcpy(data + a->as.bytes.length, b->as.bytes.data, b->as.bytes.length);
-        Value *v = value_data(V_STR, data, n);
-        free(data);
-        return v;
+        return value_string_concat(a, b);
     }
     if (a->kind == V_DEC && b->kind == V_DEC) {
         return decimal_binary_classified(op, &a->as.decimal, &b->as.decimal, error, fault);

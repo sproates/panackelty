@@ -80,10 +80,17 @@ bytecode contract or disable runtime verification.
 
 String construction records code-point count and whether every byte is ASCII.
 Length is constant time, and ASCII indexing, slicing, and prefix-offset lookup
-avoid rescanning the string. Non-ASCII offsets retain UTF-8 traversal. Every
-string-producing operation uses the same constructor, including concatenation,
-interpolation, slicing, reversal, decoding, and host inputs; bounds and UTF-8
-validation remain in place.
+avoid rescanning the string. Non-ASCII offsets retain UTF-8 traversal. Constructors
+calculate metadata for raw-byte producers such as interpolation, slicing,
+reversal, decoding and host inputs. String addition combines the existing
+character counts and ASCII flags instead of scanning the concatenated result.
+Both paths share allocation and copying; bounds and UTF-8 validation remain in place.
+
+String addition, byte append/concatenation and array concatenation construct the
+result directly in its final allocation, avoiding a temporary combined buffer.
+Byte storage retains its trailing NUL; concatenated arrays retain each element
+independently. Input storage is never modified. Constructors reject size overflow
+before allocating or reading inputs.
 
 Array append uses bounded sharing between an immutable prefix and its next
 version, amortizing eligible repeated growth while preserving retained snapshots.
@@ -91,6 +98,16 @@ A bounded ownership check sends possible cycles and large object graphs to the
 independent-copy path.
 The [value model](VALUE_MODEL.md#persistent-array-append-storage) defines ownership,
 release order and allocation-failure behavior.
+
+Repeated Map get/has and Set has operations can memoize an index into the
+unchanged ordered entries. The current threshold is 32 entries and eight
+lookups. Supported scalar keys use hash lookup with equality-checked collisions;
+decimal, rational, compound and opaque keys retain the existing scan. Index
+allocation failure also falls back to scanning. Updates create an unindexed
+value; aliases and older snapshots keep their own index until final release.
+The index does not change ordering, equality, bytecode or per-Value allocation
+size. See the [collection-index record](../../docs/VM_COLLECTION_INDEX_TRIAL.md)
+for supported domains, measured workloads and memory costs.
 
 Rational arithmetic uses normalized arbitrary-precision numerator/denominator
 pairs. `Unit` has its own runtime tag; `.nat()` and `.dec()` perform exact checked
@@ -183,9 +200,47 @@ and executor share those names. Numeric operations report through an error point
 and do not depend on VM state. The verifier and executor use one builtin registry,
 so effects, arities and implementation routing are kept together.
 
+The builtin registry also stores an internal execution classification. The
+dispatcher uses it for special host/async handling without comparing names on
+every invocation. Names, capability checks and host-callback contracts remain
+unchanged; the classification is not serialized.
+
+Verification also resolves direct CALL/AWAIT_CALL targets to borrowed builtin or
+function pointers in the decoded instructions. These links are never serialized;
+version-9 bytes and names are unchanged. They become usable only when verification
+succeeds. A loaded program must stay immutable during execution; native callers
+that replace instructions must re-verify before starting another execution.
+Re-verification disables old links until successful. Runtime effect/arity checks
+remain, and indirect callable values still resolve their actual runtime targets.
+
+Verification assigns each distinct local name a slot, with parameters first in
+argument order. LOAD, STORE and iterator instructions use those indexes instead
+of searching names. A frame allocates zeroed value slots, retains parameters and
+releases replaced or unwound values; an unassigned slot still traps on read.
+Slots remain valid across suspension. Preparation's sorted name table is temporary;
+only slot counts and instruction indexes remain. Indexes reuse the call-link
+storage for local-access opcodes and do not alter bytecode. Failed verification
+invalidates both caches. Unverified native test programs retain name-based access.
+
+Direct and indirect calls use a temporary eight-pointer stack buffer for up to
+eight arguments; larger calls use a heap array. Values needed beyond invocation
+are retained by the callee or host before that array is released. Awaited calls
+follow the same ownership contract. This changes allocation only, not bytecode
+or argument order.
+
+Verified Nat/Int/Decimal/string constant instructions also receive cache slots.
+Each execution lazily constructs and retains its own literal Values, releasing
+them at completion/destruction. The pointer table covers all eligible program
+constants; only used literals are constructed. Slots share existing derived
+instruction storage, and neither slots nor Values are serialized. Unverified
+native programs retain uncached construction. See the
+[literal reuse trial](../../docs/VM_LITERAL_REUSE_TRIAL.md) for memory trade-offs.
+
 ## Ownership and editing conventions
 
-Constructors normally return one owned reference. Collection constructors retain
+Boolean, Unit and Void construction shares immutable immortal values; retain/release remain
+valid but do not modify their reference counts. Other constructors normally
+return one owned reference. Collection constructors retain
 children; stack pop transfers a reference; local lookup borrows one. Header
 comments identify exceptions such as the moving decimal constructor and consuming
 host-result wrapper. See `VALUE_MODEL.md` for the full contract.

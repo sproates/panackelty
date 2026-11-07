@@ -737,6 +737,37 @@ static void nested_calls_preserve_caller_ownership(void)
 
 /* Direct semantic verification of decoded objects; wire-level vectors also run
  * through the public native decoder and the Panackelty codec. */
+/* Execution links are derived, refreshed on re-verification, and disabled on failure. */
+static void direct_call_links_follow_verified_program(void)
+{
+    Instruction helper[] = {{.op = OP_CONST, .constant = {.tag = 5}}, {.op = OP_RETURN}};
+    Instruction body[] = {{.op = OP_CALL, .name = "$unit"}, {.op = OP_POP},
+                          {.op = OP_CALL, .name = "helper"}, {.op = OP_RETURN}};
+    Function functions[] = {{.name = "helper", .ins_count = 2, .ins = helper},
+                            {.name = "main", .ins_count = 4, .ins = body}};
+    Program program = {.count = 2, .functions = functions};
+    const char *error = NULL;
+    assert(verify(&program, &error) && program.resolved_calls);
+    assert(body[0].resolved_builtin == builtin("$unit") && !body[0].resolved_function);
+    assert(!body[2].resolved_builtin && body[2].resolved_function == &functions[0]);
+    VM vm = {.program = &program};
+    Value *result = execute(&vm, &functions[1], NULL);
+    assert(result && !vm.error);
+    release(result);
+    body[2].name = "$unit";
+    assert(verify(&program, &error) && program.resolved_calls);
+    assert(body[2].resolved_builtin == builtin("$unit") && !body[2].resolved_function);
+    body[2].name = "missing";
+    assert(!verify(&program, &error) && !program.resolved_calls);
+    assert(strstr(error, "unknown function"));
+    body[2].name = "helper";
+    body[2].arity = 1;
+    assert(!verify(&program, &error) && !program.resolved_calls);
+    assert(strstr(error, "arity"));
+    body[2].arity = 0;
+    assert(verify(&program, &error) && program.resolved_calls);
+}
+
 static void verifier_rejects_forged_structures(void)
 {
     Instruction instructions[] = {{.op = OP_CONST, .constant = {.tag = 5}},
@@ -1024,8 +1055,384 @@ static void artifact_returns_void(const char *path)
     free_program(&program);
 }
 
+static void indexed_locals_preserve_bindings(void)
+{
+    char *params[] = {"z", "a"};
+    Instruction main_code[] = {{.op = OP_CONST, .constant = {.tag = 5}}, {.op = OP_RETURN}};
+    Instruction code[] = {{.op = OP_LOAD, .name = "z"}, {.op = OP_STORE, .name = "saved"},
+                          {.op = OP_LOAD, .name = "a"}, {.op = OP_STORE, .name = "z"},
+                          {.op = OP_LOAD, .name = "saved"}, {.op = OP_RETURN}};
+    Function functions[] = {{.name = "main", .ins = main_code, .ins_count = 2},
+                            {.name = "read", .params = params, .param_count = 2,
+                             .ins = code, .ins_count = 6}};
+    Program program = {.count = 2, .functions = functions};
+    const char *error = NULL;
+    assert(verify(&program, &error) && program.resolved_locals);
+    assert(code[0].local_slot == 0 && code[2].local_slot == 1);
+    assert(code[1].local_slot == code[4].local_slot && functions[1].local_count == 3);
+    Value *args[] = {value_new(V_BOOL), value_new(V_BOOL)};
+    assert(args[0] && args[1]);
+    args[0]->as.boolean = true;
+    VM vm = {.program = &program};
+    Value *result = execute(&vm, &functions[1], args);
+    assert(result == args[0] && result->as.boolean && !vm.error);
+    release(result);
+    assert(args[0]->refs == 1 && args[1]->refs == 1);
+    release(args[0]);
+    release(args[1]);
+
+    /* Verification must not make a skipped assignment appear initialised. */
+    Instruction skipped[] = {{.op = OP_JUMP, .target = 3},
+                             {.op = OP_CONST, .constant = {.tag = 4, .boolean = true}},
+                             {.op = OP_STORE, .name = "branch"},
+                             {.op = OP_LOAD, .name = "branch"}, {.op = OP_RETURN}};
+    functions[0].ins = skipped;
+    functions[0].ins_count = 5;
+    assert(verify(&program, &error));
+    vm = (VM){.program = &program};
+    result = execute(&vm, &functions[0], NULL);
+    assert(!result && vm.error && strstr(vm.error, "local"));
+
+    skipped[0].target = 99;
+    assert(!verify(&program, &error) && !program.resolved_locals && !program.resolved_calls);
+    skipped[0].target = 1;
+    assert(verify(&program, &error));
+    vm = (VM){.program = &program};
+    result = execute(&vm, &functions[0], NULL);
+    assert(result && result->kind == V_BOOL && result->as.boolean && !vm.error);
+    release(result);
+}
+
+static void concatenation_preserves_values(void)
+{
+    const char *parts[] = {"", "plain", "\xc3\xa9", "\xce\xbb", "\xf0\x9f\x99\x82",
+                           "e\xcc\x81", "a\0b"};
+    size_t lengths[] = {0, 5, 2, 2, 4, 3, 3};
+    size_t characters[] = {0, 5, 1, 1, 1, 2, 3};
+    for (size_t i = 0; i < 7; i++) {
+        for (size_t j = 0; j < 7; j++) {
+            Value *a = value_data(V_STR, (const uint8_t *)parts[i], lengths[i]);
+            Value *b = value_data(V_STR, (const uint8_t *)parts[j], lengths[j]);
+            const char *error = NULL;
+            Value *result = binary_value(0, a, b, &error);
+            Value *reference = value_data_join(V_STR, a->as.bytes.data, a->as.bytes.length,
+                                               b->as.bytes.data, b->as.bytes.length);
+            assert(result && reference && !error);
+            assert(result->as.bytes.length == reference->as.bytes.length);
+            assert(result->as.bytes.characters == reference->as.bytes.characters);
+            assert(result->as.bytes.characters == characters[i] + characters[j]);
+            assert(result->as.bytes.ascii == reference->as.bytes.ascii);
+            Value *twice = binary_value(0, result, result, &error);
+            assert(twice && !error && twice->as.bytes.characters == 2 * reference->as.bytes.characters);
+            assert(twice->as.bytes.ascii == reference->as.bytes.ascii);
+            assert(twice->as.bytes.length == 2 * reference->as.bytes.length);
+            assert(!memcmp(twice->as.bytes.data, reference->as.bytes.data, reference->as.bytes.length));
+            assert(!memcmp(twice->as.bytes.data + reference->as.bytes.length,
+                           reference->as.bytes.data, reference->as.bytes.length + 1));
+            release(twice);
+            assert(!memcmp(result->as.bytes.data, reference->as.bytes.data,
+                           reference->as.bytes.length + 1));
+            assert(a->refs == 1 && b->refs == 1);
+            release(a);
+            release(b);
+            assert(!memcmp(result->as.bytes.data, reference->as.bytes.data,
+                           reference->as.bytes.length + 1));
+            release(result);
+            release(reference);
+        }
+    }
+    Value *empty = value_data_join(V_STR, NULL, 0, NULL, 0);
+    assert(empty && empty->as.bytes.length == 0 && empty->as.bytes.characters == 0);
+    assert(empty->as.bytes.ascii && empty->as.bytes.data[0] == 0);
+    release(empty);
+    const uint8_t left[] = {'A', 0, 0xc3, 0xa9};
+    const uint8_t right[] = {0xf0, 0x9f, 0x98, 0x80};
+    Value *text = value_data_join(V_STR, left, sizeof(left), right, sizeof(right));
+    assert(text && text->as.bytes.length == 8 && text->as.bytes.characters == 4);
+    assert(!text->as.bytes.ascii && text->as.bytes.data[8] == 0);
+    assert(!memcmp(text->as.bytes.data, left, sizeof(left)));
+    assert(!memcmp(text->as.bytes.data + sizeof(left), right, sizeof(right)));
+    release(text);
+    assert(!value_data_join(V_BYTES, NULL, SIZE_MAX, NULL, 0));
+    assert(!value_data_join(V_BYTES, NULL, SIZE_MAX - 1, NULL, 1));
+    Value *item = value_size(42);
+    Value *a = value_sequence(V_ARRAY, &item, 1);
+    Value *joined = value_array_concat(a, a);
+    assert(joined && joined->as.sequence.count == 2 && item->refs == 4);
+    release(a);
+    release(item);
+    assert(joined->as.sequence.items[0] == joined->as.sequence.items[1]);
+    assert(joined->as.sequence.items[0]->refs == 2);
+    release(joined);
+    a = value_sequence(V_ARRAY, NULL, 0);
+    joined = value_array_concat(a, a);
+    assert(joined && joined->as.sequence.count == 0);
+    release(joined);
+    release(a);
+    Value huge = {.kind = V_ARRAY}, one = {.kind = V_ARRAY};
+    huge.as.sequence.count = SIZE_MAX;
+    one.as.sequence.count = 1;
+    assert(!value_array_concat(&huge, &one));
+    huge.as.sequence.count = SIZE_MAX / sizeof(Value *) + 1;
+    one.as.sequence.count = 0;
+    assert(!value_array_concat(&huge, &one));
+}
+
+static void collection_indexes_preserve_semantics(void)
+{
+    Value *keys[64], *items[128];
+    for (size_t i = 0; i < 64; i++) {
+        char text[24];
+        int length = snprintf(text, sizeof(text), "key-%zu", i);
+        keys[i] = value_data(V_STR, (const uint8_t *)text, (size_t)length);
+        items[2 * i] = keys[i];
+        items[2 * i + 1] = value_size(i);
+    }
+    Value *map = value_sequence(V_MAP, items, 128);
+    Value *set = value_sequence(V_SET, keys, 64);
+    Value *copy = value_sequence(V_MAP, items, 128);
+    for (size_t i = 0; i < 8; i++) {
+        assert(value_collection_find(map, keys[i]) == 2 * i);
+        assert(value_collection_find(set, keys[i]) == i);
+    }
+    assert(map->as.sequence.index && set->as.sequence.index);
+    assert(value_equal(map, copy) && !copy->as.sequence.index);
+    /* key-8 and key-20 collide in the initial 128-bucket table. */
+    for (size_t i = 0; i < 64; i++) {
+        Value *equal_key = value_data(V_STR, keys[i]->as.bytes.data, keys[i]->as.bytes.length);
+        assert(value_collection_find(map, equal_key) == 2 * i);
+        assert(value_collection_find(set, equal_key) == i);
+        assert(map->as.sequence.items[2 * i] == keys[i]);
+        release(equal_key);
+    }
+    Value *missing = value_data(V_STR, (const uint8_t *)"missing", 7);
+    assert(value_collection_find(map, missing) == SIZE_MAX);
+    assert(value_collection_find(set, missing) == SIZE_MAX);
+    VM vm = {0};
+    Value *args[] = {map, missing};
+    assert(!builtin_call(&vm, "map_get", args) && vm.error);
+    vm = (VM){0};
+    Value *replacement = value_size(999);
+    Value *put_args[] = {map, keys[0], replacement};
+    Value *changed = builtin_call(&vm, "map_put", put_args);
+    assert(changed && !vm.error && !changed->as.sequence.index);
+    assert(map->as.sequence.items[1] == items[1]);
+    assert(changed->as.sequence.items[0] == keys[1]);
+    assert(changed->as.sequence.items[126] == keys[0]);
+    for (size_t i = 0; i < 8; i++) assert(value_collection_find(changed, keys[0]) == 126);
+    assert(changed->as.sequence.items[127] == replacement);
+    Value *read_args[] = {changed, keys[0]};
+    Value *read_result = builtin_call(&vm, "map_get", read_args);
+    assert(read_result == replacement && !vm.error);
+    release(read_result);
+    assert(value_collection_find(map, keys[0]) == 0);
+    Value *duplicates[130];
+    memcpy(duplicates, items, sizeof(items));
+    duplicates[128] = keys[0];
+    duplicates[129] = replacement;
+    Value *duplicate_map = value_sequence(V_MAP, duplicates, 130);
+    for (size_t i = 0; i < 10; i++) assert(value_collection_find(duplicate_map, keys[0]) == 128);
+    assert(duplicate_map->as.sequence.index);
+    release(duplicate_map);
+    Value *set_args[] = {set, missing};
+    Value *larger = builtin_call(&vm, "set_add", set_args);
+    assert(larger && !larger->as.sequence.index && larger->as.sequence.count == 65);
+    assert(set->as.sequence.count == 64 && value_collection_find(set, missing) == SIZE_MAX);
+    for (size_t i = 0; i < 8; i++) assert(value_collection_find(larger, missing) == 64);
+    Value *small = value_sequence(V_SET, keys, 8);
+    for (size_t i = 0; i < 16; i++) assert(value_collection_find(small, keys[0]) == 0);
+    assert(!small->as.sequence.index);
+
+    Value *numeric_items[64];
+    for (size_t i = 0; i < 64; i++) numeric_items[i] = items[2 * i + 1];
+    Value *numeric = value_sequence(V_SET, numeric_items, 64);
+    for (size_t i = 0; i < 64; i++) assert(value_collection_find(numeric, numeric_items[i]) == i);
+    assert(numeric->as.sequence.index);
+    Value *signed_key = value_big(V_INT, &numeric_items[8]->as.integer);
+    assert(value_collection_find(numeric, signed_key) == SIZE_MAX);
+    release(signed_key);
+    release(numeric);
+
+    Value *decimals[64];
+    for (size_t i = 0; i < 64; i++) {
+        PnBigInt coefficient;
+        assert(pn_big_from_u64(&coefficient, i));
+        decimals[i] = value_decimal(&coefficient, 0);
+        assert(decimals[i]);
+    }
+    Value *decimal_set = value_sequence(V_SET, decimals, 64);
+    PnBigInt coefficient;
+    assert(pn_big_from_u64(&coefficient, 80));
+    Value *equal_decimal = value_decimal(&coefficient, -1);
+    assert(equal_decimal && value_equal(equal_decimal, decimals[8]));
+    for (size_t i = 0; i < 10; i++) assert(value_collection_find(decimal_set, equal_decimal) == 8);
+    assert(!decimal_set->as.sequence.index);
+    release(equal_decimal);
+    release(decimal_set);
+    for (size_t i = 0; i < 64; i++) release(decimals[i]);
+
+    Value *nested[64];
+    for (size_t i = 0; i < 64; i++) nested[i] = value_sequence(V_ARRAY, &items[2 * i + 1], 1);
+    Value *compound = value_sequence(V_SET, nested, 64);
+    Value *equal_nested = value_sequence(V_ARRAY, &items[17], 1);
+    for (size_t i = 0; i < 10; i++) assert(value_collection_find(compound, equal_nested) == 8);
+    assert(!compound->as.sequence.index && compound->as.sequence.lookup_count == SIZE_MAX);
+    release(equal_nested);
+    release(compound);
+    for (size_t i = 0; i < 64; i++) release(nested[i]);
+    release(small);
+    release(larger);
+    release(changed);
+    release(replacement);
+    release(missing);
+    release(copy);
+    release(set);
+    release(map);
+    for (size_t i = 0; i < 128; i++) {
+        assert(items[i]->refs == 1);
+        release(items[i]);
+    }
+}
+
+static void call_argument_buffers_preserve_order(void)
+{
+    const size_t counts[] = {0, 1, 8, 9, 255};
+    for (size_t indirect = 0; indirect < 2; indirect++) {
+        for (size_t test = 0; test < sizeof(counts) / sizeof(*counts); test++) {
+            size_t count = counts[test], used = 0;
+            char names[255][8];
+            char *params[255];
+            Instruction code[258] = {0};
+            if (indirect) code[used++] = (Instruction){.op = OP_CONST,
+                .constant = {.tag = 3, .text = "target", .text_length = 6}};
+            for (size_t i = 0; i < count; i++) {
+                snprintf(names[i], sizeof(names[i]), "p%zu", i);
+                params[i] = names[i];
+                code[used++] = (Instruction){.op = OP_CONST,
+                    .constant = {.tag = 4, .boolean = i + 1 == count}};
+            }
+            code[used++] = (Instruction){.op = indirect ? OP_CALL_VALUE : OP_CALL,
+                .name = "target", .arity = (uint8_t)count};
+            code[used++] = (Instruction){.op = OP_RETURN};
+            Instruction target[] = {
+                {.op = count ? OP_LOAD : OP_CONST, .name = count ? params[count - 1] : NULL,
+                 .constant = {.tag = 4, .boolean = true}}, {.op = OP_RETURN}};
+            Function functions[] = {{.name = "main", .ins = code, .ins_count = used},
+                {.name = "target", .ins = target, .ins_count = 2,
+                 .params = params, .param_count = count}};
+            Program program = {.functions = functions, .count = 2};
+            const char *error = NULL;
+            assert(verify(&program, &error));
+            VM vm = {.program = &program};
+            Value *result = execute(&vm, &functions[0], NULL);
+            assert(result && !vm.error && result->kind == V_BOOL && result->as.boolean);
+            release(result);
+            if (count || indirect) {
+                /* Skip one push: the call must clean up every argument popped before underflow. */
+                size_t skipped = count ? indirect + count - 1 : 0;
+                code[skipped] = (Instruction){.op = OP_JUMP, .target = (uint32_t)(skipped + 1)};
+                assert(verify(&program, &error));
+                vm = (VM){.program = &program};
+                assert(!execute(&vm, &functions[0], NULL));
+                assert(vm.error && !strcmp(vm.error, "VM trap: operand stack underflow"));
+            }
+        }
+    }
+}
+
+static void shared_booleans_preserve_values_and_ownership(void)
+{
+    Value *no = value_bool(false), *yes = value_bool(true);
+    assert(no && yes && no != yes);
+    assert(!no->as.boolean && yes->as.boolean);
+    assert(no->kind == V_BOOL && yes->kind == V_BOOL);
+    for (size_t i = 0; i < 10000; i++) {
+        assert(value_bool(false) == no && value_bool(true) == yes);
+        Value *items[] = {retain(no), retain(yes), retain(yes)};
+        Value *array = value_sequence(V_ARRAY, items, 3);
+        assert(array && array->refs == 1);
+        for (size_t j = 0; j < 3; j++) release(items[j]);
+        release(array);
+        assert(no->refs == SIZE_MAX && yes->refs == SIZE_MAX);
+    }
+    Value *owned = value_new(V_BOOL);
+    assert(owned && owned->refs == 1);
+    owned->as.boolean = true;
+    assert(value_equal(owned, yes) && !value_equal(owned, no));
+    assert(retain(owned) == owned && owned->refs == 2);
+    release(owned);
+    assert(owned->refs == 1);
+    release(owned);
+    const char *error = NULL;
+    Value *same = binary_value(5, yes, yes, &error);
+    assert(same == yes && !error);
+    release(same);
+    release(no);
+    release(yes);
+    assert(value_bool(true)->as.boolean && !value_bool(false)->as.boolean);
+}
+
+static void shared_unit_and_void_preserve_distinction(void)
+{
+    Value *unit = value_unit(), *empty = value_void();
+    assert(unit != empty && unit->kind == V_UNIT && empty->kind == V_VOID);
+    assert(!value_equal(unit, empty));
+    Value *owned_unit = value_new(V_UNIT), *owned_void = value_new(V_VOID);
+    assert(owned_unit && owned_void);
+    assert(value_equal(unit, owned_unit) && value_equal(empty, owned_void));
+    assert(retain(owned_unit)->refs == 2 && retain(owned_void)->refs == 2);
+    release(owned_unit);
+    release(owned_void);
+    assert(owned_unit->refs == 1 && owned_void->refs == 1);
+    release(owned_unit);
+    release(owned_void);
+    for (size_t i = 0; i < 1000; i++) {
+        Value *items[] = {retain(unit), retain(empty)};
+        Value *array = value_sequence(V_ARRAY, items, 2);
+        assert(array && array->as.sequence.items[0] == unit && array->as.sequence.items[1] == empty);
+        release(items[0]);
+        release(items[1]);
+        release(array);
+        assert(unit->refs == SIZE_MAX && empty->refs == SIZE_MAX);
+        assert(value_unit() == unit && value_void() == empty);
+    }
+    release(unit);
+    release(empty);
+}
+
 int main(int argc, char **argv)
 {
+    shared_unit_and_void_preserve_distinction();
+    shared_booleans_preserve_values_and_ownership();
+    call_argument_buffers_preserve_order();
+    if (argc == 2 && !strcmp(argv[1], "arguments")) {
+        puts("native call argument contracts: ok");
+        return 0;
+    }
+    collection_indexes_preserve_semantics();
+    if (argc == 2 && !strcmp(argv[1], "collections")) {
+        puts("native collection index contracts: ok");
+        return 0;
+    }
+    indexed_locals_preserve_bindings();
+    if (argc == 2 && !strcmp(argv[1], "locals")) {
+        puts("native indexed-local contracts: ok");
+        return 0;
+    }
+    concatenation_preserves_values();
+    if (argc == 2 && !strcmp(argv[1], "concat")) {
+        puts("native concatenation contracts: ok");
+        return 0;
+    }
+    if (argc == 2 && !strcmp(argv[1], "call-links")) {
+        direct_call_links_follow_verified_program();
+        verifier_rejects_forged_structures();
+        frames_release_arguments_on_return_and_trap();
+        nested_calls_preserve_caller_ownership();
+        builtin_domains_preserve_errors_and_results();
+        puts("native call-link contracts: ok");
+        return 0;
+    }
     if (argc == 3 && !strcmp(argv[1], "http-writer")) {
         http_writer_artifact(argv[2]);
         return 0;
@@ -1124,6 +1531,7 @@ int main(int argc, char **argv)
     record_module_progress("frame_ownership");
     nested_calls_preserve_caller_ownership();
     record_module_progress("nested_calls");
+    direct_call_links_follow_verified_program();
     verifier_rejects_forged_structures();
     record_module_progress("verifier");
     decode_mutations_release_partial_programs();

@@ -26,12 +26,10 @@ Value *builtins_collections_call(VM *vm, const char *name, Value **a)
     if (!strcmp(name, "map_has") || !strcmp(name, "map_get") || !strcmp(name, "$method_get") ||
         (!strcmp(name, "$method_has") && a[0]->kind == V_MAP)) {
         REQUIRE(a[0]->kind == V_MAP, "VM trap: map operation requires Map");
-        for (size_t i = a[0]->as.sequence.count; i >= 2; i -= 2) {
-            if (value_equal(a[0]->as.sequence.items[i - 2], a[1])) {
-                return !strcmp(name, "map_has") || !strcmp(name, "$method_has")
-                           ? value_bool(true)
-                           : retain(a[0]->as.sequence.items[i - 1]);
-            }
+        size_t position = value_collection_find(a[0], a[1]);
+        if (position != SIZE_MAX) {
+            return !strcmp(name, "map_has") || !strcmp(name, "$method_has")
+                       ? value_bool(true) : retain(a[0]->as.sequence.items[position + 1]);
         }
         if (!strcmp(name, "map_has") || !strcmp(name, "$method_has")) {
             return value_bool(false);
@@ -63,12 +61,7 @@ Value *builtins_collections_call(VM *vm, const char *name, Value **a)
 
     if (!strcmp(name, "set_has") || !strcmp(name, "$method_has")) {
         REQUIRE(a[0]->kind == V_SET, "VM trap: set_has requires Set");
-        for (size_t i = 0; i < a[0]->as.sequence.count; i++) {
-            if (value_equal(a[0]->as.sequence.items[i], a[1])) {
-                return value_bool(true);
-            }
-        }
-        return value_bool(false);
+        return value_bool(value_collection_find(a[0], a[1]) != SIZE_MAX);
     }
 
     if (!strcmp(name, "set_add") || !strcmp(name, "$method_add")) {

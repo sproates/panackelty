@@ -12,6 +12,13 @@ union payload. `Bool` stores its flag inline; `Unit` and `Void` need no payload.
 Their distinct tags prevent a successful Unit value from becoming a no-result
 sentinel.
 
+- Boolean construction shares two immutable static Values, marked with a
+  `SIZE_MAX` reference count. Retain/release do not write or free these immortal
+  objects; callers still balance ownership as usual and must not mutate them.
+  Explicit heap-owned Booleans retain ordinary reference counting.
+- Unit and Void each use their own shared immutable static Value with the same
+  immortal ownership mechanism. Their tags remain distinct. `value_unit()` and
+  `value_void()` cannot fail; generic `value_new()` still allocates heap Values.
 - `Nat` and `Int` use a sign plus little-endian base-1,000,000,000 limbs. Zero
   has no limbs and is never negative.
 - `Rat` owns two arbitrary-precision integers. Construction reduces them by
@@ -31,11 +38,23 @@ sentinel.
   heap objects. Persistent operations allocate a new value and preserve every
   input's observable length and elements. Array append can share internal
   backing storage as described below; other containers retain children directly.
+  Maps and sets may memoize an optional lookup index containing positions into
+  their ordered entries. It owns no child references, does not affect equality
+  or iteration, and is freed with the value. Updates create an unindexed result;
+  retained snapshots keep their own index. Unsupported key domains and index
+  allocation failures use the original scan. See the
+  [collection-index trial](../../docs/VM_COLLECTION_INDEX_TRIAL.md) for thresholds,
+  supported domains, memory trade-offs and validation status.
 - Iterators are frame-owned cursors retaining the iterable they traverse. They
   never escape into bytecode constants or serialized artifacts.
 
 Names in decoded programs own their UTF-8 storage independently of runtime
 values. Instructions refer to those immutable decoded names and operands.
+Verified constant instructions can reuse an execution-owned immutable literal
+Value. The cache retains one reference until execution cleanup; each instruction
+use retains another. It never borrows mutable runtime payload from decoded bytes.
+Separate executions have separate caches, and returned Values remain valid after
+cache cleanup through their own references.
 
 ## Ownership and reclamation
 

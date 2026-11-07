@@ -1,5 +1,65 @@
 # Specification coverage
 
+The [literal reuse trial](../docs/VM_LITERAL_REUSE_TRIAL.md) covers cached versus
+uncached values, repeated/separate executions, negative zero, Unicode/NUL/empty
+strings, cancellation, re-verification and allocation failure. Native suites and
+five functional fixtures passed, followed by full local make check after
+adoption in the normal checkout VM (593 seconds).
+
+The [shared Unit/Void trial](../docs/VM_SHARED_UNIT_VOID_TRIAL.md) checks distinct
+tags/equality, shared and heap ownership, container lifetime and allocation-free
+construction. Native/fault suites and five functional fixtures passed, followed
+by full local `make check` after adoption in the normal checkout VM (615 seconds).
+
+The [shared-Boolean trial](../docs/VM_SHARED_BOOLEANS_TRIAL.md) covers allocation-free
+construction, repeated/container ownership, ordinary heap Boolean lifetime, and
+shared inputs across async completion/cancellation. Native/fault suites and five
+functional fixtures passed, followed by full local `make check` after adoption
+in the normal checkout VM (619 seconds).
+
+The [builtin-dispatch trial](../docs/VM_BUILTIN_DISPATCH_TRIAL.md) adds pure/host
+boundary checks for direct and indirect ordinary calls, with and without prepared
+metadata. Native, allocation-failure and five functional fixtures passed; full
+local `make check` passed after adoption in the normal checkout VM (662 seconds).
+
+The [temporary-call-arguments trial](../docs/VM_CALL_ARGUMENTS_TRIAL.md) covers
+direct/indirect calls at 0, 1, 8, 9 and 255 arguments, partial-stack cleanup and
+allocation failures across the inline/heap boundary. Native suites and five
+compiled fixtures passed, followed by full local `make check` after adoption
+in the normal checkout VM (691 seconds).
+
+The [collection-index trial](../docs/VM_COLLECTION_INDEX_TRIAL.md) covers lazy
+indexing, collisions, ordered snapshots, replacement, equal distinct keys,
+scalar type distinction, duplicate native bindings, decimal/compound fallback
+and optional index-allocation failure. Native suites and five compiled fixtures
+passed, followed by full local `make check` after adoption in the normal
+checkout VM.
+
+The [string-metadata trial](../docs/VM_STRING_METADATA_TRIAL.md) compares cached
+addition against scanned metadata across 49 Unicode/ASCII/empty/NUL input pairs,
+including repeated and aliased concatenation. Native and allocation-failure
+suites and five compiled functional fixtures passed, followed by full local
+`make check` after rebuilding the normal checkout VM for adoption.
+
+The [indexed-local trial](../docs/VM_LOCAL_SLOTS_TRIAL.md) adds native checks for
+parameter-slot ordering, replacement ownership, uninitialised branch locals,
+verification invalidation/re-preparation and locals across async suspension.
+Allocation sweeps cover preparation and indexed-frame failures. The candidate
+passed native suites and five compiled functional fixtures, then full local
+`make check` after adoption in the normal checkout VM.
+
+The [VM concatenation trial](../docs/VM_CONCAT_TRIAL.md) adds native assertions
+for empty and Unicode results, embedded NUL bytes, overflow rejection and shared
+array-element ownership, plus constructor allocation-failure sweeps. Candidate
+native suites and two compiled functional fixtures passed, followed by the full
+local `make check` after rebuilding the normal checkout VM for adoption.
+
+VM direct-call resolution has native regressions for verified builtin/function
+links, changed-target re-verification, failed-verification invalidation, and
+verified async calls across host suspension/completion. Existing ownership,
+forged-bytecode and TCP assertions remain. See the
+[lookup experiment and local adoption](../docs/VM_CALL_LOOKUP_TRIAL.md).
+
 Shared compiler-test preparation preserves the existing assertions and standalone
 entry points; suite bodies now live in `runner/compiler_suites/`. Each selected
 suite runs in its own process. The real dispatcher and probe-cache regression in

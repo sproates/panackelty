@@ -173,6 +173,9 @@ static void outbound_contracts(void)
     assert(pn_big_from_u64(&code[4].constant.number, 2000));
     echo_function.ins = code;
     echo_function.ins_count = 7;
+    /* Replacing a verified body requires rebuilding its derived execution links. */
+    const char *verification_error = NULL;
+    assert(verify(&program, &verification_error));
     size_t port = unused_port();
     VMTcpServerLimits options = limits;
     options.drain_ms = 0;

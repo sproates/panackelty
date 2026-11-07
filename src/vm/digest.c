@@ -92,7 +92,7 @@ Value *digest_call(VM *vm, const char *name, Value **arguments)
             vm->digests->contexts[handle - 1] = NULL;
             return digest_error(name, "digest_failed");
         }
-        return host_variant("Ok", value_new(V_UNIT));
+        return host_variant("Ok", value_unit());
     }
     if (!strcmp(name, "digest_finish")) {
         uint8_t bytes[EVP_MAX_MD_SIZE];
@@ -106,7 +106,7 @@ Value *digest_call(VM *vm, const char *name, Value **arguments)
     if (!strcmp(name, "digest_close")) {
         EVP_MD_CTX_free(context);
         vm->digests->contexts[handle - 1] = NULL;
-        return host_variant("Ok", value_new(V_UNIT));
+        return host_variant("Ok", value_unit());
     }
     return digest_error(name, "invalid_argument");
 #endif

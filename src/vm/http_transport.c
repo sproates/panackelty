@@ -418,7 +418,7 @@ Value *http_stream_call(VM *vm, const char *name, Value **arguments)
     if (!strcmp(name, "http_stream_close")) {
         http_transport_destroy(stream);
         vm->http_streams->slots[handle - 1] = NULL;
-        Value *unit = value_new(V_UNIT);
+        Value *unit = value_unit();
         Value *result = unit ? named_value(V_VARIANT, "Ok", NULL, &unit, 1) : NULL;
         release(unit);
         return result;

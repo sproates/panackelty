@@ -36,6 +36,7 @@ typedef enum {
 
 typedef struct Value Value;
 typedef struct ArrayStorage ArrayStorage;
+typedef struct CollectionIndex CollectionIndex;
 typedef struct VMHttpState VMHttpState;
 typedef struct VMHttpWriter VMHttpWriter;
 typedef struct VMHttpConnection VMHttpConnection;
@@ -44,6 +45,8 @@ typedef struct {
     size_t count;
     Value **items;
     ArrayStorage *storage;
+    CollectionIndex *index;
+    size_t lookup_count;
 } Sequence;
 
 typedef struct {
@@ -66,7 +69,7 @@ typedef struct {
 } Iterator;
 
 struct Value {
-    size_t refs;
+    size_t refs; /* SIZE_MAX denotes an immutable immortal value. */
     ValueKind kind;
 
     union {
@@ -103,13 +106,25 @@ Value *retain(Value *value);
 void release(Value *value);
 
 Value *value_new(ValueKind kind);
+/* Shared immutable Boolean; cannot fail. Balance ownership with retain/release as usual. */
 Value *value_bool(bool value);
+/* Distinct shared immutable Unit and Void values; cannot fail. */
+Value *value_unit(void);
 Value *value_void(void);
 Value *value_big(ValueKind kind, const PnBigInt *number);
 Value *value_size(size_t number);
 
 /* Copies bytes. V_STR callers supply valid UTF-8; cached offsets assume that invariant. */
 Value *value_data(ValueKind kind, const uint8_t *data, size_t length);
+/* Copy borrowed byte spans into one owned result. NULL is allowed for empty spans. */
+Value *value_data_join(ValueKind kind, const uint8_t *left, size_t left_length,
+                      const uint8_t *right, size_t right_length);
+/* Both inputs must be valid V_STR values with constructor-maintained metadata. */
+Value *value_string_concat(const Value *left, const Value *right);
+/* Valid Map/Set input: key/item position or SIZE_MAX. May memoize a lookup index. */
+size_t value_collection_find(Value *collection, const Value *key);
+/* Both inputs must be arrays; the result retains their elements independently. */
+Value *value_array_concat(const Value *left, const Value *right);
 
 /* Copies the container and retains each child; the input array stays caller-owned. */
 Value *value_sequence(ValueKind kind, Value **items, size_t count);

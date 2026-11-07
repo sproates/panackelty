@@ -29,7 +29,7 @@ Value *value_new(ValueKind kind)
 
 Value *retain(Value *v)
 {
-    if (v) {
+    if (v && v->refs != SIZE_MAX) {
         v->refs++;
     }
     return v;
@@ -37,7 +37,7 @@ Value *retain(Value *v)
 
 void release(Value *v)
 {
-    if (!v || --v->refs) {
+    if (!v || v->refs == SIZE_MAX || --v->refs) {
         return;
     }
     switch (v->kind) {
@@ -75,6 +75,7 @@ void release(Value *v)
     case V_ARRAY:
     case V_MAP:
     case V_SET:
+        if (v->as.sequence.index) free(v->as.sequence.index);
         if (v->as.sequence.storage) {
             ArrayStorage *storage = v->as.sequence.storage;
             if (--storage->refs == 0) {
@@ -115,18 +116,28 @@ void release(Value *v)
     free(v);
 }
 
+/* Immortal immutable values: retain/release never write their reference counts. */
+static Value boolean_values[2] = {
+    {.refs = SIZE_MAX, .kind = V_BOOL, .as.boolean = false},
+    {.refs = SIZE_MAX, .kind = V_BOOL, .as.boolean = true},
+};
+
 Value *value_bool(bool value)
 {
-    Value *v = value_new(V_BOOL);
-    if (v) {
-        v->as.boolean = value;
-    }
-    return v;
+    return &boolean_values[value ? 1 : 0];
+}
+
+static Value unit_value = {.refs = SIZE_MAX, .kind = V_UNIT};
+static Value void_value = {.refs = SIZE_MAX, .kind = V_VOID};
+
+Value *value_unit(void)
+{
+    return &unit_value;
 }
 
 Value *value_void(void)
 {
-    return value_new(V_VOID);
+    return &void_value;
 }
 
 Value *value_big(ValueKind kind, const PnBigInt *number)
@@ -155,6 +166,16 @@ Value *value_size(size_t number)
 
 Value *value_data(ValueKind kind, const uint8_t *data, size_t length)
 {
+    return value_data_join(kind, data, length, NULL, 0);
+}
+
+static Value *allocate_data_join(ValueKind kind, const uint8_t *left, size_t left_length,
+                                 const uint8_t *right, size_t right_length)
+{
+    if (left_length == SIZE_MAX || right_length > SIZE_MAX - left_length - 1) {
+        return NULL;
+    }
+    size_t length = left_length + right_length;
     Value *v = value_new(kind);
     if (!v) {
         return NULL;
@@ -164,14 +185,26 @@ Value *value_data(ValueKind kind, const uint8_t *data, size_t length)
         free(v);
         return NULL;
     }
-    if (length) {
-        memcpy(v->as.bytes.data, data, length);
+    if (left_length) {
+        memcpy(v->as.bytes.data, left, left_length);
+    }
+    if (right_length) {
+        memcpy(v->as.bytes.data + left_length, right, right_length);
     }
     v->as.bytes.data[length] = 0;
     v->as.bytes.length = length;
+    return v;
+}
+
+Value *value_data_join(ValueKind kind, const uint8_t *left, size_t left_length,
+                      const uint8_t *right, size_t right_length)
+{
+    Value *v = allocate_data_join(kind, left, left_length, right, right_length);
+    if (!v) return NULL;
     if (kind == V_STR) {
+        const uint8_t *data = v->as.bytes.data;
         v->as.bytes.ascii = true;
-        for (size_t i = 0; i < length; i++) {
+        for (size_t i = 0; i < v->as.bytes.length; i++) {
             if ((data[i] & 0xc0) != 0x80) {
                 v->as.bytes.characters++;
             }
@@ -179,6 +212,42 @@ Value *value_data(ValueKind kind, const uint8_t *data, size_t length)
                 v->as.bytes.ascii = false;
             }
         }
+    }
+    return v;
+}
+
+Value *value_string_concat(const Value *left, const Value *right)
+{
+    Value *v = allocate_data_join(V_STR, left->as.bytes.data, left->as.bytes.length,
+                                  right->as.bytes.data, right->as.bytes.length);
+    if (!v) return NULL;
+    /* Valid string character counts cannot exceed the checked byte lengths. */
+    v->as.bytes.characters = left->as.bytes.characters + right->as.bytes.characters;
+    v->as.bytes.ascii = left->as.bytes.ascii && right->as.bytes.ascii;
+    return v;
+}
+
+Value *value_array_concat(const Value *left, const Value *right)
+{
+    size_t n = left->as.sequence.count, m = right->as.sequence.count;
+    if (m > SIZE_MAX - n || n + m > SIZE_MAX / sizeof(Value *)) {
+        return NULL;
+    }
+    Value *v = value_new(V_ARRAY);
+    if (!v) {
+        return NULL;
+    }
+    v->as.sequence.items = calloc(n + m, sizeof(Value *));
+    if (n + m && !v->as.sequence.items) {
+        free(v);
+        return NULL;
+    }
+    v->as.sequence.count = n + m;
+    for (size_t i = 0; i < n; i++) {
+        v->as.sequence.items[i] = retain(left->as.sequence.items[i]);
+    }
+    for (size_t i = 0; i < m; i++) {
+        v->as.sequence.items[n + i] = retain(right->as.sequence.items[i]);
     }
     return v;
 }
@@ -292,6 +361,115 @@ Value *value_array_append(Value *array, Value *item)
     result->as.sequence.items = storage->items;
     result->as.sequence.storage = storage;
     return result;
+}
+
+struct CollectionIndex {
+    size_t capacity;
+    size_t positions[]; /* Slot position plus one; zero denotes an empty bucket. */
+};
+
+static uint64_t collection_hash_byte(uint64_t hash, uint8_t byte)
+{
+    return (hash ^ byte) * UINT64_C(1099511628211);
+}
+
+/* Only hash domains whose representation agrees with value_equal. */
+static bool collection_hash(const Value *key, uint64_t *hash)
+{
+    uint64_t h = collection_hash_byte(UINT64_C(14695981039346656037), (uint8_t)key->kind);
+    switch (key->kind) {
+    case V_STR:
+    case V_BYTES:
+    case V_PATH:
+        for (size_t i = 0; i < key->as.bytes.length; i++) h = collection_hash_byte(h, key->as.bytes.data[i]);
+        break;
+    case V_NAT:
+    case V_INT:
+    case V_DURATION:
+    case V_INSTANT:
+        h = collection_hash_byte(h, (uint8_t)key->as.integer.sign);
+        for (size_t i = 0; i < key->as.integer.len; i++) {
+            uint32_t limb = key->as.integer.limbs[i];
+            for (size_t j = 0; j < 4; j++) h = collection_hash_byte(h, (uint8_t)(limb >> (8 * j)));
+        }
+        break;
+    case V_BOOL:
+        h = collection_hash_byte(h, key->as.boolean);
+        break;
+    case V_UNIT:
+    case V_VOID:
+        break;
+    default:
+        return false;
+    }
+    *hash = h;
+    return true;
+}
+
+static CollectionIndex *collection_index_build(const Value *collection, size_t stride)
+{
+    size_t entries = collection->as.sequence.count / stride;
+    if (entries > SIZE_MAX / 2) return NULL;
+    size_t capacity = 1;
+    while (capacity < entries * 2) {
+        if (capacity > SIZE_MAX / 2) return NULL;
+        capacity *= 2;
+    }
+    if (capacity > (SIZE_MAX - sizeof(CollectionIndex)) / sizeof(size_t)) return NULL;
+    CollectionIndex *index = calloc(1, sizeof(*index) + capacity * sizeof(size_t));
+    if (!index) return NULL;
+    index->capacity = capacity;
+    for (size_t i = 0; i < collection->as.sequence.count; i += stride) {
+        Value *key = collection->as.sequence.items[i];
+        uint64_t hash;
+        if (!collection_hash(key, &hash)) {
+            free(index);
+            return NULL;
+        }
+        size_t bucket = (size_t)hash & (capacity - 1);
+        while (index->positions[bucket]) {
+            size_t prior = index->positions[bucket] - 1;
+            if (value_equal(collection->as.sequence.items[prior], key)) break;
+            bucket = (bucket + 1) & (capacity - 1);
+        }
+        /* Preserve last map binding and first set occurrence, even in native fixtures. */
+        if (stride == 2 || !index->positions[bucket]) index->positions[bucket] = i + 1;
+    }
+    return index;
+}
+
+size_t value_collection_find(Value *collection, const Value *key)
+{
+    Sequence *sequence = &collection->as.sequence;
+    size_t stride = collection->kind == V_MAP ? 2 : 1;
+    /* Trial thresholds: avoid allocating for small or briefly queried values. */
+    if (!sequence->index && sequence->count / stride >= 32 && sequence->lookup_count != SIZE_MAX) {
+        if (++sequence->lookup_count >= 8) {
+            sequence->index = collection_index_build(collection, stride);
+            if (!sequence->index) sequence->lookup_count = SIZE_MAX;
+        }
+    }
+    uint64_t hash;
+    if (sequence->index && collection_hash(key, &hash)) {
+        CollectionIndex *index = sequence->index;
+        size_t bucket = (size_t)hash & (index->capacity - 1);
+        while (index->positions[bucket]) {
+            size_t position = index->positions[bucket] - 1;
+            if (value_equal(sequence->items[position], key)) return position;
+            bucket = (bucket + 1) & (index->capacity - 1);
+        }
+        return SIZE_MAX;
+    }
+    if (stride == 2) {
+        for (size_t i = sequence->count; i >= 2; i -= 2) {
+            if (value_equal(sequence->items[i - 2], key)) return i - 2;
+        }
+    } else {
+        for (size_t i = 0; i < sequence->count; i++) {
+            if (value_equal(sequence->items[i], key)) return i;
+        }
+    }
+    return SIZE_MAX;
 }
 
 bool value_equal(const Value *a, const Value *b)

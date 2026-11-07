@@ -2,8 +2,8 @@
 
 The [shared Unit/Void trial](../docs/VM_SHARED_UNIT_VOID_TRIAL.md) checks distinct
 tags/equality, shared and heap ownership, container lifetime and allocation-free
-construction. Native/fault suites and five functional fixtures passed; full local
-validation awaits adoption.
+construction. Native/fault suites and five functional fixtures passed, followed
+by full local `make check` after adoption in the normal checkout VM (615 seconds).
 
 The [shared-Boolean trial](../docs/VM_SHARED_BOOLEANS_TRIAL.md) covers allocation-free
 construction, repeated/container ownership, ordinary heap Boolean lifetime, and

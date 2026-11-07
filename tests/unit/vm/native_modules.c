@@ -1176,8 +1176,129 @@ static void concatenation_preserves_values(void)
     assert(!value_array_concat(&huge, &one));
 }
 
+static void collection_indexes_preserve_semantics(void)
+{
+    Value *keys[64], *items[128];
+    for (size_t i = 0; i < 64; i++) {
+        char text[24];
+        int length = snprintf(text, sizeof(text), "key-%zu", i);
+        keys[i] = value_data(V_STR, (const uint8_t *)text, (size_t)length);
+        items[2 * i] = keys[i];
+        items[2 * i + 1] = value_size(i);
+    }
+    Value *map = value_sequence(V_MAP, items, 128);
+    Value *set = value_sequence(V_SET, keys, 64);
+    Value *copy = value_sequence(V_MAP, items, 128);
+    for (size_t i = 0; i < 8; i++) {
+        assert(value_collection_find(map, keys[i]) == 2 * i);
+        assert(value_collection_find(set, keys[i]) == i);
+    }
+    assert(map->as.sequence.index && set->as.sequence.index);
+    assert(value_equal(map, copy) && !copy->as.sequence.index);
+    /* key-8 and key-20 collide in the initial 128-bucket table. */
+    for (size_t i = 0; i < 64; i++) {
+        Value *equal_key = value_data(V_STR, keys[i]->as.bytes.data, keys[i]->as.bytes.length);
+        assert(value_collection_find(map, equal_key) == 2 * i);
+        assert(value_collection_find(set, equal_key) == i);
+        assert(map->as.sequence.items[2 * i] == keys[i]);
+        release(equal_key);
+    }
+    Value *missing = value_data(V_STR, (const uint8_t *)"missing", 7);
+    assert(value_collection_find(map, missing) == SIZE_MAX);
+    assert(value_collection_find(set, missing) == SIZE_MAX);
+    VM vm = {0};
+    Value *args[] = {map, missing};
+    assert(!builtin_call(&vm, "map_get", args) && vm.error);
+    vm = (VM){0};
+    Value *replacement = value_size(999);
+    Value *put_args[] = {map, keys[0], replacement};
+    Value *changed = builtin_call(&vm, "map_put", put_args);
+    assert(changed && !vm.error && !changed->as.sequence.index);
+    assert(map->as.sequence.items[1] == items[1]);
+    assert(changed->as.sequence.items[0] == keys[1]);
+    assert(changed->as.sequence.items[126] == keys[0]);
+    for (size_t i = 0; i < 8; i++) assert(value_collection_find(changed, keys[0]) == 126);
+    assert(changed->as.sequence.items[127] == replacement);
+    Value *read_args[] = {changed, keys[0]};
+    Value *read_result = builtin_call(&vm, "map_get", read_args);
+    assert(read_result == replacement && !vm.error);
+    release(read_result);
+    assert(value_collection_find(map, keys[0]) == 0);
+    Value *duplicates[130];
+    memcpy(duplicates, items, sizeof(items));
+    duplicates[128] = keys[0];
+    duplicates[129] = replacement;
+    Value *duplicate_map = value_sequence(V_MAP, duplicates, 130);
+    for (size_t i = 0; i < 10; i++) assert(value_collection_find(duplicate_map, keys[0]) == 128);
+    assert(duplicate_map->as.sequence.index);
+    release(duplicate_map);
+    Value *set_args[] = {set, missing};
+    Value *larger = builtin_call(&vm, "set_add", set_args);
+    assert(larger && !larger->as.sequence.index && larger->as.sequence.count == 65);
+    assert(set->as.sequence.count == 64 && value_collection_find(set, missing) == SIZE_MAX);
+    for (size_t i = 0; i < 8; i++) assert(value_collection_find(larger, missing) == 64);
+    Value *small = value_sequence(V_SET, keys, 8);
+    for (size_t i = 0; i < 16; i++) assert(value_collection_find(small, keys[0]) == 0);
+    assert(!small->as.sequence.index);
+
+    Value *numeric_items[64];
+    for (size_t i = 0; i < 64; i++) numeric_items[i] = items[2 * i + 1];
+    Value *numeric = value_sequence(V_SET, numeric_items, 64);
+    for (size_t i = 0; i < 64; i++) assert(value_collection_find(numeric, numeric_items[i]) == i);
+    assert(numeric->as.sequence.index);
+    Value *signed_key = value_big(V_INT, &numeric_items[8]->as.integer);
+    assert(value_collection_find(numeric, signed_key) == SIZE_MAX);
+    release(signed_key);
+    release(numeric);
+
+    Value *decimals[64];
+    for (size_t i = 0; i < 64; i++) {
+        PnBigInt coefficient;
+        assert(pn_big_from_u64(&coefficient, i));
+        decimals[i] = value_decimal(&coefficient, 0);
+        assert(decimals[i]);
+    }
+    Value *decimal_set = value_sequence(V_SET, decimals, 64);
+    PnBigInt coefficient;
+    assert(pn_big_from_u64(&coefficient, 80));
+    Value *equal_decimal = value_decimal(&coefficient, -1);
+    assert(equal_decimal && value_equal(equal_decimal, decimals[8]));
+    for (size_t i = 0; i < 10; i++) assert(value_collection_find(decimal_set, equal_decimal) == 8);
+    assert(!decimal_set->as.sequence.index);
+    release(equal_decimal);
+    release(decimal_set);
+    for (size_t i = 0; i < 64; i++) release(decimals[i]);
+
+    Value *nested[64];
+    for (size_t i = 0; i < 64; i++) nested[i] = value_sequence(V_ARRAY, &items[2 * i + 1], 1);
+    Value *compound = value_sequence(V_SET, nested, 64);
+    Value *equal_nested = value_sequence(V_ARRAY, &items[17], 1);
+    for (size_t i = 0; i < 10; i++) assert(value_collection_find(compound, equal_nested) == 8);
+    assert(!compound->as.sequence.index && compound->as.sequence.lookup_count == SIZE_MAX);
+    release(equal_nested);
+    release(compound);
+    for (size_t i = 0; i < 64; i++) release(nested[i]);
+    release(small);
+    release(larger);
+    release(changed);
+    release(replacement);
+    release(missing);
+    release(copy);
+    release(set);
+    release(map);
+    for (size_t i = 0; i < 128; i++) {
+        assert(items[i]->refs == 1);
+        release(items[i]);
+    }
+}
+
 int main(int argc, char **argv)
 {
+    collection_indexes_preserve_semantics();
+    if (argc == 2 && !strcmp(argv[1], "collections")) {
+        puts("native collection index contracts: ok");
+        return 0;
+    }
     indexed_locals_preserve_bindings();
     if (argc == 2 && !strcmp(argv[1], "locals")) {
         puts("native indexed-local contracts: ok");

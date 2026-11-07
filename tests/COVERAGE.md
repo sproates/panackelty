@@ -1,5 +1,11 @@
 # Specification coverage
 
+The [collection-index trial](../docs/VM_COLLECTION_INDEX_TRIAL.md) covers lazy
+indexing, collisions, ordered snapshots, replacement, equal distinct keys,
+scalar type distinction, duplicate native bindings, decimal/compound fallback
+and optional index-allocation failure. Native suites and five compiled fixtures
+passed; full product validation and adoption remain pending.
+
 The [string-metadata trial](../docs/VM_STRING_METADATA_TRIAL.md) compares cached
 addition against scanned metadata across 49 Unicode/ASCII/empty/NUL input pairs,
 including repeated and aliased concatenation. Native and allocation-failure

@@ -31,6 +31,13 @@ sentinel.
   heap objects. Persistent operations allocate a new value and preserve every
   input's observable length and elements. Array append can share internal
   backing storage as described below; other containers retain children directly.
+  Maps and sets may memoize an optional lookup index containing positions into
+  their ordered entries. It owns no child references, does not affect equality
+  or iteration, and is freed with the value. Updates create an unindexed result;
+  retained snapshots keep their own index. Unsupported key domains and index
+  allocation failures use the original scan. See the
+  [collection-index trial](../../docs/VM_COLLECTION_INDEX_TRIAL.md) for thresholds,
+  supported domains, memory trade-offs and validation status.
 - Iterators are frame-owned cursors retaining the iterable they traverse. They
   never escape into bytecode constants or serialized artifacts.
 

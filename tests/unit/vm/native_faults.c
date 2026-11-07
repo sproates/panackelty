@@ -24,6 +24,23 @@ static Value *operand;
 static uint8_t operation;
 static Value *left, *right;
 static size_t sweeps;
+static Value *index_fixture;
+
+static void collection_index_allocations(void)
+{
+    Value *set = value_sequence(V_SET, index_fixture->as.sequence.items, index_fixture->as.sequence.count);
+    if (!set) {
+        assert(fault_triggered());
+        return;
+    }
+    for (size_t i = 0; i < 10; i++) {
+        /* Index allocation failure is optional: lookup must still succeed. */
+        assert(value_collection_find(set, index_fixture->as.sequence.items[i]) == i);
+    }
+    if (fault_triggered()) assert(!set->as.sequence.index);
+    else assert(set->as.sequence.index);
+    release(set);
+}
 
 /* Discover each operation's successful allocation count, then fail every site.
  * One final successful run also checks that failures did not corrupt inputs.
@@ -911,6 +928,19 @@ void console_write_faults(void);
 
 int main(int argc, char **argv)
 {
+    Value *index_items[64];
+    for (size_t i = 0; i < 64; i++) {
+        index_items[i] = value_size(i);
+        assert(index_items[i]);
+    }
+    index_fixture = value_sequence(V_SET, index_items, 64);
+    assert(index_fixture);
+    sweep("optional collection index", collection_index_allocations);
+    release(index_fixture);
+    for (size_t i = 0; i < 64; i++) {
+        assert(index_items[i]->refs == 1);
+        release(index_items[i]);
+    }
     sweep("indexed locals preparation and frame ownership", indexed_locals_allocations);
     concatenation_faults();
     if (argc == 2 && !strcmp(argv[1], "concat")) {

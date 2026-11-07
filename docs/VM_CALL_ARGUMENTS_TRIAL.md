@@ -55,7 +55,14 @@ Compiler SHA-256: `9fb5c3837e87901f12fe0768099dc8c81a5aaf531735ce53c84a6573a62f0
 
 ## Status
 
-Trial passed focused checks. The normal checkout VM has not been rebuilt for
-adoption, and full local `make check` has not been run for this change. No push,
-PR or CI run. Recommendation: adopt this small allocation reduction, then run
-one full local validation as for the preceding trials.
+Adopted in the normal checkout VM after owner approval. `make native` passed,
+followed by full local `make check` (exit 0, 691 seconds): unit, functional,
+bootstrap, packaging, release smoke and quick-start checks passed. Bootstrap
+completed in 178 seconds and preserved the compiler hash above. Historical
+timing-budget warnings remain advisory; this run is not a controlled measurement
+of whole-suite speedup.
+
+No push, PR or CI run. The stable globally installed release is unchanged.
+Architecture, VM ownership documentation and coverage/status records were updated.
+No language, CLI, bootstrap-format or website claim changes are required: this
+is an internal allocation optimisation.

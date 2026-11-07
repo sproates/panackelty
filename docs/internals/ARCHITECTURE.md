@@ -416,6 +416,12 @@ sentinel so the VM keeps one uniform calling convention even though `Void` is
 not a source value. Branch and iteration instructions change the current
 frame's program counter.
 
+Direct and indirect calls use a temporary eight-pointer stack buffer for up to
+eight arguments; larger calls use a heap array. Values needed beyond invocation
+are retained by the callee or host before that array is released. Awaited calls
+follow the same ownership contract. This changes allocation only, not bytecode
+or argument order.
+
 The native dispatcher keeps Panackelty call frames in an explicitly owned heap
 array. Direct and indirect calls push frames; returns transfer results and pop
 frames without recursive C execution. An internal resumable handle can advance

@@ -217,6 +217,12 @@ only slot counts and instruction indexes remain. Indexes reuse the call-link
 storage for local-access opcodes and do not alter bytecode. Failed verification
 invalidates both caches. Unverified native test programs retain name-based access.
 
+Direct and indirect calls use a temporary eight-pointer stack buffer for up to
+eight arguments; larger calls use a heap array. Values needed beyond invocation
+are retained by the callee or host before that array is released. Awaited calls
+follow the same ownership contract. This changes allocation only, not bytecode
+or argument order.
+
 ## Ownership and editing conventions
 
 Constructors normally return one owned reference. Collection constructors retain

@@ -3,7 +3,8 @@
 The [temporary-call-arguments trial](../docs/VM_CALL_ARGUMENTS_TRIAL.md) covers
 direct/indirect calls at 0, 1, 8, 9 and 255 arguments, partial-stack cleanup and
 allocation failures across the inline/heap boundary. Native suites and five
-compiled fixtures passed; full local validation awaits adoption.
+compiled fixtures passed, followed by full local `make check` after adoption
+in the normal checkout VM (691 seconds).
 
 The [collection-index trial](../docs/VM_COLLECTION_INDEX_TRIAL.md) covers lazy
 indexing, collisions, ordered snapshots, replacement, equal distinct keys,

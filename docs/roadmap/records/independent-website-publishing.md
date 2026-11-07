@@ -774,8 +774,11 @@ completed without product changes. Next-push CI has no compiler preparation to
 accelerate; full/nightly cross-run reuse needs a separate selection against the
 existing probe artifact cache. The profiling fallback found checked-body decoding
 (4.54s) and fresh signatures (4.24s) dominate the edited path; changed-body
-checking is 0.17s. A decoder trial is proposed, not yet implemented. No automatic
-CI cache was enabled and no bootstrap proof was cached.
+checking is 0.17s. The selected decoder trial reduced median decode time by
+12.0% and edited-build time by 6.3% across three alternating pairs, with matching
+artifacts. Focused tests, bootstrap fixed points and final `make check` (617s)
+passed; the bounded decoder improvement is included in this integration. No
+automatic CI cache was enabled and no bootstrap proof was cached.
 
 ### Incremental command direction, 7 November 2026
 

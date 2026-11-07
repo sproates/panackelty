@@ -140,6 +140,9 @@ complete artifacts within a build tree. No automatic CI cache was enabled.
 The agreed profiling fallback completed: diagnostic edited-build time is dominated
 by checked-body decoding (4.54s) and fresh signatures (4.24s), while changed-body
 checking takes 0.17s. Normal edited compilation took 13.80s and matched fresh
-output. A cheaper decoder is the next proposed trial; no new implementation has
-started. The previous product integration passed in
+output. The selected decoder trial reduced median decode time by 12.0% and complete
+edited-build time by 6.3% across three alternating pairs. Artifacts match fresh
+compilation; focused tests, bootstrap fixed points and final `make check` (617s)
+passed. The bounded decoder improvement is included in this integration; it
+does not complete RM#157 or GI#106. The previous product integration passed in
 [run 42423346639](https://github.com/sproates/panackelty/actions/runs/42423346639).

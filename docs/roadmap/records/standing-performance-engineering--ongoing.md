@@ -294,3 +294,13 @@ and retained decoded plans after alpha.15, allocated to alpha.16. No further
 optimisation or new collection is a gate for this accepted bounded task. The
 implementation remains the responsibility of the core coverage maintainer; the
 next action is the separately scoped review, not an automatic repair campaign.
+
+### Checked-body decoder trial, 8 November 2026
+
+The [decoder follow-up](../../COMPILER_EDIT_PROFILE.md#decoder-trial-8-november-2026)
+reduced median isolated decoding by 12.0% and edited self-compilation by 6.3%
+over three alternating pairs. The first whole-build pair was slightly slower;
+all artifacts matched fresh compilation. Retain the bounded SourcePos decoder
+with cache format, invalidation and bounds unchanged. Focused tests, bootstrap
+fixed points and final `make check` (617s) passed; included in this integration.
+This does not complete RM#157 or GI#106.

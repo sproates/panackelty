@@ -119,6 +119,27 @@ function emit(type) {
 pure decode_${name}_nested(reader: CacheReader): CacheRead[${declared}] {
   ` + decoder;
   }
+  // Source positions dominate retained body trees. Read their ordinary fixed-width
+  // representation with one cursor allocation, preserving the general Nat path.
+  if (type === 'SourcePos') {
+    if (JSON.stringify(records.SourcePos) !== JSON.stringify([['file','Str'],['offset','Nat'],['line','Nat'],['column','Nat']])) {
+      throw Error('Review the fixed-width SourcePos decoder after changing its schema');
+    }
+    decoder = `if reader.valid && reader.offset + 16 <= reader.data.length() {
+    file = word_at(reader.data, reader.offset)
+    offset = word_at(reader.data, reader.offset + 4)
+    line = word_at(reader.data, reader.offset + 8)
+    column = word_at(reader.data, reader.offset + 12)
+    if file < reader.texts.len() && offset < 4294967295 && line < 4294967295 && column < 4294967295 {
+      CacheRead(CacheReader(reader.data, reader.offset + 16, true, reader.depth, reader.texts),
+        SourcePos(reader.texts[file], offset, line, column))
+    } else { decode_SourcePos_general(reader) }
+  } else { decode_SourcePos_general(reader) }
+}
+
+pure decode_SourcePos_general(reader: CacheReader): CacheRead[SourcePos] {
+  ` + decoder;
+  }
   const encoder = encodeBody(type);
   output += `\npure encode_${name}(pool: Map[Str,Nat], value: ${declared}): Bytes {\n  ${encoder}\n}\n` +
     `\npure decode_${name}(reader: CacheReader): CacheRead[${declared}] {\n  ${decoder}\n}\n`;

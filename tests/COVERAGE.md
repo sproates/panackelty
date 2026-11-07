@@ -1782,3 +1782,12 @@ and import aliases. Failed-body diagnostics match fresh checking; recovery
 reuses only unaffected modules. The coverage manifest includes the four compiler
 cache/reuse modules; the policy digest reviews declaration exclusions without
 claiming new execution coverage.
+
+### Checked-body source-position decoding
+
+The body-cache suite has 81 assertions. Position round trips cover zero, the
+largest ordinary word, the large-Nat sentinel and a coordinate beyond 64 bits,
+including Unicode file names. Truncated words and invalid file dictionary
+indexes are rejected. Existing nested-body, malformed-cache and fresh/cached
+bytecode comparisons remain in place. These tests do not expand the measured
+coverage corpus or exclude executable code.

@@ -1,9 +1,10 @@
 import project/src/compiler/body_cache_codec::{encode_checked_bodies, decode_checked_bodies}
 import project/src/compiler/loader::{load_project_sources, check_project_sources, check_project_sources_cached}
 import project/src/compiler/module_reuse::{CachedModuleBodies}
-import project/src/compiler/module_bodies::{BoundFunctionBody}
+import project/src/compiler/module_bodies::{BoundFunctionBody, BoundBody, BodyNode.BodyEmpty, BodyCheckStatus.BodyIdentityChecked}
+import project/src/compiler/types::{SourcePos, SourceSpan}
 import project/src/compiler/emitter::{compile_program}
-import project/src/bytecode/codec::{serialize_bytecode}
+import project/src/bytecode/codec::{serialize_bytecode, encode_u32}
 import stdlib/bytes as byte_buffer
 import stdlib/testing as testing
 pub import stdlib/testing::{TestResult}
@@ -41,6 +42,44 @@ pub body_cache_tests(): [TestResult] {
     }
     results = results.append(testing.expect(fixture + " trailing cache bytes rejected",
       decode_checked_bodies(encoded.push(0)) == None(), "trailing cache bytes accepted"))
+  }
+  source = load_project_sources("tests/functional/cases/hello_world/main.panack")
+  fresh = check_project_sources(source)
+  signature = fresh.module_bodies[0].signature
+  for coordinate in [0, 4294967294, 4294967295, 18446744073709551616] {
+    span = SourceSpan(SourcePos("λ.panack", coordinate, 7, 11), SourcePos("λ.panack", 3, coordinate, coordinate))
+    body = BoundFunctionBody(signature, [], BoundBody(BodyEmpty(), span, [], None(), [], [], [], [], [], []), [], BodyIdentityChecked(), None())
+    encoded = encode_checked_bodies([body])
+    decoded = decode_checked_bodies(encoded)
+    results = results.append(testing.expect("position coordinate boundary round trip", decoded == Some([body]), "position changed"))
+    length = encoded.length()
+    if length > 0 {
+      results = results.append(testing.expect("position coordinate payload truncation rejected",
+        decode_checked_bodies(byte_buffer.slice(encoded, 0, length - 1)) == None(), "truncated position payload accepted"))
+    }
+  }
+  span = SourceSpan(SourcePos("position.panack", 16909060, 84281096, 151653132), SourcePos("position.panack", 13, 14, 15))
+  body = BoundFunctionBody(signature, [], BoundBody(BodyEmpty(), span, [], None(), [], [], [], [], [], []), [], BodyIdentityChecked(), None())
+  encoded = encode_checked_bodies([body])
+  marker = encode_u32(16909060).join(encode_u32(84281096)).join(encode_u32(151653132))
+  mut position: Option[Nat] = None()
+  for index in 0..encoded.length() {
+    if index >= 4 && index + 12 <= encoded.length() && byte_buffer.slice(encoded, index, index + 12) == marker {
+      position = Some(index - 4)
+    }
+  }
+  results = results.append(testing.expect("position fixture locates its encoded coordinates", position != None(), "position marker missing"))
+  match position {
+    None() => {},
+    Some(start) => {
+      for size in [0, 3, 4, 7, 8, 11, 12, 15] {
+        results = results.append(testing.expect("partial fixed-width position rejected",
+          decode_checked_bodies(byte_buffer.slice(encoded, 0, start + size)) == None(), "truncated position accepted"))
+      }
+      corrupted = byte_buffer.slice(encoded, 0, start).join(encode_u32(4294967294))
+        .join(byte_buffer.slice(encoded, start + 4, encoded.length()))
+      results = results.append(testing.expect("position dictionary index is checked", decode_checked_bodies(corrupted) == None(), "invalid file index accepted"))
+    }
   }
   results
 }

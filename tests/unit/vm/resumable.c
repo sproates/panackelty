@@ -346,8 +346,61 @@ static void ordinary_builtin_dispatch_preserves_host_boundary(void)
     }
 }
 
+static void literal_cache_lifetime_and_identity(void)
+{
+    char text[] = {'h', (char)0xc3, (char)0xa9, 0, 'x'};
+    for (size_t kind = 0; kind < 6; kind++) {
+        Constant literal = {.tag = kind < 3 ? (uint8_t)kind : 3};
+        if (kind < 3) {
+            assert(pn_big_from_digits(&literal.number, kind == 2 ? "0" : "123", kind == 2 ? 1 : 3, 1));
+            literal.exponent = -2;
+            literal.boolean = kind == 2; /* Decimal negative zero. */
+        } else {
+            literal.text = kind == 3 ? text : kind == 4 ? "" : "replacement";
+            literal.text_length = kind == 3 ? sizeof(text) : strlen(literal.text);
+        }
+        Instruction main_code[] = {{.op = OP_CALL, .name = "z", .arity = 0},
+            {.op = OP_CALL, .name = "z", .arity = 0}, {.op = OP_MAKE_ARRAY, .count = 2}, {.op = OP_RETURN}};
+        Instruction literal_code[] = {{.op = OP_CONST, .constant = literal}, {.op = OP_RETURN}};
+        Function functions[] = {{.name = "main", .ins = main_code, .ins_count = 4},
+            {.name = "z", .ins = literal_code, .ins_count = 2}};
+        Program program = {.functions = functions, .count = 2};
+        VM vm = {.program = &program};
+        Value *uncached = execute(&vm, &functions[0], NULL);
+        assert(uncached && !vm.error && uncached->as.sequence.items[0] != uncached->as.sequence.items[1]);
+        const char *error = NULL;
+        assert(verify(&program, &error) && program.resolved_constants && program.constant_count == 1);
+        Value *cached = execute(&vm, &functions[0], NULL);
+        assert(cached && !vm.error && value_equal(cached, uncached));
+        Value *item = cached->as.sequence.items[0];
+        assert(item == cached->as.sequence.items[1] && item->refs == 2);
+        if (kind == 2) assert(item->as.decimal.negative_zero && item->as.decimal.exponent == -2);
+        Value *second = execute(&vm, &functions[0], NULL);
+        assert(second && value_equal(second, cached) && second->as.sequence.items[0] != item);
+        release(second);
+        for (size_t budget = 1; budget <= 4; budget++) {
+            VMExecution *run = vm_execution_create(&vm, &functions[0], NULL, NULL, NULL, &error);
+            assert(run && !error && vm_execution_advance(run, budget) == VM_YIELDED);
+            assert(vm_execution_destroy(run));
+        }
+        /* A subsequent verification must replace slot metadata, including on failure. */
+        literal_code[0].constant = (Constant){.tag = 3, .text = "new", .text_length = 3};
+        assert(verify(&program, &error));
+        Value *changed = execute(&vm, &functions[0], NULL);
+        assert(changed && changed->as.sequence.items[0]->kind == V_STR);
+        assert(changed->as.sequence.items[0]->as.bytes.length == 3);
+        release(changed);
+        main_code[3].op = OP_POP;
+        assert(!verify(&program, &error) && !program.resolved_constants);
+        release(cached);
+        release(uncached);
+        pn_big_free(&literal.number);
+    }
+}
+
 void resumable_contracts(void)
 {
+    literal_cache_lifetime_and_identity();
     ordinary_builtin_dispatch_preserves_host_boundary();
     request_fault_categories();
     result_and_argument_lifetimes();

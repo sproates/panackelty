@@ -50,6 +50,11 @@ sentinel.
 
 Names in decoded programs own their UTF-8 storage independently of runtime
 values. Instructions refer to those immutable decoded names and operands.
+Verified constant instructions can reuse an execution-owned immutable literal
+Value. The cache retains one reference until execution cleanup; each instruction
+use retains another. It never borrows mutable runtime payload from decoded bytes.
+Separate executions have separate caches, and returned Values remain valid after
+cache cleanup through their own references.
 
 ## Ownership and reclamation
 

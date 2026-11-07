@@ -27,6 +27,7 @@ typedef struct {
     Constant constant;
     /* Derived by verification, never serialized. The opcode selects the member. */
     union {
+        size_t constant_slot;
         struct {
             const struct Builtin *resolved_builtin;
             struct Function *resolved_function;
@@ -54,6 +55,8 @@ typedef struct {
     bool verified_function_order;
     bool resolved_calls; /* Published only after successful verification. */
     bool resolved_locals;
+    bool resolved_constants;
+    size_t constant_count;
 } Program;
 
 /* Wire values are fixed by bytecode/FORMAT.md. */

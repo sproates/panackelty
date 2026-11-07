@@ -1,5 +1,10 @@
 # Specification coverage
 
+The [literal reuse trial](../docs/VM_LITERAL_REUSE_TRIAL.md) covers cached versus
+uncached values, repeated/separate executions, negative zero, Unicode/NUL/empty
+strings, cancellation, re-verification and allocation failure. Native suites and
+five functional fixtures passed; full local validation awaits adoption.
+
 The [shared Unit/Void trial](../docs/VM_SHARED_UNIT_VOID_TRIAL.md) checks distinct
 tags/equality, shared and heap ownership, container lifetime and allocation-free
 construction. Native/fault suites and five functional fixtures passed, followed

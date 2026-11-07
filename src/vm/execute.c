@@ -58,6 +58,8 @@ typedef struct {
 struct VMExecution {
     VM *vm;
     Frame *frames;
+    Value **constants;
+    size_t constant_count;
     size_t frame_count, frame_capacity;
     VMExecutionStatus status;
     Value *result;
@@ -209,6 +211,35 @@ static Value *constant_value(const Constant *c)
         return value_bool(c->boolean);
     }
     return value_void();
+}
+
+/* Cache owns one reference; each execution of the instruction gets another.
+ * Unverified native programs retain the uncached path. */
+static Value *execution_constant(VMExecution *execution, const Instruction *instruction)
+{
+    Program *program = execution->vm->program;
+    if (!program || !program->resolved_constants || instruction->constant.tag > 3) {
+        return constant_value(&instruction->constant);
+    }
+    if (!execution->constants) {
+        execution->constants = calloc(program->constant_count, sizeof(Value *));
+        if (!execution->constants) return NULL;
+        execution->constant_count = program->constant_count;
+    }
+    size_t slot = instruction->constant_slot;
+    if (slot >= execution->constant_count) return NULL;
+    if (!execution->constants[slot]) {
+        execution->constants[slot] = constant_value(&instruction->constant);
+    }
+    return retain(execution->constants[slot]);
+}
+
+static void constants_clear(VMExecution *execution)
+{
+    for (size_t i = 0; i < execution->constant_count; i++) release(execution->constants[i]);
+    free(execution->constants);
+    execution->constants = NULL;
+    execution->constant_count = 0;
 }
 
 /* Borrow arguments; each successfully installed local owns a retained reference.
@@ -756,7 +787,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
         size_t index, start, end;
         switch (instruction->op) {
         case OP_CONST:
-            v = constant_value(&instruction->constant);
+            v = execution_constant(execution, instruction);
             if (!v || !stack_push(frame, v)) {
                 goto oom;
             }
@@ -1390,6 +1421,7 @@ bool vm_execution_destroy(VMExecution *execution)
     digest_destroy(execution->vm);
     frames_clear(execution);
     free(execution->frames);
+    constants_clear(execution);
     release(execution->result);
     release(execution->http_waiting);
     execution->vm->execution = NULL;
@@ -1474,6 +1506,7 @@ Value *execute(VM *vm, Function *function, Value **arguments)
     digest_destroy(vm);
     frames_clear(&execution);
     free(execution.frames);
+    constants_clear(&execution);
     release(execution.http_waiting);
     vm->execution = NULL;
     if (owns_runtime && !vm->error && (execution.status == VM_EXITED || runtime.exit_requested)) {

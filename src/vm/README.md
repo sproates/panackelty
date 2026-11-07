@@ -228,6 +228,14 @@ are retained by the callee or host before that array is released. Awaited calls
 follow the same ownership contract. This changes allocation only, not bytecode
 or argument order.
 
+Verified Nat/Int/Decimal/string constant instructions also receive cache slots.
+Each execution lazily constructs and retains its own literal Values, releasing
+them at completion/destruction. The pointer table covers all eligible program
+constants; only used literals are constructed. Slots share existing derived
+instruction storage, and neither slots nor Values are serialized. Unverified
+native programs retain uncached construction. See the
+[literal reuse trial](../../docs/VM_LITERAL_REUSE_TRIAL.md) for memory trade-offs.
+
 ## Ownership and editing conventions
 
 Boolean, Unit and Void construction shares immutable immortal values; retain/release remain

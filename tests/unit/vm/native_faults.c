@@ -28,6 +28,28 @@ static Value *index_fixture;
 static uint8_t argument_count;
 static bool argument_indirect, argument_underflow;
 
+static size_t literal_budget;
+static uint8_t literal_tag;
+static void literal_cache_allocations(void)
+{
+    uint32_t limb = 123;
+    Instruction code[] = {{.op = OP_CONST, .constant = {.tag = literal_tag,
+        .number = {.sign = 1, .len = 1, .limbs = &limb}, .exponent = -2,
+        .text = "cached", .text_length = 6}},
+        {.op = OP_RETURN}};
+    Function fn = {.name = "main", .ins = code, .ins_count = 2};
+    Program program = {.functions = &fn, .count = 1};
+    const char *error = NULL;
+    if (!verify(&program, &error)) { assert(fault_triggered() && error); return; }
+    VM vm = {.program = &program};
+    VMExecution *run = vm_execution_create(&vm, &fn, NULL, NULL, NULL, &error);
+    if (!run) { assert(fault_triggered() && error); return; }
+    VMExecutionStatus result = vm_execution_advance(run, literal_budget);
+    if (fault_triggered()) assert(result == VM_TRAPPED && vm.error);
+    else assert(result == (literal_budget == 1 ? VM_YIELDED : VM_COMPLETED));
+    assert(vm_execution_destroy(run));
+}
+
 static void call_argument_allocations(void)
 {
     char *params[] = {"a", "b", "c", "d", "e", "f", "g", "h", "i"};
@@ -983,6 +1005,11 @@ int main(int argc, char **argv)
     release(shared_void);
     assert(fault_attempts() == 0 && !fault_triggered() && fault_live() == 0);
     fault_reset(0);
+    for (literal_tag = 0; literal_tag <= 3; literal_tag++) {
+        for (literal_budget = 1; literal_budget <= 2; literal_budget++) {
+            sweep("literal cache ownership", literal_cache_allocations);
+        }
+    }
     for (size_t mode = 0; mode < 4; mode++) {
         argument_indirect = (mode & 1) != 0;
         argument_underflow = (mode & 2) != 0;

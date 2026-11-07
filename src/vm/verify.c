@@ -131,6 +131,8 @@ bool verify(Program *p, const char **error)
     p->verified_function_order = false;
     p->resolved_calls = false;
     p->resolved_locals = false;
+    p->resolved_constants = false;
+    p->constant_count = 0;
     infer_local_effects(p);
     Function *main = program_function(p, "main");
     if (!main) {
@@ -217,6 +219,20 @@ bool verify(Program *p, const char **error)
             return false;
         }
     }
+    for (size_t i = 0; i < p->count; i++) {
+        Function *function = &p->functions[i];
+        for (size_t j = 0; j < function->ins_count; j++) {
+            Instruction *instruction = &function->ins[j];
+            if (instruction->op == OP_CONST && instruction->constant.tag <= 3) {
+                if (p->constant_count == SIZE_MAX / sizeof(Value *)) {
+                    *error = "too many runtime constants";
+                    return false;
+                }
+                instruction->constant_slot = p->constant_count++;
+            }
+        }
+    }
+    p->resolved_constants = true;
     p->verified_function_order = true;
     p->resolved_calls = true;
     p->resolved_locals = true;

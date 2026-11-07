@@ -1891,6 +1891,15 @@ verification invalidates both caches; unverified native test programs retain
 name-based local access. Preparation uses a temporary sorted name table, freed
 before execution.
 
+Verification assigns derived slots to Nat, Int, Decimal and string constant
+instructions. Each execution lazily allocates a pointer table and constructs each
+used literal once, retaining it until execution cleanup. Results retain their own
+references after the cache is released. The slots reuse instruction metadata and
+are not serialized. Separate executions have separate caches; unverified native
+programs keep uncached construction. See the
+[literal reuse measurements](../VM_LITERAL_REUSE_TRIAL.md) for memory retention
+and per-execution table costs.
+
 String addition, byte append/concatenation and array concatenation allocate final
 result storage directly, without a temporary concatenated buffer. Byte storage
 retains its trailing NUL and strings retain cached Unicode metadata. Array

@@ -85,9 +85,15 @@ important limits when generalising this trial's performance result.
 
 ## Status
 
-Recommend adoption based on the measured compiler gain and bounded ownership,
-with the retention trade-off above explicit. The normal checkout VM remains
-unchanged; full local make check awaits adoption. No push, PR or CI run.
+Adopted in the normal checkout VM after owner approval, with the retention
+trade-off above explicit. make native passed, followed by full local make check
+(exit 0, 593 seconds): unit, functional, bootstrap, packaging, release smoke and
+quick-start checks passed. Bootstrap completed in 122 seconds and compiler
+bytecode remained unchanged. The total was 22 seconds below the preceding
+615-second run; this is an observed run-to-run comparison, not a controlled
+whole-suite benchmark. Historical timing-budget warnings remain advisory.
+
+No push, PR or CI run. The stable globally installed release is unchanged.
 Ownership/component documentation and release/coverage records are updated.
 No website, language or CLI update is needed because observable semantics and
 bytecode are unchanged.

@@ -4,7 +4,8 @@ Updated: 7 November 2026. Release: **v0.1.0-alpha.16**. Integration branch: **ne
 Latest published release: **v0.1.0-alpha.15**, published 6 November 2026.
 
 **Alpha.16: build useful programs. Ten VM optimisation batches are delivered by
-this integration; further experiments are paused. RM#162 remains an investigation.** Alpha.15 is complete, including native archives, installer, browser
+this integration; further VM experiments are paused. Compiler reuse has been
+assessed ahead of larger language changes. RM#162 remains an investigation.** Alpha.15 is complete, including native archives, installer, browser
 playground and website. Its [final status snapshot](ALPHA15_FINAL_STATUS.md) and
 [release acceptance](releases/ALPHA15_RELEASE_ACCEPTANCE.md) preserve the evidence.
 
@@ -67,6 +68,14 @@ integration. Further experiments remain on feature/rm162-real-program-fixes.
 
 ## Branch readiness and next action
 
+- The owner selected compiler reuse before larger language changes. The
+  [compiler reuse assessment](COMPILER_REUSE_ASSESSMENT.md) records the current
+  path, existing caches and invalidation risks. The first proposed product slice
+  reuses successful project preparation within a command, eliminating duplicate
+  module lowering. Persistent unchanged-build and module-level reuse follow;
+  none is implemented yet. This continues RM#28: Incremental and modular builds
+  alongside RM#157: Performance review, without declaring either complete.
+
 - PR #676 reconciled `main` into `next`, retaining the published alpha.15 product tree,
   installer defaults, release fixes and end-to-end release checklist, together
   with the later alpha.15 completion evidence from `next`.
@@ -79,7 +88,7 @@ integration. Further experiments remain on feature/rm162-real-program-fixes.
   On 6 November, the checkout alpha.15 compiler accepted an ordinary `main`
   binding `reading = time.now()` and rejected the identical async body with
   `async function cannot call blocking function time.panack:now`.
-  Next: define an async clock counterpart under the preferred `/async` module
+  When language work resumes: define an async clock counterpart under the preferred `/async` module
   convention, then verify a real uptime endpoint. State/closure design is not
   committed scope.
 - Follow the [release checklist](releases/RELEASE_CHECKLIST.md) for alpha.16:

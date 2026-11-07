@@ -736,6 +736,12 @@ is governed by the 2026-10-12 owner direction under GI#106 below.
 
 **RM#28: Incremental and modular builds** · [GI#106: Incremental and modular builds](https://github.com/sproates/panackelty/issues/106).
 
+**7 November 2026:** the owner resumed compiler-reuse assessment before larger
+language changes. The [assessment and first slice](../../COMPILER_REUSE_ASSESSMENT.md)
+identify duplicate preparation within an invocation and the later boundaries for
+unchanged-build and checked-module reuse. Assessment is recorded; implementation
+has not started. Earlier release acceptance below remains historical evidence.
+
 <a id="future-candidate-incremental-and-modular-builds"></a>
 
 Work record: [issue #106](https://github.com/sproates/panackelty/issues/106).

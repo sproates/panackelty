@@ -96,6 +96,19 @@ The major components are:
 | Standard library | Defines portable core types and APIs over deterministic primitives and the host ABI | Panackelty sources in `src/stdlib` |
 | Project website | Presents the public language overview and routes readers to source documentation and releases | Owned and deployed by `sproates/panackelty-website` |
 
+The compiler also has an opt-in [private local compilation cache](../COMPILER_UNCHANGED_REUSE_TRIAL.md).
+Source discovery and confinement remain fresh; an exact source/toolchain/descriptor
+match reuses successful bytecode for check/compile/run. Semantic checking and
+emission are separated from source loading in the Panackelty loader. Tooling
+modes retain their full evidence path; execution results are never cached.
+A separate [checked-module trial](../COMPILER_MODULE_REUSE_TRIAL.md) exposes
+session-local reuse through the compiler library. It invalidates changed modules
+and their transitive consumers, then recomputes global effects and emission. It
+also feeds [one-shot incremental compilation](../COMPILER_PERSISTENT_REUSE.md):
+private module files preserve ordinary checked bodies across invocations.
+The cache omits explanation history; fresh effect checks and emission consume
+the restored typed bodies. No VM capability or bytecode-format change is involved.
+
 ## Repository layout
 
 ```text

@@ -1,0 +1,192 @@
+pub import project/src/compiler/loader::{LoadedProjectSources}
+import project/src/compiler/path_support as paths
+import project/src/compiler/source_maps::{source_map_blob, source_map_join}
+import project/src/bytecode/codec::{encode_text}
+import stdlib/environment as environment
+import stdlib/digest as digest
+import stdlib/filesystem as filesystem
+import stdlib/filesystem::{FileKind.RegularFile, FileKind.Directory}
+import stdlib/bounded_filesystem as bounded
+import stdlib/path as path
+import stdlib/bytes as byte_buffer
+import stdlib/host as host
+
+// Opt-in, local trusted storage: one replaceable successful compilation. Never
+// load a cache from a project, download it, or treat it as an execution result.
+pub record CompilationCache {
+  file: Path,
+  key: Bytes,
+  descriptor: Bytes,
+  compiler: Str,
+  vm: Str
+}
+
+pub cache_trace(message: Str): Void {
+  if environment.get("PANACKELTY_COMPILE_CACHE_TRACE") == Some("1") {
+    host.stderr("compile cache: " + message)
+  }
+}
+
+pure cache_magic(): Bytes { "PANACK-COMPILE-1\n".encode_utf8() }
+
+pub cache_digest(chunks: [Bytes]): Option[Bytes] {
+  match digest.sha256_open() {
+    Error(problem) => None(),
+    Ok(handle) => {
+      mut valid: Bool = true
+      for chunk in chunks {
+        mut offset: Nat = 0
+        while valid && offset < chunk.length() {
+          end: Nat = if offset + 65536 < chunk.length() { offset + 65536 } else { chunk.length() }
+          valid = match digest.update(handle, byte_buffer.slice(chunk, offset, end)) {
+            Ok(done) => true, Error(problem) => false
+          }
+          offset = end
+        }
+      }
+      if valid {
+        match digest.finish(handle) { Ok(hash) => Some(hash), Error(problem) => None() }
+      } else {
+        closed = digest.close(handle)
+        None()
+      }
+    }
+  }
+}
+
+// Use non-following bounded reads, including ancestors. Concurrent replacement
+// can produce a miss, never an unchecked partial artifact.
+pub cache_file(name: Str, limit: Nat): Option[Bytes] {
+  match path.from_text(name) {
+    Error(problem) => None(),
+    Ok(file) => match filesystem.metadata(file) {
+      Error(problem) => None(),
+      Ok(metadata) => if metadata.kind != RegularFile() || metadata.size > limit {
+        None()
+      } else {
+        mut chunks: [Bytes] = []
+        mut offset: Nat = 0
+        mut valid: Bool = true
+        while valid && offset < metadata.size {
+          match bounded.read_chunk(file, offset, 65536) {
+            Error(problem) => { valid = false },
+            Ok(chunk) => {
+              valid = chunk.length() > 0 && offset + chunk.length() <= metadata.size
+              offset = offset + chunk.length()
+              chunks = chunks.append(chunk)
+            }
+          }
+        }
+        if valid { Some(source_map_join(chunks, 0, chunks.len())) } else { None() }
+      }
+    }
+  }
+}
+
+pure cache_within(candidate: Str, root: Str): Bool {
+  root == "/" || candidate == root || candidate.starts_with_at(root + "/", 0)
+}
+
+cache_key(source: LoadedProjectSources, descriptor: Bytes, compiler: Str, vm: Str): Option[Bytes] {
+  match cache_file(compiler, 16777216) {
+    None() => None(),
+    Some(compiler_bytes) => match cache_file(vm, 16777216) {
+      None() => None(),
+      Some(vm_bytes) => {
+        mut chunks: [Bytes] = [
+          cache_magic(), encode_text(source.entry_path),
+          encode_text(source.context.project_root), encode_text(source.context.stdlib_root),
+          encode_text(compiler), source_map_blob(compiler_bytes),
+          encode_text(vm), source_map_blob(vm_bytes), source_map_blob(descriptor)
+        ]
+        mut total: Nat = 0
+        for name in source.loaded.source_paths {
+          data: Bytes = source.loaded.sources.get(name).encode_utf8()
+          total = total + data.length()
+          chunks = chunks.append(encode_text(name)).append(source_map_blob(data))
+        }
+        // These are reuse limits, matching bounded source-tooling budgets.
+        // Exceeding them never rejects a program; ordinary compilation continues.
+        if total > 8388608 || source.loaded.source_paths.len() > 256 {
+          None()
+        } else { cache_digest(chunks) }
+      }
+    }
+  }
+}
+
+pub compilation_cache(source: LoadedProjectSources, descriptor: Bytes, package_root: Str): Option[CompilationCache] {
+  directory: Str = environment.get("PANACKELTY_COMPILE_CACHE_DIR").value_or("")
+  compiler: Str = environment.get("PANACKELTY_COMPILER_PATH").value_or("")
+  vm: Str = environment.get("PANACKELTY_VM_PATH").value_or("")
+  mut valid: Bool = paths.is_absolute(directory) && paths.is_absolute(compiler) && paths.is_absolute(vm) &&
+    !source.retain && source.require_main &&
+    !cache_within(paths.resolve(directory), source.context.project_root) &&
+    !cache_within(paths.resolve(directory), source.context.stdlib_root) &&
+    !cache_within(paths.resolve(directory), package_root)
+  for dependency in source.context.dependencies {
+    valid = valid && !cache_within(paths.resolve(directory), dependency.package_root)
+  }
+  for diagnostic in source.loaded.diagnostics {
+    valid = valid && diagnostic.message == "namespace syntax is parsed but execution is not yet supported (language namespace migration pending)"
+  }
+  if !valid {
+    cache_trace("disabled")
+    None()
+  } else {
+    match path.from_text(directory) {
+      Error(problem) => None(),
+      Ok(parent) => match filesystem.metadata(parent) {
+        Error(problem) => None(),
+        Ok(metadata) => if metadata.kind != Directory() { None() } else {
+          match path.from_text(paths.join(directory, "compilation-v1.cache")) {
+            Error(problem) => None(),
+            Ok(file) => match cache_key(source, descriptor, compiler, vm) {
+              None() => None(),
+              Some(key) => Some(CompilationCache(file, key, descriptor, compiler, vm))
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+pub cached_compilation(cache: CompilationCache): Option[Bytes] {
+  magic: Bytes = cache_magic()
+  header: Nat = magic.length() + 64
+  mut result: Option[Bytes] = None()
+  match cache_file(cache.file.to_text().value_or(""), 16777216) {
+    None() => {},
+    Some(data) => if data.length() > header &&
+        byte_buffer.slice(data, 0, magic.length()) == magic &&
+        byte_buffer.slice(data, magic.length(), magic.length() + 32) == cache.key {
+      artifact: Bytes = byte_buffer.slice(data, header, data.length())
+      if cache_digest([artifact]) == Some(byte_buffer.slice(data, magic.length() + 32, header)) {
+        result = Some(artifact)
+      }
+    }
+  }
+  cache_trace(if result == None() { "miss" } else { "hit" })
+  result
+}
+
+pub save_compilation(cache: CompilationCache, source: LoadedProjectSources, artifact: Bytes): Void {
+  mut unchanged: Bool = artifact.length() + cache_magic().length() + 64 <= 16777216
+  for name in source.loaded.source_paths {
+    unchanged = unchanged && cache_file(name, 8388608) == Some(source.loaded.sources.get(name).encode_utf8())
+  }
+  unchanged = unchanged && cache_key(source, cache.descriptor, cache.compiler, cache.vm) == Some(cache.key)
+  if unchanged {
+    match cache_digest([artifact]) {
+      None() => cache_trace("not stored"),
+      Some(hash) => {
+        data: Bytes = cache_magic().join(cache.key).join(hash).join(artifact)
+        match bounded.atomic_write(cache.file, data) {
+          Error(problem) => cache_trace("not stored"),
+          Ok(done) => cache_trace("stored")
+        }
+      }
+    }
+  } else { cache_trace("not stored: inputs changed or reuse limit exceeded") }
+}

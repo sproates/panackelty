@@ -1,5 +1,25 @@
 # Specification coverage
 
+[Persistent compilation reuse](../docs/COMPILER_PERSISTENT_REUSE.md) adds
+fresh-process edited-build tests to the CLI cache harness and codec round-trip/
+truncation tests to the module-bindings suite. All 117 focused checks and 15 CLI groups passed against the candidate;
+full local `make check` passed in 551 seconds. The help transcript is also
+verified from source and saved bytecode.
+
+The [checked-module trial](../docs/COMPILER_MODULE_REUSE_TRIAL.md) compares
+retained snapshots with fresh checking and emitted bytecode after leaf/entry
+edits, signature/effect failures, guards, implicit core changes, graph changes,
+cycles, missing sources, relocation and explanation-mode changes. The cases
+are registered in the compiler module-bindings suite. All 54 focused cases and
+the full local `make check` passed (563 seconds).
+
+The [unchanged-compilation trial](../docs/COMPILER_UNCHANGED_REUSE_TRIAL.md) adds
+CLI coverage in `tests/unit/harness/compilation_cache.sh`: warm/cold byte identity,
+fresh execution, launcher/toolchain identity, source and package invalidation,
+confinement, damaged entries, bypass and concurrent/failed publication. It uses
+complete programs through the staged public launcher. All nine groups and the
+full local `make check` passed (572 seconds).
+
 The [literal reuse trial](../docs/VM_LITERAL_REUSE_TRIAL.md) covers cached versus
 uncached values, repeated/separate executions, negative zero, Unicode/NUL/empty
 strings, cancellation, re-verification and allocation failure. Native suites and

@@ -1,0 +1,46 @@
+import project/src/compiler/body_cache_codec::{encode_checked_bodies, decode_checked_bodies}
+import project/src/compiler/loader::{load_project_sources, check_project_sources, check_project_sources_cached}
+import project/src/compiler/module_reuse::{CachedModuleBodies}
+import project/src/compiler/module_bodies::{BoundFunctionBody}
+import project/src/compiler/emitter::{compile_program}
+import project/src/bytecode/codec::{serialize_bytecode}
+import stdlib/bytes as byte_buffer
+import stdlib/testing as testing
+pub import stdlib/testing::{TestResult}
+
+pub body_cache_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  for fixture in ["collections", "records_and_enums", "callables", "async_await", "domain_constraints", "owned_core_methods", "string_boundaries"] {
+    source = load_project_sources("tests/functional/cases/" + fixture + "/main.panack")
+    fresh = check_project_sources(source)
+    results = results.append(testing.expect(fixture + " cache fixture accepted", fresh.preparation != None(), "fixture rejected"))
+    encoded = encode_checked_bodies(fresh.module_bodies)
+    match decode_checked_bodies(encoded) {
+      None() => { results = results.append(testing.expect(fixture + " cached bodies decode", false, "decode failed")) },
+      Some(decoded) => {
+        mut cached: [CachedModuleBodies] = []
+        for module in fresh.modules {
+          mut bodies: [BoundFunctionBody] = []
+          for body in decoded {
+            if body.signature.binding.identity.module == module.bindings.identity { bodies = bodies.append(body) }
+          }
+          cached = cached.append(CachedModuleBodies(module.bindings.identity, bodies))
+        }
+        restored = check_project_sources_cached(source, cached)
+        results = results.append(testing.expect(fixture + " disk bodies preserve diagnostics",
+          restored.snapshot.project.diagnostics == fresh.diagnostics, "diagnostic mismatch"))
+        results = results.append(testing.expect(fixture + " disk bodies preserve bytecode",
+          serialize_bytecode(compile_program(restored.snapshot.project.program)) == serialize_bytecode(compile_program(fresh.program)), "bytecode mismatch"))
+        results = results.append(testing.equal_nat(fixture + " reuses every body module", restored.reused.len(), fresh.modules.len()))
+      }
+    }
+    // Exercise framing, incomplete dictionaries and incomplete body payloads.
+    for size in [0, 1, 4, encoded.length().divide(2)] {
+      results = results.append(testing.expect(fixture + " truncated cache rejected",
+        decode_checked_bodies(byte_buffer.slice(encoded, 0, size)) == None(), "truncated cache accepted"))
+    }
+    results = results.append(testing.expect(fixture + " trailing cache bytes rejected",
+      decode_checked_bodies(encoded.push(0)) == None(), "trailing cache bytes accepted"))
+  }
+  results
+}

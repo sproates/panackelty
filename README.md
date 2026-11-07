@@ -70,6 +70,12 @@ Git dependencies support pinned HTTPS commits and shared repository subdirectori
 Its generic `stdlib/http_stream` transport supports bounded blocking reads for
 command-line consumers. The installed package workflow includes both tools; [final acceptance](docs/design/PACKAGE_FINAL_ACCEPTANCE.md) covers all four source forms together, relocation and offline builds.
 
+On the development branch, `panack compile --incremental main.panack -o main.bc`
+reuses successful work between separate invocations. Panack manages the local
+cache; ordinary compilation remains available without the option. See
+[one-shot incremental compilation](docs/COMPILER_PERSISTENT_REUSE.md) for current
+reuse boundaries and costs. This command is not part of the alpha.15 release.
+
 ## Explore
 
 On `next`, a function query in a terminal opens the interactive compiler explorer:

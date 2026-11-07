@@ -1,3 +1,4 @@
+pub import project/src/compiler/module_reuse::{reusable_body_modules, CachedModuleBodies}
 import project/src/compiler/path_support as path_support
 import stdlib/path as std_path
 import stdlib/filesystem as std_filesystem
@@ -14,9 +15,10 @@ import project/src/compiler/module_bodies::{
   CheckedModuleBodies, check_module_guards, body_subtraction_evidence_entries, BodyCheckStatus.BodyIdentityChecked, check_module_bodies, check_module_bodies_explained
 }
 import project/src/compiler/module_effects::{CheckedModuleEffects, check_module_effects}
-import project/src/compiler/module_bindings::{ModuleBindings, ModuleIdentity, ModuleDeclarationKind.ModuleFunction, collect_module_bindings, loaded_module_declaration_index, module_binding_diagnostics, source_module_identity, source_package_module_identity, module_relative_path, module_programs}
+pub import project/src/compiler/module_bindings::{ModuleIdentity}
+import project/src/compiler/module_bindings::{ModuleBindings, ModuleDeclarationKind.ModuleFunction, collect_module_bindings, loaded_module_declaration_index, module_binding_diagnostics, source_module_identity, source_package_module_identity, module_relative_path, module_programs}
 import project/src/compiler/module_signatures::{CheckedModuleSignatures, check_module_signatures}
-import project/src/compiler/module_resolution::{ModuleImportEdge, module_graph_diagnostics}
+import project/src/compiler/module_resolution::{ModuleImportEdge, module_graph_diagnostics, module_identity_in}
 import project/src/compiler/module_emission::{ModuleEmissionResult, module_emission_program}
 import project/src/compiler/parser::{
   ParsedModule, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration,
@@ -36,12 +38,43 @@ import project/src/project_model/package_manifest::{PackageManifestExport}
 // Resolve and read the module closure once, preserving traversal order and original
 // source snapshots. Host I/O belongs here rather than in the pure frontend.
 
-record ProjectLoadState {
+pub record ProjectLoadState {
   modules: [LoadedModule],
   visited: Set[Str],
   diagnostics: [Diagnostic],
   sources: Map[Str, Str],
   source_paths: [Str]
+}
+
+// A successful lowering belongs to this exact resolution context. Loading mode
+// and retained evidence belong to the immutable LoadedProject that owns it.
+pub record ProjectPreparationContext {
+  project_root: Str,
+  stdlib_root: Str,
+  entry: ModuleIdentity,
+  package_confined: Bool,
+  package_root_identity: FilesystemRootIdentity,
+  dependencies: [ManifestDependencyProject]
+}
+
+pub record LoadedProjectSources {
+  loaded: ProjectLoadState,
+  context: ProjectPreparationContext,
+  entry_path: Str,
+  retain: Bool,
+  require_main: Bool
+}
+
+// Session-local snapshots retain typed compiler values; they are not a disk format.
+pub record ProjectCheckSnapshot {
+  source: LoadedProjectSources,
+  project: LoadedProject
+}
+
+pub record ProjectCheckResult {
+  snapshot: ProjectCheckSnapshot,
+  reused: [ModuleIdentity],
+  rechecked: [ModuleIdentity]
 }
 
 pub record LoadedProject {
@@ -56,7 +89,8 @@ pub record LoadedProject {
   identity_ready: Bool,
   function_types: Map[Str, Bool],
   module_signatures: [ModuleSignature],
-  module_bodies: [BoundFunctionBody]
+  module_bodies: [BoundFunctionBody],
+  preparation: Option[ProjectPreparationContext]
 }
 
 pure path_in_stack(stack: [Str], path: Str): Bool {
@@ -857,6 +891,42 @@ load_project_mode_with_configuration(
   package_confined: Bool,
   dependencies: [ManifestDependencyProject]
 ): LoadedProject {
+  check_project_sources(load_project_sources_with_configuration(
+    entry, bounded, retain, require_main, configured_project_root, package_root,
+    package_root_identity, package_name, package_version, package_confined, dependencies
+  ))
+}
+
+pub load_project_sources(entry: Str): LoadedProjectSources {
+  load_project_sources_with_configuration(
+    entry, false, false, true, "", "", FilesystemRootIdentity(0, 0), "", "", false, []
+  )
+}
+
+pub load_project_package_sources(
+  entry: Str, source_root: Str, package_root: Str,
+  package_root_identity: FilesystemRootIdentity,
+  package_name: Str, package_version: Str, dependencies: [ManifestDependencyProject]
+): LoadedProjectSources {
+  load_project_sources_with_configuration(
+    entry, true, false, true, source_root, package_root,
+    package_root_identity, package_name, package_version, true, dependencies
+  )
+}
+
+load_project_sources_with_configuration(
+  entry: Str,
+  bounded: Bool,
+  retain: Bool,
+  require_main: Bool,
+  configured_project_root: Str,
+  package_root: Str,
+  package_root_identity: FilesystemRootIdentity,
+  package_name: Str,
+  package_version: Str,
+  package_confined: Bool,
+  dependencies: [ManifestDependencyProject]
+): LoadedProjectSources {
   resolved: Str = path_support.resolve(entry)
   project_root: Str = if package_confined {
     path_support.resolve(configured_project_root)
@@ -925,7 +995,45 @@ load_project_mode_with_configuration(
   } else {
     core
   }
+  entry_identity: ModuleIdentity = if package_confined {
+    source_package_module_identity(resolved, project_root, stdlib_root, package_name, package_version)
+  } else { source_module_identity(resolved, project_root, stdlib_root) }
+  LoadedProjectSources(loaded, ProjectPreparationContext(
+    project_root, stdlib_root, entry_identity, package_confined, package_root_identity, dependencies
+  ), resolved, retain, require_main)
+}
+
+pub pure check_project_sources(source: LoadedProjectSources): LoadedProject {
+  check_project_sources_reusing(source, None()).snapshot.project
+}
+
+pub pure check_project_sources_reusing(
+  source: LoadedProjectSources, previous: Option[ProjectCheckSnapshot]
+): ProjectCheckResult {
+  check_project_sources_with_reuse(source, previous, [])
+}
+
+pub pure check_project_sources_cached(
+  source: LoadedProjectSources, cached: [CachedModuleBodies]
+): ProjectCheckResult {
+  check_project_sources_with_reuse(source, None(), cached)
+}
+
+pure check_project_sources_with_reuse(
+  source: LoadedProjectSources, previous: Option[ProjectCheckSnapshot],
+  cached: [CachedModuleBodies]
+): ProjectCheckResult {
+  loaded: ProjectLoadState = source.loaded
+  resolved: Str = source.entry_path
+  project_root: Str = source.context.project_root
+  stdlib_root: Str = source.context.stdlib_root
+  package_confined: Bool = source.context.package_confined
+  package_root_identity: FilesystemRootIdentity = source.context.package_root_identity
+  dependencies: [ManifestDependencyProject] = source.context.dependencies
+  retain: Bool = source.retain
+  require_main: Bool = source.require_main
   mut program: Program = append_program_declarations(module_programs(loaded.modules))
+  mut preparation: Option[ProjectPreparationContext] = None()
   mut diagnostics: [Diagnostic] = []
   // Every source module uses checked identities. Parser staging markers belong
   // to the standalone syntax API, not a second executable language frontend.
@@ -961,6 +1069,37 @@ load_project_mode_with_configuration(
     loaded.modules, project_root, stdlib_root, package_confined, package_root_identity, dependencies
   )
   diagnostics = diagnostics.concat(module_graph_diagnostics(graph))
+  mut reusable: [ModuleIdentity] = []
+  mut retained_bodies: [BoundFunctionBody] = []
+  match previous {
+    None() => {},
+    Some(prior) => {
+      if !source.retain && !prior.source.retain &&
+          source.require_main == prior.source.require_main &&
+          source.context == prior.source.context &&
+          prior.project.preparation == Some(prior.source.context) &&
+          prior.project.identity_ready && prior.project.effects_checked &&
+          prior.project.diagnostics.len() == 0 {
+        prior_graph: ModuleBindingGraph = loaded_package_binding_graph(
+          prior.source.loaded.modules, project_root, stdlib_root,
+          package_confined, package_root_identity, dependencies
+        )
+        reusable = reusable_body_modules(
+          loaded.modules, loaded.sources, graph,
+          prior.source.loaded.modules, prior.source.loaded.sources, prior_graph
+        )
+        retained_bodies = prior.project.module_bodies
+      }
+    }
+  }
+  if !source.retain && previous == None() {
+    for item in cached {
+      reusable = reusable.append(item.identity)
+      retained_bodies = retained_bodies.concat(item.bodies)
+    }
+  }
+  mut reused: [ModuleIdentity] = []
+  mut rechecked: [ModuleIdentity] = []
   mut signatures: [ModuleSignature] = []
   mut bodies: [BoundFunctionBody] = []
   mut effects: [EffectEvidence] = []
@@ -985,8 +1124,20 @@ load_project_mode_with_configuration(
     identity_ready = diagnostics.len() == 0
     signatures_valid: Bool = identity_ready
     for module in loaded.modules {
-      checked: CheckedModuleBodies = check_module_bodies_explained(
-        graph, loaded.modules, signatures, module, retain)
+      use_previous: Bool = signatures_valid && module_identity_in(reusable, module.bindings.identity)
+      checked: CheckedModuleBodies = if use_previous {
+        mut functions: [BoundFunctionBody] = []
+        for body in retained_bodies {
+          if body.signature.binding.identity.module == module.bindings.identity {
+            functions = functions.append(body)
+          }
+        }
+        reused = reused.append(module.bindings.identity)
+        CheckedModuleBodies(functions, [])
+      } else {
+        rechecked = rechecked.append(module.bindings.identity)
+        check_module_bodies_explained(graph, loaded.modules, signatures, module, retain)
+      }
       bodies = bodies.concat(checked.functions)
       diagnostics = diagnostics.concat(checked.diagnostics)
       identity_ready = identity_ready && checked.diagnostics.len() == 0
@@ -1019,18 +1170,20 @@ load_project_mode_with_configuration(
     }
     effects_checked = signatures_valid
     if identity_ready {
-      entry_identity: ModuleIdentity = if package_confined {
-        source_package_module_identity(resolved, project_root, stdlib_root, package_name, package_version)
-      } else { source_module_identity(resolved, project_root, stdlib_root) }
+      entry_identity: ModuleIdentity = source.context.entry
       emitted: ModuleEmissionResult = module_emission_program(
         graph, loaded.modules, signatures, bodies, entry_identity)
       diagnostics = diagnostics.concat(emitted.diagnostics)
       if emitted.diagnostics.len() == 0 {
         program = emitted.program
+        preparation = Some(ProjectPreparationContext(
+          project_root, stdlib_root, entry_identity,
+          package_confined, package_root_identity, dependencies
+        ))
       }
     }
   }
-  LoadedProject(
+  project: LoadedProject = LoadedProject(
     program,
     loaded.modules,
     diagnostics,
@@ -1042,8 +1195,10 @@ load_project_mode_with_configuration(
     identity_ready,
     function_types,
     signatures,
-    bodies
+    bodies,
+    preparation
   )
+  ProjectCheckResult(ProjectCheckSnapshot(source, project), reused, rechecked)
 }
 
 // Build semantic edges only from the loader's normalized path decisions.

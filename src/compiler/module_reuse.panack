@@ -1,0 +1,85 @@
+pub import project/src/compiler/module_bodies::{BoundFunctionBody}
+pub import project/src/compiler/module_bindings::{LoadedModule, ModuleIdentity}
+import project/src/compiler/module_bindings::{ModulePackageIdentity.ToolchainModulePackage}
+pub import project/src/compiler/module_resolution::{ModuleBindingGraph}
+import project/src/compiler/module_resolution::{module_identity_in, ModuleImportEdge}
+import project/src/compiler/parser::{TopLevel, TopLevel.TypeDeclaration, TopLevel.FunctionDeclaration, TopLevel.ImportDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration}
+
+// Reuse is conservative: exact module snapshots and their transitive import
+// dependencies must match. Signatures, guards, global effects and emission stay
+// fresh. A changed implicit core or global domain declaration disables reuse.
+pure module_domains(modules: [LoadedModule]): [TopLevel] {
+  mut domains: [TopLevel] = []
+  for module in modules {
+    for declaration in module.parsed.program.declarations {
+      match declaration {
+        TypeDeclaration(name, base, binding, guard) => { domains = domains.append(declaration) },
+        FunctionDeclaration(name, parameters, output, pure_flag, async_flag, body, types) => {},
+        ImportDeclaration(path) => {},
+        RecordDeclaration(name, types, fields) => {},
+        EnumDeclaration(name, types, variants) => {}
+      }
+    }
+  }
+  domains
+}
+
+pure module_edges(graph: ModuleBindingGraph, owner: ModuleIdentity): [ModuleImportEdge] {
+  mut edges: [ModuleImportEdge] = []
+  for edge in graph.edges {
+    if edge.owner == owner { edges = edges.append(edge) }
+  }
+  edges
+}
+
+pub pure reusable_body_modules(
+  modules: [LoadedModule], sources: Map[Str, Str], graph: ModuleBindingGraph,
+  previous: [LoadedModule], previous_sources: Map[Str, Str], previous_graph: ModuleBindingGraph
+): [ModuleIdentity] {
+  mut identities: [ModuleIdentity] = []
+  mut old_identities: [ModuleIdentity] = []
+  for module in modules { identities = identities.append(module.bindings.identity) }
+  for module in previous { old_identities = old_identities.append(module.bindings.identity) }
+  mut compatible: Bool = identities == old_identities && module_domains(modules) == module_domains(previous)
+  mut changed: [ModuleIdentity] = []
+  if compatible {
+    for index in 0..modules.len() {
+      current: LoadedModule = modules[index]
+      old: LoadedModule = previous[index]
+      unchanged: Bool = current.source_path == old.source_path &&
+        sources.has(current.source_path) && previous_sources.has(old.source_path) &&
+        sources.get(current.source_path) == previous_sources.get(old.source_path) &&
+        module_edges(graph, current.bindings.identity) == module_edges(previous_graph, old.bindings.identity)
+      if !unchanged {
+        changed = changed.append(current.bindings.identity)
+        if current.bindings.identity == ModuleIdentity(ToolchainModulePackage(), "core.panack") {
+          compatible = false
+        }
+      }
+    }
+  }
+  mut reusable: [ModuleIdentity] = []
+  if compatible {
+    // Fixed point also handles diamonds without relying on traversal order.
+    mut expanded: Bool = true
+    while expanded {
+      expanded = false
+      for edge in graph.edges {
+        if module_identity_in(changed, edge.target) && !module_identity_in(changed, edge.owner) {
+          changed = changed.append(edge.owner)
+          expanded = true
+        }
+      }
+    }
+    for identity in identities {
+      if !module_identity_in(changed, identity) { reusable = reusable.append(identity) }
+    }
+  }
+  reusable
+}
+
+// Only the disk-cache reader supplies these after validating inputs and payload.
+pub record CachedModuleBodies {
+  identity: ModuleIdentity,
+  bodies: [BoundFunctionBody]
+}

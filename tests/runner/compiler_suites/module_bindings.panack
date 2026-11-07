@@ -1,4 +1,7 @@
+import project/tests/runner/compiler_suites/body_cache::{body_cache_tests}
+import project/tests/runner/compiler_suites/module_reuse::{module_reuse_tests}
 import project/src/compiler/checker::{check_program_evidence_mode}
+import project/tests/runner/compiler_suites/project_preparation::{preparation_tests}
 import project/src/compiler/owned_intrinsics::{owned_intrinsic_declarations}
 import project/src/compiler/module_bindings::{OwnedMethodIdentity, MethodOwnerIdentity.NominalMethodOwner, MethodOwnerIdentity.BuiltinMethodOwner, builtin_owner_arity, builtin_owner_module}
 import project/src/compiler/module_resolution::{resolve_owned_method, resolve_builtin_owned_method}
@@ -261,6 +264,9 @@ pure body_type_check_for_context(
 
 pub run_suite(): Void {
   mut results: [TestResult] = []
+  results = results.concat(preparation_tests())
+  results = results.concat(module_reuse_tests())
+  results = results.concat(body_cache_tests())
   results = results.concat(namespace_syntax_tests())
   results = results.concat(namespace_binding_tests())
   results = results.concat(namespace_execution_boundary_tests())

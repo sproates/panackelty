@@ -177,7 +177,25 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   the entry directory, rejects symlink traversal, and supports an explicit
   `PANACKELTY_BOOTSTRAP_ROOT` for isolated compiler-stage builds. It loads each
   module once, retains ordered source snapshots, and supplies the identity graph
-  to staged checking and emission.
+  to staged checking and emission. `LoadedProjectSources` separates fresh source
+  discovery/parsing from `check_project_sources`, without changing ordinary
+  loading or confinement requirements.
+- `module_reuse.panack` computes conservative body-reuse eligibility from exact
+  source snapshots and transitive import edges. The loader exposes
+  `check_project_sources_reusing` with an explicit session-local snapshot;
+  signatures, guards, global effects and final emission stay fresh. See the
+  [checked-module trial](../../docs/COMPILER_MODULE_REUSE_TRIAL.md).
+- `compilation_cache.panack` owns the opt-in private local cache for successful
+  check/compile/run artifacts. It fingerprints exact source snapshots, resolved
+  project descriptors and toolchain bytes; hits skip checking/emission, never
+  program execution. Tooling modes remain fresh. See the
+  [unchanged-compilation trial](../../docs/COMPILER_UNCHANGED_REUSE_TRIAL.md).
+- `module_cache.panack` persists checked module bodies for one-shot incremental
+  builds, with transitive source keys, atomic publication and conservative global
+  type invalidation. `body_cache_codec.panack` is generated from the explicit
+  development schema in `scripts/generate_body_cache_codec.cjs`; it retains
+  ordinary emission/effect inputs, never explanation history. See
+  [persistent reuse](../../docs/COMPILER_PERSISTENT_REUSE.md).
 - `module_emission.panack` lowers fully identity-checked bodies and canonical
   function/type/variant identities to deterministic private names. Entry `main`
   remains the launch point; imported `main` functions are internalized. The
@@ -198,6 +216,10 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   identity emission for check/run/compile, validated `locate` and identity-
   qualified `explain` selection. Coordinated source/seed migration remains
   slice 8.
+  Usage output is asserted by
+  [the compiler-skeleton transcript](../../tests/functional/cases/compiler_skeleton/expected.stdout)
+  for both source and saved-bytecode execution; update and check that fixture
+  when changing the help text.
 - `main.panack` is the executable self-hosted compiler entry point.
 
 The public frontend, backend, project loader, and driver live here and execute

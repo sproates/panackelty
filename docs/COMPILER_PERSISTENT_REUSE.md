@@ -71,7 +71,8 @@ format remains version 9; no native capability was added.
 
 The initial implementation merged in [PR #678](https://github.com/sproates/panackelty/pull/678).
 Integration packaging passed on Linux and macOS; the coverage policy job found
-four missing source-manifest entries, corrected in the follow-up below. All 117 focused checks, 15 CLI groups, unchanged-program
+four missing source-manifest entries, corrected in [PR #679](https://github.com/sproates/panackelty/pull/679).
+The corrected integration run passed. All 117 focused checks, 15 CLI groups, unchanged-program
 artifact compatibility and bootstrap fixed-point checks passed. Final
 `make check` passed in 551 seconds, including unit, functional, packaging,
 release-smoke and quick-start checks. The first full run caught a stale help
@@ -110,8 +111,9 @@ These are local measurements, not a claim about every project or hosted CI.
 The added codec also enlarges the compiler's own source workload; previous
 14-second self-compilation figures used a smaller source tree and should not
 be presented as a matched comparison. The final full check passed in 551 seconds.
-CI cache restoration/upload is not wired in this delivery; bootstrap proofs must remain fresh when that integration
-is designed.
+The separate [hosted cache trial](COMPILER_HOSTED_CACHE_TRIAL.md) now verifies
+authenticated reuse across two jobs. Ordinary CI cache use is not wired; bootstrap
+proofs remain fresh.
 
 This is an initial persistent module-body cache, not complete fine-grained
 incremental compilation. Fresh parsing and signatures, conservative declaration
@@ -135,7 +137,8 @@ guarded type; independent sibling reuse; changed guards, fields and variants;
 declaration removal; Unicode/position changes; same-width edits before a type;
 import alias changes; failed checks and recovery. Fresh and incremental bytecode
 and failure diagnostics match. Native-oracle artifact checks and regenerated
-bootstrap stages 2–4 agree. Final full local validation is running.
+bootstrap stages 2–4 agree. Final `make check` passed in 591 seconds, including unit, functional, bootstrap,
+packaging, relocated release smoke and quick-start checks.
 
 Three isolated same-tree cycles changed the `module_magic` function in
 `module_cache.panack`, which also declares records. The edit changes emitted

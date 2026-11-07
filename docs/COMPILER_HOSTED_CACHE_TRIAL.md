@@ -29,4 +29,30 @@ release validation, coverage collection, or package commands. A successful trial
 would establish reuse between two jobs of this one run on Linux, not a general
 promise of CI speedup or persistence across every runner environment. Adoption
 requires selecting actual repeated compiler workloads and weighing transfer cost
-against measured savings. Current status: prepared; hosted execution pending.
+against measured savings. Current status: passed in [run 42422753881](https://github.com/sproates/panackelty/actions/runs/42422753881)
+on development commit `ca3bcb95a81982cea68894ed2524f3f878126c4f`.
+
+## Observed result
+
+Both jobs succeeded and built the same VM bytes. The exact saved cache passed
+payload verification on the second runner. All fresh/incremental artifact pairs
+matched; the edited build reused 46 of 49 modules.
+
+| Runner/job | Workload | Seconds |
+| --- | --- | ---: |
+| Cold | Empty-cache compilation | 61.736 |
+| Cold | Fresh compilation | 52.821 |
+| Warm | Restored unchanged compilation | 4.831 |
+| Warm | Fresh unchanged compilation | 32.726 |
+| Warm | Edited incremental compilation | 21.112 |
+| Warm | Fresh edited compilation | 29.671 |
+
+GitHub step timestamps show approximately two seconds to save and one second
+to restore. Runner performance varied substantially, so compare within each job,
+not the cold runner's fresh time against the warm runner's incremental time.
+These are single hosted samples, not repeated medians. Native build, dependency
+installation and job setup remain outside the compiler command timings.
+
+The result supports a later, selective integration into repeated compilation
+workloads. No ordinary validation, bootstrap or release pipeline has been changed
+to consume these entries automatically.

@@ -37,7 +37,7 @@ import project/src/project_model/package_manifest::{PackageManifestExport}
 // Resolve and read the module closure once, preserving traversal order and original
 // source snapshots. Host I/O belongs here rather than in the pure frontend.
 
-record ProjectLoadState {
+pub record ProjectLoadState {
   modules: [LoadedModule],
   visited: Set[Str],
   diagnostics: [Diagnostic],
@@ -54,6 +54,14 @@ pub record ProjectPreparationContext {
   package_confined: Bool,
   package_root_identity: FilesystemRootIdentity,
   dependencies: [ManifestDependencyProject]
+}
+
+pub record LoadedProjectSources {
+  loaded: ProjectLoadState,
+  context: ProjectPreparationContext,
+  entry_path: Str,
+  retain: Bool,
+  require_main: Bool
 }
 
 pub record LoadedProject {
@@ -870,6 +878,42 @@ load_project_mode_with_configuration(
   package_confined: Bool,
   dependencies: [ManifestDependencyProject]
 ): LoadedProject {
+  check_project_sources(load_project_sources_with_configuration(
+    entry, bounded, retain, require_main, configured_project_root, package_root,
+    package_root_identity, package_name, package_version, package_confined, dependencies
+  ))
+}
+
+pub load_project_sources(entry: Str): LoadedProjectSources {
+  load_project_sources_with_configuration(
+    entry, false, false, true, "", "", FilesystemRootIdentity(0, 0), "", "", false, []
+  )
+}
+
+pub load_project_package_sources(
+  entry: Str, source_root: Str, package_root: Str,
+  package_root_identity: FilesystemRootIdentity,
+  package_name: Str, package_version: Str, dependencies: [ManifestDependencyProject]
+): LoadedProjectSources {
+  load_project_sources_with_configuration(
+    entry, true, false, true, source_root, package_root,
+    package_root_identity, package_name, package_version, true, dependencies
+  )
+}
+
+load_project_sources_with_configuration(
+  entry: Str,
+  bounded: Bool,
+  retain: Bool,
+  require_main: Bool,
+  configured_project_root: Str,
+  package_root: Str,
+  package_root_identity: FilesystemRootIdentity,
+  package_name: Str,
+  package_version: Str,
+  package_confined: Bool,
+  dependencies: [ManifestDependencyProject]
+): LoadedProjectSources {
   resolved: Str = path_support.resolve(entry)
   project_root: Str = if package_confined {
     path_support.resolve(configured_project_root)
@@ -938,6 +982,24 @@ load_project_mode_with_configuration(
   } else {
     core
   }
+  entry_identity: ModuleIdentity = if package_confined {
+    source_package_module_identity(resolved, project_root, stdlib_root, package_name, package_version)
+  } else { source_module_identity(resolved, project_root, stdlib_root) }
+  LoadedProjectSources(loaded, ProjectPreparationContext(
+    project_root, stdlib_root, entry_identity, package_confined, package_root_identity, dependencies
+  ), resolved, retain, require_main)
+}
+
+pub pure check_project_sources(source: LoadedProjectSources): LoadedProject {
+  loaded: ProjectLoadState = source.loaded
+  resolved: Str = source.entry_path
+  project_root: Str = source.context.project_root
+  stdlib_root: Str = source.context.stdlib_root
+  package_confined: Bool = source.context.package_confined
+  package_root_identity: FilesystemRootIdentity = source.context.package_root_identity
+  dependencies: [ManifestDependencyProject] = source.context.dependencies
+  retain: Bool = source.retain
+  require_main: Bool = source.require_main
   mut program: Program = append_program_declarations(module_programs(loaded.modules))
   mut preparation: Option[ProjectPreparationContext] = None()
   mut diagnostics: [Diagnostic] = []
@@ -1033,9 +1095,7 @@ load_project_mode_with_configuration(
     }
     effects_checked = signatures_valid
     if identity_ready {
-      entry_identity: ModuleIdentity = if package_confined {
-        source_package_module_identity(resolved, project_root, stdlib_root, package_name, package_version)
-      } else { source_module_identity(resolved, project_root, stdlib_root) }
+      entry_identity: ModuleIdentity = source.context.entry
       emitted: ModuleEmissionResult = module_emission_program(
         graph, loaded.modules, signatures, bodies, entry_identity)
       diagnostics = diagnostics.concat(emitted.diagnostics)

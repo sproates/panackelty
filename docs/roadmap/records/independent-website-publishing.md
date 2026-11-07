@@ -741,7 +741,12 @@ language changes. The [assessment and first slice](../../COMPILER_REUSE_ASSESSME
 identify duplicate preparation within an invocation and the later boundaries for
 unchanged-build and checked-module reuse. The first within-command reuse slice is
 complete locally, with a measured 3% self-compilation saving and passing full
-validation (518 seconds); integration is pending. Persistent reuse is not implemented. Earlier release
+validation (518 seconds); integration is pending. The subsequent
+[unchanged-compilation trial](../../COMPILER_UNCHANGED_REUSE_TRIAL.md) is implemented
+and validated locally: warm self-compilation 14.34s to 2.34s with identical
+bytecode, cold 15.04s, full `make check` passed in 572 seconds. Integration is
+pending. It is opt-in,
+not module-level incremental checking. Earlier release
 acceptance below remains historical evidence.
 
 <a id="future-candidate-incremental-and-modular-builds"></a>

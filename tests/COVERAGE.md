@@ -1,5 +1,12 @@
 # Specification coverage
 
+The [unchanged-compilation trial](../docs/COMPILER_UNCHANGED_REUSE_TRIAL.md) adds
+CLI coverage in `tests/unit/harness/compilation_cache.sh`: warm/cold byte identity,
+fresh execution, launcher/toolchain identity, source and package invalidation,
+confinement, damaged entries, bypass and concurrent/failed publication. It uses
+complete programs through the staged public launcher. All nine groups and the
+full local `make check` passed (572 seconds).
+
 The [literal reuse trial](../docs/VM_LITERAL_REUSE_TRIAL.md) covers cached versus
 uncached values, repeated/separate executions, negative zero, Unicode/NUL/empty
 strings, cancellation, re-verification and allocation failure. Native suites and

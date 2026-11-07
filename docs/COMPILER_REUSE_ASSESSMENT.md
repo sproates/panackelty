@@ -6,9 +6,11 @@ and [RM#157: Performance review](roadmap/records/next-release--agreed-scope-2026
 
 The owner wants to avoid repeated compilation before undertaking larger language
 changes. This record defines the first implementation slice, its delivery
-evidence and subsequent reuse boundaries. Persistent caching is not delivered.
+evidence and subsequent reuse boundaries. The second slice is an opt-in
+[unchanged-compilation trial](COMPILER_UNCHANGED_REUSE_TRIAL.md); module-level
+incremental checking remains future work.
 
-## Existing path
+## Original path assessed before the first slice
 
 `bin/panack` invokes the hosted compiler. For ordinary source commands,
 `driver.prepare_project` calls `loader.load_project`, then
@@ -168,6 +170,11 @@ new product dependencies. No CI or public publication has been requested for thi
 slice. The globally installed toolchain is unchanged.
 
 ## Subsequent slices
+
+Slice 1 below is now implemented as the linked opt-in trial. Fresh package-tool
+validation precedes the compiler: the compiler fingerprints the resolved
+descriptor, rather than interpreting raw manifests or lockfiles itself. Fresh
+source discovery resolves the current reachable graph before every lookup.
 
 1. **Reuse unchanged successful compilations across invocations.** Start with
    ordinary check/compile/run and a bounded local cache, not serialized checker

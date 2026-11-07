@@ -1,3 +1,5 @@
+import project/src/compiler/compilation_cache::{CompilationCache, compilation_cache, cached_compilation, save_compilation, cache_trace}
+import stdlib/bytes as byte_buffer
 import project/src/compiler/path_support as path_support
 import stdlib/environment as std_environment
 import stdlib/path as std_path
@@ -12,7 +14,8 @@ import project/src/compiler/coverage::{run_coverage_report}
 import project/src/compiler/source_inventory::{run_inventory_command}
 import project/src/compiler/module_emission::{ModuleIdentity}
 import project/src/compiler/loader::{
-  LoadedProject, load_project, load_project_package, load_project_package_for_check,
+  LoadedProject, LoadedProjectSources, load_project_sources, load_project_package_sources,
+  check_project_sources, load_project, load_project_package_for_check,
   load_project_explained, load_project_for_source_map
 }
 import project/src/project_model/package_project::{ManifestDependencyProject}
@@ -125,7 +128,7 @@ run_manifest_command(arguments: [Str]): Nat {
   report_driver_error("project manifests are resolved by the panack package tool")
 }
 
-run_resolved_project_command(arguments: [Str]): Nat {
+run_resolved_project_command(arguments: [Str], cache_enabled: Bool): Nat {
   if arguments.len() < 3 || arguments[1] != "--resolved-project" {
     report_driver_error("internal project commands require --resolved-project DESCRIPTOR")
   } else {
@@ -152,7 +155,7 @@ run_resolved_project_command(arguments: [Str]): Nat {
     if !valid_options {
       report_driver_error("resolved project command options are invalid")
     } else {
-      run_resolved_project_source_command(command, descriptor_path, output, program_arguments)
+      run_resolved_project_source_command(command, descriptor_path, output, program_arguments, cache_enabled)
     }
   }
 }
@@ -172,40 +175,80 @@ pure without_final_newline(text: Str): Str {
   }
 }
 
-run_source_command(command: Str, path: Str, output: Str, program_arguments: [Str]): Nat {
-  prepared: PreparedProject = prepare_project(path)
-
-  if !prepared.valid {
-    report_driver_error(prepared.message)
+run_source_command(command: Str, path: Str, output: Str, program_arguments: [Str], cache_enabled: Bool): Nat {
+  if command == "disasm" {
+    run_source_disassembly(path)
   } else {
-    bytecode: BytecodeProgram = compile_program(prepared.program)
-    if command == "check" {
-      print("ok")
-      0
-    } else {
-      if command == "compile" {
-        destination: Str = if output.len() > 0 {
-          output
-        } else {
-          path_support.with_suffix(path, ".bc")
-        }
-        if path_support.resolve(destination) == path_support.resolve(path) {
-          report_driver_error("bytecode output cannot overwrite the source file")
-        } else {
-          filesystem_support.write_file_bytes(destination, serialize_bytecode(bytecode))
-          print("wrote ${destination}")
-          0
-        }
-      } else {
-        if command == "disasm" {
-          print(without_final_newline(render_bytecode(bytecode)))
-          0
-        } else {
-          std_host.run(serialize_bytecode(bytecode), program_arguments)
-          0
+    source: LoadedProjectSources = load_project_sources(path)
+    driver_run_cached_source(command, source, path, output, program_arguments, byte_buffer.empty(), source.context.project_root, cache_enabled)
+  }
+}
+
+// Source discovery and confinement have already run. Only successful semantic
+// checking and emission may be reused; a run always executes its artifact anew.
+driver_run_cached_source(
+  command: Str, source: LoadedProjectSources, display_path: Str, output: Str,
+  arguments: [Str], descriptor: Bytes, package_root: Str, cache_enabled: Bool
+): Nat {
+  cache: Option[CompilationCache] = if cache_enabled {
+    compilation_cache(source, descriptor, package_root)
+  } else {
+    cache_trace("disabled")
+    None()
+  }
+  cached: Option[Bytes] = match cache {
+    None() => None(), Some(selected) => cached_compilation(selected)
+  }
+  compiled: Result[Bytes, Str] = match cached {
+    Some(artifact) => Ok(artifact),
+    None() => {
+      loaded: LoadedProject = check_project_sources(source)
+      context = source.context
+      identity = driver_entry_identity(loaded, source.entry_path, context.entry)
+      match prepare_project_program_with_dependencies(
+        loaded, context.project_root, context.stdlib_root, identity,
+        context.package_confined, context.package_root_identity, context.dependencies
+      ) {
+        Error(diagnostics) => Error(diagnostic_messages(diagnostics, loaded.sources)),
+        Ok(program) => {
+          bytecode: BytecodeProgram = compile_program(program)
+          artifact: Bytes = if command == "check" && cache == None() { byte_buffer.empty() } else { serialize_bytecode(bytecode) }
+          match cache {
+            None() => {}, Some(selected) => save_compilation(selected, source, artifact)
+          }
+          Ok(artifact)
         }
       }
     }
+  }
+  match compiled {
+    Error(message) => report_driver_error(message),
+    Ok(artifact) => if command == "check" {
+      print("ok")
+      0
+    } else if command == "compile" {
+      destination: Str = if output.len() > 0 { output } else { path_support.with_suffix(display_path, ".bc") }
+      if path_support.resolve(destination) == source.entry_path {
+        report_driver_error("bytecode output cannot overwrite the source file")
+      } else {
+        filesystem_support.write_file_bytes(destination, artifact)
+        print("wrote " + destination)
+        0
+      }
+    } else {
+      std_host.run(artifact, arguments)
+      0
+    }
+  }
+}
+
+run_source_disassembly(path: Str): Nat {
+  prepared: PreparedProject = prepare_project(path)
+  if !prepared.valid {
+    report_driver_error(prepared.message)
+  } else {
+    print(without_final_newline(render_bytecode(compile_program(prepared.program))))
+    0
   }
 }
 
@@ -342,7 +385,8 @@ run_resolved_project_source_command(
   command: Str,
   descriptor_path: Str,
   output: Str,
-  program_arguments: [Str]
+  program_arguments: [Str],
+  cache_enabled: Bool
 ): Nat {
   match std_path.from_text(descriptor_path) {
     Error(error) => report_driver_error("resolved project descriptor path is invalid"),
@@ -359,7 +403,7 @@ run_resolved_project_source_command(
               Error(message) => report_driver_error(message),
               Ok(root) => {
                 dependencies: [ManifestDependencyProject] = driver_resolved_dependency_edges(project)
-                driver_run_resolved_command(command, root, dependencies, output, program_arguments)
+                driver_run_resolved_command(command, root, dependencies, output, program_arguments, data, cache_enabled)
               }
             }
           }
@@ -370,11 +414,8 @@ run_resolved_project_source_command(
 }
 
 driver_run_resolved_command(
-  command: Str,
-  project: ResolvedPackage,
-  dependencies: [ManifestDependencyProject],
-  output: Str,
-  program_arguments: [Str]
+  command: Str, project: ResolvedPackage, dependencies: [ManifestDependencyProject],
+  output: Str, program_arguments: [Str], descriptor: Bytes, cache_enabled: Bool
 ): Nat {
   match project.entry {
     None() => if command == "check" {
@@ -383,32 +424,11 @@ driver_run_resolved_command(
       report_driver_error("library projects support check only; compile and run require an application entry")
     },
     Some(entry) => {
-      loaded: LoadedProject = load_project_package(
+      source: LoadedProjectSources = load_project_package_sources(
         entry, project.source_root, project.package_root, project.identity,
         project.name, project.version, dependencies
       )
-      prepared: PreparedProject = prepare_resolved_package(project, entry, dependencies, loaded)
-      if !prepared.valid {
-        report_driver_error(prepared.message)
-      } else {
-        bytecode: BytecodeProgram = compile_program(prepared.program)
-        if command == "check" {
-          print("ok")
-          0
-        } else if command == "compile" {
-          destination: Str = if output.len() > 0 { output } else { path_support.with_suffix(entry, ".bc") }
-          if path_support.resolve(destination) == path_support.resolve(entry) {
-            report_driver_error("bytecode output cannot overwrite the source file")
-          } else {
-            filesystem_support.write_file_bytes(destination, serialize_bytecode(bytecode))
-            print("wrote ${destination}")
-            0
-          }
-        } else {
-          std_host.run(serialize_bytecode(bytecode), program_arguments)
-          0
-        }
-      }
+      driver_run_cached_source(command, source, entry, output, program_arguments, descriptor, project.package_root, cache_enabled)
     }
   }
 }
@@ -779,6 +799,12 @@ run_source_map_command(values: [Str], locating: Bool): Nat {
 
 run_compiler_command(arguments: [Str]): Nat {
   mut values: [Str] = arguments
+  cache_enabled: Bool = values.len() > 0 && values[0] == "--local-compile-cache"
+  if cache_enabled {
+    mut forwarded: [Str] = []
+    for index in 1..values.len() { forwarded = forwarded.append(values[index]) }
+    values = forwarded
+  }
 
   if values.len() > 0 && values[0] == "--" {
     mut trimmed: [Str] = []
@@ -794,7 +820,7 @@ run_compiler_command(arguments: [Str]): Nat {
     0
   } else {
     if values.len() > 1 && values[1] == "--resolved-project" {
-      run_resolved_project_command(values)
+      run_resolved_project_command(values, cache_enabled)
     } else if values.len() > 1 && values[1] == "--project" {
       run_manifest_command(values)
     } else {
@@ -850,7 +876,7 @@ run_compiler_command(arguments: [Str]): Nat {
                     report_driver_error("expected a .panack source or .bc bytecode file")
                   } else {
                     if suffix == ".panack" {
-                      run_source_command(command, path, output, program_arguments)
+                      run_source_command(command, path, output, program_arguments, cache_enabled)
                     } else {
                       if command == "compile" {
                         report_driver_error("compile expects a .panack source file")

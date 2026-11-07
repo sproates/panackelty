@@ -177,7 +177,14 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   the entry directory, rejects symlink traversal, and supports an explicit
   `PANACKELTY_BOOTSTRAP_ROOT` for isolated compiler-stage builds. It loads each
   module once, retains ordered source snapshots, and supplies the identity graph
-  to staged checking and emission.
+  to staged checking and emission. `LoadedProjectSources` separates fresh source
+  discovery/parsing from `check_project_sources`, without changing ordinary
+  loading or confinement requirements.
+- `compilation_cache.panack` owns the opt-in private local cache for successful
+  check/compile/run artifacts. It fingerprints exact source snapshots, resolved
+  project descriptors and toolchain bytes; hits skip checking/emission, never
+  program execution. Tooling modes remain fresh. See the
+  [unchanged-compilation trial](../../docs/COMPILER_UNCHANGED_REUSE_TRIAL.md).
 - `module_emission.panack` lowers fully identity-checked bodies and canonical
   function/type/variant identities to deterministic private names. Entry `main`
   remains the launch point; imported `main` functions are internalized. The

@@ -46,7 +46,8 @@ export PANACKELTY_VERSION
 PANACKELTY_STDLIB_PATH=$stdlib
 export PANACKELTY_STDLIB_PATH
 PANACKELTY_COMPILER_PATH=$compiler
-export PANACKELTY_COMPILER_PATH
+PANACKELTY_VM_PATH=$vm
+export PANACKELTY_COMPILER_PATH PANACKELTY_VM_PATH
 
 require_package_tool() {
   if [ ! -f "$package_tool" ]; then
@@ -139,7 +140,11 @@ case "${1-}" in
       wait "$child" || status=$?
       child=
       if [ "$status" -eq 0 ]; then
-        "$vm" run "$compiler" "$command" --resolved-project "$descriptor" "$@" <&0 &
+        if [ -n "${PANACKELTY_COMPILE_CACHE_DIR:-}" ]; then
+          "$vm" run "$compiler" --local-compile-cache "$command" --resolved-project "$descriptor" "$@" <&0 &
+        else
+          "$vm" run "$compiler" "$command" --resolved-project "$descriptor" "$@" <&0 &
+        fi
         child=$!
         wait "$child" || status=$?
         child=
@@ -168,4 +173,7 @@ case "${1-}" in
     ;;
 esac
 
+if [ -n "${PANACKELTY_COMPILE_CACHE_DIR:-}" ]; then
+  set -- --local-compile-cache "$@"
+fi
 exec "$vm" run "$compiler" "$@"

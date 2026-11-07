@@ -80,10 +80,11 @@ bytecode contract or disable runtime verification.
 
 String construction records code-point count and whether every byte is ASCII.
 Length is constant time, and ASCII indexing, slicing, and prefix-offset lookup
-avoid rescanning the string. Non-ASCII offsets retain UTF-8 traversal. Every
-string-producing operation uses the same constructor, including concatenation,
-interpolation, slicing, reversal, decoding, and host inputs; bounds and UTF-8
-validation remain in place.
+avoid rescanning the string. Non-ASCII offsets retain UTF-8 traversal. Constructors
+calculate metadata for raw-byte producers such as interpolation, slicing,
+reversal, decoding and host inputs. String addition combines the existing
+character counts and ASCII flags instead of scanning the concatenated result.
+Both paths share allocation and copying; bounds and UTF-8 validation remain in place.
 
 String addition, byte append/concatenation and array concatenation construct the
 result directly in its final allocation, avoiding a temporary combined buffer.

@@ -14,8 +14,15 @@
 
 int main(int argc, char **argv)
 {
-    assert(argc == 2);
+    assert(argc == 2 || argc == 3);
     uint8_t data[4096];
+    size_t length = sizeof(data);
+    if (argc == 3) {
+        char *end = NULL;
+        unsigned long supplied = strtoul(argv[2], &end, 10);
+        assert(end && !*end && supplied > 0 && supplied <= sizeof(data));
+        length = (size_t)supplied;
+    }
     memset(data, 'x', sizeof(data));
     Value *item = value_size(7), *items[512];
     assert(item);
@@ -26,7 +33,7 @@ int main(int argc, char **argv)
     bool append = !strcmp(argv[1], "append");
     assert(array || str || append || !strcmp(argv[1], "bytes"));
     Value *a = array ? value_sequence(V_ARRAY, items, 512)
-                     : value_data(str ? V_STR : V_BYTES, data, sizeof(data));
+                     : value_data(str ? V_STR : V_BYTES, data, length);
     assert(a);
     Value *args[] = {a, append ? item : a};
     const Builtin *fn = str ? NULL : builtin(array ? "concat" : append ? "byte_append" : "bytes_concat");
@@ -39,7 +46,8 @@ int main(int argc, char **argv)
         Value *v = str ? binary_value(0, a, a, &error) : fn->call(&vm, fn->name, args);
         assert(v && !error && !vm.error);
         size_t n = array ? v->as.sequence.count : v->as.bytes.length;
-        assert(n == (array ? 1024 : append ? 4097 : 8192));
+        assert(n == (array ? 1024 : append ? length + 1 : length * 2));
+        if (str) assert(v->as.bytes.characters == n && v->as.bytes.ascii);
         sum += n;
         release(v);
     }

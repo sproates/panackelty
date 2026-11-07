@@ -1,5 +1,11 @@
 # Specification coverage
 
+The [string-metadata trial](../docs/VM_STRING_METADATA_TRIAL.md) compares cached
+addition against scanned metadata across 49 Unicode/ASCII/empty/NUL input pairs,
+including repeated and aliased concatenation. Native and allocation-failure
+suites and five compiled functional fixtures passed. Full product validation
+and adoption remain pending.
+
 The [indexed-local trial](../docs/VM_LOCAL_SLOTS_TRIAL.md) adds native checks for
 parameter-slot ordering, replacement ownership, uninitialised branch locals,
 verification invalidation/re-preparation and locals across async suspension.

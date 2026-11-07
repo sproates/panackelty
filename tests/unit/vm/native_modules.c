@@ -1103,6 +1103,42 @@ static void indexed_locals_preserve_bindings(void)
 
 static void concatenation_preserves_values(void)
 {
+    const char *parts[] = {"", "plain", "\xc3\xa9", "\xce\xbb", "\xf0\x9f\x99\x82",
+                           "e\xcc\x81", "a\0b"};
+    size_t lengths[] = {0, 5, 2, 2, 4, 3, 3};
+    size_t characters[] = {0, 5, 1, 1, 1, 2, 3};
+    for (size_t i = 0; i < 7; i++) {
+        for (size_t j = 0; j < 7; j++) {
+            Value *a = value_data(V_STR, (const uint8_t *)parts[i], lengths[i]);
+            Value *b = value_data(V_STR, (const uint8_t *)parts[j], lengths[j]);
+            const char *error = NULL;
+            Value *result = binary_value(0, a, b, &error);
+            Value *reference = value_data_join(V_STR, a->as.bytes.data, a->as.bytes.length,
+                                               b->as.bytes.data, b->as.bytes.length);
+            assert(result && reference && !error);
+            assert(result->as.bytes.length == reference->as.bytes.length);
+            assert(result->as.bytes.characters == reference->as.bytes.characters);
+            assert(result->as.bytes.characters == characters[i] + characters[j]);
+            assert(result->as.bytes.ascii == reference->as.bytes.ascii);
+            Value *twice = binary_value(0, result, result, &error);
+            assert(twice && !error && twice->as.bytes.characters == 2 * reference->as.bytes.characters);
+            assert(twice->as.bytes.ascii == reference->as.bytes.ascii);
+            assert(twice->as.bytes.length == 2 * reference->as.bytes.length);
+            assert(!memcmp(twice->as.bytes.data, reference->as.bytes.data, reference->as.bytes.length));
+            assert(!memcmp(twice->as.bytes.data + reference->as.bytes.length,
+                           reference->as.bytes.data, reference->as.bytes.length + 1));
+            release(twice);
+            assert(!memcmp(result->as.bytes.data, reference->as.bytes.data,
+                           reference->as.bytes.length + 1));
+            assert(a->refs == 1 && b->refs == 1);
+            release(a);
+            release(b);
+            assert(!memcmp(result->as.bytes.data, reference->as.bytes.data,
+                           reference->as.bytes.length + 1));
+            release(result);
+            release(reference);
+        }
+    }
     Value *empty = value_data_join(V_STR, NULL, 0, NULL, 0);
     assert(empty && empty->as.bytes.length == 0 && empty->as.bytes.characters == 0);
     assert(empty->as.bytes.ascii && empty->as.bytes.data[0] == 0);

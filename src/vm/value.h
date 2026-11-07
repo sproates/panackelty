@@ -113,6 +113,8 @@ Value *value_data(ValueKind kind, const uint8_t *data, size_t length);
 /* Copy borrowed byte spans into one owned result. NULL is allowed for empty spans. */
 Value *value_data_join(ValueKind kind, const uint8_t *left, size_t left_length,
                       const uint8_t *right, size_t right_length);
+/* Both inputs must be valid V_STR values with constructor-maintained metadata. */
+Value *value_string_concat(const Value *left, const Value *right);
 /* Both inputs must be arrays; the result retains their elements independently. */
 Value *value_array_concat(const Value *left, const Value *right);
 

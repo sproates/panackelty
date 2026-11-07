@@ -440,8 +440,7 @@ Value *binary_value_classified(uint8_t op, Value *a, Value *b, const char **erro
         return value_bool(result);
     }
     if (op == 0 && a->kind == V_STR && b->kind == V_STR) {
-        return value_data_join(V_STR, a->as.bytes.data, a->as.bytes.length,
-                               b->as.bytes.data, b->as.bytes.length);
+        return value_string_concat(a, b);
     }
     if (a->kind == V_DEC && b->kind == V_DEC) {
         return decimal_binary_classified(op, &a->as.decimal, &b->as.decimal, error, fault);

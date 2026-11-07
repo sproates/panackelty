@@ -304,6 +304,14 @@ static void concatenate_text(void)
     release(result);
 }
 
+static void concatenate_cached_text(void)
+{
+    Value *result = value_string_concat(left, right);
+    assert((result != NULL) == !fault_triggered());
+    release(result);
+    assert(left->refs == 1 && right->refs == 1);
+}
+
 static void indexed_locals_allocations(void)
 {
     Instruction instructions[] = {
@@ -344,6 +352,13 @@ static void concatenation_faults(void)
 {
     fault_reset(0);
     sweep("concatenate text", concatenate_text);
+    left = value_data(V_STR, (const uint8_t *)"hello", 5);
+    right = value_data(V_STR, (const uint8_t *)"\xce\xbb", 2);
+    assert(left && right);
+    sweep("concatenate cached text", concatenate_cached_text);
+    release(left);
+    release(right);
+    right = NULL;
     Value *item = value_size(7);
     assert(item);
     left = value_sequence(V_ARRAY, &item, 1);

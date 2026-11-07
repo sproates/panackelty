@@ -158,8 +158,8 @@ Value *value_data(ValueKind kind, const uint8_t *data, size_t length)
     return value_data_join(kind, data, length, NULL, 0);
 }
 
-Value *value_data_join(ValueKind kind, const uint8_t *left, size_t left_length,
-                      const uint8_t *right, size_t right_length)
+static Value *allocate_data_join(ValueKind kind, const uint8_t *left, size_t left_length,
+                                 const uint8_t *right, size_t right_length)
 {
     if (left_length == SIZE_MAX || right_length > SIZE_MAX - left_length - 1) {
         return NULL;
@@ -182,10 +182,18 @@ Value *value_data_join(ValueKind kind, const uint8_t *left, size_t left_length,
     }
     v->as.bytes.data[length] = 0;
     v->as.bytes.length = length;
+    return v;
+}
+
+Value *value_data_join(ValueKind kind, const uint8_t *left, size_t left_length,
+                      const uint8_t *right, size_t right_length)
+{
+    Value *v = allocate_data_join(kind, left, left_length, right, right_length);
+    if (!v) return NULL;
     if (kind == V_STR) {
         const uint8_t *data = v->as.bytes.data;
         v->as.bytes.ascii = true;
-        for (size_t i = 0; i < length; i++) {
+        for (size_t i = 0; i < v->as.bytes.length; i++) {
             if ((data[i] & 0xc0) != 0x80) {
                 v->as.bytes.characters++;
             }
@@ -194,6 +202,17 @@ Value *value_data_join(ValueKind kind, const uint8_t *left, size_t left_length,
             }
         }
     }
+    return v;
+}
+
+Value *value_string_concat(const Value *left, const Value *right)
+{
+    Value *v = allocate_data_join(V_STR, left->as.bytes.data, left->as.bytes.length,
+                                  right->as.bytes.data, right->as.bytes.length);
+    if (!v) return NULL;
+    /* Valid string character counts cannot exceed the checked byte lengths. */
+    v->as.bytes.characters = left->as.bytes.characters + right->as.bytes.characters;
+    v->as.bytes.ascii = left->as.bytes.ascii && right->as.bytes.ascii;
     return v;
 }
 

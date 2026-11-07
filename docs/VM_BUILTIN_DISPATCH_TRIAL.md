@@ -66,9 +66,14 @@ Every output hash matched:
 
 ## Status
 
-Trial passed focused checks. Recommend adoption, followed by one final full
-local validation. The normal checkout VM has not been rebuilt for this trial;
-full `make check` remains pending adoption. No push, PR or CI run.
+Adopted in the normal checkout VM after owner approval. `make native` passed,
+followed by full local `make check` (exit 0, 662 seconds): unit, functional,
+bootstrap, packaging, release smoke and quick-start checks passed. Bootstrap
+completed in 165 seconds. The total was 29 seconds below the preceding 691-second
+run, but this is not a controlled whole-suite comparison. Historical timing
+budget warnings remain advisory.
+
+No push, PR or CI run. The stable globally installed release is unchanged.
 
 No website, language or CLI documentation changes are required: externally
 observable behavior is unchanged. VM component documentation records the internal

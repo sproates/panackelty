@@ -3,7 +3,7 @@
 The [builtin-dispatch trial](../docs/VM_BUILTIN_DISPATCH_TRIAL.md) adds pure/host
 boundary checks for direct and indirect ordinary calls, with and without prepared
 metadata. Native, allocation-failure and five functional fixtures passed; full
-local validation remains pending adoption.
+local `make check` passed after adoption in the normal checkout VM (662 seconds).
 
 The [temporary-call-arguments trial](../docs/VM_CALL_ARGUMENTS_TRIAL.md) covers
 direct/indirect calls at 0, 1, 8, 9 and 255 arguments, partial-stack cleanup and

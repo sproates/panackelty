@@ -832,7 +832,11 @@ stay private. Headers are self-contained declarations, not included implementati
 Value lifetime, exact arithmetic, rendering, UTF-8 traversal, and host services
 are separate translation units. Builtins are grouped into text, collections,
 numerics, nested execution, and host services. One registry supplies arity, purity,
-and handler selection to verification and execution. Nested execution intentionally
+and handler selection to verification and execution. Each entry also has a static
+internal execution classification, allowing special async/host dispatch without
+repeated name comparisons. Capability checks, coverage gaps and external host
+callback names retain their existing behavior; the classification is not encoded
+in bytecode. Nested execution intentionally
 calls back into the VM after decoding and verifying its child program.
 
 Array append can share a backing store between a prefix and one extension,

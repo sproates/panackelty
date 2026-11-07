@@ -508,14 +508,14 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
                                 bool *called_function)
 {
     *called_function = false;
-    if (!strcmp(entry->name, "http_connection_continue")) {
+    if (entry->dispatch == BUILTIN_HTTP_CONNECTION_CONTINUE) {
         if (tcp_server_http_continue(execution->vm, arguments[0])) {
             execution->waiting_read = true;
             execution->status = VM_WAITING;
         }
         return NULL;
     }
-    if (!strcmp(entry->name, "http_listen_ordinary") || !strcmp(entry->name, "http_listen_contextual")) {
+    if (entry->dispatch == BUILTIN_HTTP_LISTEN_ORDINARY || entry->dispatch == BUILTIN_HTTP_LISTEN_CONTEXTUAL) {
         VM *vm = execution->vm;
         Function *worker = http_worker_function(vm, arguments[1]);
         if (!worker) { vm->error = "VM trap: invalid HTTP worker"; return NULL; }
@@ -524,7 +524,7 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
             return NULL;
         }
         Value *result = http_runtime_listen(vm, arguments[0], worker,
-            !strcmp(entry->name, "http_listen_contextual"),
+            entry->dispatch == BUILTIN_HTTP_LISTEN_CONTEXTUAL,
             !execution->embedded || execution->network_enabled,
             !execution->embedded || execution->filesystem_enabled,
             !execution->embedded || execution->console_enabled);
@@ -539,10 +539,10 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         execution->yield_requested = true;
         return result;
     }
-    if (!strcmp(entry->name, "http_close") || !strcmp(entry->name, "http_destroy")) {
+    if (entry->dispatch == BUILTIN_HTTP_CLOSE || entry->dispatch == BUILTIN_HTTP_DESTROY) {
         VM *vm = execution->vm;
         if (arguments[0]->kind != V_HTTP_STATE || !arguments[0]->as.http_state ||
-            !http_runtime_request_close(vm->http_runtime, arguments[0], !strcmp(entry->name, "http_destroy"))) {
+            !http_runtime_request_close(vm->http_runtime, arguments[0], entry->dispatch == BUILTIN_HTTP_DESTROY)) {
             vm->error = "VM trap: invalid HTTP shutdown handle";
             return NULL;
         }
@@ -551,7 +551,7 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         execution->status = VM_WAITING;
         return NULL;
     }
-    if (!strcmp(entry->name, "http_connection_invoke")) {
+    if (entry->dispatch == BUILTIN_HTTP_CONNECTION_INVOKE) {
         Value *call_arguments[3];
         Function *handler = http_connection_handler(execution->vm, arguments, call_arguments);
         if (handler) {
@@ -561,23 +561,23 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         return NULL;
     }
     VM *vm = execution->vm;
-    if (vm->coverage && !vm->coverage_run && (!strcmp(entry->name, "$http_transport_exchange") ||
-        !strcmp(entry->name, "$tcp_serve") || !strcmp(entry->name, "tcp_service") ||
-        !strcmp(entry->name, "$tcp_serve_stream") || !strcmp(entry->name, "process_run") ||
-        !strcmp(entry->name, "run_bytecode") || !strcmp(entry->name, "run_bytecode_args"))) {
+    if (vm->coverage && !vm->coverage_run && (entry->dispatch == BUILTIN_HTTP_TRANSPORT_EXCHANGE ||
+        entry->dispatch == BUILTIN_TCP_SERVE || entry->dispatch == BUILTIN_TCP_SERVICE ||
+        entry->dispatch == BUILTIN_TCP_SERVE_STREAM || entry->dispatch == BUILTIN_PROCESS_RUN ||
+        entry->dispatch == BUILTIN_RUN_BYTECODE || entry->dispatch == BUILTIN_RUN_BYTECODE_ARGS)) {
         vm_coverage_gap(vm->coverage);
     }
-    if (!strcmp(entry->name, "tcp_service")) {
+    if (entry->dispatch == BUILTIN_TCP_SERVICE) {
         return service_call(execution, arguments);
     }
-    if (!strcmp(entry->name, "host_arguments_async")) {
+    if (entry->dispatch == BUILTIN_HOST_ARGUMENTS_ASYNC) {
         if (execution->embedded && !execution->console_enabled) {
             vm->error = "VM trap: invocation service is unavailable in this execution";
             return NULL;
         }
         return host_call(vm, "command_args", NULL);
     }
-    if (!strcmp(entry->name, "host_exit_async")) {
+    if (entry->dispatch == BUILTIN_HOST_EXIT_ASYNC) {
         if (arguments[0]->kind != V_NAT || !value_index(arguments[0], &execution->exit_status) ||
             execution->exit_status > 255) {
             vm->error = "VM trap: invalid process status";
@@ -588,12 +588,12 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         }
         return NULL;
     }
-    if (!strcmp(entry->name, "host_stdout_async") || !strcmp(entry->name, "host_stderr_async")) {
+    if (entry->dispatch == BUILTIN_HOST_STDOUT_ASYNC || entry->dispatch == BUILTIN_HOST_STDERR_ASYNC) {
         if (execution->embedded && !execution->console_enabled) {
             vm->error = "VM trap: console service is unavailable in this execution";
         } else {
             execution->console_write =
-                console_write_start(vm, arguments[0], !strcmp(entry->name, "host_stderr_async"));
+                console_write_start(vm, arguments[0], entry->dispatch == BUILTIN_HOST_STDERR_ASYNC);
             if (!execution->console_write && !vm->error) {
                 vm->error = "native VM out of memory";
             }
@@ -603,13 +603,13 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         }
         return NULL;
     }
-    if (!strcmp(entry->name, "fs_read_beneath_async") ||
-        !strcmp(entry->name, "fs_root_identity_async")) {
+    if (entry->dispatch == BUILTIN_FS_READ_BENEATH_ASYNC ||
+        entry->dispatch == BUILTIN_FS_ROOT_IDENTITY_ASYNC) {
         if (execution->embedded && !execution->filesystem_enabled) {
             vm->error = "VM trap: filesystem service is unavailable in this execution";
         } else {
             execution->root_read =
-                root_read_start(vm, arguments, !strcmp(entry->name, "fs_root_identity_async"));
+                root_read_start(vm, arguments, entry->dispatch == BUILTIN_FS_ROOT_IDENTITY_ASYNC);
             if (!execution->root_read && !vm->error) {
                 vm->error = "native VM out of memory";
             }
@@ -619,13 +619,13 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         }
         return NULL;
     }
-    if (!strcmp(entry->name, "$tcp_serve")) {
+    if (entry->dispatch == BUILTIN_TCP_SERVE) {
         return server_call(execution, arguments);
     }
-    if (!strcmp(entry->name, "$tcp_serve_stream")) {
+    if (entry->dispatch == BUILTIN_TCP_SERVE_STREAM) {
         return server_call_mode(execution, arguments, true);
     }
-    if (!strcmp(entry->name, "$tcp_server_read_chunk")) {
+    if (entry->dispatch == BUILTIN_TCP_SERVER_READ_CHUNK) {
         size_t limit;
         if (arguments[0]->kind != V_NAT || !value_index(arguments[0], &limit) || !limit ||
             limit > 16384 || !execution->embedded || !execution->read_wait ||
@@ -639,7 +639,7 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         }
         return NULL;
     }
-    if (!strcmp(entry->name, "$tcp_exchange")) {
+    if (entry->dispatch == BUILTIN_TCP_EXCHANGE) {
         if (execution->embedded && !execution->network_enabled) {
             vm->error = "VM trap: TCP service is unavailable in this execution";
         } else {
@@ -652,7 +652,7 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         }
         return NULL;
     }
-    if (!strcmp(entry->name, "$http_transport_exchange")) {
+    if (entry->dispatch == BUILTIN_HTTP_TRANSPORT_EXCHANGE) {
         if (execution->embedded && !execution->network_enabled) {
             vm->error = "VM trap: HTTP transport is unavailable in this execution";
         } else {
@@ -665,7 +665,7 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         }
         return NULL;
     }
-    if (!strcmp(entry->name, "async_fake_read")) {
+    if (entry->dispatch == BUILTIN_ASYNC_FAKE_READ) {
         if (arguments[0]->kind != V_BOOL) {
             vm->error = "VM trap: fake read requires Bool";
         } else if (!execution->embedded ||
@@ -679,7 +679,7 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         }
         return NULL;
     }
-    if (!strcmp(entry->name, "process_exit") &&
+    if (entry->dispatch == BUILTIN_PROCESS_EXIT &&
         (execution->embedded || http_runtime_active(vm->http_runtime))) {
         if (arguments[0]->kind != V_NAT || !value_index(arguments[0], &execution->exit_status)) {
             vm->error = "VM trap: invalid process status";
@@ -691,11 +691,11 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
     if (!execution->embedded || entry->pure || builtin_is_local_state(entry)) {
         return entry->call(vm, entry->name, arguments);
     }
-    if (!strcmp(entry->name, "run_bytecode") || !strcmp(entry->name, "run_bytecode_args")) {
+    if (entry->dispatch == BUILTIN_RUN_BYTECODE || entry->dispatch == BUILTIN_RUN_BYTECODE_ARGS) {
         vm->error = "VM trap: nested execution is unavailable in resumable mode";
         return NULL;
     }
-    if (execution->print_wait && !strcmp(entry->name, "print")) {
+    if (execution->print_wait && entry->dispatch == BUILTIN_PRINT) {
         if (execution->print_wait(execution->host_context, arguments[0], &vm->error)) {
             execution->status = VM_WAITING;
         } else if (!vm->error) {

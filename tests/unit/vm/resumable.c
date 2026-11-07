@@ -302,8 +302,53 @@ static void request_fault_categories(void)
     release(arguments[1]);
 }
 
+static Value *dispatch_host(void *context, const char *name, Value **arguments,
+                            size_t arity, const char **error)
+{
+    (void)arguments;
+    (void)error;
+    assert(!strcmp(name, "command_args") && arity == 0);
+    (*(size_t *)context)++;
+    return value_sequence(V_ARRAY, NULL, 0);
+}
+
+static void ordinary_builtin_dispatch_preserves_host_boundary(void)
+{
+    /* Both prepared and fallback paths must keep pure work inside the VM,
+     * while forwarding ordinary effectful work to the configured host. */
+    for (size_t prepared = 0; prepared < 2; prepared++) {
+        for (size_t indirect = 0; indirect < 2; indirect++) {
+            for (size_t effectful = 0; effectful < 2; effectful++) {
+                const char *name = effectful ? "command_args" : "len";
+                Instruction code[4] = {0};
+                size_t used = 0, calls = 0;
+                if (indirect) code[used++] = (Instruction){.op = OP_CONST,
+                    .constant = {.tag = 3, .text = (char *)name, .text_length = strlen(name)}};
+                if (!effectful) code[used++] = (Instruction){.op = OP_CONST,
+                    .constant = {.tag = 3, .text = "abc", .text_length = 3}};
+                code[used++] = (Instruction){.op = indirect ? OP_CALL_VALUE : OP_CALL,
+                    .name = (char *)name, .arity = effectful ? 0 : 1};
+                code[used++] = (Instruction){.op = OP_RETURN};
+                Function fn = {.name = "main", .ins = code, .ins_count = used};
+                Program program = {.functions = &fn, .count = 1};
+                const char *error = NULL;
+                if (prepared) assert(verify(&program, &error));
+                VM vm = {.program = &program};
+                VMExecution *run = vm_execution_create(&vm, &fn, NULL, dispatch_host, &calls, &error);
+                assert(run && !error && vm_execution_advance(run, 20) == VM_COMPLETED);
+                Value *result = vm_execution_result(run);
+                assert(!vm.error && calls == effectful);
+                if (effectful) assert(result && result->kind == V_ARRAY && result->as.sequence.count == 0);
+                else expect_nat(result, 3);
+                assert(vm_execution_destroy(run));
+            }
+        }
+    }
+}
+
 void resumable_contracts(void)
 {
+    ordinary_builtin_dispatch_preserves_host_boundary();
     request_fault_categories();
     result_and_argument_lifetimes();
     direct_indirect_calls_and_interleaved_sessions();

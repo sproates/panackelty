@@ -200,6 +200,11 @@ and executor share those names. Numeric operations report through an error point
 and do not depend on VM state. The verifier and executor use one builtin registry,
 so effects, arities and implementation routing are kept together.
 
+The builtin registry also stores an internal execution classification. The
+dispatcher uses it for special host/async handling without comparing names on
+every invocation. Names, capability checks and host-callback contracts remain
+unchanged; the classification is not serialized.
+
 Verification also resolves direct CALL/AWAIT_CALL targets to borrowed builtin or
 function pointers in the decoded instructions. These links are never serialized;
 version-9 bytes and names are unchanged. They become usable only when verification

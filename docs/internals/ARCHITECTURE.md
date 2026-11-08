@@ -1942,3 +1942,10 @@ explanation/source-map path is preserved. The previous body cache remains a
 comparison/fallback during adoption. See the
 [cache contract](../COMPILER_PERSISTENT_REUSE.md) and
 [measured trial](../COMPILER_EDIT_PROFILE.md#encoded-function-cache-trial-8-november-2026).
+
+Standalone incremental compilation has an optional source-input ledger ahead of
+loading. Exact current source/toolchain content keys permit an unchanged whole
+artifact hit without parsing. Misses use normal discovery; package and rich
+tooling paths keep their existing checks. This adds private cache metadata only,
+with no VM bytecode or native capability change. See
+[the fast-path contract](../COMPILER_PERSISTENT_REUSE.md#standalone-unchanged-build-fast-path).

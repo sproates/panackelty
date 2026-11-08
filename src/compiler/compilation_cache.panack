@@ -10,6 +10,7 @@ import stdlib/bounded_filesystem as bounded
 import stdlib/path as path
 import stdlib/bytes as byte_buffer
 import stdlib/host as host
+import project/src/project_model/utf8::{valid_utf8}
 
 // Opt-in, local trusted storage: one replaceable successful compilation. Never
 // load a cache from a project, download it, or treat it as an execution result.
@@ -88,26 +89,35 @@ pure cache_within(candidate: Str, root: Str): Bool {
 }
 
 cache_key(source: LoadedProjectSources, descriptor: Bytes, compiler: Str, vm: Str): Option[Bytes] {
+  mut contents: [Bytes] = []
+  for name in source.loaded.source_paths { contents = contents.append(source.loaded.sources.get(name).encode_utf8()) }
+  cache_input_key(source.entry_path, source.context.project_root, source.context.stdlib_root,
+    descriptor, compiler, vm, source.loaded.source_paths, contents)
+}
+
+cache_input_key(entry: Str, root: Str, stdlib: Str, descriptor: Bytes, compiler: Str, vm: Str,
+  names: [Str], contents: [Bytes]): Option[Bytes] {
   match cache_file(compiler, 16777216) {
     None() => None(),
     Some(compiler_bytes) => match cache_file(vm, 16777216) {
       None() => None(),
       Some(vm_bytes) => {
         mut chunks: [Bytes] = [
-          cache_magic(), encode_text(source.entry_path),
-          encode_text(source.context.project_root), encode_text(source.context.stdlib_root),
+          cache_magic(), encode_text(entry),
+          encode_text(root), encode_text(stdlib),
           encode_text(compiler), source_map_blob(compiler_bytes),
           encode_text(vm), source_map_blob(vm_bytes), source_map_blob(descriptor)
         ]
         mut total: Nat = 0
-        for name in source.loaded.source_paths {
-          data: Bytes = source.loaded.sources.get(name).encode_utf8()
+        for index in 0..names.len() {
+          name: Str = names[index]
+          data: Bytes = contents[index]
           total = total + data.length()
           chunks = chunks.append(encode_text(name)).append(source_map_blob(data))
         }
         // These are reuse limits, matching bounded source-tooling budgets.
         // Exceeding them never rejects a program; ordinary compilation continues.
-        if total > 8388608 || source.loaded.source_paths.len() > 256 {
+        if total > 8388608 || names.len() > 256 {
           None()
         } else { cache_digest(chunks) }
       }
@@ -184,9 +194,118 @@ pub save_compilation(cache: CompilationCache, source: LoadedProjectSources, arti
         data: Bytes = cache_magic().join(cache.key).join(hash).join(artifact)
         match bounded.atomic_write(cache.file, data) {
           Error(problem) => cache_trace("not stored"),
-          Ok(done) => cache_trace("stored")
+          Ok(done) => { cache_trace("stored"); save_compilation_inputs(cache, source) }
         }
       }
     }
   } else { cache_trace("not stored: inputs changed or reuse limit exceeded") }
+}
+
+// A successful standalone closure is sufficient to recheck its content key before
+// parsing. Explicit import paths cannot change while their source bytes match.
+// Package loading retains its existing confinement/descriptor checks.
+pure input_magic(): Bytes { "PANACK-INPUTS-1\n".encode_utf8() }
+
+pure input_line_valid(text: Str): Bool {
+  mut valid = text.len() > 0
+  for index in 0..text.len() { valid = valid && text[index] != "\n" && text[index] != "\r" }
+  valid
+}
+
+pure input_lines(text: Str): [Str] {
+  mut result: [Str] = []
+  mut current: Str = ""
+  for index in 0..text.len() {
+    character = text[index]
+    if character == "\n" { result = result.append(current); current = "" }
+    else { current = current + character }
+  }
+  if current != "" { result = result.append(current) }
+  result
+}
+
+save_compilation_inputs(cache: CompilationCache, source: LoadedProjectSources): Void {
+  if !source.context.package_confined && cache.descriptor.length() == 0 {
+    mut lines: [Str] = [source.entry_path, source.context.project_root, source.context.stdlib_root, cache.compiler, cache.vm]
+    lines = lines.concat(source.loaded.source_paths)
+    mut valid = source.loaded.source_paths.len() > 0 && source.loaded.source_paths.len() <= 256
+    mut text = ""
+    for line in lines { valid = valid && input_line_valid(line); text = text + line + "\n" }
+    payload = text.encode_utf8()
+    if valid && payload.length() <= 1048576 {
+      match cache_digest([payload]) {
+        None() => {},
+        Some(hash) => match path.from_text(cache.file.to_text().value_or("") + ".inputs") {
+          Error(problem) => {},
+          Ok(file) => { written = bounded.atomic_write(file, input_magic().join(cache.key).join(hash).join(payload)) }
+        }
+      }
+    }
+  }
+}
+
+pub cached_standalone_inputs(entry: Str, root: Str, stdlib: Str): Option[Bytes] {
+  directory = environment.get("PANACKELTY_COMPILE_CACHE_DIR").value_or("")
+  compiler = environment.get("PANACKELTY_COMPILER_PATH").value_or("")
+  vm = environment.get("PANACKELTY_VM_PATH").value_or("")
+  if !paths.is_absolute(directory) || !paths.is_absolute(compiler) || !paths.is_absolute(vm) ||
+      stdlib == "" || cache_within(paths.resolve(directory), root) || cache_within(paths.resolve(directory), stdlib) {
+    None()
+  } else {
+    filename = paths.join(directory, "compilation-v1.cache")
+    match cache_file(filename + ".inputs", 1048655) {
+      None() => None(),
+      Some(data) => {
+        magic = input_magic()
+        header = magic.length() + 64
+        if data.length() <= header || byte_buffer.slice(data, 0, magic.length()) != magic { None() }
+        else {
+          payload = byte_buffer.slice(data, header, data.length())
+          if !valid_utf8(payload) || cache_digest([payload]) != Some(byte_buffer.slice(data, magic.length() + 32, header)) { None() }
+          else {
+            lines = input_lines(payload.decode_utf8())
+            if lines.len() <= 5 || lines.len() > 261 || lines[0] != entry || lines[1] != root ||
+                lines[2] != stdlib || lines[3] != compiler || lines[4] != vm { None() }
+            else {
+              mut names: [Str] = []
+              mut contents: [Bytes] = []
+              mut seen: Set[Str] = set()
+              mut valid = true
+              mut total: Nat = 0
+              for index in 5..lines.len() {
+                name = lines[index]
+                valid = valid && input_line_valid(name) && paths.is_absolute(name) && paths.resolve(name) == name &&
+                  (cache_within(name, root) || cache_within(name, stdlib)) && !seen.has(name)
+                seen = seen.add(name)
+                if valid {
+                  match cache_file(name, 8388608) {
+                    None() => { valid = false },
+                    Some(bytes) => {
+                      total = total + bytes.length()
+                      valid = total <= 8388608
+                      names = names.append(name)
+                      contents = contents.append(bytes)
+                    }
+                  }
+                }
+              }
+              valid = valid && seen.has(entry) && seen.has(paths.join(stdlib, "core.panack"))
+              if !valid { None() } else {
+                key = byte_buffer.slice(data, magic.length(), magic.length() + 32)
+                if cache_input_key(entry, root, stdlib, byte_buffer.empty(), compiler, vm, names, contents) != Some(key) { None() }
+                else { match path.from_text(filename) {
+                  Error(problem) => None(),
+                  Ok(file) => {
+                    result = cached_compilation(CompilationCache(file, key, byte_buffer.empty(), compiler, vm))
+                    if result != None() { cache_trace("source inputs hit") }
+                    result
+                  }
+                } }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }

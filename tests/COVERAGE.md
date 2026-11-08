@@ -1836,3 +1836,12 @@ reused modules must restore no checked bodies. The CLI cache harness now has
 30 groups, covering newly reachable/transitive core helpers, source edits, exact
 error diagnostics, graph reordering, corrupt-file fallback and package projects
 on the encoded route. Probe tests also retain and filter both cache trace forms.
+
+The standalone input-ledger slice adds six cache CLI groups (36 total): unchanged
+check/compile and fresh execution, content changes despite preserved timestamps,
+new imports and missing files, unrelated files and symlink replacement, corrupt
+ledger/artifact fallback, and package-loader preservation. Existing toolchain,
+root, confinement and storage controls also run with the new default. Hosted-cache
+fixtures include the ledger; probe fixtures recognise its bounded trace. Coverage
+policy adds one import exclusion and shifts existing declaration positions,
+without excluding executable functions.

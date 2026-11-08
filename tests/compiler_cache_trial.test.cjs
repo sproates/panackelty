@@ -22,6 +22,7 @@ require('node:child_process').spawnSync = (binary, args, options) => {
     const cache = options.env.PANACKELTY_COMPILE_CACHE_DIR;
     const prior = fs.readdirSync(cache).length > 0;
     fs.writeFileSync(path.join(cache, 'compilation-v1.cache'), source);
+    fs.writeFileSync(path.join(cache, 'compilation-v1.cache.inputs'), source);
     fs.writeFileSync(path.join(cache, 'module-' + 'a'.repeat(64) + '-0.cache.code'), source);
     trace = prior ? (source.includes('MODULE-3') ? 'compile cache: module hits 3' : 'compile cache: hit') : 'compile cache: module hits 0';
   } else if (options.env.PANACKELTY_COMPILE_CACHE_DIR) throw Error('Fresh build inherited cache');

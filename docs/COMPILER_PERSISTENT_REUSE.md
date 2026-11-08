@@ -31,10 +31,13 @@ modules contribute encoded functions and compact call/await facts. Changed modul
 are checked and compiled normally. Each module file is replaced atomically; only
 rechecked modules are rewritten. Different entry paths have separate module-file
 namespaces. The whole-build shortcut retains one last successful build per cache
-directory. Source discovery, parsing and package/confinement validation still
-happen on every invocation.
+directory. Standalone file commands first check the recorded successful source
+closure against current file contents and toolchain bytes. An exact match returns
+the artifact without lexing/parsing. A mismatch uses normal source discovery and
+module reuse. Package commands retain source discovery, parsing and confinement
+validation on every invocation.
 
-Signatures, guarded-type checks and global effect permissions run fresh. The
+After a whole-build miss, signatures, guarded-type checks and global effect permissions run fresh. The
 compiler combines fresh and cached function records, recomputes core-function
 reachability, sorts function names and writes the unchanged version-9 format.
 Core functions are cached before pruning, so an edit can make a previously unused
@@ -68,6 +71,34 @@ source files and 8 MiB of source, 16 MiB toolchain inputs and 16 MiB per cache
 file. Larger inputs compile normally. The body decoder bounds nesting to 512
 and checks collection/string lengths and complete consumption. Cache files can
 be discarded between compiler versions; there is no migration requirement.
+
+## Standalone unchanged-build fast path
+
+A successful standalone compile writes `compilation-v1.cache.inputs` beside its
+whole artifact. This bounded `PANACK-INPUTS-1` ledger records the entry, roots,
+toolchain paths and ordered source paths, with the compilation key and a payload
+digest. Fast lookup rereads all recorded source and toolchain bytes using bounded
+non-following reads and reconstructs the existing content key. It also checks the
+whole artifact key and digest. Modification times are never trusted.
+
+Imports resolve to explicit paths, so identical source bytes preserve the source
+closure. An import edit invalidates the key and runs discovery again; missing or
+changed dependencies cannot hit. Adding an unrelated, unimported file does not
+change the program. Symlink substitutions fail the bounded read and fall back.
+Package descriptors/confinement and rich tooling are outside this shortcut.
+
+The ledger is optional private trusted state, with at most 256 unique sources
+and 8 MiB of source bytes. Its UTF-8 payload is limited to 1 MiB; paths containing
+line breaks do not produce a ledger and keep the ordinary path. Invalid, absent
+or mismatched ledgers safely fall back. An artifact/ledger publication race also
+misses because both must agree on the content key; this does not introduce a
+snapshot guarantee against concurrent edits after input reads. Existing artifacts
+without a usable ledger may continue using the parsed whole-artifact hit until
+a successful compilation publishes a replacement.
+
+`PANACKELTY_COMPILE_INPUT_CACHE=0` disables the early lookup for controlled
+development comparisons. `run` still executes the reused artifact with current
+arguments. `compile` still refuses to overwrite its source file.
 
 ## Implementation
 

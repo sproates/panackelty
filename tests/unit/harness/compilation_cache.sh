@@ -395,3 +395,98 @@ contains "$work/stderr" 'compile cache: hit'
 printf '2\n2\n' > "$work/code-package-output"
 equal_files "$work/code-package-output" "$work/stdout"
 pass
+
+# Source closure fast hits must preserve content-based invalidation and commands.
+export PANACKELTY_COMPILE_INPUT_CACHE=1
+export PANACKELTY_COMPILE_CACHE_DIR=$work/input-cache
+mkdir -p "$work/input-cache" "$work/input-project"
+input_project=$work/input-project
+printf 'pub pure answer(): Nat { 1 }\n' > "$input_project/value.panack"
+printf 'import "value.panack" as value\nimport stdlib/host as host\nmain(): Void { print(value.answer()); print(host.arguments().len()) }\n' > "$input_project/main.panack"
+input_compile() {
+    capture 0 15 "$panack" compile --incremental "$input_project/main.panack" -o "$work/input.bc"
+}
+case_name=source-inputs-unchanged-check-compile-and-fresh-execution
+input_compile
+absent "$work/stderr" 'compile cache: source inputs hit'
+cp "$work/input.bc" "$work/input-cold.bc"
+input_compile
+contains "$work/stderr" 'compile cache: source inputs hit'
+equal_files "$work/input.bc" "$work/input-cold.bc"
+capture 0 15 "$panack" check --incremental "$input_project/main.panack"
+contains "$work/stderr" 'compile cache: source inputs hit'
+capture 0 15 "$panack" run "$input_project/main.panack" one two
+contains "$work/stderr" 'compile cache: source inputs hit'
+printf '1\n2\n' > "$work/input-expected"
+equal_files "$work/input-expected" "$work/stdout"
+capture failure 15 "$panack" compile --incremental "$input_project/main.panack" -o "$input_project/main.panack"
+contains "$work/stderr" 'bytecode output cannot overwrite the source file'
+pass
+
+case_name=source-inputs-content-not-timestamps-and-exact-fresh-output
+cp -p "$input_project/value.panack" "$work/input-time"
+printf 'pub pure answer(): Nat { 9 }\n' > "$input_project/value.panack"
+touch -r "$work/input-time" "$input_project/value.panack"
+input_compile
+absent "$work/stderr" 'compile cache: source inputs hit'
+capture 0 15 env PANACKELTY_COMPILE_CACHE_DIR= "$panack" compile "$input_project/main.panack" -o "$work/input-fresh.bc"
+equal_files "$work/input.bc" "$work/input-fresh.bc"
+input_compile
+contains "$work/stderr" 'compile cache: source inputs hit'
+pass
+
+case_name=source-inputs-added-import-and-missing-source
+cp "$input_project/main.panack" "$work/input-original"
+printf 'import "new.panack" as added\n' > "$input_project/main.panack"
+cat "$work/input-original" >> "$input_project/main.panack"
+capture failure 15 "$panack" check --incremental "$input_project/main.panack"
+absent "$work/stderr" 'compile cache: source inputs hit'
+printf 'pub pure extra(): Nat { 2 }\n' > "$input_project/new.panack"
+input_compile
+absent "$work/stderr" 'compile cache: source inputs hit'
+input_compile
+contains "$work/stderr" 'compile cache: source inputs hit'
+rm "$input_project/new.panack"
+capture failure 15 "$panack" check --incremental "$input_project/main.panack"
+absent "$work/stderr" 'compile cache: source inputs hit'
+cp "$work/input-original" "$input_project/main.panack"
+input_compile
+pass
+
+case_name=source-inputs-unreferenced-files-and-symlink-replacement
+printf 'this is not valid source\n' > "$input_project/unreferenced.panack"
+input_compile
+contains "$work/stderr" 'compile cache: source inputs hit'
+mv "$input_project/value.panack" "$work/input-value"
+ln -s "$work/input-value" "$input_project/value.panack"
+capture failure 15 "$panack" check --incremental "$input_project/main.panack"
+absent "$work/stderr" 'compile cache: source inputs hit'
+contains "$work/stderr" 'symbolic link'
+rm "$input_project/value.panack"
+mv "$work/input-value" "$input_project/value.panack"
+input_compile
+pass
+
+case_name=source-inputs-corrupt-ledger-and-artifact-fall-back
+printf 'broken\n' > "$work/input-cache/compilation-v1.cache.inputs"
+input_compile
+absent "$work/stderr" 'compile cache: source inputs hit'
+# A normal whole-artifact hit need not rewrite its missing ledger. Force a miss.
+printf 'broken\n' > "$work/input-cache/compilation-v1.cache"
+input_compile
+absent "$work/stderr" 'compile cache: source inputs hit'
+input_compile
+contains "$work/stderr" 'compile cache: source inputs hit'
+printf 'broken again\n' > "$work/input-cache/compilation-v1.cache"
+input_compile
+absent "$work/stderr" 'compile cache: source inputs hit'
+capture 0 15 env PANACKELTY_COMPILE_CACHE_DIR= "$panack" compile "$input_project/main.panack" -o "$work/input-fresh.bc"
+equal_files "$work/input.bc" "$work/input-fresh.bc"
+pass
+
+case_name=source-inputs-resolved-project-keeps-package-loader
+capture 0 15 "$panack" compile --incremental --project "$work/application/panack.json" -o "$work/input-package.bc"
+capture 0 15 "$panack" compile --incremental --project "$work/application/panack.json" -o "$work/input-package.bc"
+contains "$work/stderr" 'compile cache: hit'
+absent "$work/stderr" 'compile cache: source inputs hit'
+pass

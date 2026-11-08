@@ -1,6 +1,6 @@
 import project/src/bytecode/codec::{EncodedFunction, serialize_encoded_functions}
 import project/src/compiler/module_cache::{ModuleCache, module_cache, cached_module_bodies, save_module_bodies, cached_module_code, save_module_code}
-import project/src/compiler/compilation_cache::{CompilationCache, compilation_cache, cached_compilation, save_compilation, cache_trace}
+import project/src/compiler/compilation_cache::{CompilationCache, compilation_cache, cached_compilation, save_compilation, cache_trace, cached_standalone_inputs}
 import stdlib/bytes as byte_buffer
 import project/src/compiler/path_support as path_support
 import stdlib/environment as std_environment
@@ -181,8 +181,20 @@ run_source_command(command: Str, path: Str, output: Str, program_arguments: [Str
   if command == "disasm" {
     run_source_disassembly(path)
   } else {
-    source: LoadedProjectSources = load_project_sources(path)
-    driver_run_cached_source(command, source, path, output, program_arguments, byte_buffer.empty(), source.context.project_root, cache_enabled)
+    entry = path_support.resolve(path)
+    stdlib = match std_environment.get("PANACKELTY_STDLIB_PATH") {
+      None() => "", Some(value) => path_support.resolve(value)
+    }
+    early = if cache_enabled && std_environment.get("PANACKELTY_COMPILE_INPUT_CACHE") != Some("0") {
+      cached_standalone_inputs(entry, driver_project_root(entry), stdlib)
+    } else { None() }
+    match early {
+      Some(artifact) => driver_use_artifact(command, entry, path, output, program_arguments, artifact),
+      None() => {
+        source: LoadedProjectSources = load_project_sources(path)
+        driver_run_cached_source(command, source, path, output, program_arguments, byte_buffer.empty(), source.context.project_root, cache_enabled)
+      }
+    }
   }
 }
 
@@ -248,12 +260,17 @@ driver_run_cached_source(
   }
   match compiled {
     Error(message) => report_driver_error(message),
-    Ok(artifact) => if command == "check" {
+    Ok(artifact) => driver_use_artifact(command, source.entry_path, display_path, output, arguments, artifact)
+  }
+}
+
+driver_use_artifact(command: Str, entry_path: Str, display_path: Str, output: Str, arguments: [Str], artifact: Bytes): Nat {
+  if command == "check" {
       print("ok")
       0
     } else if command == "compile" {
       destination: Str = if output.len() > 0 { output } else { path_support.with_suffix(display_path, ".bc") }
-      if path_support.resolve(destination) == source.entry_path {
+      if path_support.resolve(destination) == entry_path {
         report_driver_error("bytecode output cannot overwrite the source file")
       } else {
         filesystem_support.write_file_bytes(destination, artifact)
@@ -264,7 +281,6 @@ driver_run_cached_source(
       std_host.run(artifact, arguments)
       0
     }
-  }
 }
 
 run_source_disassembly(path: Str): Nat {

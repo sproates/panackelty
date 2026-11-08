@@ -440,3 +440,9 @@ encoded-function cache. Ordered call/await checks and transitive permissions are
 rechecked against current signatures without restoring checked body trees. The
 rich checker remains the explanation/source-map path and differential oracle.
 See the [cache trial](../../docs/COMPILER_EDIT_PROFILE.md#encoded-function-cache-trial-8-november-2026).
+
+Standalone incremental commands can validate a successful source-input ledger
+before invoking the loader. `compilation_cache.panack` rereads bounded source and
+toolchain bytes and verifies the existing whole-artifact key; a miss returns to
+normal loading. Package confinement and rich tooling retain their current paths.
+See [persistent reuse](../../docs/COMPILER_PERSISTENT_REUSE.md#standalone-unchanged-build-fast-path).

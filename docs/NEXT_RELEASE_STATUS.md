@@ -280,3 +280,25 @@ this single sample. All eight mode/VM invocations and exact output comparisons
 pass. A source-loading reuse control is the suggested next experiment; no new
 implementation is selected. This measurement-only branch checkpoint leaves
 RM#28/GI#106 and RM#157 open and triggers no CI.
+
+## Standalone unchanged-build fast path
+
+Implemented on the development branch, not yet merged into `next`: the
+[source-input ledger](COMPILER_EDIT_PROFILE.md#standalone-source-input-fast-path-8-november-2026)
+lets unchanged standalone incremental commands verify file/toolchain contents
+before parsing. Three paired compiler runs fall from 2.480s to 0.0437s median
+(98.2% lower wall time), with exact bytecode. An observer confirms no lex/parse
+calls on a final-seed hit. Edits still use normal discovery/module reuse; package
+commands keep existing confinement checks. All 36 cache CLI groups, hosted-cache
+and policy tests, artifact comparisons and bootstrap fixed points pass; final
+local `make check` passed in 553s, with documentation checks passing. No CI or website changes. RM#28/GI#106 and RM#157
+remain open.
+
+## Reminder when optimisation work finishes
+
+Owner request, 8 November 2026: before returning to the planned language changes,
+remind the owner to write an article about doing extensive VM/compiler optimisation
+first so language development and validation are less painful and time-consuming.
+The planned topics are more effective async access to the standard library,
+anonymous functions, closures and state management. This is an article idea and
+a wrap-up reminder, not approval to publish or a final language-design contract.

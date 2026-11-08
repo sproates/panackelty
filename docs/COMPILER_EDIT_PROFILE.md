@@ -1017,3 +1017,81 @@ No full validation rerun is required for this measurement-only record. The eight
 invocations, trace accounting, exact artifact comparisons and documentation checks
 are the applicable validation. RM#28/GI#106 and RM#157 remain open. No CI or website
 change is included.
+
+## Standalone source-input fast path, 8 November 2026
+
+Built on `12c8feb`, following the profile of `cee968e`. Successful standalone
+compilation now records an optional bounded source-input ledger next to the
+whole artifact. The driver checks current source and toolchain bytes against the
+existing content key before loading/parsing. Exact hits reuse bytecode; misses
+return to normal discovery and module compilation. This shortcut is enabled
+within incremental compilation, which remains opt-in. It does not make ordinary
+compilation incremental by default.
+
+### Scope and invalidation
+
+This first slice covers ordinary file-based `check`, `compile` and cached `run`.
+Imports have explicit target paths, so an unchanged successful source closure
+preserves resolution. Changed imports, removed/changed sources, changed roots or
+toolchain bytes cause a miss. Unimported new files do not change the program.
+Bounded reads reject symlink substitutions and symlinked ancestors. Package
+commands continue their current descriptor/confinement/loading route; rich
+explanation and source-map commands do not take this shortcut. No language,
+VM bytecode, native capability or user CLI syntax changes are introduced.
+
+The optional `.inputs` file has `PANACK-INPUTS-1` framing, a compilation key and
+payload digest. It records entry/roots/toolchain paths and ordered source paths.
+Lookup enforces UTF-8, path context, unique bounded source lists, entry/core
+presence and total-byte limits, then checks the whole artifact key and digest.
+It is private trusted cache state, not an authenticated remote artifact. Invalid
+or unavailable metadata falls back; concurrent publication cannot pair unrelated
+keys. Existing cache concurrency limits remain: this is not a filesystem snapshot
+guarantee against edits after a read. See the
+[full contract](COMPILER_PERSISTENT_REUSE.md#standalone-unchanged-build-fast-path).
+
+### Measurements
+
+One candidate compiler and ordinary VM use a copied compiler source tree and one
+cache outside it. `PANACKELTY_COMPILE_INPUT_CACHE=0/1` selects the old/new lookup
+with otherwise identical inputs and files. Three alternating pairs follow cold
+population, with no concurrent build. Every artifact is byte-identical.
+
+| Pair | Parsed whole-artifact hit | Source-input hit |
+| --- | ---: | ---: |
+| 1 | 2.480247s | 0.047596s |
+| 2 | 2.461993s | 0.043670s |
+| 3 | 2.572750s | 0.042678s |
+
+Median unchanged time falls from **2.480s to 0.0437s**, a **98.2% reduction**
+(about **57 times faster**) for this workload. These are process wall times,
+including startup, bounded reads, hashing and artifact output. A cold population
+sample takes 10.733s. A comment edit correctly misses, reuses 46/49 modules and
+takes 7.468s versus 10.185s fresh; the following unchanged build takes 0.0423s.
+The comment deliberately changes source bytes without changing emitted code.
+Cold/edited samples are not paired regression or speedup claims. This improvement
+is specifically for unchanged standalone builds, not compilation after edits.
+
+Measurements preceded the final default-selection and UTF-8 guard; they explicitly
+selected each route. A separate final-seed observer run confirms a warm hit makes
+zero `lex_file`/`parse_module_complete` calls and matches its cold artifact.
+
+### Validation
+
+All 36 cache CLI groups pass, including six new groups for early-hit behaviour,
+fresh program execution/arguments, source-overwrite rejection, edits preserving
+timestamps, changed imports, missing files, unrelated files, symlink substitution,
+corrupt ledger/artifact fallback and package-loader preservation. Four hosted-cache
+regression tests and ten coverage-policy tests pass. The hosted cache envelope
+allows the optional ledger; probe trace filtering recognises its exact hit message.
+The production-parser inventory matches the previous policy before the changes;
+the new policy has 509 declaration/import exclusions, with no executable exclusions
+or scope expansion. Native artifact compatibility and bootstrap fixed points pass.
+Standard-library bytes remain
+`823a5f93fe2886a44b680cb09c1d634bdf6aa8fc0f5cdff57510cfe743eb8a0d`; compiler seed is
+`155ebaee96dbe77e9f7f48309b5de424a767735efeefbbd3c0d2ef21dedcfefe`.
+Final local `make check` passed in 553s: unit 346s and bootstrap 73s in parallel,
+functional 137s, release smoke 9s and quick start 1s. Documentation checks pass.
+
+This is a development-branch checkpoint, not completion of RM#28/GI#106 or
+RM#157. It does not change the website, trigger CI or merge into `next`. Reusing
+parsed inputs after edits remains a separate experiment.

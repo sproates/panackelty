@@ -866,6 +866,19 @@ implementation, with cheaper equally strict record validation as an alternative.
 This measurement-only checkpoint changes no product code and does not complete
 RM#28/GI#106 or RM#157.
 
+
+### Standalone unchanged-build fast path, 8 November 2026
+
+The [source-input ledger](../../COMPILER_EDIT_PROFILE.md#standalone-source-input-fast-path-8-november-2026)
+avoids parsing before an exact standalone whole-artifact hit. It rereads bounded
+source/toolchain bytes and checks the existing content key; edits fall back to
+discovery. Package confinement/loading stays unchanged. Three paired unchanged
+compiler runs measure 2.480s versus 0.0437s median (98.2% lower wall time), with
+exact artifacts. Final-seed observation confirms zero lexer/parser calls. All
+36 cache CLI groups, hosted/policy tests, artifacts and bootstrap pass; final
+`make check` passed in 553s, with documentation checks passing. This is a local branch checkpoint, not completion of
+RM#28/GI#106 or RM#157, and triggers no CI or website change.
+
 ### Incremental command direction, 7 November 2026
 
 The owner expects an ordinary one-shot command such as

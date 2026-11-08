@@ -103,12 +103,16 @@ pub record ModuleBindings {
   validation: Option[ModuleBindingValidation]
 }
 
+pub enum ModuleBodyAvailability { CompleteModuleBodies, SummaryModuleBodies }
+
 pub record LoadedModule {
   source_path: Str,
   parsed: ParsedModule,
   execution_program: Program,
   bindings: ModuleBindings,
-  declaration_index: Map[Str, TopLevel]
+  declaration_index: Map[Str, TopLevel],
+  body_availability: ModuleBodyAvailability,
+  uses_validation: Bool
 }
 
 pub pure loaded_module_declaration_index(parsed: ParsedModule): Map[Str,TopLevel] {

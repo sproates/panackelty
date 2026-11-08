@@ -490,3 +490,73 @@ capture 0 15 "$panack" compile --incremental --project "$work/application/panack
 contains "$work/stderr" 'compile cache: hit'
 absent "$work/stderr" 'compile cache: source inputs hit'
 pass
+
+export PANACKELTY_COMPILE_SUMMARY_CACHE=1
+export PANACKELTY_COMPILE_CACHE_DIR=$work/summary-cache
+mkdir -p "$work/summary-cache" "$work/summary-project"
+summary_project=$work/summary-project
+printf 'pub pure answer(): Nat { 1 }\n' > "$summary_project/value.panack"
+printf 'pub pure extra(): Nat { 2 }\n' > "$summary_project/extra.panack"
+printf 'import "value.panack" as value\nimport "extra.panack" as extra\nmain(): Void { print(value.answer()); print(extra.extra()) }\n' > "$summary_project/main.panack"
+summary_compare() {
+    capture 0 15 "$panack" compile --incremental "$summary_project/main.panack" -o "$work/summary.bc"
+    contains "$work/stderr" "compile cache: source summary hits $1"
+    capture 0 15 env PANACKELTY_COMPILE_CACHE_DIR= "$panack" compile "$summary_project/main.panack" -o "$work/summary-fresh.bc"
+    equal_files "$work/summary.bc" "$work/summary-fresh.bc"
+}
+case_name=source-summaries-edit-reuses-declarations
+summary_compare 0
+printf '\n// edit entry\n' >> "$summary_project/main.panack"
+summary_compare 3
+pass
+
+case_name=source-summaries-dependency-change-restores-consumer-bodies
+printf 'pub pure answer(): Nat { 9 }\n' > "$summary_project/value.panack"
+summary_compare 3
+capture 0 15 "$root/panack-vm" run "$work/summary.bc"
+printf '9\n2\n' > "$work/summary-expected"
+equal_files "$work/summary-expected" "$work/stdout"
+pass
+
+case_name=source-summaries-missing-compiled-records-restore-all-bodies
+rm "$work/summary-cache"/module-*.cache.code
+printf '\n// missing compiled cache\n' >> "$summary_project/main.panack"
+summary_compare 3
+capture 0 15 "$root/panack-vm" run "$work/summary.bc"
+equal_files "$work/summary-expected" "$work/stdout"
+pass
+
+case_name=source-summaries-corrupt-metadata-falls-back
+for file in "$work/summary-cache"/summary-*.cache; do printf 'broken\n' > "$file"; done
+printf '\n// corrupt summary cache\n' >> "$summary_project/main.panack"
+summary_compare 0
+pass
+
+case_name=source-summaries-exact-negative-diagnostics
+printf 'pub pure answer(): Nat { print(9); 9 }\n' > "$summary_project/value.panack"
+capture failure 15 "$panack" check --incremental "$summary_project/main.panack"
+sed '/^compile cache: /d' "$work/stderr" > "$work/summary-error"
+capture failure 15 env PANACKELTY_COMPILE_CACHE_DIR= PANACKELTY_COMPILE_CACHE_TRACE= "$panack" check "$summary_project/main.panack"
+equal_files "$work/summary-error" "$work/stderr"
+printf 'pub pure answer(): Nat { 9 }\n' > "$summary_project/value.panack"
+printf '\n// recover after error\n' >> "$summary_project/main.panack"
+summary_compare 3
+pass
+
+case_name=source-summaries-global-declaration-change-restores-code
+printf 'pub type Number = Nat where value => value >= 0\npub pure answer(): Number { 8 }\n' > "$summary_project/value.panack"
+summary_compare 3
+pass
+
+case_name=source-summaries-preserve-implicit-validation-dependency
+mkdir -p "$work/summary-domain"
+cp -R "$root/tests/functional/cases/domain_constraints/." "$work/summary-domain/"
+summary_project=$work/summary-domain
+capture 0 15 "$panack" compile --incremental "$summary_project/main.panack" -o "$work/summary.bc"
+printf '\n// domain edit\n' >> "$summary_project/external.panack"
+capture 0 15 "$panack" compile --incremental "$summary_project/main.panack" -o "$work/summary.bc"
+contains "$work/stderr" 'compile cache: source summary hits '
+absent "$work/stderr" 'compile cache: source summary hits 0'
+capture 0 15 env PANACKELTY_COMPILE_CACHE_DIR= "$panack" compile "$summary_project/main.panack" -o "$work/summary-fresh.bc"
+equal_files "$work/summary.bc" "$work/summary-fresh.bc"
+pass

@@ -1,3 +1,5 @@
+import project/tests/runner/compiler_suites/module_summaries::{module_summary_tests}
+import project/src/compiler/module_bindings::{ModuleBodyAvailability.CompleteModuleBodies}
 import project/tests/runner/compiler_suites/code_cache::{code_cache_tests}
 import project/tests/runner/compiler_suites/body_cache::{body_cache_tests}
 import project/tests/runner/compiler_suites/module_reuse::{module_reuse_tests}
@@ -257,7 +259,7 @@ pure namespace_origin_tests(): [TestResult] {
         Error(error) => { results = results.append(std_testing.expect("origin source parses", false, error.message)) },
         Ok(parsed) => {
           bindings: ModuleBindings = collect_module_bindings(ModuleIdentity(StandaloneModulePackage(), source.path), parsed)
-          modules = modules.append(LoadedModule(source.path, parsed, parsed.program, bindings, loaded_module_declaration_index(parsed)))
+          modules = modules.append(LoadedModule(source.path, parsed, parsed.program, bindings, loaded_module_declaration_index(parsed), CompleteModuleBodies(), false))
         }
       }
     }
@@ -298,6 +300,7 @@ pub run_suite(): Void {
   results = results.concat(module_reuse_tests())
   results = results.concat(body_cache_tests())
   results = results.concat(code_cache_tests())
+  results = results.concat(module_summary_tests())
   results = results.concat(namespace_syntax_tests())
   results = results.concat(namespace_binding_tests())
   results = results.concat(namespace_execution_boundary_tests())
@@ -935,7 +938,7 @@ pure signature_test_module(identity: ModuleIdentity, source: Str): LoadedModule 
     Ok(value) => value,
     Error(error) => ParsedModule(indexed_program([]), [], [])
   }
-  LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed))
+  LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed), CompleteModuleBodies(), false)
 }
 pure signature_test_error(source: Str): Str {
   module: LoadedModule = signature_test_module(namespace_identity("signature.panack"), source)
@@ -1128,7 +1131,7 @@ pure body_test_identity_mode(source: Str, identity: ModuleIdentity, retain_guard
   match namespace_parse(source) {
     Error(error) => CheckedModuleBodies([], [error]),
     Ok(parsed) => {
-      module: LoadedModule = LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed))
+      module: LoadedModule = LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed), CompleteModuleBodies(), false)
       core: LoadedModule = signature_test_module(builtin_owner_module(), "enum Option[T] { Some(T), None }; enum Result[T,E] { Ok(T), Error(E) }; impl Str { pub pure ends_with(suffix: Str): Bool { true } }; impl[T] [T] { pub pure first(): Option[T] { None() }; pub pure sort_by(less: PureFn[T,T,Bool]): [T] { self } }")
       graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, module.bindings], [])
       core_signatures: CheckedModuleSignatures = check_module_signatures(graph, [core, module], core)
@@ -1208,7 +1211,7 @@ pure body_test_effects_mode(source: Str, retain: Bool, facts: Bool): CheckedModu
     Error(error) => CheckedModuleEffects([error], [], map()),
     Ok(parsed) => {
       identity: ModuleIdentity = namespace_identity("body.panack")
-      module: LoadedModule = LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed))
+      module: LoadedModule = LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed), CompleteModuleBodies(), false)
       core: LoadedModule = signature_test_module(builtin_owner_module(), "enum Option[T] { Some(T), None }; enum Result[T,E] { Ok(T), Error(E) }; impl Str { pub pure ends_with(suffix: Str): Bool { true } }; impl[T] [T] { pub pure first(): Option[T] { None() }; pub pure sort_by(less: PureFn[T,T,Bool]): [T] { self } }")
       graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, module.bindings], [])
       own_signatures: CheckedModuleSignatures = check_module_signatures(graph, [core, module], module)

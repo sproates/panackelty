@@ -1845,3 +1845,15 @@ root, confinement and storage controls also run with the new default. Hosted-cac
 fixtures include the ledger; probe fixtures recognise its bounded trace. Coverage
 policy adds one import exclusion and shifts existing declaration positions,
 without excluding executable functions.
+
+Declaration-summary reuse adds 122 assertions (1,954 in the module suite) and seven
+CLI groups (43 total). Seven whole-program fixtures compare summary round trips,
+loader diagnostics, source closure, explicit missing-body rejection, exact complete
+restoration, partial compiled-code reuse, fresh bytecode and rich-tooling restoration.
+CLI cases cover edits, transitive consumers, absent compiled records, corrupt
+summaries, exact negative diagnostics, global declarations and the implicit validation
+import from an unchanged source. The hosted-cache fixture accepts summary files;
+probe tests filter the new trace. The source manifest now includes
+`module_summaries.panack` (52 eligible files). Production-parser inventory reviewed
+530 import/type/record/enum exclusions against the prior 509; no executable functions
+are excluded and this is not a new coverage collection.

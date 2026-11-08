@@ -1095,3 +1095,171 @@ functional 137s, release smoke 9s and quick start 1s. Documentation checks pass.
 This is a development-branch checkpoint, not completion of RM#28/GI#106 or
 RM#157. It does not change the website, trigger CI or merge into `next`. Reusing
 parsed inputs after edits remains a separate experiment.
+
+## Parsed-module reuse controls, 8 November 2026
+
+Baseline: PR #691 merge `f827c488f551a7831649d964e1dfc80bb3a2d05c`. Its
+[integration run](https://github.com/sproates/panackelty/actions/runs/42498471810)
+passed. The owner selected the next experiment: avoid parsing unchanged modules
+after an edit. This investigation changes no production compiler or VM code.
+
+### Isolated method
+
+An experimental codec extends the existing pooled-string, bounded generated body
+codec schema to all parser Expr/Statement/Block/TopLevel variants, declaration
+syntax, import bindings and owned-method metadata. Program indexes are rebuilt
+with `indexed_program` after decoding declarations, rather than independently
+persisting maps. It retains complete source spans and explicit type-argument spans.
+The support reader keeps its existing length/depth bounds and complete-consumption
+check. This is experiment code, not a delivered cache format.
+
+A harness loads the 49-module compiler closure once and prepares encoded values
+in memory. It then runs three alternating pairs (parse/decode, decode/parse,
+parse/decode). Parsing starts from existing source text, and decoding starts from
+existing bytes. Startup, source loading, disk reads, cache-key checks, initial
+encoding and equality checks are outside the paired timings. Every result must
+exactly equal the expected ParsedModule, including indexes and metadata. Encoding
+time and aggregate encoded size are reported separately. Ordinary VM and the
+current seed are used; no diagnostic VM or concurrent build runs.
+
+### Full parsed trees
+
+| Pair | Lex/parse | Decode full parsed modules |
+| --- | ---: | ---: |
+| 1 | 2.681383s | 2.191796s |
+| 2 | 2.728338s | 2.554830s |
+| 3 | 2.609190s | 2.206979s |
+
+Full-tree encoding takes 2.702177s and produces 5,399,144 bytes. Median decoding
+is 2.206979s versus 2.681383s parsing: a 0.474404s saving (17.7%) before cache
+I/O/key costs. Every one of the six results matches all 49 original modules.
+This is a real but modest potential saving with substantial extra representation.
+It does not establish a complete edited-build improvement or a memory saving.
+
+### Declaration-summary control
+
+A second control keeps all declarations, guards, imports, declaration/type spans
+and method metadata, but substitutes empty blocks for function bodies. It rebuilds
+program indexes. This deliberately incomplete tree is only a measurement model,
+never a valid general substitute for parsed source. The comparison parser also
+applies the same projection before checking equality.
+
+| Pair | Lex/parse then project | Decode declaration summaries |
+| --- | ---: | ---: |
+| 1 | 2.648955s | 0.187353s |
+| 2 | 2.655638s | 0.207023s |
+| 3 | 2.625565s | 0.195237s |
+
+Encoding takes 0.223868s and produces 484,945 bytes. Median decoding is 0.195237s
+versus 2.648955s parsing/projecting, a 2.453718s difference (92.6%). All six results
+exactly match the projected modules. This is an isolated phase opportunity, not
+an achieved compiler speedup: edited files, cache reads/keys, binding, signature
+and effect checks, fallback and artifact assembly are not measured here. No
+process-memory comparison is claimed while the harness retains both versions.
+
+### Recommended next slice
+
+Do not immediately add a full AST disk cache. Trial a distinct module-summary
+representation paired with the existing encoded-function cache. Read and validate
+current source bytes, traverse imports/confinement and bind declarations normally.
+Only omit function parsing when matching successful compiled functions/effect
+facts are available under the current conservative keys. If source, metadata,
+compiled records or their validation cannot support reuse, obtain the complete
+parsed module before body checking. Package and rich-tooling paths can retain
+their existing route in the initial slice.
+
+Production code must not disguise an unavailable function body as an empty one.
+Use an explicit summary/full-module distinction, and test invalidation, missing
+code entries, corrupted summaries, changed dependencies, exact diagnostics and
+fresh artifact equality. The implementation earns adoption through complete
+edited-build measurements, not these isolated timings. This narrower candidate
+has more potential than full-tree restoration but needs that integration proof.
+
+Validation here consists of compiling the isolated harness, twelve exact
+49-module comparisons and documentation checks. No product changes, seed refresh,
+full validation rerun, CI trigger or website update is included. The experiment
+is complete; RM#28/GI#106 and RM#157 remain open.
+
+## Module-summary integration, 8 November 2026
+
+The follow-up implements declaration-summary reuse for standalone incremental
+compilation. Summary-only modules have an explicit body-availability tag and are
+rejected by body checking until their complete source is restored. Summaries retain
+loader diagnostics, guards, positions, method metadata and implicit validation
+imports. Exact source/toolchain bytes guard reuse. Compiled-record misses restore
+full parsing; unsuccessful preparation restarts full discovery. Package and rich
+commands keep their established path. Bytecode version 9 is unchanged.
+
+### Complete-build comparison
+
+One ordinary candidate compiler builds the same copied 50-module source tree with
+summary reuse disabled/enabled in separate private caches. Each edit changes the
+emitted module-cache marker; three pairs alternate order, each followed by fresh
+compilation. All paired artifacts exactly match fresh output. The enabled path
+reuses 49 summaries and 47 compiled modules, checking the changed module and its
+consumers. This measures full commands, including input reads, validation, decoding,
+restoration and publication, rather than only the parsing phase.
+
+| Pair | Without summaries | With summaries | Fresh |
+| --- | ---: | ---: | ---: |
+| 1 | 8.143662s | 6.157031s | 12.648690s |
+| 2 | 7.811602s | 5.607838s | 12.135427s |
+| 3 | 7.911084s | 5.604245s | 11.219752s |
+| Median | 7.911084s | 5.607838s | 12.135427s |
+
+The median edited command is 29.1% faster than the same compiler without summary
+reuse, and 53.8% faster than fresh compilation here. Earlier implementation pairs
+showed a 27.1% saving; the final pass includes preserved loader diagnostics and
+full discovery on fallback. Source-layout cleanup after measurement changes no
+execution logic. These are local workload observations, not additive speedups or
+release-wide guarantees. No memory reduction is claimed.
+
+Cold observations are 13.196669s without summaries and 15.089370s with them: a
+1.893s (14.3%) first-build cost in this pair. Unchanged whole-artifact hits remain
+about 0.05s (0.051124s / 0.053944s). Fifty summary files total 545,189 bytes in
+addition to existing compiled records. The earlier cold pair was 12.418s / 12.591s;
+there is variation, so the first-build overhead needs to remain visible rather
+than being described as free.
+
+Disposition: adopt within the existing opt-in incremental mode for repeated-edit
+workloads, where the median edit saves 2.303s. Ordinary fresh compilation is
+unaffected, and the development comparison switch can disable summaries. The
+compiler maintainer owns this trade-off under RM#157; retain cold observations in
+subsequent workload measurements. This does not set a new performance budget or
+complete RM#28/GI#106 or RM#157.
+
+### Correctness and acceptance
+
+All 1,954 module-suite assertions and 43 CLI cache groups pass. Regression cases
+cover explicit missing-body rejection, summary round trips/framing, exact loader
+messages, complete/partial restoration, missing compiled records, corrupt summaries,
+changed dependencies/declarations, exact negative diagnostics and implicit validation
+imports. All 17 hosted-cache/manifest/policy tests pass. The production-parser
+inventory reviews 530 declaration exclusions across 52 eligible files against the
+prior 509; no executable function is excluded.
+
+Native artifact compatibility and compiler/stdlib bootstrap fixed points pass.
+The compiler seed is `33d3f152a79d780b6bdb327a3b86216fdcb5e5565a26ca683fb3e15dbb2f3a4a`;
+the stdlib artifact stays `823a5f93fe2886a44b680cb09c1d634bdf6aa8fc0f5cdff57510cfe743eb8a0d`.
+Final `make check` passed in 570 seconds, including unit, functional, bootstrap,
+packaging, relocated release smoke and quick-start checks. Documentation checks
+also pass. No CI or website update is triggered.
+
+The first broad run passed units but exposed three embedded namespace fixtures
+still using the old LoadedModule constructor; those test-only call sites were
+corrected, and namespace acceptance passes. A subsequent run passed bootstrap but
+the unchanged native test binary aborted in `zero_grace_contract`, at
+`tests/unit/vm/tcp_server.c:259` (`tcp_server_done(server)` after one poll).
+The macOS crash stack and assertion call-site identify this independently of the
+compiler. The same native contracts passed in the first broad run and a direct
+rerun. This is evidence of an intermittent native test failure, not a demonstrated
+root cause. No TCP code or assertions are changed in this slice. The compiler
+maintainer retains this evidence for investigation if it recurs; further direct
+repeats and the final validation outcome are recorded below.
+
+Three further direct native-test repeats passed, followed by the complete passing
+570-second run on unchanged product code. The intermittent TCP failure remains
+recorded; these passes do not establish its original cause. The exact diff was
+self-reviewed, including summary invalidation, fallback discovery, decoder bounds,
+implicit dependencies and the distinction between complete and unavailable bodies.
+This completes the local slice; integration is not part of this checkpoint.

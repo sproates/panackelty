@@ -100,6 +100,38 @@ a successful compilation publishes a replacement.
 development comparisons. `run` still executes the reused artifact with current
 arguments. `compile` still refuses to overwrite its source file.
 
+## Standalone declaration-summary reuse
+
+After an edited-build miss, the previous successful input ledger supplies candidate
+source paths. Each summary is tied to the exact current source bytes, source path
+and compiler/VM bytes. The loader still reads sources, checks paths and symlinks,
+traverses imports and binds declarations. An unchanged module can supply its parsed
+declarations without lexing and parsing its function bodies again.
+
+The summary preserves guards, declaration/type positions, method metadata, loader
+diagnostics and the implicit validation-library dependency. Program indexes are
+rebuilt. Loaded modules explicitly distinguish complete bodies from summary-only
+bodies; the body checker rejects the latter. Before checking a module without a
+reusable compiled record, the loader parses its complete source and compares its
+declarations with the summary. Dependency and global-declaration invalidation
+continue to use the existing conservative keys. Signatures and effects remain fresh.
+
+Missing, malformed or mismatched summaries are ordinary misses. If the compiled
+route cannot complete, discovery restarts with complete source, so cached metadata
+cannot determine fallback diagnostics. Package and rich-tooling commands retain
+full loading; the lower-level rich checking entry point also restores any partial
+modules supplied by a caller. This is private trusted cache state, with bounded
+decoding and digests, not an interchange format.
+
+Summary files use a source-path digest in their name. They are written atomically
+only after successful compilation and a current-source comparison, alongside
+compiled records. Existing input, toolchain and file-size bounds apply. The manual
+hosted-cache envelope recognises these files; automatic CI caching stays disabled.
+No bytecode format or native API changes. Set
+`PANACKELTY_COMPILE_SUMMARY_CACHE=0` for development comparisons; normal
+non-incremental compilation is unaffected. See the
+[complete-build measurements](COMPILER_EDIT_PROFILE.md#module-summary-integration-8-november-2026).
+
 ## Implementation
 
 `module_cache.panack` owns input keys and disk I/O. `body_cache_codec.panack`
@@ -208,3 +240,9 @@ about coverage percentages.
 The subsequent [edited-build profile](COMPILER_EDIT_PROFILE.md) separates cache
 decoding, signature checking and remaining frontend/emission work. It also
 records why automatic CI adoption was not enabled on the current next-push path.
+
+The summary slice passes 1,954 focused assertions, 43 CLI cache groups, artifact
+compatibility, bootstrap fixed points and final `make check` (570s). Median edited
+self-builds measure 7.91s without summaries / 5.61s with them; a cold pair costs
+13.20s / 15.09s. Full measurements and the recorded intermittent native TCP-test
+failure are in the [trial record](COMPILER_EDIT_PROFILE.md#module-summary-integration-8-november-2026).

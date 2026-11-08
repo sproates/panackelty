@@ -309,3 +309,44 @@ pub cached_standalone_inputs(entry: Str, root: Str, stdlib: Str): Option[Bytes] 
     }
   }
 }
+
+// The previous successful closure is only a list of candidates. Each summary is
+// separately bound to current source/toolchain bytes before the loader sees it.
+pub standalone_source_paths(entry: Str, root: Str, stdlib: Str): [Str] {
+  directory = environment.get("PANACKELTY_COMPILE_CACHE_DIR").value_or("")
+  compiler = environment.get("PANACKELTY_COMPILER_PATH").value_or("")
+  vm = environment.get("PANACKELTY_VM_PATH").value_or("")
+  if !paths.is_absolute(directory) || stdlib == "" || cache_within(paths.resolve(directory), root) ||
+      cache_within(paths.resolve(directory), stdlib) { [] } else {
+    match cache_file(paths.join(directory, "compilation-v1.cache.inputs"), 1048655) {
+      None() => [],
+      Some(data) => {
+        magic = input_magic()
+        header = magic.length() + 64
+        if data.length() <= header || byte_buffer.slice(data, 0, magic.length()) != magic { [] }
+        else {
+          payload = byte_buffer.slice(data, header, data.length())
+          if !valid_utf8(payload) || cache_digest([payload]) != Some(byte_buffer.slice(data, magic.length() + 32, header)) { [] }
+          else {
+            lines = input_lines(payload.decode_utf8())
+            if lines.len() <= 5 || lines.len() > 261 || lines[0] != entry || lines[1] != root ||
+                lines[2] != stdlib || lines[3] != compiler || lines[4] != vm { [] }
+            else {
+              mut names: [Str] = []
+              mut seen: Set[Str] = set()
+              mut valid = true
+              for index in 5..lines.len() {
+                name = lines[index]
+                valid = valid && input_line_valid(name) && paths.is_absolute(name) && paths.resolve(name) == name &&
+                  (cache_within(name, root) || cache_within(name, stdlib)) && !seen.has(name)
+                seen = seen.add(name)
+                names = names.append(name)
+              }
+              if valid && seen.has(entry) && seen.has(paths.join(stdlib, "core.panack")) { names } else { [] }
+            }
+          }
+        }
+      }
+    }
+  }
+}

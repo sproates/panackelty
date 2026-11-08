@@ -1,3 +1,4 @@
+import project/src/compiler/module_bindings::{ModuleBodyAvailability.CompleteModuleBodies}
 import project/src/compiler/path_support as path_support
 import stdlib/testing as std_testing
 import project/src/compiler/source_inventory::{InventoryItem, inventory_module, serialize_source_inventory, serialize_source_inventory_checked, source_inventory_limit_error, inventory_arguments}
@@ -29,7 +30,7 @@ pure chain_inventory_decisions(source: Str): Str {
         identity: ModuleIdentity = source_module_identity("chain", "", "")
         module: LoadedModule = LoadedModule(
           "chain", parsed, parsed.program, collect_module_bindings(identity, parsed),
-          loaded_module_declaration_index(parsed)
+          loaded_module_declaration_index(parsed), CompleteModuleBodies(), false
         )
         mut output: Str = ""
         for item in inventory_module(module) {
@@ -99,7 +100,7 @@ pub run_suite(): Void {
       Error(error) => { results = results.append(std_testing.expect("literal parse", false, "parse failed")); },
       Ok(parsed) => {
         identity: ModuleIdentity = source_module_identity("fixture", "", "")
-        module: LoadedModule = LoadedModule("fixture", parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed))
+        module: LoadedModule = LoadedModule("fixture", parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed), CompleteModuleBodies(), false)
         items: [InventoryItem] = inventory_module(module)
         results = results.append(std_testing.equal_str("literal complete inventory", inventory_summary(items, source),
           "declaration/0|function|sample|pure sample(flag: Bool): Void { if flag {}; }\ndeclaration/0/statement/0|statement|expression|if flag {}\ndeclaration/0/statement/0/value|expression|attempt|if flag {}\ndeclaration/0/statement/0/value/decision|decision|if|flag\ndeclaration/0/statement/0/value/decision/true|outcome|true|flag\ndeclaration/0/statement/0/value/decision/false|outcome|false|flag\ndeclaration/0/statement/0/value/condition|expression|attempt|flag\n"))

@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Review the UTF-8 import and shifted cache/driver record declarations in the source-input fast path.",
+    "reason": "Review module-summary imports, metadata records and shifted declaration positions.",
     "basis": "Computed with the production parser and inventory_module over every eligible source. Only imports, type refinements, records and enums are excluded; executable functions remain eligible.",
-    "scopeChange": "Eligible files and corpus are unchanged. One import exclusion is added and existing declaration positions shift; no executable functions are excluded."
+    "scopeChange": "Adds module_summaries.panack to eligible source; the existing executable corpus remains unchanged. Only imports, type refinements, records and enums are excluded; no executable functions are excluded."
   },
-  "manifestHash": "3e92b1881d541fc7ddacd4e6988079fc1160da863237c8b2926e65b11f8a7c6e",
-  "exclusionHash": "5a0f9895a92aabc13ad23d7ce66bc4694438571e01f3278376bd8558fe42bc91"
+  "manifestHash": "1eaf4a60e1fd992b00472c01ce7f7c511e648664d14fb6d95f48f881fa3e639e",
+  "exclusionHash": "98640697c26308e0b9df8b089af6bf96f531faa1dcb78538914082035281322a"
 }

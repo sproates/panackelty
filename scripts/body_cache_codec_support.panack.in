@@ -182,3 +182,38 @@ pub pure decode_module_code(data: Bytes): Option[CachedModuleCode] {
     else { None() }
   }
 }
+
+pub pure encode_module_summary(bodies: ModuleSummary): Bytes {
+  pool = collect_ModuleSummary(CachePool(map(), [], map(), []), bodies)
+  mut chunks: [Bytes] = ["PANACK-SUMMARY-1\n".encode_utf8(), encode_u32(pool.texts.len())]
+  for text in pool.texts { chunks = chunks.append(encode_text(text)) }
+  chunks = chunks.append(encode_u32(pool.types.len()))
+  for type in pool.types {
+    chunks = chunks.append(encode_SignatureTypeIdentity(pool, type.identity))
+      .append(encode_Array_SignatureType(pool, type.arguments))
+  }
+  chunks = chunks.append(encode_ModuleSummary(pool, bodies))
+  source_map_join(chunks, 0, chunks.len())
+}
+
+pub pure decode_module_summary(data: Bytes): Option[ModuleSummary] {
+  magic = "PANACK-SUMMARY-1\n".encode_utf8()
+  if data.length() < magic.length() || byte_buffer.slice(data, 0, magic.length()) != magic { None() }
+  else {
+    count = read_count(CacheReader(data, magic.length(), true, 0, [], [], 0))
+    mut reader: CacheReader = count.reader
+    mut texts: [Str] = []
+    if count.value > 1000000 || count.value > data.length() { reader = failed(reader) }
+    mut index: Nat = 0
+    while reader.valid && index < count.value {
+      text = decode_raw_string(reader)
+      reader = text.reader
+      texts = texts.append(text.value)
+      index = index + 1
+    }
+    table = read_type_table(CacheReader(data, reader.offset, reader.valid, 0, texts, [], 0))
+    result = decode_ModuleSummary(table)
+    if result.reader.valid && result.reader.offset == data.length() { Some(result.value) }
+    else { None() }
+  }
+}

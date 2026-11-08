@@ -1,0 +1,70 @@
+import project/src/compiler/loader::{LoadedProjectSources, load_project_sources, load_project_sources_summarised, check_project_sources, check_project_sources_code, restore_module_bodies, CachedModuleCode}
+import project/src/compiler/module_summaries::{SourceSummary, summarise_module}
+import project/src/compiler/module_bindings::{ModuleBodyAvailability.SummaryModuleBodies, ModuleBodyAvailability.CompleteModuleBodies}
+import project/src/compiler/body_cache_codec::{encode_module_summary, decode_module_summary}
+import project/src/compiler/emitter::{compile_program}
+import project/src/bytecode/codec::{EncodedFunction, serialize_bytecode, serialize_encoded_functions}
+import stdlib/bytes as byte_buffer
+import stdlib/testing as testing
+pub import stdlib/testing::{TestResult}
+
+pub module_summary_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  for fixture in ["collections", "records_and_enums", "callables", "async_await", "domain_constraints", "owned_core_methods", "string_boundaries"] {
+    entry = "tests/functional/cases/" + fixture + "/main.panack"
+    source = load_project_sources(entry)
+    fresh = check_project_sources(source)
+    cold = check_project_sources_code(source, [])
+    expected = serialize_bytecode(compile_program(fresh.program))
+    mut summaries: [SourceSummary] = []
+    for module in source.loaded.modules {
+      summary = summarise_module(module)
+      payload = encode_module_summary(summary)
+      results = results.append(testing.expect("module summary preserves declarations and metadata",
+        decode_module_summary(payload) == Some(summary), fixture))
+      length = payload.length()
+      if length > 0 {
+        results = results.append(testing.expect("truncated summary rejected",
+          decode_module_summary(byte_buffer.slice(payload, 0, length - 1)) == None(), fixture))
+      }
+      results = results.append(testing.expect("summary trailing bytes rejected",
+        decode_module_summary(payload.push(255)) == None(), fixture))
+      summaries = summaries.append(SourceSummary(module.source_path, source.loaded.sources.get(module.source_path), summary))
+    }
+    partial = load_project_sources_summarised(entry, summaries)
+    results = results.append(testing.expect("summaries preserve source closure and loader diagnostics",
+      partial.loaded.source_paths == source.loaded.source_paths && partial.loaded.diagnostics == source.loaded.diagnostics, fixture))
+    mut marked = partial.loaded.modules.len() == source.loaded.modules.len()
+    for module in partial.loaded.modules { marked = marked && module.body_availability == SummaryModuleBodies() }
+    results = results.append(testing.expect("summary modules explicitly lack bodies", marked, fixture))
+    rejected = check_project_sources(partial)
+    results = results.append(testing.expect("body checking rejects unparsed summaries",
+      rejected.diagnostics.len() > 0 && !rejected.identity_ready, fixture))
+    complete = restore_module_bodies(partial, [])
+    results = results.append(testing.expect("missing code restores the exact full modules",
+      complete == source, fixture))
+    for missing in [false, true] {
+      mut code: [CachedModuleCode] = []
+      for index in 0..cold.code.len() {
+        if !missing || index > 0 { code = code.append(cold.code[index]) }
+      }
+      restored = restore_module_bodies(partial, code)
+      checked = check_project_sources_code(restored, code)
+      mut functions: [EncodedFunction] = []
+      for module in checked.code { functions = functions.concat(module.functions) }
+      results = results.append(testing.expect("summary plus compiled code matches fresh output and diagnostics",
+        checked.checked.snapshot.project.diagnostics == fresh.diagnostics && serialize_encoded_functions(functions) == expected, fixture))
+      results = results.append(testing.expect("only missing compiled modules are rechecked",
+        checked.checked.rechecked.len() == if missing { 1 } else { 0 }, fixture))
+    }
+    rich = LoadedProjectSources(partial.loaded, partial.context, partial.entry_path, true, partial.require_main)
+    original_rich = LoadedProjectSources(source.loaded, source.context, source.entry_path, true, source.require_main)
+    checked_rich = check_project_sources_code(rich, cold.code)
+    results = results.append(testing.expect("rich checking restores full bodies",
+      checked_rich.code.len() == 0 && checked_rich.checked.snapshot.project == check_project_sources(original_rich), fixture))
+  }
+  for payload in [byte_buffer.empty(), "PANACK-CODE-1\n".encode_utf8()] {
+    results = results.append(testing.expect("summary framing is distinct", decode_module_summary(payload) == None(), "invalid framing"))
+  }
+  results
+}

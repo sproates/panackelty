@@ -103,7 +103,7 @@ import project/src/compiler/expression_contracts::{split_interpolated_string, In
 import project/src/compiler/checker::{type_shape, TypeShape}
 import project/src/compiler/module_signatures::{signature_effect, SignatureEffect, SignatureEffect.SignaturePure}
 import project/src/compiler/purity::{check_program_purity}
-import project/src/compiler/module_bindings::{LoadedModule, collect_module_bindings, loaded_module_declaration_index, ModuleIdentity, ModulePackageIdentity.ToolchainModulePackage, ModulePackageIdentity.StandaloneModulePackage}
+import project/src/compiler/module_bindings::{LoadedModule, ModuleBodyAvailability.CompleteModuleBodies, collect_module_bindings, loaded_module_declaration_index, ModuleIdentity, ModulePackageIdentity.ToolchainModulePackage, ModulePackageIdentity.StandaloneModulePackage}
 import project/src/compiler/module_resolution::{binding_graph_module, ModuleBindings, ModuleBindingGraph, ModuleImportEdge}
 import project/src/compiler/module_signatures::{check_module_signatures}
 
@@ -119,7 +119,7 @@ pure namespace_core_module(fallback: LoadedModule, include_paths: Bool): LoadedM
       Error(error) => fallback,
       Ok(parsed) => {
         identity: ModuleIdentity = ModuleIdentity(ToolchainModulePackage(), "core.panack")
-        LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed))
+        LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed), CompleteModuleBodies(), false)
       }
     }
   }
@@ -136,7 +136,7 @@ pure body_check_result_at(source: Str, identity: ModuleIdentity): BodyAndEffects
       Error(error) => BodyAndEffects(CheckedModuleBodies([], [error]), CheckedModuleEffects([], [], map())),
       Ok(parsed) => {
         bindings: ModuleBindings = collect_module_bindings(identity, parsed)
-        module: LoadedModule = LoadedModule(identity.path, parsed, parsed.program, bindings, loaded_module_declaration_index(parsed))
+        module: LoadedModule = LoadedModule(identity.path, parsed, parsed.program, bindings, loaded_module_declaration_index(parsed), CompleteModuleBodies(), false)
         core: LoadedModule = namespace_core_module(module, true)
         graph: ModuleBindingGraph = ModuleBindingGraph([bindings, core.bindings], [ModuleImportEdge(identity, 0, core.bindings.identity)])
         core_signatures = check_module_signatures(graph, [module, core], core)
@@ -173,7 +173,7 @@ pure namespace_loaded_module(source: Str, module_path: Str): Option[LoadedModule
       Ok(parsed) => {
         identity: ModuleIdentity = ModuleIdentity(StandaloneModulePackage(), module_path)
         bindings: ModuleBindings = collect_module_bindings(identity, parsed)
-        Some(LoadedModule(module_path, parsed, parsed.program, bindings, loaded_module_declaration_index(parsed)))
+        Some(LoadedModule(module_path, parsed, parsed.program, bindings, loaded_module_declaration_index(parsed), CompleteModuleBodies(), false))
       }
     }
   }

@@ -313,3 +313,32 @@ validated batch; hosted integration checks start on merge, with development/PR
 CI suppressed under the alpha.16 workflow trial. Earlier “not yet merged” notes
 above describe the individual local checkpoints. No release or website publication
 is included. The development branch is retained for further experiments.
+
+## Integration outcome and parsed-reuse experiment
+
+[PR #691](https://github.com/sproates/panackelty/pull/691) merged the validated
+compiler-reuse batch into `next`; [integration CI](https://github.com/sproates/panackelty/actions/runs/42498471810) passed.
+The subsequent [parsed-module controls](COMPILER_EDIT_PROFILE.md#parsed-module-reuse-controls-8-november-2026)
+are measurement-only: full syntax decoding saves about 0.47s of a 2.68s parsing
+phase, while declaration-summary decoding takes 0.195s versus 2.649s parsing.
+All twelve 49-module comparisons pass. These are isolated timings, not a delivered
+edited-build saving. The recommended next slice is explicit module-summary reuse
+paired with validated compiled functions, with full parsing on any reuse miss.
+No new production cache, CI or website change is included.
+
+## Module-summary implementation checkpoint
+
+The [summary-reuse slice](COMPILER_EDIT_PROFILE.md#module-summary-integration-8-november-2026)
+is complete locally on the experiment branch. Median edited self-builds fall from
+7.91s to 5.61s (29.1%) with exact fresh bytecode; unchanged hits stay around 0.05s.
+The cold comparison is 13.20s / 15.09s and is recorded as a first-build trade-off.
+All 1,954 focused assertions, 43 CLI cache groups and 17 hosted/policy tests pass.
+Native artifacts and bootstrap fixed points pass; final `make check` passed in
+570s, including functional, packaging and installed smoke checks. Documentation
+checks pass. The profile retains an intermittent existing TCP-test failure that
+passed direct repeats and the final run; its cause is not claimed resolved.
+The owner selected integration into `next` on 8 November. This integration includes
+the validated summary-reuse slice; hosted integration acceptance remains pending.
+Development/PR CI is suppressed under the alpha.16 trial, and the merge starts
+integration CI. The experiment branch is retained. This does not complete
+RM#28/GI#106 or RM#157; no release or website publication is included.

@@ -456,3 +456,32 @@ effect-facts, encoded-function reuse and standalone input-ledger batch into `nex
 The final product tree passed local `make check` in 553s. Development/PR CI remains
 suppressed; hosted checks start on integration. This does not close RM#28/GI#106
 or RM#157. Earlier branch-only notes record the individual checkpoints.
+
+### Parsed-module reuse controls, 8 November 2026
+
+PR #691 merged the encoded-function/source-input batch; integration run
+[42498471810](https://github.com/sproates/panackelty/actions/runs/42498471810) passed.
+The [next isolated controls](../../COMPILER_EDIT_PROFILE.md#parsed-module-reuse-controls-8-november-2026)
+show full-tree decoding at 2.207s versus 2.681s lex/parse, but declaration summaries
+at 0.195s versus 2.649s. Twelve exact 49-module comparisons pass. No product code
+changes or end-to-end speedup are claimed. A distinct summary representation
+paired with valid compiled functions is recommended, with complete parsing on a
+miss and fresh diagnostic/artifact comparisons before adoption. RM#28/GI#106 and
+RM#157 remain open.
+
+### Module-summary implementation, 8 November 2026
+
+The [summary-reuse slice](../../COMPILER_EDIT_PROFILE.md#module-summary-integration-8-november-2026)
+is complete locally on the experiment branch. Median edited self-builds fall from
+7.91s to 5.61s (29.1%) with exact fresh bytecode; unchanged hits stay around 0.05s.
+The cold comparison is 13.20s / 15.09s and is recorded as a first-build trade-off.
+All 1,954 focused assertions, 43 CLI cache groups and 17 hosted/policy tests pass.
+Native artifacts and bootstrap fixed points pass; final `make check` passed in
+570s, including functional, packaging and installed smoke checks. Documentation
+checks pass. The profile retains an intermittent existing TCP-test failure that
+passed direct repeats and the final run; its cause is not claimed resolved.
+The owner selected integration into `next` on 8 November. This integration includes
+the validated summary-reuse slice; hosted integration acceptance remains pending.
+Development/PR CI is suppressed under the alpha.16 trial, and the merge starts
+integration CI. The experiment branch is retained. This does not complete
+RM#28/GI#106 or RM#157; no release or website publication is included.

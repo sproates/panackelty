@@ -446,3 +446,11 @@ before invoking the loader. `compilation_cache.panack` rereads bounded source an
 toolchain bytes and verifies the existing whole-artifact key; a miss returns to
 normal loading. Package confinement and rich tooling retain their current paths.
 See [persistent reuse](../../docs/COMPILER_PERSISTENT_REUSE.md#standalone-unchanged-build-fast-path).
+
+After a standalone input-key miss, `module_summaries.panack` supplies declaration
+projections for exact unchanged sources. `module_cache.panack` validates and stores
+their private bounded encoding. The loader marks missing bodies explicitly, retains
+loader diagnostics and implicit validation imports, and restores complete parsing
+before checking any module without reusable compiled code. Error fallback restarts
+full discovery. Package and rich-tooling entry points keep full loading. See the
+[summary contract](../../docs/COMPILER_PERSISTENT_REUSE.md#standalone-declaration-summary-reuse).

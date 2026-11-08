@@ -189,3 +189,13 @@ improved by 19.5%, retaining 46/49 module hits and matching bytecode. The candid
 passes exact diagnostic and native-artifact comparisons, three-stage bootstrap
 fixed points and final `make check` (611s). This completes the bounded optimisation,
 not RM#157/GI#106. The experiment branch is retained.
+
+## Post-optimisation profile
+
+Completed: [five paired measurements and a phase profile](COMPILER_EDIT_PROFILE.md#post-optimisation-profile-8-november-2026)
+show fresh/edited self-builds effectively level (10.713s/10.827s medians), with
+substantial timing variation. Unchanged reuse takes 2.834s. Decoding saved bodies
+is the largest edited cost at 4.494s; checking changed bodies takes 0.146s.
+The recommended next trial is cheaper checked-body decoding, preserving formats
+and rejection checks. No implementation has started. This measurement-only
+follow-up changes no compiler or cache behaviour and does not complete RM#157/GI#106.

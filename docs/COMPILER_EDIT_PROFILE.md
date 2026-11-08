@@ -348,3 +348,77 @@ bootstrap 77s in parallel), including functional, packaging and release-smoke
 checks. This duration is acceptance evidence, not a matched suite-speed comparison.
 The bounded optimisation is included in this integration.
 No website change is needed; RM#157/GI#106 remain open.
+
+## Post-optimisation profile, 8 November 2026
+
+Baseline: merged `a4c15a313a3bcb2c5ac643aded541be54e51e66e` (PR #686).
+The compiler, normal VM and cache formats are unchanged. A separate observer VM
+was built from the existing watchdog hook, selecting coarse phase boundaries.
+The copied 49-module source workspace, compiler identity and source edits were
+the same for fresh and incremental execution. Each VM used its own cache outside
+the source root. Cache directories were created explicitly; each edited run
+required 46 module hits. No other builds were launched concurrently.
+
+Normal-VM timings alternated execution order. The first three pairs included a
+large variation, so two additional pairs were collected rather than declaring
+incremental compilation slower from the initial results:
+
+| Pair | Edited incremental | Fresh | Order |
+| --- | ---: | ---: | --- |
+| 1 | 10.827s | 10.277s | Edited, fresh |
+| 2 | 10.793s | 10.209s | Fresh, edited |
+| 3 | 12.922s | 16.691s | Edited, fresh |
+| 4 | 10.893s | 10.967s | Fresh, edited |
+| 5 | 10.797s | 10.713s | Edited, fresh |
+
+Medians are 10.827s incremental and 10.713s fresh, about 1.1% apart. Three pairs
+favoured fresh work and two favoured reuse. This workload shows no clear edited
+speed advantage after the compiler optimisations; it does not establish a
+universal cache regression. The cause of timing variation was not determined.
+One cold incremental build took 15.165s; an unchanged complete-artifact hit took
+2.834s. Every fresh/edited pair matched byte for byte, as did cold/unchanged and
+normal/observer outputs for corresponding inputs.
+
+The observer ran cold, unchanged, edited and fresh modes once each. Its edited
+invocation took 11.033s. Balanced enter/return events were checked and selected
+nested timings subtracted, so categories below do not double-count:
+
+| Edited-build phase | Observed time | Calls |
+| --- | ---: | ---: |
+| Decode saved checked bodies | 4.494s | 46 |
+| Lex source | 1.670s | 49 |
+| Check effects | 0.940s | 50 |
+| Parse source | 0.780s | 49 |
+| Lower, emit and serialize bytecode | 1.383s | one of each |
+| Check signatures | 0.486s | 49 |
+| Encode changed bodies | 0.166s | 3 |
+| Check changed bodies | 0.146s | 3 |
+| Construct/revalidate module keys | 0.140s | 2 |
+| Cached-body loading outside decoding | 0.026s | 1 |
+
+Remaining time includes driver, loading, cache handling and process overhead.
+These are instrumented phase observations, not exact uninstrumented costs.
+The fresh observer invocation also varied upward (15.909s, including 8.273s
+checking bodies), so it must not be presented as a matched speedup estimate.
+Cold observed encoding took 5.176s. Unchanged execution spent 2.455s lexing/parsing
+before its complete-artifact hit. Decoding's 4.494s wall time closely matched
+4.489s process CPU time; it is computation, not primarily waiting for disk I/O.
+
+**Next recommendation:** a bounded checked-body decoder trial. Profile its reader
+and record reconstruction costs, then reduce intermediate work while retaining
+malformed-input rejection, bounds/depth checks, large-Nat handling and fresh-output
+equivalence. Keep the current cache and bytecode formats. Adopt only a measured
+end-to-end improvement on the ordinary VM; a reduction in call count alone is
+insufficient. The earlier SourcePos specialisation remains in place, so this is
+further investigation, not a proposal to repeat that change.
+
+This outranks function-level reuse: changed-body checking costs only 0.146s here.
+Lex/parse avoidance is a useful later candidate, especially for unchanged builds,
+but requires a separate source-validation/reuse contract. Signature checking is
+no longer a leading cost. No compiler change, default-policy change or new cache
+is selected by this report; existing incremental behaviour remains available.
+
+All 16 compiler invocations succeeded with the required artifact and cache-hit
+comparisons. This measurement-only delivery requires documentation/link checks,
+not a compiler rebuild or full validation run. It completes the reassessment,
+not RM#157/GI#106, and has no website impact.

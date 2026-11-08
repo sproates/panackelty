@@ -803,6 +803,11 @@ Focused tests, diagnostic comparisons, bootstrap fixed points and final
 `make check` (611s) passed; the bounded change is included in this integration.
 This is a bounded optimisation, not completion of RM#28/GI#106.
 
+The [post-optimisation profile](../../COMPILER_EDIT_PROFILE.md#post-optimisation-profile-8-november-2026)
+now finds fresh and edited self-builds effectively level, while unchanged reuse
+still saves work. Saved-body decoding is the next measured candidate; no further
+implementation or cache-policy change is included in the reassessment.
+
 ### Incremental command direction, 7 November 2026
 
 The owner expects an ordinary one-shot command such as

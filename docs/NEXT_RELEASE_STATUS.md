@@ -199,3 +199,14 @@ is the largest edited cost at 4.494s; checking changed bodies takes 0.146s.
 The recommended next trial is cheaper checked-body decoding, preserving formats
 and rejection checks. No implementation has started. This measurement-only
 follow-up changes no compiler or cache behaviour and does not complete RM#157/GI#106.
+
+## Checked-body decoder follow-up
+
+Included in this integration: combined span reconstruction and balanced body-node tag
+selection improve three paired edited builds by median 3.4% (10.620s to 10.260s),
+with matching fresh outputs and 46/49 module reuse. Cache/bytecode formats are
+unchanged; 1,471 focused assertions, native artifacts, bootstrap checks and final
+`make check` (560s) passed. This completes the bounded batch, not RM#157/GI#106.
+The [trial record](COMPILER_EDIT_PROFILE.md#span-and-body-node-decoder-trial-8-november-2026)
+also captures the larger representation/reconstruction question raised by the
+owner. No architectural redesign is selected or implemented.

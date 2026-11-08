@@ -808,6 +808,13 @@ now finds fresh and edited self-builds effectively level, while unchanged reuse
 still saves work. Saved-body decoding is the next measured candidate; no further
 implementation or cache-policy change is included in the reassessment.
 
+The [span/tag decoder trial](../../COMPILER_EDIT_PROFILE.md#span-and-body-node-decoder-trial-8-november-2026)
+shows a further modest 3.4% median edited-build saving, with matching fresh
+outputs. Focused, artifact, bootstrap and final `make check` (560s) passed;
+the bounded change is included in this integration.
+The larger retained-representation question remains an assessment candidate,
+not an approved redesign.
+
 ### Incremental command direction, 7 November 2026
 
 The owner expects an ordinary one-shot command such as

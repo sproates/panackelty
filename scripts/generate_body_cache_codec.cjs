@@ -105,6 +105,27 @@ function emit(type) {
     }
     decoder = 'tag = read_count(reader)\n  ' + decoders.join(' ') +
       ` else { CacheRead(failed(tag.reader), ${fallback(type)}) }`;
+    // Body nodes are frequent; validate the tag once, then select its payload
+    // with a balanced tree instead of testing every preceding variant.
+    if (type === 'BodyNode') {
+      const leaves = decoders.map(branch => branch.slice(branch.indexOf('{') + 1, branch.lastIndexOf('}')).trim());
+      function dispatch(start, end) {
+        if (end - start === 1) return leaves[start];
+        const middle = Math.floor((start + end) / 2);
+        return `if tag.value < ${middle} {
+      ${dispatch(start, middle)}
+    } else {
+      ${dispatch(middle, end)}
+    }`;
+      }
+      decoder = `tag = read_count(reader)
+  if !tag.reader.valid || tag.value >= ${leaves.length} {
+    CacheRead(failed(tag.reader), ${fallback(type)})
+  } else {
+    ${dispatch(0, leaves.length)}
+  }`;
+    }
+
   }
   // Recursive typed structures are bounded even for deliberately malformed input.
   if (['BoundBody', 'SignatureType', 'Expr'].includes(type)) {
@@ -138,6 +159,35 @@ pure decode_${name}_nested(reader: CacheReader): CacheRead[${declared}] {
 }
 
 pure decode_SourcePos_general(reader: CacheReader): CacheRead[SourcePos] {
+  ` + decoder;
+  }
+  // A span is two ordinary fixed-width positions. Reconstruct both with one
+  // reader/result pair; retain the general path for large coordinates or errors.
+  if (type === 'SourceSpan') {
+    if (JSON.stringify(records.SourceSpan) !== JSON.stringify([['start','SourcePos'],['end','SourcePos']]) ||
+        JSON.stringify(records.SourcePos) !== JSON.stringify([['file','Str'],['offset','Nat'],['line','Nat'],['column','Nat']])) {
+      throw Error('Review the fixed-width SourceSpan decoder after changing its schema');
+    }
+    decoder = `if reader.valid && reader.offset + 32 <= reader.data.length() {
+    start_file = word_at(reader.data, reader.offset)
+    start_offset = word_at(reader.data, reader.offset + 4)
+    start_line = word_at(reader.data, reader.offset + 8)
+    start_column = word_at(reader.data, reader.offset + 12)
+    end_file = word_at(reader.data, reader.offset + 16)
+    end_offset = word_at(reader.data, reader.offset + 20)
+    end_line = word_at(reader.data, reader.offset + 24)
+    end_column = word_at(reader.data, reader.offset + 28)
+    if start_file < reader.texts.len() && end_file < reader.texts.len() &&
+        start_offset < 4294967295 && start_line < 4294967295 && start_column < 4294967295 &&
+        end_offset < 4294967295 && end_line < 4294967295 && end_column < 4294967295 {
+      CacheRead(CacheReader(reader.data, reader.offset + 32, true, reader.depth, reader.texts),
+        SourceSpan(SourcePos(reader.texts[start_file], start_offset, start_line, start_column),
+          SourcePos(reader.texts[end_file], end_offset, end_line, end_column)))
+    } else { decode_SourceSpan_general(reader) }
+  } else { decode_SourceSpan_general(reader) }
+}
+
+pure decode_SourceSpan_general(reader: CacheReader): CacheRead[SourceSpan] {
   ` + decoder;
   }
   const encoder = encodeBody(type);

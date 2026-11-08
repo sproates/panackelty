@@ -1001,6 +1001,26 @@ pure namespace_signature_tests(): [TestResult] {
   reexports: ModuleBindingGraph = ModuleBindingGraph([left.bindings, facade.bindings, use.bindings], [ModuleImportEdge(facade.bindings.identity, 0, left.bindings.identity), ModuleImportEdge(use.bindings.identity, 0, facade.bindings.identity)])
   results = results.append(std_testing.expect("selective transitive reexport retains nominal identity", signature_test_type(reexports, [left, facade, use], DeclarationIdentity(use.bindings.identity, "f"), [], "api.Reexported[Nat]", true) == a, "reexport changed identity"))
   results = results.append(std_testing.expect("reexport generic arity checked at origin", signature_type(reexports, [left, facade, use], DeclarationIdentity(use.bindings.identity, "f"), [], "api.Reexported", true, true) == Error("api.Reexported has incorrect type argument count"), "arity not checked"))
+  for selectors in ["Item as Visible, fetch as load", "fetch as load, Item as Visible"] {
+    routes = signature_test_module(namespace_identity("routes"),
+      "import project/right as other; pub import project/left::{" + selectors +
+      "}; pub record Local { value: Nat }; pub pure use(value: Visible[Nat]): Local { 0 }; pub pure leak(): other.Item[Nat] { 0 }")
+    route_graph = ModuleBindingGraph([left.bindings, right.bindings, routes.bindings],
+      [ModuleImportEdge(routes.bindings.identity, 0, right.bindings.identity),
+       ModuleImportEdge(routes.bindings.identity, 1, left.bindings.identity)])
+    route_result = check_module_signatures(route_graph, [left, right, routes], routes)
+    results = results.append(std_testing.equal_nat("public routes preserve later private-type rejection/" + selectors,
+      route_result.diagnostics.len(), 1))
+    results = results.append(std_testing.equal_nat("local and selectively exported types remain accepted/" + selectors,
+      route_result.declarations.len(), 2))
+    results = results.append(std_testing.expect("selective route retains original type identity/" + selectors,
+      signature_public_identity(route_graph, routes.bindings.identity, DeclarationIdentity(left.bindings.identity, "Item"), []),
+      "public route missing"))
+    if route_result.diagnostics.len() == 1 {
+      results = results.append(std_testing.equal_str("later private-type diagnostic is unchanged/" + selectors,
+        route_result.diagnostics[0].message, "signature leak.return: public signature exposes inaccessible type other.Item from right"))
+    }
+  }
   core: LoadedModule = signature_test_module(ModuleIdentity(ToolchainModulePackage(), "core.panack"), "pub enum Option[T] { Some(T), None }; pub enum Result[T,E] { Ok(T), Error(E) }")
   core_use: LoadedModule = signature_test_module(namespace_identity("core_use"), "import stdlib/core::{Option as Maybe, Result as Outcome}; pub pure f(): Maybe[Nat] { 0 }")
   core_graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, core_use.bindings], [ModuleImportEdge(core_use.bindings.identity, 0, core.bindings.identity)])

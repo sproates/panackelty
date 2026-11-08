@@ -1791,3 +1791,11 @@ including Unicode file names. Truncated words and invalid file dictionary
 indexes are rejected. Existing nested-body, malformed-cache and fresh/cached
 bytecode comparisons remain in place. These tests do not expand the measured
 coverage corpus or exclude executable code.
+
+### Public signature reachability
+
+The module-binding suite adds eight assertions across both selective-export
+orders. They accept a local public type and the original selectively exported
+nominal identity, while retaining the later private-type diagnostic exactly.
+Existing unused private re-export, cycle, missing-edge and source-position tests
+continue to verify graph validation independently of the reachability search.

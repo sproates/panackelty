@@ -97,7 +97,9 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
 - `module_signatures.panack` resolves staged declaration signatures to tagged core,
   nominal, binder-position parameter and callable-effect identities. Original-ID
   public reachability validates nested fields/payloads/parameters/returns and
-  guard dependencies; generic substitution cannot capture another declaration's
+  guard dependencies. Public reachability stops resolving further re-export
+  routes once one route is proved; full graph validation still diagnoses invalid
+  imports independently. Generic substitution cannot capture another declaration's
   parameters. `LoadedProject.module_signatures` retains the valid contracts for
   body/effect/emission/tooling migration. The loader
   prepares contracts across the graph before binding function bodies;

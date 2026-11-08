@@ -115,7 +115,33 @@ Panackelty sources in the repository and selected standard library. Cached
 bytecode has a checked digest; failed compilation and inputs changed during
 compilation are never published. Every invocation executes the probe and its
 assertions. Instrumented VMs have separate keys and build directories. `make clean`
-removes all cached bytecode.
+removes the complete probe artifacts. The optional development compiler cache
+is described below.
+
+### Development compiler cache
+
+`make compiler` uses `tests/run_probe.sh --incremental --compile` to produce
+`build/compiler/candidate.bc`. Complete-artifact hits still skip compilation.
+On a miss, the selected seed and VM enable checked-module reuse with their exact
+identities. Ordinary probes do not opt in, even when a cache directory is present
+in the environment. Test execution remains fresh.
+
+Module payloads live outside the source tree under
+`$XDG_CACHE_HOME/panackelty/compiler-probes`, or
+`$HOME/.cache/panackelty/compiler-probes`. `PANACKELTY_COMPILE_CACHE_DIR` can
+select another parent directory; a checkout/entry-specific subdirectory prevents
+unrelated candidates from replacing each other's cache. An unavailable or invalid
+cache falls back to ordinary compilation. Set `PANACKELTY_COMPILE_CACHE_TRACE=1`
+to inspect compiler cache decisions on artifact misses; other compiler diagnostics
+are not suppressed. `make clean` removes build outputs and complete artifacts,
+but leaves this disposable external module cache. Delete its parent to clear it.
+
+`make compiler-fresh` bypasses both caches and writes the same candidate path.
+It is useful for a byte-for-byte comparison after an edit. Neither target changes
+bootstrap proof or CI behaviour.
+
+### Probe execution and shared suites
+
 Nine heavy compiler suites keep their standalone `tests/runner/compiler_*_unit.panack`
 entry points, with unchanged assertions in `tests/runner/compiler_suites/`.
 Make prepares `compiler_shared_unit.panack` once, then uses the existing worker

@@ -152,3 +152,48 @@ the standard-library artifact is unchanged. Final `make check` passed in 617s
 (unit 388s, bootstrap 136s in parallel), including functional and release smoke
 checks. This is an acceptance observation, not a matched suite-speed comparison. No website update is needed for this internal optimisation, and this
 does not complete RM#28/GI#106 or RM#157.
+
+## Local development workflow, 8 November 2026
+
+The owner selected adoption in routine local candidate builds. `make compiler`
+now uses the existing complete-artifact probe cache first, then enables checked
+module reuse on a miss. It writes `build/compiler/candidate.bc`;
+`make compiler-fresh` produces the same candidate without either cache.
+The contributor and development guides select this as the ordinary edit/build
+workflow. It does not replace the installed compiler or checked-in seed.
+
+This is deliberately bounded: existing normal probes, full validation, bootstrap
+proofs and hosted jobs retain their commands. No automatic CI cache adoption or
+change to the public CLI default is included. Module caches use the existing
+compiler identity and safety rules, live outside source trees, and are separated
+by checkout and entry point. Cache creation failure falls back to fresh checking.
+Requested trace output is visible; unrelated compiler diagnostics still fail.
+
+### Workflow measurements
+
+A copied source tree used the actual new Make targets with the existing VM
+(`make -o native` excluded rebuilding that copied executable). Three real edits
+changed `module_magic`, alternating fresh/incremental order. Each edited build
+reused 46/49 modules and matched the fresh candidate byte for byte.
+
+| Pair | Incremental candidate build | Fresh candidate build |
+| --- | ---: | ---: |
+| 1 | 14.191s | 15.907s |
+| 2 | 13.814s | 15.860s |
+| 3 | 13.638s | 15.847s |
+
+Median edited build: 13.814s versus 15.860s fresh, a 12.9% saving for this
+workload. The single unchanged observation was 0.136s: this preserves the
+existing complete-artifact fast path, rather than claiming a new unchanged-build
+speedup. The initial cold observation took 21.031s, reflecting cache population
+overhead. These local observations are not whole-suite or hosted speedups.
+
+The final checkout's `make compiler` also succeeded, matched the unchanged
+bootstrap seed byte for byte, and checked the Euler example using the candidate.
+The probe harness passes its existing cases and five new groups covering
+opt-in behaviour, artifact hits, edits, cache-directory fallback, trace handling,
+default cache location and fresh bootstrap command routing. Policy checks pass.
+Final `make check` passed in 567s (unit 370s, bootstrap 122s in parallel),
+including functional, packaging and release smoke checks. This is validation
+evidence, not a matched whole-suite performance comparison. No compiler/VM source, bootstrap artifact,
+bytecode format or website claim changes; RM#28/GI#106 and RM#157 remain open.

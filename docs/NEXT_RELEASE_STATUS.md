@@ -146,3 +146,14 @@ compilation; focused tests, bootstrap fixed points and final `make check` (617s)
 passed. The bounded decoder improvement is included in this integration; it
 does not complete RM#157 or GI#106. The previous product integration passed in
 [run 42423346639](https://github.com/sproates/panackelty/actions/runs/42423346639).
+
+## Local compiler workflow adoption
+
+Included in this integration: a routine `make compiler` candidate build keeps the existing
+whole-artifact probe cache and uses incremental module reuse after source edits.
+An explicit `make compiler-fresh` comparison bypasses both caches. Bootstrap and
+CI entry points stay unchanged. Focused checks pass. Real edited builds reuse 46/49 modules and match fresh
+bytecode: median 13.81s versus 15.86s fresh; unchanged artifact reuse takes 0.14s.
+The final checkout candidate matches the seed and checks a real example. Final
+`make check` passed in 567s. This completes the local workflow slice, not the
+broader RM#157/GI#106 work.

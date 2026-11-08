@@ -15,6 +15,15 @@ cat > "$checkout/vm" <<'VM'
 #!/bin/sh
 set -eu
 if [ "$1" = check ]; then printf 'ok\n'; exit; fi
+if [ "${3:-}" = --local-compile-cache ]; then
+    printf '%s\n' "$PANACKELTY_COMPILER_PATH" "$PANACKELTY_VM_PATH" "$PANACKELTY_COMPILE_CACHE_DIR" > reuse
+    compiler=$2
+    shift 3
+    set -- run "$compiler" "$@"
+    if [ "${PANACKELTY_COMPILE_CACHE_TRACE:-}" = 1 ]; then printf 'compile cache: module hits 2\n' >&2; fi
+    if [ -f not-stored ]; then printf 'compile cache: not stored\ncompile cache: not stored: inputs changed or reuse limit exceeded\n' >&2; fi
+    if [ -f unexpected-diagnostic ]; then printf 'unexpected diagnostic\n' >&2; fi
+fi
 if [ "${3:-}" = compile ]; then
     printf 'compile\n' >> calls
     cp "$4" "$6"
@@ -205,6 +214,79 @@ case_name=probe-cache-missing-input-is-not-reused
 rm bootstrap/compiler-v9.bc
 if probe 2> errors; then fail 'missing compiler seed was accepted'; fi
 count 21
+pass
+
+case_name=probe-incremental-miss-and-complete-artifact-hit
+printf 'seed\n' > bootstrap/compiler-v9.bc
+printf 'incremental input\n' > tests/incremental.panack
+PANACKELTY_COMPILE_CACHE_DIR="$work/module cache"
+PANACKELTY_COMPILE_CACHE_TRACE=1
+export PANACKELTY_COMPILE_CACHE_DIR PANACKELTY_COMPILE_CACHE_TRACE
+sh tests/run_probe.sh --incremental --compile tests/incremental.panack candidate.bc > actual 2> trace
+contains trace 'compile cache: module hits 2'
+contains reuse "$(pwd -P)/bootstrap/compiler-v9.bc"
+contains reuse "$(pwd -P)/vm"
+contains reuse "$work/module cache/"
+test -d "$(sed -n '3p' reuse)" || fail 'module cache directory missing'
+equal_files tests/incremental.panack candidate.bc
+cp calls before-calls
+rm reuse
+sh tests/run_probe.sh --incremental --compile tests/incremental.panack candidate.bc > actual 2> trace
+equal_files before-calls calls
+test ! -e reuse || fail 'complete artifact hit invoked the compiler'
+test ! -s trace || fail 'complete artifact hit emitted compiler trace'
+pass
+
+case_name=probe-incremental-edits-and-fresh-default
+printf 'edited\n' >> tests/incremental.panack
+sh tests/run_probe.sh --incremental --compile tests/incremental.panack candidate.bc > actual 2> trace
+test -e reuse || fail 'edited source did not invoke incremental compilation'
+equal_files tests/incremental.panack candidate.bc
+rm reuse
+printf 'edited again\n' >> tests/incremental.panack
+sh tests/run_probe.sh --compile tests/incremental.panack candidate.bc > actual 2> trace
+test ! -e reuse || fail 'ordinary probe unexpectedly enabled module reuse'
+equal_files tests/incremental.panack candidate.bc
+pass
+
+case_name=probe-incremental-unavailable-cache-and-unexpected-diagnostics
+printf 'not a directory\n' > blocked-parent
+PANACKELTY_COMPILE_CACHE_DIR="$checkout/blocked-parent"
+printf 'changed\n' >> tests/incremental.panack
+touch not-stored
+sh tests/run_probe.sh --incremental --compile tests/incremental.panack candidate.bc > actual 2> trace
+rm not-stored
+contains trace 'compile cache: not stored'
+test -z "$(sed -n '3p' reuse)" || fail 'unavailable cache did not fall back'
+equal_files tests/incremental.panack candidate.bc
+printf 'changed again\n' >> tests/incremental.panack
+touch unexpected-diagnostic
+if sh tests/run_probe.sh --incremental --compile tests/incremental.panack candidate.bc > actual 2> trace; then
+    fail 'unexpected compiler diagnostic was ignored'
+fi
+contains trace 'unexpected diagnostic'
+rm unexpected-diagnostic
+unset PANACKELTY_COMPILE_CACHE_DIR PANACKELTY_COMPILE_CACHE_TRACE
+pass
+
+case_name=probe-incremental-default-cache-location
+printf 'default cache\n' >> tests/incremental.panack
+XDG_CACHE_HOME="$work/user cache" sh tests/run_probe.sh --incremental --compile tests/incremental.panack candidate.bc > actual 2> trace
+contains reuse "$work/user cache/panackelty/compiler-probes/"
+test -d "$(sed -n '3p' reuse)" || fail 'default cache was not created'
+equal_files tests/incremental.panack candidate.bc
+pass
+
+case_name=development-compiler-targets-leave-bootstrap-fresh
+make -s -n -C "$root" compiler > development-plan
+contains development-plan '--incremental --compile src/compiler/main.panack'
+contains development-plan 'build/compiler/candidate.bc'
+make -s -n -C "$root" compiler-fresh > fresh-plan
+absent fresh-plan '--incremental'
+absent fresh-plan '--local-compile-cache'
+make -s -n -C "$root" bootstrap > bootstrap-plan
+absent bootstrap-plan '--incremental'
+absent bootstrap-plan '--local-compile-cache'
 pass
 
 case_name=parallel-probes-preserve-order-streams-and-failures

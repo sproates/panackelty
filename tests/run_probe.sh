@@ -1,6 +1,11 @@
 #!/bin/sh
 # Cache compilation, never test results. Each invocation executes the probe.
 set -eu
+incremental=false
+if [ "${1:-}" = --incremental ]; then
+    incremental=true
+    shift
+fi
 output=
 if [ "${1:-}" = --compile ]; then
     output=$3
@@ -87,15 +92,41 @@ if [ -f "$artifact" ] && [ -f "$digest" ]; then
     if cmp -s "$work/actual" "$digest"; then valid=true; fi
 fi
 if [ "$valid" = false ]; then
+    # Module reuse complements the complete-artifact cache after a source edit.
+    # Keep it outside source roots and separate by checkout and entry point.
+    if [ "$incremental" = true ]; then
+        vm_path=$(CDPATH= cd -- "$(dirname -- "$vm")" && printf '%s/%s\n' "$(pwd -P)" "$(basename -- "$vm")")
+        compiler_path=$(CDPATH= cd -- "$(dirname -- "$seed")" && printf '%s/%s\n' "$(pwd -P)" "$(basename -- "$seed")")
+        parent=${PANACKELTY_COMPILE_CACHE_DIR:-}
+        if [ -z "$parent" ]; then
+            cache_home=${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}
+            case "$cache_home" in /*) parent=$cache_home/panackelty/compiler-probes ;; esac
+        fi
+        reuse_directory=
+        case "$parent" in
+            /*)
+                scope=$({ pwd -P; printf '%s\n' "$source"; } | hash | awk '{print $1}')
+                reuse_directory=$parent/$scope
+                if ! (umask 077; mkdir -p "$reuse_directory") 2>/dev/null; then reuse_directory=; fi
+                ;;
+        esac
+    fi
+    invoke_compiler() {
+        set -- "$vm" run "$seed"
+        if [ "$incremental" = true ]; then
+            PANACKELTY_COMPILER_PATH=$compiler_path PANACKELTY_VM_PATH=$vm_path PANACKELTY_COMPILE_CACHE_DIR=$reuse_directory
+            export PANACKELTY_COMPILER_PATH PANACKELTY_VM_PATH PANACKELTY_COMPILE_CACHE_DIR
+            set -- "$@" --local-compile-cache
+        fi
+        sh tests/profile_command.sh "probe-build/$source" "$@" compile "$source" -o "$work/probe.bc"
+    }
     if [ -n "$probe_root" ]; then
         compile_probe() {
-            env PANACKELTY_BOOTSTRAP_ROOT="$probe_root" sh tests/profile_command.sh "probe-build/$source" \
-                "$vm" run "$seed" compile "$source" -o "$work/probe.bc"
+            (export PANACKELTY_BOOTSTRAP_ROOT="$probe_root"; invoke_compiler)
         }
     else
         compile_probe() {
-            env -u PANACKELTY_BOOTSTRAP_ROOT sh tests/profile_command.sh "probe-build/$source" \
-                "$vm" run "$seed" compile "$source" -o "$work/probe.bc"
+            (unset PANACKELTY_BOOTSTRAP_ROOT; invoke_compiler)
         }
     fi
     if ! compile_probe \
@@ -105,6 +136,12 @@ if [ "$valid" = false ]; then
     fi
     printf 'wrote %s\n' "$work/probe.bc" > "$work/expected"
     cmp "$work/expected" "$work/stdout"
+    if [ "$incremental" = true ] && [ "${PANACKELTY_COMPILE_CACHE_TRACE:-}" = 1 ]; then
+        # Accept only the requested cache trace; other diagnostics still fail.
+        sed -E '/^compile cache: (disabled|miss|hit|stored|not stored|not stored: inputs changed or reuse limit exceeded|module hits [0-9]+)$/d' "$work/stderr" > "$work/diagnostics"
+        cat "$work/stderr" >&2
+        mv "$work/diagnostics" "$work/stderr"
+    fi
     test ! -s "$work/stderr" || { cat "$work/stderr" >&2; exit 1; }
     "$vm" check "$work/probe.bc" > "$work/check"
     printf 'ok\n' > "$work/expected"

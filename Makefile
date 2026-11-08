@@ -74,6 +74,19 @@ export PANACK_PROBE_SEED := $(abspath $(SEED_COMPILER))
 
 all: native package-tool
 
+.PHONY: compiler compiler-fresh
+CANDIDATE_COMPILER := $(BUILD_DIR)/compiler/candidate.bc
+# Routine development build; bootstrap proof targets deliberately do not use it.
+compiler: native
+	@mkdir -p "$(dir $(CANDIDATE_COMPILER))"
+	@$(PROBE) --incremental --compile $(COMPILER_SOURCE) "$(CANDIDATE_COMPILER)"
+	@./panack-vm check "$(CANDIDATE_COMPILER)"
+
+compiler-fresh: native
+	@mkdir -p "$(dir $(CANDIDATE_COMPILER))"
+	PANACKELTY_BOOTSTRAP_ROOT="$(abspath .)" ./panack-vm run "$(SEED_COMPILER)" compile $(COMPILER_SOURCE) -o "$(CANDIDATE_COMPILER)"
+	@./panack-vm check "$(CANDIDATE_COMPILER)"
+
 browser-runtime-bundle:
 	@sh scripts/browser_runtime_bundle.sh
 

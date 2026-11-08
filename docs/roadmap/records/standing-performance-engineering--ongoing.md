@@ -304,3 +304,15 @@ all artifacts matched fresh compilation. Retain the bounded SourcePos decoder
 with cache format, invalidation and bounds unchanged. Focused tests, bootstrap
 fixed points and final `make check` (617s) passed; included in this integration.
 This does not complete RM#157 or GI#106.
+
+### Local compiler workflow adoption, 8 November 2026
+
+The [local workflow](../../COMPILER_EDIT_PROFILE.md#local-development-workflow-8-november-2026)
+adds incremental candidate builds through `make compiler` and explicit fresh
+comparisons through `make compiler-fresh`. Three paired source edits matched
+fresh bytecode; median edited time was 13.81s versus 15.86s fresh. The existing
+complete-artifact cache retained a 0.14s unchanged build. Cold cache population
+took 21.03s in one observation. Focused checks and final `make check` (567s)
+passed; the local workflow slice is included in this integration.
+No normal CI or bootstrap entry point changes. This does not complete GI#106
+or RM#157 and requires no website update.

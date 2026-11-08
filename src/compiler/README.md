@@ -65,7 +65,11 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   identities, enum ownership and private/ambiguous export lookup. The loader
   retains these before combination and builds a name-to-declaration index for
   signature resolution. This avoids rescanning each module's full AST for every
-  nominal type lookup. The loader separates physical source paths from relative
+  nominal type lookup. Collected bindings retain duplicate/reserved-name diagnostics
+  with their declaration/import snapshots. Repeated resolution reuses that result
+  only when both snapshots still match, including source positions; raw or changed
+  bindings validate normally. This is per-compilation memory, not a disk cache.
+  The loader separates physical source paths from relative
   semantic identity and passes declaration origins into resolver diagnostics.
 - `project_model/` owns package manifest records, parsing and the strict
   schema-1 resolved-project descriptor shared with the independent package

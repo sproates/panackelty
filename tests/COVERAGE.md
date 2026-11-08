@@ -1799,3 +1799,11 @@ orders. They accept a local public type and the original selectively exported
 nominal identity, while retaining the later private-type diagnostic exactly.
 Existing unused private re-export, cycle, missing-edge and source-position tests
 continue to verify graph validation independently of the reachability search.
+
+### Binding-validation reuse
+
+Eight module-binding assertions compare prepared and fresh ordered diagnostics,
+reject same-size import changes and added duplicate declarations, clear errors
+after recovery, and preserve moved diagnostic positions. Direct resolver calls
+reject both stale prepared inputs and raw invalid bindings. The existing collision,
+privacy and graph checks remain in place; no executable functions are excluded.

@@ -796,7 +796,12 @@ and diagnostics. Focused checks, bootstrap fixed points and final `make check`
 A subsequent [name-lookup traversal trial](../../COMPILER_EDIT_PROFILE.md#name-lookup-traversal-trial--not-adopted-8-november-2026)
 showed no meaningful speedup and was discarded. Product code and seed are
 unchanged. Its profile identifies repeated binding-conflict validation as a
-stronger candidate; the reuse boundary is not yet designed or implemented.
+stronger candidate. The [binding-validation trial](../../COMPILER_EDIT_PROFILE.md#binding-validation-reuse-trial-8-november-2026)
+retains diagnostics only with matching declaration/import snapshots. Three pairs
+show median savings of 29.9% fresh and 19.5% after edits, with matching bytecode.
+Focused tests, diagnostic comparisons, bootstrap fixed points and final
+`make check` (611s) passed; the bounded change is included in this integration.
+This is a bounded optimisation, not completion of RM#28/GI#106.
 
 ### Incremental command direction, 7 November 2026
 

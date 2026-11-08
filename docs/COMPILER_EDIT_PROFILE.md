@@ -290,3 +290,61 @@ while preserving duplicate detection, diagnostic ordering and direct resolver
 behaviour on invalid graphs. No such design or implementation is adopted here.
 
 This completes the rejected trial, not RM#157/GI#106. There is no website impact.
+
+## Binding-validation reuse trial, 8 November 2026
+
+The preceding profile found repeated duplicate/reserved-name checks during name
+resolution. Collected `ModuleBindings` now retain the diagnostics with the exact
+declarations and imports that produced them. Each lookup compares those snapshots
+before reuse. Raw bindings validate normally, and altered names, imports or source
+positions force fresh validation. The original diagnostic algorithm and order are
+unchanged. No lookup result, disk format, bytecode format or VM implementation is
+changed.
+
+The snapshot keeps references to the immutable input arrays plus the diagnostics;
+it does not intentionally clone declaration/import contents. Structural equality
+still walks the inputs, so this is not constant-time validation. The measured
+saving comes from avoiding repeated interpreted validation and temporary name-set
+construction. Memory use was not separately measured; retained diagnostics live
+with their module bindings for the compilation.
+
+Three alternating ordinary-VM fresh builds compiled the same candidate sources:
+
+| Pair | Original | Candidate |
+| --- | ---: | ---: |
+| 1 | 13.320s | 9.198s |
+| 2 | 13.034s | 9.152s |
+| 3 | 13.116s | 9.323s |
+
+Median time fell from 13.116s to 9.198s (29.9%). Every output matched byte for byte.
+These are local compiler self-builds, not a universal or hosted speedup claim.
+
+Three alternating edited-build pairs changed `module_magic` in a copied source
+workspace. Cache directories were outside that workspace; each compiler had its
+own cache, and both reused 46/49 modules after each edit:
+
+| Pair | Original edited | Candidate edited |
+| --- | ---: | ---: |
+| 1 | 11.041s | 9.761s |
+| 2 | 12.497s | 9.633s |
+| 3 | 12.132s | 10.880s |
+
+Median edited time fell from 12.132s to 9.761s (19.5%). All paired outputs matched.
+Cold cache population took 17.975s/13.768s in one observation. No other builds
+ran concurrently with timings. Initial harness runs omitted cache-directory
+creation and fell back to fresh compilation; they are excluded from these edited
+measurements. The corrected harness requires the expected module-hit trace.
+
+The candidate passes 1,456 module-binding assertions, including eight new checks
+for ordered diagnostics, changed declarations/imports, recovery, moved positions
+and direct resolution of invalid bindings. Six negative functional programs retain
+exact exit status, stdout and stderr; native artifact contracts pass. Bootstrap
+stages 2, 3 and 4 agree on
+`8119c5b34934dc7832bc770f8ada2720b32adfdeea3499c566c31705f9f783c2`;
+the standard-library artifact is unchanged. The production coverage inventory
+adds only the snapshot record to declaration exclusions (51 files, 485 exclusions);
+all 77 coverage-policy tests pass. Final `make check` passed in 611s (unit 377s,
+bootstrap 77s in parallel), including functional, packaging and release-smoke
+checks. This duration is acceptance evidence, not a matched suite-speed comparison.
+The bounded optimisation is included in this integration.
+No website change is needed; RM#157/GI#106 remain open.

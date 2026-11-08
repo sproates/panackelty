@@ -176,4 +176,16 @@ produced no meaningful ordinary-VM saving (13.155s original / 13.170s candidate
 medians). Bytecode matched and the candidate passed 1,453 assertions. Trial code
 and tests were removed; product code and seed remain unchanged. The profile
 identifies repeated binding-conflict validation as the next candidate: 29,556
-calls across 49 modules. Its reuse contract still needs a bounded design.
+calls across 49 modules. The follow-up trial below implements a bounded reuse contract.
+
+## Binding-validation reuse trial
+
+Included in this integration: retain binding diagnostics with their exact
+input declarations and imports within a compilation. Changed snapshots and raw
+bindings still validate normally. The candidate passes 1,456 module-binding
+assertions, including stale-input and diagnostic-position checks. Three paired
+fresh self-builds improved by median 29.9%; three edited-build pairs
+improved by 19.5%, retaining 46/49 module hits and matching bytecode. The candidate
+passes exact diagnostic and native-artifact comparisons, three-stage bootstrap
+fixed points and final `make check` (611s). This completes the bounded optimisation,
+not RM#157/GI#106. The experiment branch is retained.

@@ -337,3 +337,14 @@ Artifacts matched and focused tests passed. The code was discarded; only the
 evidence is retained. Repeated binding-conflict validation is the stronger next
 candidate, subject to preserving diagnostics and invalid-graph checks. No new
 implementation or website change is included, and RM#157/GI#106 remain open.
+
+### Binding-validation reuse, 8 November 2026
+
+The [bounded follow-up](../../COMPILER_EDIT_PROFILE.md#binding-validation-reuse-trial-8-november-2026)
+retains binding diagnostics with their exact input snapshots within a compilation.
+Raw or changed inputs still validate normally. Three alternating pairs show median
+fresh self-build savings of 29.9% and edited-build savings of 19.5%; all paired
+artifacts match. Focused tests, exact negative diagnostics and native artifacts
+pass. Bootstrap fixed points and final `make check` (611s) passed; the bounded
+change is included in this integration. This does not complete
+RM#157/GI#106 or alter the website; no new persistent cache is introduced.

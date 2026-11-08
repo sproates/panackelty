@@ -422,3 +422,69 @@ All 16 compiler invocations succeeded with the required artifact and cache-hit
 comparisons. This measurement-only delivery requires documentation/link checks,
 not a compiler rebuild or full validation run. It completes the reassessment,
 not RM#157/GI#106, and has no website impact.
+
+## Span and body-node decoder trial, 8 November 2026
+
+A more detailed observer on baseline `6242eeff4343fe60b25a97bee8fc5c2002a98473`
+found 118,087 source-span decodes (236,174 positions), 91,988 declaration-identity
+decodes and 84,707 body-node decodes in the 46 reused modules. Selected exclusive
+observer costs included 0.853s span scaffolding, 1.721s position reconstruction,
+1.548s body-node decoding and 1.610s bound-body scaffolding. Fine-grained tracing
+raised total decoding to 8.134s; these figures locate repeated work and are not
+normal-VM timings. Recursive inclusive totals must not be added together.
+
+Two bounded specialisations retain the cache and bytecode formats:
+
+- Decode the two ordinary fixed-width positions of a span together, constructing
+  one reader/result pair. The generator checks the expected schemas. Large Nat
+  coordinates, truncation and invalid dictionary indexes retain the general path.
+- Validate a body-node tag once and select its payload with a balanced comparison
+  tree instead of a linear chain of up to 18 cases. Payload decoding, depth limits
+  and rejection of out-of-range tags are unchanged.
+
+The span-only trial produced small paired savings: 10.482/10.324s,
+10.129/9.981s and 10.254/10.177s (original/candidate edited builds). Rather than
+refreshing the seed for that alone, the related tag specialisation was trialled
+in the same batch. Three alternating ordinary-VM pairs on identical combined
+candidate sources measured:
+
+| Pair | Original edited | Candidate edited | Candidate fresh |
+| --- | ---: | ---: | ---: |
+| 1 | 10.709s | 10.363s | 10.330s |
+| 2 | 10.289s | 10.260s | 9.685s |
+| 3 | 10.620s | 10.206s | 9.831s |
+
+Both compilers reused 46/49 modules. Each edited pair matched its fresh output;
+cold artifacts matched too. No other builds ran concurrently. Median edited time
+fell from 10.620s to 10.260s (3.4%); individual savings ranged from 0.029s to 0.415s.
+This is a modest local self-build improvement, not a universal gain. Cold cache
+population was 14.425s/14.604s in single observations; no cold-build saving is
+claimed. The combined experiment does not isolate the tag change's contribution.
+
+The focused module-binding suite passes 1,471 assertions, including 96 body-cache
+checks. Added cases cover truncation through both positions, invalid end-file
+indexes, large coordinates only in the end position, the last valid body-node tag
+and invalid tags. Native artifact contracts and bootstrap fixed points pass;
+standard-library bytes are unchanged. Bootstrap stages 2, 3 and 4 agree on
+`832e623e1ab83e96efc1f4af7180f3566d3f09f83f8a440dc4baf1d89440665d`.
+All 77 coverage-policy tests pass. The coverage-policy review updates only
+positions/identifiers of existing declaration exclusions, not executable coverage.
+Final `make check` passed in 560s (unit 347s and bootstrap 79s in parallel),
+including functional, packaging, release smoke and quick start. This is acceptance
+evidence, not a controlled suite-speed comparison. The batch is included in this
+integration.
+
+### Larger reuse question
+
+The current cache reconstructs a rich checked-body tree, including repeated source
+spans, identities and typed structure. The owner raised the possibility of a larger
+breakthrough, and the profile supports investigating representation/reconstruction
+cost rather than assuming more small reader specialisations are sufficient.
+Saving less data or retaining a form closer to what emission consumes are
+hypotheses, not selected designs. Any later assessment must inventory the actual
+emission/effect consumers, preserve validation and diagnostics, and compare total
+fresh, cold, unchanged and edited costs. Format changes require a separate bounded
+proposal; this trial does not authorise or implement one. Function-level reuse
+still addresses little of this particular workload's measured cost.
+
+This batch does not complete RM#157/GI#106 and has no website impact.

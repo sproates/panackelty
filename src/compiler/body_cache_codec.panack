@@ -305,6 +305,26 @@ pure encode_SourceSpan(pool: Map[Str,Nat], value: SourceSpan): Bytes {
 }
 
 pure decode_SourceSpan(reader: CacheReader): CacheRead[SourceSpan] {
+  if reader.valid && reader.offset + 32 <= reader.data.length() {
+    start_file = word_at(reader.data, reader.offset)
+    start_offset = word_at(reader.data, reader.offset + 4)
+    start_line = word_at(reader.data, reader.offset + 8)
+    start_column = word_at(reader.data, reader.offset + 12)
+    end_file = word_at(reader.data, reader.offset + 16)
+    end_offset = word_at(reader.data, reader.offset + 20)
+    end_line = word_at(reader.data, reader.offset + 24)
+    end_column = word_at(reader.data, reader.offset + 28)
+    if start_file < reader.texts.len() && end_file < reader.texts.len() &&
+        start_offset < 4294967295 && start_line < 4294967295 && start_column < 4294967295 &&
+        end_offset < 4294967295 && end_line < 4294967295 && end_column < 4294967295 {
+      CacheRead(CacheReader(reader.data, reader.offset + 32, true, reader.depth, reader.texts),
+        SourceSpan(SourcePos(reader.texts[start_file], start_offset, start_line, start_column),
+          SourcePos(reader.texts[end_file], end_offset, end_line, end_column)))
+    } else { decode_SourceSpan_general(reader) }
+  } else { decode_SourceSpan_general(reader) }
+}
+
+pure decode_SourceSpan_general(reader: CacheReader): CacheRead[SourceSpan] {
   mut cursor: CacheReader = reader
   field_start = decode_SourcePos(cursor)
   cursor = field_start.reader
@@ -1024,59 +1044,83 @@ pure encode_BodyNode(pool: Map[Str,Nat], value: BodyNode): Bytes {
 
 pure decode_BodyNode(reader: CacheReader): CacheRead[BodyNode] {
   tag = read_count(reader)
-  if tag.reader.valid && tag.value == 0 {
-    mut cursor: CacheReader = tag.reader
+  if !tag.reader.valid || tag.value >= 18 {
+    CacheRead(failed(tag.reader), BodyEmpty())
+  } else {
+    if tag.value < 9 {
+      if tag.value < 4 {
+      if tag.value < 2 {
+      if tag.value < 1 {
+      mut cursor: CacheReader = tag.reader
     v0 = decode_Expr(cursor)
     cursor = v0.reader
     CacheRead(cursor, BodyLiteral(v0.value))
-  } else if tag.reader.valid && tag.value == 1 {
-    mut cursor: CacheReader = tag.reader
+    } else {
+      mut cursor: CacheReader = tag.reader
     v0 = decode_Array_Str(cursor)
     cursor = v0.reader
     CacheRead(cursor, BodyInterpolation(v0.value))
-  } else if tag.reader.valid && tag.value == 2 {
-    mut cursor: CacheReader = tag.reader
+    }
+    } else {
+      if tag.value < 3 {
+      mut cursor: CacheReader = tag.reader
     v0 = decode_BodyLocalIdentity(cursor)
     cursor = v0.reader
     CacheRead(cursor, BodyLocalUse(v0.value, None()))
-  } else if tag.reader.valid && tag.value == 3 {
-    mut cursor: CacheReader = tag.reader
+    } else {
+      mut cursor: CacheReader = tag.reader
     v0 = decode_ModuleDeclarationBinding(cursor)
     cursor = v0.reader
     CacheRead(cursor, BodyFunction(v0.value))
-  } else if tag.reader.valid && tag.value == 4 {
-    mut cursor: CacheReader = tag.reader
+    }
+    }
+    } else {
+      if tag.value < 6 {
+      if tag.value < 5 {
+      mut cursor: CacheReader = tag.reader
     v0 = decode_BodyTarget(cursor)
     cursor = v0.reader
     v1 = decode_Array_SignatureType(cursor)
     cursor = v1.reader
     CacheRead(cursor, BodyCall(v0.value, v1.value, []))
-  } else if tag.reader.valid && tag.value == 5 {
-    CacheRead(tag.reader, BodyArray())
-  } else if tag.reader.valid && tag.value == 6 {
-    mut cursor: CacheReader = tag.reader
+    } else {
+      CacheRead(tag.reader, BodyArray())
+    }
+    } else {
+      if tag.value < 7 {
+      mut cursor: CacheReader = tag.reader
     v0 = decode_Str(cursor)
     cursor = v0.reader
     CacheRead(cursor, BodyUnary(v0.value))
-  } else if tag.reader.valid && tag.value == 7 {
-    mut cursor: CacheReader = tag.reader
+    } else {
+      if tag.value < 8 {
+      mut cursor: CacheReader = tag.reader
     v0 = decode_Str(cursor)
     cursor = v0.reader
     CacheRead(cursor, BodyBinary(v0.value))
-  } else if tag.reader.valid && tag.value == 8 {
-    mut cursor: CacheReader = tag.reader
+    } else {
+      mut cursor: CacheReader = tag.reader
     v0 = decode_Str(cursor)
     cursor = v0.reader
     CacheRead(cursor, BodyField(v0.value))
-  } else if tag.reader.valid && tag.value == 9 {
-    CacheRead(tag.reader, BodyIndex())
-  } else if tag.reader.valid && tag.value == 10 {
-    mut cursor: CacheReader = tag.reader
+    }
+    }
+    }
+    }
+    } else {
+      if tag.value < 13 {
+      if tag.value < 11 {
+      if tag.value < 10 {
+      CacheRead(tag.reader, BodyIndex())
+    } else {
+      mut cursor: CacheReader = tag.reader
     v0 = decode_Bool(cursor)
     cursor = v0.reader
     CacheRead(cursor, BodyIf(v0.value))
-  } else if tag.reader.valid && tag.value == 11 {
-    mut cursor: CacheReader = tag.reader
+    }
+    } else {
+      if tag.value < 12 {
+      mut cursor: CacheReader = tag.reader
     v0 = decode_Bool(cursor)
     cursor = v0.reader
     v1 = decode_Optional_SourceSpan(cursor)
@@ -1084,8 +1128,8 @@ pure decode_BodyNode(reader: CacheReader): CacheRead[BodyNode] {
     v2 = decode_Array_SourceSpan(cursor)
     cursor = v2.reader
     CacheRead(cursor, BodyBlock(v0.value, v1.value, v2.value))
-  } else if tag.reader.valid && tag.value == 12 {
-    mut cursor: CacheReader = tag.reader
+    } else {
+      mut cursor: CacheReader = tag.reader
     v0 = decode_Array_BodyTarget(cursor)
     cursor = v0.reader
     v1 = decode_Array_Array_BodyLocalIdentity(cursor)
@@ -1093,8 +1137,12 @@ pure decode_BodyNode(reader: CacheReader): CacheRead[BodyNode] {
     v2 = decode_Array_SourceSpan(cursor)
     cursor = v2.reader
     CacheRead(cursor, BodyMatch(v0.value, v1.value, v2.value))
-  } else if tag.reader.valid && tag.value == 13 {
-    mut cursor: CacheReader = tag.reader
+    }
+    }
+    } else {
+      if tag.value < 15 {
+      if tag.value < 14 {
+      mut cursor: CacheReader = tag.reader
     v0 = decode_BodyLocalIdentity(cursor)
     cursor = v0.reader
     v1 = decode_Optional_SignatureType(cursor)
@@ -1102,21 +1150,29 @@ pure decode_BodyNode(reader: CacheReader): CacheRead[BodyNode] {
     v2 = decode_Bool(cursor)
     cursor = v2.reader
     CacheRead(cursor, BodyBinding(v0.value, v1.value, v2.value, None(), None()))
-  } else if tag.reader.valid && tag.value == 14 {
-    mut cursor: CacheReader = tag.reader
+    } else {
+      mut cursor: CacheReader = tag.reader
     v0 = decode_BodyLocalIdentity(cursor)
     cursor = v0.reader
     CacheRead(cursor, BodyAssignment(v0.value, None()))
-  } else if tag.reader.valid && tag.value == 15 {
-    CacheRead(tag.reader, BodyWhile())
-  } else if tag.reader.valid && tag.value == 16 {
-    mut cursor: CacheReader = tag.reader
+    }
+    } else {
+      if tag.value < 16 {
+      CacheRead(tag.reader, BodyWhile())
+    } else {
+      if tag.value < 17 {
+      mut cursor: CacheReader = tag.reader
     v0 = decode_BodyLocalIdentity(cursor)
     cursor = v0.reader
     CacheRead(cursor, BodyFor(v0.value))
-  } else if tag.reader.valid && tag.value == 17 {
-    CacheRead(tag.reader, BodyEmpty())
-  } else { CacheRead(failed(tag.reader), BodyEmpty()) }
+    } else {
+      CacheRead(tag.reader, BodyEmpty())
+    }
+    }
+    }
+    }
+    }
+  }
 }
 
 pure encode_Array_BoundBody(pool: Map[Str,Nat], value: [BoundBody]): Bytes {

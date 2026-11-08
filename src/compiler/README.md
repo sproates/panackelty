@@ -202,7 +202,9 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   development schema in `scripts/generate_body_cache_codec.cjs`; it retains
   ordinary emission/effect inputs, never explanation history. Source positions
   use a checked fixed-width decoding path when their coordinates fit ordinary
-  words; larger coordinates use the general Nat decoder. The format is unchanged. See
+  words; spans reconstruct both ordinary positions together. Larger coordinates
+  use the general Nat decoder. Body-node tags use a bounded balanced decision
+  tree; invalid tags still reject. The format is unchanged. See
   [persistent reuse](../../docs/COMPILER_PERSISTENT_REUSE.md).
 - `module_emission.panack` lowers fully identity-checked bodies and canonical
   function/type/variant identities to deterministic private names. Entry `main`

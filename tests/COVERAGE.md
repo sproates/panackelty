@@ -1785,10 +1785,12 @@ claiming new execution coverage.
 
 ### Checked-body source-position decoding
 
-The body-cache suite has 81 assertions. Position round trips cover zero, the
+The body-cache suite has 96 assertions. Position round trips cover zero, the
 largest ordinary word, the large-Nat sentinel and a coordinate beyond 64 bits,
 including Unicode file names. Truncated words and invalid file dictionary
-indexes are rejected. Existing nested-body, malformed-cache and fresh/cached
+indexes are rejected at both ends of a span. Extra cases cover a large coordinate
+only in the end position, truncation across both fixed-width positions, the final
+valid body-node tag and out-of-range tags. Existing nested-body, malformed-cache and fresh/cached
 bytecode comparisons remain in place. These tests do not expand the measured
 coverage corpus or exclude executable code.
 

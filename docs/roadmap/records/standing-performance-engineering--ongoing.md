@@ -359,3 +359,14 @@ at 4.494s, versus 0.146s checking changed bodies. A bounded decoder trial is the
 next recommendation, not an implemented change. All 16 invocations and output
 comparisons passed. This documentation-only reassessment does not complete
 RM#157/GI#106, change defaults or affect the website.
+
+### Decoder follow-up, 8 November 2026
+
+The [span/tag decoder trial](../../COMPILER_EDIT_PROFILE.md#span-and-body-node-decoder-trial-8-november-2026)
+reduces median edited self-build time by 3.4% across three alternating pairs,
+retaining formats and matching fresh bytecode. All 1,471 focused assertions,
+native artifacts, bootstrap checks and final `make check` (560s) passed; the batch
+is included in this integration.
+This is a modest improvement, not resolution of the larger cost of restoring
+checked-body trees. Representation/reconstruction alternatives are recorded as
+future hypotheses, not approved scope. RM#157/GI#106 remain open; no website change.

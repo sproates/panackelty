@@ -58,6 +58,14 @@ pub body_cache_tests(): [TestResult] {
         decode_checked_bodies(byte_buffer.slice(encoded, 0, length - 1)) == None(), "truncated position payload accepted"))
     }
   }
+  for end_position in [SourcePos("other.panack", 4294967295, 2, 3),
+      SourcePos("other.panack", 1, 18446744073709551616, 3),
+      SourcePos("other.panack", 1, 2, 4294967295)] {
+    end_span = SourceSpan(SourcePos("λ.panack", 1, 2, 3), end_position)
+    end_body = BoundFunctionBody(signature, [], BoundBody(BodyEmpty(), end_span, [], None(), [], [], [], [], [], []), [], BodyIdentityChecked(), None())
+    results = results.append(testing.expect("span end large coordinate round trip",
+      decode_checked_bodies(encode_checked_bodies([end_body])) == Some([end_body]), "end position changed"))
+  }
   span = SourceSpan(SourcePos("position.panack", 16909060, 84281096, 151653132), SourcePos("position.panack", 13, 14, 15))
   body = BoundFunctionBody(signature, [], BoundBody(BodyEmpty(), span, [], None(), [], [], [], [], [], []), [], BodyIdentityChecked(), None())
   encoded = encode_checked_bodies([body])
@@ -72,13 +80,26 @@ pub body_cache_tests(): [TestResult] {
   match position {
     None() => {},
     Some(start) => {
-      for size in [0, 3, 4, 7, 8, 11, 12, 15] {
+      if start >= 4 {
+        results = results.append(testing.expect("span fixture follows the final body-node tag",
+          byte_buffer.slice(encoded, start - 4, start) == encode_u32(17), "body tag not found"))
+        for invalid_tag in [18, 4294967295] {
+          invalid_node = byte_buffer.slice(encoded, 0, start - 4).join(encode_u32(invalid_tag))
+            .join(byte_buffer.slice(encoded, start, encoded.length()))
+          results = results.append(testing.expect("out-of-range body-node tag rejected",
+            decode_checked_bodies(invalid_node) == None(), "unknown body node accepted"))
+        }
+      }
+      for size in [0, 3, 4, 7, 8, 11, 12, 15, 16, 19, 20, 23, 24, 27, 28, 31] {
         results = results.append(testing.expect("partial fixed-width position rejected",
           decode_checked_bodies(byte_buffer.slice(encoded, 0, start + size)) == None(), "truncated position accepted"))
       }
       corrupted = byte_buffer.slice(encoded, 0, start).join(encode_u32(4294967294))
         .join(byte_buffer.slice(encoded, start + 4, encoded.length()))
       results = results.append(testing.expect("position dictionary index is checked", decode_checked_bodies(corrupted) == None(), "invalid file index accepted"))
+      bad_end_file = byte_buffer.slice(encoded, 0, start + 16).join(encode_u32(4294967294))
+        .join(byte_buffer.slice(encoded, start + 20, encoded.length()))
+      results = results.append(testing.expect("span end dictionary index is checked", decode_checked_bodies(bad_end_file) == None(), "invalid end file index accepted"))
     }
   }
   results

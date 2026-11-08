@@ -1364,3 +1364,11 @@ async counterparts. Include the uptime example and make the supported-toolchain
 requirement explicit. Prerequisites: merged/validated core implementation and
 matching release/browser consumers. Owner: release maintainer. No website change
 is authorised or needed now; the live site's alpha.15 claims remain unchanged.
+
+On 8 November the owner expanded this follow-up into a stdlib documentation
+deliverable alongside the async programme: a discoverable stdlib index and
+time/duration, filesystem/path, process, console/environment and relevant
+streaming references with tested examples. See the
+[programme boundary](../../ASYNC_DESIGN_DISCUSSION.md#expanded-async-stdlib-and-documentation-programme-8-november-2026).
+This authorises preparation and preview, not publishing development APIs as
+released or editing published articles without showing the changes.

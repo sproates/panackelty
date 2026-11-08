@@ -6,7 +6,9 @@ and [acceptance evidence](docs/releases/ALPHA15_RELEASE_ACCEPTANCE.md).
 ## Next: alpha.16 — build useful programs
 
 The active integration branch is `next`. See [the current status and allocations](docs/NEXT_RELEASE_STATUS.md).
-Alpha.15 is complete; alpha.16 feature work has not started.
+Alpha.15 is complete; alpha.16 work is in progress. The first async-stdlib batch
+is locally validated, with the expanded capability/documentation programme
+recorded under RM#162.
 
 ## Nightly artifact resilience: 26 October 2026
 
@@ -143,7 +145,10 @@ RM#158–RM#161 identify the Alpha.15 package-management packets.
 <a id="rm-162"></a> **[RM#162: Real-program fixes](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-162)**
 is in progress for alpha.16: the [async-stdlib batch](docs/ASYNC_DESIGN_DISCUSSION.md#implementation-batch-selected-8-november-2026) addresses the clock/uptime obstacle. Fix obstacles encountered while building real programs;
 scope and effort are unknown, and this is an implementation allocation rather
-than an issue-gathering exercise.
+than an issue-gathering exercise. The owner selected the
+[expanded async stdlib and documentation programme](docs/ASYNC_DESIGN_DISCUSSION.md#expanded-async-stdlib-and-documentation-programme-8-november-2026)
+before shared-state work; it has a provisional five-group baseline, including
+website stdlib references, within RM#162.
 
 **Next available roadmap identifier: RM#163.**
 

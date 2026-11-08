@@ -102,7 +102,9 @@ pub pure signature_public_identity(
         }
         mut index: Nat = 0
         for imported in module.imports {
-          if imported.is_public {
+          // This is an existence check. Once a public route is proved, later
+          // imports cannot change the answer and need no further resolution.
+          if imported.is_public && !reachable {
             match binding_graph_target(graph, owner, index) {
               Error(message) => {},
               Ok(target) => {
@@ -114,7 +116,7 @@ pub pure signature_public_identity(
                       identity,
                       visited.append(owner)
                     )
-                  } else {
+                  } else if !reachable {
                     match resolve_module_path_inner(graph, target, selector.name, true, []) {
                       Error(message) => {},
                       Ok(resolved) => match resolved {

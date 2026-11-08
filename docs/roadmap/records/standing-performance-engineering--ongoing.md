@@ -316,3 +316,14 @@ took 21.03s in one observation. Focused checks and final `make check` (567s)
 passed; the local workflow slice is included in this integration.
 No normal CI or bootstrap entry point changes. This does not complete GI#106
 or RM#157 and requires no website update.
+
+### Public signature reachability, 8 November 2026
+
+The [signature trial](../../COMPILER_EDIT_PROFILE.md#signature-reachability-trial-8-november-2026)
+found continued re-export resolution after a public route was already proved.
+Two short-circuit conditions reduced median edited self-compilation by 18.4%
+and fresh compilation by 21.8% in three alternating pairs. All artifacts matched;
+fresh timings varied more, but every pair improved. Focused signature/privacy
+and diagnostic checks, bootstrap fixed points and final `make check` (565s) pass.
+The bounded improvement is included in this integration. RM#157/GI#106 remain open; no website
+change or new persistent cache is included.

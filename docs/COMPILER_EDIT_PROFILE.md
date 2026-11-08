@@ -197,3 +197,57 @@ Final `make check` passed in 567s (unit 370s, bootstrap 122s in parallel),
 including functional, packaging and release smoke checks. This is validation
 evidence, not a matched whole-suite performance comparison. No compiler/VM source, bootstrap artifact,
 bytecode format or website claim changes; RM#28/GI#106 and RM#157 remain open.
+
+## Signature reachability trial, 8 November 2026
+
+The owner selected a bounded trial of fresh signature checking. A separate
+observer VM timed nested calls inside `check_module_signatures`. The original
+profile used the current seed at `a828b04`; the candidate used the same VM
+instrumentation after the change. Each emitted its expected self-compiled
+artifact. Instrumentation is local only and does not enter the packaged VM.
+
+The public-reachability helper answers whether a declaration has any public
+route. It previously continued resolving selective re-exports after a local
+public declaration or earlier route had already proved the answer. Two
+short-circuit conditions stop resolving subsequent imports/selectors once that
+Boolean answer is true. Module graph validation still checks all imports; no
+signature, diagnostic, visibility rule, cache or bytecode format is removed.
+
+| Diagnostic observation | Original | Candidate |
+| --- | ---: | ---: |
+| Signature checking, 49 modules | 4.322s | 1.666s |
+| Public reachability, inclusive | 3.395s | 0.726s |
+| Path-resolution calls within signatures | 31,189 | 9,722 |
+
+Nested timings are not additive. These are single diagnostic observations,
+used to locate the waste; the ordinary-VM trials below establish build impact.
+
+### Paired builds
+
+Both compilers compiled identical copied sources with separate private caches.
+Each pair made a real edit to `module_magic` and alternated compiler order.
+Edited builds reused 46/49 modules; all four outputs within each pair matched
+byte for byte. No other builds ran concurrently.
+
+| Pair | Original edited | Candidate edited | Original fresh | Candidate fresh |
+| --- | ---: | ---: | ---: | ---: |
+| 1 | 13.332s | 10.824s | 15.655s | 13.416s |
+| 2 | 13.507s | 11.016s | 17.145s | 15.180s |
+| 3 | 14.052s | 11.281s | 17.780s | 13.377s |
+
+Median edited time fell from 13.507s to 11.016s (18.4%). Median fresh time
+fell from 17.145s to 13.416s (21.8%); fresh timings varied more, although all
+three pairs improved. Single cold incremental observations were 20.213s and
+17.950s. This is one compiler workload, not a universal or hosted speedup.
+
+Disposition: retain the two short-circuit conditions. The module-binding suite
+passed 1,448 assertions, including eight new export-order/privacy checks. Six
+negative functional programs produced identical exit status, stdout and stderr
+with both compilers. Native-oracle artifact contracts passed, and the production
+coverage inventory retains its existing exclusion digest. Bootstrap stages 2, 3
+and 4 agree on `6e7a2f72e256b5e7d9f923b907f4c6c6ebeabe86596a257b69cb4a4313ba104d`;
+the standard-library artifact is unchanged. Final `make check` passed in 565s
+(unit 353s, bootstrap 101s in parallel), including functional and release smoke
+checks. This suite duration is an acceptance observation, not a matched speedup
+comparison. No website update is needed for this
+internal optimisation; it does not complete RM#157 or GI#106.

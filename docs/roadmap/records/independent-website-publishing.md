@@ -787,6 +787,12 @@ edits match fresh output (13.81s versus 15.86s median). Focused checks and final
 `make check` (567s) passed; the local workflow slice is included in this
 integration. Normal CI and bootstrap entry points stay unchanged.
 
+The [signature follow-up](../../COMPILER_EDIT_PROFILE.md#signature-reachability-trial-8-november-2026)
+short-circuits public re-export searches after accessibility is proved. Three
+alternating pairs reduced median edited builds by 18.4%, with matching bytecode
+and diagnostics. Focused checks, bootstrap fixed points and final `make check`
+(565s) passed; the bounded optimisation is included in this integration.
+
 ### Incremental command direction, 7 November 2026
 
 The owner expects an ordinary one-shot command such as

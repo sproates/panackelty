@@ -157,3 +157,14 @@ bytecode: median 13.81s versus 15.86s fresh; unchanged artifact reuse takes 0.14
 The final checkout candidate matches the seed and checks a real example. Final
 `make check` passed in 567s. This completes the local workflow slice, not the
 broader RM#157/GI#106 work.
+
+## Signature checking trial
+
+Included in this integration: the detailed profile found repeated public re-export resolution
+after accessibility was already proved. Two short-circuit conditions avoid that
+work without caching signatures. Diagnostic phase time fell from 4.32s to 1.67s;
+normal VM edited builds improved from median 13.51s to 11.02s (18.4%), with
+matching fresh bytecode. All three fresh-build pairs improved too. The 1,448
+module-binding assertions, six exact diagnostic comparisons and native artifact
+checks pass. Bootstrap fixed points and final `make check` (565s) passed. This
+completes the bounded search optimisation, not RM#157/GI#106.

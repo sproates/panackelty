@@ -338,7 +338,24 @@ Native artifacts and bootstrap fixed points pass; final `make check` passed in
 checks pass. The profile retains an intermittent existing TCP-test failure that
 passed direct repeats and the final run; its cause is not claimed resolved.
 The owner selected integration into `next` on 8 November. This integration includes
-the validated summary-reuse slice; hosted integration acceptance remains pending.
+the validated summary-reuse slice. PR #692 merged as `ae52903`;
+[integration checks](https://github.com/sproates/panackelty/actions/runs/42505863760)
+passed. These are the lightweight next-push gates, not the full nightly matrix.
 Development/PR CI is suppressed under the alpha.16 trial, and the merge starts
 integration CI. The experiment branch is retained. This does not complete
 RM#28/GI#106 or RM#157; no release or website publication is included.
+
+## Return to real-program work, 8 November 2026
+
+The optimisation phase is paused at the merged checkpoint. Further VM/compiler
+optimisation and ordinary cross-run CI cache adoption remain future work; this
+does not declare RM#157 or RM#28/GI#106 complete. The owner-approved article is
+[published](https://panackelty.com/articles/making-panackelty-easier-to-develop/),
+fulfilling the optimisation-wrap-up article reminder.
+
+A clean branch, `feature/rm162-async-clock`, starts from current `next`. The next
+RM#162 slice is the async clock API and a working uptime endpoint, following the
+recorded async-module preferences. Implementation has not started. Anonymous
+functions, closures and state retain their recorded design questions. Development
+CI remains disabled until requested or integration; no CI is triggered by this
+local handover. The previous optimisation branch is retained.

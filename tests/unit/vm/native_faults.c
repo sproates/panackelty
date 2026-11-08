@@ -633,6 +633,22 @@ static void host_failures(void)
     assert(!strcmp(result->as.named.values[0]->as.named.name, "ClockUnavailable"));
     release(result);
 
+    fault_reset(0);
+    Instruction clock_code[] = {{.op = OP_AWAIT_CALL, .name = "instant_now_async"},
+                                {.op = OP_RETURN}};
+    Function clock_fn = {.name = "read_clock", .is_async = true, .ins = clock_code, .ins_count = 2};
+    Program clock_program = {.functions = &clock_fn, .count = 1};
+    VM clock_vm = {.program = &clock_program};
+    const char *clock_error = NULL;
+    VMExecution *clock_run = vm_execution_create_async(&clock_vm, &clock_fn, NULL, NULL, NULL, &clock_error);
+    assert(clock_run && !clock_error);
+    fault_syscall("clock_gettime", 1, EIO);
+    assert(vm_execution_advance(clock_run, 10) == VM_COMPLETED);
+    result = vm_execution_result(clock_run);
+    assert(fault_triggered() && result && !strcmp(result->as.named.name, "Error"));
+    assert(!strcmp(result->as.named.values[0]->as.named.name, "ClockUnavailable"));
+    assert(vm_execution_destroy(clock_run));
+
     Value *duration = value_size(0);
     duration->kind = V_DURATION;
     for (size_t i = 0; i < 2; i++) {

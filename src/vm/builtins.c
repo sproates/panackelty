@@ -63,6 +63,8 @@ static const Builtin BUILTINS[] = {
     {"http_state_fail_setup", 1, false, BUILTIN_ORDINARY, builtins_http_state_call},
     {"http_state_register", 4, false, BUILTIN_ORDINARY, builtins_http_state_call},
     {"tcp_service", 6, false, BUILTIN_TCP_SERVICE, async_service_only},
+    {"instant_now_async", 0, false, BUILTIN_INSTANT_NOW_ASYNC, async_service_only},
+    {"environment_lookup_async", 1, false, BUILTIN_ENVIRONMENT_LOOKUP_ASYNC, async_service_only},
     {"host_arguments_async", 0, false, BUILTIN_HOST_ARGUMENTS_ASYNC, async_service_only},
     {"host_stdout_async", 1, false, BUILTIN_HOST_STDOUT_ASYNC, async_service_only},
     {"host_stderr_async", 1, false, BUILTIN_HOST_STDERR_ASYNC, async_service_only},

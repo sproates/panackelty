@@ -704,3 +704,10 @@ The declaration-invalidation follow-up regenerated the version-9 seed at
 `a4bd5a03be847e8523414726ea22f162c40a299b37387e4197c6c37a8da62752`.
 Stages 2–4 agree; the standard-library digest remains unchanged. Its final local
 check is recorded in `docs/COMPILER_PERSISTENT_REUSE.md`.
+
+## Alpha.16 async stdlib batch
+
+The compiler seed is refreshed for logical `/async` imports and closed async
+clock/environment primitives. Public ordinary modules remain compatible and
+bytecode remains v9. The native clock implementation is shared between the
+ordinary and async routes; package policy and stdlib wrappers remain Panackelty.

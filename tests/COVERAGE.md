@@ -1857,3 +1857,15 @@ probe tests filter the new trace. The source manifest now includes
 `module_summaries.panack` (52 eligible files). Production-parser inventory reviewed
 530 import/type/record/enum exclusions against the prior 509; no executable functions
 are excluded and this is not a new coverage collection.
+
+### Async stdlib batch (alpha.16 development)
+
+`tests/async_stdlib.sh` checks the new import paths, source and bytecode
+execution, missing/empty environment values, monotonic readings, compatibility
+imports, await/purity rejection and actionable ordinary-call diagnostics.
+`tests/http_uptime.sh` runs the real uptime example in both execution modes
+and compares successive responses. The existing async filesystem integration
+uses the new path. Native async tests independently check forged call edges;
+fault injection checks the typed clock failure. Installation inventory and
+relocation tests include the nested modules. These tests do not establish
+source-execution coverage percentages for the new async adapters.

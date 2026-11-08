@@ -1542,6 +1542,30 @@ seconds per connection and one second of signal-driven drain. The [tool guide](.
 defines arguments, readiness and exit codes; the [package guide](../../packages/static_http/README.md)
 defines library configuration and cancellation limits.
 
+### Selecting asynchronous standard-library modules
+
+The logical import path may contain an `async` segment, for example
+`import stdlib/time/async as time`. It selects a module in the same toolchain;
+it does not implicitly make ordinary functions async or import a separate
+package. Other uses of the `async` keyword are unchanged.
+
+`stdlib/time/async` exports `async now(): Result[Instant,ClockError]` and
+re-exports the ordinary time module's pure duration constructors and shared
+error types. It uses the same monotonic clock and typed failure as
+`stdlib/time`. `stdlib/environment/async` exports
+`async get(name: Str): Option[Str]`, reading the invocation environment snapshot.
+Missing and empty values remain distinct. Both reads complete immediately on
+the owner task; no worker or pending host operation is created. They remain
+impure, require `await` in an async function, and cannot be called from pure
+functions. Async functions still cannot call the ordinary variants.
+
+`stdlib/host/async` and `stdlib/filesystem/async` re-export the operations and
+shared types of `stdlib/async_host` and `stdlib/async_filesystem` respectively.
+Both original paths remain supported. The filesystem module contains only
+`root_identity` and `read_beneath`, not general file I/O. The host module does
+not expose blocking sleep, subprocess execution, or nested bytecode execution.
+Existing bounds, grants, worker ownership and cancellation rules are unchanged.
+
 ### Asynchronous command-line host operations
 
 `stdlib/async_host` provides `await arguments(): [Str]`, `await stdout(Str)` and

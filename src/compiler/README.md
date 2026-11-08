@@ -454,3 +454,9 @@ loader diagnostics and implicit validation imports, and restores complete parsin
 before checking any module without reusable compiled code. Error fallback restarts
 full discovery. Package and rich-tooling entry points keep full loading. See the
 [summary contract](../../docs/COMPILER_PERSISTENT_REUSE.md#standalone-declaration-summary-reuse).
+
+The async stdlib module paths use the existing logical-import hierarchy. The
+parser allows the reserved `async` token as a path segment. Closed primitive
+grants, signatures and effect checks cover `time/async.now` and
+`environment/async.get`; both require await and remain impure. Diagnostics for
+ordinary clock/environment calls in async functions point to these imports.

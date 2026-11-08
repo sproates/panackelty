@@ -4,6 +4,7 @@
 #include "builtins.h"
 #include "console_write.h"
 #include "host.h"
+#include "host_types.h"
 #include "http_transport.h"
 #include "http_runtime.h"
 #include "filesystem_stage.h"
@@ -600,6 +601,12 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
     }
     if (entry->dispatch == BUILTIN_TCP_SERVICE) {
         return service_call(execution, arguments);
+    }
+    if (entry->dispatch == BUILTIN_INSTANT_NOW_ASYNC) {
+        return host_type_call(vm, "instant_now", NULL);
+    }
+    if (entry->dispatch == BUILTIN_ENVIRONMENT_LOOKUP_ASYNC) {
+        return host_call(vm, "environment_lookup_async", arguments);
     }
     if (entry->dispatch == BUILTIN_HOST_ARGUMENTS_ASYNC) {
         if (execution->embedded && !execution->console_enabled) {

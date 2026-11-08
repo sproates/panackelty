@@ -1,0 +1,8 @@
+pub import stdlib/time::{ClockError, ClockError.ClockUnavailable, DurationError,
+  DurationError.FractionalNanosecond, DurationError.ZeroDurationDivisor,
+  from_nanoseconds, from_seconds, seconds, milliseconds}
+
+// An impure monotonic clock read that completes in the current task turn.
+pub async now(): Result[Instant,ClockError] {
+  await instant_now_async()
+}

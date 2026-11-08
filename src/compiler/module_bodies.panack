@@ -2747,9 +2747,9 @@ pure body_special_core_call(target: BodyTarget): Bool {
       name == "reverse" || name == "slice" ||
       name == "bytes" || name == "byte_append" || name == "bytes_concat" ||
       name == "byte_len" || name == "byte_get" || name == "utf8_encode" || name == "utf8_decode" ||
-      name == "environment_has" || name == "environment_get" ||
+      name == "environment_has" || name == "environment_get" || name == "environment_lookup_async" ||
       name == "duration_nanoseconds" || name == "duration_ticks" ||
-      name == "duration_from_seconds" || name == "instant_now" ||
+      name == "duration_from_seconds" || name == "instant_now" || name == "instant_now_async" ||
       name == "instant_add" || name == "instant_difference" || name == "instant_before" ||
       name == "host_arguments_async" || name == "host_stdout_async" ||
     name == "host_stderr_async" || name == "host_exit_async" || name == "run_bytecode_args" || name == "command_args" || name == "process_exit" ||
@@ -3785,7 +3785,11 @@ pure body_check_environment_core_call(
       ))
     }
     if diagnostics.len() == 0 && deferred.len() == 0 {
-      output = body_core_type(if name == "environment_has" { "Bool" } else { "Str" })
+      output = if name == "environment_lookup_async" {
+        Some(SignatureType(SignatureCore("Option"), [SignatureType(SignatureCore("Str"), [])]))
+      } else {
+        body_core_type(if name == "environment_has" { "Bool" } else { "Str" })
+      }
     }
   }
   BodyResult(BoundBody(
@@ -3824,7 +3828,7 @@ pure body_check_time_core_call(
           body_intrinsic_type(context, "DurationError")
         ]))
       } else {
-        if name == "instant_now" {
+        if name == "instant_now" || name == "instant_now_async" {
           output = Some(SignatureType(SignatureCore("Result"), [
             instant,
             body_intrinsic_type(context, "ClockError")
@@ -4245,7 +4249,7 @@ pure body_check_special_core_call(
     BodyResult(checked.body, initial_diagnostics.concat(checked.diagnostics),
       initial_deferred.concat(checked.deferred))
   } else {
-  if name == "environment_has" || name == "environment_get" {
+  if name == "environment_has" || name == "environment_get" || name == "environment_lookup_async" {
     if types.len() > 0 {
       body_failure("explicit type arguments require a generic function", type_argument_span)
     } else {
@@ -4273,7 +4277,7 @@ pure body_check_special_core_call(
     }
   } else {
   if name == "duration_nanoseconds" || name == "duration_ticks" ||
-    name == "duration_from_seconds" || name == "instant_now" ||
+    name == "duration_from_seconds" || name == "instant_now" || name == "instant_now_async" ||
     name == "instant_add" || name == "instant_difference" || name == "instant_before" {
     if types.len() > 0 {
       body_failure("explicit type arguments require a generic function", type_argument_span)

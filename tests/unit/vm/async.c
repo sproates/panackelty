@@ -332,8 +332,66 @@ static void shared_booleans_survive_wait_and_cancellation(void)
     }
 }
 
+static void immediate_host_reads(void)
+{
+    const char *names[] = {"instant_now_async", "environment_lookup_async"};
+    char *environment[] = {"PRESENT=ready", "EMPTY="};
+    for (size_t operation = 0; operation < 2; operation++) {
+        for (size_t caller = 0; caller < 3; caller++) {
+            for (size_t awaited = 0; awaited < 2; awaited++) {
+                bool allowed = caller == 2 && awaited;
+                Instruction code[] = {{.op = OP_CONST,
+                    .constant = {.tag = 3, .text = "PRESENT", .text_length = 7}},
+                    {.op = awaited ? OP_AWAIT_CALL : OP_CALL,
+                     .name = (char *)names[operation], .arity = operation ? 1 : 0},
+                    {.op = OP_RETURN}};
+                Function fn = {.name = "read_host", .pure = caller == 1, .is_async = caller == 2,
+                    .ins = code + (operation ? 0 : 1), .ins_count = operation ? 3 : 2};
+                Instruction main_code[] = {{.op = OP_RETURN}};
+                Function functions[] = {{.name = "main", .ins = main_code, .ins_count = 1}, fn};
+                Program program = {.functions = functions, .count = 2};
+                const char *error = NULL;
+                assert(verify(&program, &error) == allowed);
+                VM vm = {.program = &program, .environment = environment, .env_count = 2};
+                Value *result = execute(&vm, &functions[1], NULL);
+                assert((result != NULL) == allowed && (vm.error == NULL) == allowed);
+                if (allowed) {
+                    assert(result->kind == V_VARIANT);
+                    assert(!strcmp(result->as.named.name, operation ? "Some" : "Ok"));
+                    if (operation) assert(!strcmp((char *)result->as.named.values[0]->as.bytes.data, "ready"));
+                    else assert(result->as.named.values[0]->kind == V_INSTANT);
+                }
+                release(result);
+            }
+        }
+    }
+    char *keys[] = {"EMPTY", "MISSING"};
+    for (size_t i = 0; i < 2; i++) {
+        Instruction code[] = {{.op = OP_CONST,
+            .constant = {.tag = 3, .text = keys[i], .text_length = strlen(keys[i])}},
+            {.op = OP_AWAIT_CALL, .name = "environment_lookup_async", .arity = 1},
+            {.op = OP_RETURN}};
+        Function fn = {.name = "read_host", .is_async = true, .ins = code, .ins_count = 3};
+        Instruction main_code[] = {{.op = OP_RETURN}};
+        Function functions[] = {{.name = "main", .ins = main_code, .ins_count = 1}, fn};
+        Program program = {.functions = functions, .count = 2};
+        VM vm = {.program = &program, .environment = environment, .env_count = 2};
+        const char *error = NULL;
+        assert(verify(&program, &error));
+        VMExecution *run = vm_execution_create_async(&vm, &functions[1], NULL, NULL, NULL, &error);
+        assert(run && !error);
+        /* Immediate reads need no pending operation, worker, or console grant. */
+        assert(vm_execution_advance(run, 10) == VM_COMPLETED);
+        Value *result = vm_execution_result(run);
+        assert(!strcmp(result->as.named.name, i ? "None" : "Some"));
+        if (!i) assert(result->as.named.values[0]->as.bytes.length == 0);
+        assert(vm_execution_destroy(run));
+    }
+}
+
 void async_contracts(void)
 {
+    immediate_host_reads();
     shared_booleans_survive_wait_and_cancellation();
     verified_calls_survive_async_wait();
     independent_progress();

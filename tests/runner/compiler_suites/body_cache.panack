@@ -4,13 +4,13 @@ import project/src/compiler/module_reuse::{CachedModuleBodies}
 import project/src/compiler/module_bodies::{BoundFunctionBody, BoundBody, BodyNode.BodyEmpty, BodyCheckStatus.BodyIdentityChecked}
 import project/src/compiler/types::{SourcePos, SourceSpan}
 import project/src/compiler/emitter::{compile_program}
-import project/src/bytecode/codec::{serialize_bytecode, encode_u32}
+import project/src/bytecode/codec::{serialize_bytecode, encode_u32, encode_text}
 import stdlib/bytes as byte_buffer
 import stdlib/testing as testing
 pub import stdlib/testing::{TestResult}
 
 pub body_cache_tests(): [TestResult] {
-  mut results: [TestResult] = []
+  mut results: [TestResult] = shared_type_cache_tests()
   for fixture in ["collections", "records_and_enums", "callables", "async_await", "domain_constraints", "owned_core_methods", "string_boundaries"] {
     source = load_project_sources("tests/functional/cases/" + fixture + "/main.panack")
     fresh = check_project_sources(source)
@@ -102,5 +102,74 @@ pub body_cache_tests(): [TestResult] {
       results = results.append(testing.expect("span end dictionary index is checked", decode_checked_bodies(bad_end_file) == None(), "invalid end file index accepted"))
     }
   }
+  results
+}
+
+// Construct the wire format independently of the production encoder, so invalid
+// references and compressed expansion cannot be hidden by encoder correctness.
+pure shared_type_frame(count: Nat, entries: Bytes, functions: Bytes): Bytes {
+  "PANACK-BODIES-2\n".encode_utf8().join(encode_u32(1)).join(encode_text("Unit"))
+    .join(encode_u32(count)).join(entries).join(functions)
+}
+
+pure shared_type_chain(count: Nat, branches: Nat): Bytes {
+  mut entries: Bytes = byte_buffer.empty()
+  for index in 0..count {
+    entries = entries.join(encode_u32(0)).join(encode_u32(0))
+    if index > 0 {
+      entries = entries.join(encode_u32(branches))
+      for child in 0..branches { entries = entries.join(encode_u32(index - 1)) }
+    } else { entries = entries.join(encode_u32(0)) }
+  }
+  entries
+}
+
+pure shared_type_function(reference: Nat): Bytes {
+  // Function binding, empty generic/slot/effect/parameter lists, empty body,
+  // zero-position span, no children, and Some(type reference).
+  mut bytes: Bytes = byte_buffer.empty()
+  for word in [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, reference] {
+    bytes = bytes.join(encode_u32(word))
+  }
+  bytes
+}
+
+pure shared_type_cache_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  empty = encode_u32(0)
+  core = shared_type_chain(1, 1)
+  results = results.append(testing.expect("shared type table accepts empty bodies",
+    decode_checked_bodies(shared_type_frame(1, core, empty)) == Some([]), "valid table rejected"))
+  results = results.append(testing.expect("old unversioned body cache rejected",
+    decode_checked_bodies(empty.join(empty)) == None(), "old representation accepted"))
+  results = results.append(testing.expect("unknown body cache version rejected",
+    decode_checked_bodies("PANACK-BODIES-1\n".encode_utf8().join(empty).join(empty)) == None(), "old version accepted"))
+  for reference in [0, 1, 4294967295] {
+    invalid_entry = encode_u32(0).join(encode_u32(0)).join(encode_u32(1)).join(encode_u32(reference))
+    results = results.append(testing.expect("self forward and out-of-range type references rejected",
+      decode_checked_bodies(shared_type_frame(1, invalid_entry, empty)) == None(), "invalid reference accepted"))
+  }
+  results = results.append(testing.expect("excessive type-table count rejected",
+    decode_checked_bodies(shared_type_frame(1000001, byte_buffer.empty(), empty)) == None(), "count accepted"))
+  results = results.append(testing.expect("truncated type-table entry rejected",
+    decode_checked_bodies(shared_type_frame(1, encode_u32(0), byte_buffer.empty())) == None(), "truncation accepted"))
+  results = results.append(testing.expect("shared type reference round trip accepts a body",
+    decode_checked_bodies(shared_type_frame(1, core, encode_u32(1).join(shared_type_function(0)))) != None(), "valid body rejected"))
+  results = results.append(testing.expect("body type reference outside table rejected",
+    decode_checked_bodies(shared_type_frame(1, core, encode_u32(1).join(shared_type_function(1)))) == None(), "bad body reference accepted"))
+  results = results.append(testing.expect("type depth boundary accepted",
+    decode_checked_bodies(shared_type_frame(512, shared_type_chain(512, 1), empty)) == Some([]), "depth boundary rejected"))
+  results = results.append(testing.expect("excessive expanded type depth rejected",
+    decode_checked_bodies(shared_type_frame(513, shared_type_chain(513, 1), empty)) == None(), "deep table accepted"))
+  results = results.append(testing.expect("type depth includes enclosing body depth",
+    decode_checked_bodies(shared_type_frame(512, shared_type_chain(512, 1), encode_u32(1).join(shared_type_function(511)))) == None(), "body depth omitted"))
+  results = results.append(testing.expect("compressed exponential type expansion rejected",
+    decode_checked_bodies(shared_type_frame(20, shared_type_chain(20, 2), empty)) == None(), "expansion accepted"))
+  large = shared_type_chain(19, 2)
+  results = results.append(testing.expect("bounded shared type expansion accepted",
+    decode_checked_bodies(shared_type_frame(19, large, encode_u32(1).join(shared_type_function(18)))) != None(), "bounded expansion rejected"))
+  results = results.append(testing.expect("aggregate repeated type expansion rejected",
+    decode_checked_bodies(shared_type_frame(19, large, encode_u32(2).join(shared_type_function(18)).join(shared_type_function(18)))) == None(), "aggregate budget omitted"))
   results
 }

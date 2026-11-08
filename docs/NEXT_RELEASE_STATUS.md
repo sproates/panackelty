@@ -217,6 +217,17 @@ Completed: [consumer audit and real-payload inventory](COMPILER_EDIT_PROFILE.md#
 found 123,405 type descriptions but 1,705 distinct per-module values. A dictionary
 size model reduces 9.08 MiB payloads by 14.4% for types alone and 31.5% with
 identities/bindings; these are size estimates, not measured speedups. Straightforward
-unused-field removal accounts for only 2.6%. Recommend a bounded shared-type
-codec trial before a larger lowered-code/effect-summary redesign. No implementation
-or format change has started; RM#157/GI#106 remain open.
+unused-field removal accounts for only 2.6%. The recommended bounded shared-type
+trial is recorded below. A larger lowered-code/effect-summary redesign remains
+unimplemented; RM#157/GI#106 remain open.
+
+## Shared-type cache trial
+
+Included in this integration: [per-module shared types](COMPILER_EDIT_PROFILE.md#shared-type-cache-trial-8-november-2026)
+reduce median edited self-build time by 10.5%, peak RSS by 9.4%, and module-cache
+files by 14.4%. All three pairs match fresh output and reuse 46/49 modules.
+Cold/unchanged observations show no regression here. The private cache is version 2;
+old entries fall back to fresh checking. All 1,487 focused assertions, cache CLI
+checks, native artifacts, coverage-policy tests, bootstrap and final `make check`
+(565s) pass. RM#157/GI#106 remain open.
+No VM bytecode change or broader cache redesign is included.

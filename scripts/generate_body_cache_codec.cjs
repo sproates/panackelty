@@ -3,6 +3,9 @@
 // Null fields use explicit plain-mode defaults; only successful checks are saved.
 const fs = require('fs');
 const { records, enums, groups } = JSON.parse(fs.readFileSync('scripts/body_cache_schema.json', 'utf8'));
+if (JSON.stringify(records.SignatureType) !== JSON.stringify([['identity', 'SignatureTypeIdentity'], ['arguments', '[SignatureType]']])) {
+  throw Error('Review the shared-type codec after changing the SignatureType schema');
+}
 enums.OwnedIntrinsic = fs.readFileSync('src/compiler/owned_intrinsics.panack', 'utf8')
   .split('pub enum OwnedIntrinsic {')[1].split('}')[0].trim().split(/,\s*/).map(name => [name]);
 const unsupportedExpressions = [
@@ -128,12 +131,12 @@ function emit(type) {
 
   }
   // Recursive typed structures are bounded even for deliberately malformed input.
-  if (['BoundBody', 'SignatureType', 'Expr'].includes(type)) {
+  if (['BoundBody', 'Expr'].includes(type)) {
     decoder = `if !reader.valid || reader.depth >= 512 {
     CacheRead(failed(reader), ${fallback(type)})
   } else {
-    nested = decode_${name}_nested(CacheReader(reader.data, reader.offset, true, reader.depth + 1, reader.texts))
-    CacheRead(CacheReader(nested.reader.data, nested.reader.offset, nested.reader.valid, reader.depth, reader.texts), nested.value)
+    nested = decode_${name}_nested(CacheReader(reader.data, reader.offset, true, reader.depth + 1, reader.texts, reader.types, reader.expanded))
+    CacheRead(CacheReader(nested.reader.data, nested.reader.offset, nested.reader.valid, reader.depth, reader.texts, reader.types, nested.reader.expanded), nested.value)
   }
 }
 
@@ -152,7 +155,7 @@ pure decode_${name}_nested(reader: CacheReader): CacheRead[${declared}] {
     line = word_at(reader.data, reader.offset + 8)
     column = word_at(reader.data, reader.offset + 12)
     if file < reader.texts.len() && offset < 4294967295 && line < 4294967295 && column < 4294967295 {
-      CacheRead(CacheReader(reader.data, reader.offset + 16, true, reader.depth, reader.texts),
+      CacheRead(CacheReader(reader.data, reader.offset + 16, true, reader.depth, reader.texts, reader.types, reader.expanded),
         SourcePos(reader.texts[file], offset, line, column))
     } else { decode_SourcePos_general(reader) }
   } else { decode_SourcePos_general(reader) }
@@ -180,7 +183,7 @@ pure decode_SourcePos_general(reader: CacheReader): CacheRead[SourcePos] {
     if start_file < reader.texts.len() && end_file < reader.texts.len() &&
         start_offset < 4294967295 && start_line < 4294967295 && start_column < 4294967295 &&
         end_offset < 4294967295 && end_line < 4294967295 && end_column < 4294967295 {
-      CacheRead(CacheReader(reader.data, reader.offset + 32, true, reader.depth, reader.texts),
+      CacheRead(CacheReader(reader.data, reader.offset + 32, true, reader.depth, reader.texts, reader.types, reader.expanded),
         SourceSpan(SourcePos(reader.texts[start_file], start_offset, start_line, start_column),
           SourcePos(reader.texts[end_file], end_offset, end_line, end_column)))
     } else { decode_SourceSpan_general(reader) }
@@ -190,8 +193,9 @@ pure decode_SourcePos_general(reader: CacheReader): CacheRead[SourcePos] {
 pure decode_SourceSpan_general(reader: CacheReader): CacheRead[SourceSpan] {
   ` + decoder;
   }
+  if (type === 'SignatureType') decoder = 'read_shared_type(reader)';
   const encoder = encodeBody(type);
-  output += `\npure encode_${name}(pool: Map[Str,Nat], value: ${declared}): Bytes {\n  ${encoder}\n}\n` +
+  output += `\npure encode_${name}(pool: CachePool, value: ${declared}): Bytes {\n  ${encoder}\n}\n` +
     `\npure decode_${name}(reader: CacheReader): CacheRead[${declared}] {\n  ${decoder}\n}\n`;
 }
 
@@ -199,6 +203,7 @@ pure decode_SourceSpan_general(reader: CacheReader): CacheRead[SourceSpan] {
 // A shared persistent writer caused quadratic copying; the separate dictionary
 // collection pass is deliberately retained after full-workload measurement.
 function encodeBody(type) {
+  if (type === 'SignatureType') return 'encode_u32(pool.type_indices.get(value))';
   if (type.startsWith('[')) return 'mut chunks: [Bytes] = [encode_u32(value.len())]\n' +
     '  for item in value { chunks = chunks.append(encode_' + identifiers(type.slice(1, -1)) + '(pool, item)) }\n' +
     '  source_map_join(chunks, 0, chunks.len())';
@@ -217,16 +222,20 @@ function encodeBody(type) {
   return 'match value {\n' + arms.join(',\n') + '\n  }';
 }
 function collectBody(type) {
-  if (type.startsWith('[')) return 'mut result: TextPool = pool\n  for item in value { result = collect_' +
+  if (type === 'SignatureType') return 'if pool.type_indices.has(value) { pool } else {\n' +
+    '    collected = collect_SignatureTypeIdentity(pool, value.identity)\n' +
+    '    result = collect_Array_SignatureType(collected, value.arguments)\n' +
+    '    CachePool(result.text_indices, result.texts, result.type_indices.put(value, result.types.len()), result.types.append(value))\n  }';
+  if (type.startsWith('[')) return 'mut result: CachePool = pool\n  for item in value { result = collect_' +
     identifiers(type.slice(1, -1)) + '(result, item) }\n  result';
   if (type.startsWith('?')) return 'match value { None() => pool, Some(item) => collect_' +
     identifiers(type.slice(1)) + '(pool, item) }';
-  if (records[type]) return 'mut result: TextPool = pool\n' + records[type].filter(([, item]) => item)
+  if (records[type]) return 'mut result: CachePool = pool\n' + records[type].filter(([, item]) => item)
     .map(([field, item]) => '  result = collect_' + identifiers(item) + '(result, value.' + field + ')\n').join('') + '  result';
   const arms = enums[type].map(([variant, ...payload]) => {
     const names = payload.map((_, index) => 'v' + index).join(', ');
     if (!payload.some(Boolean)) return '    ' + variant + '(' + names + ') => pool';
-    return '    ' + variant + '(' + names + ') => {\n      mut result: TextPool = pool\n' +
+    return '    ' + variant + '(' + names + ') => {\n      mut result: CachePool = pool\n' +
       payload.map((item, index) => item ? '      result = collect_' + identifiers(item) + '(result, v' + index + ')\n' : '').join('') +
       '      result\n    }';
   });
@@ -237,15 +246,15 @@ function collectBody(type) {
 }
 
 emit('[BoundFunctionBody]');
-output += '\nrecord TextPool { indices: Map[Str,Nat], texts: [Str] }\n' +
-  'pure collect_Str(pool: TextPool, value: Str): TextPool {\n' +
-  '  if pool.indices.has(value) { pool }\n' +
-  '  else { TextPool(pool.indices.put(value, pool.texts.len()), pool.texts.append(value)) }\n}\n' +
-  'pure collect_Nat(pool: TextPool, value: Nat): TextPool { pool }\n' +
-  'pure collect_Bool(pool: TextPool, value: Bool): TextPool { pool }\n';
+output += '\nrecord CachePool { text_indices: Map[Str,Nat], texts: [Str], type_indices: Map[SignatureType,Nat], types: [SignatureType] }\n' +
+  'pure collect_Str(pool: CachePool, value: Str): CachePool {\n' +
+  '  if pool.text_indices.has(value) { pool }\n' +
+  '  else { CachePool(pool.text_indices.put(value, pool.texts.len()), pool.texts.append(value), pool.type_indices, pool.types) }\n}\n' +
+  'pure collect_Nat(pool: CachePool, value: Nat): CachePool { pool }\n' +
+  'pure collect_Bool(pool: CachePool, value: Bool): CachePool { pool }\n';
 for (const type of emitted) {
   if (['Str', 'Nat', 'Bool'].includes(type)) continue;
-  output += '\npure collect_' + identifiers(type) + '(pool: TextPool, value: ' + spelling(type) + '): TextPool {\n  ' + collectBody(type) + '\n}\n';
+  output += '\npure collect_' + identifiers(type) + '(pool: CachePool, value: ' + spelling(type) + '): CachePool {\n  ' + collectBody(type) + '\n}\n';
 }
 output += '\n' + support[1];
 fs.writeFileSync('src/compiler/body_cache_codec.panack', output);

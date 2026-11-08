@@ -1785,7 +1785,7 @@ claiming new execution coverage.
 
 ### Checked-body source-position decoding
 
-The body-cache suite has 96 assertions. Position round trips cover zero, the
+The body-cache suite has 112 assertions. Position round trips cover zero, the
 largest ordinary word, the large-Nat sentinel and a coordinate beyond 64 bits,
 including Unicode file names. Truncated words and invalid file dictionary
 indexes are rejected at both ends of a span. Extra cases cover a large coordinate
@@ -1809,3 +1809,13 @@ reject same-size import changes and added duplicate declarations, clear errors
 after recovery, and preserve moved diagnostic positions. Direct resolver calls
 reject both stale prepared inputs and raw invalid bindings. The existing collision,
 privacy and graph checks remain in place; no executable functions are excluded.
+
+### Shared type cache representation
+
+Sixteen additional body-cache assertions independently construct the version-2
+wire format. They cover valid shared values, previous/unknown formats, self/forward/
+out-of-range references, truncated and excessive tables, expanded depth including
+the enclosing body, and both per-type and cumulative expansion budgets. Existing
+fixture round trips compare restored diagnostics and bytecode with fresh checking.
+The CLI cache harness also checks fresh fallback from an intact previous-version
+module header. The manual hosted-trial fixture uses the current module marker.

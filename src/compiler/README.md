@@ -204,7 +204,11 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   use a checked fixed-width decoding path when their coordinates fit ordinary
   words; spans reconstruct both ordinary positions together. Larger coordinates
   use the general Nat decoder. Body-node tags use a bounded balanced decision
-  tree; invalid tags still reject. The format is unchanged. See
+  tree; invalid tags still reject. The version-2 private module/body cache stores
+  distinct immutable types once, with child-first references. The reader bounds
+  expanded type depth and total expanded nodes, rejecting cycles, forward
+  references and excessive expansion; incompatible caches fall back to fresh work.
+  The VM bytecode format is unchanged. See
   [persistent reuse](../../docs/COMPILER_PERSISTENT_REUSE.md).
 - `module_emission.panack` lowers fully identity-checked bodies and canonical
   function/type/variant identities to deterministic private names. Entry `main`

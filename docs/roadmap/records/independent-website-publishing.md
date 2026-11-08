@@ -856,6 +856,16 @@ Small-program cache overhead remains a limitation. The 1,832 focused assertions,
 passed in 548s, with documentation checks also passing. This is a bounded local checkpoint, not completion of RM#28/GI#106 or
 RM#157, and does not change the website or trigger CI.
 
+
+The [post-code-cache profile](../../COMPILER_EDIT_PROFILE.md#encoded-function-path-profile-8-november-2026)
+at `cee968e` now locates 2.351s in lex/parse, 2.262s in cache payload restoration
+and canonical record validation, and 0.791s in fresh global effects. Eight
+invocations preserve exact output; the ordinary edited sample is 6.612s versus
+9.884s fresh. A source-loading reuse control is recommended before another
+implementation, with cheaper equally strict record validation as an alternative.
+This measurement-only checkpoint changes no product code and does not complete
+RM#28/GI#106 or RM#157.
+
 ### Incremental command direction, 7 November 2026
 
 The owner expects an ordinary one-shot command such as

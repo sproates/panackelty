@@ -936,3 +936,84 @@ and local links pass. The compiler seed is
 
 This is a selected implementation on the development branch, not completion of
 RM#157/GI#106. No website change or CI run is needed for the branch checkpoint.
+
+## Encoded-function path profile, 8 November 2026
+
+Baseline: `cee968e` (encoded-function cache). This is a measurement-only follow-up;
+no compiler, VM, cache format or workflow behaviour changes. A separate observer
+VM is linked from the current native objects with only its execution object
+rebuilt, using the test observer hook and selected coarse functions. The packaged
+VM and compiler seed remain untouched.
+
+### Method and checks
+
+Each VM uses its own copied source tree and empty cache outside that tree, with
+its actual VM path as the cache identity. Both run cold, unchanged, edited and
+fresh modes. The edit changes the legacy `module_magic` string from version 2
+to 3; this changes compiled code and reuses 46/49 modules. Direct compiler calls
+use `--local-compile-cache compile src/compiler/main.panack -o OUTPUT`; fresh
+calls omit the internal prefix. `PANACKELTY_BOOTSTRAP_ROOT` and
+`PANACKELTY_STDLIB_PATH` select the copied project and its `src/stdlib`;
+`PANACKELTY_COMPILER_PATH`, `PANACKELTY_VM_PATH` and
+`PANACKELTY_COMPILE_CACHE_DIR` are absolute paths. Code-cache selection is 1,
+cache trace is enabled, and only observer runs set `PANACK_COMPILER_TRACE`.
+No builds run concurrently.
+
+All eight invocations succeed. Corresponding ordinary/observer artifacts match,
+unchanged matches cold, and edited matches fresh but differs from cold. Cold
+output also matches the current compiler seed. Enter/return events balance;
+exclusive totals subtract nested selected durations. This is one sample per mode
+for locating costs, not a new speedup benchmark. Observer overhead and timing
+variation mean its phase costs are not exact normal-VM costs.
+
+| Mode | Ordinary VM | Observer VM |
+| --- | ---: | ---: |
+| cold | 10.777s | 11.481s |
+| unchanged | 2.636s | 2.704s |
+| edited | 6.612s | 7.081s |
+| fresh | 9.884s | 11.135s |
+
+### Edited-build breakdown
+
+| Work | Observer time | Calls |
+| --- | ---: | ---: |
+| Lex source | 1.617s | 49 |
+| Parse source | 0.734s | 49 |
+| Decode module code payloads | 1.021s | 46 |
+| Validate encoded function records, including canonical re-encoding | 1.241s | 1,091 |
+| Recheck global effect facts | 0.791s | 1 |
+| Check signatures | 0.509s | 49 |
+| Check changed module bodies | 0.167s | 3 |
+| Lower/compile/encode changed functions and assemble artifact | 0.134s | four stages |
+| Other work and process overhead | 0.867s | remainder |
+
+The validation row includes 0.235s of nested `encode_functions`; it is not
+counted again in changed-function encoding. The remaining work includes source
+loading outside lex/parse, project bookkeeping, cache keys, cache storage and
+process startup. Cache payload restoration and canonical record validation are
+separate: the latter deliberately decodes and re-encodes each bytecode function.
+The complete cached-module loading call takes 2.311s inclusive, leaving roughly
+0.049s outside these two operations. This is mostly representation work rather
+than disk I/O. No validation check was removed to obtain these results.
+
+On the unchanged path, lexing/parsing takes 2.348s of the 2.704s observed process
+(about 87%); complete source loading takes 2.579s inclusive. The whole-artifact
+hit itself takes about 0.002s after loading. Fresh compilation still spends
+5.032s checking all module bodies; its unselected effect/emission work remains
+inside the driver remainder and is not mistaken for cache overhead.
+
+### Next experiment indicated
+
+Source loading is now the largest combined phase, with cache reconstruction and
+validation close behind. First measure a bounded source-loading reuse control,
+keeping content-based invalidation and discovery of changed imports explicit.
+Do not assume serialising syntax trees will help: a decoder can cost as much as
+parsing. Avoiding parsing before an unchanged whole-artifact hit is a particularly
+clear target; reuse after edits needs its own measured proof. A cheaper canonical
+record validator is the strongest alternative, but must retain its existing
+rejection guarantees. Neither implementation is selected by this profile alone.
+
+No full validation rerun is required for this measurement-only record. The eight
+invocations, trace accounting, exact artifact comparisons and documentation checks
+are the applicable validation. RM#28/GI#106 and RM#157 remain open. No CI or website
+change is included.

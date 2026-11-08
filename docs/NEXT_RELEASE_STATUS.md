@@ -269,3 +269,14 @@ All 1,832 focused assertions, 30 cache CLI groups, hosted-trial regression tests
 native artifact comparisons and bootstrap fixed points pass. Final local
 `make check` passed in 548s, and documentation checks pass. No VM bytecode change, website change or CI run is included.
 RM#157: Performance review and GI#106: Incremental and modular builds remain open.
+
+## Profile after encoded-function reuse
+
+The [current-path profile](COMPILER_EDIT_PROFILE.md#encoded-function-path-profile-8-november-2026)
+at `cee968e` confirms the next costs: lex/parse 2.351s, code-payload restoration
+1.021s, canonical function validation 1.241s and effects 0.791s in a 7.081s
+observer edit. Ordinary edited compilation takes 6.612s versus 9.884s fresh in
+this single sample. All eight mode/VM invocations and exact output comparisons
+pass. A source-loading reuse control is the suggested next experiment; no new
+implementation is selected. This measurement-only branch checkpoint leaves
+RM#28/GI#106 and RM#157 open and triggers no CI.

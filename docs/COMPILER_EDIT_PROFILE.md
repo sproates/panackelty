@@ -1179,3 +1179,87 @@ Validation here consists of compiling the isolated harness, twelve exact
 49-module comparisons and documentation checks. No product changes, seed refresh,
 full validation rerun, CI trigger or website update is included. The experiment
 is complete; RM#28/GI#106 and RM#157 remain open.
+
+## Module-summary integration, 8 November 2026
+
+The follow-up implements declaration-summary reuse for standalone incremental
+compilation. Summary-only modules have an explicit body-availability tag and are
+rejected by body checking until their complete source is restored. Summaries retain
+loader diagnostics, guards, positions, method metadata and implicit validation
+imports. Exact source/toolchain bytes guard reuse. Compiled-record misses restore
+full parsing; unsuccessful preparation restarts full discovery. Package and rich
+commands keep their established path. Bytecode version 9 is unchanged.
+
+### Complete-build comparison
+
+One ordinary candidate compiler builds the same copied 50-module source tree with
+summary reuse disabled/enabled in separate private caches. Each edit changes the
+emitted module-cache marker; three pairs alternate order, each followed by fresh
+compilation. All paired artifacts exactly match fresh output. The enabled path
+reuses 49 summaries and 47 compiled modules, checking the changed module and its
+consumers. This measures full commands, including input reads, validation, decoding,
+restoration and publication, rather than only the parsing phase.
+
+| Pair | Without summaries | With summaries | Fresh |
+| --- | ---: | ---: | ---: |
+| 1 | 8.143662s | 6.157031s | 12.648690s |
+| 2 | 7.811602s | 5.607838s | 12.135427s |
+| 3 | 7.911084s | 5.604245s | 11.219752s |
+| Median | 7.911084s | 5.607838s | 12.135427s |
+
+The median edited command is 29.1% faster than the same compiler without summary
+reuse, and 53.8% faster than fresh compilation here. Earlier implementation pairs
+showed a 27.1% saving; the final pass includes preserved loader diagnostics and
+full discovery on fallback. Source-layout cleanup after measurement changes no
+execution logic. These are local workload observations, not additive speedups or
+release-wide guarantees. No memory reduction is claimed.
+
+Cold observations are 13.196669s without summaries and 15.089370s with them: a
+1.893s (14.3%) first-build cost in this pair. Unchanged whole-artifact hits remain
+about 0.05s (0.051124s / 0.053944s). Fifty summary files total 545,189 bytes in
+addition to existing compiled records. The earlier cold pair was 12.418s / 12.591s;
+there is variation, so the first-build overhead needs to remain visible rather
+than being described as free.
+
+Disposition: adopt within the existing opt-in incremental mode for repeated-edit
+workloads, where the median edit saves 2.303s. Ordinary fresh compilation is
+unaffected, and the development comparison switch can disable summaries. The
+compiler maintainer owns this trade-off under RM#157; retain cold observations in
+subsequent workload measurements. This does not set a new performance budget or
+complete RM#28/GI#106 or RM#157.
+
+### Correctness and acceptance
+
+All 1,954 module-suite assertions and 43 CLI cache groups pass. Regression cases
+cover explicit missing-body rejection, summary round trips/framing, exact loader
+messages, complete/partial restoration, missing compiled records, corrupt summaries,
+changed dependencies/declarations, exact negative diagnostics and implicit validation
+imports. All 17 hosted-cache/manifest/policy tests pass. The production-parser
+inventory reviews 530 declaration exclusions across 52 eligible files against the
+prior 509; no executable function is excluded.
+
+Native artifact compatibility and compiler/stdlib bootstrap fixed points pass.
+The compiler seed is `33d3f152a79d780b6bdb327a3b86216fdcb5e5565a26ca683fb3e15dbb2f3a4a`;
+the stdlib artifact stays `823a5f93fe2886a44b680cb09c1d634bdf6aa8fc0f5cdff57510cfe743eb8a0d`.
+Final `make check` passed in 570 seconds, including unit, functional, bootstrap,
+packaging, relocated release smoke and quick-start checks. Documentation checks
+also pass. No CI or website update is triggered.
+
+The first broad run passed units but exposed three embedded namespace fixtures
+still using the old LoadedModule constructor; those test-only call sites were
+corrected, and namespace acceptance passes. A subsequent run passed bootstrap but
+the unchanged native test binary aborted in `zero_grace_contract`, at
+`tests/unit/vm/tcp_server.c:259` (`tcp_server_done(server)` after one poll).
+The macOS crash stack and assertion call-site identify this independently of the
+compiler. The same native contracts passed in the first broad run and a direct
+rerun. This is evidence of an intermittent native test failure, not a demonstrated
+root cause. No TCP code or assertions are changed in this slice. The compiler
+maintainer retains this evidence for investigation if it recurs; further direct
+repeats and the final validation outcome are recorded below.
+
+Three further direct native-test repeats passed, followed by the complete passing
+570-second run on unchanged product code. The intermittent TCP failure remains
+recorded; these passes do not establish its original cause. The exact diff was
+self-reviewed, including summary invalidation, fallback discovery, decoder bounds,
+implicit dependencies and the distinction between complete and unavailable bodies.
+This completes the local slice; integration is not part of this checkpoint.

@@ -468,3 +468,17 @@ changes or end-to-end speedup are claimed. A distinct summary representation
 paired with valid compiled functions is recommended, with complete parsing on a
 miss and fresh diagnostic/artifact comparisons before adoption. RM#28/GI#106 and
 RM#157 remain open.
+
+### Module-summary implementation, 8 November 2026
+
+The [summary-reuse slice](../../COMPILER_EDIT_PROFILE.md#module-summary-integration-8-november-2026)
+is complete locally on the experiment branch. Median edited self-builds fall from
+7.91s to 5.61s (29.1%) with exact fresh bytecode; unchanged hits stay around 0.05s.
+The cold comparison is 13.20s / 15.09s and is recorded as a first-build trade-off.
+All 1,954 focused assertions, 43 CLI cache groups and 17 hosted/policy tests pass.
+Native artifacts and bootstrap fixed points pass; final `make check` passed in
+570s, including functional, packaging and installed smoke checks. Documentation
+checks pass. The profile retains an intermittent existing TCP-test failure that
+passed direct repeats and the final run; its cause is not claimed resolved.
+This bounded change does not complete RM#28/GI#106 or RM#157. No CI, integration,
+release or website publication is part of this local checkpoint.

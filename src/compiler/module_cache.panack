@@ -1,3 +1,10 @@
+import stdlib/environment as environment
+import project/src/project_model/utf8::{valid_utf8}
+import project/src/compiler/compilation_cache::{standalone_source_paths}
+pub import project/src/compiler/module_summaries::{SourceSummary}
+import project/src/compiler/module_summaries::{summarise_module, declaration_projection}
+import project/src/compiler/module_bindings::{ModuleBodyAvailability.CompleteModuleBodies}
+import project/src/compiler/body_cache_codec::{encode_module_summary, decode_module_summary}
 import project/src/bytecode/decoder::{valid_encoded_function}
 import project/src/compiler/module_emission::{module_emission_callable_symbol}
 import project/src/compiler/module_bindings::{DeclarationIdentity, ModuleDeclarationKind.ModuleFunction}
@@ -306,6 +313,116 @@ pub save_module_code(cache: ModuleCache, result: ProjectCodeCheck): Void {
                 match cache_digest([payload]) {
                   None() => {},
                   Some(hash) => { written = bounded.atomic_write(code_cache_file(entry), magic.join(entry.key).join(hash).join(payload)) }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+pure summary_magic(): Bytes { "PANACK-MODULE-SUMMARY-1\n".encode_utf8() }
+
+summary_tool_key(compiler: Str, vm: Str): Option[Bytes] {
+  match cache_file(compiler, 16777216) {
+    None() => None(),
+    Some(compiled) => match cache_file(vm, 16777216) {
+      None() => None(),
+      Some(machine) => cache_digest([summary_magic(), encode_text(compiler), compiled, encode_text(vm), machine])
+    }
+  }
+}
+
+summary_file(directory: Str, name: Str): Option[Path] {
+  match cache_digest([encode_text(name)]) {
+    None() => None(),
+    Some(hash) => {
+      suffix = digest_name(hash)
+      match path.from_text(paths.join(directory, "summary-${suffix}.cache")) {
+        Error(problem) => None(), Ok(file) => Some(file)
+      }
+    }
+  }
+}
+
+pub cached_source_summaries(entry: Str, root: Str, stdlib: Str): [SourceSummary] {
+  names = standalone_source_paths(entry, root, stdlib)
+  mut summaries: [SourceSummary] = []
+  if names.len() > 0 {
+    directory = environment.get("PANACKELTY_COMPILE_CACHE_DIR").value_or("")
+    compiler = environment.get("PANACKELTY_COMPILER_PATH").value_or("")
+    vm = environment.get("PANACKELTY_VM_PATH").value_or("")
+    match summary_tool_key(compiler, vm) {
+      None() => {},
+      Some(tool) => {
+        mut total: Nat = 0
+        for name in names {
+          match cache_file(name, 8388608) {
+            None() => {},
+            Some(source) => {
+              total = total + source.length()
+              if total <= 8388608 && valid_utf8(source) {
+                match summary_file(directory, name) {
+                  None() => {},
+                  Some(file) => match cache_file(file.to_text().value_or(""), 16777216) {
+                    None() => {},
+                    Some(data) => {
+                      magic = summary_magic()
+                      header = magic.length() + 64
+                      if data.length() > header && byte_buffer.slice(data, 0, magic.length()) == magic &&
+                          cache_digest([tool, encode_text(name), source]) == Some(byte_buffer.slice(data, magic.length(), magic.length() + 32)) {
+                        payload = byte_buffer.slice(data, header, data.length())
+                        if cache_digest([payload]) == Some(byte_buffer.slice(data, magic.length() + 32, header)) {
+                          match decode_module_summary(payload) {
+                            None() => {},
+                            Some(summary) => if declaration_projection(summary.declarations) == summary.declarations &&
+                                summary.declarations.program.declarations.len() == summary.declarations.syntax.len() {
+                              summaries = summaries.append(SourceSummary(name, source.decode_utf8(), summary))
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  count = summaries.len()
+  cache_trace("source summary hits ${count}")
+  summaries
+}
+
+pub save_source_summaries(cache: CompilationCache, source: LoadedProjectSources): Void {
+  if !source.context.package_confined && cache.descriptor.length() == 0 && !source.retain {
+    match summary_tool_key(cache.compiler, cache.vm) {
+      None() => {},
+      Some(tool) => {
+        directory = paths.parent(cache.file.to_text().value_or(""))
+        for module in source.loaded.modules {
+          if module.body_availability == CompleteModuleBodies() {
+            name = module.source_path
+            bytes = source.loaded.sources.get(name).encode_utf8()
+            if cache_file(name, 8388608) == Some(bytes) {
+              match cache_digest([tool, encode_text(name), bytes]) {
+                None() => {},
+                Some(key) => match summary_file(directory, name) {
+                  None() => {},
+                  Some(file) => {
+                    payload = encode_module_summary(summarise_module(module))
+                    if payload.length() + summary_magic().length() + 64 <= 16777216 {
+                      match cache_digest([payload]) {
+                        None() => {},
+                        Some(hash) => { written = bounded.atomic_write(file, summary_magic().join(key).join(hash).join(payload)) }
+                      }
+                    }
+                  }
                 }
               }
             }

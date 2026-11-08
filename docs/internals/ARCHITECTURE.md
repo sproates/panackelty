@@ -1949,3 +1949,12 @@ artifact hit without parsing. Misses use normal discovery; package and rich
 tooling paths keep their existing checks. This adds private cache metadata only,
 with no VM bytecode or native capability change. See
 [the fast-path contract](../COMPILER_PERSISTENT_REUSE.md#standalone-unchanged-build-fast-path).
+
+Edited standalone incremental builds can reuse parsed declaration summaries as
+well as compiled functions. Exact source/toolchain keys protect the summaries;
+ordinary discovery and binding still run. An explicit body-availability tag prevents
+partial modules from being body-checked. Missing compiled code restores complete
+parsing, and unsuccessful preparation falls back to full discovery. Summaries retain
+loader diagnostics and implicit validation imports. This remains module-level reuse,
+with fresh signature/effect checks and conservative dependency invalidation. See the
+[summary contract](../COMPILER_PERSISTENT_REUSE.md#standalone-declaration-summary-reuse).

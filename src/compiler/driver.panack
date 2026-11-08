@@ -1,5 +1,5 @@
 import project/src/bytecode/codec::{EncodedFunction, serialize_encoded_functions}
-import project/src/compiler/module_cache::{ModuleCache, module_cache, cached_module_bodies, save_module_bodies, cached_module_code, save_module_code}
+import project/src/compiler/module_cache::{ModuleCache, module_cache, cached_module_bodies, save_module_bodies, cached_module_code, save_module_code, cached_source_summaries, save_source_summaries}
 import project/src/compiler/compilation_cache::{CompilationCache, compilation_cache, cached_compilation, save_compilation, cache_trace, cached_standalone_inputs}
 import stdlib/bytes as byte_buffer
 import project/src/compiler/path_support as path_support
@@ -16,7 +16,7 @@ import project/src/compiler/coverage::{run_coverage_report}
 import project/src/compiler/source_inventory::{run_inventory_command}
 import project/src/compiler/module_emission::{ModuleIdentity}
 import project/src/compiler/loader::{
-  LoadedProject, LoadedProjectSources, load_project_sources, load_project_package_sources,
+  LoadedProject, LoadedProjectSources, load_project_sources, load_project_sources_summarised, restore_module_bodies, load_project_package_sources,
   check_project_sources, check_project_sources_cached, check_project_sources_code, load_project, load_project_package_for_check,
   load_project_explained, load_project_for_source_map
 }
@@ -31,7 +31,7 @@ import project/src/compiler/diagnostics::{diagnostic_with_source}
 import project/src/compiler/emitter::{BytecodeProgram, SourceMappedProgram, compile_program, compile_program_with_sources, render_bytecode}
 import project/src/bytecode/codec::{serialize_bytecode}
 import project/src/compiler/source_maps::{SourceMapFunctionSelector, source_map_escape, source_map_destination_available, source_map_matches, source_map_location, source_map_reverse, source_map_write, source_snapshots_unchanged, serialize_source_map, source_map_function_selector}
-import project/src/compiler/module_bindings::{source_module_identity, source_package_module_identity}
+import project/src/compiler/module_bindings::{ModuleBodyAvailability.SummaryModuleBodies, source_module_identity, source_package_module_identity}
 import project/src/compiler/project_frontend::{prepare_project_program, prepare_project_program_with_dependencies}
 import project/src/bytecode/decoder::{validate_bytecode, disassemble_bytecode}
 
@@ -191,7 +191,10 @@ run_source_command(command: Str, path: Str, output: Str, program_arguments: [Str
     match early {
       Some(artifact) => driver_use_artifact(command, entry, path, output, program_arguments, artifact),
       None() => {
-        source: LoadedProjectSources = load_project_sources(path)
+        source: LoadedProjectSources = if cache_enabled && std_environment.get("PANACKELTY_COMPILE_SUMMARY_CACHE") != Some("0") &&
+            std_environment.get("PANACKELTY_COMPILE_CODE_CACHE") != Some("0") {
+          load_project_sources_summarised(path, cached_source_summaries(entry, driver_project_root(entry), stdlib))
+        } else { load_project_sources(path) }
         driver_run_cached_source(command, source, path, output, program_arguments, byte_buffer.empty(), source.context.project_root, cache_enabled)
       }
     }
@@ -227,12 +230,15 @@ driver_run_cached_source(
       match code_artifact {
         Some(artifact) => Ok(artifact),
         None() => {
-          checked = check_project_sources_cached(source, match modules {
+          complete = driver_complete_sources(source)
+          complete_cache = match cache { None() => None(), Some(selected) => compilation_cache(complete, descriptor, package_root) }
+          complete_modules = match complete_cache { None() => None(), Some(selected) => module_cache(complete, selected) }
+          checked = check_project_sources_cached(complete, match complete_modules {
             None() => [], Some(selected) => cached_module_bodies(selected)
           })
           loaded: LoadedProject = checked.snapshot.project
-          context = source.context
-          identity = driver_entry_identity(loaded, source.entry_path, context.entry)
+          context = complete.context
+          identity = driver_entry_identity(loaded, complete.entry_path, context.entry)
           match prepare_project_program_with_dependencies(
             loaded, context.project_root, context.stdlib_root, identity,
             context.package_confined, context.package_root_identity, context.dependencies
@@ -241,14 +247,14 @@ driver_run_cached_source(
             Ok(program) => {
               bytecode: BytecodeProgram = compile_program(program)
               artifact: Bytes = if command == "check" && cache == None() { byte_buffer.empty() } else { serialize_bytecode(bytecode) }
-              match cache {
+              match complete_cache {
                 None() => {}, Some(selected) => {
-                  match modules {
+                  match complete_modules {
                     None() => {}, Some(saved) => {
-                      if module_cache(source, selected) == Some(saved) { save_module_bodies(saved, checked) }
+                      if module_cache(complete, selected) == Some(saved) { save_module_bodies(saved, checked) }
                     }
                   }
-                  save_compilation(selected, source, artifact)
+                  save_compilation(selected, complete, artifact)
                 }
               }
               Ok(artifact)
@@ -949,15 +955,28 @@ pub compiler_main(): Void {
 // can retain the body-cache path. Failed preparation falls back so
 // incomplete/invalid fresh bodies retain its established diagnostic behaviour.
 driver_compile_code(source: LoadedProjectSources, cache: CompilationCache, entries: ModuleCache): Option[Bytes] {
-  checked = check_project_sources_code(source, cached_module_code(entries, source))
+  code = cached_module_code(entries, source)
+  restored = restore_module_bodies(source, code)
+  checked = check_project_sources_code(restored, code)
   project = checked.checked.snapshot.project
   if project.preparation == None() || project.diagnostics.len() > 0 || !project.identity_ready { None() }
   else {
     mut functions: [EncodedFunction] = []
     for module in checked.code { functions = functions.concat(module.functions) }
     artifact = serialize_encoded_functions(functions)
-    if module_cache(source, cache) == Some(entries) { save_module_code(entries, checked) }
+    if module_cache(source, cache) == Some(entries) {
+      save_module_code(entries, checked)
+      if std_environment.get("PANACKELTY_COMPILE_SUMMARY_CACHE") != Some("0") { save_source_summaries(cache, restored) }
+    }
     save_compilation(cache, source, artifact)
     Some(artifact)
   }
+}
+
+// Error/fallback handling repeats discovery, rather than allowing a bad summary
+// to determine imports, diagnostics or the cache key of a complete compilation.
+driver_complete_sources(source: LoadedProjectSources): LoadedProjectSources {
+  mut incomplete = false
+  for module in source.loaded.modules { incomplete = incomplete || module.body_availability == SummaryModuleBodies() }
+  if incomplete { load_project_sources(source.entry_path) } else { source }
 }

@@ -899,6 +899,15 @@ paired with valid compiled functions is recommended, with complete parsing on a
 miss and fresh diagnostic/artifact comparisons before adoption. RM#28/GI#106 and
 RM#157 remain open.
 
+### Module-summary compiler cache, 8 November 2026
+
+No website change: standalone incremental builds can reuse exact-source declaration
+summaries, retaining full parsing where compiled code cannot be reused. This is an
+unreleased internal performance change; the published alpha.15 interface remains
+accurate. The [trial record](../../COMPILER_EDIT_PROFILE.md#module-summary-integration-8-november-2026)
+contains edited-build savings and cold-build costs. No new public performance claim
+or automatic hosted cache is introduced.
+
 ### Incremental command direction, 7 November 2026
 
 The owner expects an ordinary one-shot command such as

@@ -1,3 +1,6 @@
+pub import project/src/compiler/module_summaries::{SourceSummary}
+import project/src/compiler/module_summaries::{ModuleSummary, declaration_projection}
+import project/src/compiler/module_bindings::{ModuleBodyAvailability.CompleteModuleBodies, ModuleBodyAvailability.SummaryModuleBodies, loaded_module_declaration_index}
 import project/src/compiler/emitter::{compile_program_unpruned}
 import project/src/bytecode/codec::{encode_functions, EncodedFunction}
 pub import project/src/compiler/module_reuse::{reusable_body_modules, CachedModuleBodies, CachedModuleCode}
@@ -18,7 +21,7 @@ import project/src/compiler/module_bodies::{
 }
 import project/src/compiler/module_effects::{CheckedModuleEffects, check_module_effects, FunctionEffectFacts, collect_function_effect_facts, check_function_effect_facts}
 pub import project/src/compiler/module_bindings::{ModuleIdentity}
-import project/src/compiler/module_bindings::{ModuleBindings, ModuleDeclarationKind.ModuleFunction, collect_module_bindings, loaded_module_declaration_index, module_binding_diagnostics, source_module_identity, source_package_module_identity, module_relative_path, module_programs}
+import project/src/compiler/module_bindings::{ModuleBindings, ModuleDeclarationKind.ModuleFunction, collect_module_bindings, module_binding_diagnostics, source_module_identity, source_package_module_identity, module_relative_path, module_programs}
 import project/src/compiler/module_signatures::{CheckedModuleSignatures, check_module_signatures}
 import project/src/compiler/module_resolution::{ModuleImportEdge, module_graph_diagnostics, module_identity_in}
 import project/src/compiler/module_emission::{ModuleEmissionResult, module_emission_program, module_emission_program_reusing, module_emission_callable_symbol}
@@ -505,7 +508,8 @@ load_project_module(
   package_name: Str,
   package_version: Str,
   package_confined: Bool,
-  dependencies: [ManifestDependencyProject]
+  dependencies: [ManifestDependencyProject],
+  summaries: [SourceSummary]
 ): ProjectLoadState {
   if state.visited.has(path) {
     state
@@ -586,7 +590,14 @@ load_project_module(
             Ok(source) => {
               paths: [Str] = state.source_paths.append(path)
               sources: Map[Str, Str] = state.sources.put(path, source)
-              match lex_file(source, path) {
+              mut cached: Option[ModuleSummary] = None()
+              if !package_confined {
+                for candidate in summaries {
+                  if candidate.path == path && candidate.source == source { cached = Some(candidate.summary) }
+                }
+              }
+              lexed: Result[[Token], [Diagnostic]] = if cached != None() { Ok([]) } else { lex_file(source, path) }
+              match lexed {
                 Error(errors) => {
                   mut diagnostics: [Diagnostic] = state.diagnostics
                   for error in errors {
@@ -601,7 +612,10 @@ load_project_module(
                   )
                 },
                 Ok(tokens) => {
-                  match parse_module_complete(tokens) {
+                  parsed_result: Result[ParsedModule, Diagnostic] = match cached {
+                    None() => parse_module_complete(tokens), Some(summary) => Ok(summary.declarations)
+                  }
+                  match parsed_result {
                     Error(error) => {
                       diagnostics: [Diagnostic] = state.diagnostics.append(error)
                       ProjectLoadState(
@@ -630,9 +644,14 @@ load_project_module(
                         parsed,
                         parsed.program,
                         bindings,
-                        loaded_module_declaration_index(parsed)
+                        loaded_module_declaration_index(parsed),
+                        if cached == None() { CompleteModuleBodies() } else { SummaryModuleBodies() },
+                        match cached { None() => uses_validation(tokens), Some(summary) => summary.uses_validation }
                       )
-                      staged: [Diagnostic] = module_execution_diagnostics(parsed)
+                      staged: [Diagnostic] = match cached {
+                        None() => module_execution_diagnostics(parsed),
+                        Some(summary) => summary.execution_diagnostics
+                      }
                       binding_errors: [Diagnostic] = if staged.len() > 0 {
                         module_binding_diagnostics(bindings)
                       } else {
@@ -646,10 +665,10 @@ load_project_module(
                         paths
                       )
                       next_stack: [Str] = stack.append(path)
-                      if uses_validation(tokens) {
+                      if module.uses_validation {
                         current = load_project_module(path_support.join(stdlib_root, "validation.panack"),
                           current, next_stack, project_root, stdlib_root, bounded, false,
-                          package_root, package_root_identity, package_name, package_version, package_confined, dependencies)
+                          package_root, package_root_identity, package_name, package_version, package_confined, dependencies, summaries)
                       }
                       for declaration in parsed.program.declarations {
                         match declaration {
@@ -719,7 +738,8 @@ load_project_module(
                                         package_name,
                                         package_version,
                                         package_confined,
-                                        dependencies
+                                        dependencies,
+                                        summaries
                                       )
                                     }
                                   }
@@ -765,7 +785,8 @@ load_project_module(
                                     package_name,
                                     package_version,
                                     package_confined,
-                                    dependencies
+                                    dependencies,
+                                    summaries
                                   )
                                 }
                               }
@@ -897,13 +918,13 @@ load_project_mode_with_configuration(
 ): LoadedProject {
   check_project_sources(load_project_sources_with_configuration(
     entry, bounded, retain, require_main, configured_project_root, package_root,
-    package_root_identity, package_name, package_version, package_confined, dependencies
+    package_root_identity, package_name, package_version, package_confined, dependencies, []
   ))
 }
 
 pub load_project_sources(entry: Str): LoadedProjectSources {
   load_project_sources_with_configuration(
-    entry, false, false, true, "", "", FilesystemRootIdentity(0, 0), "", "", false, []
+    entry, false, false, true, "", "", FilesystemRootIdentity(0, 0), "", "", false, [], []
   )
 }
 
@@ -914,7 +935,7 @@ pub load_project_package_sources(
 ): LoadedProjectSources {
   load_project_sources_with_configuration(
     entry, true, false, true, source_root, package_root,
-    package_root_identity, package_name, package_version, true, dependencies
+    package_root_identity, package_name, package_version, true, dependencies, []
   )
 }
 
@@ -929,7 +950,8 @@ load_project_sources_with_configuration(
   package_name: Str,
   package_version: Str,
   package_confined: Bool,
-  dependencies: [ManifestDependencyProject]
+  dependencies: [ManifestDependencyProject],
+  summaries: [SourceSummary]
 ): LoadedProjectSources {
   resolved: Str = path_support.resolve(entry)
   project_root: Str = if package_confined {
@@ -971,7 +993,8 @@ load_project_sources_with_configuration(
       "",
       "",
       false,
-      []
+      [],
+      summaries
     )
   }
   // Namespace staging is handled by the identity pipeline, including core impls.
@@ -994,7 +1017,8 @@ load_project_sources_with_configuration(
       package_name,
       package_version,
       package_confined,
-      dependencies
+      dependencies,
+      summaries
     )
   } else {
     core
@@ -1025,7 +1049,7 @@ pub pure check_project_sources_cached(
 
 pub pure check_project_sources_code(source: LoadedProjectSources, cached: [CachedModuleCode]): ProjectCodeCheck {
   if source.retain {
-    ProjectCodeCheck(check_project_sources_reusing(source, None()), [])
+    ProjectCodeCheck(check_project_sources_reusing(restore_module_bodies(source, []), None()), [])
   } else { check_project_sources_with_reuse(source, None(), [], cached, true) }
 }
 
@@ -1324,4 +1348,37 @@ pub pure loaded_package_binding_graph(
     }
   }
   ModuleBindingGraph(bindings, edges)
+}
+
+// Only the incremental code-cache path requests summaries. Other loading paths
+// remain complete, including package confinement and rich tooling.
+pub load_project_sources_summarised(entry: Str, summaries: [SourceSummary]): LoadedProjectSources {
+  load_project_sources_with_configuration(entry, false, false, true, "", "", FilesystemRootIdentity(0, 0), "", "", false, [], summaries)
+}
+
+pub pure restore_module_bodies(source: LoadedProjectSources, code: [CachedModuleCode]): LoadedProjectSources {
+  mut modules: [LoadedModule] = []
+  mut diagnostics: [Diagnostic] = source.loaded.diagnostics
+  for module in source.loaded.modules {
+    mut reusable = false
+    for cached in code { reusable = reusable || cached.identity == module.bindings.identity }
+    if module.body_availability == SummaryModuleBodies() && !reusable {
+      match lex_file(source.loaded.sources.get(module.source_path), module.source_path) {
+        Error(errors) => { diagnostics = diagnostics.concat(errors); modules = modules.append(module) },
+        Ok(tokens) => match parse_module_complete(tokens) {
+          Error(error) => { diagnostics = diagnostics.append(error); modules = modules.append(module) },
+          Ok(parsed) => {
+            if declaration_projection(parsed) != module.parsed {
+              diagnostics = diagnostics.append(loader_diagnostic("cached module declarations differ from source"))
+            }
+            modules = modules.append(LoadedModule(module.source_path, parsed, parsed.program,
+              collect_module_bindings(module.bindings.identity, parsed), loaded_module_declaration_index(parsed),
+              CompleteModuleBodies(), uses_validation(tokens)))
+          }
+        }
+      }
+    } else { modules = modules.append(module) }
+  }
+  LoadedProjectSources(ProjectLoadState(modules, source.loaded.visited, diagnostics,
+    source.loaded.sources, source.loaded.source_paths), source.context, source.entry_path, source.retain, source.require_main)
 }

@@ -1,0 +1,31 @@
+pub import project/src/compiler/parser::{ParsedModule}
+import project/src/compiler/parser::{module_execution_diagnostics}
+pub import project/src/compiler/types::{Diagnostic}
+import project/src/compiler/parser::{TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, indexed_program, Block, BlockValue.NoBlockValue}
+pub import project/src/compiler/module_bindings::{LoadedModule, ModuleBodyAvailability, ModuleBodyAvailability.CompleteModuleBodies, ModuleBodyAvailability.SummaryModuleBodies}
+
+// The projected declaration program has no usable function bodies. Loaded modules
+// carrying it must be marked SummaryModuleBodies; body checking rejects that state.
+pub record ModuleSummary { declarations: ParsedModule, uses_validation: Bool, execution_diagnostics: [Diagnostic] }
+pub record SourceSummary { path: Str, source: Str, summary: ModuleSummary }
+
+pub pure summarise_module(module: LoadedModule): ModuleSummary {
+  ModuleSummary(declaration_projection(module.parsed), module.uses_validation, module_execution_diagnostics(module.parsed))
+}
+
+pub pure declaration_projection(parsed: ParsedModule): ParsedModule {
+  mut declarations: [TopLevel] = []
+  for item in parsed.program.declarations {
+    match item {
+      FunctionDeclaration(name, parameters, result, purity, asynchronous, body, types) => {
+        declarations = declarations.append(FunctionDeclaration(name, parameters, result, purity, asynchronous,
+          Block([], NoBlockValue(), None(), []), types))
+      },
+      ImportDeclaration(path) => { declarations = declarations.append(item) },
+      TypeDeclaration(name, base, guard, expression) => { declarations = declarations.append(item) },
+      RecordDeclaration(name, types, fields) => { declarations = declarations.append(item) },
+      EnumDeclaration(name, types, variants) => { declarations = declarations.append(item) }
+    }
+  }
+  ParsedModule(indexed_program(declarations), parsed.syntax, parsed.implementations)
+}

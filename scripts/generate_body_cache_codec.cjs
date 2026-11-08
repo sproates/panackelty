@@ -8,11 +8,6 @@ if (JSON.stringify(records.SignatureType) !== JSON.stringify([['identity', 'Sign
 }
 enums.OwnedIntrinsic = fs.readFileSync('src/compiler/owned_intrinsics.panack', 'utf8')
   .split('pub enum OwnedIntrinsic {')[1].split('}')[0].trim().split(/,\s*/).map(name => [name]);
-const unsupportedExpressions = [
-  ['NameExpr', 1], ['FunctionExpr', 1], ['ArrayExpr', 1], ['UnaryExpr', 2],
-  ['BinaryExpr', 3], ['CallExpr', 3], ['DotCallExpr', 4], ['OwnedCallExpr', 4],
-  ['FieldExpr', 2], ['IndexExpr', 2], ['IfExpr', 4], ['BlockExpr', 1], ['MatchExpr', 2]
-];
 const support = fs.readFileSync('scripts/body_cache_codec_support.panack.in', 'utf8').split('// GENERATED TYPES\n');
 const identifiers = type => type.replaceAll('?', 'Optional_').replaceAll('[', 'Array_').replaceAll(']', '');
 function spelling(type) {
@@ -45,7 +40,6 @@ for (const [module, names] of Object.entries(groups)) {
   for (const name of names) {
     for (const [variant] of enums[name] || []) imports.push(name + '.' + variant);
   }
-  if (module === 'parser') imports.push(...unsupportedExpressions.map(([name]) => 'Expr.' + name));
   if (module === 'module_bodies' && !names.includes('BodyCheckStatus')) imports.push('BodyCheckStatus.BodyIdentityChecked');
   output += 'pub import project/src/' + (module.includes('/') ? module : 'compiler/' + module) + '::{\n  ' + imports.join(',\n  ') + '\n}\n';
 }
@@ -216,9 +210,6 @@ function encodeBody(type) {
     return '    ' + variant + '(' + names + ') => encode_u32(' + tag + ')' +
       payload.map((item, index) => item ? '.join(encode_' + identifiers(item) + '(pool, v' + index + '))' : '').join('');
   });
-  if (type === 'Expr') for (const [variant, count] of unsupportedExpressions) {
-    arms.push('    ' + variant + '(' + Array.from({ length: count }, (_, i) => 'unused' + i).join(', ') + ') => encode_u32(999)');
-  }
   return 'match value {\n' + arms.join(',\n') + '\n  }';
 }
 function collectBody(type) {
@@ -239,14 +230,12 @@ function collectBody(type) {
       payload.map((item, index) => item ? '      result = collect_' + identifiers(item) + '(result, v' + index + ')\n' : '').join('') +
       '      result\n    }';
   });
-  if (type === 'Expr') for (const [variant, count] of unsupportedExpressions) {
-    arms.push('    ' + variant + '(' + Array.from({ length: count }, (_, i) => 'unused' + i).join(', ') + ') => pool');
-  }
   return 'match value {\n' + arms.join(',\n') + '\n  }';
 }
 
 emit('[BoundFunctionBody]');
 emit('CachedModuleCode');
+emit('ModuleSummary');
 output += '\nrecord CachePool { text_indices: Map[Str,Nat], texts: [Str], type_indices: Map[SignatureType,Nat], types: [SignatureType] }\n' +
   'pure collect_Str(pool: CachePool, value: Str): CachePool {\n' +
   '  if pool.text_indices.has(value) { pool }\n' +
@@ -258,4 +247,6 @@ for (const type of emitted) {
   output += '\npure collect_' + identifiers(type) + '(pool: CachePool, value: ' + spelling(type) + '): CachePool {\n  ' + collectBody(type) + '\n}\n';
 }
 output += '\n' + support[1];
+// Program indexes are derived from declarations, never independently trusted.
+output = 'import project/src/compiler/parser::{indexed_program}\n' + output.replace('Program(field_declarations.value, map(), map(), map(), map(), map())', 'indexed_program(field_declarations.value)');
 fs.writeFileSync('src/compiler/body_cache_codec.panack', output);

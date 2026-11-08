@@ -1,3 +1,4 @@
+import project/src/compiler/module_bindings::{ModuleBodyAvailability.SummaryModuleBodies}
 pub import project/src/compiler/domain_guards::{DomainFacts}
 import project/src/compiler/domain_guards::{with_fact_source, guard_conjuncts, record_rules, FieldOrder, FieldNumber, size_facts, record_facts, runtime_validation_expression, runtime_numeric_supported, common_facts, combine_facts, DomainRule, domain_base, domain_rules, rule_outcome, fact_text, rule_text, declared_facts, unknown_facts}
 import project/src/compiler/resolver::{is_builtin}
@@ -5924,6 +5925,9 @@ pure check_module_bodies_mode(
     initial_facts = initial_facts.put("$domain-explain",initial_facts.get("$domain"))
   }
   mut diagnostics: [Diagnostic] = module_import_shadow_diagnostics(graph, module.bindings, module.parsed)
+  if module.body_availability == SummaryModuleBodies() {
+    diagnostics = diagnostics.append(Diagnostic("module function bodies must be parsed before body checking", SourcePos(module.source_path, 0, 1, 1)))
+  }
 
   if diagnostics.len() == 0 {
     for declaration in module.parsed.program.declarations {

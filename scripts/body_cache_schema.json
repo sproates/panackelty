@@ -308,6 +308,201 @@
         "functions",
         "[EncodedFunction]"
       ]
+    ],
+    "MatchPattern": [
+      [
+        "variant",
+        "Str"
+      ],
+      [
+        "bindings",
+        "[Str]"
+      ],
+      [
+        "span",
+        "SourceSpan"
+      ]
+    ],
+    "MatchArm": [
+      [
+        "pattern",
+        "MatchPattern"
+      ],
+      [
+        "body",
+        "Expr"
+      ]
+    ],
+    "RecordField": [
+      [
+        "name",
+        "Str"
+      ],
+      [
+        "type_name",
+        "Str"
+      ]
+    ],
+    "EnumVariant": [
+      [
+        "name",
+        "Str"
+      ],
+      [
+        "payload",
+        "[Str]"
+      ]
+    ],
+    "FunctionParameter": [
+      [
+        "name",
+        "Str"
+      ],
+      [
+        "type_name",
+        "Str"
+      ]
+    ],
+    "Block": [
+      [
+        "statements",
+        "[Statement]"
+      ],
+      [
+        "value",
+        "BlockValue"
+      ],
+      [
+        "span",
+        "?SourceSpan"
+      ],
+      [
+        "statement_spans",
+        "[SourceSpan]"
+      ]
+    ],
+    "Program": [
+      [
+        "declarations",
+        "[TopLevel]"
+      ],
+      [
+        "type_indices",
+        null,
+        "map()"
+      ],
+      [
+        "record_indices",
+        null,
+        "map()"
+      ],
+      [
+        "enum_indices",
+        null,
+        "map()"
+      ],
+      [
+        "function_indices",
+        null,
+        "map()"
+      ],
+      [
+        "variants",
+        null,
+        "map()"
+      ]
+    ],
+    "ImportSelector": [
+      [
+        "name",
+        "Str"
+      ],
+      [
+        "alias",
+        "Str"
+      ],
+      [
+        "span",
+        "SourceSpan"
+      ]
+    ],
+    "OwnedMethodSyntax": [
+      [
+        "owner",
+        "Str"
+      ],
+      [
+        "parameters",
+        "[Str]"
+      ],
+      [
+        "name",
+        "Str"
+      ]
+    ],
+    "DeclarationSyntax": [
+      [
+        "span",
+        "SourceSpan"
+      ],
+      [
+        "type_spans",
+        "[SourceSpan]"
+      ],
+      [
+        "is_public",
+        "Bool"
+      ],
+      [
+        "binding",
+        "ImportBindingSyntax"
+      ],
+      [
+        "method",
+        "?OwnedMethodSyntax"
+      ]
+    ],
+    "OwnedImplementationSyntax": [
+      [
+        "owner",
+        "Str"
+      ],
+      [
+        "parameters",
+        "[Str]"
+      ],
+      [
+        "span",
+        "SourceSpan"
+      ]
+    ],
+    "ParsedModule": [
+      [
+        "program",
+        "Program"
+      ],
+      [
+        "syntax",
+        "[DeclarationSyntax]"
+      ],
+      [
+        "implementations",
+        "[OwnedImplementationSyntax]"
+      ]
+    ],
+    "ModuleSummary": [
+      [
+        "declarations",
+        "ParsedModule"
+      ],
+      [
+        "uses_validation",
+        "Bool"
+      ],
+      [
+        "execution_diagnostics",
+        "[Diagnostic]"
+      ]
     ]
   },
   "enums": {
@@ -502,6 +697,75 @@
       [
         "BoolExpr",
         "Bool"
+      ],
+      [
+        "NameExpr",
+        "Str"
+      ],
+      [
+        "FunctionExpr",
+        "Str"
+      ],
+      [
+        "ArrayExpr",
+        "[Expr]"
+      ],
+      [
+        "UnaryExpr",
+        "Str",
+        "Expr"
+      ],
+      [
+        "BinaryExpr",
+        "Str",
+        "Expr",
+        "Expr"
+      ],
+      [
+        "CallExpr",
+        "Str",
+        "[Expr]",
+        "[Str]"
+      ],
+      [
+        "DotCallExpr",
+        "Expr",
+        "Str",
+        "[Expr]",
+        "[Str]"
+      ],
+      [
+        "OwnedCallExpr",
+        "Expr",
+        "Str",
+        "[Expr]",
+        "[Str]"
+      ],
+      [
+        "FieldExpr",
+        "Expr",
+        "Str"
+      ],
+      [
+        "IndexExpr",
+        "Expr",
+        "Expr"
+      ],
+      [
+        "IfExpr",
+        "Expr",
+        "Block",
+        "Block",
+        "Bool"
+      ],
+      [
+        "BlockExpr",
+        "Block"
+      ],
+      [
+        "MatchExpr",
+        "Expr",
+        "[MatchArm]"
       ]
     ],
     "BodyCheckStatus": [
@@ -524,6 +788,94 @@
       [
         "EffectStaticCheck",
         "Diagnostic"
+      ]
+    ],
+    "TopLevel": [
+      [
+        "ImportDeclaration",
+        "Str"
+      ],
+      [
+        "TypeDeclaration",
+        "Str",
+        "Str",
+        "Str",
+        "Expr"
+      ],
+      [
+        "RecordDeclaration",
+        "Str",
+        "[Str]",
+        "[RecordField]"
+      ],
+      [
+        "EnumDeclaration",
+        "Str",
+        "[Str]",
+        "[EnumVariant]"
+      ],
+      [
+        "FunctionDeclaration",
+        "Str",
+        "[FunctionParameter]",
+        "Str",
+        "Bool",
+        "Bool",
+        "Block",
+        "[Str]"
+      ]
+    ],
+    "Statement": [
+      [
+        "BindingStatement",
+        "Str",
+        "Str",
+        "?SourceSpan",
+        "Bool",
+        "Expr"
+      ],
+      [
+        "AssignmentStatement",
+        "Str",
+        "Expr"
+      ],
+      [
+        "ExpressionStatement",
+        "Expr"
+      ],
+      [
+        "WhileStatement",
+        "Expr",
+        "Block"
+      ],
+      [
+        "ForStatement",
+        "Str",
+        "Expr",
+        "Block"
+      ]
+    ],
+    "BlockValue": [
+      [
+        "NoBlockValue"
+      ],
+      [
+        "TailBlockValue",
+        "Expr"
+      ]
+    ],
+    "ImportBindingSyntax": [
+      [
+        "NoImportBinding"
+      ],
+      [
+        "NamespaceImportBinding",
+        "Str",
+        "Bool"
+      ],
+      [
+        "SelectiveImportBinding",
+        "[ImportSelector]"
       ]
     ]
   },
@@ -562,7 +914,23 @@
       "BodyCheckStatus"
     ],
     "parser": [
-      "Expr"
+      "Expr",
+      "MatchPattern",
+      "MatchArm",
+      "TopLevel",
+      "RecordField",
+      "EnumVariant",
+      "FunctionParameter",
+      "Program",
+      "Statement",
+      "BlockValue",
+      "Block",
+      "ImportSelector",
+      "ImportBindingSyntax",
+      "OwnedMethodSyntax",
+      "DeclarationSyntax",
+      "OwnedImplementationSyntax",
+      "ParsedModule"
     ],
     "module_effects": [
       "EffectCallFact",
@@ -574,6 +942,9 @@
     ],
     "module_reuse": [
       "CachedModuleCode"
+    ],
+    "module_summaries": [
+      "ModuleSummary"
     ]
   }
 }

@@ -780,6 +780,13 @@ artifacts. Focused tests, bootstrap fixed points and final `make check` (617s)
 passed; the bounded decoder improvement is included in this integration. No
 automatic CI cache was enabled and no bootstrap proof was cached.
 
+The subsequent [local workflow adoption](../../COMPILER_EDIT_PROFILE.md#local-development-workflow-8-november-2026)
+adds `make compiler` for incremental candidate builds, preserving the existing
+complete-artifact cache. `make compiler-fresh` bypasses both caches. Three paired
+edits match fresh output (13.81s versus 15.86s median). Focused checks and final
+`make check` (567s) passed; the local workflow slice is included in this
+integration. Normal CI and bootstrap entry points stay unchanged.
+
 ### Incremental command direction, 7 November 2026
 
 The owner expects an ordinary one-shot command such as

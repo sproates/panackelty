@@ -210,3 +210,13 @@ unchanged; 1,471 focused assertions, native artifacts, bootstrap checks and fina
 The [trial record](COMPILER_EDIT_PROFILE.md#span-and-body-node-decoder-trial-8-november-2026)
 also captures the larger representation/reconstruction question raised by the
 owner. No architectural redesign is selected or implemented.
+
+## Retained-data assessment
+
+Completed: [consumer audit and real-payload inventory](COMPILER_EDIT_PROFILE.md#retained-data-assessment-8-november-2026)
+found 123,405 type descriptions but 1,705 distinct per-module values. A dictionary
+size model reduces 9.08 MiB payloads by 14.4% for types alone and 31.5% with
+identities/bindings; these are size estimates, not measured speedups. Straightforward
+unused-field removal accounts for only 2.6%. Recommend a bounded shared-type
+codec trial before a larger lowered-code/effect-summary redesign. No implementation
+or format change has started; RM#157/GI#106 remain open.

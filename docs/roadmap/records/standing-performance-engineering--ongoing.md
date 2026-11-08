@@ -370,3 +370,14 @@ is included in this integration.
 This is a modest improvement, not resolution of the larger cost of restoring
 checked-body trees. Representation/reconstruction alternatives are recorded as
 future hypotheses, not approved scope. RM#157/GI#106 remain open; no website change.
+
+### Retained-data assessment, 8 November 2026
+
+The [consumer audit and payload model](../../COMPILER_EDIT_PROFILE.md#retained-data-assessment-8-november-2026)
+found substantial repeated immutable types and identities. Per-module sharing
+models 14.4% smaller payloads for types alone and 31.5% with identities/bindings;
+these are size estimates, not measured runtime gains. Straightforward unused
+field removal saves only 2.6%. The recommendation is a bounded type-sharing
+experiment with downstream consumers unchanged, before considering lowered-code
+caching and effect summaries. This completes the investigation, not a product
+change or RM#157/GI#106. No website impact.

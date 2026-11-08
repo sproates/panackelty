@@ -231,3 +231,85 @@ old entries fall back to fresh checking. All 1,487 focused assertions, cache CLI
 checks, native artifacts, coverage-policy tests, bootstrap and final `make check`
 (565s) pass. RM#157/GI#106 remain open.
 No VM bytecode change or broader cache redesign is included.
+
+## Compiled-function cache investigation
+
+The [current-cache ceiling experiment](COMPILER_EDIT_PROFILE.md#current-cache-ceiling-experiment-8-november-2026)
+confirms restoration still dominates (3.444s), with 1.270s more in lowering and
+output generation. An idealised in-memory control takes 5.48–5.51s versus
+9.37–9.58s fresh; this is not a delivered one-shot speedup. All 16 direct runs
+and four control runs preserve expected bytes. Small-program edited caching
+remains slower than fresh compilation. The selected follow-up, now implemented below, is a
+plain-mode encoded-function cache with fresh effect checks and conservative keys,
+starting with differential tests for compact effect facts. No product change
+is included in this investigation; RM#157/GI#106 remain open.
+
+## Compact effect-facts foundation
+
+Implemented and locally validated on the development branch: the
+[plain-mode facts API](COMPILER_EDIT_PROFILE.md#compact-effect-facts-foundation-8-november-2026)
+preserves ordered diagnostics, status maps and fresh transitive permissions in
+1,517 focused assertions. Native artifacts, bootstrap and final `make check`
+(555s) passed. This checkpoint has not been merged into `next`. That foundation checkpoint left the normal loader unchanged; the follow-up
+below now adopts these facts for encoded-function reuse. Prepared-fact checking measures 0.681s median versus 0.820s over bodies.
+The follow-up adds the encoded-function cache and tests assembly, invalidation,
+fallback and complete-build performance. RM#157/GI#106 remain open.
+
+## Encoded-function cache
+
+Implemented on the development branch; not yet merged into `next`. Normal
+`--incremental` now reuses encoded functions and compact effect facts, while
+rechecking signatures, guards and global effects. Rich explanation paths remain
+unchanged. The [paired compiler trial](COMPILER_EDIT_PROFILE.md#encoded-function-cache-trial-8-november-2026)
+measures 26.2% faster edited builds than the body cache (30.7% below fresh),
+48.4% lower peak memory and 51.3% smaller module files. Every output matches fresh
+compilation. Small programs still pay more cache overhead than fresh compilation.
+
+All 1,832 focused assertions, 30 cache CLI groups, hosted-trial regression tests,
+native artifact comparisons and bootstrap fixed points pass. Final local
+`make check` passed in 548s, and documentation checks pass. No VM bytecode change, website change or CI run is included.
+RM#157: Performance review and GI#106: Incremental and modular builds remain open.
+
+## Profile after encoded-function reuse
+
+The [current-path profile](COMPILER_EDIT_PROFILE.md#encoded-function-path-profile-8-november-2026)
+at `cee968e` confirms the next costs: lex/parse 2.351s, code-payload restoration
+1.021s, canonical function validation 1.241s and effects 0.791s in a 7.081s
+observer edit. Ordinary edited compilation takes 6.612s versus 9.884s fresh in
+this single sample. All eight mode/VM invocations and exact output comparisons
+pass. A source-loading reuse control is the suggested next experiment; no new
+implementation is selected. This measurement-only branch checkpoint leaves
+RM#28/GI#106 and RM#157 open and triggers no CI.
+
+## Standalone unchanged-build fast path
+
+Implemented on the development branch, not yet merged into `next`: the
+[source-input ledger](COMPILER_EDIT_PROFILE.md#standalone-source-input-fast-path-8-november-2026)
+lets unchanged standalone incremental commands verify file/toolchain contents
+before parsing. Three paired compiler runs fall from 2.480s to 0.0437s median
+(98.2% lower wall time), with exact bytecode. An observer confirms no lex/parse
+calls on a final-seed hit. Edits still use normal discovery/module reuse; package
+commands keep existing confinement checks. All 36 cache CLI groups, hosted-cache
+and policy tests, artifact comparisons and bootstrap fixed points pass; final
+local `make check` passed in 553s, with documentation checks passing. No CI or website changes. RM#28/GI#106 and RM#157
+remain open.
+
+## Reminder when optimisation work finishes
+
+Owner request, 8 November 2026: before returning to the planned language changes,
+remind the owner to write an article about doing extensive VM/compiler optimisation
+first so language development and validation are less painful and time-consuming.
+The planned topics are more effective async access to the standard library,
+anonymous functions, closures and state management. This is an article idea and
+a wrap-up reminder, not approval to publish or a final language-design contract.
+
+## Compiler reuse batch integration
+
+The owner selected integration of the effect-facts foundation, encoded-function
+reuse and standalone unchanged-build fast path into `next` on 8 November 2026.
+The final product tree passed local `make check` in 553s, with focused cache,
+artifact, bootstrap and documentation checks. This PR carries the complete
+validated batch; hosted integration checks start on merge, with development/PR
+CI suppressed under the alpha.16 workflow trial. Earlier “not yet merged” notes
+above describe the individual local checkpoints. No release or website publication
+is included. The development branch is retained for further experiments.

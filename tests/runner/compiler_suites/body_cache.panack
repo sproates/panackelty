@@ -1,3 +1,5 @@
+import project/src/compiler/module_effects::{check_module_effects, collect_function_effect_facts, check_function_effect_facts}
+import project/src/compiler/loader::{loaded_binding_graph}
 import project/src/compiler/body_cache_codec::{encode_checked_bodies, decode_checked_bodies}
 import project/src/compiler/loader::{load_project_sources, check_project_sources, check_project_sources_cached}
 import project/src/compiler/module_reuse::{CachedModuleBodies}
@@ -14,6 +16,11 @@ pub body_cache_tests(): [TestResult] {
   for fixture in ["collections", "records_and_enums", "callables", "async_await", "domain_constraints", "owned_core_methods", "string_boundaries"] {
     source = load_project_sources("tests/functional/cases/" + fixture + "/main.panack")
     fresh = check_project_sources(source)
+    graph = loaded_binding_graph(fresh.modules, source.context.project_root, source.context.stdlib_root)
+    results = results.append(testing.expect("fixture effect facts match full body diagnostics",
+      check_module_effects(graph, fresh.modules, fresh.module_signatures, fresh.module_bodies, false) ==
+        check_function_effect_facts(graph, fresh.modules, fresh.module_signatures, collect_function_effect_facts(fresh.module_bodies)),
+      "effect facts differ for " + fixture))
     results = results.append(testing.expect(fixture + " cache fixture accepted", fresh.preparation != None(), "fixture rejected"))
     encoded = encode_checked_bodies(fresh.module_bodies)
     match decode_checked_bodies(encoded) {

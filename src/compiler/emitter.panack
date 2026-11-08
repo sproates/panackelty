@@ -1358,7 +1358,7 @@ pure emit_expression_at(
 
 // Core routines are implicit but emitted only when reachable from user code.
 // Keep all ordinary functions: only compiler-owned implementation names are pruned.
-pure core_call_name(instruction: Instruction): Str {
+pub pure core_call_name(instruction: Instruction): Str {
   match instruction {
     ConstInstruction(a0) => "",
     LoadInstruction(a0) => "",
@@ -1418,6 +1418,14 @@ pub pure compile_program_with_sources(program: Program): SourceMappedProgram {
 }
 
 pub pure compile_program_emission(program: Program, retain_sources: Bool): SourceMappedProgram {
+  compile_program_selection(program, retain_sources, true)
+}
+
+pub pure compile_program_unpruned(program: Program): BytecodeProgram {
+  compile_program_selection(program, false, false).bytecode
+}
+
+pure compile_program_selection(program: Program, retain_sources: Bool, prune: Bool): SourceMappedProgram {
   mut sources: [FunctionSources] = []
   mut probes: [FunctionProbes] = []
   mut functions: [FunctionCode] = []
@@ -1444,7 +1452,7 @@ pub pure compile_program_emission(program: Program, retain_sources: Bool): Sourc
   used: Set[Str] = used_core_functions(functions)
   mut selected: [FunctionCode] = []
   for function in functions {
-    if !function.name.starts_with_at("$core_", 0) || used.has(function.name) {
+    if !prune || !function.name.starts_with_at("$core_", 0) || used.has(function.name) {
       selected = selected.append(function)
     }
   }

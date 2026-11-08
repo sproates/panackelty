@@ -1785,7 +1785,7 @@ claiming new execution coverage.
 
 ### Checked-body source-position decoding
 
-The body-cache suite has 112 assertions. Position round trips cover zero, the
+The body-cache suite has 119 assertions. Position round trips cover zero, the
 largest ordinary word, the large-Nat sentinel and a coordinate beyond 64 bits,
 including Unicode file names. Truncated words and invalid file dictionary
 indexes are rejected at both ends of a span. Extra cases cover a large coordinate
@@ -1819,3 +1819,29 @@ the enclosing body, and both per-type and cumulative expansion budgets. Existing
 fixture round trips compare restored diagnostics and bytecode with fresh checking.
 The CLI cache harness also checks fresh fallback from an intact previous-version
 module header. The manual hosted-trial fixture uses the current module marker.
+
+The compact effect-facts foundation adds 30 differential assertions to the
+module-binding suite (1,517 total), comparing complete ordered diagnostics and
+function-status maps with checked-body traversal. Cases include direct/imported/
+indirect calls, await rules, unknown effects, invalid/deferred bodies and seven
+whole-program fixtures. Retained consumer facts must revoke local-resource
+permission after a body-only dependency change, including blocking, no-local-call
+and cyclic replacements. The production rich checker remains the oracle.
+
+The encoded-function cache adds 315 assertions (1,832 module-suite assertions
+total): seven complete fixtures compare cold/warm cache output with fresh bytecode,
+round-trip per-module records, reject truncation/framing changes, check canonical
+function records and metadata, and preserve rich explanation checking. Fully
+reused modules must restore no checked bodies. The CLI cache harness now has
+30 groups, covering newly reachable/transitive core helpers, source edits, exact
+error diagnostics, graph reordering, corrupt-file fallback and package projects
+on the encoded route. Probe tests also retain and filter both cache trace forms.
+
+The standalone input-ledger slice adds six cache CLI groups (36 total): unchanged
+check/compile and fresh execution, content changes despite preserved timestamps,
+new imports and missing files, unrelated files and symlink replacement, corrupt
+ledger/artifact fallback, and package-loader preservation. Existing toolchain,
+root, confinement and storage controls also run with the new default. Hosted-cache
+fixtures include the ledger; probe fixtures recognise its bounded trace. Coverage
+policy adds one import exclusion and shifts existing declaration positions,
+without excluding executable functions.

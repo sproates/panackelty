@@ -1,3 +1,5 @@
+pub import project/src/bytecode/codec::{EncodedFunction}
+import project/src/bytecode/codec::{encode_functions}
 import stdlib/bytes as byte_buffer
 pub import project/src/project_model/utf8::{valid_utf8}
 import project/src/bytecode/codec::{encode_u8, serialize_bytecode}
@@ -667,4 +669,15 @@ pure verify_await_call(name: Str, arity: Nat, function: FunctionCode, program: B
     if arity == builtin_arity(name) { "" } else { "async service arity mismatch" }
   } else { if builtin_exists(name) || !target.found || !target.value.is_async { "await target must be async" }
   else { if arity != target.value.parameters.len() { "async call arity mismatch" } else { "" } } } }
+}
+
+// Check independent cached-record framing and canonical encoding. Cross-function
+// verification remains the VM's responsibility when the assembled artifact runs.
+pub pure valid_encoded_function(function: EncodedFunction): Bool {
+  if function.data.length() > 16777216 { false } else {
+    decoded = read_function(ByteReader(function.data, 0, true, ""))
+    if decoded.reader.valid && decoded.reader.offset == function.data.length() {
+      encode_functions(BytecodeProgram([decoded.value])) == [function]
+    } else { false }
+  }
 }

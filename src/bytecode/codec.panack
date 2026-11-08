@@ -10,7 +10,7 @@ import project/src/compiler/emitter::{
   Instruction.CallValueInstruction, Instruction.AwaitCallInstruction, Instruction.AwaitValueInstruction,
   Instruction.JumpFalseInstruction, Instruction.JumpInstruction, Instruction.PendingEndJumpInstruction,
   Instruction.ReturnInstruction,
-  ConstantValue, ConstantValue.NatConstant, ConstantValue.IntConstant, ConstantValue.DecimalConstant,
+  core_call_name, ConstantValue, ConstantValue.NatConstant, ConstantValue.IntConstant, ConstantValue.DecimalConstant,
   ConstantValue.DecimalPartsConstant, ConstantValue.StringConstant, ConstantValue.BoolConstant,
   ConstantValue.VoidConstant, compile_program
 }
@@ -313,4 +313,52 @@ pub pure compile_source_bytecode(source: Str): Bytes {
     },
     Error(errors) => byte_buffer.empty()
   }
+}
+
+// A function record is independently encoded; cached records retain all core
+// functions until reachability is recomputed over the assembled project.
+pub record EncodedFunction { name: Str, data: Bytes, core_calls: [Str] }
+pub pure encode_functions(program: BytecodeProgram): [EncodedFunction] {
+  mut result: [EncodedFunction] = []
+  for function in program.functions {
+    mut calls: [Str] = []
+    for instruction in function.instructions {
+      name = core_call_name(instruction)
+      if name.starts_with_at("$core_", 0) { calls = calls.append(name) }
+    }
+    result = result.append(EncodedFunction(function.name, encode_function(function), calls))
+  }
+  result
+}
+pub pure serialize_encoded_functions(functions: [EncodedFunction]): Bytes {
+  mut used: Set[Str] = set()
+  mut changed = true
+  while changed {
+    changed = false
+    for function in functions {
+      if !function.name.starts_with_at("$core_", 0) || used.has(function.name) {
+        for name in function.core_calls {
+          if !used.has(name) { used = used.add(name); changed = true }
+        }
+      }
+    }
+  }
+  mut names: [Str] = []
+  mut records: Map[Str,Bytes] = map()
+  for function in functions {
+    if !function.name.starts_with_at("$core_", 0) || used.has(function.name) {
+      mut ordered: [Str] = []
+      mut inserted = false
+      for name in names {
+        if !inserted && function.name < name { ordered = ordered.append(function.name); inserted = true }
+        ordered = ordered.append(name)
+      }
+      if !inserted { ordered = ordered.append(function.name) }
+      names = ordered
+      records = records.put(function.name, function.data)
+    }
+  }
+  mut output = "PANACKBC".encode_utf8().push(0).join(encode_u16(9)).join(encode_u16(names.len()))
+  for name in names { output = output.join(records.get(name)) }
+  output
 }

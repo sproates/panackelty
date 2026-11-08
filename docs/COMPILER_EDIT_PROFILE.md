@@ -686,3 +686,412 @@ to the existing GI#106 reassessment. The refreshed compiler seed is
 The bounded type-sharing change is included in this integration. It does not
 complete RM#157/GI#106 or implement identity pooling, a lowered-code cache, effect
 summaries or a VM change. No website update is needed.
+
+## Current-cache ceiling experiment, 8 November 2026
+
+Baseline: `2858ced8c037525f1d82a7c031354c66d07a857b` (shared-type cache).
+The owner selected a current profile and an in-memory control before committing
+to a larger representation change. This investigation changes no product code.
+
+A separate observer VM used the existing test observer with selected coarse
+functions added for loading, cache restoration/storage, effects, lowering and
+serialization. Only its execution object was rebuilt; the production VM and
+compiler seed remained unchanged. Enter/return pairs balance in every completed
+trace. Nested selected durations are subtracted for exclusive phase totals.
+Effects are labelled by function count, separating 49 empty guard checks from
+one check over 1,079 compiler function bodies. Observer overhead and normal run
+variation mean these are cost locations, not exact production-time attribution.
+
+Both normal and observer VMs ran cold, unchanged, edited and fresh modes with
+separate caches and their actual VM identities. The compiler workload copied
+`src`, then changed `module_magic` from version 2 to 3, reusing 46/49 modules.
+The second workload copied the five-source `examples/namespaces/trip_planner`
+program and changed the budget from 120 to 125, reusing 3/6 modules including
+implicit core. All 16 invocations succeeded; old/new outputs differ as intended,
+while normal/observer and corresponding fresh/cache bytes match exactly.
+The direct compiler harness uses its internal `--local-compile-cache` prefix;
+public `--incremental` is consumed by the shell launcher, not the compiler itself.
+Initial argument-setup attempts were discarded before the clean-cache runs.
+
+| Workload/mode | Ordinary VM | Observer VM |
+| --- | ---: | ---: |
+| Compiler cold | 13.603s | 14.640s |
+| Compiler unchanged | 2.714s | 2.574s |
+| Compiler edited | 9.903s | 9.435s |
+| Compiler fresh edited | 9.308s | 9.984s |
+| Trip planner cold | 0.121s | 0.139s |
+| Trip planner unchanged | 0.060s | 0.059s |
+| Trip planner edited | 0.115s | 0.122s |
+| Trip planner fresh edited | 0.068s | 0.066s |
+
+These are single observations, not benchmark medians. Edited incremental work
+is not consistently faster than fresh work today. For the small example, cache
+bookkeeping costs more than the work saved; do not generalise compiler-workload
+benefits to small programs or make incremental compilation the default from this
+evidence.
+
+### Where the edited compiler time goes
+
+| Selected phase | Exclusive observer time |
+| --- | ---: |
+| Restore 46 checked-body payloads | 3.444s |
+| Lex 49 modules | 1.611s |
+| Parse 49 modules | 0.721s |
+| Check effects over 1,079 bodies | 0.897s |
+| Check signatures | 0.427s |
+| Lower checked bodies to emission program | 0.331s |
+| Compile emission program | 0.373s |
+| Serialize bytecode | 0.566s |
+| Check three changed modules' bodies | 0.129s |
+| Encode three changed modules' bodies | 0.149s |
+
+Guard checking/effects together take under 0.001s on this workload. Disk-cache
+loading outside body decoding takes 0.018s; this is predominantly reconstruction,
+not slow disk reads. The unchanged observer spends 2.258s lexing/parsing before
+its complete-artifact hit, a distinct opportunity for later source-loading reuse.
+The trip planner spends 0.026s decoding cached bodies and about 0.034s constructing
+cache keys and saving its complete artifact, while fresh body checking is small.
+
+### In-memory control
+
+An isolated Panack harness uses `check_project_sources_reusing` with an initial
+successful snapshot, applies the identical module edit, then times loading,
+checking, lowering and serialization. Two pairs reverse fresh/reuse order.
+The initial snapshot is built in both modes and excluded from the timing; the
+source edit and final file write are also outside the timer. Reuse must report
+46 reused/3 rechecked modules, and all four artifacts must match the direct
+compiler's edited output. All assertions passed.
+
+| Pair | Fresh checking | In-memory reuse |
+| --- | ---: | ---: |
+| 1 | 9.580s | 5.512s |
+| 2 | 9.373s | 5.483s |
+
+This demonstrates room to avoid reconstruction: about four seconds in this
+control. It is not a delivered one-shot speedup or memory claim. The snapshot
+already exists, cache I/O/key/storage work is absent, and process startup and
+teardown are outside the timer. A disk-backed replacement must pay its own
+reading, decoding, validation and assembly costs. Fresh and reused guards/effects
+and emission still execute in the control.
+
+### Decision and bounded next experiment
+
+Proceed to a plain-mode encoded-function cache prototype, beginning with the
+minimal effect facts needed to reproduce fresh checks. Restoration remains the
+largest selected cost, with another 1.270s in lowering/compilation/serialization;
+this leaves room for a material improvement without first changing parsing.
+Do not treat their sum as an achievable speedup or replace the ordinary-VM test.
+
+`encode_function` in `src/bytecode/codec.panack` encodes self-contained function
+records before `serialize_bytecode` sorts and wraps them. Retain the existing
+conservative toolchain/graph/order/declaration/dependency keys. The first trial
+needs no new linker, stable ABI, cached interfaces or VM format. Save records
+before whole-program core reachability pruning, and recompute reachability after
+combining fresh and cached functions; copying the previous final artifact could
+omit a newly needed core routine. Check global record/enum emission dependencies.
+
+Effect permissions must still reach a fresh global fixed point. Preserve ordered
+call/await facts, indirect-call type information and diagnostic positions,
+including discarded non-Unit await results. Keep the rich explanation/source-map
+path unchanged. Prove summary checking against fresh positive/negative diagnostics
+before removing retained bodies from a cache hit. Include an ordinary wrapper
+whose body becomes blocking without changing its signature, newly reachable core
+code, graph reordering, and malformed-cache fallback.
+
+Retain the prototype only with repeatable end-to-end ordinary-VM gains, identical
+bytecode and diagnostics, and acceptable cold time and peak memory. Include the
+small example, where present cache overhead loses. If compact effect facts or
+assembly erase the gain, stop and reassess identity sharing or lex/parse reuse.
+This records a selected experiment, not an implemented code cache or completion
+of RM#157/GI#106. Documentation/link checks suffice for this investigation;
+no full validation, seed refresh, CI or website update is required.
+
+## Compact effect-facts foundation, 8 November 2026
+
+The first compiled-function-cache slice adds a plain-mode `FunctionEffectFacts`
+API in `module_effects.panack`. Each function retains its identity, source file,
+effect declaration and body-check status, plus two ordered flat lists: calls used
+for local-resource permission inference, and diagnostic checks. Direct-call
+permissions are recomputed against current signatures and a fresh global fixed
+point. Indirect calls retain only their callable effect/knownness. Structural
+await errors retain their precise diagnostics and order. Full expression/type
+and proof trees are not part of these facts.
+
+The existing rich checker remains the production loader path and the differential
+oracle. Both paths use the same call-boundary diagnostic routine. Their traversal
+and permission inference remain separate so tests can expose omitted facts,
+incorrect ordering and stale permissions. The duplicate traversal is deliberate
+for this staged prototype; remove or consolidate it when the cache route is
+accepted, retaining the rich explanation/source-map behaviour.
+
+Thirty added assertions bring the focused module suite to 1,517 assertions,
+including 119 body-cache assertions. Comparisons check complete ordered diagnostics
+(including source positions), empty plain-mode evidence and function-status maps.
+They cover direct, generic/imported and indirect calls, unknown callable effects,
+await context/operand/result rules, invalid/deferred functions, and seven complete
+program fixtures. A reverse-ordered wrapper chain proves the fixed point. Reusing
+its consumer facts after a leaf becomes blocking, loses its local-resource use,
+or forms a cycle correctly revokes permission with unchanged diagnostics.
+
+A compiler self-check observation has 88,673 body nodes, 12,310 local-call facts
+and 12,310 diagnostic-check facts. Three alternating pairs measure only checking
+already-prepared facts versus already-prepared bodies; collection, compilation,
+I/O and cache decoding are excluded:
+
+| Pair | Body traversal | Prepared facts |
+| --- | ---: | ---: |
+| 1 | 0.832s | 0.680s |
+| 2 | 0.820s | 0.681s |
+| 3 | 0.818s | 0.687s |
+
+Every result matches exactly. Median effect checking is 0.820s/0.681s; this is
+not an end-to-end build speedup or a cache-size/memory claim. The important result
+is that the effects pass can operate without the body trees the future cache
+will avoid restoring. The normal loader has not switched to this API.
+
+Native artifact compatibility passed. The coverage review preserves all 51
+eligible files, includes the new record/enum declarations and changed import
+positions, and excludes no executable functions. Bootstrap fixed points and final `make check` passed (555s overall,
+342s unit and 69s parallel bootstrap). The standard-library bytes are unchanged.
+Compiler seed: `27b2e352b64aef3cf4e909ac2c2984fe3dc5972fdc6963016640ee076caf9d32`.
+The ten focused coverage-policy tests passed; all 491 declaration exclusions were
+reviewed. Historical timing warnings remain under the existing GI#106 reassessment. No disk format, VM format, website or user-facing
+command changes are included. The encoded-function cache, assembly/reachability,
+malformed-cache handling and end-to-end measurements remain the next slice;
+RM#157/GI#106 are not complete.
+
+## Encoded-function cache trial, 8 November 2026
+
+Built on the compact effect-facts foundation at `b54536a`. Incremental compilation
+now caches independently encoded function records plus those facts. The previous
+body path is retained for controlled comparison and diagnostic fallback, selected
+with internal `PANACKELTY_COMPILE_CODE_CACHE=0`; normal `--incremental` selects code
+reuse. No watcher, linker, stable-symbol redesign, native capability or VM format
+change is introduced.
+
+The loader rechecks signatures and guards, combines fresh/cached effect facts in
+module order and computes global permissions again. It lowers only changed bodies
+while retaining all current type/record/enum declarations for layout lookup.
+Function grouping uses the emitter's actual callable-name mapping, including core
+methods and namespaced standard-library functions. Encoding happens before core
+pruning; final assembly recomputes reachability over fresh/cached call metadata,
+sorts names and wraps the encoded records in the existing version-9 artifact.
+Rich explanation/source-map requests stay on their full checking path.
+
+Code files have independent `PANACK-MODULE-CODE-1` outer framing and
+`PANACK-CODE-1` payload framing. Existing conservative keys and source rechecks
+protect publication. Decoder limits, complete consumption and digest checks apply.
+The module's fact/function sets must exactly match its current function bindings,
+without duplicates or invalid status. Encoded function records pass the bounded
+bytecode reader and canonical re-encoding, checking names, bytes and core-call
+metadata. This does not authenticate deliberate local forgeries; the cache remains
+private trusted state, and the VM retains full assembled-program verification.
+Invalid files miss and rebuild. Failed code preparation uses the existing checking
+path to preserve established error reporting. Old body-cache files are not deleted.
+
+### Measurements
+
+One candidate compiler and ordinary VM compiled identical copied sources through
+both paths, with separate caches outside the source tree. Three edits changed the
+private module magic, each requiring exactly 46/49 module hits. Path order alternated
+and every pair was followed by a fresh compilation. No other build ran during the
+measurements; `/usr/bin/time -l` recorded peak RSS. Every compared artifact matched.
+The final selection/trace and rich-mode guard changes followed this trial; the
+measured two paths were explicitly selected and used the same plain-mode algorithms.
+
+| Pair | Body-cache edit | Code-cache edit | Fresh edited | Body peak RSS | Code peak RSS |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1 | 10.071s | 7.318s | 10.503s | 568.0 MiB | 292.1 MiB |
+| 2 | 9.500s | 7.063s | 9.990s | 566.3 MiB | 297.0 MiB |
+| 3 | 9.571s | 6.954s | 10.188s | 566.2 MiB | 292.2 MiB |
+
+Median edited time improves **26.2%** (9.571s to 7.063s), and is **30.7%** below
+the paired fresh median (10.188s). Median peak RSS falls **48.4%**, from 566.3 MiB
+to 292.2 MiB. New module files total 4,113,820 bytes versus 8,439,513 bytes for
+body files: **51.3% smaller**. These totals describe separately populated caches;
+pre-existing older files may remain in a user's directory.
+
+Single cold observations were 14.049s/417.0 MiB for bodies and 11.580s/424.9 MiB for
+code; unchanged whole-artifact observations were 2.561s and 2.885s. Unchanged hits
+use the same shortcut, so this single-run difference is not attributed to the new
+module representation. Cold peak memory increases modestly in this sample and
+needs continued observation. The small trip planner measured 0.109s for a code-
+cache edit versus 0.065s fresh, with 3/6 modules reused and identical output.
+Incremental bookkeeping still loses on small programs; ordinary compilation
+remains available and incremental compilation remains opt-in.
+
+### Acceptance
+
+The focused module suite passes 1,832 assertions; all 30 CLI cache groups and four
+hosted-trial regression tests pass. Cases include exact cold/warm output, no body
+restoration on full module reuse, newly reachable core helper chains, graph order,
+body-only edits, exact negative diagnostics, package projects and corrupt entries.
+Canonical record tests reject mismatched names, trailing bytes and false core-call
+metadata. Rich checking returns the unchanged complete explanation project.
+Native artifact compatibility and bootstrap fixed points pass, with unchanged
+standard-library bytes. Final `make check` passed in 548s: unit 341s and bootstrap
+72s in parallel, functional 137s and release smoke 9s. Informational documentation
+and local links pass. The compiler seed is
+`db8df0ad0672c0a4cc90be6e03dca57b47aef8a6af57a822e0d3300080f6e69a`.
+
+This is a selected implementation on the development branch, not completion of
+RM#157/GI#106. No website change or CI run is needed for the branch checkpoint.
+
+## Encoded-function path profile, 8 November 2026
+
+Baseline: `cee968e` (encoded-function cache). This is a measurement-only follow-up;
+no compiler, VM, cache format or workflow behaviour changes. A separate observer
+VM is linked from the current native objects with only its execution object
+rebuilt, using the test observer hook and selected coarse functions. The packaged
+VM and compiler seed remain untouched.
+
+### Method and checks
+
+Each VM uses its own copied source tree and empty cache outside that tree, with
+its actual VM path as the cache identity. Both run cold, unchanged, edited and
+fresh modes. The edit changes the legacy `module_magic` string from version 2
+to 3; this changes compiled code and reuses 46/49 modules. Direct compiler calls
+use `--local-compile-cache compile src/compiler/main.panack -o OUTPUT`; fresh
+calls omit the internal prefix. `PANACKELTY_BOOTSTRAP_ROOT` and
+`PANACKELTY_STDLIB_PATH` select the copied project and its `src/stdlib`;
+`PANACKELTY_COMPILER_PATH`, `PANACKELTY_VM_PATH` and
+`PANACKELTY_COMPILE_CACHE_DIR` are absolute paths. Code-cache selection is 1,
+cache trace is enabled, and only observer runs set `PANACK_COMPILER_TRACE`.
+No builds run concurrently.
+
+All eight invocations succeed. Corresponding ordinary/observer artifacts match,
+unchanged matches cold, and edited matches fresh but differs from cold. Cold
+output also matches the current compiler seed. Enter/return events balance;
+exclusive totals subtract nested selected durations. This is one sample per mode
+for locating costs, not a new speedup benchmark. Observer overhead and timing
+variation mean its phase costs are not exact normal-VM costs.
+
+| Mode | Ordinary VM | Observer VM |
+| --- | ---: | ---: |
+| cold | 10.777s | 11.481s |
+| unchanged | 2.636s | 2.704s |
+| edited | 6.612s | 7.081s |
+| fresh | 9.884s | 11.135s |
+
+### Edited-build breakdown
+
+| Work | Observer time | Calls |
+| --- | ---: | ---: |
+| Lex source | 1.617s | 49 |
+| Parse source | 0.734s | 49 |
+| Decode module code payloads | 1.021s | 46 |
+| Validate encoded function records, including canonical re-encoding | 1.241s | 1,091 |
+| Recheck global effect facts | 0.791s | 1 |
+| Check signatures | 0.509s | 49 |
+| Check changed module bodies | 0.167s | 3 |
+| Lower/compile/encode changed functions and assemble artifact | 0.134s | four stages |
+| Other work and process overhead | 0.867s | remainder |
+
+The validation row includes 0.235s of nested `encode_functions`; it is not
+counted again in changed-function encoding. The remaining work includes source
+loading outside lex/parse, project bookkeeping, cache keys, cache storage and
+process startup. Cache payload restoration and canonical record validation are
+separate: the latter deliberately decodes and re-encodes each bytecode function.
+The complete cached-module loading call takes 2.311s inclusive, leaving roughly
+0.049s outside these two operations. This is mostly representation work rather
+than disk I/O. No validation check was removed to obtain these results.
+
+On the unchanged path, lexing/parsing takes 2.348s of the 2.704s observed process
+(about 87%); complete source loading takes 2.579s inclusive. The whole-artifact
+hit itself takes about 0.002s after loading. Fresh compilation still spends
+5.032s checking all module bodies; its unselected effect/emission work remains
+inside the driver remainder and is not mistaken for cache overhead.
+
+### Next experiment indicated
+
+Source loading is now the largest combined phase, with cache reconstruction and
+validation close behind. First measure a bounded source-loading reuse control,
+keeping content-based invalidation and discovery of changed imports explicit.
+Do not assume serialising syntax trees will help: a decoder can cost as much as
+parsing. Avoiding parsing before an unchanged whole-artifact hit is a particularly
+clear target; reuse after edits needs its own measured proof. A cheaper canonical
+record validator is the strongest alternative, but must retain its existing
+rejection guarantees. Neither implementation is selected by this profile alone.
+
+No full validation rerun is required for this measurement-only record. The eight
+invocations, trace accounting, exact artifact comparisons and documentation checks
+are the applicable validation. RM#28/GI#106 and RM#157 remain open. No CI or website
+change is included.
+
+## Standalone source-input fast path, 8 November 2026
+
+Built on `12c8feb`, following the profile of `cee968e`. Successful standalone
+compilation now records an optional bounded source-input ledger next to the
+whole artifact. The driver checks current source and toolchain bytes against the
+existing content key before loading/parsing. Exact hits reuse bytecode; misses
+return to normal discovery and module compilation. This shortcut is enabled
+within incremental compilation, which remains opt-in. It does not make ordinary
+compilation incremental by default.
+
+### Scope and invalidation
+
+This first slice covers ordinary file-based `check`, `compile` and cached `run`.
+Imports have explicit target paths, so an unchanged successful source closure
+preserves resolution. Changed imports, removed/changed sources, changed roots or
+toolchain bytes cause a miss. Unimported new files do not change the program.
+Bounded reads reject symlink substitutions and symlinked ancestors. Package
+commands continue their current descriptor/confinement/loading route; rich
+explanation and source-map commands do not take this shortcut. No language,
+VM bytecode, native capability or user CLI syntax changes are introduced.
+
+The optional `.inputs` file has `PANACK-INPUTS-1` framing, a compilation key and
+payload digest. It records entry/roots/toolchain paths and ordered source paths.
+Lookup enforces UTF-8, path context, unique bounded source lists, entry/core
+presence and total-byte limits, then checks the whole artifact key and digest.
+It is private trusted cache state, not an authenticated remote artifact. Invalid
+or unavailable metadata falls back; concurrent publication cannot pair unrelated
+keys. Existing cache concurrency limits remain: this is not a filesystem snapshot
+guarantee against edits after a read. See the
+[full contract](COMPILER_PERSISTENT_REUSE.md#standalone-unchanged-build-fast-path).
+
+### Measurements
+
+One candidate compiler and ordinary VM use a copied compiler source tree and one
+cache outside it. `PANACKELTY_COMPILE_INPUT_CACHE=0/1` selects the old/new lookup
+with otherwise identical inputs and files. Three alternating pairs follow cold
+population, with no concurrent build. Every artifact is byte-identical.
+
+| Pair | Parsed whole-artifact hit | Source-input hit |
+| --- | ---: | ---: |
+| 1 | 2.480247s | 0.047596s |
+| 2 | 2.461993s | 0.043670s |
+| 3 | 2.572750s | 0.042678s |
+
+Median unchanged time falls from **2.480s to 0.0437s**, a **98.2% reduction**
+(about **57 times faster**) for this workload. These are process wall times,
+including startup, bounded reads, hashing and artifact output. A cold population
+sample takes 10.733s. A comment edit correctly misses, reuses 46/49 modules and
+takes 7.468s versus 10.185s fresh; the following unchanged build takes 0.0423s.
+The comment deliberately changes source bytes without changing emitted code.
+Cold/edited samples are not paired regression or speedup claims. This improvement
+is specifically for unchanged standalone builds, not compilation after edits.
+
+Measurements preceded the final default-selection and UTF-8 guard; they explicitly
+selected each route. A separate final-seed observer run confirms a warm hit makes
+zero `lex_file`/`parse_module_complete` calls and matches its cold artifact.
+
+### Validation
+
+All 36 cache CLI groups pass, including six new groups for early-hit behaviour,
+fresh program execution/arguments, source-overwrite rejection, edits preserving
+timestamps, changed imports, missing files, unrelated files, symlink substitution,
+corrupt ledger/artifact fallback and package-loader preservation. Four hosted-cache
+regression tests and ten coverage-policy tests pass. The hosted cache envelope
+allows the optional ledger; probe trace filtering recognises its exact hit message.
+The production-parser inventory matches the previous policy before the changes;
+the new policy has 509 declaration/import exclusions, with no executable exclusions
+or scope expansion. Native artifact compatibility and bootstrap fixed points pass.
+Standard-library bytes remain
+`823a5f93fe2886a44b680cb09c1d634bdf6aa8fc0f5cdff57510cfe743eb8a0d`; compiler seed is
+`155ebaee96dbe77e9f7f48309b5de424a767735efeefbbd3c0d2ef21dedcfefe`.
+Final local `make check` passed in 553s: unit 346s and bootstrap 73s in parallel,
+functional 137s, release smoke 9s and quick start 1s. Documentation checks pass.
+
+This is a development-branch checkpoint, not completion of RM#28/GI#106 or
+RM#157. It does not change the website, trigger CI or merge into `next`. Reusing
+parsed inputs after edits remains a separate experiment.

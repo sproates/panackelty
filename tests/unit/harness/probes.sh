@@ -20,7 +20,7 @@ if [ "${3:-}" = --local-compile-cache ]; then
     compiler=$2
     shift 3
     set -- run "$compiler" "$@"
-    if [ "${PANACKELTY_COMPILE_CACHE_TRACE:-}" = 1 ]; then printf 'compile cache: module hits 2\n' >&2; fi
+    if [ "${PANACKELTY_COMPILE_CACHE_TRACE:-}" = 1 ]; then printf 'compile cache: module hits 2\ncompile cache: code module hits 2\ncompile cache: source inputs hit\n' >&2; fi
     if [ -f not-stored ]; then printf 'compile cache: not stored\ncompile cache: not stored: inputs changed or reuse limit exceeded\n' >&2; fi
     if [ -f unexpected-diagnostic ]; then printf 'unexpected diagnostic\n' >&2; fi
 fi
@@ -224,6 +224,7 @@ PANACKELTY_COMPILE_CACHE_TRACE=1
 export PANACKELTY_COMPILE_CACHE_DIR PANACKELTY_COMPILE_CACHE_TRACE
 sh tests/run_probe.sh --incremental --compile tests/incremental.panack candidate.bc > actual 2> trace
 contains trace 'compile cache: module hits 2'
+contains trace 'compile cache: code module hits 2'
 contains reuse "$(pwd -P)/bootstrap/compiler-v9.bc"
 contains reuse "$(pwd -P)/vm"
 contains reuse "$work/module cache/"

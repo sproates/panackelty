@@ -1,4 +1,6 @@
-pub import project/src/compiler/module_reuse::{reusable_body_modules, CachedModuleBodies}
+import project/src/compiler/emitter::{compile_program_unpruned}
+import project/src/bytecode/codec::{encode_functions, EncodedFunction}
+pub import project/src/compiler/module_reuse::{reusable_body_modules, CachedModuleBodies, CachedModuleCode}
 import project/src/compiler/path_support as path_support
 import stdlib/path as std_path
 import stdlib/filesystem as std_filesystem
@@ -14,12 +16,12 @@ pub import project/src/compiler/module_bodies::{
 import project/src/compiler/module_bodies::{
   CheckedModuleBodies, check_module_guards, body_subtraction_evidence_entries, BodyCheckStatus.BodyIdentityChecked, check_module_bodies, check_module_bodies_explained
 }
-import project/src/compiler/module_effects::{CheckedModuleEffects, check_module_effects}
+import project/src/compiler/module_effects::{CheckedModuleEffects, check_module_effects, FunctionEffectFacts, collect_function_effect_facts, check_function_effect_facts}
 pub import project/src/compiler/module_bindings::{ModuleIdentity}
 import project/src/compiler/module_bindings::{ModuleBindings, ModuleDeclarationKind.ModuleFunction, collect_module_bindings, loaded_module_declaration_index, module_binding_diagnostics, source_module_identity, source_package_module_identity, module_relative_path, module_programs}
 import project/src/compiler/module_signatures::{CheckedModuleSignatures, check_module_signatures}
 import project/src/compiler/module_resolution::{ModuleImportEdge, module_graph_diagnostics, module_identity_in}
-import project/src/compiler/module_emission::{ModuleEmissionResult, module_emission_program}
+import project/src/compiler/module_emission::{ModuleEmissionResult, module_emission_program, module_emission_program_reusing, module_emission_callable_symbol}
 import project/src/compiler/parser::{
   ParsedModule, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration,
   TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, TopLevel.ImportDeclaration,
@@ -64,6 +66,8 @@ pub record LoadedProjectSources {
   retain: Bool,
   require_main: Bool
 }
+
+pub record ProjectCodeCheck { checked: ProjectCheckResult, code: [CachedModuleCode] }
 
 // Session-local snapshots retain typed compiler values; they are not a disk format.
 pub record ProjectCheckSnapshot {
@@ -1010,19 +1014,25 @@ pub pure check_project_sources(source: LoadedProjectSources): LoadedProject {
 pub pure check_project_sources_reusing(
   source: LoadedProjectSources, previous: Option[ProjectCheckSnapshot]
 ): ProjectCheckResult {
-  check_project_sources_with_reuse(source, previous, [])
+  check_project_sources_with_reuse(source, previous, [], [], false).checked
 }
 
 pub pure check_project_sources_cached(
   source: LoadedProjectSources, cached: [CachedModuleBodies]
 ): ProjectCheckResult {
-  check_project_sources_with_reuse(source, None(), cached)
+  check_project_sources_with_reuse(source, None(), cached, [], false).checked
+}
+
+pub pure check_project_sources_code(source: LoadedProjectSources, cached: [CachedModuleCode]): ProjectCodeCheck {
+  if source.retain {
+    ProjectCodeCheck(check_project_sources_reusing(source, None()), [])
+  } else { check_project_sources_with_reuse(source, None(), [], cached, true) }
 }
 
 pure check_project_sources_with_reuse(
   source: LoadedProjectSources, previous: Option[ProjectCheckSnapshot],
-  cached: [CachedModuleBodies]
-): ProjectCheckResult {
+  cached: [CachedModuleBodies], cached_code: [CachedModuleCode], code_mode: Bool
+): ProjectCodeCheck {
   loaded: ProjectLoadState = source.loaded
   resolved: Str = source.entry_path
   project_root: Str = source.context.project_root
@@ -1098,6 +1108,13 @@ pure check_project_sources_with_reuse(
       retained_bodies = retained_bodies.concat(item.bodies)
     }
   }
+  mut effect_facts: [FunctionEffectFacts] = []
+  mut code: [CachedModuleCode] = cached_code
+  if code_mode {
+    for item in cached_code {
+      reusable = reusable.append(item.identity)
+    }
+  }
   mut reused: [ModuleIdentity] = []
   mut rechecked: [ModuleIdentity] = []
   mut signatures: [ModuleSignature] = []
@@ -1138,6 +1155,13 @@ pure check_project_sources_with_reuse(
         rechecked = rechecked.append(module.bindings.identity)
         check_module_bodies_explained(graph, loaded.modules, signatures, module, retain)
       }
+      if code_mode {
+        if use_previous {
+          for item in cached_code {
+            if item.identity == module.bindings.identity { effect_facts = effect_facts.concat(item.facts) }
+          }
+        } else { effect_facts = effect_facts.concat(collect_function_effect_facts(checked.functions)) }
+      }
       bodies = bodies.concat(checked.functions)
       diagnostics = diagnostics.concat(checked.diagnostics)
       identity_ready = identity_ready && checked.diagnostics.len() == 0
@@ -1146,13 +1170,18 @@ pure check_project_sources_with_reuse(
         identity_ready = identity_ready && body.status == BodyIdentityChecked() && body.deferred.len() == 0
       }
     }
-    checked_effects: CheckedModuleEffects = check_module_effects(
-      graph, loaded.modules, signatures, bodies, retain)
+    checked_effects: CheckedModuleEffects = if code_mode {
+      check_function_effect_facts(graph, loaded.modules, signatures, effect_facts)
+    } else { check_module_effects(graph, loaded.modules, signatures, bodies, retain) }
     if signatures_valid {
       diagnostics = diagnostics.concat(checked_effects.diagnostics)
       effects = effects.concat(checked_effects.evidence)
     }
     identity_ready = identity_ready && checked_effects.diagnostics.len() == 0
+    if code_mode {
+      function_types = checked_effects.function_types
+      for fact in effect_facts { identity_ready = identity_ready && fact.status == BodyIdentityChecked() }
+    }
     for body in bodies {
       name: Str = body.signature.binding.identity.name
       if checked_effects.function_types.has(name) {
@@ -1164,6 +1193,9 @@ pure check_project_sources_with_reuse(
         if declaration.kind == ModuleFunction() && declaration.intrinsic == None() {
           mut found: Bool = false
           for body in bodies { found = found || body.signature.binding.identity == declaration.identity }
+          if code_mode {
+            for fact in effect_facts { found = found || fact.identity == declaration.identity }
+          }
           identity_ready = identity_ready && found
         }
       }
@@ -1171,11 +1203,33 @@ pure check_project_sources_with_reuse(
     effects_checked = signatures_valid
     if identity_ready {
       entry_identity: ModuleIdentity = source.context.entry
-      emitted: ModuleEmissionResult = module_emission_program(
-        graph, loaded.modules, signatures, bodies, entry_identity)
+      emitted: ModuleEmissionResult = module_emission_program_reusing(
+        graph, loaded.modules, signatures, bodies, entry_identity, if code_mode { reused } else { [] })
       diagnostics = diagnostics.concat(emitted.diagnostics)
       if emitted.diagnostics.len() == 0 {
         program = emitted.program
+        if code_mode {
+          encoded = encode_functions(compile_program_unpruned(program))
+          for module in loaded.modules {
+            if module_identity_in(rechecked, module.bindings.identity) {
+              mut own_facts: [FunctionEffectFacts] = []
+              mut names: Set[Str] = set()
+              for fact in effect_facts {
+                if fact.identity.module == module.bindings.identity {
+                  own_facts = own_facts.append(fact)
+                  for binding in module.bindings.declarations {
+                    if binding.identity == fact.identity { names = names.add(module_emission_callable_symbol(graph, entry_identity, binding)) }
+                  }
+                }
+              }
+              mut own_functions: [EncodedFunction] = []
+              for function in encoded {
+                if names.has(function.name) { own_functions = own_functions.append(function) }
+              }
+              code = code.append(CachedModuleCode(module.bindings.identity, own_facts, own_functions))
+            }
+          }
+        }
         preparation = Some(ProjectPreparationContext(
           project_root, stdlib_root, entry_identity,
           package_confined, package_root_identity, dependencies
@@ -1198,7 +1252,7 @@ pure check_project_sources_with_reuse(
     bodies,
     preparation
   )
-  ProjectCheckResult(ProjectCheckSnapshot(source, project), reused, rechecked)
+  ProjectCodeCheck(ProjectCheckResult(ProjectCheckSnapshot(source, project), reused, rechecked), code)
 }
 
 // Build semantic edges only from the loader's normalized path decisions.

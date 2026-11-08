@@ -21,7 +21,7 @@ function spelling(type) {
   return type;
 }
 const defaults = {
-  Str: '""', Nat: '0', Bool: 'false', Expr: 'StringExpr("\\\"\\\"")',
+  Str: '""', Nat: '0', Bool: 'false', Bytes: 'byte_buffer.empty()', Expr: 'StringExpr("\\\"\\\"")',
   BodyNode: 'BodyEmpty()', SignatureType: 'SignatureType(SignatureCore("Unit"), [])',
   BoundBody: 'BoundBody(BodyEmpty(), SourceSpan(SourcePos("", 0, 1, 1), SourcePos("", 0, 1, 1)), [], None(), [], [], [], [], [], [])'
 };
@@ -46,11 +46,11 @@ for (const [module, names] of Object.entries(groups)) {
     for (const [variant] of enums[name] || []) imports.push(name + '.' + variant);
   }
   if (module === 'parser') imports.push(...unsupportedExpressions.map(([name]) => 'Expr.' + name));
-  if (module === 'module_bodies') imports.push('BodyCheckStatus.BodyIdentityChecked');
-  output += 'pub import project/src/compiler/' + module + '::{\n  ' + imports.join(',\n  ') + '\n}\n';
+  if (module === 'module_bodies' && !names.includes('BodyCheckStatus')) imports.push('BodyCheckStatus.BodyIdentityChecked');
+  output += 'pub import project/src/' + (module.includes('/') ? module : 'compiler/' + module) + '::{\n  ' + imports.join(',\n  ') + '\n}\n';
 }
 output += '\n' + support[0];
-const emitted = new Set(['Str', 'Nat', 'Bool']);
+const emitted = new Set(['Str', 'Nat', 'Bool', 'Bytes']);
 function emit(type) {
   if (emitted.has(type)) return;
   emitted.add(type);
@@ -246,6 +246,7 @@ function collectBody(type) {
 }
 
 emit('[BoundFunctionBody]');
+emit('CachedModuleCode');
 output += '\nrecord CachePool { text_indices: Map[Str,Nat], texts: [Str], type_indices: Map[SignatureType,Nat], types: [SignatureType] }\n' +
   'pure collect_Str(pool: CachePool, value: Str): CachePool {\n' +
   '  if pool.text_indices.has(value) { pool }\n' +
@@ -253,7 +254,7 @@ output += '\nrecord CachePool { text_indices: Map[Str,Nat], texts: [Str], type_i
   'pure collect_Nat(pool: CachePool, value: Nat): CachePool { pool }\n' +
   'pure collect_Bool(pool: CachePool, value: Bool): CachePool { pool }\n';
 for (const type of emitted) {
-  if (['Str', 'Nat', 'Bool'].includes(type)) continue;
+  if (['Str', 'Nat', 'Bool', 'Bytes'].includes(type)) continue;
   output += '\npure collect_' + identifiers(type) + '(pool: CachePool, value: ' + spelling(type) + '): CachePool {\n  ' + collectBody(type) + '\n}\n';
 }
 output += '\n' + support[1];

@@ -1,6 +1,8 @@
 #!/bin/sh
 . tests/unit/harness/common.sh
 unset PANACKELTY_BOOTSTRAP_ROOT
+# Preserve the previous body-cache contract as the comparison/fallback route.
+export PANACKELTY_COMPILE_CODE_CACHE=0
 prefix=$work/toolchain
 project=$work/project
 cache=$work/cache
@@ -311,4 +313,180 @@ pass
 case_name=incremental-import-alias-change-invalidates
 printf 'import "value.panack" as renamed\nimport "other.panack" as other\nmain(): Void { print(renamed.answer()); print(other.answer()) }\n' > "$work/managed-project/main.panack"
 incremental_compare 0
+pass
+
+# Exercise the experimental encoded-function route independently of body-cache
+# fixtures, including fresh bytes, newly reachable core code and fallback.
+export PANACKELTY_COMPILE_CODE_CACHE=1
+export PANACKELTY_COMPILE_CACHE_DIR=$work/code-cache
+mkdir -p "$work/code-cache" "$work/code-project"
+code_project=$work/code-project
+printf 'pub pure answer(): Nat { 1 }\n' > "$code_project/value.panack"
+printf 'pub pure other(): Nat { 2 }\n' > "$code_project/other.panack"
+cat > "$code_project/main.panack" <<'SOURCE'
+import "value.panack" as value
+import "other.panack" as other
+main(): Void { print(value.answer()); print(other.other()) }
+SOURCE
+code_compare() {
+    capture 0 15 "$panack" compile --incremental "$code_project/main.panack" -o "$work/code.bc"
+    contains "$work/stderr" "compile cache: code module hits $1"
+    capture 0 15 env PANACKELTY_COMPILE_CACHE_DIR= PANACKELTY_COMPILE_CACHE_TRACE= "$panack" compile "$code_project/main.panack" -o "$work/code-fresh.bc"
+    equal_files "$work/code.bc" "$work/code-fresh.bc"
+}
+case_name=encoded-functions-cold-and-unchanged
+code_compare 0
+capture 0 15 "$panack" compile --incremental "$code_project/main.panack" -o "$work/code-warm.bc"
+contains "$work/stderr" 'compile cache: hit'
+equal_files "$work/code.bc" "$work/code-warm.bc"
+pass
+
+case_name=encoded-functions-new-core-reachability
+cat > "$code_project/main.panack" <<'SOURCE'
+import "value.panack" as value
+import "other.panack" as other
+main(): Void { print("hello".has_no_control_characters()); print(value.answer()); print(other.other()) }
+SOURCE
+code_compare 3
+capture 0 15 "$root/panack-vm" run "$work/code.bc"
+printf 'true\n1\n2\n' > "$work/code-expected"
+equal_files "$work/code-expected" "$work/stdout"
+pass
+
+case_name=encoded-functions-body-edit-and-exact-diagnostics
+printf 'pub pure answer(): Nat { 3 }\n' > "$code_project/value.panack"
+code_compare 2
+printf 'pub pure answer(): Nat { print(3); 3 }\n' > "$code_project/value.panack"
+capture failure 15 "$panack" check --incremental "$code_project/main.panack"
+contains "$work/stderr" 'pure function cannot call impure function print'
+sed '/^compile cache: /d' "$work/stderr" > "$work/code-error"
+capture failure 15 env PANACKELTY_COMPILE_CACHE_DIR= PANACKELTY_COMPILE_CACHE_TRACE= "$panack" check "$code_project/main.panack"
+equal_files "$work/code-error" "$work/stderr"
+printf 'pub pure answer(): Nat { 4 }\n' > "$code_project/value.panack"
+code_compare 2
+pass
+
+case_name=encoded-functions-graph-order-invalidates
+cat > "$code_project/main.panack" <<'SOURCE'
+import "other.panack" as other
+import "value.panack" as value
+main(): Void { print("hello".has_no_control_characters()); print(value.answer()); print(other.other()) }
+SOURCE
+code_compare 0
+pass
+
+case_name=encoded-functions-corruption-falls-back
+rm "$work/code-cache/compilation-v1.cache"
+for file in "$work/code-cache"/module-*.cache.code; do printf 'broken\n' > "$file"; done
+code_compare 0
+pass
+
+case_name=encoded-functions-resolved-package-project
+capture 0 15 "$panack" compile --incremental --project "$work/application/panack.json" -o "$work/code-package.bc"
+contains "$work/stderr" 'compile cache: code module hits 0'
+printf '\n// package entry edit\n' >> "$work/application/src/main.panack"
+capture 0 15 "$panack" compile --incremental --project "$work/application/panack.json" -o "$work/code-package.bc"
+contains "$work/stderr" 'compile cache: code module hits '
+absent "$work/stderr" 'compile cache: code module hits 0'
+capture 0 15 env PANACKELTY_COMPILE_CACHE_DIR= PANACKELTY_COMPILE_CACHE_TRACE= "$panack" compile --project "$work/application/panack.json" -o "$work/code-package-fresh.bc"
+equal_files "$work/code-package.bc" "$work/code-package-fresh.bc"
+capture 0 15 "$panack" run --project "$work/application/panack.json" first second
+contains "$work/stderr" 'compile cache: hit'
+printf '2\n2\n' > "$work/code-package-output"
+equal_files "$work/code-package-output" "$work/stdout"
+pass
+
+# Source closure fast hits must preserve content-based invalidation and commands.
+export PANACKELTY_COMPILE_INPUT_CACHE=1
+export PANACKELTY_COMPILE_CACHE_DIR=$work/input-cache
+mkdir -p "$work/input-cache" "$work/input-project"
+input_project=$work/input-project
+printf 'pub pure answer(): Nat { 1 }\n' > "$input_project/value.panack"
+printf 'import "value.panack" as value\nimport stdlib/host as host\nmain(): Void { print(value.answer()); print(host.arguments().len()) }\n' > "$input_project/main.panack"
+input_compile() {
+    capture 0 15 "$panack" compile --incremental "$input_project/main.panack" -o "$work/input.bc"
+}
+case_name=source-inputs-unchanged-check-compile-and-fresh-execution
+input_compile
+absent "$work/stderr" 'compile cache: source inputs hit'
+cp "$work/input.bc" "$work/input-cold.bc"
+input_compile
+contains "$work/stderr" 'compile cache: source inputs hit'
+equal_files "$work/input.bc" "$work/input-cold.bc"
+capture 0 15 "$panack" check --incremental "$input_project/main.panack"
+contains "$work/stderr" 'compile cache: source inputs hit'
+capture 0 15 "$panack" run "$input_project/main.panack" one two
+contains "$work/stderr" 'compile cache: source inputs hit'
+printf '1\n2\n' > "$work/input-expected"
+equal_files "$work/input-expected" "$work/stdout"
+capture failure 15 "$panack" compile --incremental "$input_project/main.panack" -o "$input_project/main.panack"
+contains "$work/stderr" 'bytecode output cannot overwrite the source file'
+pass
+
+case_name=source-inputs-content-not-timestamps-and-exact-fresh-output
+cp -p "$input_project/value.panack" "$work/input-time"
+printf 'pub pure answer(): Nat { 9 }\n' > "$input_project/value.panack"
+touch -r "$work/input-time" "$input_project/value.panack"
+input_compile
+absent "$work/stderr" 'compile cache: source inputs hit'
+capture 0 15 env PANACKELTY_COMPILE_CACHE_DIR= "$panack" compile "$input_project/main.panack" -o "$work/input-fresh.bc"
+equal_files "$work/input.bc" "$work/input-fresh.bc"
+input_compile
+contains "$work/stderr" 'compile cache: source inputs hit'
+pass
+
+case_name=source-inputs-added-import-and-missing-source
+cp "$input_project/main.panack" "$work/input-original"
+printf 'import "new.panack" as added\n' > "$input_project/main.panack"
+cat "$work/input-original" >> "$input_project/main.panack"
+capture failure 15 "$panack" check --incremental "$input_project/main.panack"
+absent "$work/stderr" 'compile cache: source inputs hit'
+printf 'pub pure extra(): Nat { 2 }\n' > "$input_project/new.panack"
+input_compile
+absent "$work/stderr" 'compile cache: source inputs hit'
+input_compile
+contains "$work/stderr" 'compile cache: source inputs hit'
+rm "$input_project/new.panack"
+capture failure 15 "$panack" check --incremental "$input_project/main.panack"
+absent "$work/stderr" 'compile cache: source inputs hit'
+cp "$work/input-original" "$input_project/main.panack"
+input_compile
+pass
+
+case_name=source-inputs-unreferenced-files-and-symlink-replacement
+printf 'this is not valid source\n' > "$input_project/unreferenced.panack"
+input_compile
+contains "$work/stderr" 'compile cache: source inputs hit'
+mv "$input_project/value.panack" "$work/input-value"
+ln -s "$work/input-value" "$input_project/value.panack"
+capture failure 15 "$panack" check --incremental "$input_project/main.panack"
+absent "$work/stderr" 'compile cache: source inputs hit'
+contains "$work/stderr" 'symbolic link'
+rm "$input_project/value.panack"
+mv "$work/input-value" "$input_project/value.panack"
+input_compile
+pass
+
+case_name=source-inputs-corrupt-ledger-and-artifact-fall-back
+printf 'broken\n' > "$work/input-cache/compilation-v1.cache.inputs"
+input_compile
+absent "$work/stderr" 'compile cache: source inputs hit'
+# A normal whole-artifact hit need not rewrite its missing ledger. Force a miss.
+printf 'broken\n' > "$work/input-cache/compilation-v1.cache"
+input_compile
+absent "$work/stderr" 'compile cache: source inputs hit'
+input_compile
+contains "$work/stderr" 'compile cache: source inputs hit'
+printf 'broken again\n' > "$work/input-cache/compilation-v1.cache"
+input_compile
+absent "$work/stderr" 'compile cache: source inputs hit'
+capture 0 15 env PANACKELTY_COMPILE_CACHE_DIR= "$panack" compile "$input_project/main.panack" -o "$work/input-fresh.bc"
+equal_files "$work/input.bc" "$work/input-fresh.bc"
+pass
+
+case_name=source-inputs-resolved-project-keeps-package-loader
+capture 0 15 "$panack" compile --incremental --project "$work/application/panack.json" -o "$work/input-package.bc"
+capture 0 15 "$panack" compile --incremental --project "$work/application/panack.json" -o "$work/input-package.bc"
+contains "$work/stderr" 'compile cache: hit'
+absent "$work/stderr" 'compile cache: source inputs hit'
 pass

@@ -828,6 +828,64 @@ across all three measured pairs. Focused, artifact, bootstrap and final `make ch
 the bounded change is included in this integration. Private cache versions change, not VM bytecode.
 This does not complete RM#28/GI#106 and needs no website update.
 
+The [current-cache ceiling experiment](../../COMPILER_EDIT_PROFILE.md#current-cache-ceiling-experiment-8-november-2026)
+finds meaningful remaining reconstruction cost and selects a bounded encoded-
+function/effect-facts experiment. The in-memory control is not a one-shot speedup;
+small-program caching remains slower than fresh work. No product implementation
+or website change is included, and RM#28/GI#106 remain open.
+
+The [compact effect-facts foundation](../../COMPILER_EDIT_PROFILE.md#compact-effect-facts-foundation-8-november-2026)
+establishes diagnostic/status equivalence and fresh local-resource permissions
+for a future encoded-function cache. Focused checks and native artifacts pass;
+bootstrap and final `make check` (555s) also passed. This remains a development-
+branch checkpoint. The loader does not yet use the facts, so
+no user-facing speedup or website change is claimed. RM#28/GI#106 remain open.
+
+
+### Encoded-function cache, 8 November 2026
+
+The [encoded-function trial](../../COMPILER_EDIT_PROFILE.md#encoded-function-cache-trial-8-november-2026)
+is implemented on the development branch, not yet merged into `next`. Three paired
+compiler edits measure 26.2% faster than the previous body cache, 30.7% below fresh,
+48.4% lower peak memory and 51.3% smaller module files, with exact fresh output.
+Normal incremental compilation selects this path; signatures, guards, global
+effects and core reachability are recomputed. Rich explanations keep full checking.
+Conservative keys and corruption fallback remain; VM bytecode is unchanged.
+Small-program cache overhead remains a limitation. The 1,832 focused assertions,
+30 cache CLI groups, native artifacts and bootstrap pass; final `make check`
+passed in 548s, with documentation checks also passing. This is a bounded local checkpoint, not completion of RM#28/GI#106 or
+RM#157, and does not change the website or trigger CI.
+
+
+The [post-code-cache profile](../../COMPILER_EDIT_PROFILE.md#encoded-function-path-profile-8-november-2026)
+at `cee968e` now locates 2.351s in lex/parse, 2.262s in cache payload restoration
+and canonical record validation, and 0.791s in fresh global effects. Eight
+invocations preserve exact output; the ordinary edited sample is 6.612s versus
+9.884s fresh. A source-loading reuse control is recommended before another
+implementation, with cheaper equally strict record validation as an alternative.
+This measurement-only checkpoint changes no product code and does not complete
+RM#28/GI#106 or RM#157.
+
+
+### Standalone unchanged-build fast path, 8 November 2026
+
+The [source-input ledger](../../COMPILER_EDIT_PROFILE.md#standalone-source-input-fast-path-8-november-2026)
+avoids parsing before an exact standalone whole-artifact hit. It rereads bounded
+source/toolchain bytes and checks the existing content key; edits fall back to
+discovery. Package confinement/loading stays unchanged. Three paired unchanged
+compiler runs measure 2.480s versus 0.0437s median (98.2% lower wall time), with
+exact artifacts. Final-seed observation confirms zero lexer/parser calls. All
+36 cache CLI groups, hosted/policy tests, artifacts and bootstrap pass; final
+`make check` passed in 553s, with documentation checks passing. This is a local branch checkpoint, not completion of
+RM#28/GI#106 or RM#157, and triggers no CI or website change.
+
+
+Integration selected, 8 November 2026: the owner approved merging the compact
+effect-facts, encoded-function reuse and standalone input-ledger batch into `next`.
+The final product tree passed local `make check` in 553s. Development/PR CI remains
+suppressed; hosted checks start on integration. This does not close RM#28/GI#106
+or RM#157. Earlier branch-only notes record the individual checkpoints.
+
 ### Incremental command direction, 7 November 2026
 
 The owner expects an ordinary one-shot command such as

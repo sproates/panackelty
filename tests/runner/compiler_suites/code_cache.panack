@@ -1,0 +1,66 @@
+import project/src/compiler/loader::{LoadedProjectSources, load_project_sources, check_project_sources, check_project_sources_code}
+import project/src/compiler/body_cache_codec::{encode_module_code, decode_module_code}
+import project/src/compiler/emitter::{compile_program}
+import project/src/bytecode/codec::{EncodedFunction, serialize_bytecode, serialize_encoded_functions}
+import project/src/bytecode/decoder::{valid_encoded_function}
+import stdlib/bytes as byte_buffer
+import stdlib/testing as testing
+pub import stdlib/testing::{TestResult}
+
+pub code_cache_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  for fixture in ["collections", "records_and_enums", "callables", "async_await", "domain_constraints", "owned_core_methods", "string_boundaries"] {
+    source = load_project_sources("tests/functional/cases/" + fixture + "/main.panack")
+    fresh = check_project_sources(source)
+    cold = check_project_sources_code(source, [])
+    results = results.append(testing.expect("encoded cache cold checking preserves diagnostics",
+      cold.checked.snapshot.project.diagnostics == fresh.diagnostics && fresh.preparation != None(), fixture))
+    mut functions: [EncodedFunction] = []
+    for module in cold.code {
+      payload = encode_module_code(module)
+      results = results.append(testing.expect("encoded cache module round trip",
+        decode_module_code(payload) == Some(module), fixture))
+      length = payload.length()
+      if length > 0 {
+        results = results.append(testing.expect("encoded cache truncated module rejected",
+          decode_module_code(byte_buffer.slice(payload, 0, length - 1)) == None(), fixture))
+      }
+      for function in module.functions {
+        results = results.append(testing.expect("encoded function is canonical",
+          valid_encoded_function(function), fixture + ": " + function.name))
+      }
+      functions = functions.concat(module.functions)
+    }
+    results = results.append(testing.expect("encoded cache cold output matches fresh bytecode",
+      serialize_encoded_functions(functions) == serialize_bytecode(compile_program(fresh.program)), fixture))
+    explained = LoadedProjectSources(source.loaded, source.context, source.entry_path, true, source.require_main)
+    rich = check_project_sources_code(explained, cold.code)
+    results = results.append(testing.expect("encoded cache does not replace rich explanation checks",
+      rich.code.len() == 0 && rich.checked.snapshot.project == check_project_sources(explained), fixture))
+    if functions.len() > 0 {
+      function = functions[0]
+      results = results.append(testing.expect("encoded function rejects mismatched name",
+        !valid_encoded_function(EncodedFunction("wrong", function.data, function.core_calls)), fixture))
+      results = results.append(testing.expect("encoded function rejects trailing bytes",
+        !valid_encoded_function(EncodedFunction(function.name, function.data.push(255), function.core_calls)), fixture))
+      results = results.append(testing.expect("encoded function rejects false core dependencies",
+        !valid_encoded_function(EncodedFunction(function.name, function.data, ["$core_missing"])), fixture))
+    }
+    warm = check_project_sources_code(source, cold.code)
+    mut reused: [EncodedFunction] = []
+    for module in warm.code { reused = reused.concat(module.functions) }
+    results = results.append(testing.expect("encoded cache skips every unchanged function body",
+      warm.checked.rechecked.len() == 0 && warm.checked.reused.len() == source.loaded.modules.len() &&
+      warm.checked.snapshot.project.module_bodies.len() == 0, fixture))
+    results = results.append(testing.expect("encoded cache warm output and diagnostics match fresh",
+      warm.checked.snapshot.project.diagnostics == fresh.diagnostics &&
+      serialize_encoded_functions(reused) == serialize_bytecode(compile_program(fresh.program)), fixture))
+  }
+  for payload in [byte_buffer.empty(), "PANACK-BODIES-2\n".encode_utf8(), "PANACK-CODE-9\n".encode_utf8()] {
+    results = results.append(testing.expect("encoded cache rejects missing or different framing",
+      decode_module_code(payload) == None(), "invalid frame accepted"))
+  }
+  results = results.append(testing.expect("encoded function rejects invalid framing",
+    !valid_encoded_function(EncodedFunction("main", byte_buffer.empty(), [])), "empty function accepted"))
+  results
+}

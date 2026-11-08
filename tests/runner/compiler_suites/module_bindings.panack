@@ -1,3 +1,4 @@
+import project/tests/runner/compiler_suites/code_cache::{code_cache_tests}
 import project/tests/runner/compiler_suites/body_cache::{body_cache_tests}
 import project/tests/runner/compiler_suites/module_reuse::{module_reuse_tests}
 import project/src/compiler/checker::{check_program_evidence_mode}
@@ -12,8 +13,8 @@ import project/src/compiler/types::{Diagnostic, SourcePos, SourceSpan, diagnosti
 import project/src/compiler/module_bindings::{ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleBindings, LoadedModule, ModulePackageIdentity, ModulePackageIdentity.StandaloneModulePackage, ModulePackageIdentity.ManifestModulePackage, ModulePackageIdentity.ToolchainModulePackage, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant, collect_module_bindings, module_binding_diagnostics, module_export, module_relative_path, module_programs, module_declaration_positions, source_module_identity, source_package_module_identity, loaded_module_declaration_index}
 import project/src/compiler/module_resolution::{ModuleBindingGraph, ModuleGraphWalk, ModuleImportEdge, ResolvedModuleTarget, ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget, ResolvedDotCall.NamespaceCall, ResolvedDotCall.OwnedDotCall, ResolvedModuleUses, binding_graph_module, combine_module_uses, resolve_qualified_type_uses, resolve_module_expression_uses, resolve_module_block_uses, resolve_module_dot_call, resolve_module_function, resolve_module_path, resolve_module_type, module_graph_diagnostics, module_import_shadow_diagnostics, walk_module_graph}
 import project/src/compiler/module_signatures::{CheckedModuleSignatures, SignatureEffect, SignatureEffect.SignatureAsync, SignatureEffect.SignaturePure, SignatureType, SignatureTypeIdentity, SignatureTypeIdentity.SignatureNominal, SignatureTypeIdentity.SignatureParameter, SignatureTypeIdentity.SignatureCallable, SignatureTypeIdentity.SignatureCore, check_module_signatures, signature_effect, signature_type, signature_public_identity, substitute_signature_type}
-import project/src/compiler/module_bodies::{BodyNode, BodyNode.BodyArray, BodyNode.BodyAssignment, BodyNode.BodyBinary, BodyNode.BodyBinding, BodyNode.BodyBlock, BodyNode.BodyCall, BodyNode.BodyEmpty, BodyNode.BodyField, BodyNode.BodyFor, BodyNode.BodyFunction, BodyNode.BodyIf, BodyNode.BodyIndex, BodyNode.BodyInterpolation, BodyNode.BodyLiteral, BodyNode.BodyLocalUse, BodyNode.BodyMatch, BodyNode.BodyUnary, BodyNode.BodyWhile, BodyTarget.BodyCore, BodyTarget.BodyDeclaration, BodyCheckStatus, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid, BodyLocalIdentity, BoundFunctionBody, GuardConversionEvidence, TypeJoinEvidence, CollectionCallbackEvidence, OperatorTypeEvidence, BodyTypeCheckEvidence, CheckedModuleBodies, body_call_argument_evidence, body_binding_type_evidence, body_assignment_type_evidence, body_type_join_evidence, body_collection_callback_evidence, body_operator_type_evidence, body_type_check_evidence, body_compatibility, check_module_bodies, check_module_bodies_explained}
-import project/src/compiler/module_effects::{CheckedModuleEffects, check_module_effects}
+import project/src/compiler/module_bodies::{BodyTarget, BodyNode, BodyNode.BodyArray, BodyNode.BodyAssignment, BodyNode.BodyBinary, BodyNode.BodyBinding, BodyNode.BodyBlock, BodyNode.BodyCall, BodyNode.BodyEmpty, BodyNode.BodyField, BodyNode.BodyFor, BodyNode.BodyFunction, BodyNode.BodyIf, BodyNode.BodyIndex, BodyNode.BodyInterpolation, BodyNode.BodyLiteral, BodyNode.BodyLocalUse, BodyNode.BodyMatch, BodyNode.BodyUnary, BodyNode.BodyWhile, BodyTarget.BodyCore, BodyTarget.BodyDeclaration, BodyCheckStatus, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid, BodyLocalIdentity, BoundFunctionBody, GuardConversionEvidence, TypeJoinEvidence, CollectionCallbackEvidence, OperatorTypeEvidence, BodyTypeCheckEvidence, CheckedModuleBodies, body_call_argument_evidence, body_binding_type_evidence, body_assignment_type_evidence, body_type_join_evidence, body_collection_callback_evidence, body_operator_type_evidence, body_type_check_evidence, body_compatibility, check_module_bodies, check_module_bodies_explained}
+import project/src/compiler/module_effects::{CheckedModuleEffects, check_module_effects, collect_function_effect_facts, check_function_effect_facts}
 import project/src/compiler/loader::{LoadedProject, load_project, loaded_binding_graph}
 import project/src/compiler/resolver::{LoadedSource, append_program_declarations, resolve_program_at, resolve_source, render_resolver_diagnostics}
 import project/src/compiler/purity::{check_source_frontend}
@@ -296,6 +297,7 @@ pub run_suite(): Void {
   results = results.concat(preparation_tests())
   results = results.concat(module_reuse_tests())
   results = results.concat(body_cache_tests())
+  results = results.concat(code_cache_tests())
   results = results.concat(namespace_syntax_tests())
   results = results.concat(namespace_binding_tests())
   results = results.concat(namespace_execution_boundary_tests())
@@ -317,6 +319,8 @@ pub run_suite(): Void {
   results = results.concat(core_error_identity_tests())
   results = results.concat(core_adapter_emission_tests())
   results = results.concat(namespace_effect_tests())
+  results = results.concat(namespace_effect_fact_tests())
+  results = results.concat(effect_fact_permission_tests())
   results = results.concat(namespace_expression_tests())
   results = results.concat(namespace_aggregate_tests())
   results = results.concat(namespace_else_if_tests())
@@ -1197,6 +1201,9 @@ pure body_test_graph_mode(
   CheckedModuleBodies(bodies.functions, diagnostics.concat(bodies.diagnostics))
 }
 pure body_test_effects(source: Str, retain: Bool): CheckedModuleEffects {
+  body_test_effects_mode(source, retain, false)
+}
+pure body_test_effects_mode(source: Str, retain: Bool, facts: Bool): CheckedModuleEffects {
   match namespace_parse(source) {
     Error(error) => CheckedModuleEffects([error], [], map()),
     Ok(parsed) => {
@@ -1208,7 +1215,9 @@ pure body_test_effects(source: Str, retain: Bool): CheckedModuleEffects {
       core_signatures: CheckedModuleSignatures = check_module_signatures(graph, [core, module], core)
       checked_signatures: CheckedModuleSignatures = CheckedModuleSignatures(core_signatures.declarations.concat(own_signatures.declarations), own_signatures.diagnostics)
       checked_bodies: CheckedModuleBodies = check_module_bodies(graph, [core, module], checked_signatures.declarations, module)
-      checked: CheckedModuleEffects = check_module_effects(graph, [core, module], checked_signatures.declarations, checked_bodies.functions, retain)
+      checked: CheckedModuleEffects = if facts {
+        check_function_effect_facts(graph, [core, module], checked_signatures.declarations, collect_function_effect_facts(checked_bodies.functions))
+      } else { check_module_effects(graph, [core, module], checked_signatures.declarations, checked_bodies.functions, retain) }
       CheckedModuleEffects(checked_signatures.diagnostics.concat(checked_bodies.diagnostics.concat(checked.diagnostics)), checked.evidence, checked.function_types)
     }
   }
@@ -1218,6 +1227,9 @@ pure body_effect_error(source: Str): Str {
   if checked.diagnostics.len() == 0 { "ok" } else { checked.diagnostics[0].message }
 }
 pure body_test_graph_effects(modules: [LoadedModule], graph: ModuleBindingGraph, entry: LoadedModule): CheckedModuleEffects {
+  body_test_graph_effects_mode(modules, graph, entry, false)
+}
+pure body_test_graph_effects_mode(modules: [LoadedModule], graph: ModuleBindingGraph, entry: LoadedModule, facts: Bool): CheckedModuleEffects {
   mut signatures: [ModuleSignature] = []
   mut diagnostics: [Diagnostic] = []
   for module in modules {
@@ -1226,7 +1238,8 @@ pure body_test_graph_effects(modules: [LoadedModule], graph: ModuleBindingGraph,
     diagnostics = diagnostics.concat(checked.diagnostics)
   }
   bodies: CheckedModuleBodies = check_module_bodies(graph, modules, signatures, entry)
-  checked: CheckedModuleEffects = check_module_effects(graph, modules, signatures, bodies.functions, false)
+  checked: CheckedModuleEffects = if facts { check_function_effect_facts(graph, modules, signatures, collect_function_effect_facts(bodies.functions)) }
+    else { check_module_effects(graph, modules, signatures, bodies.functions, false) }
   CheckedModuleEffects(diagnostics.concat(bodies.diagnostics.concat(checked.diagnostics)), checked.evidence, checked.function_types)
 }
 pure namespace_effect_tests(): [TestResult] {
@@ -1300,11 +1313,17 @@ pure namespace_effect_tests(): [TestResult] {
     "ordinary unresolved indirect call retains no effect explanation",
     ordinary_unresolved_call_effects.evidence.len(), 0
   ))
+  results = results.append(std_testing.expect("effect facts retain unknown indirect-call state",
+    ordinary_unresolved_call_effects == check_function_effect_facts(
+      unresolved_graph, [unresolved_module], unresolved_signatures.declarations,
+      collect_function_effect_facts([unresolved_deferred_function])), "unknown indirect-call state changed"))
   imported: LoadedModule = signature_test_module(namespace_identity("effect_imported"), "pub async identity[T](value: T): T { value }; pub pure ordinary(): Nat { 1 }; pub ordinary_blocking(): Nat { 2 }")
   app: LoadedModule = signature_test_module(namespace_identity("effect_app"), "import project/effect_imported as api; pub async f(): Nat { await api.identity[Nat](1) }; pub pure g(): Nat { api.ordinary() }; pub pure h(): Nat { api.ordinary_blocking() }")
   graph: ModuleBindingGraph = ModuleBindingGraph([app.bindings, imported.bindings], [ModuleImportEdge(app.bindings.identity, 0, imported.bindings.identity)])
   imported_effects: CheckedModuleEffects = body_test_graph_effects([app, imported], graph, app)
   results = results.append(std_testing.expect("identity effects follow imported generic and aliased declarations", imported_effects.diagnostics.len() == 1 && imported_effects.diagnostics[0].message == "pure function cannot call impure function effect_imported:ordinary_blocking", if imported_effects.diagnostics.len() > 0 { imported_effects.diagnostics[0].message } else { "imported callable effect lost canonical identity" }))
+  results = results.append(std_testing.expect("effect facts preserve imported generic and aliased call diagnostics",
+    imported_effects == body_test_graph_effects_mode([app, imported], graph, app, true), "imported facts differ"))
   recovered: CheckedModuleEffects = body_test_effects("pub pure bad(): Nat { ordinary() }; pub pure good(): Nat { later() }; ordinary(): Nat { 1 }; pure later(): Nat { 2 }", true)
   results = results.append(std_testing.expect("identity effect explanation retains valid sibling evidence", recovered.diagnostics.len() == 1 && recovered.evidence.len() == 2 && recovered.evidence[0].function_name == "bad" && recovered.evidence[0].violations.len() == 1 && recovered.evidence[1].function_name == "good", "valid sibling effect evidence was not recovered"))
   results
@@ -5100,5 +5119,77 @@ pure owned_dot_bridge_tests(): [TestResult] {
     results = results.append(std_testing.expect("bridge callable field is not method/" + separator,
       body_test_error("record Holder { callback: PureFn[Nat,Nat] }; pure f(holder: Holder): Nat { holder" + separator + "callback(2) }") != "ok", "field auto-invoked"))
   }
+  results
+}
+
+// Compare complete ordered diagnostics and function status maps, not only messages.
+pure namespace_effect_fact_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  for source in [
+    "pub pure f(): Nat { later() }; pure later(): Nat { 1 }",
+    "pub pure f(): Nat { later() }; later(): Nat { 1 }",
+    "pub f(): Nat { later() }; later(): Nat { 1 }",
+    "pub async f(): Unit { print(1); () }",
+    "pub f(): Void { print(1) }",
+    "pub async f(): Unit { later(); () }; async later(): Unit { () }",
+    "pub pure f(): Nat { later() }; async later(): Nat { 1 }",
+    "pub async f(): Nat { await later() }; async later(): Nat { 1 }",
+    "pub f(): Nat { await later() }; async later(): Nat { 1 }",
+    "pub async f(): Nat { await later() }; later(): Nat { 1 }",
+    "pub async f(): Nat { await 1 }",
+    "pub async f(): Unit { await later(); () }; async later(): Nat { 1 }",
+    "pub async f(): Unit { await later(); () }; async later(): Unit { () }",
+    "pub async f(callback: AsyncFn[Nat]): Nat { await callback.call() }",
+    "pub async f(callback: AsyncFn[Nat]): Unit { callback.call(); () }",
+    "pub pure bad(): Nat { ordinary() }; pub pure good(): Nat { later() }; ordinary(): Nat { 1 }; pure later(): Nat { 2 }"
+  ] {
+    fresh = body_test_effects(source, false)
+    facts = body_test_effects_mode(source, false, true)
+    results = results.append(std_testing.expect("flat effect facts preserve ordered diagnostics",
+      fresh == facts, "effect facts differ for " + source))
+  }
+  results
+}
+
+pure effect_fact_call_function(template: BoundFunctionBody, target: BodyTarget): BoundFunctionBody {
+  body = BoundBody(BodyCall(target, [], []), template.body.span, [], template.body.type, [], [], [], [], [], [])
+  BoundFunctionBody(template.signature, template.parameters, body, [], BodyIdentityChecked(), None())
+}
+
+pure effect_fact_permission_tests(): [TestResult] {
+  module = signature_test_module(namespace_identity("permission.panack"),
+    "wrapper(): Nat { leaf() }; leaf(): Nat { 1 }; async caller(): Nat { wrapper() }")
+  graph = ModuleBindingGraph([module.bindings], [])
+  signatures = check_module_signatures(graph, [module], module).declarations
+  bodies = check_module_bodies(graph, [module], signatures, module).functions
+  wrapper = bodies[0]
+  leaf = effect_fact_call_function(bodies[1], BodyCore("http_body_size"))
+  caller = bodies[2]
+  initial = [wrapper, leaf, caller]
+  facts = collect_function_effect_facts(initial)
+  fresh = check_module_effects(graph, [module], signatures, initial, false)
+  compact = check_function_effect_facts(graph, [module], signatures, facts)
+  mut results: [TestResult] = []
+  results = results.append(std_testing.expect("effect facts infer transitive local permission in reverse dependency order",
+    fresh == compact && fresh.diagnostics.len() == 0, "transitive permission differs"))
+  for replacement in [effect_fact_call_function(bodies[1], BodyCore("print")), bodies[1],
+      effect_fact_call_function(bodies[1], BodyDeclaration(wrapper.signature.binding))] {
+    changed = [wrapper, replacement, caller]
+    // Keep the consumer facts from the successful check. Only the leaf changes.
+    mixed = [facts[0], collect_function_effect_facts([replacement])[0], facts[2]]
+    expected = check_module_effects(graph, [module], signatures, changed, false)
+    actual = check_function_effect_facts(graph, [module], signatures, mixed)
+    results = results.append(std_testing.expect("cached effect facts revoke stale permission after a body-only edit",
+      expected == actual && expected.diagnostics.len() == 1 &&
+        expected.diagnostics[0].message == "async function cannot call blocking function permission.panack:wrapper",
+      "body change retained local permission or changed diagnostics"))
+  }
+  invalid = BoundFunctionBody(leaf.signature, leaf.parameters, leaf.body, [], BodyInvalid(), None())
+  deferred = BoundFunctionBody(caller.signature, caller.parameters, caller.body, [], BodyDeferred(), None())
+  unusual = [invalid, deferred]
+  results = results.append(std_testing.expect("effect facts preserve invalid and deferred function status",
+    check_module_effects(graph, [module], signatures, unusual, false) ==
+      check_function_effect_facts(graph, [module], signatures, collect_function_effect_facts(unusual)),
+    "invalid or deferred function status changed"))
   results
 }

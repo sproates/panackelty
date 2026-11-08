@@ -14,7 +14,7 @@ import project/src/compiler/module_bodies::{
   SignatureEffect.SignatureAsync, SignatureEffect.SignatureOrdinary, SignatureEffect.SignaturePure
 }
 pub import project/src/compiler/module_bodies::{
-  BoundBody, BoundFunctionBody,
+  BoundBody, BoundFunctionBody, ModuleDeclarationBinding,
   DeclarationIdentity, Diagnostic, Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr,
   Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr,
   Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr,
@@ -39,8 +39,7 @@ import project/src/compiler/module_resolution::{
 }
 import project/src/compiler/module_bindings::{
   ModulePackageIdentity.ToolchainModulePackage,
-  ModuleDeclarationKind.ModuleFunction,
-  ModuleDeclarationBinding
+  ModuleDeclarationKind.ModuleFunction
 }
 import project/src/compiler/checker::{render_type}
 import project/src/compiler/lexer::{prior_index}
@@ -96,7 +95,7 @@ pub pure module_emission_symbol(
 // Toolchain modules share a package identity, but ordinary functions still
 // need private bytecode names so same-named APIs in different modules remain
 // distinct. Core declarations keep their historical runtime names.
-pure module_emission_callable_symbol(
+pub pure module_emission_callable_symbol(
   graph: ModuleBindingGraph,
   entry: ModuleIdentity,
   binding: ModuleDeclarationBinding
@@ -749,9 +748,18 @@ pub pure module_emission_program(
   bodies: [BoundFunctionBody],
   entry: ModuleIdentity
 ): ModuleEmissionResult {
+  module_emission_program_reusing(graph, modules, signatures, bodies, entry, [])
+}
+
+pub pure module_emission_program_reusing(
+  graph: ModuleBindingGraph, modules: [LoadedModule], signatures: [ModuleSignature],
+  bodies: [BoundFunctionBody], entry: ModuleIdentity, skipped: [ModuleIdentity]
+): ModuleEmissionResult {
   mut declarations: [TopLevel] = []
   mut diagnostics: [Diagnostic] = []
   for module in modules {
+    mut skip = false
+    for identity in skipped { skip = skip || identity == module.bindings.identity }
     if module.bindings.identity.package == ToolchainModulePackage() &&
       module.bindings.identity.path == "core.panack" {
       // Every core function uses its checked body. Enums retain their core identities.
@@ -759,13 +767,14 @@ pub pure module_emission_program(
       for declaration in module.parsed.program.declarations {
         match declaration {
           FunctionDeclaration(name, parameters, result, pure_flag, async_flag, body, types) => {
-            match module_emission_function(graph, entry, module, declaration, bodies) {
+            if !skip { match module_emission_function(graph, entry, module, declaration, bodies) {
               Some(converted) => { declarations = declarations.append(converted) },
               None() => {
                 diagnostics = diagnostics.append(Diagnostic(
                   "core function is not completely checked for identity emission",
                   module.parsed.syntax[core_index].span.start))
               }
+            }
             }
           },
           ImportDeclaration(path) => {},
@@ -862,11 +871,11 @@ pub pure module_emission_program(
             ))
           },
           FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) =>
-            module_emission_function(graph, entry, module, declaration, bodies)
+            if skip { None() } else { module_emission_function(graph, entry, module, declaration, bodies) }
         }
         match converted {
           None() => match declaration {
-          FunctionDeclaration(name, parameters, return_type, pure_flag, async_flag, body, type_parameters) => {
+          FunctionDeclaration(name, parameters, return_type, pure_flag, async_flag, body, type_parameters) => if !skip {
               mut detail: Str = ""
               for checked_body in bodies {
                 if checked_body.signature.binding.identity == DeclarationIdentity(module.bindings.identity, name) && checked_body.deferred.len() > 0 {

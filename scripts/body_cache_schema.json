@@ -226,6 +226,88 @@
         null,
         "None()"
       ]
+    ],
+    "Diagnostic": [
+      [
+        "message",
+        "Str"
+      ],
+      [
+        "position",
+        "SourcePos"
+      ]
+    ],
+    "EffectCallFact": [
+      [
+        "target",
+        "BodyTarget"
+      ],
+      [
+        "span",
+        "SourceSpan"
+      ],
+      [
+        "indirect_effect",
+        "?SignatureEffect"
+      ],
+      [
+        "indirect_known",
+        "Bool"
+      ]
+    ],
+    "FunctionEffectFacts": [
+      [
+        "identity",
+        "DeclarationIdentity"
+      ],
+      [
+        "owner_file",
+        "Str"
+      ],
+      [
+        "effect",
+        "?SignatureEffect"
+      ],
+      [
+        "status",
+        "BodyCheckStatus"
+      ],
+      [
+        "local_calls",
+        "[EffectCallFact]"
+      ],
+      [
+        "checks",
+        "[EffectCheckFact]"
+      ]
+    ],
+    "EncodedFunction": [
+      [
+        "name",
+        "Str"
+      ],
+      [
+        "data",
+        "Bytes"
+      ],
+      [
+        "core_calls",
+        "[Str]"
+      ]
+    ],
+    "CachedModuleCode": [
+      [
+        "identity",
+        "ModuleIdentity"
+      ],
+      [
+        "facts",
+        "[FunctionEffectFacts]"
+      ],
+      [
+        "functions",
+        "[EncodedFunction]"
+      ]
     ]
   },
   "enums": {
@@ -421,12 +503,35 @@
         "BoolExpr",
         "Bool"
       ]
+    ],
+    "BodyCheckStatus": [
+      [
+        "BodyIdentityChecked"
+      ],
+      [
+        "BodyDeferred"
+      ],
+      [
+        "BodyInvalid"
+      ]
+    ],
+    "EffectCheckFact": [
+      [
+        "EffectCallCheck",
+        "EffectCallFact",
+        "Bool"
+      ],
+      [
+        "EffectStaticCheck",
+        "Diagnostic"
+      ]
     ]
   },
   "groups": {
     "types": [
       "SourcePos",
-      "SourceSpan"
+      "SourceSpan",
+      "Diagnostic"
     ],
     "module_bindings": [
       "ModulePackageIdentity",
@@ -453,10 +558,22 @@
       "BodyTarget",
       "BodyNode",
       "BoundBody",
-      "BoundFunctionBody"
+      "BoundFunctionBody",
+      "BodyCheckStatus"
     ],
     "parser": [
       "Expr"
+    ],
+    "module_effects": [
+      "EffectCallFact",
+      "EffectCheckFact",
+      "FunctionEffectFacts"
+    ],
+    "bytecode/codec": [
+      "EncodedFunction"
+    ],
+    "module_reuse": [
+      "CachedModuleCode"
     ]
   }
 }

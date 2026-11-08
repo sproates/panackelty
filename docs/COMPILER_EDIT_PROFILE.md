@@ -859,3 +859,80 @@ reviewed. Historical timing warnings remain under the existing GI#106 reassessme
 command changes are included. The encoded-function cache, assembly/reachability,
 malformed-cache handling and end-to-end measurements remain the next slice;
 RM#157/GI#106 are not complete.
+
+## Encoded-function cache trial, 8 November 2026
+
+Built on the compact effect-facts foundation at `b54536a`. Incremental compilation
+now caches independently encoded function records plus those facts. The previous
+body path is retained for controlled comparison and diagnostic fallback, selected
+with internal `PANACKELTY_COMPILE_CODE_CACHE=0`; normal `--incremental` selects code
+reuse. No watcher, linker, stable-symbol redesign, native capability or VM format
+change is introduced.
+
+The loader rechecks signatures and guards, combines fresh/cached effect facts in
+module order and computes global permissions again. It lowers only changed bodies
+while retaining all current type/record/enum declarations for layout lookup.
+Function grouping uses the emitter's actual callable-name mapping, including core
+methods and namespaced standard-library functions. Encoding happens before core
+pruning; final assembly recomputes reachability over fresh/cached call metadata,
+sorts names and wraps the encoded records in the existing version-9 artifact.
+Rich explanation/source-map requests stay on their full checking path.
+
+Code files have independent `PANACK-MODULE-CODE-1` outer framing and
+`PANACK-CODE-1` payload framing. Existing conservative keys and source rechecks
+protect publication. Decoder limits, complete consumption and digest checks apply.
+The module's fact/function sets must exactly match its current function bindings,
+without duplicates or invalid status. Encoded function records pass the bounded
+bytecode reader and canonical re-encoding, checking names, bytes and core-call
+metadata. This does not authenticate deliberate local forgeries; the cache remains
+private trusted state, and the VM retains full assembled-program verification.
+Invalid files miss and rebuild. Failed code preparation uses the existing checking
+path to preserve established error reporting. Old body-cache files are not deleted.
+
+### Measurements
+
+One candidate compiler and ordinary VM compiled identical copied sources through
+both paths, with separate caches outside the source tree. Three edits changed the
+private module magic, each requiring exactly 46/49 module hits. Path order alternated
+and every pair was followed by a fresh compilation. No other build ran during the
+measurements; `/usr/bin/time -l` recorded peak RSS. Every compared artifact matched.
+The final selection/trace and rich-mode guard changes followed this trial; the
+measured two paths were explicitly selected and used the same plain-mode algorithms.
+
+| Pair | Body-cache edit | Code-cache edit | Fresh edited | Body peak RSS | Code peak RSS |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1 | 10.071s | 7.318s | 10.503s | 568.0 MiB | 292.1 MiB |
+| 2 | 9.500s | 7.063s | 9.990s | 566.3 MiB | 297.0 MiB |
+| 3 | 9.571s | 6.954s | 10.188s | 566.2 MiB | 292.2 MiB |
+
+Median edited time improves **26.2%** (9.571s to 7.063s), and is **30.7%** below
+the paired fresh median (10.188s). Median peak RSS falls **48.4%**, from 566.3 MiB
+to 292.2 MiB. New module files total 4,113,820 bytes versus 8,439,513 bytes for
+body files: **51.3% smaller**. These totals describe separately populated caches;
+pre-existing older files may remain in a user's directory.
+
+Single cold observations were 14.049s/417.0 MiB for bodies and 11.580s/424.9 MiB for
+code; unchanged whole-artifact observations were 2.561s and 2.885s. Unchanged hits
+use the same shortcut, so this single-run difference is not attributed to the new
+module representation. Cold peak memory increases modestly in this sample and
+needs continued observation. The small trip planner measured 0.109s for a code-
+cache edit versus 0.065s fresh, with 3/6 modules reused and identical output.
+Incremental bookkeeping still loses on small programs; ordinary compilation
+remains available and incremental compilation remains opt-in.
+
+### Acceptance
+
+The focused module suite passes 1,832 assertions; all 30 CLI cache groups and four
+hosted-trial regression tests pass. Cases include exact cold/warm output, no body
+restoration on full module reuse, newly reachable core helper chains, graph order,
+body-only edits, exact negative diagnostics, package projects and corrupt entries.
+Canonical record tests reject mismatched names, trailing bytes and false core-call
+metadata. Rich checking returns the unchanged complete explanation project.
+Native artifact compatibility and bootstrap fixed points pass, with unchanged
+standard-library bytes. Final `make check` passed in 548s: unit 341s and bootstrap
+72s in parallel, functional 137s and release smoke 9s. Informational documentation
+and local links pass. The compiler seed is
+`db8df0ad0672c0a4cc90be6e03dca57b47aef8a6af57a822e0d3300080f6e69a`.
+
+This is a selected implementation on the development branch, not completion of
+RM#157/GI#106. No website change or CI run is needed for the branch checkpoint.

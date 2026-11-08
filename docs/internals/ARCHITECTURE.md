@@ -1928,3 +1928,17 @@ produce a new unindexed value. Unsupported keys or index allocation failure
 retain the linear scan. The derived index changes neither observable ordering
 nor equality, is not serialized, and is freed with its owning value. See the
 [value model](../../src/vm/VALUE_MODEL.md) for ownership and the trial record.
+
+### Incremental encoded-function reuse
+
+The one-shot incremental path retains per-module encoded function records and
+compact effect facts, under exact toolchain, graph, declaration and transitive
+source keys. Loading/parsing, signatures, guards and global effect permissions
+remain fresh. Only changed modules need checked-body lowering and instruction
+emission. Assembly recomputes core reachability over all cached/fresh records,
+sorts names and writes version-9 bytecode. Records are saved before core pruning;
+newly reachable helpers therefore remain available after edits. The normal rich
+explanation/source-map path is preserved. The previous body cache remains a
+comparison/fallback during adoption. See the
+[cache contract](../COMPILER_PERSISTENT_REUSE.md) and
+[measured trial](../COMPILER_EDIT_PROFILE.md#encoded-function-cache-trial-8-november-2026).

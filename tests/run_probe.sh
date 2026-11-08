@@ -138,7 +138,7 @@ if [ "$valid" = false ]; then
     cmp "$work/expected" "$work/stdout"
     if [ "$incremental" = true ] && [ "${PANACKELTY_COMPILE_CACHE_TRACE:-}" = 1 ]; then
         # Accept only the requested cache trace; other diagnostics still fail.
-        sed -E '/^compile cache: (disabled|miss|hit|stored|not stored|not stored: inputs changed or reuse limit exceeded|module hits [0-9]+)$/d' "$work/stderr" > "$work/diagnostics"
+        sed -E '/^compile cache: (disabled|miss|hit|stored|not stored|not stored: inputs changed or reuse limit exceeded|(code )?module hits [0-9]+)$/d' "$work/stderr" > "$work/diagnostics"
         cat "$work/stderr" >&2
         mv "$work/diagnostics" "$work/stderr"
     fi

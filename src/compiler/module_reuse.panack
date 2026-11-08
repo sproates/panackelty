@@ -1,3 +1,5 @@
+pub import project/src/compiler/module_effects::{FunctionEffectFacts}
+pub import project/src/bytecode/codec::{EncodedFunction}
 pub import project/src/compiler/module_bodies::{BoundFunctionBody}
 pub import project/src/compiler/module_bindings::{LoadedModule, ModuleIdentity}
 import project/src/compiler/module_bindings::{ModulePackageIdentity.ToolchainModulePackage}
@@ -82,4 +84,10 @@ pub pure reusable_body_modules(
 pub record CachedModuleBodies {
   identity: ModuleIdentity,
   bodies: [BoundFunctionBody]
+}
+
+pub record CachedModuleCode {
+  identity: ModuleIdentity,
+  facts: [FunctionEffectFacts],
+  functions: [EncodedFunction]
 }

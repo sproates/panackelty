@@ -196,19 +196,13 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   project descriptors and toolchain bytes; hits skip checking/emission, never
   program execution. Tooling modes remain fresh. See the
   [unchanged-compilation trial](../../docs/COMPILER_UNCHANGED_REUSE_TRIAL.md).
-- `module_cache.panack` persists checked module bodies for one-shot incremental
-  builds, with transitive source keys, atomic publication and conservative global
-  type invalidation. `body_cache_codec.panack` is generated from the explicit
-  development schema in `scripts/generate_body_cache_codec.cjs`; it retains
-  ordinary emission/effect inputs, never explanation history. Source positions
-  use a checked fixed-width decoding path when their coordinates fit ordinary
-  words; spans reconstruct both ordinary positions together. Larger coordinates
-  use the general Nat decoder. Body-node tags use a bounded balanced decision
-  tree; invalid tags still reject. The version-2 private module/body cache stores
-  distinct immutable types once, with child-first references. The reader bounds
-  expanded type depth and total expanded nodes, rejecting cycles, forward
-  references and excessive expansion; incompatible caches fall back to fresh work.
-  The VM bytecode format is unchanged. See
+- `module_cache.panack` persists encoded functions and compact effect facts for
+  incremental builds, with conservative transitive keys and atomic publication.
+  `body_cache_codec.panack` uses separate bounded formats for code records and
+  the retained checked-body comparison/fallback. The code reader validates exact
+  function ownership/names and canonical encoded bytes. The body reader retains
+  shared-type/depth/expansion bounds. Invalid entries fall back to fresh work.
+  The VM format is unchanged. See
   [persistent reuse](../../docs/COMPILER_PERSISTENT_REUSE.md).
 - `module_emission.panack` lowers fully identity-checked bodies and canonical
   function/type/variant identities to deterministic private names. Entry `main`
@@ -441,9 +435,8 @@ Run `node --test tests/source_coverage/manifest.test.cjs tests/source_coverage/p
 before integration. These quick inventory/policy checks are separate from
 `make check`; passing the full product suite does not establish manifest completeness.
 
-`module_effects.panack` also exposes a plain-mode compact effect-facts prototype.
-It retains ordered call/await checks and recomputes local-resource permissions
-against current signatures without keeping checked body trees. The normal loader
-still uses the rich body checker; differential tests compare complete diagnostics
-and status maps before any compiled-function cache adopts the facts. See the
-[trial evidence](../../docs/COMPILER_EDIT_PROFILE.md#compact-effect-facts-foundation-8-november-2026).
+`module_effects.panack` exposes compact plain-mode effect facts used by the
+encoded-function cache. Ordered call/await checks and transitive permissions are
+rechecked against current signatures without restoring checked body trees. The
+rich checker remains the explanation/source-map path and differential oracle.
+See the [cache trial](../../docs/COMPILER_EDIT_PROFILE.md#encoded-function-cache-trial-8-november-2026).

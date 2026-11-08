@@ -16,7 +16,7 @@ fs.chmodSync(cache, 0o700);
 const sha = data => crypto.createHash('sha256').update(data).digest('hex');
 function digest() {
   const entries = fs.readdirSync(cache).sort().map(name => {
-    assert(/^(compilation-v1|module-[a-f0-9]{64}-[0-9]+)\.cache$/.test(name), 'Unexpected cache entry');
+    assert(/^(compilation-v1\.cache|module-[a-f0-9]{64}-[0-9]+\.cache(?:\.code)?)$/.test(name), 'Unexpected cache entry');
     const file = path.join(cache, name), stat = fs.lstatSync(file);
     assert(stat.isFile() && stat.size <= 16777216, 'Unsafe cache entry');
     return [name, stat.size, sha(fs.readFileSync(file))];

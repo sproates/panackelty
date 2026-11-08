@@ -1,7 +1,11 @@
+import project/src/bytecode/decoder::{valid_encoded_function}
+import project/src/compiler/module_emission::{module_emission_callable_symbol}
+import project/src/compiler/module_bindings::{DeclarationIdentity, ModuleDeclarationKind.ModuleFunction}
+import project/src/compiler/module_bodies::{BodyCheckStatus.BodyIdentityChecked}
 pub import project/src/compiler/compilation_cache::{CompilationCache, cache_digest, cache_file, cache_trace}
-import project/src/compiler/body_cache_codec::{encode_checked_bodies, decode_checked_bodies}
-pub import project/src/compiler/module_reuse::{CachedModuleBodies}
-pub import project/src/compiler/loader::{LoadedProjectSources, ProjectCheckResult}
+import project/src/compiler/body_cache_codec::{encode_checked_bodies, decode_checked_bodies, encode_module_code, decode_module_code}
+pub import project/src/compiler/module_reuse::{CachedModuleBodies, CachedModuleCode}
+pub import project/src/compiler/loader::{LoadedProjectSources, ProjectCheckResult, ProjectCodeCheck}
 import project/src/compiler/loader::{loaded_package_binding_graph}
 pub import project/src/compiler/module_bindings::{ModuleIdentity, LoadedModule, ModulePackageIdentity.StandaloneModulePackage, ModulePackageIdentity.ManifestModulePackage, ModulePackageIdentity.ToolchainModulePackage}
 import project/src/compiler/module_bodies::{BoundFunctionBody}
@@ -217,6 +221,92 @@ pub save_module_bodies(cache: ModuleCache, checked: ProjectCheckResult): Void {
               None() => {},
               Some(hash) => {
                 result = bounded.atomic_write(entry.file, module_magic().join(entry.key).join(hash).join(payload))
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+pure code_cache_file(entry: ModuleCacheEntry): Path {
+  path.from_text(entry.file.to_text().value_or("") + ".code").value_or(entry.file)
+}
+
+pub cached_module_code(cache: ModuleCache, source: LoadedProjectSources): [CachedModuleCode] {
+  mut result: [CachedModuleCode] = []
+  magic = "PANACK-MODULE-CODE-1\n".encode_utf8()
+  header = magic.length() + 64
+  graph = loaded_package_binding_graph(source.loaded.modules, source.context.project_root,
+    source.context.stdlib_root, source.context.package_confined, source.context.package_root_identity, source.context.dependencies)
+  for entry in cache.entries {
+    match cache_file(code_cache_file(entry).to_text().value_or(""), 16777216) {
+      None() => {},
+      Some(data) => if data.length() > header && byte_buffer.slice(data, 0, magic.length()) == magic &&
+          byte_buffer.slice(data, magic.length(), magic.length() + 32) == entry.key {
+        payload = byte_buffer.slice(data, header, data.length())
+        if cache_digest([payload]) == Some(byte_buffer.slice(data, magic.length() + 32, header)) {
+          match decode_module_code(payload) {
+            None() => {},
+            Some(code) => {
+              mut expected: Set[DeclarationIdentity] = set()
+              mut expected_names: Set[Str] = set()
+              for module in source.loaded.modules {
+                if module.bindings.identity == entry.identity {
+                  for binding in module.bindings.declarations {
+                    if binding.kind == ModuleFunction() && binding.intrinsic == None() {
+                      expected = expected.add(binding.identity)
+                      expected_names = expected_names.add(module_emission_callable_symbol(graph, source.context.entry, binding))
+                    }
+                  }
+                }
+              }
+              mut seen: Set[DeclarationIdentity] = set()
+              mut names: Set[Str] = set()
+              mut valid = code.identity == entry.identity && code.facts.len() == expected.len() && code.functions.len() == expected_names.len()
+              for fact in code.facts {
+                valid = valid && expected.has(fact.identity) && !seen.has(fact.identity) && fact.status == BodyIdentityChecked()
+                seen = seen.add(fact.identity)
+              }
+              for function in code.functions {
+                valid = valid && expected_names.has(function.name) && !names.has(function.name) && valid_encoded_function(function)
+                names = names.add(function.name)
+              }
+              if valid { result = result.append(code) }
+            }
+          }
+        }
+      }
+    }
+  }
+  count = result.len()
+  cache_trace("module hits ${count}")
+  cache_trace("code module hits ${count}")
+  result
+}
+
+pub save_module_code(cache: ModuleCache, result: ProjectCodeCheck): Void {
+  checked = result.checked
+  project = checked.snapshot.project
+  if project.preparation != None() && project.diagnostics.len() == 0 && !checked.snapshot.source.retain {
+    mut unchanged = true
+    for name in project.source_paths {
+      unchanged = unchanged && cache_file(name, 8388608) == Some(project.sources.get(name).encode_utf8())
+    }
+    if unchanged {
+      for entry in cache.entries {
+        if module_identity_in(checked.rechecked, entry.identity) {
+          for code in result.code {
+            if code.identity == entry.identity {
+              payload = encode_module_code(code)
+              magic = "PANACK-MODULE-CODE-1\n".encode_utf8()
+              if payload.length() + magic.length() + 64 <= 16777216 {
+                match cache_digest([payload]) {
+                  None() => {},
+                  Some(hash) => { written = bounded.atomic_write(code_cache_file(entry), magic.join(entry.key).join(hash).join(payload)) }
+                }
               }
             }
           }

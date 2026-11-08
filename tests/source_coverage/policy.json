@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Review compact effect-fact records, enum and changed import positions.",
+    "reason": "Review encoded-function cache records and generated-code import/declaration positions.",
     "basis": "Computed with the production parser and inventory_module over every eligible source. Only imports, type refinements, records and enums are excluded; executable functions remain eligible.",
-    "scopeChange": "Eligible files and corpus remain unchanged. Add two effect-fact records and one enum, and account for shifted import/declaration positions. No executable functions are excluded and no coverage percentage is asserted."
+    "scopeChange": "Eligible files and corpus remain unchanged. Account for EncodedFunction, CachedModuleCode and ProjectCodeCheck records plus changed import/declaration positions. No executable functions are excluded and no coverage percentage is asserted."
   },
   "manifestHash": "3e92b1881d541fc7ddacd4e6988079fc1160da863237c8b2926e65b11f8a7c6e",
-  "exclusionHash": "9bf6a42f7214b0f0407cbae5c0841a6dcfcd371133fe31b3f53b9b8c7f441501"
+  "exclusionHash": "2bad0298744b8aa871c5fed3bff2d58e1f5b34b73058ce52603365d46397999f"
 }

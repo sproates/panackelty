@@ -1827,3 +1827,12 @@ indirect calls, await rules, unknown effects, invalid/deferred bodies and seven
 whole-program fixtures. Retained consumer facts must revoke local-resource
 permission after a body-only dependency change, including blocking, no-local-call
 and cyclic replacements. The production rich checker remains the oracle.
+
+The encoded-function cache adds 315 assertions (1,832 module-suite assertions
+total): seven complete fixtures compare cold/warm cache output with fresh bytecode,
+round-trip per-module records, reject truncation/framing changes, check canonical
+function records and metadata, and preserve rich explanation checking. Fully
+reused modules must restore no checked bodies. The CLI cache harness now has
+30 groups, covering newly reachable/transitive core helpers, source edits, exact
+error diagnostics, graph reordering, corrupt-file fallback and package projects
+on the encoded route. Probe tests also retain and filter both cache trace forms.

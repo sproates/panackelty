@@ -239,7 +239,7 @@ confirms restoration still dominates (3.444s), with 1.270s more in lowering and
 output generation. An idealised in-memory control takes 5.48–5.51s versus
 9.37–9.58s fresh; this is not a delivered one-shot speedup. All 16 direct runs
 and four control runs preserve expected bytes. Small-program edited caching
-remains slower than fresh compilation. The next selected experiment is a
+remains slower than fresh compilation. The selected follow-up, now implemented below, is a
 plain-mode encoded-function cache with fresh effect checks and conservative keys,
 starting with differential tests for compact effect facts. No product change
 is included in this investigation; RM#157/GI#106 remain open.
@@ -250,8 +250,22 @@ Implemented and locally validated on the development branch: the
 [plain-mode facts API](COMPILER_EDIT_PROFILE.md#compact-effect-facts-foundation-8-november-2026)
 preserves ordered diagnostics, status maps and fresh transitive permissions in
 1,517 focused assertions. Native artifacts, bootstrap and final `make check`
-(555s) passed. This checkpoint has not been merged into `next`. The normal loader
-remains unchanged; no compiled-function disk cache or end-to-end speedup is yet
-delivered. Prepared-fact checking measures 0.681s median versus 0.820s over bodies.
-The next slice adds the encoded-function cache and tests assembly, invalidation,
+(555s) passed. This checkpoint has not been merged into `next`. That foundation checkpoint left the normal loader unchanged; the follow-up
+below now adopts these facts for encoded-function reuse. Prepared-fact checking measures 0.681s median versus 0.820s over bodies.
+The follow-up adds the encoded-function cache and tests assembly, invalidation,
 fallback and complete-build performance. RM#157/GI#106 remain open.
+
+## Encoded-function cache
+
+Implemented on the development branch; not yet merged into `next`. Normal
+`--incremental` now reuses encoded functions and compact effect facts, while
+rechecking signatures, guards and global effects. Rich explanation paths remain
+unchanged. The [paired compiler trial](COMPILER_EDIT_PROFILE.md#encoded-function-cache-trial-8-november-2026)
+measures 26.2% faster edited builds than the body cache (30.7% below fresh),
+48.4% lower peak memory and 51.3% smaller module files. Every output matches fresh
+compilation. Small programs still pay more cache overhead than fresh compilation.
+
+All 1,832 focused assertions, 30 cache CLI groups, hosted-trial regression tests,
+native artifact comparisons and bootstrap fixed points pass. Final local
+`make check` passed in 548s, and documentation checks pass. No VM bytecode change, website change or CI run is included.
+RM#157: Performance review and GI#106: Incremental and modular builds remain open.

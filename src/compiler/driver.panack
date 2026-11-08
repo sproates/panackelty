@@ -1,4 +1,5 @@
-import project/src/compiler/module_cache::{ModuleCache, module_cache, cached_module_bodies, save_module_bodies}
+import project/src/bytecode/codec::{EncodedFunction, serialize_encoded_functions}
+import project/src/compiler/module_cache::{ModuleCache, module_cache, cached_module_bodies, save_module_bodies, cached_module_code, save_module_code}
 import project/src/compiler/compilation_cache::{CompilationCache, compilation_cache, cached_compilation, save_compilation, cache_trace}
 import stdlib/bytes as byte_buffer
 import project/src/compiler/path_support as path_support
@@ -16,7 +17,7 @@ import project/src/compiler/source_inventory::{run_inventory_command}
 import project/src/compiler/module_emission::{ModuleIdentity}
 import project/src/compiler/loader::{
   LoadedProject, LoadedProjectSources, load_project_sources, load_project_package_sources,
-  check_project_sources, check_project_sources_cached, load_project, load_project_package_for_check,
+  check_project_sources, check_project_sources_cached, check_project_sources_code, load_project, load_project_package_for_check,
   load_project_explained, load_project_for_source_map
 }
 import project/src/project_model/package_project::{ManifestDependencyProject}
@@ -206,31 +207,41 @@ driver_run_cached_source(
       modules: Option[ModuleCache] = match cache {
         None() => None(), Some(selected) => module_cache(source, selected)
       }
-      checked = check_project_sources_cached(source, match modules {
-        None() => [], Some(selected) => cached_module_bodies(selected)
-      })
-      loaded: LoadedProject = checked.snapshot.project
-      context = source.context
-      identity = driver_entry_identity(loaded, source.entry_path, context.entry)
-      match prepare_project_program_with_dependencies(
-        loaded, context.project_root, context.stdlib_root, identity,
-        context.package_confined, context.package_root_identity, context.dependencies
-      ) {
-        Error(diagnostics) => Error(diagnostic_messages(diagnostics, loaded.sources)),
-        Ok(program) => {
-          bytecode: BytecodeProgram = compile_program(program)
-          artifact: Bytes = if command == "check" && cache == None() { byte_buffer.empty() } else { serialize_bytecode(bytecode) }
-          match cache {
-            None() => {}, Some(selected) => {
-              match modules {
-                None() => {}, Some(saved) => {
-                  if module_cache(source, selected) == Some(saved) { save_module_bodies(saved, checked) }
+      code_artifact: Option[Bytes] = if std_environment.get("PANACKELTY_COMPILE_CODE_CACHE") != Some("0") {
+        match cache { None() => None(), Some(selected) => match modules {
+          None() => None(), Some(module_entries) => driver_compile_code(source, selected, module_entries)
+        } }
+      } else { None() }
+      match code_artifact {
+        Some(artifact) => Ok(artifact),
+        None() => {
+          checked = check_project_sources_cached(source, match modules {
+            None() => [], Some(selected) => cached_module_bodies(selected)
+          })
+          loaded: LoadedProject = checked.snapshot.project
+          context = source.context
+          identity = driver_entry_identity(loaded, source.entry_path, context.entry)
+          match prepare_project_program_with_dependencies(
+            loaded, context.project_root, context.stdlib_root, identity,
+            context.package_confined, context.package_root_identity, context.dependencies
+          ) {
+            Error(diagnostics) => Error(diagnostic_messages(diagnostics, loaded.sources)),
+            Ok(program) => {
+              bytecode: BytecodeProgram = compile_program(program)
+              artifact: Bytes = if command == "check" && cache == None() { byte_buffer.empty() } else { serialize_bytecode(bytecode) }
+              match cache {
+                None() => {}, Some(selected) => {
+                  match modules {
+                    None() => {}, Some(saved) => {
+                      if module_cache(source, selected) == Some(saved) { save_module_bodies(saved, checked) }
+                    }
+                  }
+                  save_compilation(selected, source, artifact)
                 }
               }
-              save_compilation(selected, source, artifact)
+              Ok(artifact)
             }
           }
-          Ok(artifact)
         }
       }
     }
@@ -916,4 +927,21 @@ pub compiler_main(): Void {
   if status != 0 {
     std_host.exit(status);
   } else {}
+}
+
+// Incremental compilation uses encoded records. The internal comparison switch
+// can retain the body-cache path. Failed preparation falls back so
+// incomplete/invalid fresh bodies retain its established diagnostic behaviour.
+driver_compile_code(source: LoadedProjectSources, cache: CompilationCache, entries: ModuleCache): Option[Bytes] {
+  checked = check_project_sources_code(source, cached_module_code(entries, source))
+  project = checked.checked.snapshot.project
+  if project.preparation == None() || project.diagnostics.len() > 0 || !project.identity_ready { None() }
+  else {
+    mut functions: [EncodedFunction] = []
+    for module in checked.code { functions = functions.concat(module.functions) }
+    artifact = serialize_encoded_functions(functions)
+    if module_cache(source, cache) == Some(entries) { save_module_code(entries, checked) }
+    save_compilation(cache, source, artifact)
+    Some(artifact)
+  }
 }

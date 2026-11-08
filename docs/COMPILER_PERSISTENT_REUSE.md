@@ -17,30 +17,35 @@ project, standard-library and dependency trees. Missing, unavailable, damaged
 or incompatible state causes fresh compilation, not a source-program failure.
 Deleting the directory is safe; it only removes potential reuse.
 
-The private module/body representation is now version 2. Old module entries are
-ignored and rebuilt automatically; this is not a VM bytecode-version change.
-Types are stored once per module and referenced by index. The decoder requires
-backward-only references and bounds expanded type depth at 512 (including the
-enclosing body) and cumulative expanded type occurrences at 1,000,000 per module.
-These are disposable-cache limits: exceeding them causes fresh checking, not a
-source-program error. A separate per-entry expansion bound prevents compact
-dictionaries from describing exponentially large types.
+The default incremental path stores independently encoded function records and
+compact effect facts in version-1 code-cache files (`.cache.code`). The older
+version-2 checked-body cache remains available as a comparison/fallback path;
+`PANACKELTY_COMPILE_CODE_CACHE=0` selects it for development measurements.
+These private formats are not VM bytecode-version changes. Incompatible entries
+are ignored and rebuilt. Existing older cache files need not be migrated.
 
 ## What is reused
 
-An exact whole-build match reuses successful bytecode. After edits, Panack loads
-plain checked bodies for unchanged modules whose transitive dependencies still
-match. Each module file is replaced atomically; an edited build only rewrites
-rechecked modules. Different entry paths have separate module-file namespaces.
-The whole-build shortcut currently retains one last successful build per cache
-directory. Source discovery, source parsing and package/confinement validation
-still happen on each invocation.
+An exact whole-build match reuses successful bytecode. After edits, unchanged
+modules contribute encoded functions and compact call/await facts. Changed modules
+are checked and compiled normally. Each module file is replaced atomically; only
+rechecked modules are rewritten. Different entry paths have separate module-file
+namespaces. The whole-build shortcut retains one last successful build per cache
+directory. Source discovery, parsing and package/confinement validation still
+happen on every invocation.
 
-Signatures, guarded-type checks, global effects, final lowering and bytecode
-emission run fresh after a module-level hit. Tooling queries retain their full
-explanation/source-map path. Cached bodies deliberately omit explanation
-history and are never supplied to explanation-mode checking. Program execution
-is never cached.
+Signatures, guarded-type checks and global effect permissions run fresh. The
+compiler combines fresh and cached function records, recomputes core-function
+reachability, sorts function names and writes the unchanged version-9 format.
+Core functions are cached before pruning, so an edit can make a previously unused
+helper reachable. Record and enum layouts still come from the current declarations.
+Cached functions need no checked-body reconstruction or lowering. Tooling queries
+retain their full explanation/source-map path, and program execution is never cached.
+
+The body-cache fallback preserves established diagnostics if code preparation
+cannot complete. Rich checking never uses the compact-fact route. The fallback
+also provides a direct performance comparison during this staged adoption; it
+is not a second independently maintained language checker.
 
 The disk format remains conservative:
 
@@ -49,11 +54,11 @@ The disk format remains conservative:
   are not evidence of unchanged input.
 - A source change invalidates that module and its transitive import consumers.
 - A change to implicit core, or to any import, type, record or enum declaration
-  invalidates every body. Declaration text, structural index and source
+  invalidates every module entry. Declaration text, structural index and source
   coordinates are inputs. An ordinary function-body edit in the same file can
   reuse unrelated modules when those declarations and coordinates remain unchanged.
   Moving a declaration still invalidates globally, preserving retained origins.
-- A graph/order, root or toolchain change invalidates stored bodies.
+- A graph/order, root or toolchain change invalidates stored module work.
 - Only successful plain compilations seed the cache. Entries have content
   digests and bounded decoding. They are private trusted local compiler state,
   not a portable or downloadable build-artifact format.
@@ -67,14 +72,20 @@ be discarded between compiler versions; there is no migration requirement.
 ## Implementation
 
 `module_cache.panack` owns input keys and disk I/O. `body_cache_codec.panack`
-encodes plain typed bodies, interning repeated strings and storing source
-positions needed by fresh effect checks and emission. The codec is generated
-from `scripts/body_cache_schema.json` and bounded support routines using
-`scripts/generate_body_cache_codec.cjs`; generation
-is a development operation, not a compiler/build/runtime dependency. Schema
-changes require reviewing the generator, regenerating the Panack source and
-running its round-trip and malformed-input tests. The compiler and VM bytecode
-format remains version 9; no native capability was added.
+encodes either plain typed bodies or encoded functions/effect facts, using separate
+format markers. It is generated from `scripts/body_cache_schema.json` and bounded
+support routines using `scripts/generate_body_cache_codec.cjs`; generation is a
+development operation, not a runtime dependency. Schema changes require regenerating
+and testing round trips and malformed inputs.
+
+Code-cache hits require complete, unique function identities/names for the current
+module and checked fact status. Each encoded function is parsed with the bounded
+bytecode reader and re-encoded to check canonical bytes, name and core-call metadata.
+This is structural validation of private trusted cache state, not authentication
+against deliberate local forgery. The VM still verifies the assembled program
+before execution. Compact facts recompute transitive local-resource permission;
+a previous successful compilation is not itself a permission to skip effect checks.
+No native capability, linker or VM bytecode format was added.
 
 ## Validation and measurements
 

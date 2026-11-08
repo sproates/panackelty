@@ -841,6 +841,21 @@ bootstrap and final `make check` (555s) also passed. This remains a development-
 branch checkpoint. The loader does not yet use the facts, so
 no user-facing speedup or website change is claimed. RM#28/GI#106 remain open.
 
+
+### Encoded-function cache, 8 November 2026
+
+The [encoded-function trial](../../COMPILER_EDIT_PROFILE.md#encoded-function-cache-trial-8-november-2026)
+is implemented on the development branch, not yet merged into `next`. Three paired
+compiler edits measure 26.2% faster than the previous body cache, 30.7% below fresh,
+48.4% lower peak memory and 51.3% smaller module files, with exact fresh output.
+Normal incremental compilation selects this path; signatures, guards, global
+effects and core reachability are recomputed. Rich explanations keep full checking.
+Conservative keys and corruption fallback remain; VM bytecode is unchanged.
+Small-program cache overhead remains a limitation. The 1,832 focused assertions,
+30 cache CLI groups, native artifacts and bootstrap pass; final `make check`
+passed in 548s, with documentation checks also passing. This is a bounded local checkpoint, not completion of RM#28/GI#106 or
+RM#157, and does not change the website or trigger CI.
+
 ### Incremental command direction, 7 November 2026
 
 The owner expects an ordinary one-shot command such as

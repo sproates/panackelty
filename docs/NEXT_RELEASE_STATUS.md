@@ -168,3 +168,12 @@ matching fresh bytecode. All three fresh-build pairs improved too. The 1,448
 module-binding assertions, six exact diagnostic comparisons and native artifact
 checks pass. Bootstrap fixed points and final `make check` (565s) passed. This
 completes the bounded search optimisation, not RM#157/GI#106.
+
+## Name-lookup traversal trial
+
+Completed, not adopted: stopping the import-selector walk reduced calls but
+produced no meaningful ordinary-VM saving (13.155s original / 13.170s candidate
+medians). Bytecode matched and the candidate passed 1,453 assertions. Trial code
+and tests were removed; product code and seed remain unchanged. The profile
+identifies repeated binding-conflict validation as the next candidate: 29,556
+calls across 49 modules. Its reuse contract still needs a bounded design.

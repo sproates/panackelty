@@ -327,3 +327,13 @@ fresh timings varied more, but every pair improved. Focused signature/privacy
 and diagnostic checks, bootstrap fixed points and final `make check` (565s) pass.
 The bounded improvement is included in this integration. RM#157/GI#106 remain open; no website
 change or new persistent cache is included.
+
+### Name-lookup traversal trial, 8 November 2026
+
+The [follow-up trial](../../COMPILER_EDIT_PROFILE.md#name-lookup-traversal-trial--not-adopted-8-november-2026)
+reduced import-selector calls but did not improve ordinary compilation:
+13.155s original / 13.170s candidate medians across three alternating pairs.
+Artifacts matched and focused tests passed. The code was discarded; only the
+evidence is retained. Repeated binding-conflict validation is the stronger next
+candidate, subject to preserving diagnostics and invalid-graph checks. No new
+implementation or website change is included, and RM#157/GI#106 remain open.

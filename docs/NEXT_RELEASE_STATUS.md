@@ -243,3 +243,15 @@ remains slower than fresh compilation. The next selected experiment is a
 plain-mode encoded-function cache with fresh effect checks and conservative keys,
 starting with differential tests for compact effect facts. No product change
 is included in this investigation; RM#157/GI#106 remain open.
+
+## Compact effect-facts foundation
+
+Implemented and locally validated on the development branch: the
+[plain-mode facts API](COMPILER_EDIT_PROFILE.md#compact-effect-facts-foundation-8-november-2026)
+preserves ordered diagnostics, status maps and fresh transitive permissions in
+1,517 focused assertions. Native artifacts, bootstrap and final `make check`
+(555s) passed. This checkpoint has not been merged into `next`. The normal loader
+remains unchanged; no compiled-function disk cache or end-to-end speedup is yet
+delivered. Prepared-fact checking measures 0.681s median versus 0.820s over bodies.
+The next slice adds the encoded-function cache and tests assembly, invalidation,
+fallback and complete-build performance. RM#157/GI#106 remain open.

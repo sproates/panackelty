@@ -834,6 +834,13 @@ function/effect-facts experiment. The in-memory control is not a one-shot speedu
 small-program caching remains slower than fresh work. No product implementation
 or website change is included, and RM#28/GI#106 remain open.
 
+The [compact effect-facts foundation](../../COMPILER_EDIT_PROFILE.md#compact-effect-facts-foundation-8-november-2026)
+establishes diagnostic/status equivalence and fresh local-resource permissions
+for a future encoded-function cache. Focused checks and native artifacts pass;
+bootstrap and final `make check` (555s) also passed. This remains a development-
+branch checkpoint. The loader does not yet use the facts, so
+no user-facing speedup or website change is claimed. RM#28/GI#106 remain open.
+
 ### Incremental command direction, 7 November 2026
 
 The owner expects an ordinary one-shot command such as

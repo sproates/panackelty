@@ -440,3 +440,10 @@ When adding a production compiler module, update
 Run `node --test tests/source_coverage/manifest.test.cjs tests/source_coverage/policy.test.cjs`
 before integration. These quick inventory/policy checks are separate from
 `make check`; passing the full product suite does not establish manifest completeness.
+
+`module_effects.panack` also exposes a plain-mode compact effect-facts prototype.
+It retains ordered call/await checks and recomputes local-resource permissions
+against current signatures without keeping checked body trees. The normal loader
+still uses the rich body checker; differential tests compare complete diagnostics
+and status maps before any compiled-function cache adopts the facts. See the
+[trial evidence](../../docs/COMPILER_EDIT_PROFILE.md#compact-effect-facts-foundation-8-november-2026).

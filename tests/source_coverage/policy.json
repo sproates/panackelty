@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Review shared-type cache records and shifted declaration positions.",
+    "reason": "Review compact effect-fact records, enum and changed import positions.",
     "basis": "Computed with the production parser and inventory_module over every eligible source. Only imports, type refinements, records and enums are excluded; executable functions remain eligible.",
-    "scopeChange": "Eligible files, measured corpus and exclusion kinds are unchanged. Add the SharedType record and update the CachePool declaration and shifted positions. Executable functions remain eligible; no coverage percentage is asserted."
+    "scopeChange": "Eligible files and corpus remain unchanged. Add two effect-fact records and one enum, and account for shifted import/declaration positions. No executable functions are excluded and no coverage percentage is asserted."
   },
   "manifestHash": "3e92b1881d541fc7ddacd4e6988079fc1160da863237c8b2926e65b11f8a7c6e",
-  "exclusionHash": "5ef868a0b764e26aeac0ff81b7dfd831fa1fc3f17b6fdabc25b6874d4c226cc9"
+  "exclusionHash": "9bf6a42f7214b0f0407cbae5c0841a6dcfcd371133fe31b3f53b9b8c7f441501"
 }

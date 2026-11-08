@@ -403,3 +403,15 @@ compilation. Small workloads still lose to cache overhead. Begin with compact
 effect facts and exact diagnostic comparisons; retain conservative cache keys,
 core reachability and the VM format. No implementation, CI or website change
 is included here; RM#157/GI#106 remain open.
+
+### Compact effect-facts foundation, 8 November 2026
+
+The [facts API and differential tests](../../COMPILER_EDIT_PROFILE.md#compact-effect-facts-foundation-8-november-2026)
+preserve complete plain-mode diagnostics and fresh global permissions without
+retaining body trees. All 1,517 focused assertions and native artifact contracts
+pass, as do bootstrap and final `make check` (555s). The checkpoint remains on
+the development branch, not yet integrated. Prepared-fact checking measures 0.681s
+median versus 0.820s over bodies, excluding extraction and cache operations.
+The normal loader remains on the existing checker. This is the prerequisite
+for the encoded-function cache trial, not an end-to-end speedup or completion
+of RM#157/GI#106. No website impact.

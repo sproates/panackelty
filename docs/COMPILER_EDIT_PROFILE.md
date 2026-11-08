@@ -805,3 +805,57 @@ assembly erase the gain, stop and reassess identity sharing or lex/parse reuse.
 This records a selected experiment, not an implemented code cache or completion
 of RM#157/GI#106. Documentation/link checks suffice for this investigation;
 no full validation, seed refresh, CI or website update is required.
+
+## Compact effect-facts foundation, 8 November 2026
+
+The first compiled-function-cache slice adds a plain-mode `FunctionEffectFacts`
+API in `module_effects.panack`. Each function retains its identity, source file,
+effect declaration and body-check status, plus two ordered flat lists: calls used
+for local-resource permission inference, and diagnostic checks. Direct-call
+permissions are recomputed against current signatures and a fresh global fixed
+point. Indirect calls retain only their callable effect/knownness. Structural
+await errors retain their precise diagnostics and order. Full expression/type
+and proof trees are not part of these facts.
+
+The existing rich checker remains the production loader path and the differential
+oracle. Both paths use the same call-boundary diagnostic routine. Their traversal
+and permission inference remain separate so tests can expose omitted facts,
+incorrect ordering and stale permissions. The duplicate traversal is deliberate
+for this staged prototype; remove or consolidate it when the cache route is
+accepted, retaining the rich explanation/source-map behaviour.
+
+Thirty added assertions bring the focused module suite to 1,517 assertions,
+including 119 body-cache assertions. Comparisons check complete ordered diagnostics
+(including source positions), empty plain-mode evidence and function-status maps.
+They cover direct, generic/imported and indirect calls, unknown callable effects,
+await context/operand/result rules, invalid/deferred functions, and seven complete
+program fixtures. A reverse-ordered wrapper chain proves the fixed point. Reusing
+its consumer facts after a leaf becomes blocking, loses its local-resource use,
+or forms a cycle correctly revokes permission with unchanged diagnostics.
+
+A compiler self-check observation has 88,673 body nodes, 12,310 local-call facts
+and 12,310 diagnostic-check facts. Three alternating pairs measure only checking
+already-prepared facts versus already-prepared bodies; collection, compilation,
+I/O and cache decoding are excluded:
+
+| Pair | Body traversal | Prepared facts |
+| --- | ---: | ---: |
+| 1 | 0.832s | 0.680s |
+| 2 | 0.820s | 0.681s |
+| 3 | 0.818s | 0.687s |
+
+Every result matches exactly. Median effect checking is 0.820s/0.681s; this is
+not an end-to-end build speedup or a cache-size/memory claim. The important result
+is that the effects pass can operate without the body trees the future cache
+will avoid restoring. The normal loader has not switched to this API.
+
+Native artifact compatibility passed. The coverage review preserves all 51
+eligible files, includes the new record/enum declarations and changed import
+positions, and excludes no executable functions. Bootstrap fixed points and final `make check` passed (555s overall,
+342s unit and 69s parallel bootstrap). The standard-library bytes are unchanged.
+Compiler seed: `27b2e352b64aef3cf4e909ac2c2984fe3dc5972fdc6963016640ee076caf9d32`.
+The ten focused coverage-policy tests passed; all 491 declaration exclusions were
+reviewed. Historical timing warnings remain under the existing GI#106 reassessment. No disk format, VM format, website or user-facing
+command changes are included. The encoded-function cache, assembly/reachability,
+malformed-cache handling and end-to-end measurements remain the next slice;
+RM#157/GI#106 are not complete.

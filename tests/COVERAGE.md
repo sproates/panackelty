@@ -1785,7 +1785,7 @@ claiming new execution coverage.
 
 ### Checked-body source-position decoding
 
-The body-cache suite has 112 assertions. Position round trips cover zero, the
+The body-cache suite has 119 assertions. Position round trips cover zero, the
 largest ordinary word, the large-Nat sentinel and a coordinate beyond 64 bits,
 including Unicode file names. Truncated words and invalid file dictionary
 indexes are rejected at both ends of a span. Extra cases cover a large coordinate
@@ -1819,3 +1819,11 @@ the enclosing body, and both per-type and cumulative expansion budgets. Existing
 fixture round trips compare restored diagnostics and bytecode with fresh checking.
 The CLI cache harness also checks fresh fallback from an intact previous-version
 module header. The manual hosted-trial fixture uses the current module marker.
+
+The compact effect-facts foundation adds 30 differential assertions to the
+module-binding suite (1,517 total), comparing complete ordered diagnostics and
+function-status maps with checked-body traversal. Cases include direct/imported/
+indirect calls, await rules, unknown effects, invalid/deferred bodies and seven
+whole-program fixtures. Retained consumer facts must revoke local-resource
+permission after a body-only dependency change, including blocking, no-local-call
+and cyclic replacements. The production rich checker remains the oracle.

@@ -879,6 +879,13 @@ exact artifacts. Final-seed observation confirms zero lexer/parser calls. All
 `make check` passed in 553s, with documentation checks passing. This is a local branch checkpoint, not completion of
 RM#28/GI#106 or RM#157, and triggers no CI or website change.
 
+
+Integration selected, 8 November 2026: the owner approved merging the compact
+effect-facts, encoded-function reuse and standalone input-ledger batch into `next`.
+The final product tree passed local `make check` in 553s. Development/PR CI remains
+suppressed; hosted checks start on integration. This does not close RM#28/GI#106
+or RM#157. Earlier branch-only notes record the individual checkpoints.
+
 ### Incremental command direction, 7 November 2026
 
 The owner expects an ordinary one-shot command such as

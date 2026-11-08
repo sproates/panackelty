@@ -302,3 +302,14 @@ first so language development and validation are less painful and time-consuming
 The planned topics are more effective async access to the standard library,
 anonymous functions, closures and state management. This is an article idea and
 a wrap-up reminder, not approval to publish or a final language-design contract.
+
+## Compiler reuse batch integration
+
+The owner selected integration of the effect-facts foundation, encoded-function
+reuse and standalone unchanged-build fast path into `next` on 8 November 2026.
+The final product tree passed local `make check` in 553s, with focused cache,
+artifact, bootstrap and documentation checks. This PR carries the complete
+validated batch; hosted integration checks start on merge, with development/PR
+CI suppressed under the alpha.16 workflow trial. Earlier “not yet merged” notes
+above describe the individual local checkpoints. No release or website publication
+is included. The development branch is retained for further experiments.

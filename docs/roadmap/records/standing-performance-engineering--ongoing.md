@@ -348,3 +348,14 @@ artifacts match. Focused tests, exact negative diagnostics and native artifacts
 pass. Bootstrap fixed points and final `make check` (611s) passed; the bounded
 change is included in this integration. This does not complete
 RM#157/GI#106 or alter the website; no new persistent cache is introduced.
+
+### Post-optimisation reassessment, 8 November 2026
+
+The [updated profile](../../COMPILER_EDIT_PROFILE.md#post-optimisation-profile-8-november-2026)
+compares five fresh/edited pairs on the merged compiler. Medians are effectively
+level (10.713s fresh, 10.827s incremental), with substantial variation; unchanged
+reuse remains useful at 2.834s. Saved-body decoding dominates the edited profile
+at 4.494s, versus 0.146s checking changed bodies. A bounded decoder trial is the
+next recommendation, not an implemented change. All 16 invocations and output
+comparisons passed. This documentation-only reassessment does not complete
+RM#157/GI#106, change defaults or affect the website.

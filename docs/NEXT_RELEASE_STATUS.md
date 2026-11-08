@@ -231,3 +231,15 @@ old entries fall back to fresh checking. All 1,487 focused assertions, cache CLI
 checks, native artifacts, coverage-policy tests, bootstrap and final `make check`
 (565s) pass. RM#157/GI#106 remain open.
 No VM bytecode change or broader cache redesign is included.
+
+## Compiled-function cache investigation
+
+The [current-cache ceiling experiment](COMPILER_EDIT_PROFILE.md#current-cache-ceiling-experiment-8-november-2026)
+confirms restoration still dominates (3.444s), with 1.270s more in lowering and
+output generation. An idealised in-memory control takes 5.48–5.51s versus
+9.37–9.58s fresh; this is not a delivered one-shot speedup. All 16 direct runs
+and four control runs preserve expected bytes. Small-program edited caching
+remains slower than fresh compilation. The next selected experiment is a
+plain-mode encoded-function cache with fresh effect checks and conservative keys,
+starting with differential tests for compact effect facts. No product change
+is included in this investigation; RM#157/GI#106 remain open.

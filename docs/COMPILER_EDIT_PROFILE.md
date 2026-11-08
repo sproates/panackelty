@@ -686,3 +686,122 @@ to the existing GI#106 reassessment. The refreshed compiler seed is
 The bounded type-sharing change is included in this integration. It does not
 complete RM#157/GI#106 or implement identity pooling, a lowered-code cache, effect
 summaries or a VM change. No website update is needed.
+
+## Current-cache ceiling experiment, 8 November 2026
+
+Baseline: `2858ced8c037525f1d82a7c031354c66d07a857b` (shared-type cache).
+The owner selected a current profile and an in-memory control before committing
+to a larger representation change. This investigation changes no product code.
+
+A separate observer VM used the existing test observer with selected coarse
+functions added for loading, cache restoration/storage, effects, lowering and
+serialization. Only its execution object was rebuilt; the production VM and
+compiler seed remained unchanged. Enter/return pairs balance in every completed
+trace. Nested selected durations are subtracted for exclusive phase totals.
+Effects are labelled by function count, separating 49 empty guard checks from
+one check over 1,079 compiler function bodies. Observer overhead and normal run
+variation mean these are cost locations, not exact production-time attribution.
+
+Both normal and observer VMs ran cold, unchanged, edited and fresh modes with
+separate caches and their actual VM identities. The compiler workload copied
+`src`, then changed `module_magic` from version 2 to 3, reusing 46/49 modules.
+The second workload copied the five-source `examples/namespaces/trip_planner`
+program and changed the budget from 120 to 125, reusing 3/6 modules including
+implicit core. All 16 invocations succeeded; old/new outputs differ as intended,
+while normal/observer and corresponding fresh/cache bytes match exactly.
+The direct compiler harness uses its internal `--local-compile-cache` prefix;
+public `--incremental` is consumed by the shell launcher, not the compiler itself.
+Initial argument-setup attempts were discarded before the clean-cache runs.
+
+| Workload/mode | Ordinary VM | Observer VM |
+| --- | ---: | ---: |
+| Compiler cold | 13.603s | 14.640s |
+| Compiler unchanged | 2.714s | 2.574s |
+| Compiler edited | 9.903s | 9.435s |
+| Compiler fresh edited | 9.308s | 9.984s |
+| Trip planner cold | 0.121s | 0.139s |
+| Trip planner unchanged | 0.060s | 0.059s |
+| Trip planner edited | 0.115s | 0.122s |
+| Trip planner fresh edited | 0.068s | 0.066s |
+
+These are single observations, not benchmark medians. Edited incremental work
+is not consistently faster than fresh work today. For the small example, cache
+bookkeeping costs more than the work saved; do not generalise compiler-workload
+benefits to small programs or make incremental compilation the default from this
+evidence.
+
+### Where the edited compiler time goes
+
+| Selected phase | Exclusive observer time |
+| --- | ---: |
+| Restore 46 checked-body payloads | 3.444s |
+| Lex 49 modules | 1.611s |
+| Parse 49 modules | 0.721s |
+| Check effects over 1,079 bodies | 0.897s |
+| Check signatures | 0.427s |
+| Lower checked bodies to emission program | 0.331s |
+| Compile emission program | 0.373s |
+| Serialize bytecode | 0.566s |
+| Check three changed modules' bodies | 0.129s |
+| Encode three changed modules' bodies | 0.149s |
+
+Guard checking/effects together take under 0.001s on this workload. Disk-cache
+loading outside body decoding takes 0.018s; this is predominantly reconstruction,
+not slow disk reads. The unchanged observer spends 2.258s lexing/parsing before
+its complete-artifact hit, a distinct opportunity for later source-loading reuse.
+The trip planner spends 0.026s decoding cached bodies and about 0.034s constructing
+cache keys and saving its complete artifact, while fresh body checking is small.
+
+### In-memory control
+
+An isolated Panack harness uses `check_project_sources_reusing` with an initial
+successful snapshot, applies the identical module edit, then times loading,
+checking, lowering and serialization. Two pairs reverse fresh/reuse order.
+The initial snapshot is built in both modes and excluded from the timing; the
+source edit and final file write are also outside the timer. Reuse must report
+46 reused/3 rechecked modules, and all four artifacts must match the direct
+compiler's edited output. All assertions passed.
+
+| Pair | Fresh checking | In-memory reuse |
+| --- | ---: | ---: |
+| 1 | 9.580s | 5.512s |
+| 2 | 9.373s | 5.483s |
+
+This demonstrates room to avoid reconstruction: about four seconds in this
+control. It is not a delivered one-shot speedup or memory claim. The snapshot
+already exists, cache I/O/key/storage work is absent, and process startup and
+teardown are outside the timer. A disk-backed replacement must pay its own
+reading, decoding, validation and assembly costs. Fresh and reused guards/effects
+and emission still execute in the control.
+
+### Decision and bounded next experiment
+
+Proceed to a plain-mode encoded-function cache prototype, beginning with the
+minimal effect facts needed to reproduce fresh checks. Restoration remains the
+largest selected cost, with another 1.270s in lowering/compilation/serialization;
+this leaves room for a material improvement without first changing parsing.
+Do not treat their sum as an achievable speedup or replace the ordinary-VM test.
+
+`encode_function` in `src/bytecode/codec.panack` encodes self-contained function
+records before `serialize_bytecode` sorts and wraps them. Retain the existing
+conservative toolchain/graph/order/declaration/dependency keys. The first trial
+needs no new linker, stable ABI, cached interfaces or VM format. Save records
+before whole-program core reachability pruning, and recompute reachability after
+combining fresh and cached functions; copying the previous final artifact could
+omit a newly needed core routine. Check global record/enum emission dependencies.
+
+Effect permissions must still reach a fresh global fixed point. Preserve ordered
+call/await facts, indirect-call type information and diagnostic positions,
+including discarded non-Unit await results. Keep the rich explanation/source-map
+path unchanged. Prove summary checking against fresh positive/negative diagnostics
+before removing retained bodies from a cache hit. Include an ordinary wrapper
+whose body becomes blocking without changing its signature, newly reachable core
+code, graph reordering, and malformed-cache fallback.
+
+Retain the prototype only with repeatable end-to-end ordinary-VM gains, identical
+bytecode and diagnostics, and acceptable cold time and peak memory. Include the
+small example, where present cache overhead loses. If compact effect facts or
+assembly erase the gain, stop and reassess identity sharing or lex/parse reuse.
+This records a selected experiment, not an implemented code cache or completion
+of RM#157/GI#106. Documentation/link checks suffice for this investigation;
+no full validation, seed refresh, CI or website update is required.

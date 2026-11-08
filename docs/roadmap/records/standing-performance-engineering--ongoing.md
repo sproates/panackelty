@@ -392,3 +392,14 @@ Private cache formats advance to version 2; VM bytecode remains unchanged.
 Focused, artifact, bootstrap and final `make check` (565s) passed; the bounded
 change is included in this integration.
 This bounded optimisation does not complete RM#157/GI#106. No website impact.
+
+### Current-cache ceiling, 8 November 2026
+
+The [current profile and snapshot control](../../COMPILER_EDIT_PROFILE.md#current-cache-ceiling-experiment-8-november-2026)
+justify a bounded encoded-function cache experiment: 3.444s restoring bodies,
+1.270s in lowering/output, and an idealised in-memory edit at 5.48–5.51s.
+These are investigation results, not a product speedup. All bytes match fresh
+compilation. Small workloads still lose to cache overhead. Begin with compact
+effect facts and exact diagnostic comparisons; retain conservative cache keys,
+core reachability and the VM format. No implementation, CI or website change
+is included here; RM#157/GI#106 remain open.

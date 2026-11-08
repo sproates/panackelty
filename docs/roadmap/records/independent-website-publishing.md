@@ -828,6 +828,12 @@ across all three measured pairs. Focused, artifact, bootstrap and final `make ch
 the bounded change is included in this integration. Private cache versions change, not VM bytecode.
 This does not complete RM#28/GI#106 and needs no website update.
 
+The [current-cache ceiling experiment](../../COMPILER_EDIT_PROFILE.md#current-cache-ceiling-experiment-8-november-2026)
+finds meaningful remaining reconstruction cost and selects a bounded encoded-
+function/effect-facts experiment. The in-memory control is not a one-shot speedup;
+small-program caching remains slower than fresh work. No product implementation
+or website change is included, and RM#28/GI#106 remain open.
+
 ### Incremental command direction, 7 November 2026
 
 The owner expects an ordinary one-shot command such as

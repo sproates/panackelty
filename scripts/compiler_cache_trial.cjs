@@ -55,7 +55,7 @@ if (stage === 'cold') {
   assert.match(warm.trace, /compile cache: hit/);
   assert.equal(warm.sha256, fresh.sha256, 'Restored result differs from fresh');
   const file = 'src/compiler/module_cache.panack', original = fs.readFileSync(file, 'utf8');
-  const changed = original.replace('PANACK-MODULE-1', 'PANACK-MODULE-2');
+  const changed = original.replace('PANACK-MODULE-2', 'PANACK-MODULE-3');
   assert.notEqual(changed, original);
   try {
     fs.writeFileSync(file, changed);

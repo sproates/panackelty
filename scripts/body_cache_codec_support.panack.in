@@ -1,10 +1,11 @@
 // Plain-mode body codec. Evidence is deliberately not persisted.
 // The enclosing cache must verify the content digest and validate source/tool identity.
-record CacheReader { data: Bytes, offset: Nat, valid: Bool, depth: Nat, texts: [Str] }
+record SharedType { value: SignatureType, depth: Nat, nodes: Nat }
+record CacheReader { data: Bytes, offset: Nat, valid: Bool, depth: Nat, texts: [Str], types: [SharedType], expanded: Nat }
 record CacheRead[T] { reader: CacheReader, value: T }
 
 pure failed(reader: CacheReader): CacheReader {
-  CacheReader(reader.data, reader.offset, false, reader.depth, reader.texts)
+  CacheReader(reader.data, reader.offset, false, reader.depth, reader.texts, reader.types, reader.expanded)
 }
 // Callers establish that four bytes are available before reading a word.
 pure word_at(data: Bytes, offset: Nat): Nat {
@@ -15,21 +16,21 @@ pure read_count(reader: CacheReader): CacheRead[Nat] {
   if reader.valid && reader.offset + 4 <= reader.data.length() {
     i: Nat = reader.offset
     value: Nat = word_at(reader.data, i)
-    CacheRead(CacheReader(reader.data, i + 4, true, reader.depth, reader.texts), value)
+    CacheRead(CacheReader(reader.data, i + 4, true, reader.depth, reader.texts, reader.types, reader.expanded), value)
   } else { CacheRead(failed(reader), 0) }
 }
-pure encode_Str(pool: Map[Str,Nat], value: Str): Bytes { encode_u32(pool.get(value)) }
+pure encode_Str(pool: CachePool, value: Str): Bytes { encode_u32(pool.text_indices.get(value)) }
 pure decode_raw_string(reader: CacheReader): CacheRead[Str] {
   count = read_count(reader)
   if count.reader.valid && count.value <= 16777216 &&
       count.reader.offset + count.value <= reader.data.length() {
     raw = byte_buffer.slice(reader.data, count.reader.offset, count.reader.offset + count.value)
     if valid_utf8(raw) {
-      CacheRead(CacheReader(reader.data, count.reader.offset + count.value, true, reader.depth, reader.texts), raw.decode_utf8())
+      CacheRead(CacheReader(reader.data, count.reader.offset + count.value, true, reader.depth, reader.texts, reader.types, reader.expanded), raw.decode_utf8())
     } else { CacheRead(failed(reader), "") }
   } else { CacheRead(failed(reader), "") }
 }
-pure encode_Nat(pool: Map[Str,Nat], value: Nat): Bytes {
+pure encode_Nat(pool: CachePool, value: Nat): Bytes {
   if value < 4294967295 { encode_u32(value) }
   else { encode_u32(4294967295).join(encode_text("${value}")) }
 }
@@ -51,33 +52,88 @@ pure decode_Str(reader: CacheReader): CacheRead[Str] {
     CacheRead(index.reader, reader.texts[index.value])
   } else { CacheRead(failed(index.reader), "") }
 }
-pure encode_Bool(pool: Map[Str,Nat], value: Bool): Bytes { encode_u32(if value { 1 } else { 0 }) }
+pure encode_Bool(pool: CachePool, value: Bool): Bytes { encode_u32(if value { 1 } else { 0 }) }
 pure decode_Bool(reader: CacheReader): CacheRead[Bool] {
   tag = read_count(reader)
   CacheRead(if tag.value <= 1 { tag.reader } else { failed(tag.reader) }, tag.value == 1)
 }
 
+pure read_shared_type(reader: CacheReader): CacheRead[SignatureType] {
+  index = read_count(reader)
+  if index.reader.valid && index.value < reader.types.len() {
+    entry = reader.types[index.value]
+    expanded = reader.expanded + entry.nodes
+    if reader.depth + entry.depth <= 512 && expanded <= 1000000 {
+      CacheRead(CacheReader(reader.data, index.reader.offset, true, reader.depth, reader.texts, reader.types, expanded), entry.value)
+    } else { CacheRead(failed(index.reader), SignatureType(SignatureCore("Unit"), [])) }
+  } else { CacheRead(failed(index.reader), SignatureType(SignatureCore("Unit"), [])) }
+}
+
 // GENERATED TYPES
 pub pure encode_checked_bodies(bodies: [BoundFunctionBody]): Bytes {
-  pool = collect_Array_BoundFunctionBody(TextPool(map(), []), bodies)
-  mut chunks: [Bytes] = [encode_u32(pool.texts.len())]
+  pool = collect_Array_BoundFunctionBody(CachePool(map(), [], map(), []), bodies)
+  mut chunks: [Bytes] = ["PANACK-BODIES-2\n".encode_utf8(), encode_u32(pool.texts.len())]
   for text in pool.texts { chunks = chunks.append(encode_text(text)) }
-  chunks = chunks.append(encode_Array_BoundFunctionBody(pool.indices, bodies))
+  chunks = chunks.append(encode_u32(pool.types.len()))
+  for type in pool.types {
+    chunks = chunks.append(encode_SignatureTypeIdentity(pool, type.identity))
+      .append(encode_Array_SignatureType(pool, type.arguments))
+  }
+  chunks = chunks.append(encode_Array_BoundFunctionBody(pool, bodies))
   source_map_join(chunks, 0, chunks.len())
 }
-pub pure decode_checked_bodies(data: Bytes): Option[[BoundFunctionBody]] {
-  count = read_count(CacheReader(data, 0, true, 0, []))
-  mut reader: CacheReader = count.reader
-  mut texts: [Str] = []
-  if count.value > 1000000 || count.value > data.length() { reader = failed(reader) }
+
+pure read_type_table(reader: CacheReader): CacheReader {
+  count = read_count(reader)
+  mut cursor: CacheReader = count.reader
+  if count.value > 1000000 || count.value > reader.data.length() { cursor = failed(cursor) }
+  mut types: [SharedType] = []
   mut index: Nat = 0
-  while reader.valid && index < count.value {
-    text = decode_raw_string(reader)
-    reader = text.reader
-    texts = texts.append(text.value)
+  while cursor.valid && index < count.value {
+    identity = decode_SignatureTypeIdentity(cursor)
+    length = read_count(identity.reader)
+    cursor = length.reader
+    if length.value > 1000000 || length.value > reader.data.length() { cursor = failed(cursor) }
+    mut arguments: [SignatureType] = []
+    mut depth: Nat = 1
+    mut nodes: Nat = 1
+    mut child: Nat = 0
+    while cursor.valid && child < length.value {
+      reference = read_count(cursor)
+      cursor = reference.reader
+      if cursor.valid && reference.value < types.len() {
+        entry = types[reference.value]
+        if entry.depth + 1 > depth { depth = entry.depth + 1 }
+        nodes = nodes + entry.nodes
+        if depth > 512 || nodes > 1000000 { cursor = failed(cursor) }
+        else { arguments = arguments.append(entry.value) }
+      } else { cursor = failed(cursor) }
+      child = child + 1
+    }
+    if cursor.valid { types = types.append(SharedType(SignatureType(identity.value, arguments), depth, nodes)) }
     index = index + 1
   }
-  result = decode_Array_BoundFunctionBody(CacheReader(data, reader.offset, reader.valid, 0, texts))
-  if result.reader.valid && result.reader.offset == data.length() { Some(result.value) }
-  else { None() }
+  CacheReader(reader.data, cursor.offset, cursor.valid, reader.depth, reader.texts, types, 0)
+}
+
+pub pure decode_checked_bodies(data: Bytes): Option[[BoundFunctionBody]] {
+  magic = "PANACK-BODIES-2\n".encode_utf8()
+  if data.length() < magic.length() || byte_buffer.slice(data, 0, magic.length()) != magic { None() }
+  else {
+    count = read_count(CacheReader(data, magic.length(), true, 0, [], [], 0))
+    mut reader: CacheReader = count.reader
+    mut texts: [Str] = []
+    if count.value > 1000000 || count.value > data.length() { reader = failed(reader) }
+    mut index: Nat = 0
+    while reader.valid && index < count.value {
+      text = decode_raw_string(reader)
+      reader = text.reader
+      texts = texts.append(text.value)
+      index = index + 1
+    }
+    table = read_type_table(CacheReader(data, reader.offset, reader.valid, 0, texts, [], 0))
+    result = decode_Array_BoundFunctionBody(table)
+    if result.reader.valid && result.reader.offset == data.length() { Some(result.value) }
+    else { None() }
+  }
 }

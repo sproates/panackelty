@@ -821,6 +821,13 @@ removing a few unused fields. Per-module dictionary modelling suggests 14.4–31
 smaller payloads, without claiming a runtime saving. A type-sharing codec trial
 is proposed; no representation change is implemented.
 
+The [shared-type cache trial](../../COMPILER_EDIT_PROFILE.md#shared-type-cache-trial-8-november-2026)
+implements the first representation change: 10.5% faster median edited self-builds,
+9.4% lower peak memory and 14.4% smaller module-cache files. Fresh bytecode matches
+across all three measured pairs. Focused, artifact, bootstrap and final `make check` (565s) passed;
+the bounded change is included in this integration. Private cache versions change, not VM bytecode.
+This does not complete RM#28/GI#106 and needs no website update.
+
 ### Incremental command direction, 7 November 2026
 
 The owner expects an ordinary one-shot command such as

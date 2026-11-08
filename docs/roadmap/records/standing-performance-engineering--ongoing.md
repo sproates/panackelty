@@ -381,3 +381,14 @@ field removal saves only 2.6%. The recommendation is a bounded type-sharing
 experiment with downstream consumers unchanged, before considering lowered-code
 caching and effect summaries. This completes the investigation, not a product
 change or RM#157/GI#106. No website impact.
+
+### Shared-type cache trial, 8 November 2026
+
+The [shared-type trial](../../COMPILER_EDIT_PROFILE.md#shared-type-cache-trial-8-november-2026)
+stores each distinct immutable type once per module. Three alternating compiler
+self-build pairs show 10.5% lower median edited time, 9.4% lower peak memory and
+14.4% smaller module-cache files, with bytecode matching fresh compilation.
+Private cache formats advance to version 2; VM bytecode remains unchanged.
+Focused, artifact, bootstrap and final `make check` (565s) passed; the bounded
+change is included in this integration.
+This bounded optimisation does not complete RM#157/GI#106. No website impact.

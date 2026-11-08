@@ -26,7 +26,7 @@ pub record ModuleCache {
   entries: [ModuleCacheEntry]
 }
 
-pure module_magic(): Bytes { "PANACK-MODULE-1\n".encode_utf8() }
+pure module_magic(): Bytes { "PANACK-MODULE-2\n".encode_utf8() }
 
 pure identity_bytes(identity: ModuleIdentity): Bytes {
   package: Bytes = match identity.package {

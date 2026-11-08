@@ -17,6 +17,15 @@ project, standard-library and dependency trees. Missing, unavailable, damaged
 or incompatible state causes fresh compilation, not a source-program failure.
 Deleting the directory is safe; it only removes potential reuse.
 
+The private module/body representation is now version 2. Old module entries are
+ignored and rebuilt automatically; this is not a VM bytecode-version change.
+Types are stored once per module and referenced by index. The decoder requires
+backward-only references and bounds expanded type depth at 512 (including the
+enclosing body) and cumulative expanded type occurrences at 1,000,000 per module.
+These are disposable-cache limits: exceeding them causes fresh checking, not a
+source-program error. A separate per-entry expansion bound prevents compact
+dictionaries from describing exponentially large types.
+
 ## What is reused
 
 An exact whole-build match reuses successful bytecode. After edits, Panack loads

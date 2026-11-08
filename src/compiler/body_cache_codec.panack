@@ -134,11 +134,12 @@ pub import project/src/compiler/parser::{
 
 // Plain-mode body codec. Evidence is deliberately not persisted.
 // The enclosing cache must verify the content digest and validate source/tool identity.
-record CacheReader { data: Bytes, offset: Nat, valid: Bool, depth: Nat, texts: [Str] }
+record SharedType { value: SignatureType, depth: Nat, nodes: Nat }
+record CacheReader { data: Bytes, offset: Nat, valid: Bool, depth: Nat, texts: [Str], types: [SharedType], expanded: Nat }
 record CacheRead[T] { reader: CacheReader, value: T }
 
 pure failed(reader: CacheReader): CacheReader {
-  CacheReader(reader.data, reader.offset, false, reader.depth, reader.texts)
+  CacheReader(reader.data, reader.offset, false, reader.depth, reader.texts, reader.types, reader.expanded)
 }
 // Callers establish that four bytes are available before reading a word.
 pure word_at(data: Bytes, offset: Nat): Nat {
@@ -149,21 +150,21 @@ pure read_count(reader: CacheReader): CacheRead[Nat] {
   if reader.valid && reader.offset + 4 <= reader.data.length() {
     i: Nat = reader.offset
     value: Nat = word_at(reader.data, i)
-    CacheRead(CacheReader(reader.data, i + 4, true, reader.depth, reader.texts), value)
+    CacheRead(CacheReader(reader.data, i + 4, true, reader.depth, reader.texts, reader.types, reader.expanded), value)
   } else { CacheRead(failed(reader), 0) }
 }
-pure encode_Str(pool: Map[Str,Nat], value: Str): Bytes { encode_u32(pool.get(value)) }
+pure encode_Str(pool: CachePool, value: Str): Bytes { encode_u32(pool.text_indices.get(value)) }
 pure decode_raw_string(reader: CacheReader): CacheRead[Str] {
   count = read_count(reader)
   if count.reader.valid && count.value <= 16777216 &&
       count.reader.offset + count.value <= reader.data.length() {
     raw = byte_buffer.slice(reader.data, count.reader.offset, count.reader.offset + count.value)
     if valid_utf8(raw) {
-      CacheRead(CacheReader(reader.data, count.reader.offset + count.value, true, reader.depth, reader.texts), raw.decode_utf8())
+      CacheRead(CacheReader(reader.data, count.reader.offset + count.value, true, reader.depth, reader.texts, reader.types, reader.expanded), raw.decode_utf8())
     } else { CacheRead(failed(reader), "") }
   } else { CacheRead(failed(reader), "") }
 }
-pure encode_Nat(pool: Map[Str,Nat], value: Nat): Bytes {
+pure encode_Nat(pool: CachePool, value: Nat): Bytes {
   if value < 4294967295 { encode_u32(value) }
   else { encode_u32(4294967295).join(encode_text("${value}")) }
 }
@@ -185,14 +186,25 @@ pure decode_Str(reader: CacheReader): CacheRead[Str] {
     CacheRead(index.reader, reader.texts[index.value])
   } else { CacheRead(failed(index.reader), "") }
 }
-pure encode_Bool(pool: Map[Str,Nat], value: Bool): Bytes { encode_u32(if value { 1 } else { 0 }) }
+pure encode_Bool(pool: CachePool, value: Bool): Bytes { encode_u32(if value { 1 } else { 0 }) }
 pure decode_Bool(reader: CacheReader): CacheRead[Bool] {
   tag = read_count(reader)
   CacheRead(if tag.value <= 1 { tag.reader } else { failed(tag.reader) }, tag.value == 1)
 }
 
+pure read_shared_type(reader: CacheReader): CacheRead[SignatureType] {
+  index = read_count(reader)
+  if index.reader.valid && index.value < reader.types.len() {
+    entry = reader.types[index.value]
+    expanded = reader.expanded + entry.nodes
+    if reader.depth + entry.depth <= 512 && expanded <= 1000000 {
+      CacheRead(CacheReader(reader.data, index.reader.offset, true, reader.depth, reader.texts, reader.types, expanded), entry.value)
+    } else { CacheRead(failed(index.reader), SignatureType(SignatureCore("Unit"), [])) }
+  } else { CacheRead(failed(index.reader), SignatureType(SignatureCore("Unit"), [])) }
+}
 
-pure encode_ModulePackageIdentity(pool: Map[Str,Nat], value: ModulePackageIdentity): Bytes {
+
+pure encode_ModulePackageIdentity(pool: CachePool, value: ModulePackageIdentity): Bytes {
   match value {
     StandaloneModulePackage() => encode_u32(0),
     ManifestModulePackage(v0, v1) => encode_u32(1).join(encode_Str(pool, v0)).join(encode_Str(pool, v1)),
@@ -216,7 +228,7 @@ pure decode_ModulePackageIdentity(reader: CacheReader): CacheRead[ModulePackageI
   } else { CacheRead(failed(tag.reader), StandaloneModulePackage()) }
 }
 
-pure encode_ModuleIdentity(pool: Map[Str,Nat], value: ModuleIdentity): Bytes {
+pure encode_ModuleIdentity(pool: CachePool, value: ModuleIdentity): Bytes {
   byte_buffer.empty().join(encode_ModulePackageIdentity(pool, value.package)).join(encode_Str(pool, value.path))
 }
 
@@ -229,7 +241,7 @@ pure decode_ModuleIdentity(reader: CacheReader): CacheRead[ModuleIdentity] {
   CacheRead(cursor, ModuleIdentity(field_package.value, field_path.value))
 }
 
-pure encode_DeclarationIdentity(pool: Map[Str,Nat], value: DeclarationIdentity): Bytes {
+pure encode_DeclarationIdentity(pool: CachePool, value: DeclarationIdentity): Bytes {
   byte_buffer.empty().join(encode_ModuleIdentity(pool, value.module)).join(encode_Str(pool, value.name))
 }
 
@@ -242,7 +254,7 @@ pure decode_DeclarationIdentity(reader: CacheReader): CacheRead[DeclarationIdent
   CacheRead(cursor, DeclarationIdentity(field_module.value, field_name.value))
 }
 
-pure encode_ModuleDeclarationKind(pool: Map[Str,Nat], value: ModuleDeclarationKind): Bytes {
+pure encode_ModuleDeclarationKind(pool: CachePool, value: ModuleDeclarationKind): Bytes {
   match value {
     ModuleFunction() => encode_u32(0),
     ModuleGuardedType() => encode_u32(1),
@@ -270,7 +282,7 @@ pure decode_ModuleDeclarationKind(reader: CacheReader): CacheRead[ModuleDeclarat
   } else { CacheRead(failed(tag.reader), ModuleFunction()) }
 }
 
-pure encode_SourcePos(pool: Map[Str,Nat], value: SourcePos): Bytes {
+pure encode_SourcePos(pool: CachePool, value: SourcePos): Bytes {
   byte_buffer.empty().join(encode_Str(pool, value.file)).join(encode_Nat(pool, value.offset)).join(encode_Nat(pool, value.line)).join(encode_Nat(pool, value.column))
 }
 
@@ -281,7 +293,7 @@ pure decode_SourcePos(reader: CacheReader): CacheRead[SourcePos] {
     line = word_at(reader.data, reader.offset + 8)
     column = word_at(reader.data, reader.offset + 12)
     if file < reader.texts.len() && offset < 4294967295 && line < 4294967295 && column < 4294967295 {
-      CacheRead(CacheReader(reader.data, reader.offset + 16, true, reader.depth, reader.texts),
+      CacheRead(CacheReader(reader.data, reader.offset + 16, true, reader.depth, reader.texts, reader.types, reader.expanded),
         SourcePos(reader.texts[file], offset, line, column))
     } else { decode_SourcePos_general(reader) }
   } else { decode_SourcePos_general(reader) }
@@ -300,7 +312,7 @@ pure decode_SourcePos_general(reader: CacheReader): CacheRead[SourcePos] {
   CacheRead(cursor, SourcePos(field_file.value, field_offset.value, field_line.value, field_column.value))
 }
 
-pure encode_SourceSpan(pool: Map[Str,Nat], value: SourceSpan): Bytes {
+pure encode_SourceSpan(pool: CachePool, value: SourceSpan): Bytes {
   byte_buffer.empty().join(encode_SourcePos(pool, value.start)).join(encode_SourcePos(pool, value.end))
 }
 
@@ -317,7 +329,7 @@ pure decode_SourceSpan(reader: CacheReader): CacheRead[SourceSpan] {
     if start_file < reader.texts.len() && end_file < reader.texts.len() &&
         start_offset < 4294967295 && start_line < 4294967295 && start_column < 4294967295 &&
         end_offset < 4294967295 && end_line < 4294967295 && end_column < 4294967295 {
-      CacheRead(CacheReader(reader.data, reader.offset + 32, true, reader.depth, reader.texts),
+      CacheRead(CacheReader(reader.data, reader.offset + 32, true, reader.depth, reader.texts, reader.types, reader.expanded),
         SourceSpan(SourcePos(reader.texts[start_file], start_offset, start_line, start_column),
           SourcePos(reader.texts[end_file], end_offset, end_line, end_column)))
     } else { decode_SourceSpan_general(reader) }
@@ -333,7 +345,7 @@ pure decode_SourceSpan_general(reader: CacheReader): CacheRead[SourceSpan] {
   CacheRead(cursor, SourceSpan(field_start.value, field_end.value))
 }
 
-pure encode_MethodOwnerIdentity(pool: Map[Str,Nat], value: MethodOwnerIdentity): Bytes {
+pure encode_MethodOwnerIdentity(pool: CachePool, value: MethodOwnerIdentity): Bytes {
   match value {
     NominalMethodOwner(v0) => encode_u32(0).join(encode_DeclarationIdentity(pool, v0)),
     BuiltinMethodOwner(v0) => encode_u32(1).join(encode_Str(pool, v0))
@@ -355,7 +367,7 @@ pure decode_MethodOwnerIdentity(reader: CacheReader): CacheRead[MethodOwnerIdent
   } else { CacheRead(failed(tag.reader), NominalMethodOwner(DeclarationIdentity(ModuleIdentity(StandaloneModulePackage(), ""), ""))) }
 }
 
-pure encode_OwnedMethodIdentity(pool: Map[Str,Nat], value: OwnedMethodIdentity): Bytes {
+pure encode_OwnedMethodIdentity(pool: CachePool, value: OwnedMethodIdentity): Bytes {
   byte_buffer.empty().join(encode_MethodOwnerIdentity(pool, value.owner)).join(encode_Str(pool, value.name))
 }
 
@@ -368,7 +380,7 @@ pure decode_OwnedMethodIdentity(reader: CacheReader): CacheRead[OwnedMethodIdent
   CacheRead(cursor, OwnedMethodIdentity(field_owner.value, field_name.value))
 }
 
-pure encode_Optional_OwnedMethodIdentity(pool: Map[Str,Nat], value: Option[OwnedMethodIdentity]): Bytes {
+pure encode_Optional_OwnedMethodIdentity(pool: CachePool, value: Option[OwnedMethodIdentity]): Bytes {
   match value {
     None() => encode_u32(0),
     Some(item) => encode_u32(1).join(encode_OwnedMethodIdentity(pool, item))
@@ -385,7 +397,7 @@ pure decode_Optional_OwnedMethodIdentity(reader: CacheReader): CacheRead[Option[
   }
 }
 
-pure encode_OwnedIntrinsic(pool: Map[Str,Nat], value: OwnedIntrinsic): Bytes {
+pure encode_OwnedIntrinsic(pool: CachePool, value: OwnedIntrinsic): Bytes {
   match value {
     ArrayMap() => encode_u32(0),
     ArrayReduce() => encode_u32(1),
@@ -506,7 +518,7 @@ pure decode_OwnedIntrinsic(reader: CacheReader): CacheRead[OwnedIntrinsic] {
   } else { CacheRead(failed(tag.reader), ArrayMap()) }
 }
 
-pure encode_Optional_OwnedIntrinsic(pool: Map[Str,Nat], value: Option[OwnedIntrinsic]): Bytes {
+pure encode_Optional_OwnedIntrinsic(pool: CachePool, value: Option[OwnedIntrinsic]): Bytes {
   match value {
     None() => encode_u32(0),
     Some(item) => encode_u32(1).join(encode_OwnedIntrinsic(pool, item))
@@ -523,7 +535,7 @@ pure decode_Optional_OwnedIntrinsic(reader: CacheReader): CacheRead[Option[Owned
   }
 }
 
-pure encode_ModuleDeclarationBinding(pool: Map[Str,Nat], value: ModuleDeclarationBinding): Bytes {
+pure encode_ModuleDeclarationBinding(pool: CachePool, value: ModuleDeclarationBinding): Bytes {
   byte_buffer.empty().join(encode_DeclarationIdentity(pool, value.identity)).join(encode_ModuleDeclarationKind(pool, value.kind)).join(encode_Bool(pool, value.is_public)).join(encode_SourceSpan(pool, value.span)).join(encode_Optional_OwnedMethodIdentity(pool, value.method)).join(encode_Optional_OwnedIntrinsic(pool, value.intrinsic))
 }
 
@@ -544,7 +556,7 @@ pure decode_ModuleDeclarationBinding(reader: CacheReader): CacheRead[ModuleDecla
   CacheRead(cursor, ModuleDeclarationBinding(field_identity.value, field_kind.value, field_is_public.value, field_span.value, field_method.value, field_intrinsic.value))
 }
 
-pure encode_Array_Str(pool: Map[Str,Nat], value: [Str]): Bytes {
+pure encode_Array_Str(pool: CachePool, value: [Str]): Bytes {
   mut chunks: [Bytes] = [encode_u32(value.len())]
   for item in value { chunks = chunks.append(encode_Str(pool, item)) }
   source_map_join(chunks, 0, chunks.len())
@@ -565,7 +577,7 @@ pure decode_Array_Str(reader: CacheReader): CacheRead[[Str]] {
   CacheRead(cursor, values)
 }
 
-pure encode_SignatureEffect(pool: Map[Str,Nat], value: SignatureEffect): Bytes {
+pure encode_SignatureEffect(pool: CachePool, value: SignatureEffect): Bytes {
   match value {
     SignaturePure() => encode_u32(0),
     SignatureOrdinary() => encode_u32(1),
@@ -584,7 +596,7 @@ pure decode_SignatureEffect(reader: CacheReader): CacheRead[SignatureEffect] {
   } else { CacheRead(failed(tag.reader), SignaturePure()) }
 }
 
-pure encode_Array_Nat(pool: Map[Str,Nat], value: [Nat]): Bytes {
+pure encode_Array_Nat(pool: CachePool, value: [Nat]): Bytes {
   mut chunks: [Bytes] = [encode_u32(value.len())]
   for item in value { chunks = chunks.append(encode_Nat(pool, item)) }
   source_map_join(chunks, 0, chunks.len())
@@ -605,7 +617,7 @@ pure decode_Array_Nat(reader: CacheReader): CacheRead[[Nat]] {
   CacheRead(cursor, values)
 }
 
-pure encode_SignatureTypeIdentity(pool: Map[Str,Nat], value: SignatureTypeIdentity): Bytes {
+pure encode_SignatureTypeIdentity(pool: CachePool, value: SignatureTypeIdentity): Bytes {
   match value {
     SignatureCore(v0) => encode_u32(0).join(encode_Str(pool, v0)),
     SignatureNominal(v0) => encode_u32(1).join(encode_DeclarationIdentity(pool, v0)),
@@ -651,7 +663,7 @@ pure decode_SignatureTypeIdentity(reader: CacheReader): CacheRead[SignatureTypeI
   } else { CacheRead(failed(tag.reader), SignatureCore("")) }
 }
 
-pure encode_Array_SignatureType(pool: Map[Str,Nat], value: [SignatureType]): Bytes {
+pure encode_Array_SignatureType(pool: CachePool, value: [SignatureType]): Bytes {
   mut chunks: [Bytes] = [encode_u32(value.len())]
   for item in value { chunks = chunks.append(encode_SignatureType(pool, item)) }
   source_map_join(chunks, 0, chunks.len())
@@ -672,29 +684,15 @@ pure decode_Array_SignatureType(reader: CacheReader): CacheRead[[SignatureType]]
   CacheRead(cursor, values)
 }
 
-pure encode_SignatureType(pool: Map[Str,Nat], value: SignatureType): Bytes {
-  byte_buffer.empty().join(encode_SignatureTypeIdentity(pool, value.identity)).join(encode_Array_SignatureType(pool, value.arguments))
+pure encode_SignatureType(pool: CachePool, value: SignatureType): Bytes {
+  encode_u32(pool.type_indices.get(value))
 }
 
 pure decode_SignatureType(reader: CacheReader): CacheRead[SignatureType] {
-  if !reader.valid || reader.depth >= 512 {
-    CacheRead(failed(reader), SignatureType(SignatureCore("Unit"), []))
-  } else {
-    nested = decode_SignatureType_nested(CacheReader(reader.data, reader.offset, true, reader.depth + 1, reader.texts))
-    CacheRead(CacheReader(nested.reader.data, nested.reader.offset, nested.reader.valid, reader.depth, reader.texts), nested.value)
-  }
+  read_shared_type(reader)
 }
 
-pure decode_SignatureType_nested(reader: CacheReader): CacheRead[SignatureType] {
-  mut cursor: CacheReader = reader
-  field_identity = decode_SignatureTypeIdentity(cursor)
-  cursor = field_identity.reader
-  field_arguments = decode_Array_SignatureType(cursor)
-  cursor = field_arguments.reader
-  CacheRead(cursor, SignatureType(field_identity.value, field_arguments.value))
-}
-
-pure encode_SignatureSlot(pool: Map[Str,Nat], value: SignatureSlot): Bytes {
+pure encode_SignatureSlot(pool: CachePool, value: SignatureSlot): Bytes {
   byte_buffer.empty().join(encode_Str(pool, value.name)).join(encode_SignatureType(pool, value.type))
 }
 
@@ -707,7 +705,7 @@ pure decode_SignatureSlot(reader: CacheReader): CacheRead[SignatureSlot] {
   CacheRead(cursor, SignatureSlot(field_name.value, field_type.value))
 }
 
-pure encode_Array_SignatureSlot(pool: Map[Str,Nat], value: [SignatureSlot]): Bytes {
+pure encode_Array_SignatureSlot(pool: CachePool, value: [SignatureSlot]): Bytes {
   mut chunks: [Bytes] = [encode_u32(value.len())]
   for item in value { chunks = chunks.append(encode_SignatureSlot(pool, item)) }
   source_map_join(chunks, 0, chunks.len())
@@ -728,7 +726,7 @@ pure decode_Array_SignatureSlot(reader: CacheReader): CacheRead[[SignatureSlot]]
   CacheRead(cursor, values)
 }
 
-pure encode_Optional_SignatureEffect(pool: Map[Str,Nat], value: Option[SignatureEffect]): Bytes {
+pure encode_Optional_SignatureEffect(pool: CachePool, value: Option[SignatureEffect]): Bytes {
   match value {
     None() => encode_u32(0),
     Some(item) => encode_u32(1).join(encode_SignatureEffect(pool, item))
@@ -745,7 +743,7 @@ pure decode_Optional_SignatureEffect(reader: CacheReader): CacheRead[Option[Sign
   }
 }
 
-pure encode_ModuleSignature(pool: Map[Str,Nat], value: ModuleSignature): Bytes {
+pure encode_ModuleSignature(pool: CachePool, value: ModuleSignature): Bytes {
   byte_buffer.empty().join(encode_ModuleDeclarationBinding(pool, value.binding)).join(encode_Array_Str(pool, value.parameters)).join(encode_Array_SignatureSlot(pool, value.slots)).join(encode_Optional_SignatureEffect(pool, value.effect))
 }
 
@@ -762,7 +760,7 @@ pure decode_ModuleSignature(reader: CacheReader): CacheRead[ModuleSignature] {
   CacheRead(cursor, ModuleSignature(field_binding.value, field_parameters.value, field_slots.value, field_effect.value))
 }
 
-pure encode_BodyLocalIdentity(pool: Map[Str,Nat], value: BodyLocalIdentity): Bytes {
+pure encode_BodyLocalIdentity(pool: CachePool, value: BodyLocalIdentity): Bytes {
   byte_buffer.empty().join(encode_DeclarationIdentity(pool, value.owner)).join(encode_Array_Nat(pool, value.path)).join(encode_Str(pool, value.name))
 }
 
@@ -777,7 +775,7 @@ pure decode_BodyLocalIdentity(reader: CacheReader): CacheRead[BodyLocalIdentity]
   CacheRead(cursor, BodyLocalIdentity(field_owner.value, field_path.value, field_name.value))
 }
 
-pure encode_Optional_SignatureType(pool: Map[Str,Nat], value: Option[SignatureType]): Bytes {
+pure encode_Optional_SignatureType(pool: CachePool, value: Option[SignatureType]): Bytes {
   match value {
     None() => encode_u32(0),
     Some(item) => encode_u32(1).join(encode_SignatureType(pool, item))
@@ -794,7 +792,7 @@ pure decode_Optional_SignatureType(reader: CacheReader): CacheRead[Option[Signat
   }
 }
 
-pure encode_BodyLocal(pool: Map[Str,Nat], value: BodyLocal): Bytes {
+pure encode_BodyLocal(pool: CachePool, value: BodyLocal): Bytes {
   byte_buffer.empty().join(encode_BodyLocalIdentity(pool, value.identity)).join(encode_Optional_SignatureType(pool, value.type)).join(encode_Bool(pool, value.mutable))
 }
 
@@ -809,7 +807,7 @@ pure decode_BodyLocal(reader: CacheReader): CacheRead[BodyLocal] {
   CacheRead(cursor, BodyLocal(field_identity.value, field_type.value, field_mutable.value))
 }
 
-pure encode_Array_BodyLocal(pool: Map[Str,Nat], value: [BodyLocal]): Bytes {
+pure encode_Array_BodyLocal(pool: CachePool, value: [BodyLocal]): Bytes {
   mut chunks: [Bytes] = [encode_u32(value.len())]
   for item in value { chunks = chunks.append(encode_BodyLocal(pool, item)) }
   source_map_join(chunks, 0, chunks.len())
@@ -830,7 +828,7 @@ pure decode_Array_BodyLocal(reader: CacheReader): CacheRead[[BodyLocal]] {
   CacheRead(cursor, values)
 }
 
-pure encode_Array_SourceSpan(pool: Map[Str,Nat], value: [SourceSpan]): Bytes {
+pure encode_Array_SourceSpan(pool: CachePool, value: [SourceSpan]): Bytes {
   mut chunks: [Bytes] = [encode_u32(value.len())]
   for item in value { chunks = chunks.append(encode_SourceSpan(pool, item)) }
   source_map_join(chunks, 0, chunks.len())
@@ -851,7 +849,7 @@ pure decode_Array_SourceSpan(reader: CacheReader): CacheRead[[SourceSpan]] {
   CacheRead(cursor, values)
 }
 
-pure encode_Expr(pool: Map[Str,Nat], value: Expr): Bytes {
+pure encode_Expr(pool: CachePool, value: Expr): Bytes {
   match value {
     LocatedExpr(v0, v1, v2) => encode_u32(0).join(encode_SourceSpan(pool, v0)).join(encode_Expr(pool, v1)).join(encode_Array_SourceSpan(pool, v2)),
     NatExpr(v0) => encode_u32(1).join(encode_Nat(pool, v0)),
@@ -878,8 +876,8 @@ pure decode_Expr(reader: CacheReader): CacheRead[Expr] {
   if !reader.valid || reader.depth >= 512 {
     CacheRead(failed(reader), StringExpr("\"\""))
   } else {
-    nested = decode_Expr_nested(CacheReader(reader.data, reader.offset, true, reader.depth + 1, reader.texts))
-    CacheRead(CacheReader(nested.reader.data, nested.reader.offset, nested.reader.valid, reader.depth, reader.texts), nested.value)
+    nested = decode_Expr_nested(CacheReader(reader.data, reader.offset, true, reader.depth + 1, reader.texts, reader.types, reader.expanded))
+    CacheRead(CacheReader(nested.reader.data, nested.reader.offset, nested.reader.valid, reader.depth, reader.texts, reader.types, nested.reader.expanded), nested.value)
   }
 }
 
@@ -917,7 +915,7 @@ pure decode_Expr_nested(reader: CacheReader): CacheRead[Expr] {
   } else { CacheRead(failed(tag.reader), StringExpr("\"\"")) }
 }
 
-pure encode_BodyTarget(pool: Map[Str,Nat], value: BodyTarget): Bytes {
+pure encode_BodyTarget(pool: CachePool, value: BodyTarget): Bytes {
   match value {
     BodyDeclaration(v0) => encode_u32(0).join(encode_ModuleDeclarationBinding(pool, v0)),
     BodyCore(v0) => encode_u32(1).join(encode_Str(pool, v0))
@@ -939,7 +937,7 @@ pure decode_BodyTarget(reader: CacheReader): CacheRead[BodyTarget] {
   } else { CacheRead(failed(tag.reader), BodyDeclaration(ModuleDeclarationBinding(DeclarationIdentity(ModuleIdentity(StandaloneModulePackage(), ""), ""), ModuleFunction(), false, SourceSpan(SourcePos("", 0, 0, 0), SourcePos("", 0, 0, 0)), None(), None()))) }
 }
 
-pure encode_Optional_SourceSpan(pool: Map[Str,Nat], value: Option[SourceSpan]): Bytes {
+pure encode_Optional_SourceSpan(pool: CachePool, value: Option[SourceSpan]): Bytes {
   match value {
     None() => encode_u32(0),
     Some(item) => encode_u32(1).join(encode_SourceSpan(pool, item))
@@ -956,7 +954,7 @@ pure decode_Optional_SourceSpan(reader: CacheReader): CacheRead[Option[SourceSpa
   }
 }
 
-pure encode_Array_BodyTarget(pool: Map[Str,Nat], value: [BodyTarget]): Bytes {
+pure encode_Array_BodyTarget(pool: CachePool, value: [BodyTarget]): Bytes {
   mut chunks: [Bytes] = [encode_u32(value.len())]
   for item in value { chunks = chunks.append(encode_BodyTarget(pool, item)) }
   source_map_join(chunks, 0, chunks.len())
@@ -977,7 +975,7 @@ pure decode_Array_BodyTarget(reader: CacheReader): CacheRead[[BodyTarget]] {
   CacheRead(cursor, values)
 }
 
-pure encode_Array_BodyLocalIdentity(pool: Map[Str,Nat], value: [BodyLocalIdentity]): Bytes {
+pure encode_Array_BodyLocalIdentity(pool: CachePool, value: [BodyLocalIdentity]): Bytes {
   mut chunks: [Bytes] = [encode_u32(value.len())]
   for item in value { chunks = chunks.append(encode_BodyLocalIdentity(pool, item)) }
   source_map_join(chunks, 0, chunks.len())
@@ -998,7 +996,7 @@ pure decode_Array_BodyLocalIdentity(reader: CacheReader): CacheRead[[BodyLocalId
   CacheRead(cursor, values)
 }
 
-pure encode_Array_Array_BodyLocalIdentity(pool: Map[Str,Nat], value: [[BodyLocalIdentity]]): Bytes {
+pure encode_Array_Array_BodyLocalIdentity(pool: CachePool, value: [[BodyLocalIdentity]]): Bytes {
   mut chunks: [Bytes] = [encode_u32(value.len())]
   for item in value { chunks = chunks.append(encode_Array_BodyLocalIdentity(pool, item)) }
   source_map_join(chunks, 0, chunks.len())
@@ -1019,7 +1017,7 @@ pure decode_Array_Array_BodyLocalIdentity(reader: CacheReader): CacheRead[[[Body
   CacheRead(cursor, values)
 }
 
-pure encode_BodyNode(pool: Map[Str,Nat], value: BodyNode): Bytes {
+pure encode_BodyNode(pool: CachePool, value: BodyNode): Bytes {
   match value {
     BodyLiteral(v0) => encode_u32(0).join(encode_Expr(pool, v0)),
     BodyInterpolation(v0) => encode_u32(1).join(encode_Array_Str(pool, v0)),
@@ -1175,7 +1173,7 @@ pure decode_BodyNode(reader: CacheReader): CacheRead[BodyNode] {
   }
 }
 
-pure encode_Array_BoundBody(pool: Map[Str,Nat], value: [BoundBody]): Bytes {
+pure encode_Array_BoundBody(pool: CachePool, value: [BoundBody]): Bytes {
   mut chunks: [Bytes] = [encode_u32(value.len())]
   for item in value { chunks = chunks.append(encode_BoundBody(pool, item)) }
   source_map_join(chunks, 0, chunks.len())
@@ -1196,7 +1194,7 @@ pure decode_Array_BoundBody(reader: CacheReader): CacheRead[[BoundBody]] {
   CacheRead(cursor, values)
 }
 
-pure encode_BoundBody(pool: Map[Str,Nat], value: BoundBody): Bytes {
+pure encode_BoundBody(pool: CachePool, value: BoundBody): Bytes {
   byte_buffer.empty().join(encode_BodyNode(pool, value.node)).join(encode_SourceSpan(pool, value.span)).join(encode_Array_BoundBody(pool, value.children)).join(encode_Optional_SignatureType(pool, value.type))
 }
 
@@ -1204,8 +1202,8 @@ pure decode_BoundBody(reader: CacheReader): CacheRead[BoundBody] {
   if !reader.valid || reader.depth >= 512 {
     CacheRead(failed(reader), BoundBody(BodyEmpty(), SourceSpan(SourcePos("", 0, 1, 1), SourcePos("", 0, 1, 1)), [], None(), [], [], [], [], [], []))
   } else {
-    nested = decode_BoundBody_nested(CacheReader(reader.data, reader.offset, true, reader.depth + 1, reader.texts))
-    CacheRead(CacheReader(nested.reader.data, nested.reader.offset, nested.reader.valid, reader.depth, reader.texts), nested.value)
+    nested = decode_BoundBody_nested(CacheReader(reader.data, reader.offset, true, reader.depth + 1, reader.texts, reader.types, reader.expanded))
+    CacheRead(CacheReader(nested.reader.data, nested.reader.offset, nested.reader.valid, reader.depth, reader.texts, reader.types, nested.reader.expanded), nested.value)
   }
 }
 
@@ -1222,7 +1220,7 @@ pure decode_BoundBody_nested(reader: CacheReader): CacheRead[BoundBody] {
   CacheRead(cursor, BoundBody(field_node.value, field_span.value, field_children.value, field_type.value, [], [], [], [], [], []))
 }
 
-pure encode_BoundFunctionBody(pool: Map[Str,Nat], value: BoundFunctionBody): Bytes {
+pure encode_BoundFunctionBody(pool: CachePool, value: BoundFunctionBody): Bytes {
   byte_buffer.empty().join(encode_ModuleSignature(pool, value.signature)).join(encode_Array_BodyLocal(pool, value.parameters)).join(encode_BoundBody(pool, value.body))
 }
 
@@ -1237,7 +1235,7 @@ pure decode_BoundFunctionBody(reader: CacheReader): CacheRead[BoundFunctionBody]
   CacheRead(cursor, BoundFunctionBody(field_signature.value, field_parameters.value, field_body.value, [], BodyIdentityChecked(), None()))
 }
 
-pure encode_Array_BoundFunctionBody(pool: Map[Str,Nat], value: [BoundFunctionBody]): Bytes {
+pure encode_Array_BoundFunctionBody(pool: CachePool, value: [BoundFunctionBody]): Bytes {
   mut chunks: [Bytes] = [encode_u32(value.len())]
   for item in value { chunks = chunks.append(encode_BoundFunctionBody(pool, item)) }
   source_map_join(chunks, 0, chunks.len())
@@ -1258,30 +1256,30 @@ pure decode_Array_BoundFunctionBody(reader: CacheReader): CacheRead[[BoundFuncti
   CacheRead(cursor, values)
 }
 
-record TextPool { indices: Map[Str,Nat], texts: [Str] }
-pure collect_Str(pool: TextPool, value: Str): TextPool {
-  if pool.indices.has(value) { pool }
-  else { TextPool(pool.indices.put(value, pool.texts.len()), pool.texts.append(value)) }
+record CachePool { text_indices: Map[Str,Nat], texts: [Str], type_indices: Map[SignatureType,Nat], types: [SignatureType] }
+pure collect_Str(pool: CachePool, value: Str): CachePool {
+  if pool.text_indices.has(value) { pool }
+  else { CachePool(pool.text_indices.put(value, pool.texts.len()), pool.texts.append(value), pool.type_indices, pool.types) }
 }
-pure collect_Nat(pool: TextPool, value: Nat): TextPool { pool }
-pure collect_Bool(pool: TextPool, value: Bool): TextPool { pool }
+pure collect_Nat(pool: CachePool, value: Nat): CachePool { pool }
+pure collect_Bool(pool: CachePool, value: Bool): CachePool { pool }
 
-pure collect_Array_BoundFunctionBody(pool: TextPool, value: [BoundFunctionBody]): TextPool {
-  mut result: TextPool = pool
+pure collect_Array_BoundFunctionBody(pool: CachePool, value: [BoundFunctionBody]): CachePool {
+  mut result: CachePool = pool
   for item in value { result = collect_BoundFunctionBody(result, item) }
   result
 }
 
-pure collect_BoundFunctionBody(pool: TextPool, value: BoundFunctionBody): TextPool {
-  mut result: TextPool = pool
+pure collect_BoundFunctionBody(pool: CachePool, value: BoundFunctionBody): CachePool {
+  mut result: CachePool = pool
   result = collect_ModuleSignature(result, value.signature)
   result = collect_Array_BodyLocal(result, value.parameters)
   result = collect_BoundBody(result, value.body)
   result
 }
 
-pure collect_ModuleSignature(pool: TextPool, value: ModuleSignature): TextPool {
-  mut result: TextPool = pool
+pure collect_ModuleSignature(pool: CachePool, value: ModuleSignature): CachePool {
+  mut result: CachePool = pool
   result = collect_ModuleDeclarationBinding(result, value.binding)
   result = collect_Array_Str(result, value.parameters)
   result = collect_Array_SignatureSlot(result, value.slots)
@@ -1289,8 +1287,8 @@ pure collect_ModuleSignature(pool: TextPool, value: ModuleSignature): TextPool {
   result
 }
 
-pure collect_ModuleDeclarationBinding(pool: TextPool, value: ModuleDeclarationBinding): TextPool {
-  mut result: TextPool = pool
+pure collect_ModuleDeclarationBinding(pool: CachePool, value: ModuleDeclarationBinding): CachePool {
+  mut result: CachePool = pool
   result = collect_DeclarationIdentity(result, value.identity)
   result = collect_ModuleDeclarationKind(result, value.kind)
   result = collect_Bool(result, value.is_public)
@@ -1300,25 +1298,25 @@ pure collect_ModuleDeclarationBinding(pool: TextPool, value: ModuleDeclarationBi
   result
 }
 
-pure collect_DeclarationIdentity(pool: TextPool, value: DeclarationIdentity): TextPool {
-  mut result: TextPool = pool
+pure collect_DeclarationIdentity(pool: CachePool, value: DeclarationIdentity): CachePool {
+  mut result: CachePool = pool
   result = collect_ModuleIdentity(result, value.module)
   result = collect_Str(result, value.name)
   result
 }
 
-pure collect_ModuleIdentity(pool: TextPool, value: ModuleIdentity): TextPool {
-  mut result: TextPool = pool
+pure collect_ModuleIdentity(pool: CachePool, value: ModuleIdentity): CachePool {
+  mut result: CachePool = pool
   result = collect_ModulePackageIdentity(result, value.package)
   result = collect_Str(result, value.path)
   result
 }
 
-pure collect_ModulePackageIdentity(pool: TextPool, value: ModulePackageIdentity): TextPool {
+pure collect_ModulePackageIdentity(pool: CachePool, value: ModulePackageIdentity): CachePool {
   match value {
     StandaloneModulePackage() => pool,
     ManifestModulePackage(v0, v1) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_Str(result, v0)
       result = collect_Str(result, v1)
       result
@@ -1327,29 +1325,29 @@ pure collect_ModulePackageIdentity(pool: TextPool, value: ModulePackageIdentity)
   }
 }
 
-pure collect_ModuleDeclarationKind(pool: TextPool, value: ModuleDeclarationKind): TextPool {
+pure collect_ModuleDeclarationKind(pool: CachePool, value: ModuleDeclarationKind): CachePool {
   match value {
     ModuleFunction() => pool,
     ModuleGuardedType() => pool,
     ModuleRecord() => pool,
     ModuleEnum() => pool,
     ModuleVariant(v0) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_Str(result, v0)
       result
     }
   }
 }
 
-pure collect_SourceSpan(pool: TextPool, value: SourceSpan): TextPool {
-  mut result: TextPool = pool
+pure collect_SourceSpan(pool: CachePool, value: SourceSpan): CachePool {
+  mut result: CachePool = pool
   result = collect_SourcePos(result, value.start)
   result = collect_SourcePos(result, value.end)
   result
 }
 
-pure collect_SourcePos(pool: TextPool, value: SourcePos): TextPool {
-  mut result: TextPool = pool
+pure collect_SourcePos(pool: CachePool, value: SourcePos): CachePool {
+  mut result: CachePool = pool
   result = collect_Str(result, value.file)
   result = collect_Nat(result, value.offset)
   result = collect_Nat(result, value.line)
@@ -1357,37 +1355,37 @@ pure collect_SourcePos(pool: TextPool, value: SourcePos): TextPool {
   result
 }
 
-pure collect_Optional_OwnedMethodIdentity(pool: TextPool, value: Option[OwnedMethodIdentity]): TextPool {
+pure collect_Optional_OwnedMethodIdentity(pool: CachePool, value: Option[OwnedMethodIdentity]): CachePool {
   match value { None() => pool, Some(item) => collect_OwnedMethodIdentity(pool, item) }
 }
 
-pure collect_OwnedMethodIdentity(pool: TextPool, value: OwnedMethodIdentity): TextPool {
-  mut result: TextPool = pool
+pure collect_OwnedMethodIdentity(pool: CachePool, value: OwnedMethodIdentity): CachePool {
+  mut result: CachePool = pool
   result = collect_MethodOwnerIdentity(result, value.owner)
   result = collect_Str(result, value.name)
   result
 }
 
-pure collect_MethodOwnerIdentity(pool: TextPool, value: MethodOwnerIdentity): TextPool {
+pure collect_MethodOwnerIdentity(pool: CachePool, value: MethodOwnerIdentity): CachePool {
   match value {
     NominalMethodOwner(v0) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_DeclarationIdentity(result, v0)
       result
     },
     BuiltinMethodOwner(v0) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_Str(result, v0)
       result
     }
   }
 }
 
-pure collect_Optional_OwnedIntrinsic(pool: TextPool, value: Option[OwnedIntrinsic]): TextPool {
+pure collect_Optional_OwnedIntrinsic(pool: CachePool, value: Option[OwnedIntrinsic]): CachePool {
   match value { None() => pool, Some(item) => collect_OwnedIntrinsic(pool, item) }
 }
 
-pure collect_OwnedIntrinsic(pool: TextPool, value: OwnedIntrinsic): TextPool {
+pure collect_OwnedIntrinsic(pool: CachePool, value: OwnedIntrinsic): CachePool {
   match value {
     ArrayMap() => pool,
     ArrayReduce() => pool,
@@ -1429,57 +1427,58 @@ pure collect_OwnedIntrinsic(pool: TextPool, value: OwnedIntrinsic): TextPool {
   }
 }
 
-pure collect_Array_Str(pool: TextPool, value: [Str]): TextPool {
-  mut result: TextPool = pool
+pure collect_Array_Str(pool: CachePool, value: [Str]): CachePool {
+  mut result: CachePool = pool
   for item in value { result = collect_Str(result, item) }
   result
 }
 
-pure collect_Array_SignatureSlot(pool: TextPool, value: [SignatureSlot]): TextPool {
-  mut result: TextPool = pool
+pure collect_Array_SignatureSlot(pool: CachePool, value: [SignatureSlot]): CachePool {
+  mut result: CachePool = pool
   for item in value { result = collect_SignatureSlot(result, item) }
   result
 }
 
-pure collect_SignatureSlot(pool: TextPool, value: SignatureSlot): TextPool {
-  mut result: TextPool = pool
+pure collect_SignatureSlot(pool: CachePool, value: SignatureSlot): CachePool {
+  mut result: CachePool = pool
   result = collect_Str(result, value.name)
   result = collect_SignatureType(result, value.type)
   result
 }
 
-pure collect_SignatureType(pool: TextPool, value: SignatureType): TextPool {
-  mut result: TextPool = pool
-  result = collect_SignatureTypeIdentity(result, value.identity)
-  result = collect_Array_SignatureType(result, value.arguments)
-  result
+pure collect_SignatureType(pool: CachePool, value: SignatureType): CachePool {
+  if pool.type_indices.has(value) { pool } else {
+    collected = collect_SignatureTypeIdentity(pool, value.identity)
+    result = collect_Array_SignatureType(collected, value.arguments)
+    CachePool(result.text_indices, result.texts, result.type_indices.put(value, result.types.len()), result.types.append(value))
+  }
 }
 
-pure collect_SignatureTypeIdentity(pool: TextPool, value: SignatureTypeIdentity): TextPool {
+pure collect_SignatureTypeIdentity(pool: CachePool, value: SignatureTypeIdentity): CachePool {
   match value {
     SignatureCore(v0) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_Str(result, v0)
       result
     },
     SignatureNominal(v0) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_DeclarationIdentity(result, v0)
       result
     },
     SignatureParameter(v0, v1) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_DeclarationIdentity(result, v0)
       result = collect_Nat(result, v1)
       result
     },
     SignatureCallable(v0) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_SignatureEffect(result, v0)
       result
     },
     SignatureHole(v0, v1, v2) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_DeclarationIdentity(result, v0)
       result = collect_Array_Nat(result, v1)
       result = collect_Nat(result, v2)
@@ -1488,7 +1487,7 @@ pure collect_SignatureTypeIdentity(pool: TextPool, value: SignatureTypeIdentity)
   }
 }
 
-pure collect_SignatureEffect(pool: TextPool, value: SignatureEffect): TextPool {
+pure collect_SignatureEffect(pool: CachePool, value: SignatureEffect): CachePool {
   match value {
     SignaturePure() => pool,
     SignatureOrdinary() => pool,
@@ -1496,50 +1495,50 @@ pure collect_SignatureEffect(pool: TextPool, value: SignatureEffect): TextPool {
   }
 }
 
-pure collect_Array_Nat(pool: TextPool, value: [Nat]): TextPool {
-  mut result: TextPool = pool
+pure collect_Array_Nat(pool: CachePool, value: [Nat]): CachePool {
+  mut result: CachePool = pool
   for item in value { result = collect_Nat(result, item) }
   result
 }
 
-pure collect_Array_SignatureType(pool: TextPool, value: [SignatureType]): TextPool {
-  mut result: TextPool = pool
+pure collect_Array_SignatureType(pool: CachePool, value: [SignatureType]): CachePool {
+  mut result: CachePool = pool
   for item in value { result = collect_SignatureType(result, item) }
   result
 }
 
-pure collect_Optional_SignatureEffect(pool: TextPool, value: Option[SignatureEffect]): TextPool {
+pure collect_Optional_SignatureEffect(pool: CachePool, value: Option[SignatureEffect]): CachePool {
   match value { None() => pool, Some(item) => collect_SignatureEffect(pool, item) }
 }
 
-pure collect_Array_BodyLocal(pool: TextPool, value: [BodyLocal]): TextPool {
-  mut result: TextPool = pool
+pure collect_Array_BodyLocal(pool: CachePool, value: [BodyLocal]): CachePool {
+  mut result: CachePool = pool
   for item in value { result = collect_BodyLocal(result, item) }
   result
 }
 
-pure collect_BodyLocal(pool: TextPool, value: BodyLocal): TextPool {
-  mut result: TextPool = pool
+pure collect_BodyLocal(pool: CachePool, value: BodyLocal): CachePool {
+  mut result: CachePool = pool
   result = collect_BodyLocalIdentity(result, value.identity)
   result = collect_Optional_SignatureType(result, value.type)
   result = collect_Bool(result, value.mutable)
   result
 }
 
-pure collect_BodyLocalIdentity(pool: TextPool, value: BodyLocalIdentity): TextPool {
-  mut result: TextPool = pool
+pure collect_BodyLocalIdentity(pool: CachePool, value: BodyLocalIdentity): CachePool {
+  mut result: CachePool = pool
   result = collect_DeclarationIdentity(result, value.owner)
   result = collect_Array_Nat(result, value.path)
   result = collect_Str(result, value.name)
   result
 }
 
-pure collect_Optional_SignatureType(pool: TextPool, value: Option[SignatureType]): TextPool {
+pure collect_Optional_SignatureType(pool: CachePool, value: Option[SignatureType]): CachePool {
   match value { None() => pool, Some(item) => collect_SignatureType(pool, item) }
 }
 
-pure collect_BoundBody(pool: TextPool, value: BoundBody): TextPool {
-  mut result: TextPool = pool
+pure collect_BoundBody(pool: CachePool, value: BoundBody): CachePool {
+  mut result: CachePool = pool
   result = collect_BodyNode(result, value.node)
   result = collect_SourceSpan(result, value.span)
   result = collect_Array_BoundBody(result, value.children)
@@ -1547,85 +1546,85 @@ pure collect_BoundBody(pool: TextPool, value: BoundBody): TextPool {
   result
 }
 
-pure collect_BodyNode(pool: TextPool, value: BodyNode): TextPool {
+pure collect_BodyNode(pool: CachePool, value: BodyNode): CachePool {
   match value {
     BodyLiteral(v0) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_Expr(result, v0)
       result
     },
     BodyInterpolation(v0) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_Array_Str(result, v0)
       result
     },
     BodyLocalUse(v0, v1) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_BodyLocalIdentity(result, v0)
       result
     },
     BodyFunction(v0) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_ModuleDeclarationBinding(result, v0)
       result
     },
     BodyCall(v0, v1, v2) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_BodyTarget(result, v0)
       result = collect_Array_SignatureType(result, v1)
       result
     },
     BodyArray() => pool,
     BodyUnary(v0) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_Str(result, v0)
       result
     },
     BodyBinary(v0) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_Str(result, v0)
       result
     },
     BodyField(v0) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_Str(result, v0)
       result
     },
     BodyIndex() => pool,
     BodyIf(v0) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_Bool(result, v0)
       result
     },
     BodyBlock(v0, v1, v2) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_Bool(result, v0)
       result = collect_Optional_SourceSpan(result, v1)
       result = collect_Array_SourceSpan(result, v2)
       result
     },
     BodyMatch(v0, v1, v2) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_Array_BodyTarget(result, v0)
       result = collect_Array_Array_BodyLocalIdentity(result, v1)
       result = collect_Array_SourceSpan(result, v2)
       result
     },
     BodyBinding(v0, v1, v2, v3, v4) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_BodyLocalIdentity(result, v0)
       result = collect_Optional_SignatureType(result, v1)
       result = collect_Bool(result, v2)
       result
     },
     BodyAssignment(v0, v1) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_BodyLocalIdentity(result, v0)
       result
     },
     BodyWhile() => pool,
     BodyFor(v0) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_BodyLocalIdentity(result, v0)
       result
     },
@@ -1633,32 +1632,32 @@ pure collect_BodyNode(pool: TextPool, value: BodyNode): TextPool {
   }
 }
 
-pure collect_Expr(pool: TextPool, value: Expr): TextPool {
+pure collect_Expr(pool: CachePool, value: Expr): CachePool {
   match value {
     LocatedExpr(v0, v1, v2) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_SourceSpan(result, v0)
       result = collect_Expr(result, v1)
       result = collect_Array_SourceSpan(result, v2)
       result
     },
     NatExpr(v0) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_Nat(result, v0)
       result
     },
     DecimalExpr(v0) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_Str(result, v0)
       result
     },
     StringExpr(v0) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_Str(result, v0)
       result
     },
     BoolExpr(v0) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_Bool(result, v0)
       result
     },
@@ -1678,75 +1677,119 @@ pure collect_Expr(pool: TextPool, value: Expr): TextPool {
   }
 }
 
-pure collect_Array_SourceSpan(pool: TextPool, value: [SourceSpan]): TextPool {
-  mut result: TextPool = pool
+pure collect_Array_SourceSpan(pool: CachePool, value: [SourceSpan]): CachePool {
+  mut result: CachePool = pool
   for item in value { result = collect_SourceSpan(result, item) }
   result
 }
 
-pure collect_BodyTarget(pool: TextPool, value: BodyTarget): TextPool {
+pure collect_BodyTarget(pool: CachePool, value: BodyTarget): CachePool {
   match value {
     BodyDeclaration(v0) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_ModuleDeclarationBinding(result, v0)
       result
     },
     BodyCore(v0) => {
-      mut result: TextPool = pool
+      mut result: CachePool = pool
       result = collect_Str(result, v0)
       result
     }
   }
 }
 
-pure collect_Optional_SourceSpan(pool: TextPool, value: Option[SourceSpan]): TextPool {
+pure collect_Optional_SourceSpan(pool: CachePool, value: Option[SourceSpan]): CachePool {
   match value { None() => pool, Some(item) => collect_SourceSpan(pool, item) }
 }
 
-pure collect_Array_BodyTarget(pool: TextPool, value: [BodyTarget]): TextPool {
-  mut result: TextPool = pool
+pure collect_Array_BodyTarget(pool: CachePool, value: [BodyTarget]): CachePool {
+  mut result: CachePool = pool
   for item in value { result = collect_BodyTarget(result, item) }
   result
 }
 
-pure collect_Array_Array_BodyLocalIdentity(pool: TextPool, value: [[BodyLocalIdentity]]): TextPool {
-  mut result: TextPool = pool
+pure collect_Array_Array_BodyLocalIdentity(pool: CachePool, value: [[BodyLocalIdentity]]): CachePool {
+  mut result: CachePool = pool
   for item in value { result = collect_Array_BodyLocalIdentity(result, item) }
   result
 }
 
-pure collect_Array_BodyLocalIdentity(pool: TextPool, value: [BodyLocalIdentity]): TextPool {
-  mut result: TextPool = pool
+pure collect_Array_BodyLocalIdentity(pool: CachePool, value: [BodyLocalIdentity]): CachePool {
+  mut result: CachePool = pool
   for item in value { result = collect_BodyLocalIdentity(result, item) }
   result
 }
 
-pure collect_Array_BoundBody(pool: TextPool, value: [BoundBody]): TextPool {
-  mut result: TextPool = pool
+pure collect_Array_BoundBody(pool: CachePool, value: [BoundBody]): CachePool {
+  mut result: CachePool = pool
   for item in value { result = collect_BoundBody(result, item) }
   result
 }
 
 pub pure encode_checked_bodies(bodies: [BoundFunctionBody]): Bytes {
-  pool = collect_Array_BoundFunctionBody(TextPool(map(), []), bodies)
-  mut chunks: [Bytes] = [encode_u32(pool.texts.len())]
+  pool = collect_Array_BoundFunctionBody(CachePool(map(), [], map(), []), bodies)
+  mut chunks: [Bytes] = ["PANACK-BODIES-2\n".encode_utf8(), encode_u32(pool.texts.len())]
   for text in pool.texts { chunks = chunks.append(encode_text(text)) }
-  chunks = chunks.append(encode_Array_BoundFunctionBody(pool.indices, bodies))
+  chunks = chunks.append(encode_u32(pool.types.len()))
+  for type in pool.types {
+    chunks = chunks.append(encode_SignatureTypeIdentity(pool, type.identity))
+      .append(encode_Array_SignatureType(pool, type.arguments))
+  }
+  chunks = chunks.append(encode_Array_BoundFunctionBody(pool, bodies))
   source_map_join(chunks, 0, chunks.len())
 }
-pub pure decode_checked_bodies(data: Bytes): Option[[BoundFunctionBody]] {
-  count = read_count(CacheReader(data, 0, true, 0, []))
-  mut reader: CacheReader = count.reader
-  mut texts: [Str] = []
-  if count.value > 1000000 || count.value > data.length() { reader = failed(reader) }
+
+pure read_type_table(reader: CacheReader): CacheReader {
+  count = read_count(reader)
+  mut cursor: CacheReader = count.reader
+  if count.value > 1000000 || count.value > reader.data.length() { cursor = failed(cursor) }
+  mut types: [SharedType] = []
   mut index: Nat = 0
-  while reader.valid && index < count.value {
-    text = decode_raw_string(reader)
-    reader = text.reader
-    texts = texts.append(text.value)
+  while cursor.valid && index < count.value {
+    identity = decode_SignatureTypeIdentity(cursor)
+    length = read_count(identity.reader)
+    cursor = length.reader
+    if length.value > 1000000 || length.value > reader.data.length() { cursor = failed(cursor) }
+    mut arguments: [SignatureType] = []
+    mut depth: Nat = 1
+    mut nodes: Nat = 1
+    mut child: Nat = 0
+    while cursor.valid && child < length.value {
+      reference = read_count(cursor)
+      cursor = reference.reader
+      if cursor.valid && reference.value < types.len() {
+        entry = types[reference.value]
+        if entry.depth + 1 > depth { depth = entry.depth + 1 }
+        nodes = nodes + entry.nodes
+        if depth > 512 || nodes > 1000000 { cursor = failed(cursor) }
+        else { arguments = arguments.append(entry.value) }
+      } else { cursor = failed(cursor) }
+      child = child + 1
+    }
+    if cursor.valid { types = types.append(SharedType(SignatureType(identity.value, arguments), depth, nodes)) }
     index = index + 1
   }
-  result = decode_Array_BoundFunctionBody(CacheReader(data, reader.offset, reader.valid, 0, texts))
-  if result.reader.valid && result.reader.offset == data.length() { Some(result.value) }
-  else { None() }
+  CacheReader(reader.data, cursor.offset, cursor.valid, reader.depth, reader.texts, types, 0)
+}
+
+pub pure decode_checked_bodies(data: Bytes): Option[[BoundFunctionBody]] {
+  magic = "PANACK-BODIES-2\n".encode_utf8()
+  if data.length() < magic.length() || byte_buffer.slice(data, 0, magic.length()) != magic { None() }
+  else {
+    count = read_count(CacheReader(data, magic.length(), true, 0, [], [], 0))
+    mut reader: CacheReader = count.reader
+    mut texts: [Str] = []
+    if count.value > 1000000 || count.value > data.length() { reader = failed(reader) }
+    mut index: Nat = 0
+    while reader.valid && index < count.value {
+      text = decode_raw_string(reader)
+      reader = text.reader
+      texts = texts.append(text.value)
+      index = index + 1
+    }
+    table = read_type_table(CacheReader(data, reader.offset, reader.valid, 0, texts, [], 0))
+    result = decode_Array_BoundFunctionBody(table)
+    if result.reader.valid && result.reader.offset == data.length() { Some(result.value) }
+    else { None() }
+  }
 }

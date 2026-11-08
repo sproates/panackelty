@@ -7,14 +7,14 @@ function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'panack-cache-trial-'));
   t.after(() => fs.rmSync(root, {recursive: true, force: true}));
   fs.mkdirSync(path.join(root, 'src/compiler'), {recursive: true});
-  fs.writeFileSync(path.join(root, 'src/compiler/module_cache.panack'), 'PANACK-MODULE-1');
+  fs.writeFileSync(path.join(root, 'src/compiler/module_cache.panack'), 'PANACK-MODULE-2');
   fs.writeFileSync(path.join(root, 'panack-vm'), 'fixture VM');
   fs.writeFileSync(path.join(root, 'preload.cjs'), `
 const fs = require('node:fs'), path = require('node:path');
 require('node:child_process').spawnSync = (binary, args, options) => {
   const source = fs.readFileSync('src/compiler/module_cache.panack', 'utf8');
   const incremental = args.includes('--incremental');
-  if (process.env.FAIL_EDIT && source.includes('MODULE-2')) return {status: 1, stdout: '', stderr: 'fixture failure'};
+  if (process.env.FAIL_EDIT && source.includes('MODULE-3')) return {status: 1, stdout: '', stderr: 'fixture failure'};
   const output = args[args.length - 1];
   fs.writeFileSync(output, source + (process.env.BAD_FRESH && !incremental ? 'wrong' : ''));
   let trace = 'compile cache: disabled';
@@ -23,7 +23,7 @@ require('node:child_process').spawnSync = (binary, args, options) => {
     const prior = fs.readdirSync(cache).length > 0;
     fs.writeFileSync(path.join(cache, 'compilation-v1.cache'), source);
     fs.writeFileSync(path.join(cache, 'module-' + 'a'.repeat(64) + '-0.cache'), source);
-    trace = prior ? (source.includes('MODULE-2') ? 'compile cache: module hits 3' : 'compile cache: hit') : 'compile cache: module hits 0';
+    trace = prior ? (source.includes('MODULE-3') ? 'compile cache: module hits 3' : 'compile cache: hit') : 'compile cache: module hits 0';
   } else if (options.env.PANACKELTY_COMPILE_CACHE_DIR) throw Error('Fresh build inherited cache');
   return {status: 0, stdout: '', stderr: trace};
 };`);
@@ -40,7 +40,7 @@ require('node:child_process').spawnSync = (binary, args, options) => {
 test('cold and warm compare fresh output and restore edited source', t => {
   const f = fixture(t), digest = f.cold();
   const r = f.run('warm', {EXPECTED_CACHE_DIGEST: digest}); assert.equal(r.status, 0, r.stderr);
-  assert.equal(fs.readFileSync(path.join(f.root, 'src/compiler/module_cache.panack'), 'utf8'), 'PANACK-MODULE-1');
+  assert.equal(fs.readFileSync(path.join(f.root, 'src/compiler/module_cache.panack'), 'utf8'), 'PANACK-MODULE-2');
   const data = JSON.parse(fs.readFileSync(path.join(f.root, 'build/compiler-cache-trial/measurements.json')));
   assert.deepEqual(data.rows.map(r => r.label), ['restored', 'fresh', 'edited', 'edited-fresh']);
 });
@@ -60,5 +60,5 @@ test('failed edited compilation restores original source', t => {
   const f = fixture(t), digest = f.cold();
   const r = f.run('warm', {EXPECTED_CACHE_DIGEST: digest, FAIL_EDIT: '1'});
   assert.notEqual(r.status, 0); assert.match(r.stderr, /fixture failure/);
-  assert.equal(fs.readFileSync(path.join(f.root, 'src/compiler/module_cache.panack'), 'utf8'), 'PANACK-MODULE-1');
+  assert.equal(fs.readFileSync(path.join(f.root, 'src/compiler/module_cache.panack'), 'utf8'), 'PANACK-MODULE-2');
 });

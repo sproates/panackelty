@@ -206,6 +206,15 @@ for file in "$work/user-cache/panackelty/compiler"/module-*.cache; do printf 'br
 capture 0 15 env PANACKELTY_COMPILE_CACHE_DIR= XDG_CACHE_HOME="$work/user-cache" "$panack" compile --incremental "$work/managed-project/main.panack" -o "$work/recovered.bc"
 contains "$work/stderr" 'compile cache: module hits 0'
 equal_files "$work/value-edited.bc" "$work/recovered.bc"
+# A previous module-format header must also fall back, even with otherwise
+# intact payload bytes and content digest.
+rm "$work/user-cache/panackelty/compiler/compilation-v1.cache"
+for file in "$work/user-cache/panackelty/compiler"/module-*.cache; do
+    printf 'PANACK-MODULE-1\n' | dd of="$file" bs=1 conv=notrunc 2>/dev/null
+done
+capture 0 15 env PANACKELTY_COMPILE_CACHE_DIR= XDG_CACHE_HOME="$work/user-cache" "$panack" compile --incremental "$work/managed-project/main.panack" -o "$work/version-recovered.bc"
+contains "$work/stderr" 'compile cache: module hits 0'
+equal_files "$work/value-edited.bc" "$work/version-recovered.bc"
 pass
 
 case_name=incremental-unavailable-default-storage-is-optional

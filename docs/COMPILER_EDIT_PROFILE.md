@@ -609,3 +609,80 @@ scope; investigate it only if the smaller sharing trial leaves substantial cost.
 The assessment completes the requested investigation, not RM#157/GI#106. No
 compiler rebuild, seed refresh, full validation or website change is required;
 documentation/link checks cover this delivery. No cache redesign was implemented.
+
+## Shared-type cache trial, 8 November 2026
+
+Baseline: `433046d799236347fc338880d832e1dd3d1ba672`. The owner selected the
+bounded shared-type trial from the retained-data assessment. It stores each
+structurally distinct immutable `SignatureType` once per module and reconstructs
+it once; body/signature fields receive references to those unchanged values.
+Declaration identities and source positions are not additionally pooled in this
+batch. Downstream checking and emission consume the same record types.
+
+The writer collects strings and types in a single collection pass, recording
+children before their containing types. The generated codec asserts the expected
+`SignatureType` schema. The reader accepts only backward references, preserving
+the expanded depth limit (512 including enclosing body depth). Per-entry expanded
+node counts and a cumulative 1,000,000-node budget prevent a compact dictionary
+from hiding excessive expansion. These are disposable-cache limits; rejection
+causes fresh checking, not rejection of valid source programs. Table/count/index,
+UTF-8, framing and payload-integrity checks remain in place.
+
+The private module header becomes `PANACK-MODULE-2`; the body payload gains an
+explicit `PANACK-BODIES-2` header. Previous entries fall back to fresh work. The
+whole-artifact cache remains tool-identity bound; the VM bytecode version and
+public compiler commands are unchanged. The manual hosted-cache experiment and
+its fixture now edit the current module marker.
+
+### Ordinary-VM measurements
+
+Both compilers built identical copied candidate sources. Each used a separate
+cache outside the source tree; each edit changed `module_magic` and reused 46/49
+modules. Compiler order alternated, with a candidate fresh build after each pair.
+Every edited output matched its fresh output. Cold and unchanged outputs also
+matched; no other builds ran concurrently. macOS `/usr/bin/time -l` recorded peak
+resident memory. Its initial sandboxed attempt compiled successfully but could
+not read clock statistics; that attempt was discarded and the benchmark restarted
+with empty caches and permission to read those statistics.
+
+| Pair | Original edited | Shared-type edited | Candidate fresh | Original peak RSS | Shared-type peak RSS |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1 | 10.296s | 9.602s | 9.780s | 616.3 MiB | 556.0 MiB |
+| 2 | 10.535s | 9.164s | 9.855s | 613.3 MiB | 555.9 MiB |
+| 3 | 9.797s | 9.213s | 9.629s | 612.8 MiB | 555.8 MiB |
+
+Median edited time fell from 10.296s to 9.213s (**10.5%**). All three pairs
+improved. Median peak RSS fell from 613.3 MiB to 555.9 MiB (**9.4%**). The candidate
+also beat its fresh comparison in each pair, but these local compiler self-builds
+do not establish a universal workload improvement.
+
+Single cold observations were 15.609s original / 15.072s candidate (414.4/409.7 MiB
+peak RSS). Unchanged complete-artifact hits were 2.735s/2.635s (215.8/215.1 MiB).
+Those single observations reveal no writing-cost regression here, but are not a
+controlled claim of a cold/unchanged speedup. The 49 module cache files totalled
+9,551,387 bytes original / 8,177,211 bytes candidate, including headers: **14.4%
+smaller**, consistent with the earlier type-only model. Fresh execution retains
+substantially lower peak memory than either incremental path; sharing does not
+eliminate the remaining reconstruction cost.
+
+### Acceptance
+
+The module-binding suite passes 1,487 assertions, including 112 body-cache checks.
+Sixteen new assertions construct the wire format independently of the writer and
+exercise old/unknown representations, reference bounds, self/forward-invalid
+references, truncated/oversized tables, expanded depth including enclosing bodies,
+and per-entry/cumulative expansion budgets. Existing fixture round trips preserve
+structural values, diagnostics and bytecode. The CLI cache harness passes all 24
+groups, including an intact old-format header falling back to fresh compilation.
+Native artifact contracts, all 77 coverage-policy tests and all four hosted-trial
+regression tests pass. The coverage-policy update accounts for the new SharedType
+record and changed declaration positions, without excluding executable functions.
+Bootstrap fixed points pass with unchanged standard-library bytes. Final `make
+check` passed in 565s: unit 348s, bootstrap 71s (parallel), functional 145s,
+release smoke 9s and quick start 1s. Historical timing warnings remain subject
+to the existing GI#106 reassessment. The refreshed compiler seed is
+`7151b456567db39a8b59585ab9ab502ead537fc2883e48c20df7ca41fff35539`.
+
+The bounded type-sharing change is included in this integration. It does not
+complete RM#157/GI#106 or implement identity pooling, a lowered-code cache, effect
+summaries or a VM change. No website update is needed.

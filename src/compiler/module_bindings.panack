@@ -87,11 +87,20 @@ pub record ModuleImportBinding {
   span: SourceSpan
 }
 
+// Retain the inputs as well as the result so reconstructed bindings cannot
+// accidentally reuse diagnostics from a different declaration/import snapshot.
+pub record ModuleBindingValidation {
+  declarations: [ModuleDeclarationBinding],
+  imports: [ModuleImportBinding],
+  diagnostics: [Diagnostic]
+}
+
 pub record ModuleBindings {
   identity: ModuleIdentity,
   declarations: [ModuleDeclarationBinding],
   imports: [ModuleImportBinding],
-  methods: Map[Str, Map[Str, ModuleDeclarationBinding]]
+  methods: Map[Str, Map[Str, ModuleDeclarationBinding]],
+  validation: Option[ModuleBindingValidation]
 }
 
 pub record LoadedModule {
@@ -201,7 +210,9 @@ pub pure collect_module_bindings(identity: ModuleIdentity, parsed: ParsedModule)
       }
     }
   }
-  ModuleBindings(identity, declarations, imports, methods)
+  validation = ModuleBindingValidation(declarations, imports,
+    compute_module_binding_diagnostics(declarations, imports))
+  ModuleBindings(identity, declarations, imports, methods, Some(validation))
 }
 
 pub pure module_reserved_binding(name: Str): Bool {
@@ -228,10 +239,23 @@ pub pure module_import_names(imported: ModuleImportBinding): [ImportSelector] {
 }
 
 pub pure module_binding_diagnostics(bindings: ModuleBindings): [Diagnostic] {
+  match bindings.validation {
+    Some(validation) => if bindings.declarations == validation.declarations &&
+        bindings.imports == validation.imports {
+      validation.diagnostics
+    } else { compute_module_binding_diagnostics(bindings.declarations, bindings.imports) },
+    None() => compute_module_binding_diagnostics(bindings.declarations, bindings.imports)
+  }
+}
+
+pure compute_module_binding_diagnostics(
+  declarations: [ModuleDeclarationBinding],
+  imports: [ModuleImportBinding]
+): [Diagnostic] {
   mut names: Set[Str] = set()
   mut diagnostics: [Diagnostic] = []
 
-  for declaration in bindings.declarations {
+  for declaration in declarations {
     name: Str = match declaration.method {
       None() => declaration.identity.name,
       Some(method) => method_owner_name(method.owner) + "." + method.name
@@ -243,7 +267,7 @@ pub pure module_binding_diagnostics(bindings: ModuleBindings): [Diagnostic] {
     } else {}
     names = names.add(name)
   }
-  for imported in bindings.imports {
+  for imported in imports {
     for selector in module_import_names(imported) {
       name: Str = selector.alias
       if names.has(name) {

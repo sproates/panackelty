@@ -188,12 +188,41 @@ pure namespace_binding_tests(): [TestResult] {
   match namespace_parse("import project/one as shared\nimport project/one as shared\nimport project/two::{answer as local}\npure local(): Nat { 1 }\nimport project/three as print") {
     Error(error) => { results = results.append(std_testing.expect("conflicts parse", false, diagnostic_text(error))) },
     Ok(parsed) => {
-      errors: [Diagnostic] = module_binding_diagnostics(collect_module_bindings(identity, parsed))
+      prepared: ModuleBindings = collect_module_bindings(identity, parsed)
+      errors: [Diagnostic] = module_binding_diagnostics(prepared)
+      unchecked = ModuleBindings(identity, prepared.declarations, prepared.imports, prepared.methods, None())
+      results = results.append(std_testing.expect("prepared binding diagnostics preserve the complete ordered result",
+        prepared.validation != None() && errors == module_binding_diagnostics(unchecked), "prepared diagnostics differ"))
       results = results.append(std_testing.equal_nat("all binding collisions rejected", errors.len(), 3))
       results = results.append(std_testing.equal_str("repeated identical alias rejected", diagnostic_text(errors[0]), "module.panack:2:1: import binding shared conflicts with an existing module binding"))
       results = results.append(std_testing.equal_str("declaration alias collision", errors[1].message, "import binding local conflicts with an existing module binding"))
       results = results.append(std_testing.equal_str("builtin alias collision", errors[2].message, "import binding print conflicts with a built-in"))
     }
+  }
+  clean = namespace_test_bindings("snapshot", "pub pure chosen(): Nat { 1 }; import project/one as first")
+  changed_import = namespace_test_bindings("snapshot", "pub pure chosen(): Nat { 1 }; import project/one as chosen")
+  stale_import = ModuleBindings(clean.identity, clean.declarations, changed_import.imports, clean.methods, clean.validation)
+  import_errors = module_binding_diagnostics(stale_import)
+  results = results.append(std_testing.expect("same-size import edit invalidates prepared diagnostics",
+    import_errors == module_binding_diagnostics(changed_import) && import_errors.len() == 1, "changed import accepted"))
+  duplicate = ModuleBindings(clean.identity, clean.declarations.append(clean.declarations[0]), clean.imports, clean.methods, clean.validation)
+  duplicate_errors = module_binding_diagnostics(duplicate)
+  results = results.append(std_testing.equal_nat("declaration edit invalidates prepared diagnostics", duplicate_errors.len(), 1))
+  if duplicate_errors.len() == 1 {
+    results = results.append(std_testing.equal_str("duplicate declaration keeps its diagnostic",
+      duplicate_errors[0].message, "module declaration chosen is already bound"))
+  }
+  recovered = ModuleBindings(clean.identity, clean.declarations, clean.imports, clean.methods, changed_import.validation)
+  results = results.append(std_testing.equal_nat("recovery does not retain old binding errors", module_binding_diagnostics(recovered).len(), 0))
+  moved = namespace_test_bindings("snapshot", "\n\npub pure chosen(): Nat { 1 }; import project/one as chosen")
+  stale_position = ModuleBindings(moved.identity, moved.declarations, moved.imports, moved.methods, changed_import.validation)
+  results = results.append(std_testing.expect("position changes invalidate prepared diagnostics",
+    module_binding_diagnostics(stale_position) == module_binding_diagnostics(moved), "old diagnostic position reused"))
+  unchecked_bad = ModuleBindings(changed_import.identity, changed_import.declarations, changed_import.imports, changed_import.methods, None())
+  for bindings in [stale_import, unchecked_bad] {
+    results = results.append(std_testing.equal_str("direct resolution rejects changed or unprepared bindings",
+      namespace_target_text(resolve_module_path(ModuleBindingGraph([bindings], []), bindings.identity, "chosen")),
+      "import binding chosen conflicts with an existing module binding"))
   }
   results = results.append(std_testing.equal_str("standalone relative path", source_module_identity("/one/app/lib/math.panack", "/one/app", "/tool/stdlib").path, "lib/math.panack"))
   results = results.append(std_testing.expect("relocation preserves semantic identity", source_module_identity("/one/app/lib/math.panack", "/one/app", "/tool/stdlib") == source_module_identity("/two/app/lib/math.panack", "/two/app", "/other/stdlib"), "relocation changed identity"))
@@ -322,9 +351,9 @@ pure module_emission_identity_tests(): [TestResult] {
   left: ModuleIdentity = namespace_identity("left")
   right: ModuleIdentity = namespace_identity("right")
   graph: ModuleBindingGraph = ModuleBindingGraph([
-    ModuleBindings(left, [], [], map()),
-    ModuleBindings(right, [], [], map()),
-    ModuleBindings(entry, [], [], map())
+    ModuleBindings(left, [], [], map(), None()),
+    ModuleBindings(right, [], [], map(), None()),
+    ModuleBindings(entry, [], [], map(), None())
   ], [])
   left_name: Str = module_emission_symbol(graph, entry, DeclarationIdentity(left, "same"))
   right_name: Str = module_emission_symbol(graph, entry, DeclarationIdentity(right, "same"))
@@ -660,7 +689,7 @@ pure namespace_identity(path: Str): ModuleIdentity {
 
 pure namespace_test_bindings(path: Str, source: Str): ModuleBindings {
   match namespace_parse(source) {
-    Error(error) => ModuleBindings(namespace_identity("PARSE FAILURE: " + error.message), [], [], map()),
+    Error(error) => ModuleBindings(namespace_identity("PARSE FAILURE: " + error.message), [], [], map(), None()),
     Ok(parsed) => collect_module_bindings(namespace_identity(path), parsed)
   }
 }

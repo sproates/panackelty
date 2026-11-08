@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Review declaration positions after the source-position cache decoder optimisation.",
+    "reason": "Review the binding-validation snapshot record and shifted declaration positions.",
     "basis": "Computed with the production parser and inventory_module over every eligible source. Only imports, type refinements, records and enums are excluded; executable functions remain eligible.",
-    "scopeChange": "Eligible files, exclusion kinds and measured corpus are unchanged. Only declaration identifiers and positions shift; executable functions remain eligible. No coverage percentage is asserted by this review."
+    "scopeChange": "Eligible files, measured corpus and exclusion kinds are unchanged. Add the ModuleBindingValidation record declaration and update shifted declaration positions. Executable functions remain eligible; no coverage percentage is asserted."
   },
   "manifestHash": "3e92b1881d541fc7ddacd4e6988079fc1160da863237c8b2926e65b11f8a7c6e",
-  "exclusionHash": "c6e992fc1b35d4134b8df9854c2af6880db47460f0c6c2eb346c869a2114343b"
+  "exclusionHash": "d4164cccc2473931fe5001c44176c93a16da49b599fd404853d471f15d635a24"
 }

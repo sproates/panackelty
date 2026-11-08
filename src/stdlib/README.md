@@ -22,6 +22,42 @@ For complete runnable examples, see the [API recipes guide](../../docs/guides/AP
 data, or use `error.render()` for plain text. See the
 [language specification](../../docs/reference/SPEC.md#runtime-validation).
 
+## Choosing an async API
+
+Import the asynchronous module under the same alias when calling from an async
+function:
+
+```panack
+import stdlib/time/async as time
+
+async reading(): Result[Instant,time.ClockError] {
+  await time.now()
+}
+```
+
+The ordinary module remains `stdlib/time`. Both modules expose the same pure
+helpers, such as `time.seconds(5)`, and the same clock/error types. Only the
+clock read is asynchronous. `stdlib/environment/async` similarly provides
+`await environment.get(name): Option[Str]`; missing values return `None()`
+and present empty values return `Some("")`.
+
+Clock and environment reads complete immediately in the current task turn;
+async describes their effect contract and does not promise suspension or a
+worker thread. Neither operation is pure. Environment reads retain the VM's
+invocation snapshot semantics.
+
+`stdlib/host/async` re-exports `arguments`, `stdout`, `stderr`, `exit`, and
+`HostError`. `stdlib/filesystem/async` re-exports `read_beneath`,
+`root_identity`, and their shared types. These paths retain existing bounds,
+cancellation behaviour and capability grants. The old `stdlib/async_host`
+and `stdlib/async_filesystem` paths remain compatible; there is one
+implementation of each operation. This does not add async counterparts to
+all filesystem/host operations: sleep, process execution, and general file
+writes are not exported by these async modules.
+
+See the [uptime service](../../examples/network/http_uptime/README.md) for a
+complete HTTP handler using the clock and immutable start context.
+
 ## Curated prelude
 
 `stdlib/prelude` re-exports a curated set of modules while preserving each

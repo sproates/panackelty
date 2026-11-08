@@ -188,3 +188,46 @@ Work stays on `feature/rm162-real-program-fixes`, branched from `next`. Under th
 alpha.16 workflow trial, no CI on branch/PR updates unless the owner explicitly
 requests it; merging into `next` may trigger CI. Local checks and review still
 apply. No website changes or implementation scope expansion follow from this note.
+
+## Implementation batch selected, 8 November 2026
+
+The owner approved batching the async module convention, immediate clock and
+environment reads, and paths for existing host/filesystem async operations on
+`feature/rm162-async-clock`, with local validation and no development CI.
+
+- `time/async`: async `now`, shared error types and pure duration constructors.
+- `environment/async`: async `get`, preserving the invocation snapshot and
+  the distinction between missing and empty values.
+- `host/async`: existing async arguments, stdout, stderr and exit.
+- `filesystem/async`: existing async root identity and confined reads.
+
+Old async import paths stay compatible through re-exports. New immediate reads
+require a compiler/VM capability update, but no bytecode format change. Nested
+modules must be installed and included in browser source bundles. The originating
+uptime service is the integration example. Blocking sleep, subprocesses, new
+filesystem operations, closures, anonymous functions and mutable shared state
+remain outside this batch.
+
+### Local validation and limits
+
+The batch passed focused native async-effect and clock-failure contracts,
+source/bytecode stdlib checks, and the real HTTP uptime and confined-filesystem
+integrations. `make check` passed in 582 seconds, including relocated installs
+with the nested modules, on 8 November 2026. Thirteen coverage manifest/policy
+checks passed; the new adapters remain explicitly unmeasured by that bounded
+coverage corpus. Browser source-bundle file identities were checked; this does
+not claim that a new browser product has been built or published.
+
+Seed stages 2/3/4 are identical:
+`f2314de2de1c47bb23de74aa3bde16d66b2f55287089ad1fe96c3b8ba5890f52`.
+Existing-program native artifact compatibility passed, and ordinary stdlib
+conformance bytecode retained its prior SHA-256.
+
+Performance: the new reads complete on the current task without worker creation
+or pending-operation storage. The full-check timing is recorded as an observation,
+not a controlled performance comparison or a new budget. Historical validation
+budget warnings remain part of the existing performance review; this batch does
+not resolve that programme. No throughput claim is made.
+
+The batch is ready for review on its development branch, not integrated or
+released. No development CI or website publication has been requested.

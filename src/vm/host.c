@@ -7,6 +7,7 @@
 #include "buffer.h"
 #include "builtins_internal.h"
 #include "host.h"
+#include "host_types.h"
 #include "render.h"
 #include "utf8.h"
 #include "value.h"
@@ -289,6 +290,13 @@ Value *host_call(VM *vm, const char *name, Value **a)
         }
         free(items);
         return v;
+    }
+
+    if (!strcmp(name, "environment_lookup_async")) {
+        REQUIRE(a[0]->kind == V_STR, "VM trap: environment key requires Str");
+        const char *value = environment_value(vm, (char *)a[0]->as.bytes.data);
+        return value ? host_variant("Some", value_data(V_STR, (const uint8_t *)value, strlen(value)))
+                     : named_value(V_VARIANT, "None", NULL, NULL, 0);
     }
 
     if (!strcmp(name, "environment_has")) {

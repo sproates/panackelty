@@ -1958,3 +1958,11 @@ parsing, and unsuccessful preparation falls back to full discovery. Summaries re
 loader diagnostics and implicit validation imports. This remains module-level reuse,
 with fresh signature/effect checks and conservative dependency invalidation. See the
 [summary contract](../COMPILER_PERSISTENT_REUSE.md#standalone-declaration-summary-reuse).
+
+### Async stdlib selection
+
+The `stdlib/<domain>/async` module convention keeps selection at the import
+boundary. Clock and environment operations use immediate async VM dispatch;
+existing host and confined-filesystem operations are re-exported without new
+workers or duplicated implementations. Bytecode remains v9. Native installs and
+browser source bundles preserve the nested stdlib directory layout.

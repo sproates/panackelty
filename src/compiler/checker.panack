@@ -991,7 +991,9 @@ pure builtin_return(name: Str): Str {
 }
 
 pure builtin_host_return(name: Str): Str {
-  if name == "host_arguments_async" { "[Str]" }
+  if name == "instant_now_async" { "Result[Instant,ClockError]" }
+  else if name == "environment_lookup_async" { "Option[Str]" }
+  else if name == "host_arguments_async" { "[Str]" }
   else if name == "host_exit_async" { "Unit" }
   else if name == "host_stdout_async" || name == "host_stderr_async" {
     "Result[Unit,HostError]"
@@ -1221,7 +1223,8 @@ pub pure builtin_arity(name: Str): Nat {
 }
 
 pure builtin_host_arity(name: Str): Nat {
-  if name == "host_arguments_async" { 0 }
+  if name == "instant_now_async" || name == "host_arguments_async" { 0 }
+  else if name == "environment_lookup_async" { 1 }
   else if name == "host_exit_async" || name == "host_stdout_async" ||
     name == "host_stderr_async" { 1 }
   else { builtin_service_arity(name) }
@@ -1701,6 +1704,7 @@ pure builtin_legacy_parameter(name: Str, index: Nat): Str {
                                                       name == "utf8_encode" ||
                                                       name == "environment_has" ||
                                                       name == "environment_get" ||
+                                                      name == "environment_lookup_async" ||
                                                       name == "path_resolve" ||
                                                       name == "path_parent" ||
                                                       name == "path_suffix" ||

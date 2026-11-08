@@ -1355,3 +1355,12 @@ The [decision process](../ROADMAP_PROCESS.md) is authoritative for these rules.
   [the profiling report](../../../tests/VALIDATION_PROFILE.md), behavioral evidence in
   [the coverage matrix](../../../tests/COVERAGE.md), and bootstrap history in
   [the self-hosting record](../../internals/SELF_HOSTING.md).
+
+### Alpha.16 async stdlib follow-up, 8 November 2026
+
+Before announcing these APIs in alpha.16, update the stdlib and HTTP examples to
+show `stdlib/time/async`, `stdlib/environment/async`, and the existing host/file
+async counterparts. Include the uptime example and make the supported-toolchain
+requirement explicit. Prerequisites: merged/validated core implementation and
+matching release/browser consumers. Owner: release maintainer. No website change
+is authorised or needed now; the live site's alpha.15 claims remain unchanged.

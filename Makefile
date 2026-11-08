@@ -250,6 +250,8 @@ functional-impl: package-tool $(BUILD_DIR)/vm/static_http_client $(STAGE2_COMPIL
 	@$(PROFILE) functional/owned-dot-dispatch sh tests/owned_dot_dispatch.sh
 	@PANACK_TCP_CLIENT="$(abspath $(BUILD_DIR)/vm/tcp_client)" $(PROFILE) functional/tcp-serve sh tests/tcp_serve.sh
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/http-package sh tests/http_package.sh
+	@$(PROFILE) functional/async-stdlib sh tests/async_stdlib.sh
+	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/http-uptime sh tests/http_uptime.sh
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/async-filesystem sh tests/async_filesystem.sh
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/continuous-service sh tests/continuous_service.sh
 	@PANACK_STATIC_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/static_http_client)" PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/static-http sh tests/static_http.sh
@@ -477,7 +479,8 @@ native-check: bootstrap-check package-tool
 	sh tests/native_conformance.sh
 
 PACKAGE_TOOL_ARTIFACT := $(BUILD_DIR)/tools/panack-packages.bc
-PACKAGE_TOOL_SOURCES := $(wildcard src/packages/*.panack src/project_model/*.panack src/stdlib/*.panack packages/http/src/*.panack)
+STDLIB_SOURCES := $(shell find src/stdlib -type f -name '*.panack')
+PACKAGE_TOOL_SOURCES := $(wildcard src/packages/*.panack src/project_model/*.panack packages/http/src/*.panack) $(STDLIB_SOURCES)
 
 .PHONY: package-tool package-tool-check
 package-tool: $(PACKAGE_TOOL_ARTIFACT)
@@ -494,7 +497,7 @@ package-tool-check: package-tool native-io-check
 	@PANACK_PROBE_SEED="$(abspath $(SEED_COMPILER))" sh tests/package_archive_stream.sh
 	@sh tests/package_tool_handoff.sh
 
-$(BUILD_DIR)/tools/http-server.bc: $(PACKAGE_TOOL_ARTIFACT) panack-vm $(SEED_COMPILER) tools/http-server/panack.json tools/http-server/panack.lock.json tools/http-server/src/main.panack $(wildcard packages/static_http/src/*.panack) packages/static_http/panack.json $(wildcard packages/http/src/*.panack) packages/http/panack.json $(wildcard src/stdlib/*.panack)
+$(BUILD_DIR)/tools/http-server.bc: $(PACKAGE_TOOL_ARTIFACT) panack-vm $(SEED_COMPILER) tools/http-server/panack.json tools/http-server/panack.lock.json tools/http-server/src/main.panack $(wildcard packages/static_http/src/*.panack) packages/static_http/panack.json $(wildcard packages/http/src/*.panack) packages/http/panack.json $(STDLIB_SOURCES)
 	@mkdir -p "$(@D)"
 	./bin/panack compile --project tools/http-server/panack.json -o "$@"
 
@@ -520,7 +523,11 @@ install: native package-tool explain-tool $(BUILD_DIR)/tools/http-server.bc
 	install -m 644 $(SEED_COMPILER) "$(DESTDIR)$(PREFIX)/share/panackelty/compiler-v9.bc"
 	install -m 644 "$(PACKAGE_TOOL_ARTIFACT)" "$(DESTDIR)$(PREFIX)/share/panackelty/panack-packages-v1.bc"
 	install -m 644 "$(BUILD_DIR)/tools/http-server.bc" "$(DESTDIR)$(PREFIX)/share/panackelty/http-server-v1.bc"
-	install -m 644 src/stdlib/*.panack "$(DESTDIR)$(PREFIX)/share/panackelty/stdlib/"
+	@set -e; find src/stdlib -type f -name '*.panack' | while IFS= read -r source; do \
+	  relative=$${source#src/stdlib/}; \
+	  install -d "$(DESTDIR)$(PREFIX)/share/panackelty/stdlib/$$(dirname "$$relative")"; \
+	  install -m 644 "$$source" "$(DESTDIR)$(PREFIX)/share/panackelty/stdlib/$$relative"; \
+	done
 	cp -R packages/http/. "$(DESTDIR)$(PREFIX)/packages/http/"
 	cp -R packages/static_http/. "$(DESTDIR)$(PREFIX)/packages/static_http/"
 	install -m 644 tools/http-server/panack.json tools/http-server/panack.lock.json tools/http-server/README.md "$(DESTDIR)$(PREFIX)/tools/http-server/"

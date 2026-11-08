@@ -1,0 +1,3 @@
+// Only operations with asynchronous implementations are exported here.
+pub import stdlib/async_filesystem::{HostError, FilesystemRootIdentity,
+  FilesystemRootRead, read_beneath, root_identity}

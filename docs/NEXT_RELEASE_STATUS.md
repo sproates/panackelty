@@ -6,7 +6,7 @@ Latest published release: **v0.1.0-alpha.15**, published 6 November 2026.
 **Alpha.16: build useful programs. Ten VM optimisation batches are delivered by
 this integration; further VM experiments are paused. Compiler reuse has been
 implemented and validated locally and is included in this integration ahead of
-larger language changes; compiler integration and its coverage-manifest correction are green. RM#162 remains an investigation.** Alpha.15 is complete, including native archives, installer, browser
+larger language changes; compiler integration and its coverage-manifest correction are green. RM#162’s async-stdlib batch is implemented and locally validated on its development branch; integration remains pending.** Alpha.15 is complete, including native archives, installer, browser
 playground and website. Its [final status snapshot](ALPHA15_FINAL_STATUS.md) and
 [release acceptance](releases/ALPHA15_RELEASE_ACCEPTANCE.md) preserve the evidence.
 
@@ -23,7 +23,7 @@ and linked work records. Update this summary whenever release work changes.
 | [GI#168: Subprocess examples](https://github.com/sproates/panackelty/issues/168) | Planned. Reuse existing examples and verify the remaining installed workflows. |
 | [GI#169: Tiny build tool](https://github.com/sproates/panackelty/issues/169) | Planned. A useful small program, not a production build system. |
 | [GI#138: Tested guides](https://github.com/sproates/panackelty/issues/138), with [GI#310: Examples](https://github.com/sproates/panackelty/issues/310) | Planned. Coordinate guides with runnable examples; do not count the same delivery twice. |
-| [RM#162: Real-program fixes](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-162) | In progress: [async capability investigation](ASYNC_USEFUL_PROGRAMS_INVESTIGATION.md) reproduces the clock restriction and separate callback-state gap. The [discussion record](ASYNC_DESIGN_DISCUSSION.md) captures the preferred async-module API direction; state and closures remain exploratory. No fix implemented yet. Scope and effort emerge from actual use; verify each originating program and agree a release cutoff. No website update. |
+| [RM#162: Real-program fixes](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-162) | In progress: [async capability investigation](ASYNC_USEFUL_PROGRAMS_INVESTIGATION.md) reproduces the clock restriction and separate callback-state gap. The [discussion record](ASYNC_DESIGN_DISCUSSION.md) captures the preferred async-module API direction; state and closures remain exploratory. The async-stdlib batch is implemented on `feature/rm162-async-clock`; focused checks and `make check` passed (582s). Integration and hosted validation remain pending; no CI started. Scope and effort emerge from actual use; verify each originating program and agree a release cutoff. No website update. |
 | [GI#170: Inference/diagnostics assessment](https://github.com/sproates/panackelty/issues/170) | Planned assessment. No inference implementation or architecture is selected. |
 | [RM#157: Performance review](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-157) | Ten owner-requested VM optimisation batches delivered by this integration; details below. Final local `make check` passed in 593 seconds with unchanged compiler bytecode. VM integration CI passed ([run](https://github.com/sproates/panackelty/actions/runs/42349747971)). Broader performance-review workloads, targets and completion criteria still need agreement; RM#157 is not complete. Further VM experiments are paused; the compiler-reuse batch passed local validation and is included in this integration (see below). |
 | [GI#435: Guard alternatives](https://github.com/sproates/panackelty/issues/435) | Planned follow-on for string, collection and record-relationship guards: proof rules and diagnostics need design. Numeric alternatives already work; the alpha.15 contract remains complete. |
@@ -110,8 +110,8 @@ integration. Further experiments remain on feature/rm162-real-program-fixes.
   On 6 November, the checkout alpha.15 compiler accepted an ordinary `main`
   binding `reading = time.now()` and rejected the identical async body with
   `async function cannot call blocking function time.panack:now`.
-  When language work resumes: define an async clock counterpart under the preferred `/async` module
-  convention, then verify a real uptime endpoint. State/closure design is not
+  The active batch adds the async clock counterpart under the preferred `/async`
+  module convention and verifies a real uptime endpoint. State/closure design is not
   committed scope.
 - Follow the [release checklist](releases/RELEASE_CHECKLIST.md) for alpha.16:
   packages, installer and browser must be ready before the final website publication.
@@ -355,7 +355,13 @@ fulfilling the optimisation-wrap-up article reminder.
 
 A clean branch, `feature/rm162-async-clock`, starts from current `next`. The next
 RM#162 slice is the async clock API and a working uptime endpoint, following the
-recorded async-module preferences. Implementation has not started. Anonymous
+recorded async-module preferences. The implemented and locally validated batch provides `time/async`,
+`environment/async`, and compatible paths for existing host/filesystem async APIs.
+The complete local `make check` passed in 582 seconds, including installation
+and relocation. Seed stages 2/3/4 match (`f2314de2…90f52`); ordinary stdlib
+conformance bytecode is unchanged. The real uptime endpoint passes in source
+and saved-bytecode modes. Integration is pending and development CI remains
+disabled. Anonymous
 functions, closures and state retain their recorded design questions. Development
 CI remains disabled until requested or integration; no CI is triggered by this
 local handover. The previous optimisation branch is retained.

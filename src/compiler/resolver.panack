@@ -62,7 +62,8 @@ pub pure is_builtin(name: Str): Bool {
   name == "http_state_create" || name == "http_state_context" || name == "http_state_setup_error" || name == "http_state_fail_setup" || name == "http_state_register" ||
   name == "async_fake_read" || name == "tcp_exchange" || name == "http_transport_exchange" || name == "tcp_serve" ||
     name == "tcp_service" || name == "tcp_serve_stream" || name == "tcp_server_read_chunk" ||
-    (name == "fs_read_beneath" || name == "host_arguments_async" || name == "host_stdout_async" ||
+    (name == "fs_read_beneath" || name == "instant_now_async" || name == "environment_lookup_async" ||
+    name == "host_arguments_async" || name == "host_stdout_async" ||
     name == "host_stderr_async" || name == "host_exit_async" || name == "fs_read_beneath_async" || name == "fs_root_identity_async") || name == "fs_directories_overlap" || name == "fs_read" ||
     name == "fs_write" ||
     name == "fs_metadata" ||

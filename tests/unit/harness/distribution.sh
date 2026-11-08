@@ -86,7 +86,10 @@ mv "$work/extracted/panackelty" "$work/relocated/toolchain"
 version=$(cat "$root/VERSION")
 printf 'panack %s (bytecode 9)\n' "$version" > "$work/version"
 cat > "$work/logical-import.panack" <<'PROGRAM'
-import stdlib/time as time
+import stdlib/time/async as time
+import stdlib/environment/async as environment
+import stdlib/host/async as async_host
+import stdlib/filesystem/async as files
 import stdlib/path as path
 main(): Void {
   print(Some(42).value_or(0))

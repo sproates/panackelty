@@ -141,7 +141,7 @@ P7 retains its deferred 10-point allocation. Alpha.13 release acceptance is comp
 RM#156 records the GI#518 selection and RM#157 records the performance outcome.
 RM#158–RM#161 identify the Alpha.15 package-management packets.
 <a id="rm-162"></a> **[RM#162: Real-program fixes](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-162)**
-is planned for alpha.16. Fix obstacles encountered while building real programs;
+is in progress for alpha.16: the [async-stdlib batch](docs/ASYNC_DESIGN_DISCUSSION.md#implementation-batch-selected-8-november-2026) addresses the clock/uptime obstacle. Fix obstacles encountered while building real programs;
 scope and effort are unknown, and this is an implementation allocation rather
 than an issue-gathering exercise.
 

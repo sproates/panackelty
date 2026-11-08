@@ -33,7 +33,14 @@ Implementation and release publication remain separate decisions.
 
 <a id="rm-162"></a>
 
-**RM#162: Real-program fixes. Status: Planned for alpha.16. Scope and effort: unknown.**
+**RM#162: Real-program fixes. Status: In progress for alpha.16. Overall scope and effort: unknown.**
+
+The current [async-stdlib batch](../../ASYNC_DESIGN_DISCUSSION.md#implementation-batch-selected-8-november-2026)
+adds clock/environment async reads and consistent paths for existing async host
+and filesystem operations. The uptime HTTP service is its integration example.
+Focused checks and the complete local `make check` passed (582s, 8 November);
+integration and hosted validation remain pending. This does not commit the
+separate state/closure design.
 
 Reserve a real delivery workstream for issues encountered while the owner builds
 useful programs in Panackelty. Its purpose is to fix the problems and return to

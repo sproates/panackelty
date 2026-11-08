@@ -437,6 +437,8 @@ pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool 
     (owner.module.path == "async_host.panack" && owner.name == "exit" && (name == "host_exit_async")) ||
     (owner.module.path == "time.panack" && owner.name == "from_nanoseconds" && (name == "duration_nanoseconds")) ||
     (owner.module.path == "time.panack" && owner.name == "from_seconds" && (name == "duration_from_seconds")) ||
+    (owner.module.path == "time/async.panack" && owner.name == "now" && name == "instant_now_async") ||
+    (owner.module.path == "environment/async.panack" && owner.name == "get" && name == "environment_lookup_async") ||
     (owner.module.path == "time.panack" && owner.name == "now" && (name == "instant_now")) ||
     (owner.module.path == "time.panack" && owner.name == "seconds" && (name == "duration_nanoseconds")) ||
     (owner.module.path == "time.panack" && owner.name == "milliseconds" && (name == "duration_nanoseconds")) ||
@@ -529,6 +531,8 @@ pub pure module_internal_primitive_name(identity: ModuleIdentity, name: Str): Bo
     (identity.path == "http_runtime.panack" && (name == "http_writer_get_status" || name == "http_writer_get_headers" || name == "http_writer_reject" || name == "http_writer_status" || name == "http_writer_headers" || name == "http_writer_commit")) ||
     (identity.path == "http_runtime.panack" && (name == "http_state_create" || name == "http_state_context" || name == "http_state_setup_error" || name == "http_state_fail_setup" || name == "http_state_register")) ||
     (identity.path == "async_host.panack" && (name == "host_arguments_async" || name == "host_exit_async" || name == "host_stderr_async" || name == "host_stdout_async")) ||
+    (identity.path == "time/async.panack" && name == "instant_now_async") ||
+    (identity.path == "environment/async.panack" && name == "environment_lookup_async") ||
     (identity.path == "time.panack" && (name == "duration_from_seconds" || name == "duration_nanoseconds" || name == "instant_now")) ||
     (identity.path == "process.panack" && (name == "process_run" || name == "process_run_isolated")) ||
     (identity.path == "http_transport.panack" && (name == "http_transport_exchange")) ||

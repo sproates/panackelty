@@ -1,0 +1,4 @@
+// Read the invocation's environment. Missing and empty values remain distinct.
+pub async get(name: Str): Option[Str] {
+  await environment_lookup_async(name)
+}

@@ -101,3 +101,14 @@ All are effectful except checked UTF-8 decoding. They use ordinary version-9
 named CALL instructions and record/variant values; old runtimes reject unknown
 services. No new value tags or opcode layouts are introduced. Legacy string
 file calls retain their trapping behavior for bootstrap compatibility.
+
+## Immediate asynchronous reads
+
+`instant_now_async(): Result[Instant,ClockError]` and
+`environment_lookup_async(Str): Option[Str]` are async-only host primitives.
+The VM verifies and checks their await edges at runtime using the existing
+bytecode-v9 call instructions. The clock reuses the monotonic implementation of
+`instant_now`; environment lookup reads the invocation snapshot in one operation.
+Neither read creates a worker or suspends. Their public owners are
+`stdlib/time/async.now` and `stdlib/environment/async.get`; matching filenames
+in application code do not grant access to these internal primitives.

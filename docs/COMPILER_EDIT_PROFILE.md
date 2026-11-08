@@ -488,3 +488,124 @@ proposal; this trial does not authorise or implement one. Function-level reuse
 still addresses little of this particular workload's measured cost.
 
 This batch does not complete RM#157/GI#106 and has no website impact.
+
+## Retained-data assessment, 8 November 2026
+
+Baseline: `efa9a293d96f8bd958c4c95209ab83c11a6c3f51`, after the span/tag batch.
+The question is whether substantially less data can be saved/restored, rather
+than continuing to optimise individual reads. This assessment changes no product
+code or format and does not claim a measured runtime improvement.
+
+### What actually consumes the cache
+
+`check_project_sources_with_reuse` in `loader.panack` installs cached
+`BoundFunctionBody` values, checks their status and owner identity, and passes them
+to fresh global effect checking and module emission. Signatures and guards still
+run fresh. The persisted schema already omits explanation evidence, constraints,
+operator/type-check histories, deferred checks and return-type evidence; removing
+those again would save nothing. Strings are already dictionary encoded.
+
+| Retained information | Current ordinary-mode consumer | Assessment |
+| --- | --- | --- |
+| Node shape, children, literals and call targets | `module_emission_expression_with_parameters`, `module_emission_block`; effect traversal | Needed to reproduce code and call/await rules. |
+| Spans, block/statement and pattern positions | Located expressions, block origins, effect diagnostics | Do not remove wholesale. Positions affect correctness and diagnostic equivalence, not just explain output. |
+| Function signature and binding identity | Loader ownership/coverage checks, effect context, emitted parameter/result types and callable names | Keep; repeated occurrences are candidates for shared references. |
+| `BoundBody.type` | Indirect-call effect classification and non-Unit awaited-result rejection | Not generally disposable. Most ordinary nodes may not need the full type, but selective omission needs a context-aware contract. |
+| `BodyBinding` annotation, mutable flag and local name/owner | Emitted binding and type spelling | Needed; local names alone are insufficient for every binding. |
+| `BoundFunctionBody.parameters` | No read found on the cached loader/effects/emission path; emission takes parameter names from fresh declarations | Candidate omission, not yet implemented. |
+| `BodyCall` generic type-argument payload | Both ordinary emission and effect checking bind but do not use it | Candidate omission, not yet implemented. |
+| Local identity paths and repeated owner/type structures | Plain emission mostly selects name/owner; other compiler modes use richer identities | Prefer sharing first; broad deletion would couple the cache to a new reduced-body contract. |
+
+The reader/writer boundary, not every use of `BoundFunctionBody` elsewhere in the
+compiler, is the relevant scope: explain/source tooling bypasses this plain cache.
+Nevertheless, future consumers must be reviewed before narrowing that contract.
+
+### Inventory of real payloads
+
+A fresh incremental compiler self-build generated 49 module payloads. An offline
+schema-driven inventory verified every module payload SHA-256, dictionary index,
+tag and buffer boundary, and consumed each payload exactly. It follows the
+explicit body-cache schema and current intrinsic variants; it is investigation
+tooling, not a replacement product decoder. Total payload size was **9,522,928
+bytes (9.08 MiB)**, including 241,358 bytes of existing string dictionaries.
+
+Counts below are across all 49 modules; distinct counts are summed **within each
+module**, so the opportunity does not require a cross-module cache or shared
+lifetime. Byte totals for nested types overlap and must not be added.
+
+| Structure | Occurrences | Distinct within modules |
+| --- | ---: | ---: |
+| Signature/type description | 123,405 | 1,705 |
+| Declaration identity | 94,354 | 3,337 |
+| Declaration binding | 13,784 | 2,833 |
+| Local identity | 40,244 | 11,436 |
+| Source position | 244,636 | 142,920 |
+| Source span | 122,318 | 91,976 |
+
+The two straightforward omission candidates above occupy **245,172 bytes (2.6%)**
+combined. They are not the large opportunity on their own. `BoundBody.type`
+occupies 1,912,156 bytes, but some of it is required by current effect checks.
+Full source spans occupy 3,914,176 bytes; dropping them would erase required
+information. Repetition of immutable structures is the stronger first target.
+
+### Model shared values, not missing information
+
+A second pass models per-module typed dictionaries with four-byte references.
+Each distinct typed value is defined once, child references are included, and
+repeated parents do not charge their children again. The model includes one
+count word per table and preserves the existing string dictionary. It compares
+complete payload sizes, avoiding double-counting nested identities and types.
+It is a size model, not an implemented codec or timing forecast; additional
+framing/validation choices could change the exact result.
+
+| Model | Payload bytes | Reduction |
+| --- | ---: | ---: |
+| Current | 9,522,928 | — |
+| Share `SignatureType` values | 8,149,660 | 14.4% |
+| Also share declaration identities/bindings and local identities | 6,521,712 | 31.5% |
+| Also share source positions | 6,135,820 | 35.6% |
+
+This preserves information while avoiding repeated reconstruction. A decoded type
+such as `Nat` can be reused by many nodes instead of repeatedly allocating the
+same type record and argument list. The model's 1,705 distinct type values versus
+123,405 occurrences is a strong reason to trial sharing, but fewer bytes/objects
+do not establish a speedup: dictionary construction and lookups also cost work.
+No memory or ordinary-VM timing benefit is claimed yet.
+
+### Recommendation and bounded first trial
+
+**Yes, substantially less representation is plausible without discarding semantic
+information. Trial per-module type sharing first**, then identities only if the
+end-to-end results justify it. This is a larger reduction in repeated work than
+another fixed-field reader specialisation, while leaving downstream compiler
+records and their consumers intact. It is a proposed one-PR experimental slice,
+not a selected implementation or a promised breakthrough.
+
+The trial contract should be:
+
+- Store unique immutable types once and rebuild each once; ordinary body records
+  receive shared values with identical structural contents.
+- Explicitly version the disposable module-cache representation and reject old,
+  truncated, out-of-range, cyclic/forward-invalid, excessive-count and excessive-
+  depth data. Missing/incompatible cache state falls back to fresh compilation.
+- Preserve source/tool/transitive-dependency keys, global effect checking,
+  diagnostics, positions, and source/saved-bytecode results. No VM bytecode change.
+- Measure fresh, cold, unchanged and genuinely edited builds on the normal VM,
+  including encoding cost and memory where practical. Verify actual cache hits
+  and compare fresh outputs. Reject a net regression or a merely smaller file.
+- Batch any justified identity-sharing extension before one final full validation,
+  rather than paying for a separate full suite after every tiny experiment.
+
+A more ambitious boundary would cache lowered per-module code plus a compact
+summary of call/effect obligations, avoiding checked-body reconstruction entirely.
+That requires a real effect-summary contract, diagnostics/source-origin retention,
+and composition checks. Emitted names currently incorporate graph module indexes;
+the current cache keys already include graph order/membership, so conservative
+invalidation could protect them. More granular reuse across graph changes would
+need stable symbols or relocation. It is not simply a matter of saving today's
+bytecode per file. This route has a higher potential ceiling but materially larger
+scope; investigate it only if the smaller sharing trial leaves substantial cost.
+
+The assessment completes the requested investigation, not RM#157/GI#106. No
+compiler rebuild, seed refresh, full validation or website change is required;
+documentation/link checks cover this delivery. No cache redesign was implemented.

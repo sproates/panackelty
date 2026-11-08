@@ -815,6 +815,12 @@ the bounded change is included in this integration.
 The larger retained-representation question remains an assessment candidate,
 not an approved redesign.
 
+The [retained-data assessment](../../COMPILER_EDIT_PROFILE.md#retained-data-assessment-8-november-2026)
+identifies repeated immutable types/identities as a stronger next experiment than
+removing a few unused fields. Per-module dictionary modelling suggests 14.4–31.5%
+smaller payloads, without claiming a runtime saving. A type-sharing codec trial
+is proposed; no representation change is implemented.
+
 ### Incremental command direction, 7 November 2026
 
 The owner expects an ordinary one-shot command such as

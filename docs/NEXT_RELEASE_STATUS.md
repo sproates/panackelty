@@ -313,3 +313,15 @@ validated batch; hosted integration checks start on merge, with development/PR
 CI suppressed under the alpha.16 workflow trial. Earlier “not yet merged” notes
 above describe the individual local checkpoints. No release or website publication
 is included. The development branch is retained for further experiments.
+
+## Integration outcome and parsed-reuse experiment
+
+[PR #691](https://github.com/sproates/panackelty/pull/691) merged the validated
+compiler-reuse batch into `next`; [integration CI](https://github.com/sproates/panackelty/actions/runs/42498471810) passed.
+The subsequent [parsed-module controls](COMPILER_EDIT_PROFILE.md#parsed-module-reuse-controls-8-november-2026)
+are measurement-only: full syntax decoding saves about 0.47s of a 2.68s parsing
+phase, while declaration-summary decoding takes 0.195s versus 2.649s parsing.
+All twelve 49-module comparisons pass. These are isolated timings, not a delivered
+edited-build saving. The recommended next slice is explicit module-summary reuse
+paired with validated compiled functions, with full parsing on any reuse miss.
+No new production cache, CI or website change is included.

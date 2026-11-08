@@ -1095,3 +1095,87 @@ functional 137s, release smoke 9s and quick start 1s. Documentation checks pass.
 This is a development-branch checkpoint, not completion of RM#28/GI#106 or
 RM#157. It does not change the website, trigger CI or merge into `next`. Reusing
 parsed inputs after edits remains a separate experiment.
+
+## Parsed-module reuse controls, 8 November 2026
+
+Baseline: PR #691 merge `f827c488f551a7831649d964e1dfc80bb3a2d05c`. Its
+[integration run](https://github.com/sproates/panackelty/actions/runs/42498471810)
+passed. The owner selected the next experiment: avoid parsing unchanged modules
+after an edit. This investigation changes no production compiler or VM code.
+
+### Isolated method
+
+An experimental codec extends the existing pooled-string, bounded generated body
+codec schema to all parser Expr/Statement/Block/TopLevel variants, declaration
+syntax, import bindings and owned-method metadata. Program indexes are rebuilt
+with `indexed_program` after decoding declarations, rather than independently
+persisting maps. It retains complete source spans and explicit type-argument spans.
+The support reader keeps its existing length/depth bounds and complete-consumption
+check. This is experiment code, not a delivered cache format.
+
+A harness loads the 49-module compiler closure once and prepares encoded values
+in memory. It then runs three alternating pairs (parse/decode, decode/parse,
+parse/decode). Parsing starts from existing source text, and decoding starts from
+existing bytes. Startup, source loading, disk reads, cache-key checks, initial
+encoding and equality checks are outside the paired timings. Every result must
+exactly equal the expected ParsedModule, including indexes and metadata. Encoding
+time and aggregate encoded size are reported separately. Ordinary VM and the
+current seed are used; no diagnostic VM or concurrent build runs.
+
+### Full parsed trees
+
+| Pair | Lex/parse | Decode full parsed modules |
+| --- | ---: | ---: |
+| 1 | 2.681383s | 2.191796s |
+| 2 | 2.728338s | 2.554830s |
+| 3 | 2.609190s | 2.206979s |
+
+Full-tree encoding takes 2.702177s and produces 5,399,144 bytes. Median decoding
+is 2.206979s versus 2.681383s parsing: a 0.474404s saving (17.7%) before cache
+I/O/key costs. Every one of the six results matches all 49 original modules.
+This is a real but modest potential saving with substantial extra representation.
+It does not establish a complete edited-build improvement or a memory saving.
+
+### Declaration-summary control
+
+A second control keeps all declarations, guards, imports, declaration/type spans
+and method metadata, but substitutes empty blocks for function bodies. It rebuilds
+program indexes. This deliberately incomplete tree is only a measurement model,
+never a valid general substitute for parsed source. The comparison parser also
+applies the same projection before checking equality.
+
+| Pair | Lex/parse then project | Decode declaration summaries |
+| --- | ---: | ---: |
+| 1 | 2.648955s | 0.187353s |
+| 2 | 2.655638s | 0.207023s |
+| 3 | 2.625565s | 0.195237s |
+
+Encoding takes 0.223868s and produces 484,945 bytes. Median decoding is 0.195237s
+versus 2.648955s parsing/projecting, a 2.453718s difference (92.6%). All six results
+exactly match the projected modules. This is an isolated phase opportunity, not
+an achieved compiler speedup: edited files, cache reads/keys, binding, signature
+and effect checks, fallback and artifact assembly are not measured here. No
+process-memory comparison is claimed while the harness retains both versions.
+
+### Recommended next slice
+
+Do not immediately add a full AST disk cache. Trial a distinct module-summary
+representation paired with the existing encoded-function cache. Read and validate
+current source bytes, traverse imports/confinement and bind declarations normally.
+Only omit function parsing when matching successful compiled functions/effect
+facts are available under the current conservative keys. If source, metadata,
+compiled records or their validation cannot support reuse, obtain the complete
+parsed module before body checking. Package and rich-tooling paths can retain
+their existing route in the initial slice.
+
+Production code must not disguise an unavailable function body as an empty one.
+Use an explicit summary/full-module distinction, and test invalidation, missing
+code entries, corrupted summaries, changed dependencies, exact diagnostics and
+fresh artifact equality. The implementation earns adoption through complete
+edited-build measurements, not these isolated timings. This narrower candidate
+has more potential than full-tree restoration but needs that integration proof.
+
+Validation here consists of compiling the isolated harness, twelve exact
+49-module comparisons and documentation checks. No product changes, seed refresh,
+full validation rerun, CI trigger or website update is included. The experiment
+is complete; RM#28/GI#106 and RM#157 remain open.

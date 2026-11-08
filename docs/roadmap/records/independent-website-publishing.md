@@ -886,6 +886,19 @@ The final product tree passed local `make check` in 553s. Development/PR CI rema
 suppressed; hosted checks start on integration. This does not close RM#28/GI#106
 or RM#157. Earlier branch-only notes record the individual checkpoints.
 
+
+### Parsed-module reuse controls, 8 November 2026
+
+PR #691 merged the encoded-function/source-input batch; integration run
+[42498471810](https://github.com/sproates/panackelty/actions/runs/42498471810) passed.
+The [next isolated controls](../../COMPILER_EDIT_PROFILE.md#parsed-module-reuse-controls-8-november-2026)
+show full-tree decoding at 2.207s versus 2.681s lex/parse, but declaration summaries
+at 0.195s versus 2.649s. Twelve exact 49-module comparisons pass. No product code
+changes or end-to-end speedup are claimed. A distinct summary representation
+paired with valid compiled functions is recommended, with complete parsing on a
+miss and fresh diagnostic/artifact comparisons before adoption. RM#28/GI#106 and
+RM#157 remain open.
+
 ### Incremental command direction, 7 November 2026
 
 The owner expects an ordinary one-shot command such as

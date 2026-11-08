@@ -793,6 +793,11 @@ alternating pairs reduced median edited builds by 18.4%, with matching bytecode
 and diagnostics. Focused checks, bootstrap fixed points and final `make check`
 (565s) passed; the bounded optimisation is included in this integration.
 
+A subsequent [name-lookup traversal trial](../../COMPILER_EDIT_PROFILE.md#name-lookup-traversal-trial--not-adopted-8-november-2026)
+showed no meaningful speedup and was discarded. Product code and seed are
+unchanged. Its profile identifies repeated binding-conflict validation as a
+stronger candidate; the reuse boundary is not yet designed or implemented.
+
 ### Incremental command direction, 7 November 2026
 
 The owner expects an ordinary one-shot command such as

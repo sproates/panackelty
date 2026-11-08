@@ -251,3 +251,42 @@ the standard-library artifact is unchanged. Final `make check` passed in 565s
 checks. This suite duration is an acceptance observation, not a matched speedup
 comparison. No website update is needed for this
 internal optimisation; it does not complete RM#157 or GI#106.
+
+## Name-lookup traversal trial — not adopted, 8 November 2026
+
+A follow-up trial stopped walking remaining imports once ordinary name lookup
+had selected a declaration or import. Duplicate-binding checks stayed before
+selection. A separate observer VM counted and timed name resolution, import
+selector access and binding diagnostics on the compiler self-build. The packaged
+VM and seed were never changed.
+
+Selector calls inside name resolution fell from 255,824 to 67,030. Instrumented
+signature checking measured 2.203s/2.100s and body checking 8.578s/8.754s
+(original/candidate). The trace contains many small calls and adds overhead;
+these observations locate work, not establish a speedup.
+
+Three alternating ordinary-VM pairs compiled identical sources without caches:
+
+| Pair | Original | Candidate |
+| --- | ---: | ---: |
+| 1 | 12.928s | 13.299s |
+| 2 | 13.426s | 13.170s |
+| 3 | 13.155s | 13.029s |
+
+The medians, 13.155s and 13.170s, are effectively even. Every artifact matched.
+The candidate passed 1,453 module-binding assertions, including five temporary
+cases covering local selection, the last import's edge index, missing names and
+late binding conflicts. The production change and trial-only tests were removed;
+no seed refresh or product change is retained. This documentation-only outcome
+uses documentation/link checks, not another full product validation.
+
+The profile identifies a stronger next candidate: name resolution called
+`module_binding_diagnostics` 29,556 times across a 49-module compilation,
+spending 5.829s inclusive in the observer run. Source inspection confirms that
+each call rebuilds a name set and checks all declarations/imports again. The
+trial deliberately preserved those checks. A future bounded design should
+avoid repeating validation of an unchanged binding set within one compilation,
+while preserving duplicate detection, diagnostic ordering and direct resolver
+behaviour on invalid graphs. No such design or implementation is adopted here.
+
+This completes the rejected trial, not RM#157/GI#106. There is no website impact.

@@ -337,5 +337,8 @@ Native artifacts and bootstrap fixed points pass; final `make check` passed in
 570s, including functional, packaging and installed smoke checks. Documentation
 checks pass. The profile retains an intermittent existing TCP-test failure that
 passed direct repeats and the final run; its cause is not claimed resolved.
-This bounded change does not complete RM#28/GI#106 or RM#157. No CI, integration,
-release or website publication is part of this local checkpoint.
+The owner selected integration into `next` on 8 November. This integration includes
+the validated summary-reuse slice; hosted integration acceptance remains pending.
+Development/PR CI is suppressed under the alpha.16 trial, and the merge starts
+integration CI. The experiment branch is retained. This does not complete
+RM#28/GI#106 or RM#157; no release or website publication is included.

@@ -128,7 +128,11 @@ main(): Void {
             "command failed: ${code}; last completed group: ${stage}")
         },
         Ok(output) => {
-          module_succeeded = true
+          module_succeeded = output.exit_code == 0 && output.signal == 0
+          if !module_succeeded {
+            diagnostic = std_host.decode_utf8(output.stderr).value_or("Native test stderr was not valid UTF-8.")
+            std_host.stderr(diagnostic)
+          }
           std_testing_commands.command_output("native module contracts", output,
             ProcessOutput(0, 0, "native module contracts: ok\n".encode_utf8(), byte_buffer.empty()))
         }

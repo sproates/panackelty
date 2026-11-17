@@ -343,3 +343,10 @@ Documentation is its own acceptance work, not a final optional polish step.
 Do not count AS1 twice within RM#162 or equate this programme's weights with a
 release percentage. Shared state, closures and anonymous functions remain
 separate work after this topic, unless the owner changes the order.
+
+## Whole-library review proposal, 17 November 2026
+
+The owner requested a recommendation covering the entire stdlib, including names
+and module ownership. [The redesign proposal](STDLIB_REDESIGN_PROPOSAL.md) records
+that recommendation for review under RM#162. It does not approve the individual
+API changes or replace the existing runtime acceptance requirements.

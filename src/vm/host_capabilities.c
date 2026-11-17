@@ -667,7 +667,14 @@ static Value *hc_process(VM *vm, const char *operation, Value **a, bool isolated
     }
     if (child == 0) {
         int child_error = 0;
-        if (setpgid(0, 0) || chdir((char *)a[3]->as.bytes.data) ||
+        /* Parent and child both establish the group before exec. Darwin can
+         * report EPERM for overlapping identical assignments. Accept only
+         * that error, and only after verifying the required postcondition. */
+        int group_error = setpgid(0, 0) < 0 ? errno : 0;
+        if (group_error == EPERM && getpgrp() == getpid()) group_error = 0;
+        if (group_error) {
+            child_error = group_error;
+        } else if (chdir((char *)a[3]->as.bytes.data) ||
             dup2(pipes[0][0], STDIN_FILENO) < 0 || dup2(pipes[1][1], STDOUT_FILENO) < 0 ||
             dup2(pipes[2][1], STDERR_FILENO) < 0) {
             child_error = errno;

@@ -1857,3 +1857,24 @@ probe tests filter the new trace. The source manifest now includes
 `module_summaries.panack` (52 eligible files). Production-parser inventory reviewed
 530 import/type/record/enum exclusions against the prior 509; no executable functions
 are excluded and this is not a new coverage collection.
+
+### Process-group launch race regression
+
+The native fault suite deterministically exercises a child process-group assignment
+that reports EPERM after establishing the requested group. Launch continues only
+when that postcondition is true; EPERM with the wrong group and EIO with the correct
+group still return launch_failed with their original native error. Tests check
+payload delivery, resource cleanup and error preservation. This covers the macOS
+concurrent setpgid failure mode without relying on probabilistic runner timing.
+
+Reference: [independent Darwin setpgid reproducer](https://www.mail-archive.com/bug-bash@gnu.org/msg36424.html).
+This establishes a matching failure mode, not the errno of earlier Panack nightly
+failures. The old logs only retained the launch_failed category. The harness and
+package Git diagnostics now retain native error numbers for future investigation.
+The regression failed against the original implementation and passes with the
+postcondition check. A local 3,000-launch timing probe did not reproduce the race;
+the automated regression therefore uses deterministic syscall fault injection.
+
+Performance: the normal successful launch adds no syscall. Only an EPERM result
+checks the existing process group; there is no retry loop, sleep or timeout change.
+Existing process timeout/descendant cleanup functional coverage remains applicable.

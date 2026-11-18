@@ -1009,8 +1009,8 @@ pure builtin_filesystem_return(name: Str): Str {
 }
 
 pure builtin_legacy_return(name: Str): Str {
-  if name == "fs_read_chunk" { "Result[Bytes,HostError]" } else
-  if name == "fs_atomic_write" { "Result[Unit,HostError]" } else
+  if (name == "fs_read_chunk" || name == "fs_read_chunk_async") { "Result[Bytes,HostError]" } else
+  if (name == "fs_atomic_write" || name == "fs_atomic_write_async") { "Result[Unit,HostError]" } else
   if name == "digest_sha256_open" { "Result[Nat,HostError]" } else
   if name == "digest_update" { "Result[Unit,HostError]" } else
   if name == "digest_finish" { "Result[Bytes,HostError]" } else
@@ -1246,8 +1246,8 @@ pure builtin_service_arity(name: Str): Nat {
 }
 
 pure builtin_legacy_arity(name: Str): Nat {
-  if name == "fs_read_chunk" { 3 } else
-  if name == "fs_atomic_write" { 2 } else
+  if (name == "fs_read_chunk" || name == "fs_read_chunk_async") { 3 } else
+  if (name == "fs_atomic_write" || name == "fs_atomic_write_async") { 2 } else
   if name == "digest_sha256_open" { 0 } else
   if name == "digest_update" { 2 } else
   if name == "digest_finish" { 1 } else
@@ -1476,8 +1476,8 @@ pure builtin_network_parameter(name: Str, index: Nat): Str {
 }
 
 pure builtin_legacy_parameter(name: Str, index: Nat): Str {
-  if name == "fs_read_chunk" { if index == 0 { "Path" } else if index == 1 { "Nat" } else if index == 2 { "Nat" } else { "Any" } } else
-  if name == "fs_atomic_write" { if index == 0 { "Path" } else if index == 1 { "Bytes" } else { "Any" } } else
+  if (name == "fs_read_chunk" || name == "fs_read_chunk_async") { if index == 0 { "Path" } else if index == 1 { "Nat" } else if index == 2 { "Nat" } else { "Any" } } else
+  if (name == "fs_atomic_write" || name == "fs_atomic_write_async") { if index == 0 { "Path" } else if index == 1 { "Bytes" } else { "Any" } } else
   if name == "digest_sha256_open" { "Any" } else
   if name == "digest_update" { if index == 0 { "Nat" } else if index == 1 { "Bytes" } else { "Any" } } else
   if name == "digest_finish" { if index == 0 { "Nat" } else { "Any" } } else

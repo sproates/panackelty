@@ -1,6 +1,7 @@
 #include "platform.h"
 
 #include "host_capabilities.h"
+#include "filesystem_stage.h"
 #include "host_types.h"
 #include "numeric.h"
 #include "root_read.h"
@@ -32,6 +33,8 @@ static const FilesystemOperation FILESYSTEM_OPERATIONS[] = {
     {"fs_root_identity", "P", 0},
     {"fs_metadata", "P", 0},
     {"fs_read", "PN", FILE_BYTES},
+    {"fs_read_chunk", "PON", 65536},
+    {"fs_atomic_write", "PB", 0},
     {"fs_write", "PB", 0},
     {"fs_list", "P", ROOT_READ_BYTES},
     {"fs_create_directory", "P", 0},
@@ -110,8 +113,11 @@ static void *read_worker(void *context)
 {
     VMRootRead *read = context;
     VM isolated = {0};
-    Value *result = host_capability_call(
-        &isolated, read->operation->name, read->arguments);
+    bool staged = !strcmp(read->operation->name, "fs_read_chunk") ||
+                  !strcmp(read->operation->name, "fs_atomic_write");
+    Value *result = staged
+        ? filesystem_stage_call(&isolated, read->operation->name, read->arguments)
+        : host_capability_call(&isolated, read->operation->name, read->arguments);
     pthread_mutex_lock(&read->mutex);
     read->result = result;
     read->error = isolated.error;
@@ -163,13 +169,18 @@ VMRootRead *filesystem_async_start(VM *vm, const char *name, Value **arguments)
         char kind = operation->arguments[i];
         if ((kind == 'P' && (value->kind != V_PATH ||
               memchr(value->as.bytes.data, 0, value->as.bytes.length))) ||
-            (kind == 'N' && value->kind != V_NAT) || (kind == 'B' && value->kind != V_BYTES)) {
+            ((kind == 'N' || kind == 'O') && value->kind != V_NAT) || (kind == 'B' && value->kind != V_BYTES)) {
             vm->error = "VM trap: invalid asynchronous filesystem arguments";
             return NULL;
         }
         if (kind == 'P') out_of_range |= value->as.bytes.length > ROOT_READ_PATH;
+        if (kind == 'O') {
+            size_t offset = 0;
+            out_of_range |= !value_index(value, &offset) || offset > 256u * 1024u * 1024u;
+        }
         if (kind == 'B') {
-            out_of_range |= value->as.bytes.length > FILE_BYTES;
+            size_t maximum = !strcmp(name, "fs_atomic_write") ? 32u * 1024u * 1024u : FILE_BYTES;
+            out_of_range |= value->as.bytes.length > maximum;
             if (!out_of_range) reservation += value->as.bytes.length;
         }
         if (kind == 'N') {
@@ -226,7 +237,7 @@ VMRootRead *filesystem_async_start(VM *vm, const char *name, Value **arguments)
     read->reserved_bytes = reservation;
     for (size_t i = 0; i < argument_count; i++) {
         Value *argument = arguments[i];
-        if (operation->arguments[i] == 'N') {
+        if (operation->arguments[i] == 'N' || operation->arguments[i] == 'O') {
             size_t number = 0;
             (void)value_index(argument, &number);
             read->arguments[i] = value_size(number);

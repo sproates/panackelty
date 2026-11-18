@@ -76,6 +76,8 @@ static const Builtin BUILTINS[] = {
     {"$tcp_serve_stream", 5, false, BUILTIN_TCP_SERVE_STREAM, async_service_only},
     {"$tcp_server_read_chunk", 1, false, BUILTIN_TCP_SERVER_READ_CHUNK, async_service_only},
     {"fs_metadata_async", 1, false, BUILTIN_FILESYSTEM_ASYNC, async_service_only},
+    {"fs_read_chunk_async", 3, false, BUILTIN_FILESYSTEM_ASYNC, async_service_only},
+    {"fs_atomic_write_async", 2, false, BUILTIN_FILESYSTEM_ASYNC, async_service_only},
     {"fs_read_async", 2, false, BUILTIN_FILESYSTEM_ASYNC, async_service_only},
     {"fs_write_async", 2, false, BUILTIN_FILESYSTEM_ASYNC, async_service_only},
     {"fs_list_async", 1, false, BUILTIN_FILESYSTEM_ASYNC, async_service_only},

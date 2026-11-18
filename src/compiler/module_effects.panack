@@ -72,7 +72,7 @@ pure module_ordinary_call_diagnostic(target: BodyTarget, display_name: Str): Str
 }
 
 pure module_async_builtin(name: Str): Bool {
-  name == "fs_metadata_async" ||
+  name == "fs_read_chunk_async" || name == "fs_atomic_write_async" || name == "fs_metadata_async" ||
     name == "fs_read_async" ||
     name == "fs_write_async" ||
     name == "fs_list_async" ||

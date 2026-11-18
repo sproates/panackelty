@@ -281,3 +281,8 @@ After successful delivery, the caller owns the path and its cleanup. Process
 termination is not a cleanup guarantee. Final batch acceptance remains pending.
 See the [implementation contract](../../docs/STDLIB_API_CONTRACT.md) for the
 complete inventory and remaining migration work.
+
+Async `filesystem.read_chunk` and `filesystem.write_atomic` now share the ordinary
+bounded implementation on the development branch. Reads allow chunks up to 64 KiB
+and offsets up to 256 MiB; atomic writes accept at most 32 MiB. Cancelling an
+atomic write does not roll back a replacement already in progress.

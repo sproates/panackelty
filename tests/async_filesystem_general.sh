@@ -33,6 +33,13 @@ async main(): Unit {
   directory = require(await fs.create_temp_directory(parent))
   file = require(await fs.create_temp_file(directory))
   payload = "async filesystem".encode_utf8()
+  atomic = require(await fs.write_atomic(file, "abcdef".encode_utf8()))
+  expect(require(await fs.read_chunk(file, 2, 3)) == "cde".encode_utf8())
+  expect(require(await fs.read_chunk(file, 100000, 3)).length() == 0)
+  match await fs.read_chunk(file, 0, 65537) {
+    Ok(_) => expect(false),
+    Error(problem) => expect(problem.code == "out_of_range")
+  }
   wrote = require(await fs.write(file, payload))
   expect(require(await fs.read(file, 1024)) == payload)
   info: ordinary.FileMetadata = require(await fs.metadata(file))

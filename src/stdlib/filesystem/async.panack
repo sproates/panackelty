@@ -50,3 +50,11 @@ pub async create_temp_directory(parent: Path): Result[Path,HostError] {
 pub async directories_overlap(left: Path, right: Path): Result[Bool,HostError] {
   await confined_support.directories_overlap(left, right)
 }
+
+pub async read_chunk(file: Path, offset: Nat, limit: Nat): Result[Bytes,HostError] {
+  await fs_read_chunk_async(file, offset, limit)
+}
+
+pub async write_atomic(file: Path, data: Bytes): Result[Unit,HostError] {
+  await fs_atomic_write_async(file, data)
+}

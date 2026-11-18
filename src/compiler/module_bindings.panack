@@ -421,6 +421,8 @@ pub pure module_declaration_display(binding: ModuleDeclarationBinding): Str {
 pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool {
   owner.module.package == ToolchainModulePackage() && (
     (owner.module.path == "filesystem/async.panack" && owner.name == "metadata" && name == "fs_metadata_async") ||
+    (owner.module.path == "filesystem/async.panack" && owner.name == "read_chunk" && name == "fs_read_chunk_async") ||
+    (owner.module.path == "filesystem/async.panack" && owner.name == "write_atomic" && name == "fs_atomic_write_async") ||
     (owner.module.path == "filesystem/async.panack" && owner.name == "read" && name == "fs_read_async") ||
     (owner.module.path == "filesystem/async.panack" && owner.name == "write" && name == "fs_write_async") ||
     (owner.module.path == "filesystem/async.panack" && owner.name == "list_directory" && name == "fs_list_async") ||
@@ -535,7 +537,7 @@ pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool 
 pub pure module_internal_primitive_name(identity: ModuleIdentity, name: Str): Bool {
   identity.package == ToolchainModulePackage() && (
     (identity.path == "filesystem/async.panack" && name == "fs_metadata_async") ||
-    (identity.path == "filesystem/async.panack" && name == "fs_read_async") ||
+    (identity.path == "filesystem/async.panack" && (name == "fs_read_chunk_async" || name == "fs_atomic_write_async" || name == "fs_read_async")) ||
     (identity.path == "filesystem/async.panack" && name == "fs_write_async") ||
     (identity.path == "filesystem/async.panack" && name == "fs_list_async") ||
     (identity.path == "filesystem/async.panack" && name == "fs_remove_file_async") ||

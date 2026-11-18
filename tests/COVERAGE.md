@@ -1907,3 +1907,9 @@ result handoff or abandonment. Cleanup runs on that worker; cancellation adds no
 blocking filesystem call to the event loop. No bytecode or compiler change.
 Website impact: included in the existing pending async stdlib reference update;
 no published article changes.
+
+Async filesystem candidate tests also cover atomic replacement followed by chunk
+reads, a nonzero offset, EOF and rejection above the 64 KiB chunk limit, through
+source and saved bytecode. These operations reuse the existing no-follow native
+implementation in bounded workers; no new bytecode format or execution engine.
+Final expanded stdlib batch validation remains pending.

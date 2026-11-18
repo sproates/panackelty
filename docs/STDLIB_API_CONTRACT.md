@@ -232,6 +232,9 @@ Implemented on the development branch, not yet accepted for integration:
   and directories_overlap; existing paths and names remain available.
 - General async metadata/read/write/list/create/remove/temp operations and overlap
   checking through the bounded filesystem worker, with canonical creation names.
+- Async read_chunk and write_atomic reuse the ordinary bounded implementation: a
+  64 KiB chunk limit, 256 MiB offset limit and 32 MiB atomic-write payload limit.
+  Cancellation abandons waiting; an atomic replacement may still finish.
 - Native admission checks reserve at most 512 MiB of pending payload budgets across
   at most 32 worker operations. This is a payload reservation, not total heap usage.
 
@@ -249,5 +252,5 @@ native error on stderr; it never recursively deletes content. These are ordinary
 path operations, not a confinement or process-crash cleanup guarantee. Native
 tests cover cancellation before/after completion, accepted ownership, allocation
 failures and a non-empty directory preventing cleanup. No completion credit is
-claimed for AS2 yet. Async chunk/atomic/link operations and canonical
+claimed for AS2 yet. Async link operations and canonical
 confined/staging modules also remain.

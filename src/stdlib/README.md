@@ -51,9 +51,9 @@ invocation snapshot semantics.
 `root_identity`, and their shared types. These paths retain existing bounds,
 cancellation behaviour and capability grants. The old `stdlib/async_host`
 and `stdlib/async_filesystem` paths remain compatible; there is one
-implementation of each operation. This does not add async counterparts to
-all filesystem/host operations: sleep, process execution, and general file
-writes are not exported by these async modules.
+implementation of each operation. The first batch did not add all filesystem/host operations. The broader
+development APIs and their remaining acceptance are described below; sleep and
+process execution still await their async implementations.
 
 See the [uptime service](../../examples/network/http_uptime/README.md) for a
 complete HTTP handler using the clock and immutable start context.
@@ -261,3 +261,20 @@ and cleanup. Neither operation provides a process sandbox.
 
 Live handles are released on VM completion, failure and synchronous process exit.
 The native adapters are unavailable in the browser and report `unsupported`.
+
+## Canonical names in alpha.16 development
+
+The development branch adds `time.nanoseconds` and
+`time.from_fractional_seconds`; the latter returns an error for fractional
+nanoseconds. Both are pure and are re-exported by `time/async`. Existing
+`from_nanoseconds` and `from_seconds` remain compatible.
+
+The ordinary filesystem module also exposes `create_temp_file`,
+`create_temp_directory`, `read_chunk`, `write_atomic`, and `directories_overlap`.
+These delegate to existing implementations and preserve their limits and path
+safety rules. The development async module now includes general metadata, read,
+write, listing, creation, removal and overlap operations. This broader batch is
+still undergoing lifecycle validation and is not a released capability. In
+particular, temporary-resource cancellation remains an integration blocker.
+See the [implementation contract](../../docs/STDLIB_API_CONTRACT.md) for the
+complete inventory and remaining migration work.

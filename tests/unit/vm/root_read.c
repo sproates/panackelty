@@ -186,6 +186,25 @@ void root_read_contracts(void)
     for (size_t i = 0; i < 3; i++) {
         release(arguments[i]);
     }
+    await_idle();
+    /* Completed but unconsumed reads retain their byte reservations. A missing
+     * path avoids allocating the reserved output while testing admission. */
+    Value *general[] = {path_value("/panack-missing-reservation-test"),
+                        value_size(128u * 1024u * 1024u)};
+    vm.error = NULL;
+    VMRootRead *large[4];
+    for (size_t i = 0; i < 4; i++) {
+        large[i] = filesystem_async_start(&vm, "fs_read", general);
+        assert(large[i] && !vm.error);
+        root_read_wait(large[i]);
+    }
+    expect_error(filesystem_async_start(&vm, "fs_read", general), "resource_limit");
+    for (size_t i = 0; i < 4; i++) root_read_destroy(large[i]);
+    await_idle();
+    expect_error(filesystem_async_start(&vm, "fs_read", general), "not_found");
+    release(general[0]);
+    release(general[1]);
+    assert(!filesystem_async_start(&vm, "not_a_filesystem_operation", NULL) && vm.error);
     assert(unlink(filename) == 0 && rmdir(directory) == 0);
     await_idle();
 }

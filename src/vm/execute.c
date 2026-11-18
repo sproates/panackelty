@@ -642,12 +642,24 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         return NULL;
     }
     if (entry->dispatch == BUILTIN_FS_READ_BENEATH_ASYNC ||
-        entry->dispatch == BUILTIN_FS_ROOT_IDENTITY_ASYNC) {
+        entry->dispatch == BUILTIN_FS_ROOT_IDENTITY_ASYNC || entry->dispatch == BUILTIN_FILESYSTEM_ASYNC) {
         if (execution->embedded && !execution->filesystem_enabled) {
             vm->error = "VM trap: filesystem service is unavailable in this execution";
         } else {
-            execution->root_read =
-                root_read_start(vm, arguments, entry->dispatch == BUILTIN_FS_ROOT_IDENTITY_ASYNC);
+            if (entry->dispatch == BUILTIN_FILESYSTEM_ASYNC) {
+                char operation[64];
+                size_t length = strlen(entry->name) - strlen("_async");
+                if (length >= sizeof(operation)) {
+                    vm->error = "VM trap: invalid asynchronous filesystem dispatch";
+                    return NULL;
+                }
+                memcpy(operation, entry->name, length);
+                operation[length] = 0;
+                execution->root_read = filesystem_async_start(vm, operation, arguments);
+            } else {
+                execution->root_read =
+                    root_read_start(vm, arguments, entry->dispatch == BUILTIN_FS_ROOT_IDENTITY_ASYNC);
+            }
             if (!execution->root_read && !vm->error) {
                 vm->error = "native VM out of memory";
             }

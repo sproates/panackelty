@@ -1036,8 +1036,8 @@ pure builtin_legacy_return(name: Str): Str {
       name == "tcp_server_read_chunk" {
       "Result[Bytes,Str]"
     } else {
-      if name == "fs_directories_overlap" || (name == "fs_read_beneath" || name == "fs_read_beneath_async") || name == "fs_read" {
-        if name == "fs_directories_overlap" {
+      if (name == "fs_directories_overlap" || name == "fs_directories_overlap_async") || (name == "fs_read_beneath" || name == "fs_read_beneath_async") || (name == "fs_read" || name == "fs_read_async") {
+        if (name == "fs_directories_overlap" || name == "fs_directories_overlap_async") {
           "Result[Bool,HostError]"
         } else {
           if (name == "fs_read_beneath" || name == "fs_read_beneath_async") {
@@ -1047,28 +1047,28 @@ pure builtin_legacy_return(name: Str): Str {
           }
         }
       } else {
-        if name == "fs_write" {
+        if (name == "fs_write" || name == "fs_write_async") {
           "Result[Unit,HostError]"
         } else {
-          if name == "fs_metadata" {
+          if (name == "fs_metadata" || name == "fs_metadata_async") {
             "Result[FileMetadata,HostError]"
           } else {
-            if name == "fs_list" {
+            if (name == "fs_list" || name == "fs_list_async") {
               "Result[[Path],HostError]"
             } else {
-              if name == "fs_create_directory" {
+              if (name == "fs_create_directory" || name == "fs_create_directory_async") {
                 "Result[Unit,HostError]"
               } else {
-                if name == "fs_remove_file" {
+                if (name == "fs_remove_file" || name == "fs_remove_file_async") {
                   "Result[Unit,HostError]"
                 } else {
-                  if name == "fs_remove_directory" {
+                  if (name == "fs_remove_directory" || name == "fs_remove_directory_async") {
                     "Result[Unit,HostError]"
                   } else {
-                    if name == "fs_temp_file" {
+                    if (name == "fs_temp_file" || name == "fs_temp_file_async") {
                       "Result[Path,HostError]"
                     } else {
-                      if name == "fs_temp_directory" {
+                      if (name == "fs_temp_directory" || name == "fs_temp_directory_async") {
                         "Result[Path,HostError]"
                       } else {
                         if name == "host_decode_utf8" {
@@ -1278,31 +1278,31 @@ pure builtin_legacy_arity(name: Str): Nat {
         1
       }
     } else {
-      if (name == "fs_read_beneath" || name == "fs_read_beneath_async") || name == "fs_read" || name == "fs_directories_overlap" {
+      if (name == "fs_read_beneath" || name == "fs_read_beneath_async") || (name == "fs_read" || name == "fs_read_async") || (name == "fs_directories_overlap" || name == "fs_directories_overlap_async") {
         if (name == "fs_read_beneath" || name == "fs_read_beneath_async") { 3 } else { 2 }
       } else {
-        if name == "fs_write" {
+        if (name == "fs_write" || name == "fs_write_async") {
           2
         } else {
-          if name == "fs_metadata" {
+          if (name == "fs_metadata" || name == "fs_metadata_async") {
             1
           } else {
-            if name == "fs_list" {
+            if (name == "fs_list" || name == "fs_list_async") {
               1
             } else {
-              if name == "fs_create_directory" {
+              if (name == "fs_create_directory" || name == "fs_create_directory_async") {
                 1
               } else {
-                if name == "fs_remove_file" {
+                if (name == "fs_remove_file" || name == "fs_remove_file_async") {
                   1
                 } else {
-                  if name == "fs_remove_directory" {
+                  if (name == "fs_remove_directory" || name == "fs_remove_directory_async") {
                     1
                   } else {
-                    if name == "fs_temp_file" {
+                    if (name == "fs_temp_file" || name == "fs_temp_file_async") {
                       1
                     } else {
-                      if name == "fs_temp_directory" {
+                      if (name == "fs_temp_directory" || name == "fs_temp_directory_async") {
                         1
                       } else {
                         if name == "host_decode_utf8" {
@@ -1530,11 +1530,11 @@ pure builtin_legacy_parameter(name: Str, index: Nat): Str {
         }
       }
     } else {
-      if (name == "fs_read_beneath" || name == "fs_read_beneath_async") || name == "fs_read" || name == "fs_directories_overlap" {
+      if (name == "fs_read_beneath" || name == "fs_read_beneath_async") || (name == "fs_read" || name == "fs_read_async") || (name == "fs_directories_overlap" || name == "fs_directories_overlap_async") {
         if (name == "fs_read_beneath" || name == "fs_read_beneath_async") {
           if index == 2 { "Nat" } else { "Path" }
         } else {
-          if name == "fs_directories_overlap" {
+          if (name == "fs_directories_overlap" || name == "fs_directories_overlap_async") {
             "Path"
           } else {
             if index == 0 {
@@ -1545,7 +1545,7 @@ pure builtin_legacy_parameter(name: Str, index: Nat): Str {
           }
         }
       } else {
-        if name == "fs_write" {
+        if (name == "fs_write" || name == "fs_write_async") {
           if index == 0 {
             "Path"
           } else {
@@ -1556,49 +1556,49 @@ pure builtin_legacy_parameter(name: Str, index: Nat): Str {
             }
           }
         } else {
-          if name == "fs_metadata" {
+          if (name == "fs_metadata" || name == "fs_metadata_async") {
             if index == 0 {
               "Path"
             } else {
               "Any"
             }
           } else {
-            if name == "fs_list" {
+            if (name == "fs_list" || name == "fs_list_async") {
               if index == 0 {
                 "Path"
               } else {
                 "Any"
               }
             } else {
-              if name == "fs_create_directory" {
+              if (name == "fs_create_directory" || name == "fs_create_directory_async") {
                 if index == 0 {
                   "Path"
                 } else {
                   "Any"
                 }
               } else {
-                if name == "fs_remove_file" {
+                if (name == "fs_remove_file" || name == "fs_remove_file_async") {
                   if index == 0 {
                     "Path"
                   } else {
                     "Any"
                   }
                 } else {
-                  if name == "fs_remove_directory" {
+                  if (name == "fs_remove_directory" || name == "fs_remove_directory_async") {
                     if index == 0 {
                       "Path"
                     } else {
                       "Any"
                     }
                   } else {
-                    if name == "fs_temp_file" {
+                    if (name == "fs_temp_file" || name == "fs_temp_file_async") {
                       if index == 0 {
                         "Path"
                       } else {
                         "Any"
                       }
                     } else {
-                      if name == "fs_temp_directory" {
+                      if (name == "fs_temp_directory" || name == "fs_temp_directory_async") {
                         if index == 0 {
                           "Path"
                         } else {

@@ -12,6 +12,8 @@ typedef struct VMRootRead VMRootRead;
  * Its worker keeps the admission slot and releases its own state on completion.
  */
 VMRootRead *root_read_start(VM *vm, Value **arguments, bool identity_only);
+/* Closed filesystem operation set; preserves the ordinary host result contract. */
+VMRootRead *filesystem_async_start(VM *vm, const char *operation, Value **arguments);
 bool root_read_poll(VMRootRead *read);
 /* Only the single-operation CLI adapter uses this blocking wait. */
 void root_read_wait(VMRootRead *read);

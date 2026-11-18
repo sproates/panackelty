@@ -1,3 +1,5 @@
+import stdlib/bounded_filesystem as bounded
+import stdlib/package_filesystem as confined_support
 pub import stdlib/host::{HostError}
 
 pub enum FileKind { RegularFile, Directory, SymbolicLink, OtherFile }
@@ -37,4 +39,17 @@ pub temp_directory(parent: Path): Result[Path, HostError] {
 
 pub temp_file(parent: Path): Result[Path, HostError] {
   fs_temp_file(parent)
+}
+
+// Canonical names retain the existing creation and path-safety contracts.
+pub create_temp_file(parent: Path): Result[Path,HostError] { temp_file(parent) }
+pub create_temp_directory(parent: Path): Result[Path,HostError] { temp_directory(parent) }
+pub read_chunk(file: Path, offset: Nat, limit: Nat): Result[Bytes,HostError] {
+  bounded.read_chunk(file, offset, limit)
+}
+pub write_atomic(file: Path, data: Bytes): Result[Unit,HostError] {
+  bounded.atomic_write(file, data)
+}
+pub directories_overlap(left: Path, right: Path): Result[Bool,HostError] {
+  confined_support.directories_overlap(left, right)
 }

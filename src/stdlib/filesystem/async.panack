@@ -1,3 +1,52 @@
-// Only operations with asynchronous implementations are exported here.
-pub import stdlib/async_filesystem::{HostError, FilesystemRootIdentity,
-  FilesystemRootRead, read_beneath, root_identity}
+import stdlib/package_filesystem/async as confined_support
+pub import stdlib/filesystem::{HostError, FileKind, FileKind.RegularFile, FileKind.Directory,
+  FileKind.SymbolicLink, FileKind.OtherFile, FileMetadata}
+pub import stdlib/async_filesystem::{FilesystemRootIdentity, FilesystemRootRead,
+  read_beneath, root_identity}
+
+
+pub async metadata(path: Path): Result[FileMetadata, HostError] {
+  await fs_metadata_async(path)
+}
+
+pub async read(path: Path, limit: Nat): Result[Bytes, HostError] {
+  await fs_read_async(path, limit)
+}
+
+pub async write(path: Path, data: Bytes): Result[Unit, HostError] {
+  await fs_write_async(path, data)
+}
+
+pub async list_directory(path: Path): Result[[Path], HostError] {
+  await fs_list_async(path)
+}
+
+pub async remove_file(path: Path): Result[Unit, HostError] {
+  await fs_remove_file_async(path)
+}
+
+pub async remove_directory(path: Path): Result[Unit, HostError] {
+  await fs_remove_directory_async(path)
+}
+
+pub async create_directory(path: Path): Result[Unit, HostError] {
+  await fs_create_directory_async(path)
+}
+
+pub async temp_directory(parent: Path): Result[Path, HostError] {
+  await fs_temp_directory_async(parent)
+}
+
+pub async temp_file(parent: Path): Result[Path, HostError] {
+  await fs_temp_file_async(parent)
+}
+
+pub async create_temp_file(parent: Path): Result[Path,HostError] {
+  await temp_file(parent)
+}
+pub async create_temp_directory(parent: Path): Result[Path,HostError] {
+  await temp_directory(parent)
+}
+pub async directories_overlap(left: Path, right: Path): Result[Bool,HostError] {
+  await confined_support.directories_overlap(left, right)
+}

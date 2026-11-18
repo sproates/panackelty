@@ -221,3 +221,29 @@ sized. Track operation-level acceptance; do not infer completion from module fil
 existing. Use candidate builds and focused tests while batching, then one final
 full check for a settled delivery. Development pushes remain CI-free. Website
 preview/publication is separate and never implied by a library merge.
+
+## Development checkpoint, 18 November 2026
+
+Implemented on the development branch, not yet accepted for integration:
+
+- time.nanoseconds and from_fractional_seconds, shared by ordinary/async imports,
+  retaining the old factories and error identities.
+- filesystem.create_temp_file/create_temp_directory, read_chunk, write_atomic
+  and directories_overlap; existing paths and names remain available.
+- General async metadata/read/write/list/create/remove/temp operations and overlap
+  checking through the bounded filesystem worker, with canonical creation names.
+- Native admission checks reserve at most 512 MiB of pending payload budgets across
+  at most 32 worker operations. This is a payload reservation, not total heap usage.
+
+Candidate source/bytecode tests cover ordinary canonical operations, every general
+async operation, shared FileMetadata identity, missing files and read limits.
+Time tests cover exact fractional seconds, fractional-nanosecond rejection and
+legacy compatibility. Native module and fault suites pass, including reservation
+exhaustion/release. Bootstrap seed refresh, final compatibility/full checks and
+relocated installation acceptance are pending the settled batch.
+
+Before integration, resolve cancellation of temporary-resource creation: a caller
+must not silently lose ownership of a newly created temporary object. Current worker
+abandonment is suitable for non-reversible writes but does not alone establish that
+creation lifecycle contract. No completion credit is claimed for AS2 yet. Async
+chunk/atomic/link operations and canonical confined/staging modules also remain.

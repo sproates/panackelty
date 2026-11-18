@@ -24,6 +24,10 @@ pure expect(value: Bool): Unit {
 
 async main(): Unit {
   expect(time.seconds(1) == ordinary_time.milliseconds(1000))
+  expect(time.nanoseconds(1000000) == ordinary_time.milliseconds(1))
+  expect(time.from_fractional_seconds(1 / 2) == Ok(time.milliseconds(500)))
+  expect(ordinary_time.from_fractional_seconds(1 / 10000000000) == Error(time.FractionalNanosecond()))
+  expect(ordinary_time.nanoseconds(-1) == ordinary_time.from_nanoseconds(-1))
   expect(await environment.get("PANACK_ASYNC_VALUE") == Some("ready"))
   expect(await environment.get("PANACK_ASYNC_EMPTY") == Some(""))
   expect(await environment.get("PANACK_ASYNC_MISSING") == None())

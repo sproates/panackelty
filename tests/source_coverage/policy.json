@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Review async-stdlib import declarations and shifted compiler declaration positions.",
+    "reason": "Review filesystem async builtin declarations and canonical filesystem imports using the production inventory.",
     "basis": "Computed with the production parser and inventory_module over every eligible source. Only imports, type refinements, records and enums are excluded; executable functions remain eligible.",
-    "scopeChange": "The four new async stdlib modules are explicitly unmeasured by this bounded corpus and tested by native/source/bytecode service contracts. Existing eligible sources and execution corpus remain unchanged; no coverage percentage is asserted."
+    "scopeChange": "One new async overlap adapter is unmeasured; eligible sources and execution corpus remain unchanged. This is a declaration-policy refresh, not a coverage collection."
   },
-  "manifestHash": "a0275398edee9ebb3ad16f23a4e7973b91710b0718840db79dcbb9da05c3afd4",
-  "exclusionHash": "da7f74d87c8fe5032477c0d3baef62f468d9de818faf72f6f6075b9b3f4aa58d"
+  "manifestHash": "d2cfe569ee02cdd172593e43ea9f6ab3b407dc45679e5bd7fec04bb1afc309da",
+  "exclusionHash": "545c8be83720a9cf74fcf5dca0364ef1a19ea0c5e3f98898b2784f1835e5dd11"
 }

@@ -12,3 +12,9 @@ pub pure seconds(value: Int): Duration {
 pub pure milliseconds(value: Int): Duration {
   duration_nanoseconds(value * 1000000)
 }
+
+// Canonical names; legacy factories retain their implementation during migration.
+pub pure nanoseconds(value: Int): Duration { from_nanoseconds(value) }
+pub pure from_fractional_seconds(value: Rat): Result[Duration,DurationError] {
+  from_seconds(value)
+}

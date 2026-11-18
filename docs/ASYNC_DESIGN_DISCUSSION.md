@@ -350,3 +350,12 @@ The owner requested a recommendation covering the entire stdlib, including names
 and module ownership. [The redesign proposal](STDLIB_REDESIGN_PROPOSAL.md) records
 that recommendation for review under RM#162. It does not approve the individual
 API changes or replace the existing runtime acceptance requirements.
+
+## Redesign direction approved, 18 November 2026
+
+The owner approved the whole-library redesign direction and requested continuation.
+The [API implementation contract](STDLIB_API_CONTRACT.md) records signatures,
+compatibility, ownership and ordering. This approval supersedes the earlier
+proposal-only status, while detailed semantic choices remain explicit. AS2 has
+uncommitted general filesystem worker/compiler implementation, not accepted delivery.
+Canonical names and adapters precede further expansion of that implementation.

@@ -3,10 +3,11 @@
 17 November 2026. Related work: **RM#162: Real-program fixes**.
 Delivery branch: `feature/rm162-async-clock`.
 
-This records the recommendation presented to the owner for review. It is not
-approval of every rename or an assertion that the proposed APIs are implemented.
-The owner has selected broad async stdlib coverage and documentation; the detailed
-API choices below remain proposals. See [the discussion and delivery programme](ASYNC_DESIGN_DISCUSSION.md).
+The owner approved this direction on 18 November 2026. It is not a claim that
+the APIs are implemented. The [implementation contract](STDLIB_API_CONTRACT.md)
+records concrete signatures, compatibility and semantic work; the
+[discussion and delivery programme](ASYNC_DESIGN_DISCUSSION.md) retains runtime
+acceptance and progress tracking.
 
 ## Direction
 

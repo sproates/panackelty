@@ -274,7 +274,10 @@ The ordinary filesystem module also exposes `create_temp_file`,
 These delegate to existing implementations and preserve their limits and path
 safety rules. The development async module now includes general metadata, read,
 write, listing, creation, removal and overlap operations. This broader batch is
-still undergoing lifecycle validation and is not a released capability. In
-particular, temporary-resource cancellation remains an integration blocker.
+not a released capability. Cancelling temporary creation before delivery removes
+the new file or empty directory on its worker. If removal fails, Panack reports
+the path and native error on stderr; it does not recursively delete contents.
+After successful delivery, the caller owns the path and its cleanup. Process
+termination is not a cleanup guarantee. Final batch acceptance remains pending.
 See the [implementation contract](../../docs/STDLIB_API_CONTRACT.md) for the
 complete inventory and remaining migration work.

@@ -242,8 +242,12 @@ legacy compatibility. Native module and fault suites pass, including reservation
 exhaustion/release. Bootstrap seed refresh, final compatibility/full checks and
 relocated installation acceptance are pending the settled batch.
 
-Before integration, resolve cancellation of temporary-resource creation: a caller
-must not silently lose ownership of a newly created temporary object. Current worker
-abandonment is suitable for non-reversible writes but does not alone establish that
-creation lifecycle contract. No completion credit is claimed for AS2 yet. Async
-chunk/atomic/link operations and canonical confined/staging modules also remain.
+Temporary creation now keeps ownership on its bounded worker until the result is
+successfully delivered to the execution. Cancellation before delivery removes the
+new file or empty directory on that worker. Cleanup failure reports the path and
+native error on stderr; it never recursively deletes content. These are ordinary
+path operations, not a confinement or process-crash cleanup guarantee. Native
+tests cover cancellation before/after completion, accepted ownership, allocation
+failures and a non-empty directory preventing cleanup. No completion credit is
+claimed for AS2 yet. Async chunk/atomic/link operations and canonical
+confined/staging modules also remain.

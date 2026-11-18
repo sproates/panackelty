@@ -18,6 +18,9 @@ bool root_read_poll(VMRootRead *read);
 /* Only the single-operation CLI adapter uses this blocking wait. */
 void root_read_wait(VMRootRead *read);
 Value *root_read_result(VMRootRead *read);
+/* Mark a completed result as handed to the caller. Merely inspecting it does
+ * not transfer temporary-file ownership. Destroy cleans up unaccepted temps. */
+void root_read_accept(VMRootRead *read);
 const char *root_read_error(VMRootRead *read);
 void root_read_destroy(VMRootRead *read);
 /* Includes abandoned workers until their host operation has returned. */

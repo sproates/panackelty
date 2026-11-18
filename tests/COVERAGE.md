@@ -1890,3 +1890,20 @@ the automated regression therefore uses deterministic syscall fault injection.
 Performance: the normal successful launch adds no syscall. Only an EPERM result
 checks the existing process group; there is no retry loop, sleep or timeout change.
 Existing process timeout/descendant cleanup functional coverage remains applicable.
+
+### Async temporary-resource ownership
+
+Native module checks cover immediate cancellation, cancellation after creation,
+and accepted results for both temporary files and directories. Retained results
+remain usable after the worker releases its operation. A non-empty temporary
+directory proves cleanup failure preserves contents and reports its exact path
+and native error. Allocation-failure sweeps assert no retained memory, descriptors
+or orphaned temporary entries. General filesystem source and saved-bytecode
+functional cases still pass with the candidate compiler. Final batch acceptance
+remains pending; these focused checks do not replace `make check`.
+
+Performance: temporary creation retains one of the existing 32 worker slots until
+result handoff or abandonment. Cleanup runs on that worker; cancellation adds no
+blocking filesystem call to the event loop. No bytecode or compiler change.
+Website impact: included in the existing pending async stdlib reference update;
+no published article changes.

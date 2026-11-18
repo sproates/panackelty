@@ -9,8 +9,11 @@
 #include <stdlib.h>
 #include <string.h>
 #ifndef __wasi__
+#include <errno.h>
+#include <stdio.h>
 #include <pthread.h>
 #include <stdatomic.h>
+#include <unistd.h>
 #endif
 
 #define ROOT_READ_WORKERS 32
@@ -42,7 +45,7 @@ static const FilesystemOperation FILESYSTEM_OPERATIONS[] = {
 struct VMRootRead {
     Value *arguments[3], *result;
     const char *error;
-    bool done, abandoned, admitted;
+    bool done, abandoned, admitted, temporary_worker, accepted;
     const FilesystemOperation *operation;
     size_t reserved_bytes;
 #ifndef __wasi__
@@ -69,6 +72,22 @@ static Value *read_failure(const char *operation, const char *code)
 #ifndef __wasi__
 static atomic_uint active_reads;
 static atomic_size_t pending_bytes;
+
+static void discard_temporary(VMRootRead *read)
+{
+    Value *result = read->result;
+    if (!result || result->kind != V_VARIANT || strcmp(result->as.named.name, "Ok")) {
+        return;
+    }
+    Value *path = result->as.named.values[0];
+    const char *name = (const char *)path->as.bytes.data;
+    int error = !strcmp(read->operation->name, "fs_temp_directory") ? rmdir(name) : unlink(name);
+    if (error && errno != ENOENT) {
+        int native_error = errno;
+        fprintf(stderr, "Panack could not remove temporary path '%s' after cancellation: %s (errno %d). Remove this path when it is no longer needed.\n",
+                name, strerror(native_error), native_error);
+    }
+}
 
 static void free_read(VMRootRead *read)
 {
@@ -97,6 +116,19 @@ static void *read_worker(void *context)
     read->result = result;
     read->error = isolated.error;
     read->done = true;
+    if (read->temporary_worker) {
+        /* Keep temporary ownership until the execution accepts the result or
+         * abandons it. Cleanup stays on this bounded worker, never the event loop. */
+        pthread_cond_broadcast(&read->completed);
+        while (!read->abandoned) {
+            pthread_cond_wait(&read->completed, &read->mutex);
+        }
+        bool accepted = read->accepted;
+        pthread_mutex_unlock(&read->mutex);
+        if (!accepted) discard_temporary(read);
+        free_read(read);
+        return NULL;
+    }
     bool abandoned = read->abandoned;
     pthread_cond_signal(&read->completed);
     pthread_mutex_unlock(&read->mutex);
@@ -214,10 +246,12 @@ VMRootRead *filesystem_async_start(VM *vm, const char *name, Value **arguments)
     int error = pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
     pthread_t worker;
     if (!error) {
+        read->temporary_worker = !strcmp(name, "fs_temp_file") || !strcmp(name, "fs_temp_directory");
         error = pthread_create(&worker, &attributes, read_worker, read);
     }
     pthread_attr_destroy(&attributes);
     if (error) {
+        read->temporary_worker = false;
         read->result = read_failure(name, "resource_limit");
         read->done = true;
     }
@@ -260,6 +294,12 @@ const char *root_read_error(VMRootRead *read)
     return read->error;
 }
 
+void root_read_accept(VMRootRead *read)
+{
+    /* Owner-thread call after the result has successfully entered its stack. */
+    read->accepted = true;
+}
+
 void root_read_destroy(VMRootRead *read)
 {
     if (!read) {
@@ -267,10 +307,17 @@ void root_read_destroy(VMRootRead *read)
     }
 #ifndef __wasi__
     pthread_mutex_lock(&read->mutex);
+    bool worker_owned = read->temporary_worker;
+    if (worker_owned && read->accepted) {
+        /* Result reference counts are owner-thread only after handoff. */
+        release(read->result);
+        read->result = NULL;
+    }
     read->abandoned = true;
     bool done = read->done;
+    pthread_cond_broadcast(&read->completed);
     pthread_mutex_unlock(&read->mutex);
-    if (done) {
+    if (done && !worker_owned) {
         free_read(read);
     }
 #else

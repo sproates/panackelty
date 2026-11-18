@@ -1691,6 +1691,7 @@ bool vm_execution_poll_filesystem(VMExecution *execution)
         (!result || !stack_push(&execution->frames[execution->frame_count - 1], retain(result)))) {
         execution->vm->error = "native VM out of memory";
     }
+    if (!execution->vm->error) root_read_accept(execution->root_read);
     root_read_destroy(execution->root_read);
     execution->root_read = NULL;
     execution->status = execution->vm->error ? VM_TRAPPED : VM_YIELDED;

@@ -8,6 +8,7 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <dirent.h>
 #include <stdio.h>
 
 static void wait_for_workers(void)
@@ -76,6 +77,30 @@ void root_read_faults(void)
     fault_pause_reads(false);
     wait_for_workers();
     assert(fault_live() == baseline && fault_descriptors() == 0);
+    /* Every allocation boundary during temporary creation must either return
+     * a resource or remove it when its result is abandoned. */
+    const char *temporary[] = {"fs_temp_file", "fs_temp_directory"};
+    for (size_t kind = 0; kind < 2; kind++) {
+        for (size_t failure = 1; failure < 256; failure++) {
+            fault_reset(failure);
+            VM temporary_vm = {0};
+            pending = filesystem_async_start(&temporary_vm, temporary[kind], arguments);
+            if (pending) {
+                root_read_wait(pending);
+                root_read_destroy(pending);
+            }
+            wait_for_workers();
+            assert(fault_live() == baseline && fault_descriptors() == 0);
+            DIR *entries = opendir(directory);
+            assert(entries);
+            struct dirent *entry;
+            while ((entry = readdir(entries))) assert(strncmp(entry->d_name, "panack-", 7));
+            assert(closedir(entries) == 0);
+            if (!fault_triggered()) break;
+            assert(failure < 255);
+        }
+    }
+    fault_reset(0);
     for (size_t i = 0; i < 3; i++) {
         release(arguments[i]);
     }

@@ -1326,6 +1326,14 @@ VM lifetime safety even when a filesystem is slow; physical I/O completion and
 resource release can occur later. The fault harness protects concurrent allocation
 bookkeeping and can pause a read to prove this cancellation path deterministically.
 
+Temporary-file/directory creation retains its worker until the owner acknowledges
+result delivery or cancellation. A successful stack handoff transfers ownership;
+otherwise the worker removes the created file or empty directory. Failed cleanup
+reports the path and native error on stderr without recursive deletion. The owner
+releases its result reference before waking the worker after successful handoff,
+so reference counts are never shared concurrently with resumed bytecode. This
+does not roll back other filesystem writes or guarantee cleanup on process exit.
+
 ## Native HTTP client (P5 proof of concept)
 
 The [P5 design](../design/NATIVE_HTTP_CLIENT_DESIGN.md) keeps URL/request/response

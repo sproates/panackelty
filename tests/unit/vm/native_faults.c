@@ -621,6 +621,32 @@ static void host_failures(void)
         release(result);
         assert(!fault_descriptors() && !fault_children());
     }
+    /* EPERM is recoverable only when the requested group actually exists.
+     * Other errors and a wrong group must still fail, preserving errno. */
+    for (int mode = 1; mode <= 3; mode++) {
+        fault_reset(0);
+        size_t baseline = fault_live();
+        fault_process_group(mode);
+        VM group_vm = {0};
+        Value *result = builtin_call(&group_vm, "process_run", process_inputs);
+        assert(result);
+        if (mode == 1) {
+            assert(!strcmp(result->as.named.name, "Ok"));
+            Value *output = result->as.named.values[0]->as.named.values[2];
+            assert(output->as.bytes.length == 7 && !memcmp(output->as.bytes.data, "payload", 7));
+        } else {
+            assert(!strcmp(result->as.named.name, "Error"));
+            Value *detail = result->as.named.values[0];
+            Value *code = detail->as.named.values[1];
+            assert(code->as.bytes.length == 13 && !memcmp(code->as.bytes.data, "launch_failed", 13));
+            Value *expected_errno = value_size(mode == 3 ? EIO : EPERM);
+            assert(value_equal(detail->as.named.values[2], expected_errno));
+            release(expected_errno);
+        }
+        release(result);
+        assert(fault_live() == baseline && !fault_descriptors() && !fault_children());
+    }
+    fault_reset(0);
     for (size_t i = 0; i < 7; i++) {
         release(process_inputs[i]);
     }

@@ -365,3 +365,17 @@ disabled. Anonymous
 functions, closures and state retain their recorded design questions. Development
 CI remains disabled until requested or integration; no CI is triggered by this
 local handover. The previous optimisation branch is retained.
+
+### Nightly subprocess reliability investigation, 17 November 2026
+
+A separate `fix/nightly-process-launch` branch addresses a reproducible fault-injected
+process-group race and restores native error numbers in test/Git launch diagnostics.
+The 15 and 17 November macOS nightlies reported launch_failed; 16 November passed.
+The historical logs omitted errno, so those failures cannot yet be conclusively
+attributed to the race. The deterministic regression failed before the fix and passes afterwards; final
+`make check` passed in 615 seconds. The patch also preserves native error numbers
+and exposes native-test assertion stderr. One earlier native-module abort did not
+recur on direct/repeated checks or final acceptance; it remains an intermittent
+observation, not a claimed fix. Integration CI and the next scheduled macOS nightly
+remain the hosted acceptance observations. The unfinished async stdlib branch is
+preserved separately.

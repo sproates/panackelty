@@ -42,9 +42,23 @@ static void register_fork_lock(void)
 
 /* Change injection schedules only after workers have quiesced. Bookkeeping
  * remains safe while an owner and filesystem workers allocate concurrently. */
+static int process_group_mode;
+
+void fault_process_group(int mode) { process_group_mode = mode; }
+
+int fault_setpgid(pid_t pid, pid_t group)
+{
+    if (!process_group_mode) return setpgid(pid, group);
+    if (pid != 0) return 0; /* Make the child outcome deterministic. */
+    if (process_group_mode != 2 && setpgid(pid, group)) return -1;
+    errno = process_group_mode == 3 ? EIO : EPERM;
+    return -1;
+}
+
 void fault_reset(size_t allocation)
 {
     pthread_once(&fork_lock_once, register_fork_lock);
+    process_group_mode = 0;
     attempts = 0;
     fail_at = allocation;
     triggered = false;

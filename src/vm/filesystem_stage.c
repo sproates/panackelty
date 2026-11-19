@@ -19,8 +19,15 @@
 #define STAGE_LIMIT 64
 #define CHUNK_LIMIT 65536
 struct Stage { int parent, directory; char *parent_path; char name[64]; bool live, consumed; };
-struct VMFilesystemStages { struct Stage slots[STAGE_LIMIT]; size_t count; };
+struct VMFilesystemStages { struct Stage slots[STAGE_LIMIT]; size_t count; VMStageOwner *owner; };
 #endif
+
+struct VMStageOwner { size_t references; };
+
+void filesystem_stage_owner_release(VMStageOwner *owner)
+{
+    if (owner && --owner->references == 0) free(owner);
+}
 
 static Value *stage_error(const char *operation, const char *code, int error)
 {
@@ -158,6 +165,7 @@ void filesystem_stage_destroy(VM *vm)
             stage_forget(stage);
         }
     }
+    filesystem_stage_owner_release(vm->filesystem_stages->owner);
     free(vm->filesystem_stages); vm->filesystem_stages = NULL;
 #else
     (void)vm;
@@ -278,6 +286,11 @@ Value *filesystem_stage_call(VM *vm, const char *name, Value **a)
         if (!vm->filesystem_stages) vm->filesystem_stages = calloc(1, sizeof(*vm->filesystem_stages));
         if (!vm->filesystem_stages || vm->filesystem_stages->count == STAGE_LIMIT) {
             close(parent); free(path); return stage_error(name, "resource_limit", 0);
+        }
+        if (!vm->filesystem_stages->owner) {
+            vm->filesystem_stages->owner = calloc(1, sizeof(VMStageOwner));
+            if (!vm->filesystem_stages->owner) { close(parent); free(path); return NULL; }
+            vm->filesystem_stages->owner->references = 1;
         }
         size_t slot = vm->filesystem_stages->count++;
         struct Stage *stage = &vm->filesystem_stages->slots[slot];
@@ -404,5 +417,57 @@ Value *filesystem_stage_call(VM *vm, const char *name, Value **a)
     }
     close(parent); free(path);
     return error ? stage_error(name, "filesystem_error", error) : stage_ok();
+#endif
+}
+
+/* Native resource adapter. Owner tokens outlive destroyed VMs while a value
+ * still references them; an old value cannot match a newly allocated table. */
+Value *filesystem_stage_resource_call(VM *vm, const char *name, Value **arguments)
+{
+#ifdef __EMSCRIPTEN__
+    (void)vm; (void)arguments;
+    return stage_error(name, "unsupported", 0);
+#else
+    if (!strcmp(name, "stage_create")) {
+        Value *result = filesystem_stage_call(vm, "fs_stage_begin", arguments);
+        if (!result || strcmp(result->as.named.name, "Ok")) return result;
+        Value *number = result->as.named.values[0];
+        size_t slot;
+        if (!pn_big_fits_size(&number->as.integer, &slot)) { release(result); return NULL; }
+        Value *resource = value_new(V_DIRECTORY_STAGE);
+        if (!resource) {
+            Value *cleanup_args[] = {number};
+            release(filesystem_stage_call(vm, "fs_stage_close", cleanup_args));
+            release(result);
+            return NULL;
+        }
+        resource->as.directory_stage.owner = vm->filesystem_stages->owner;
+        resource->as.directory_stage.slot = slot;
+        resource->as.directory_stage.owner->references++;
+        result->as.named.values[0] = resource;
+        release(number);
+        return result;
+    }
+    const char *operation = NULL;
+    const char *names[] = {"stage_path", "stage_directory", "stage_write", "stage_symlink", "stage_publish", "stage_discard"};
+    const char *legacy[] = {"fs_stage_path", "fs_stage_directory", "fs_stage_write", "fs_stage_symlink", "fs_stage_publish", "fs_stage_close"};
+    const size_t arities[] = {1, 2, 4, 3, 3, 1};
+    size_t arity = 0;
+    for (size_t i = 0; i < sizeof(names) / sizeof(*names); i++) {
+        if (!strcmp(name, names[i])) { operation = legacy[i]; arity = arities[i]; break; }
+    }
+    if (!operation) { vm->error = "VM trap: unknown staging resource operation"; return NULL; }
+    Value *resource = arguments[0];
+    if (resource->kind != V_DIRECTORY_STAGE || !vm->filesystem_stages ||
+        resource->as.directory_stage.owner != vm->filesystem_stages->owner) {
+        return stage_error(name, "invalid_handle", 0);
+    }
+    Value *number = value_size(resource->as.directory_stage.slot);
+    if (!number) return NULL;
+    Value *adapted[4] = {number};
+    for (size_t i = 1; i < arity; i++) adapted[i] = arguments[i];
+    Value *result = filesystem_stage_call(vm, operation, adapted);
+    release(number);
+    return result;
 #endif
 }

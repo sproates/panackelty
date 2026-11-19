@@ -1974,3 +1974,14 @@ boundary. Clock and environment operations use immediate async VM dispatch;
 existing host and confined-filesystem operations are re-exported without new
 workers or duplicated implementations. Bytecode remains v9. Native installs and
 browser source bundles preserve the nested stdlib directory layout.
+
+### Staging resource identity in development
+
+The native staging adapter can return an opaque DirectoryStage value containing
+a slot and a reference-counted invocation identity. The identity outlives the
+stage table when values remain alive, preventing allocator address reuse from
+reviving a stale handle. Table shutdown still closes native resources; retaining
+a value does not retain the VM or directory descriptors. The legacy Nat API is
+kept for existing callers. The native value is not a serializable bytecode
+constant and does not change bytecode v9. Public compiler/type exposure and
+async resource ownership are pending; reference counts remain owner-thread-only.

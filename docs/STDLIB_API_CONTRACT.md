@@ -146,8 +146,12 @@ generation cannot be opened or identified safely, Panack reports its location
 and does not delete it. Successful publication results are allocated before
 commit. Focused native tests cover retry after identity substitution and a
 permission-denied old-generation cleanup (the latter requires a non-root user).
-Opaque values, worker lifetime, busy handling and deterministic async
-cancellation/fault tests remain outstanding. No async staging wrapper
+The native opaque DirectoryStage representation now retains an invocation identity
+token independently of the VM table. Native regressions reject forged numbers,
+foreign invocation handles, stale handles after table recreation, and consumed
+aliases. The token is owner-thread-only metadata, not worker resource ownership.
+Public compiler/module exposure, worker lifetime, busy handling and deterministic
+async cancellation/fault tests remain outstanding. No async staging wrapper
 is exposed until those guarantees are implemented.
 
 ## Console, environment and process

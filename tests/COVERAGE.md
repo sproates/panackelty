@@ -1938,3 +1938,11 @@ users. Publication preallocates its success result before rename. These focused
 checks do not establish complete allocation-fault or async staging acceptance.
 Performance: no extra successful-path filesystem operation; failed cleanup retains
 its bounded stage slot until retry/shutdown. Final batch make check is pending.
+
+Native opaque stage values now have tests rejecting Nat forgery, handles from
+another invocation, stale handles after VM-table recreation, and aliases after
+discard. Retained values outlive table destruction safely through an identity
+token; this token does not keep the native stage alive or grant worker ownership.
+Native-only foundation: no public typed source API or bytecode-format change.
+Performance: one small shared identity allocation per invocation using staging,
+and one normal Value allocation per opaque result. Full batch checks remain pending.

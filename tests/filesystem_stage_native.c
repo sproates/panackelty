@@ -171,6 +171,53 @@ static void published_cleanup_failure(const char *root)
     free(old);
 }
 
+static void opaque_stage_identity(const char *root)
+{
+    VM first = {0}, second = {0};
+    Value *parent[] = {path(root)};
+    Value *created = filesystem_stage_resource_call(&first, "stage_create", parent);
+    Value *handle = retain(payload(created, "Ok"));
+    assert(handle->kind == V_DIRECTORY_STAGE);
+    release(created);
+    Value *args[] = {handle};
+    Value *result = filesystem_stage_resource_call(&first, "stage_path", args);
+    payload(result, "Ok");
+    release(result);
+    created = filesystem_stage_resource_call(&second, "stage_create", parent);
+    Value *other = retain(payload(created, "Ok"));
+    release(created);
+    result = filesystem_stage_resource_call(&second, "stage_path", args);
+    payload(result, "Error");
+    release(result);
+    Value *forged[] = {value_size(1)};
+    result = filesystem_stage_resource_call(&first, "stage_path", forged);
+    payload(result, "Error");
+    release(result);
+    release(forged[0]);
+    /* Keep the value alive across table destruction and recreation. */
+    filesystem_stage_destroy(&first);
+    created = filesystem_stage_resource_call(&first, "stage_create", parent);
+    release(created);
+    result = filesystem_stage_resource_call(&first, "stage_discard", args);
+    payload(result, "Error");
+    release(result);
+    release(handle);
+    Value *owned[] = {other};
+    Value *alias = retain(other);
+    result = filesystem_stage_resource_call(&second, "stage_discard", owned);
+    payload(result, "Ok");
+    release(result);
+    owned[0] = alias;
+    result = filesystem_stage_resource_call(&second, "stage_path", owned);
+    payload(result, "Error");
+    release(result);
+    release(alias);
+    release(other);
+    release(parent[0]);
+    filesystem_stage_destroy(&first);
+    filesystem_stage_destroy(&second);
+}
+
 static void staging_lifetime(const char *root)
 {
     VM vm = {0};
@@ -221,6 +268,7 @@ int main(void)
     assert(mkdtemp(temporary)); char *root = realpath(temporary, NULL); assert(root);
     staged_links_preserve_bytes_and_confine_destinations(root);
     staging_lifetime(root);
+    opaque_stage_identity(root);
     failed_discard_retains_ownership(root);
     published_cleanup_failure(root);
     VM vm={0}; size_t handle=begin(&vm,root);

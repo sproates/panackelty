@@ -100,11 +100,56 @@ static void staged_links_preserve_bytes_and_confine_destinations(const char *roo
     filesystem_stage_destroy(&vm);
 }
 
+static void staging_lifetime(const char *root)
+{
+    VM vm = {0};
+    size_t handle = begin(&vm, root);
+    write_chunk(&vm, handle, "payload", true);
+    char destination[4096];
+    snprintf(destination, sizeof(destination), "%s/occupied", root);
+    assert(mkdir(destination, 0700) == 0);
+    Value *args[] = {value_size(handle), path("occupied"), value_bool(false)};
+    Value *result = filesystem_stage_call(&vm, "fs_stage_publish", args);
+    Value *error = payload(result, "Error");
+    assert(!strcmp((char *)error->as.named.values[1]->as.bytes.data, "destination_conflict"));
+    release(result);
+    /* A rejected publication leaves the stage usable, with its contents intact. */
+    operation(&vm, "fs_stage_path", handle, "ignored", true);
+    write_chunk(&vm, handle, "after-rejection", true);
+    assert(rmdir(destination) == 0);
+    result = filesystem_stage_call(&vm, "fs_stage_publish", args);
+    payload(result, "Ok");
+    release(result);
+    for (size_t i = 0; i < 3; i++) release(args[i]);
+    operation(&vm, "fs_stage_path", handle, "ignored", false);
+    write_chunk(&vm, handle, "after-publication", false);
+    operation(&vm, "fs_stage_publish", handle, "second", false);
+    size_t unpublished = begin(&vm, root);
+    write_chunk(&vm, unpublished, "private", true);
+    Value *pending[] = {value_size(unpublished)};
+    result = filesystem_stage_call(&vm, "fs_stage_path", pending);
+    char *unpublished_path = strdup((char *)payload(result, "Ok")->as.bytes.data);
+    assert(unpublished_path);
+    release(result);
+    release(pending[0]);
+    filesystem_stage_destroy(&vm);
+    assert(access(unpublished_path, F_OK) != 0);
+    free(unpublished_path);
+    /* VM shutdown must never remove a successfully published directory. */
+    char file[8192];
+    snprintf(file, sizeof(file), "%s/payload", destination);
+    assert(access(file, F_OK) == 0 && unlink(file) == 0);
+    snprintf(file, sizeof(file), "%s/after-rejection", destination);
+    assert(access(file, F_OK) == 0 && unlink(file) == 0);
+    assert(rmdir(destination) == 0);
+}
+
 int main(void)
 {
     char temporary[] = "/tmp/panack-stage-native-XXXXXX";
     assert(mkdtemp(temporary)); char *root = realpath(temporary, NULL); assert(root);
     staged_links_preserve_bytes_and_confine_destinations(root);
+    staging_lifetime(root);
     VM vm={0}; size_t handle=begin(&vm,root);
     operation(&vm,"fs_stage_directory",handle,"nested",true);
     write_chunk(&vm,handle,"nested/main.panack",true);

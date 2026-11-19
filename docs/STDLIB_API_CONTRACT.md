@@ -109,6 +109,42 @@ removes unpublished content and consumes it. Specify failure/cancellation state
 for each operation before implementing async publication; never promise rollback.
 Typed resources and modes are semantic work, not merely wrapper renames.
 
+### Staging lifetime and async implementation boundary (19 November)
+
+The following is the implementation contract, not a claim that async staging is
+already available. Existing Nat handles remain compatibility entry points.
+
+| Operation | Ownership and failure outcome |
+| --- | --- |
+| create | A worker owns a new stage until successful result handoff. Cancellation before handoff discards it. Allocation failure must not strand an undisclosed stage. |
+| path | Returns a snapshot of the current path after parent-identity validation; it does not transfer ownership or guarantee future path stability. |
+| create_directory / write_chunk / create_symlink | The stage remains owned and usable after completion. Failure or cancellation may leave a partial change; no rollback is promised. |
+| publish | Pre-commit failure leaves the stage usable. Successful rename/exchange consumes it, even if waiting was cancelled. Never return publication failure after the commit point. |
+| discard | Successful removal consumes the stage. Cleanup failure must retain enough ownership to retry or report the remaining path; it must not silently forget remaining content. |
+| invocation shutdown | Abandon pending waits, prevent new operations, and retain native ownership until workers finish. Remove unpublished content; never remove the published destination. |
+
+One operation at a time may use a stage. A second concurrent operation returns a
+structured busy error rather than racing mutation or cleanup. Aliases refer to
+one resource state: consumption invalidates all of them. Opaque DirectoryStage
+values must identify their owning invocation and cannot be constructed by wrapping
+an arbitrary Nat in a public record.
+
+Workers must own native resource state independently of VM/program/value lifetimes.
+Do not pass the current VM stage table into the general filesystem worker's isolated
+VM. Table destruction must not close descriptors still in use by a worker. Keep
+admission bounded and perform recursive discard on workers, not the event loop.
+Prepare the successful publication result before committing, so an allocation
+failure cannot make a committed publication appear to have failed. Old-generation
+cleanup after replacement is separate from publication success and must report
+failure without deleting a substituted directory.
+
+The existing synchronous implementation has verified pre-commit rejection,
+continued stage use, consumed handles and shutdown cleanup. It still consumes
+ownership on failed close and ignores old-generation cleanup failures. These are
+explicit gaps to resolve for the new API, along with opaque values, worker lifetime,
+busy handling and deterministic cancellation/fault tests. No async staging wrapper
+is exposed until those guarantees are implemented.
+
 ## Console, environment and process
 
 `console`/`console/async`: write, write_line, write_error, write_error_line each

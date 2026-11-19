@@ -1919,3 +1919,13 @@ bytecode, root/read identity equality, contained symlink reads, escaping-link
 rejection and link-target reads. Native dispatch reuses existing safety logic;
 async link reads use bounded workers with a 4096-byte reservation. Coverage
 inventory/hash reconciliation and final batch acceptance remain pending.
+
+### Staging lifetime baseline (19 November)
+
+The native I/O suite now verifies create-only publication conflict, stage reuse
+after rejection, later successful publication, rejection of path/write/publish
+after consumption, and VM shutdown removing unpublished content while preserving
+published contents. This establishes the existing synchronous baseline, not async
+cancellation safety. The API contract records the outstanding native ownership,
+cleanup-error and pre-commit allocation work. Production behaviour is unchanged;
+there is no runtime performance or current website change in this checkpoint.

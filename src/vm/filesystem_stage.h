@@ -14,4 +14,9 @@ Value *filesystem_stage_leased_create(VMStageLease *lease, Value **arguments);
 void filesystem_stage_cancel_created(VMStageLease *lease);
 void filesystem_stage_lease_release(VMStageLease *lease);
 void filesystem_stage_destroy(VM *vm);
+/* Embedded shutdown transfers cleanup to a bounded worker without host I/O. */
+void filesystem_stage_destroy_deferred(VM *vm);
+size_t filesystem_stage_pending_cleanup(void);
+/* Blocking adapter shutdown only; never call from the embedded event loop. */
+void filesystem_stage_drain_cleanup(void);
 #endif

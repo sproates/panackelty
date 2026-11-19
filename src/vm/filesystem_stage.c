@@ -8,6 +8,7 @@
 #include <stdatomic.h>
 #ifndef __EMSCRIPTEN__
 #include <dirent.h>
+#include <pthread.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <sys/stat.h>
@@ -18,9 +19,10 @@
 /* Handles belong to one VM invocation. Slots are never reused, so a closed
  * handle cannot acquire a later stage. No package or archive policy lives here. */
 #define STAGE_LIMIT 64
+#define STAGE_TABLE_LIMIT 32
 #define CHUNK_LIMIT 65536
 struct Stage { int parent, directory; char *parent_path; char name[64]; bool live, consumed; atomic_bool busy; };
-struct VMFilesystemStages { struct Stage slots[STAGE_LIMIT]; atomic_size_t count, references; VMStageOwner *owner; };
+struct VMFilesystemStages { struct Stage slots[STAGE_LIMIT]; atomic_size_t count, references; VMStageOwner *owner; struct VMFilesystemStages *cleanup_next; };
 #endif
 
 struct VMStageOwner { atomic_size_t references; };
@@ -155,11 +157,60 @@ static bool stage_parent_matches(struct Stage *stage)
 
 #endif
 #ifndef __EMSCRIPTEN__
+static atomic_size_t stage_tables, pending_cleanup;
+static pthread_mutex_t cleanup_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t cleanup_ready = PTHREAD_COND_INITIALIZER;
+static struct VMFilesystemStages *cleanup_head, *cleanup_tail;
+static bool cleanup_started;
+static void stage_table_release(struct VMFilesystemStages *table);
+
+static void *stage_cleanup_worker(void *unused)
+{
+    (void)unused;
+    for (;;) {
+        pthread_mutex_lock(&cleanup_mutex);
+        while (!cleanup_head) pthread_cond_wait(&cleanup_ready, &cleanup_mutex);
+        struct VMFilesystemStages *table = cleanup_head;
+        cleanup_head = table->cleanup_next;
+        if (!cleanup_head) cleanup_tail = NULL;
+        pthread_mutex_unlock(&cleanup_mutex);
+        stage_table_release(table);
+        pthread_mutex_lock(&cleanup_mutex);
+        atomic_fetch_sub(&pending_cleanup, 1);
+        pthread_cond_broadcast(&cleanup_ready);
+        pthread_mutex_unlock(&cleanup_mutex);
+    }
+    return NULL;
+}
+
+static bool stage_cleanup_start(void)
+{
+    pthread_mutex_lock(&cleanup_mutex);
+    if (!cleanup_started) {
+        pthread_attr_t attributes;
+        if (!pthread_attr_init(&attributes)) {
+            int error = pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
+            pthread_t worker;
+            if (!error) error = pthread_create(&worker, &attributes, stage_cleanup_worker, NULL);
+            pthread_attr_destroy(&attributes);
+            cleanup_started = !error;
+        }
+    }
+    bool started = cleanup_started;
+    pthread_mutex_unlock(&cleanup_mutex);
+    return started;
+}
+
 static bool stage_table_ensure(VM *vm)
 {
     if (!vm->filesystem_stages) {
+        if (!stage_cleanup_start()) return false;
+        size_t count = atomic_load(&stage_tables);
+        while (count < STAGE_TABLE_LIMIT &&
+               !atomic_compare_exchange_weak(&stage_tables, &count, count + 1)) {}
+        if (count == STAGE_TABLE_LIMIT) return false;
         struct VMFilesystemStages *table = calloc(1, sizeof(*table));
-        if (!table) return false;
+        if (!table) { atomic_fetch_sub(&stage_tables, 1); return false; }
         atomic_init(&table->references, 1);
         atomic_init(&table->count, 0);
         for (size_t i = 0; i < STAGE_LIMIT; i++) atomic_init(&table->slots[i].busy, false);
@@ -184,6 +235,7 @@ static void stage_table_release(struct VMFilesystemStages *table)
     }
     filesystem_stage_owner_release(table->owner);
     free(table);
+    atomic_fetch_sub(&stage_tables, 1);
 }
 #endif
 
@@ -197,6 +249,34 @@ void filesystem_stage_destroy(VM *vm)
     (void)vm;
 #endif
 }
+void filesystem_stage_destroy_deferred(VM *vm)
+{
+#ifndef __EMSCRIPTEN__
+    struct VMFilesystemStages *table = vm->filesystem_stages;
+    vm->filesystem_stages = NULL;
+    if (!table) return;
+    /* Transfer the invocation reference without allocating or doing host I/O. */
+    pthread_mutex_lock(&cleanup_mutex);
+    atomic_fetch_add(&pending_cleanup, 1);
+    if (cleanup_tail) cleanup_tail->cleanup_next = table;
+    else cleanup_head = table;
+    cleanup_tail = table;
+    pthread_cond_signal(&cleanup_ready);
+    pthread_mutex_unlock(&cleanup_mutex);
+#else
+    (void)vm;
+#endif
+}
+
+size_t filesystem_stage_pending_cleanup(void)
+{
+#ifndef __EMSCRIPTEN__
+    return atomic_load(&pending_cleanup);
+#else
+    return 0;
+#endif
+}
+
 static Value *stage_call(VM *vm, const char *name, Value **a, bool leased, size_t creation_slot)
 {
 #ifdef __EMSCRIPTEN__
@@ -585,7 +665,10 @@ VMStageLease *filesystem_stage_reserve(VM *vm, Value **failure)
     *failure = stage_error("stage_create", "unsupported", 0);
     return NULL;
 #else
-    if (!stage_table_ensure(vm)) return NULL;
+    if (!stage_table_ensure(vm)) {
+        *failure = stage_error("stage_create", "resource_limit", 0);
+        return NULL;
+    }
     struct VMFilesystemStages *table = vm->filesystem_stages;
     if (table->count == STAGE_LIMIT) {
         *failure = stage_error("stage_create", "resource_limit", 0);
@@ -637,5 +720,14 @@ void filesystem_stage_cancel_created(VMStageLease *lease)
     if (error) stage_cleanup_warning(stage, error);
 #else
     (void)lease;
+#endif
+}
+
+void filesystem_stage_drain_cleanup(void)
+{
+#ifndef __EMSCRIPTEN__
+    pthread_mutex_lock(&cleanup_mutex);
+    while (atomic_load(&pending_cleanup)) pthread_cond_wait(&cleanup_ready, &cleanup_mutex);
+    pthread_mutex_unlock(&cleanup_mutex);
 #endif
 }

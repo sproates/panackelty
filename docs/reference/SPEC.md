@@ -1757,5 +1757,7 @@ pure and async functions cannot call them. Matching async functions are availabl
 on the development branch through `stdlib/filesystem/staging/async`; they use
 `await` and share the same resource and publication-mode types. Creation cancelled
 before result delivery is discarded; cancellation of publication does not promise
-rollback. Embedded shutdown cleanup is still under development. See the [stdlib API contract](../STDLIB_API_CONTRACT.md) for failure
+rollback. Embedded shutdown transfers cleanup to a worker without waiting for filesystem
+I/O. Staging admits at most 32 retained invocation tables per process and 64
+stages per invocation; capacity exhaustion returns a resource_limit error. See the [stdlib API contract](../STDLIB_API_CONTRACT.md) for failure
 and ownership transitions.

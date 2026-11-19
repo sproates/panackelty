@@ -1434,7 +1434,8 @@ bool vm_execution_destroy(VMExecution *execution)
     console_write_destroy(execution->console_write);
     tcp_server_destroy(execution->server);
     restore_stop_signals(execution);
-    filesystem_stage_destroy(execution->vm);
+    if (execution->embedded) filesystem_stage_destroy_deferred(execution->vm);
+    else filesystem_stage_destroy(execution->vm);
     gzip_stream_destroy(execution->vm);
     http_stream_destroy(execution->vm);
     digest_destroy(execution->vm);
@@ -1528,6 +1529,7 @@ Value *execute(VM *vm, Function *function, Value **arguments)
     constants_clear(&execution);
     release(execution.http_waiting);
     vm->execution = NULL;
+    if (owns_runtime) filesystem_stage_drain_cleanup();
     if (owns_runtime && !vm->error && (execution.status == VM_EXITED || runtime.exit_requested)) {
         Value *code = value_size(runtime.exit_requested ? runtime.exit_status : execution.exit_status);
         if (!code) vm->error = "native VM out of memory";

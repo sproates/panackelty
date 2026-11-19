@@ -1970,3 +1970,12 @@ finishes and preserves its committed destination after VM teardown. These checks
 do not establish event-loop-safe shutdown with no lease pending; that and final
 batch/coverage-inventory acceptance remain outstanding. Worker admission remains
 32 operations with existing byte reservations and 64 stage slots per invocation.
+
+Embedded staging teardown now has a deterministic paused-fstat fault test: VM
+execution destruction returns while cleanup remains blocked, then draining after
+unpausing releases all tracked allocations and descriptors. Native admission tests
+fill 32 invocation tables, reject the next, drain one, and verify capacity recovery.
+Cleanup uses one worker and an allocation-free intrusive queue bounded by table
+admission. The CLI drains queued cleanup after stopping its runtime; active host
+operations can still outlive cancellation, and process termination gives no
+cleanup guarantee for such operations. Final expanded-batch validation pending.

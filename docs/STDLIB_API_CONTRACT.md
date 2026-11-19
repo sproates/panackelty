@@ -165,10 +165,14 @@ until result handoff; cancellation before handoff discards the stage. Existing
 stages are leased exclusively, and publication may commit after cancellation.
 Source/bytecode tests cover the matching API; native tests cover creation
 cancellation, accepted handoff, publication after cancellation and allocation
-failures during creation. Embedded teardown with no pending lease can still run
-recursive cleanup on the owner thread: this remains an integration blocker.
-The async module is development code, not accepted for integration until that
-shutdown guarantee and final batch checks are complete.
+failures during creation. Embedded teardown now transfers its table reference to a single cleanup worker
+without allocation or filesystem I/O. Retained tables are bounded at 32 per
+process, including queued cleanup; each invocation still has at most 64 slots.
+Capacity exhaustion returns resource_limit. Normal CLI runtime shutdown drains
+queued cleanup after stopping the runtime; embedded event loops never drain it.
+A paused-fstat regression proves destruction returns while cleanup is blocked.
+Admission/recovery tests cover the global table bound. This closes the recorded
+owner-thread teardown gap; final batch/coverage/integration checks remain pending.
 
 ## Console, environment and process
 

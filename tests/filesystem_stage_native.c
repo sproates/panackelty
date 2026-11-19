@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -268,6 +269,32 @@ static void stage_lease_survives_vm_destroy(const char *root)
     free(directory);
 }
 
+static void stage_table_admission(const char *root)
+{
+    VM owners[33] = {0};
+    Value *args[] = {path(root)};
+    for (size_t i = 0; i < 32; i++) {
+        Value *result = filesystem_stage_resource_call(&owners[i], "stage_create", args);
+        payload(result, "Ok");
+        release(result);
+    }
+    Value *result = filesystem_stage_resource_call(&owners[32], "stage_create", args);
+    Value *error = payload(result, "Error");
+    assert(!strcmp((char *)error->as.named.values[1]->as.bytes.data, "resource_limit"));
+    release(result);
+    filesystem_stage_destroy_deferred(&owners[0]);
+    struct timespec delay = {.tv_nsec = 1000000};
+    for (size_t i = 0; i < 5000 && filesystem_stage_pending_cleanup(); i++) nanosleep(&delay, NULL);
+    assert(!filesystem_stage_pending_cleanup());
+    result = filesystem_stage_resource_call(&owners[32], "stage_create", args);
+    payload(result, "Ok");
+    release(result);
+    for (size_t i = 1; i < 33; i++) filesystem_stage_destroy_deferred(&owners[i]);
+    for (size_t i = 0; i < 5000 && filesystem_stage_pending_cleanup(); i++) nanosleep(&delay, NULL);
+    assert(!filesystem_stage_pending_cleanup());
+    release(args[0]);
+}
+
 static void staging_lifetime(const char *root)
 {
     VM vm = {0};
@@ -318,6 +345,7 @@ int main(void)
     assert(mkdtemp(temporary)); char *root = realpath(temporary, NULL); assert(root);
     staged_links_preserve_bytes_and_confine_destinations(root);
     staging_lifetime(root);
+    stage_table_admission(root);
     stage_lease_survives_vm_destroy(root);
     opaque_stage_identity(root);
     failed_discard_retains_ownership(root);

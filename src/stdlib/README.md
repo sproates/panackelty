@@ -300,5 +300,7 @@ publication leaves it owned; failed discard retains ownership for retry. Legacy
 `filesystem_stage` numeric handles remain supported during migration. The development async
 module `filesystem/staging/async` provides matching functions using `await` and
 the same publication modes. Creation cancelled before delivery is discarded;
-publication may still commit after cancellation. Embedded shutdown cleanup remains
-an integration blocker, so this module is not yet accepted for release.
+publication may still commit after cancellation. Embedded shutdown queues cleanup on a dedicated worker. The process permits
+32 retained stage tables, including pending cleanup, with 64 slots per invocation;
+exhaustion returns resource_limit. Final batch validation is still pending, so
+this module is not yet accepted for release.

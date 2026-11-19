@@ -1988,5 +1988,11 @@ constant and does not change bytecode v9. The candidate compiler exposes Directo
 Table and identity reference counts are atomic; shared stage mutation is excluded
 by a per-stage busy flag. The async dispatcher retains leases and copies worker arguments. Creation reserves
 a slot before dispatch, then hands ownership over only after successful result
-delivery. Cancelled creation cleans up on its worker. Teardown with no pending
-lease can still clean up on the owner thread and remains an integration blocker.
+delivery. Cancelled creation cleans up on its worker. Embedded teardown transfers the table reference to one persistent cleanup worker
+using an intrusive queue, without allocation or host I/O. Global admission limits
+retained tables to 32 (64 stage slots per invocation), bounding queued resources
+while cleanup is slow. Startup failure or capacity exhaustion refuses creation.
+The CLI drains queued cleanup only after its owned runtime stops; event-loop
+execution destruction never waits for cleanup. Active leases still retain their
+tables independently until their operations return. Process termination cannot
+guarantee cleanup of an outstanding blocked host operation.

@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdatomic.h>
 #ifndef __EMSCRIPTEN__
 #include <dirent.h>
 #include <fcntl.h>
@@ -18,15 +19,15 @@
  * handle cannot acquire a later stage. No package or archive policy lives here. */
 #define STAGE_LIMIT 64
 #define CHUNK_LIMIT 65536
-struct Stage { int parent, directory; char *parent_path; char name[64]; bool live, consumed; };
-struct VMFilesystemStages { struct Stage slots[STAGE_LIMIT]; size_t count; VMStageOwner *owner; };
+struct Stage { int parent, directory; char *parent_path; char name[64]; bool live, consumed; atomic_bool busy; };
+struct VMFilesystemStages { struct Stage slots[STAGE_LIMIT]; atomic_size_t count, references; VMStageOwner *owner; };
 #endif
 
-struct VMStageOwner { size_t references; };
+struct VMStageOwner { atomic_size_t references; };
 
 void filesystem_stage_owner_release(VMStageOwner *owner)
 {
-    if (owner && --owner->references == 0) free(owner);
+    if (owner && atomic_fetch_sub(&owner->references, 1) == 1) free(owner);
 }
 
 static Value *stage_error(const char *operation, const char *code, int error)
@@ -153,28 +154,34 @@ static bool stage_parent_matches(struct Stage *stage)
 }
 
 #endif
+#ifndef __EMSCRIPTEN__
+static void stage_table_release(struct VMFilesystemStages *table)
+{
+    if (atomic_fetch_sub(&table->references, 1) != 1) return;
+    for (size_t i = 0; i < table->count; i++) {
+        struct Stage *stage = &table->slots[i];
+        int error = stage_release(stage);
+        if (error) { stage_cleanup_warning(stage, error); stage_forget(stage); }
+    }
+    filesystem_stage_owner_release(table->owner);
+    free(table);
+}
+#endif
+
 void filesystem_stage_destroy(VM *vm)
 {
 #ifndef __EMSCRIPTEN__
-    if (!vm->filesystem_stages) return;
-    for (size_t i = 0; i < vm->filesystem_stages->count; i++) {
-        struct Stage *stage = &vm->filesystem_stages->slots[i];
-        int error = stage_release(stage);
-        if (error) {
-            stage_cleanup_warning(stage, error);
-            stage_forget(stage);
-        }
-    }
-    filesystem_stage_owner_release(vm->filesystem_stages->owner);
-    free(vm->filesystem_stages); vm->filesystem_stages = NULL;
+    struct VMFilesystemStages *table = vm->filesystem_stages;
+    vm->filesystem_stages = NULL;
+    if (table) stage_table_release(table);
 #else
     (void)vm;
 #endif
 }
-Value *filesystem_stage_call(VM *vm, const char *name, Value **a)
+static Value *stage_call(VM *vm, const char *name, Value **a, bool leased)
 {
 #ifdef __EMSCRIPTEN__
-    (void)vm; (void)a;
+    (void)vm; (void)a; (void)leased;
     return stage_error(name, "unsupported", 0);
 #else
     if (!strcmp(name, "fs_read_link")) {
@@ -283,7 +290,14 @@ Value *filesystem_stage_call(VM *vm, const char *name, Value **a)
         int parent = cwd < 0 ? -1 : stage_directory(cwd, path);
         if (cwd >= 0) close(cwd);
         if (parent < 0) { int e = errno; free(path); return stage_error(name, "invalid_parent", e); }
-        if (!vm->filesystem_stages) vm->filesystem_stages = calloc(1, sizeof(*vm->filesystem_stages));
+        if (!vm->filesystem_stages) {
+            vm->filesystem_stages = calloc(1, sizeof(*vm->filesystem_stages));
+            if (vm->filesystem_stages) {
+                atomic_init(&vm->filesystem_stages->references, 1);
+                atomic_init(&vm->filesystem_stages->count, 0);
+                for (size_t i = 0; i < STAGE_LIMIT; i++) atomic_init(&vm->filesystem_stages->slots[i].busy, false);
+            }
+        }
         if (!vm->filesystem_stages || vm->filesystem_stages->count == STAGE_LIMIT) {
             close(parent); free(path); return stage_error(name, "resource_limit", 0);
         }
@@ -308,9 +322,11 @@ Value *filesystem_stage_call(VM *vm, const char *name, Value **a)
     }
     size_t handle;
     if (a[0]->kind != V_NAT || !pn_big_fits_size(&a[0]->as.integer, &handle) || !handle ||
-        !vm->filesystem_stages || handle > vm->filesystem_stages->count || (!vm->filesystem_stages->slots[handle - 1].live || vm->filesystem_stages->slots[handle - 1].consumed))
+        !vm->filesystem_stages || handle > vm->filesystem_stages->count)
         return stage_error(name, "invalid_handle", 0);
     struct Stage *stage = &vm->filesystem_stages->slots[handle - 1];
+    if (!leased && atomic_load(&stage->busy)) return stage_error(name, "busy", 0);
+    if (!stage->live || stage->consumed) return stage_error(name, "invalid_handle", 0);
     if (!strcmp(name, "fs_stage_close")) {
         int error = stage_release(stage);
         return error ? stage_error(name, "cleanup_failed", error) : stage_ok();
@@ -420,6 +436,11 @@ Value *filesystem_stage_call(VM *vm, const char *name, Value **a)
 #endif
 }
 
+Value *filesystem_stage_call(VM *vm, const char *name, Value **arguments)
+{
+    return stage_call(vm, name, arguments, false);
+}
+
 /* Native resource adapter. Owner tokens outlive destroyed VMs while a value
  * still references them; an old value cannot match a newly allocated table. */
 Value *filesystem_stage_resource_call(VM *vm, const char *name, Value **arguments)
@@ -470,4 +491,82 @@ Value *filesystem_stage_resource_call(VM *vm, const char *name, Value **argument
     release(number);
     return result;
 #endif
+}
+
+struct VMStageLease {
+#ifndef __EMSCRIPTEN__
+    struct VMFilesystemStages *table;
+    size_t slot;
+#endif
+    bool reserved;
+};
+
+VMStageLease *filesystem_stage_acquire(VM *vm, Value *resource, Value **failure)
+{
+    *failure = NULL;
+#ifdef __EMSCRIPTEN__
+    (void)vm; (void)resource;
+    *failure = stage_error("stage_acquire", "unsupported", 0);
+    return NULL;
+#else
+    struct VMFilesystemStages *table = vm->filesystem_stages;
+    if (!table || resource->kind != V_DIRECTORY_STAGE ||
+        resource->as.directory_stage.owner != table->owner ||
+        !resource->as.directory_stage.slot || resource->as.directory_stage.slot > table->count) {
+        *failure = stage_error("stage_acquire", "invalid_handle", 0);
+        return NULL;
+    }
+    size_t slot = resource->as.directory_stage.slot;
+    struct Stage *stage = &table->slots[slot - 1];
+    bool expected = false;
+    if (!atomic_compare_exchange_strong(&stage->busy, &expected, true)) {
+        *failure = stage_error("stage_acquire", "busy", 0);
+        return NULL;
+    }
+    if (!stage->live || stage->consumed) {
+        atomic_store(&stage->busy, false);
+        *failure = stage_error("stage_acquire", "invalid_handle", 0);
+        return NULL;
+    }
+    VMStageLease *lease = calloc(1, sizeof(*lease));
+    if (!lease) { atomic_store(&stage->busy, false); return NULL; }
+    atomic_fetch_add(&table->references, 1);
+    lease->table = table;
+    lease->slot = slot;
+    lease->reserved = true;
+    return lease;
+#endif
+}
+
+Value *filesystem_stage_leased_call(VMStageLease *lease, const char *name, Value **arguments)
+{
+#ifdef __EMSCRIPTEN__
+    (void)lease; (void)arguments;
+    return stage_error(name, "unsupported", 0);
+#else
+    size_t arity;
+    if (!strcmp(name, "fs_stage_path") || !strcmp(name, "fs_stage_close")) arity = 1;
+    else if (!strcmp(name, "fs_stage_directory")) arity = 2;
+    else if (!strcmp(name, "fs_stage_symlink") || !strcmp(name, "fs_stage_publish")) arity = 3;
+    else if (!strcmp(name, "fs_stage_write")) arity = 4;
+    else return stage_error(name, "invalid_argument", 0);
+    VM isolated = {.filesystem_stages = lease->table};
+    Value *number = value_size(lease->slot);
+    if (!number) return NULL;
+    Value *adapted[4] = {number};
+    for (size_t i = 1; i < arity; i++) adapted[i] = arguments[i - 1];
+    Value *result = stage_call(&isolated, name, adapted, true);
+    release(number);
+    return result;
+#endif
+}
+
+void filesystem_stage_lease_release(VMStageLease *lease)
+{
+    if (!lease) return;
+#ifndef __EMSCRIPTEN__
+    atomic_store(&lease->table->slots[lease->slot - 1].busy, false);
+    stage_table_release(lease->table);
+#endif
+    free(lease);
 }

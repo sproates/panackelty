@@ -1952,3 +1952,11 @@ opaque API, named publication modes, rejected create-only publication followed b
 replacement, alias consumption and discard. Negative source cases reject Nat
 handles, direct DirectoryStage construction and staging effects in pure functions.
 No bytecode format change; coverage inventory and final batch acceptance pending.
+
+A deterministic native-thread staging test acquires a lease, rejects a second
+lease and ordinary discard as busy, destroys the VM table and releases all source
+values, then starts a worker that creates a child directory. Lease release removes
+the unpublished stage. This proves native lifetime independence without relying on
+timing. It does not yet exercise public await dispatch or cancellation. Atomic
+reference counts and per-stage admission add bounded bookkeeping; native slots
+remain bounded at 64 per invocation. Full batch validation remains pending.

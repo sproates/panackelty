@@ -1980,8 +1980,11 @@ browser source bundles preserve the nested stdlib directory layout.
 The native staging adapter can return an opaque DirectoryStage value containing
 a slot and a reference-counted invocation identity. The identity outlives the
 stage table when values remain alive, preventing allocator address reuse from
-reviving a stale handle. Table shutdown still closes native resources; retaining
-a value does not retain the VM or directory descriptors. The legacy Nat API is
+reviving a stale handle. Retaining a value does not retain the VM or directory descriptors. Worker leases
+retain the native table and exclusively reserve their stage. VM shutdown drops
+its table reference; cleanup waits until the last lease is released. The legacy Nat API is
 kept for existing callers. The native value is not a serializable bytecode
 constant and does not change bytecode v9. The candidate compiler exposes DirectoryStage through the ordinary staging module.
-Async resource ownership is pending; reference counts remain owner-thread-only.
+Table and identity reference counts are atomic; shared stage mutation is excluded
+by a per-stage busy flag. The public async dispatcher and creation/cancellation
+handoff are still pending.

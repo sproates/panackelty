@@ -149,12 +149,18 @@ permission-denied old-generation cleanup (the latter requires a non-root user).
 The native opaque DirectoryStage representation now retains an invocation identity
 token independently of the VM table. Native regressions reject forged numbers,
 foreign invocation handles, stale handles after table recreation, and consumed
-aliases. The token is owner-thread-only metadata, not worker resource ownership.
+aliases. Identity references are atomic so values and worker-held resource tables can
+finish on different threads. A native worker lease retains the table independently
+of the VM and exclusively reserves one stage. Ordinary operations and another
+lease on that stage return busy until release. VM shutdown detaches its table;
+the last lease performs remaining cleanup after its operation finishes.
 The ordinary `filesystem/staging` module now exposes DirectoryStage and PublishMode
 through the candidate compiler. Source/bytecode tests cover creation, writes,
 create-only rejection, replacement, discard and alias consumption; negative cases
-reject numeric handles, direct construction and pure side effects. Worker lifetime,
-busy handling and deterministic async cancellation/fault tests remain outstanding. No async staging wrapper
+reject numeric handles, direct construction and pure side effects. A native-thread test performs a stage operation after VM destruction and source
+value release, then verifies cleanup on lease release. Public async dispatch,
+async creation/result handoff, event-loop-safe shutdown when no lease is pending,
+and deterministic async cancellation/fault tests remain outstanding. No async staging wrapper
 is exposed until those guarantees are implemented.
 
 ## Console, environment and process

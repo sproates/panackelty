@@ -4,6 +4,7 @@
 #include "host_types.h"
 #include <assert.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -218,6 +219,55 @@ static void opaque_stage_identity(const char *root)
     filesystem_stage_destroy(&second);
 }
 
+static void *leased_stage_worker(void *context)
+{
+    VMStageLease *lease = context;
+    /* All values here belong to this thread, not the cancelled execution. */
+    Value *args[] = {path("worker-finished")};
+    Value *result = filesystem_stage_leased_call(lease, "fs_stage_directory", args);
+    payload(result, "Ok");
+    release(result);
+    release(args[0]);
+    filesystem_stage_lease_release(lease);
+    return NULL;
+}
+
+static void stage_lease_survives_vm_destroy(const char *root)
+{
+    VM vm = {0};
+    Value *parent[] = {path(root)};
+    Value *created = filesystem_stage_resource_call(&vm, "stage_create", parent);
+    Value *handle = retain(payload(created, "Ok"));
+    release(created);
+    release(parent[0]);
+    Value *args[] = {handle};
+    Value *result = filesystem_stage_resource_call(&vm, "stage_path", args);
+    char *directory = strdup((char *)payload(result, "Ok")->as.bytes.data);
+    assert(directory);
+    release(result);
+    Value *failure = NULL;
+    VMStageLease *lease = filesystem_stage_acquire(&vm, handle, &failure);
+    assert(lease && !failure);
+    assert(!filesystem_stage_acquire(&vm, handle, &failure));
+    Value *error = payload(failure, "Error");
+    assert(!strcmp((char *)error->as.named.values[1]->as.bytes.data, "busy"));
+    release(failure);
+    result = filesystem_stage_resource_call(&vm, "stage_discard", args);
+    error = payload(result, "Error");
+    assert(!strcmp((char *)error->as.named.values[1]->as.bytes.data, "busy"));
+    release(result);
+    filesystem_stage_destroy(&vm);
+    release(handle);
+    assert(access(directory, F_OK) == 0);
+    /* Start only after the owner and all source values are gone: no timing race
+     * is needed to prove the worker has independent native ownership. */
+    pthread_t worker;
+    assert(pthread_create(&worker, NULL, leased_stage_worker, lease) == 0);
+    assert(pthread_join(worker, NULL) == 0);
+    assert(access(directory, F_OK) != 0);
+    free(directory);
+}
+
 static void staging_lifetime(const char *root)
 {
     VM vm = {0};
@@ -268,6 +318,7 @@ int main(void)
     assert(mkdtemp(temporary)); char *root = realpath(temporary, NULL); assert(root);
     staged_links_preserve_bytes_and_confine_destinations(root);
     staging_lifetime(root);
+    stage_lease_survives_vm_destroy(root);
     opaque_stage_identity(root);
     failed_discard_retains_ownership(root);
     published_cleanup_failure(root);

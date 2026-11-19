@@ -100,6 +100,77 @@ static void staged_links_preserve_bytes_and_confine_destinations(const char *roo
     filesystem_stage_destroy(&vm);
 }
 
+static void failed_discard_retains_ownership(const char *root)
+{
+    VM vm = {0};
+    size_t handle = begin(&vm, root);
+    write_chunk(&vm, handle, "private", true);
+    Value *args[] = {value_size(handle)};
+    Value *result = filesystem_stage_call(&vm, "fs_stage_path", args);
+    char *original = strdup((char *)payload(result, "Ok")->as.bytes.data);
+    assert(original);
+    release(result);
+    char moved[8192];
+    snprintf(moved, sizeof(moved), "%s-held", original);
+    assert(rename(original, moved) == 0 && mkdir(original, 0700) == 0);
+    result = filesystem_stage_call(&vm, "fs_stage_close", args);
+    Value *error = payload(result, "Error");
+    assert(!strcmp((char *)error->as.named.values[1]->as.bytes.data, "cleanup_failed"));
+    release(result);
+    /* A substituted directory must survive, and the original remains owned. */
+    assert(rmdir(original) == 0 && rename(moved, original) == 0);
+    write_chunk(&vm, handle, "still-owned", true);
+    operation(&vm, "fs_stage_close", handle, "ignored", true);
+    assert(access(original, F_OK) != 0);
+    operation(&vm, "fs_stage_close", handle, "ignored", false);
+    release(args[0]);
+    free(original);
+    filesystem_stage_destroy(&vm);
+}
+
+static void published_cleanup_failure(const char *root)
+{
+    /* Root can bypass mode bits; the identity-substitution test above runs for
+     * every user, while this permission failure requires an ordinary user. */
+    if (geteuid() == 0) return;
+    VM vm = {0};
+    char target[4096];
+    snprintf(target, sizeof(target), "%s/locked-old", root);
+    assert(mkdir(target, 0700) == 0);
+    size_t handle = begin(&vm, root);
+    write_chunk(&vm, handle, "published", true);
+    Value *args[] = {value_size(handle)};
+    Value *result = filesystem_stage_call(&vm, "fs_stage_path", args);
+    char *old = strdup((char *)payload(result, "Ok")->as.bytes.data);
+    assert(old);
+    release(result);
+    release(args[0]);
+    char locked[8192];
+    snprintf(locked, sizeof(locked), "%s/locked", target);
+    assert(mkdir(locked, 0) == 0);
+    FILE *diagnostic = tmpfile();
+    int saved = dup(STDERR_FILENO);
+    assert(diagnostic && saved >= 0);
+    assert(fflush(stderr) == 0 && dup2(fileno(diagnostic), STDERR_FILENO) >= 0);
+    operation(&vm, "fs_stage_publish", handle, "locked-old", true);
+    assert(fflush(stderr) == 0 && dup2(saved, STDERR_FILENO) >= 0);
+    assert(close(saved) == 0);
+    rewind(diagnostic);
+    char message[8192] = {0};
+    assert(fread(message, 1, sizeof(message) - 1, diagnostic) > 0);
+    assert(strstr(message, old) && strstr(message, "errno"));
+    assert(fclose(diagnostic) == 0);
+    operation(&vm, "fs_stage_path", handle, "ignored", false);
+    snprintf(locked, sizeof(locked), "%s/locked", old);
+    assert(chmod(locked, 0700) == 0);
+    filesystem_stage_destroy(&vm);
+    assert(access(old, F_OK) != 0);
+    char file[8192];
+    snprintf(file, sizeof(file), "%s/published", target);
+    assert(access(file, F_OK) == 0 && unlink(file) == 0 && rmdir(target) == 0);
+    free(old);
+}
+
 static void staging_lifetime(const char *root)
 {
     VM vm = {0};
@@ -150,6 +221,8 @@ int main(void)
     assert(mkdtemp(temporary)); char *root = realpath(temporary, NULL); assert(root);
     staged_links_preserve_bytes_and_confine_destinations(root);
     staging_lifetime(root);
+    failed_discard_retains_ownership(root);
+    published_cleanup_failure(root);
     VM vm={0}; size_t handle=begin(&vm,root);
     operation(&vm,"fs_stage_directory",handle,"nested",true);
     write_chunk(&vm,handle,"nested/main.panack",true);

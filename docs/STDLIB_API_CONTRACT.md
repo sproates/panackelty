@@ -139,10 +139,15 @@ cleanup after replacement is separate from publication success and must report
 failure without deleting a substituted directory.
 
 The existing synchronous implementation has verified pre-commit rejection,
-continued stage use, consumed handles and shutdown cleanup. It still consumes
-ownership on failed close and ignores old-generation cleanup failures. These are
-explicit gaps to resolve for the new API, along with opaque values, worker lifetime,
-busy handling and deterministic cancellation/fault tests. No async staging wrapper
+continued stage use, consumed handles and shutdown cleanup. Failed close now retains ownership for retry. Post-publication cleanup failures
+are reported without reversing publication success; retained old-generation
+resources receive another cleanup attempt at invocation shutdown. If the old
+generation cannot be opened or identified safely, Panack reports its location
+and does not delete it. Successful publication results are allocated before
+commit. Focused native tests cover retry after identity substitution and a
+permission-denied old-generation cleanup (the latter requires a non-root user).
+Opaque values, worker lifetime, busy handling and deterministic async
+cancellation/fault tests remain outstanding. No async staging wrapper
 is exposed until those guarantees are implemented.
 
 ## Console, environment and process

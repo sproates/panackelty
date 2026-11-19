@@ -18,7 +18,7 @@
  * handle cannot acquire a later stage. No package or archive policy lives here. */
 #define STAGE_LIMIT 64
 #define CHUNK_LIMIT 65536
-struct Stage { int parent, directory; char *parent_path; char name[64]; bool live; };
+struct Stage { int parent, directory; char *parent_path; char name[64]; bool live, consumed; };
 struct VMFilesystemStages { struct Stage slots[STAGE_LIMIT]; size_t count; };
 #endif
 
@@ -100,6 +100,20 @@ static int stage_remove(int parent, const char *name)
     if (!error && unlinkat(parent, name, AT_REMOVEDIR)) error = errno;
     errno = error; return error ? -1 : 0;
 }
+static void stage_forget(struct Stage *stage)
+{
+    close(stage->directory);
+    close(stage->parent);
+    free(stage->parent_path);
+    stage->live = false;
+}
+
+static void stage_cleanup_warning(struct Stage *stage, int error)
+{
+    fprintf(stderr, "Panack could not clean up staged directory near %s/%s: %s (errno %d). The parent path may have changed; inspect the remaining directory before removing it.\n",
+            stage->parent_path, stage->name, strerror(error), error);
+}
+
 static int stage_release(struct Stage *stage)
 {
     if (!stage->live) return 0;
@@ -114,10 +128,7 @@ static int stage_release(struct Stage *stage)
             error = errno;
         }
     }
-    close(stage->directory);
-    close(stage->parent);
-    free(stage->parent_path);
-    stage->live = false;
+    if (!error) stage_forget(stage);
     return error;
 }
 
@@ -139,7 +150,14 @@ void filesystem_stage_destroy(VM *vm)
 {
 #ifndef __EMSCRIPTEN__
     if (!vm->filesystem_stages) return;
-    for (size_t i = 0; i < vm->filesystem_stages->count; i++) stage_release(&vm->filesystem_stages->slots[i]);
+    for (size_t i = 0; i < vm->filesystem_stages->count; i++) {
+        struct Stage *stage = &vm->filesystem_stages->slots[i];
+        int error = stage_release(stage);
+        if (error) {
+            stage_cleanup_warning(stage, error);
+            stage_forget(stage);
+        }
+    }
     free(vm->filesystem_stages); vm->filesystem_stages = NULL;
 #else
     (void)vm;
@@ -277,7 +295,7 @@ Value *filesystem_stage_call(VM *vm, const char *name, Value **a)
     }
     size_t handle;
     if (a[0]->kind != V_NAT || !pn_big_fits_size(&a[0]->as.integer, &handle) || !handle ||
-        !vm->filesystem_stages || handle > vm->filesystem_stages->count || !vm->filesystem_stages->slots[handle - 1].live)
+        !vm->filesystem_stages || handle > vm->filesystem_stages->count || (!vm->filesystem_stages->slots[handle - 1].live || vm->filesystem_stages->slots[handle - 1].consumed))
         return stage_error(name, "invalid_handle", 0);
     struct Stage *stage = &vm->filesystem_stages->slots[handle - 1];
     if (!strcmp(name, "fs_stage_close")) {
@@ -309,6 +327,8 @@ Value *filesystem_stage_call(VM *vm, const char *name, Value **a)
         if ((exists && errno != ENOENT) || (!exists && (!S_ISDIR(target.st_mode) || !a[2]->as.boolean))) {
             free(path); return stage_error(name, "destination_conflict", errno);
         }
+        Value *success = stage_ok();
+        if (!success) { free(path); return NULL; }
         int result;
 #ifdef __APPLE__
         result = renameatx_np(stage->parent, stage->name, stage->parent, path, exists ? RENAME_EXCL : RENAME_SWAP);
@@ -318,23 +338,28 @@ Value *filesystem_stage_call(VM *vm, const char *name, Value **a)
         errno = ENOTSUP; result = -1;
 #endif
         int error = errno; free(path);
-        if (result) return stage_error(name, "publication_failed", error);
+        if (result) { release(success); return stage_error(name, "publication_failed", error); }
+        stage->consumed = true;
         /* The exchange commits publication. Cleanup of the old generation is
          * separate; never report a publication failure after a successful swap. */
         if (exists) stage->name[0] = 0;
         else {
             int old = openat(stage->parent, stage->name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
             struct stat old_info;
-            if (old < 0 || fstat(old, &old_info) || old_info.st_dev != target.st_dev || old_info.st_ino != target.st_ino) {
+            int old_error = old < 0 ? errno : fstat(old, &old_info) ? errno :
+                old_info.st_dev != target.st_dev || old_info.st_ino != target.st_ino ? ESTALE : 0;
+            if (old_error) {
                 if (old >= 0) close(old);
+                stage_cleanup_warning(stage, old_error);
                 stage->name[0] = 0; /* Never delete a substituted old generation. */
             } else {
                 close(stage->directory);
                 stage->directory = old;
             }
         }
-        (void)stage_release(stage);
-        return stage_ok();
+        int cleanup_error = stage_release(stage);
+        if (cleanup_error) stage_cleanup_warning(stage, cleanup_error);
+        return success;
     }
     int parent = stage_parent(stage->directory, path, &leaf);
     if (parent < 0) { int e = errno; free(path); return stage_error(name, "invalid_parent", e); }

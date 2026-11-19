@@ -1929,3 +1929,12 @@ published contents. This establishes the existing synchronous baseline, not asyn
 cancellation safety. The API contract records the outstanding native ownership,
 cleanup-error and pre-commit allocation work. Production behaviour is unchanged;
 there is no runtime performance or current website change in this checkpoint.
+
+Staging cleanup now has focused native regressions for retry after a substituted
+directory blocks discard, and successful publication despite permission-denied
+old-generation cleanup. The latter checks the path/error diagnostic, consumed
+handle, shutdown retry and preservation of published content; it runs for non-root
+users. Publication preallocates its success result before rename. These focused
+checks do not establish complete allocation-fault or async staging acceptance.
+Performance: no extra successful-path filesystem operation; failed cleanup retains
+its bounded stage slot until retry/shutdown. Final batch make check is pending.

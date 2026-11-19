@@ -455,6 +455,8 @@ pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool 
     (owner.module.path == "time.panack" && owner.name == "seconds" && (name == "duration_nanoseconds")) ||
     (owner.module.path == "time.panack" && owner.name == "milliseconds" && (name == "duration_nanoseconds")) ||
     (owner.module.path == "process.panack" && owner.name == "run_isolated" && name == "process_run_isolated") ||
+    (owner.module.path == "filesystem/confined.panack" && owner.name == "root_identity" && name == "fs_root_identity") ||
+    (owner.module.path == "filesystem/confined/async.panack" && owner.name == "read_link" && name == "fs_read_link_async") ||
     (owner.module.path == "bounded_filesystem.panack" && owner.name == "read_link" && name == "fs_read_link") ||
     (owner.module.path == "filesystem_stage.panack" && owner.name == "symlink" && name == "fs_stage_symlink") ||
     (owner.module.path == "process.panack" && owner.name == "run" && (name == "process_run")) ||
@@ -569,6 +571,8 @@ pub pure module_internal_primitive_name(identity: ModuleIdentity, name: Str): Bo
     (identity.path == "digest.panack" && (name == "digest_sha256_open" || name == "digest_update" || name == "digest_finish" || name == "digest_close")) ||
     (identity.path == "http_stream.panack" && (name == "http_stream_open" || name == "http_stream_read" || name == "http_stream_close")) ||
     (identity.path == "gzip.panack" && (name == "gzip_open" || name == "gzip_step" || name == "gzip_close")) ||
+    (identity.path == "filesystem/confined.panack" && name == "fs_root_identity") ||
+    (identity.path == "filesystem/confined/async.panack" && name == "fs_read_link_async") ||
     (identity.path == "bounded_filesystem.panack" && (name == "fs_read_link" || name == "fs_read_chunk" || name == "fs_atomic_write")) ||
     (identity.path == "filesystem.panack" && (name == "fs_create_directory" || name == "fs_list" || name == "fs_metadata" || name == "fs_read" || name == "fs_remove_directory" || name == "fs_remove_file" || name == "fs_temp_directory" || name == "fs_temp_file" || name == "fs_write")) ||
     (identity.path == "core.panack" && (name == "duration_from_seconds" || name == "duration_nanoseconds" || name == "path_absolute" || name == "path_append" || name == "path_directory" || name == "path_display" || name == "path_filename" || name == "path_native_bytes" || name == "path_to_text")) ||

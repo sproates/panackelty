@@ -55,6 +55,8 @@ share/panackelty/stdlib/environment.panack
 share/panackelty/stdlib/environment/async.panack
 share/panackelty/stdlib/filesystem.panack
 share/panackelty/stdlib/filesystem/async.panack
+share/panackelty/stdlib/filesystem/confined.panack
+share/panackelty/stdlib/filesystem/confined/async.panack
 share/panackelty/stdlib/filesystem_stage.panack
 share/panackelty/stdlib/gzip.panack
 share/panackelty/stdlib/host.panack

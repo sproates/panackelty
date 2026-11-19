@@ -85,7 +85,9 @@ cancellation abandons waiting, not an already-started filesystem side effect.
 - `read(root: Path, relative: Path, limit: Nat): Result[FilesystemRootRead,HostError]`.
 - `read_link(root: Path, relative: Path): Result[Bytes,HostError]`.
 
-Preserve the existing identity/read record fields and no-follow contracts.
+Preserve the existing identity/read record fields. Confined reads resolve bounded
+relative symlinks inside the root and reject escape; read_link reads the final
+link target without following it and rejects symlinked ancestors.
 Keep read_beneath as a compatibility alias. A root identity is evidence about a
 read, not a permanent capability or a promise the filesystem cannot change.
 
@@ -252,5 +254,7 @@ native error on stderr; it never recursively deletes content. These are ordinary
 path operations, not a confinement or process-crash cleanup guarantee. Native
 tests cover cancellation before/after completion, accepted ownership, allocation
 failures and a non-empty directory preventing cleanup. No completion credit is
-claimed for AS2 yet. Async link operations and canonical
-confined/staging modules also remain.
+claimed for AS2 yet. Canonical ordinary and async confined modules now provide root_identity, read,
+read_beneath compatibility and read_link. Candidate source/bytecode tests cover
+shared record identity, contained symlinks and escape rejection. Staging ownership,
+coverage inventory/hash reconciliation and final batch validation remain.

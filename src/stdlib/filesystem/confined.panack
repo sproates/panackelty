@@ -1,0 +1,11 @@
+pub import stdlib/package_filesystem::{HostError, FilesystemRootIdentity, FilesystemRootRead, read_beneath}
+pub import stdlib/bounded_filesystem::{read_link}
+import stdlib/package_filesystem as existing
+
+pub root_identity(root: Path): Result[FilesystemRootIdentity,HostError] {
+  fs_root_identity(root)
+}
+
+pub read(root: Path, relative: Path, limit: Nat): Result[FilesystemRootRead,HostError] {
+  existing.read_beneath(root, relative, limit)
+}

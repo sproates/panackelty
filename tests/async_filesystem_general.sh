@@ -103,3 +103,53 @@ panack compile "$work/ordinary.panack" -o "$work/ordinary.bc" > /dev/null
 ./bin/panack run "$work/ordinary.bc" "$work" > "$work/output"
 cmp "$work/expected" "$work/output"
 printf 'Ordinary canonical filesystem source/bytecode passed.\n'
+mkdir "$work/root"
+printf 'confined' > "$work/root/file"
+ln -s file "$work/root/link"
+ln -s ../outside "$work/root/escape"
+cat > "$work/confined.panack" <<'SOURCE'
+import stdlib/filesystem/confined/async as fs
+import stdlib/filesystem/confined as ordinary
+import stdlib/host/async as host
+import stdlib/path as path
+pure require[T](result: Result[T,fs.HostError]): T {
+  match result { Ok(value) => value, Error(_) => { empty: [T] = []; empty[0] } }
+}
+pure expect(value: Bool): Unit { checked = [0][if value { 0 } else { 1 }]; () }
+async main(): Unit {
+  arguments = await host.arguments()
+  root = path.from_text(arguments[0]).value_or(path.current())
+  file = path.from_text("file").value_or(path.current())
+  link = path.from_text("link").value_or(path.current())
+  identity: ordinary.FilesystemRootIdentity = require(await fs.root_identity(root))
+  read = require(await fs.read(root, file, 100))
+  expect(read.identity == identity)
+  expect(read.contents == "confined".encode_utf8())
+  expect(require(await fs.read_link(root, link)) == "file".encode_utf8())
+  expect(require(await fs.read(root, link, 100)).contents == "confined".encode_utf8())
+  escaping_link = path.from_text("escape").value_or(path.current())
+  match await fs.read(root, escaping_link, 100) { Ok(_) => expect(false), Error(_) => () }
+  escape = path.from_text("../outside").value_or(path.current())
+  match await fs.read_link(root, escape) { Ok(_) => expect(false), Error(_) => () }
+  printed = require(await host.stdout("confined: ok"))
+  ()
+}
+SOURCE
+printf 'confined: ok\n' > "$work/expected"
+panack run "$work/confined.panack" "$work/root" > "$work/output"
+cmp "$work/expected" "$work/output"
+panack compile "$work/confined.panack" -o "$work/confined.bc" > /dev/null
+./bin/panack run "$work/confined.bc" "$work/root" > "$work/output"
+cmp "$work/expected" "$work/output"
+printf 'Canonical confined async source/bytecode passed.\n'
+sed -e 's@stdlib/filesystem/confined/async@stdlib/filesystem/confined@g' \
+    -e 's@stdlib/host/async@stdlib/host@g' \
+    -e 's/async main()/main()/g' -e 's/await //g' \
+    -e 's/printed = require(host.stdout("confined: ok"))/host.stdout("confined: ok")/' \
+    "$work/confined.panack" > "$work/confined-ordinary.panack"
+panack run "$work/confined-ordinary.panack" "$work/root" > "$work/output"
+cmp "$work/expected" "$work/output"
+panack compile "$work/confined-ordinary.panack" -o "$work/confined-ordinary.bc" > /dev/null
+./bin/panack run "$work/confined-ordinary.bc" "$work/root" > "$work/output"
+cmp "$work/expected" "$work/output"
+printf 'Canonical confined ordinary source/bytecode passed.\n'

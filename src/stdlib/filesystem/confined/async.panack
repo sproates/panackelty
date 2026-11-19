@@ -1,0 +1,10 @@
+pub import stdlib/async_filesystem::{HostError, FilesystemRootIdentity, FilesystemRootRead, root_identity, read_beneath}
+import stdlib/async_filesystem as existing
+
+pub async read(root: Path, relative: Path, limit: Nat): Result[FilesystemRootRead,HostError] {
+  await existing.read_beneath(root, relative, limit)
+}
+
+pub async read_link(root: Path, relative: Path): Result[Bytes,HostError] {
+  await fs_read_link_async(root, relative)
+}

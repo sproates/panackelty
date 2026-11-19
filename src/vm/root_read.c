@@ -34,6 +34,7 @@ static const FilesystemOperation FILESYSTEM_OPERATIONS[] = {
     {"fs_metadata", "P", 0},
     {"fs_read", "PN", FILE_BYTES},
     {"fs_read_chunk", "PON", 65536},
+    {"fs_read_link", "PP", 4096},
     {"fs_atomic_write", "PB", 0},
     {"fs_write", "PB", 0},
     {"fs_list", "P", ROOT_READ_BYTES},
@@ -113,7 +114,8 @@ static void *read_worker(void *context)
 {
     VMRootRead *read = context;
     VM isolated = {0};
-    bool staged = !strcmp(read->operation->name, "fs_read_chunk") ||
+    bool staged = !strcmp(read->operation->name, "fs_read_link") ||
+                  !strcmp(read->operation->name, "fs_read_chunk") ||
                   !strcmp(read->operation->name, "fs_atomic_write");
     Value *result = staged
         ? filesystem_stage_call(&isolated, read->operation->name, read->arguments)

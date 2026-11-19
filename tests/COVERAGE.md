@@ -1913,3 +1913,9 @@ reads, a nonzero offset, EOF and rejection above the 64 KiB chunk limit, through
 source and saved bytecode. These operations reuse the existing no-follow native
 implementation in bounded workers; no new bytecode format or execution engine.
 Final expanded stdlib batch validation remains pending.
+
+Canonical confined filesystem tests exercise ordinary and async source and saved
+bytecode, root/read identity equality, contained symlink reads, escaping-link
+rejection and link-target reads. Native dispatch reuses existing safety logic;
+async link reads use bounded workers with a 4096-byte reservation. Coverage
+inventory/hash reconciliation and final batch acceptance remain pending.

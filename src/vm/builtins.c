@@ -87,6 +87,8 @@ static const Builtin BUILTINS[] = {
     {"fs_temp_directory_async", 1, false, BUILTIN_FILESYSTEM_ASYNC, async_service_only},
     {"fs_temp_file_async", 1, false, BUILTIN_FILESYSTEM_ASYNC, async_service_only},
     {"fs_directories_overlap_async", 2, false, BUILTIN_FILESYSTEM_ASYNC, async_service_only},
+    {"fs_root_identity", 1, false, BUILTIN_ORDINARY, host_capability_call},
+    {"fs_read_link_async", 2, false, BUILTIN_FILESYSTEM_ASYNC, async_service_only},
     {"fs_root_identity_async", 1, false, BUILTIN_FS_ROOT_IDENTITY_ASYNC, async_service_only},
     {"fs_read_beneath_async", 3, false, BUILTIN_FS_READ_BENEATH_ASYNC, async_service_only},
     {"fs_read_beneath", 3, false, BUILTIN_ORDINARY, host_capability_call},

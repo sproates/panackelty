@@ -286,3 +286,8 @@ Async `filesystem.read_chunk` and `filesystem.write_atomic` now share the ordina
 bounded implementation on the development branch. Reads allow chunks up to 64 KiB
 and offsets up to 256 MiB; atomic writes accept at most 32 MiB. Cancelling an
 atomic write does not roll back a replacement already in progress.
+
+Development modules `filesystem/confined` and `filesystem/confined/async` expose
+`root_identity`, `read`, `read_beneath` and `read_link`, sharing existing record
+types. Reads resolve relative symlinks within the root and reject escape.
+`read_link` returns the final link target bytes without following that link.

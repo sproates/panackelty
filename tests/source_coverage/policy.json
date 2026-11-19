@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Review filesystem async builtin declarations and canonical filesystem imports using the production inventory.",
+    "reason": "Review canonical confined and staging adapters plus compiler declaration positions using the production inventory.",
     "basis": "Computed with the production parser and inventory_module over every eligible source. Only imports, type refinements, records and enums are excluded; executable functions remain eligible.",
-    "scopeChange": "One new async overlap adapter is unmeasured; eligible sources and execution corpus remain unchanged. This is a declaration-policy refresh, not a coverage collection."
+    "scopeChange": "Four canonical filesystem modules are unmeasured and covered by focused source/bytecode/native tests. Eligible sources and execution corpus are unchanged; this is not a coverage collection."
   },
-  "manifestHash": "d2cfe569ee02cdd172593e43ea9f6ab3b407dc45679e5bd7fec04bb1afc309da",
-  "exclusionHash": "545c8be83720a9cf74fcf5dca0364ef1a19ea0c5e3f98898b2784f1835e5dd11"
+  "manifestHash": "47a217357da9c447125c4ba2320cee348d27f5b50ee96ef62e01ceb05b1e71ea",
+  "exclusionHash": "f3c476a86d435a714d0eb9d59977f52b94f913e077473cfa445e2ea66432e378"
 }

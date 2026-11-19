@@ -309,8 +309,8 @@ Candidate source/bytecode tests cover ordinary canonical operations, every gener
 async operation, shared FileMetadata identity, missing files and read limits.
 Time tests cover exact fractional seconds, fractional-nanosecond rejection and
 legacy compatibility. Native module and fault suites pass, including reservation
-exhaustion/release. Bootstrap seed refresh, final compatibility/full checks and
-relocated installation acceptance are pending the settled batch.
+exhaustion/release. Bootstrap seed refresh, artifact compatibility and inventory
+reconciliation pass for the settled batch. Final acceptance is recorded below.
 
 Temporary creation now keeps ownership on its bounded worker until the result is
 successfully delivered to the execution. Cancellation before delivery removes the
@@ -319,7 +319,34 @@ native error on stderr; it never recursively deletes content. These are ordinary
 path operations, not a confinement or process-crash cleanup guarantee. Native
 tests cover cancellation before/after completion, accepted ownership, allocation
 failures and a non-empty directory preventing cleanup. No completion credit is
-claimed for AS2 yet. Canonical ordinary and async confined modules now provide root_identity, read,
+claimed for AS2 yet. Canonical ordinary and async confined modules now provide
+root_identity, read,
 read_beneath compatibility and read_link. Candidate source/bytecode tests cover
-shared record identity, contained symlinks and escape rejection. Staging ownership,
-coverage inventory/hash reconciliation and final batch validation remain.
+shared record identity, contained symlinks and escape rejection. Typed ordinary and
+async staging now implement all seven operations, with opaque
+resource identity, exclusive worker leases and cleanup after cancellation. Embedded
+teardown queues cleanup without blocking the execution thread. Admission is bounded
+at 32 retained invocation tables and 64 stage slots per invocation.
+
+## Filesystem batch local acceptance, 19 November 2026
+
+`make check` passed in 606 seconds, including unit, functional, bootstrap and
+release-smoke checks. Separate ordinary and async staging programs passed source
+execution and saved-bytecode execution after moving a fresh installation, from an
+unrelated working directory with checkout library overrides removed. All seven
+staging operations, named publication modes and consumed aliases were exercised.
+
+The installation inventory includes every nested stdlib module. Thirteen coverage
+inventory/policy tests pass; four new adapters are explicitly unmeasured by the
+bounded source-coverage corpus. This does not claim new measured coverage.
+
+Artifact preflight passes. The stdlib golden artifact adds 12 wrapper/import
+functions; all 35 existing function bodies are unchanged after module renumbering,
+and old/new execution output matches. Compiler stages 2–4 reach the same fixed
+point. Bytecode remains v9.
+
+The historical timing warnings remain informational under the existing performance
+reassessment. This expanded run is not a controlled performance comparison and no
+speed improvement is claimed. Integration and hosted validation remain pending;
+development CI stays off. AS2 remains in progress, including remaining specialist
+resource decisions and migrations; this does not complete the expanded programme.

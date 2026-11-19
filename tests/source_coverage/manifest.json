@@ -22,6 +22,10 @@
     "src/stdlib/time.panack", "src/stdlib/validation.panack"
   ],
   "unmeasured": [
+    {"path":"src/stdlib/filesystem/confined.panack","reason":"Canonical filesystem adapter checked by focused source/bytecode and native lifecycle tests outside the bounded source-coverage corpus."},
+    {"path":"src/stdlib/filesystem/confined/async.panack","reason":"Canonical filesystem adapter checked by focused source/bytecode and native lifecycle tests outside the bounded source-coverage corpus."},
+    {"path":"src/stdlib/filesystem/staging.panack","reason":"Canonical filesystem adapter checked by focused source/bytecode and native lifecycle tests outside the bounded source-coverage corpus."},
+    {"path":"src/stdlib/filesystem/staging/async.panack","reason":"Canonical filesystem adapter checked by focused source/bytecode and native lifecycle tests outside the bounded source-coverage corpus."},
     {"path":"src/stdlib/package_filesystem/async.panack","reason":"Async overlap adapter checked by source/bytecode filesystem integration outside the bounded source-coverage corpus."},
     {"path":"src/stdlib/environment/async.panack","reason":"Async adapter or re-export checked by focused native and source/bytecode service tests outside the bounded source-coverage corpus."},
     {"path":"src/stdlib/filesystem/async.panack","reason":"Async adapter or re-export checked by focused native and source/bytecode service tests outside the bounded source-coverage corpus."},

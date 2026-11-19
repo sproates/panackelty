@@ -711,3 +711,10 @@ The compiler seed is refreshed for logical `/async` imports and closed async
 clock/environment primitives. Public ordinary modules remain compatible and
 bytecode remains v9. The native clock implementation is shared between the
 ordinary and async routes; package policy and stdlib wrappers remain Panackelty.
+
+The expanded filesystem batch refreshes the v9 seed to
+`919832cc31d7f222af7253aa8a9c0dc0c15d447c6c0c777d9d9cca7983132a7c`.
+Stages 2, 3 and 4 produce identical compiler bytes and standard-library conformance
+bytes. The standard-library fixture gains canonical wrappers and imported helpers;
+all 35 pre-existing function instruction bodies remain identical after module
+renumbering, and execution output is unchanged. The bytecode format remains v9.

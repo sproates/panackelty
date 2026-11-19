@@ -1979,3 +1979,24 @@ Cleanup uses one worker and an allocation-free intrusive queue bounded by table
 admission. The CLI drains queued cleanup after stopping its runtime; active host
 operations can still outlive cancellation, and process termination gives no
 cleanup guarantee for such operations. Final expanded-batch validation pending.
+
+### Expanded filesystem batch acceptance, 19 November 2026
+
+Final `make check` passed in 606 seconds: unit 389s, bootstrap 83s in parallel,
+functional 142s, plus the remaining build/release checks. Historical budget warnings
+remain informational; these timings are not a controlled performance comparison.
+The general, confined and ordinary/async opaque staging fixtures all passed source
+and saved-bytecode execution. A separate relocated installation repeated ordinary
+and async staging from an unrelated working directory without checkout overrides.
+
+Installation inventory reconciliation and all 13 coverage manifest/policy tests
+pass. Four canonical confined/staging modules are explicitly unmeasured; eligible
+sources and the bounded execution corpus are unchanged. Policy hashes were
+regenerated with the production parser and declaration inventory. No measured
+coverage increase is claimed.
+
+Artifact preflight passes after a reviewed stdlib golden update: all 35 original
+function instruction bodies match after module renumbering; 12 wrapper/import
+functions are added and old/new output matches. Refreshed compiler stages 2–4
+agree, as do stdlib conformance bytes. Integration and hosted validation are
+pending; development CI remains off.

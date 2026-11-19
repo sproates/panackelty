@@ -334,11 +334,11 @@ Documentation is its own acceptance work, not a final optional polish step.
 | ID / outcome | Weight | Current state |
 | --- | ---: | --- |
 | AS1: Imports, clock and environment | 10 | In review: PR #693, local full validation passed; integration pending |
-| AS2: Filesystem and resource-operation boundary | 30 | Inventory recorded; implementation and specialist decisions pending |
+| AS2: Filesystem and resource-operation boundary | 30 | General, confined and typed staging APIs locally validated (606s full check, 19 November), including async cleanup and relocated installation. Remaining specialist decisions/migrations and integration pending |
 | AS3: Timers, console and processes | 25 | Inventory recorded; input/nested-execution boundary and runtime contracts pending |
 | AS4: Streaming HTTP | 15 | Inventory recorded; lifecycle contracts and implementation pending |
 | AS5: Stdlib reference, guides and website | 20 | Documentation gap verified; pages, examples and review pending |
-| Total | 100 | No accepted completion credit yet; AS1 is locally validated but unmerged |
+| Total | 100 | No accepted completion credit yet; AS1 and the filesystem batch are locally validated but unmerged |
 
 Do not count AS1 twice within RM#162 or equate this programme's weights with a
 release percentage. Shared state, closures and anonymous functions remain
@@ -356,6 +356,6 @@ API changes or replace the existing runtime acceptance requirements.
 The owner approved the whole-library redesign direction and requested continuation.
 The [API implementation contract](STDLIB_API_CONTRACT.md) records signatures,
 compatibility, ownership and ordering. This approval supersedes the earlier
-proposal-only status, while detailed semantic choices remain explicit. AS2 has
-uncommitted general filesystem worker/compiler implementation, not accepted delivery.
-Canonical names and adapters precede further expansion of that implementation.
+proposal-only status, while detailed semantic choices remain explicit. The subsequent
+filesystem batch now passes local acceptance, recorded in the API contract. It is
+committed on the development branch, not integrated or accepted as all of AS2.

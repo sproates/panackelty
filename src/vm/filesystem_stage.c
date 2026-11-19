@@ -155,6 +155,25 @@ static bool stage_parent_matches(struct Stage *stage)
 
 #endif
 #ifndef __EMSCRIPTEN__
+static bool stage_table_ensure(VM *vm)
+{
+    if (!vm->filesystem_stages) {
+        struct VMFilesystemStages *table = calloc(1, sizeof(*table));
+        if (!table) return false;
+        atomic_init(&table->references, 1);
+        atomic_init(&table->count, 0);
+        for (size_t i = 0; i < STAGE_LIMIT; i++) atomic_init(&table->slots[i].busy, false);
+        vm->filesystem_stages = table;
+    }
+    if (!vm->filesystem_stages->owner) {
+        VMStageOwner *owner = calloc(1, sizeof(*owner));
+        if (!owner) return false;
+        atomic_init(&owner->references, 1);
+        vm->filesystem_stages->owner = owner;
+    }
+    return true;
+}
+
 static void stage_table_release(struct VMFilesystemStages *table)
 {
     if (atomic_fetch_sub(&table->references, 1) != 1) return;
@@ -178,10 +197,10 @@ void filesystem_stage_destroy(VM *vm)
     (void)vm;
 #endif
 }
-static Value *stage_call(VM *vm, const char *name, Value **a, bool leased)
+static Value *stage_call(VM *vm, const char *name, Value **a, bool leased, size_t creation_slot)
 {
 #ifdef __EMSCRIPTEN__
-    (void)vm; (void)a; (void)leased;
+    (void)vm; (void)a; (void)leased; (void)creation_slot;
     return stage_error(name, "unsupported", 0);
 #else
     if (!strcmp(name, "fs_read_link")) {
@@ -290,23 +309,10 @@ static Value *stage_call(VM *vm, const char *name, Value **a, bool leased)
         int parent = cwd < 0 ? -1 : stage_directory(cwd, path);
         if (cwd >= 0) close(cwd);
         if (parent < 0) { int e = errno; free(path); return stage_error(name, "invalid_parent", e); }
-        if (!vm->filesystem_stages) {
-            vm->filesystem_stages = calloc(1, sizeof(*vm->filesystem_stages));
-            if (vm->filesystem_stages) {
-                atomic_init(&vm->filesystem_stages->references, 1);
-                atomic_init(&vm->filesystem_stages->count, 0);
-                for (size_t i = 0; i < STAGE_LIMIT; i++) atomic_init(&vm->filesystem_stages->slots[i].busy, false);
-            }
-        }
-        if (!vm->filesystem_stages || vm->filesystem_stages->count == STAGE_LIMIT) {
+        if (!stage_table_ensure(vm) || (!creation_slot && vm->filesystem_stages->count == STAGE_LIMIT)) {
             close(parent); free(path); return stage_error(name, "resource_limit", 0);
         }
-        if (!vm->filesystem_stages->owner) {
-            vm->filesystem_stages->owner = calloc(1, sizeof(VMStageOwner));
-            if (!vm->filesystem_stages->owner) { close(parent); free(path); return NULL; }
-            vm->filesystem_stages->owner->references = 1;
-        }
-        size_t slot = vm->filesystem_stages->count++;
+        size_t slot = creation_slot ? creation_slot - 1 : vm->filesystem_stages->count++;
         struct Stage *stage = &vm->filesystem_stages->slots[slot];
         int created = -1;
         for (unsigned attempt = 0; attempt < 128; attempt++) {
@@ -438,7 +444,7 @@ static Value *stage_call(VM *vm, const char *name, Value **a, bool leased)
 
 Value *filesystem_stage_call(VM *vm, const char *name, Value **arguments)
 {
-    return stage_call(vm, name, arguments, false);
+    return stage_call(vm, name, arguments, false, 0);
 }
 
 /* Native resource adapter. Owner tokens outlive destroyed VMs while a value
@@ -555,7 +561,7 @@ Value *filesystem_stage_leased_call(VMStageLease *lease, const char *name, Value
     if (!number) return NULL;
     Value *adapted[4] = {number};
     for (size_t i = 1; i < arity; i++) adapted[i] = arguments[i - 1];
-    Value *result = stage_call(&isolated, name, adapted, true);
+    Value *result = stage_call(&isolated, name, adapted, true, 0);
     release(number);
     return result;
 #endif
@@ -569,4 +575,67 @@ void filesystem_stage_lease_release(VMStageLease *lease)
     stage_table_release(lease->table);
 #endif
     free(lease);
+}
+
+VMStageLease *filesystem_stage_reserve(VM *vm, Value **failure)
+{
+    *failure = NULL;
+#ifdef __EMSCRIPTEN__
+    (void)vm;
+    *failure = stage_error("stage_create", "unsupported", 0);
+    return NULL;
+#else
+    if (!stage_table_ensure(vm)) return NULL;
+    struct VMFilesystemStages *table = vm->filesystem_stages;
+    if (table->count == STAGE_LIMIT) {
+        *failure = stage_error("stage_create", "resource_limit", 0);
+        return NULL;
+    }
+    VMStageLease *lease = calloc(1, sizeof(*lease));
+    if (!lease) return NULL;
+    lease->table = table;
+    lease->slot = ++table->count;
+    atomic_store(&table->slots[lease->slot - 1].busy, true);
+    atomic_fetch_add(&table->references, 1);
+    return lease;
+#endif
+}
+
+Value *filesystem_stage_leased_create(VMStageLease *lease, Value **arguments)
+{
+#ifdef __EMSCRIPTEN__
+    (void)lease; (void)arguments;
+    return stage_error("stage_create", "unsupported", 0);
+#else
+    VM isolated = {.filesystem_stages = lease->table};
+    /* Allocate the opaque value before creating the filesystem object. */
+    Value *resource = value_new(V_DIRECTORY_STAGE);
+    if (!resource) return NULL;
+    Value *result = stage_call(&isolated, "fs_stage_begin", arguments, true, lease->slot);
+    if (!result || strcmp(result->as.named.name, "Ok")) {
+        release(resource);
+        /* Result allocation may fail after creation; do not strand it. */
+        struct Stage *stage = &lease->table->slots[lease->slot - 1];
+        int error = stage_release(stage);
+        if (error) stage_cleanup_warning(stage, error);
+        return result;
+    }
+    resource->as.directory_stage.owner = lease->table->owner;
+    resource->as.directory_stage.slot = lease->slot;
+    atomic_fetch_add(&lease->table->owner->references, 1);
+    release(result->as.named.values[0]);
+    result->as.named.values[0] = resource;
+    return result;
+#endif
+}
+
+void filesystem_stage_cancel_created(VMStageLease *lease)
+{
+#ifndef __EMSCRIPTEN__
+    struct Stage *stage = &lease->table->slots[lease->slot - 1];
+    int error = stage_release(stage);
+    if (error) stage_cleanup_warning(stage, error);
+#else
+    (void)lease;
+#endif
 }

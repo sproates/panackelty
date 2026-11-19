@@ -1753,6 +1753,9 @@ or inspect native identity fields. Values belong to one invocation; aliases
 refer to the same stage and become unusable after successful publication or
 discard. Publication uses the module enum `PublishMode` with `CreateOnly` and
 `ReplaceExisting` variants. Staging functions are ordinary effectful functions;
-pure and async functions cannot call them. The matching async module remains
-unimplemented. See the [stdlib API contract](../STDLIB_API_CONTRACT.md) for failure
+pure and async functions cannot call them. Matching async functions are available
+on the development branch through `stdlib/filesystem/staging/async`; they use
+`await` and share the same resource and publication-mode types. Creation cancelled
+before result delivery is discarded; cancellation of publication does not promise
+rollback. Embedded shutdown cleanup is still under development. See the [stdlib API contract](../STDLIB_API_CONTRACT.md) for failure
 and ownership transitions.

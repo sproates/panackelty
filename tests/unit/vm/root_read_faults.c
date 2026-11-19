@@ -4,6 +4,7 @@
 #endif
 #include "numeric.h"
 #include "root_read.h"
+#include "filesystem_stage.h"
 #include "value.h"
 
 #include <assert.h>
@@ -79,8 +80,8 @@ void root_read_faults(void)
     assert(fault_live() == baseline && fault_descriptors() == 0);
     /* Every allocation boundary during temporary creation must either return
      * a resource or remove it when its result is abandoned. */
-    const char *temporary[] = {"fs_temp_file", "fs_temp_directory"};
-    for (size_t kind = 0; kind < 2; kind++) {
+    const char *temporary[] = {"fs_temp_file", "fs_temp_directory", "stage_create"};
+    for (size_t kind = 0; kind < 3; kind++) {
         for (size_t failure = 1; failure < 256; failure++) {
             fault_reset(failure);
             VM temporary_vm = {0};
@@ -89,12 +90,16 @@ void root_read_faults(void)
                 root_read_wait(pending);
                 root_read_destroy(pending);
             }
+            filesystem_stage_destroy(&temporary_vm);
             wait_for_workers();
             assert(fault_live() == baseline && fault_descriptors() == 0);
             DIR *entries = opendir(directory);
             assert(entries);
             struct dirent *entry;
-            while ((entry = readdir(entries))) assert(strncmp(entry->d_name, "panack-", 7));
+            while ((entry = readdir(entries))) {
+                assert(strncmp(entry->d_name, "panack-", 7));
+                assert(strncmp(entry->d_name, ".panack-stage-", 14));
+            }
             assert(closedir(entries) == 0);
             if (!fault_triggered()) break;
             assert(failure < 255);

@@ -458,6 +458,13 @@ pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool 
     (owner.module.path == "filesystem/confined.panack" && owner.name == "root_identity" && name == "fs_root_identity") ||
     (owner.module.path == "filesystem/confined/async.panack" && owner.name == "read_link" && name == "fs_read_link_async") ||
     (owner.module.path == "bounded_filesystem.panack" && owner.name == "read_link" && name == "fs_read_link") ||
+    (owner.module.path == "filesystem/staging/async.panack" && owner.name == "create" && name == "stage_create_async") ||
+    (owner.module.path == "filesystem/staging/async.panack" && owner.name == "path" && name == "stage_path_async") ||
+    (owner.module.path == "filesystem/staging/async.panack" && owner.name == "create_directory" && name == "stage_directory_async") ||
+    (owner.module.path == "filesystem/staging/async.panack" && owner.name == "write_chunk" && name == "stage_write_async") ||
+    (owner.module.path == "filesystem/staging/async.panack" && owner.name == "create_symlink" && name == "stage_symlink_async") ||
+    (owner.module.path == "filesystem/staging/async.panack" && owner.name == "publish" && name == "stage_publish_async") ||
+    (owner.module.path == "filesystem/staging/async.panack" && owner.name == "discard" && name == "stage_discard_async") ||
     (owner.module.path == "filesystem/staging.panack" && owner.name == "create" && name == "stage_create") ||
     (owner.module.path == "filesystem/staging.panack" && owner.name == "path" && name == "stage_path") ||
     (owner.module.path == "filesystem/staging.panack" && owner.name == "create_directory" && name == "stage_directory") ||
@@ -574,6 +581,7 @@ pub pure module_internal_primitive_name(identity: ModuleIdentity, name: Str): Bo
     (identity.path == "tcp.panack" && (name == "tcp_exchange" || name == "tcp_serve" || name == "tcp_serve_stream" || name == "tcp_server_read_chunk")) ||
     (identity.path == "path.panack" && (name == "path_current" || name == "path_from_native" || name == "path_from_text")) ||
     (identity.path == "testing_async.panack" && (name == "async_fake_read")) ||
+    (identity.path == "filesystem/staging/async.panack" && (name == "stage_create_async" || name == "stage_path_async" || name == "stage_directory_async" || name == "stage_write_async" || name == "stage_symlink_async" || name == "stage_publish_async" || name == "stage_discard_async")) ||
     (identity.path == "filesystem/staging.panack" && (name == "stage_create" || name == "stage_path" || name == "stage_directory" || name == "stage_write" || name == "stage_symlink" || name == "stage_publish" || name == "stage_discard")) ||
     (identity.path == "filesystem_stage.panack" && (name == "fs_stage_symlink" || name == "fs_stage_begin" || name == "fs_stage_path" || name == "fs_stage_directory" || name == "fs_stage_write" || name == "fs_stage_publish" || name == "fs_stage_close")) ||
     (identity.path == "digest.panack" && (name == "digest_sha256_open" || name == "digest_update" || name == "digest_finish" || name == "digest_close")) ||

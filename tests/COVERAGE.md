@@ -1960,3 +1960,13 @@ the unpublished stage. This proves native lifetime independence without relying 
 timing. It does not yet exercise public await dispatch or cancellation. Atomic
 reference counts and per-stage admission add bounded bookkeeping; native slots
 remain bounded at 64 per invocation. Full batch validation remains pending.
+
+Async staging source/bytecode tests now cover create/path/directory/write/symlink/
+publish/discard, named modes and alias consumption. Native creation tests cover
+immediate cancellation, cancellation after completion and accepted ownership
+without a transient busy result. Allocation sweeps check abandoned creation
+without retained memory or leftover stage directories. A cancelled publication
+finishes and preserves its committed destination after VM teardown. These checks
+do not establish event-loop-safe shutdown with no lease pending; that and final
+batch/coverage-inventory acceptance remain outstanding. Worker admission remains
+32 operations with existing byte reservations and 64 stage slots per invocation.

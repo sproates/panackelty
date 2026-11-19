@@ -29,6 +29,13 @@ typedef struct {
 } FilesystemOperation;
 
 static const FilesystemOperation FILESYSTEM_OPERATIONS[] = {
+    {"stage_create", "P", 0},
+    {"stage_path", "H", 0},
+    {"stage_directory", "HP", 0},
+    {"stage_write", "HPBO", 0},
+    {"stage_symlink", "HPP", 0},
+    {"stage_publish", "HPT", 0},
+    {"stage_discard", "H", 0},
     {"fs_read_beneath", "PPN", ROOT_READ_BYTES},
     {"fs_root_identity", "P", 0},
     {"fs_metadata", "P", 0},
@@ -47,7 +54,8 @@ static const FilesystemOperation FILESYSTEM_OPERATIONS[] = {
 };
 
 struct VMRootRead {
-    Value *arguments[3], *result;
+    Value *arguments[4], *result;
+    VMStageLease *lease;
     const char *error;
     bool done, abandoned, admitted, temporary_worker, accepted;
     const FilesystemOperation *operation;
@@ -95,10 +103,11 @@ static void discard_temporary(VMRootRead *read)
 
 static void free_read(VMRootRead *read)
 {
-    for (size_t i = 0; i < 3; i++) {
+    for (size_t i = 0; i < 4; i++) {
         release(read->arguments[i]);
     }
     release(read->result);
+    filesystem_stage_lease_release(read->lease);
     pthread_cond_destroy(&read->completed);
     pthread_mutex_destroy(&read->mutex);
     bool admitted = read->admitted;
@@ -117,7 +126,18 @@ static void *read_worker(void *context)
     bool staged = !strcmp(read->operation->name, "fs_read_link") ||
                   !strcmp(read->operation->name, "fs_read_chunk") ||
                   !strcmp(read->operation->name, "fs_atomic_write");
-    Value *result = staged
+    Value *result = NULL;
+    bool create_stage = !strcmp(read->operation->name, "stage_create");
+    if (read->lease) {
+        if (create_stage) result = filesystem_stage_leased_create(read->lease, read->arguments);
+        else {
+            char operation[64];
+            snprintf(operation, sizeof(operation), "fs_%s", !strcmp(read->operation->name, "stage_discard") ? "stage_close" : read->operation->name);
+            result = filesystem_stage_leased_call(read->lease, operation, read->arguments + 1);
+            filesystem_stage_lease_release(read->lease);
+            read->lease = NULL;
+        }
+    } else result = staged
         ? filesystem_stage_call(&isolated, read->operation->name, read->arguments)
         : host_capability_call(&isolated, read->operation->name, read->arguments);
     pthread_mutex_lock(&read->mutex);
@@ -133,7 +153,10 @@ static void *read_worker(void *context)
         }
         bool accepted = read->accepted;
         pthread_mutex_unlock(&read->mutex);
-        if (!accepted) discard_temporary(read);
+        if (!accepted) {
+            if (create_stage) filesystem_stage_cancel_created(read->lease);
+            else discard_temporary(read);
+        }
         free_read(read);
         return NULL;
     }
@@ -171,7 +194,8 @@ VMRootRead *filesystem_async_start(VM *vm, const char *name, Value **arguments)
         char kind = operation->arguments[i];
         if ((kind == 'P' && (value->kind != V_PATH ||
               memchr(value->as.bytes.data, 0, value->as.bytes.length))) ||
-            ((kind == 'N' || kind == 'O') && value->kind != V_NAT) || (kind == 'B' && value->kind != V_BYTES)) {
+            ((kind == 'N' || kind == 'O') && value->kind != V_NAT) || (kind == 'B' && value->kind != V_BYTES) ||
+            (kind == 'H' && value->kind != V_DIRECTORY_STAGE) || (kind == 'T' && value->kind != V_BOOL)) {
             vm->error = "VM trap: invalid asynchronous filesystem arguments";
             return NULL;
         }
@@ -181,7 +205,8 @@ VMRootRead *filesystem_async_start(VM *vm, const char *name, Value **arguments)
             out_of_range |= !value_index(value, &offset) || offset > 256u * 1024u * 1024u;
         }
         if (kind == 'B') {
-            size_t maximum = !strcmp(name, "fs_atomic_write") ? 32u * 1024u * 1024u : FILE_BYTES;
+            size_t maximum = !strcmp(name, "stage_write") ? 65536 :
+                !strcmp(name, "fs_atomic_write") ? 32u * 1024u * 1024u : FILE_BYTES;
             out_of_range |= value->as.bytes.length > maximum;
             if (!out_of_range) reservation += value->as.bytes.length;
         }
@@ -237,12 +262,25 @@ VMRootRead *filesystem_async_start(VM *vm, const char *name, Value **arguments)
         return read;
     }
     read->reserved_bytes = reservation;
+    if (!strcmp(name, "stage_create") || operation->arguments[0] == 'H') {
+        read->lease = !strcmp(name, "stage_create")
+            ? filesystem_stage_reserve(vm, &read->result)
+            : filesystem_stage_acquire(vm, arguments[0], &read->result);
+        if (!read->lease) {
+            if (!read->result) { free_read(read); return NULL; }
+            read->done = true;
+            return read;
+        }
+    }
     for (size_t i = 0; i < argument_count; i++) {
+        if (operation->arguments[i] == 'H') continue;
         Value *argument = arguments[i];
         if (operation->arguments[i] == 'N' || operation->arguments[i] == 'O') {
             size_t number = 0;
             (void)value_index(argument, &number);
             read->arguments[i] = value_size(number);
+        } else if (operation->arguments[i] == 'T') {
+            read->arguments[i] = value_bool(argument->as.boolean);
         } else {
             read->arguments[i] = value_data(argument->kind, argument->as.bytes.data, argument->as.bytes.length);
         }
@@ -259,7 +297,7 @@ VMRootRead *filesystem_async_start(VM *vm, const char *name, Value **arguments)
     int error = pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
     pthread_t worker;
     if (!error) {
-        read->temporary_worker = !strcmp(name, "fs_temp_file") || !strcmp(name, "fs_temp_directory");
+        read->temporary_worker = !strcmp(name, "stage_create") || !strcmp(name, "fs_temp_file") || !strcmp(name, "fs_temp_directory");
         error = pthread_create(&worker, &attributes, read_worker, read);
     }
     pthread_attr_destroy(&attributes);
@@ -325,6 +363,8 @@ void root_read_destroy(VMRootRead *read)
         /* Result reference counts are owner-thread only after handoff. */
         release(read->result);
         read->result = NULL;
+        filesystem_stage_lease_release(read->lease);
+        read->lease = NULL;
     }
     read->abandoned = true;
     bool done = read->done;

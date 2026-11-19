@@ -130,8 +130,8 @@ values must identify their owning invocation and cannot be constructed by wrappi
 an arbitrary Nat in a public record.
 
 Workers must own native resource state independently of VM/program/value lifetimes.
-Do not pass the current VM stage table into the general filesystem worker's isolated
-VM. Table destruction must not close descriptors still in use by a worker. Keep
+Do not borrow the current VM stage table without an independently retained lease
+when dispatching a filesystem worker. Table destruction must not close descriptors still in use by a worker. Keep
 admission bounded and perform recursive discard on workers, not the event loop.
 Prepare the successful publication result before committing, so an allocation
 failure cannot make a committed publication appear to have failed. Old-generation
@@ -158,10 +158,17 @@ The ordinary `filesystem/staging` module now exposes DirectoryStage and PublishM
 through the candidate compiler. Source/bytecode tests cover creation, writes,
 create-only rejection, replacement, discard and alias consumption; negative cases
 reject numeric handles, direct construction and pure side effects. A native-thread test performs a stage operation after VM destruction and source
-value release, then verifies cleanup on lease release. Public async dispatch,
-async creation/result handoff, event-loop-safe shutdown when no lease is pending,
-and deterministic async cancellation/fault tests remain outstanding. No async staging wrapper
-is exposed until those guarantees are implemented.
+value release, then verifies cleanup on lease release. The development async
+module now dispatches all seven operations through bounded filesystem workers.
+Creation reserves an invocation slot before dispatch and retains worker ownership
+until result handoff; cancellation before handoff discards the stage. Existing
+stages are leased exclusively, and publication may commit after cancellation.
+Source/bytecode tests cover the matching API; native tests cover creation
+cancellation, accepted handoff, publication after cancellation and allocation
+failures during creation. Embedded teardown with no pending lease can still run
+recursive cleanup on the owner thread: this remains an integration blocker.
+The async module is development code, not accepted for integration until that
+shutdown guarantee and final batch checks are complete.
 
 ## Console, environment and process
 

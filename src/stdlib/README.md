@@ -297,5 +297,8 @@ and `PublishMode.CreateOnly` / `PublishMode.ReplaceExisting`. Use `create`, `pat
 `create_directory`, `write_chunk`, `create_symlink`, `publish` and `discard`.
 Successful publication/discard consumes the resource, including aliases. Failed
 publication leaves it owned; failed discard retains ownership for retry. Legacy
-`filesystem_stage` numeric handles remain supported during migration. The async
-staging module is not yet implemented.
+`filesystem_stage` numeric handles remain supported during migration. The development async
+module `filesystem/staging/async` provides matching functions using `await` and
+the same publication modes. Creation cancelled before delivery is discarded;
+publication may still commit after cancellation. Embedded shutdown cleanup remains
+an integration blocker, so this module is not yet accepted for release.

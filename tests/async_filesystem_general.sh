@@ -170,6 +170,11 @@ main(): Unit {
   destination = path.from_text("published").value_or(path.current())
   first: DirectoryStage = require(stage.create(root))
   alias = first
+  nested = path.from_text("nested").value_or(path.current())
+  made_directory = require(stage.create_directory(first, nested))
+  link = path.from_text("link").value_or(path.current())
+  made_link = require(stage.create_symlink(first, link, relative))
+  observed_path = require(stage.path(first))
   wrote = require(stage.write_chunk(first, relative, "first".encode_utf8(), 0))
   published = require(stage.publish(first, destination, CreateOnly()))
   match stage.discard(alias) { Ok(_) => expect(false), Error(_) => () }
@@ -220,3 +225,20 @@ if panack check "$work/constructed-stage.panack" > "$work/constructed-error" 2>&
   exit 1
 fi
 grep 'DirectoryStage' "$work/constructed-error" > /dev/null
+sed -e 's@import stdlib/filesystem/staging as stage@import stdlib/filesystem/staging/async as stage@' \
+    -e 's@import stdlib/filesystem/confined as confined@import stdlib/filesystem/confined/async as confined@' \
+    -e 's@import stdlib/host as host@import stdlib/host/async as host@' \
+    -e 's/^main()/async main()/' \
+    -e 's/stage\.\([a-z_]*\)(/await stage.\1(/g' \
+    -e 's/confined.read(/await confined.read(/g' \
+    -e 's/host.arguments(/await host.arguments(/g' \
+    -e 's/host.stdout(/reported = await host.stdout(/g' \
+    "$work/staging.panack" > "$work/staging-async.panack"
+mkdir "$work/staging-async-source" "$work/staging-async-bytecode"
+printf 'staging: ok\n' > "$work/expected"
+panack run "$work/staging-async.panack" "$work/staging-async-source" > "$work/output"
+cmp "$work/expected" "$work/output"
+panack compile "$work/staging-async.panack" -o "$work/staging-async.bc" > /dev/null
+./bin/panack run "$work/staging-async.bc" "$work/staging-async-bytecode" > "$work/output"
+cmp "$work/expected" "$work/output"
+printf 'Async opaque staging source/bytecode passed.\n'

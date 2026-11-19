@@ -4,6 +4,7 @@
 #endif
 #include "numeric.h"
 #include "root_read.h"
+#include "filesystem_stage.h"
 #include "value.h"
 #include "verify.h"
 
@@ -96,6 +97,69 @@ static void execution_contracts(Value **arguments)
         assert(vm_execution_destroy(execution));
         assert(!vm.execution);
         await_idle();
+    }
+}
+
+static void stage_cancelled_publication(const char *directory)
+{
+    VM vm = {0};
+    Value *parent[] = {path_value(directory)};
+    VMRootRead *read = filesystem_async_start(&vm, "stage_create", parent);
+    assert(read);
+    root_read_wait(read);
+    Value *created = root_read_result(read);
+    assert(created && !strcmp(created->as.named.name, "Ok"));
+    Value *resource = retain(created->as.named.values[0]);
+    root_read_accept(read);
+    root_read_destroy(read);
+    Value *publish[] = {resource, path_value("published-after-cancel"), value_bool(false)};
+    read = filesystem_async_start(&vm, "stage_publish", publish);
+    assert(read && !vm.error);
+    root_read_destroy(read);
+    filesystem_stage_destroy(&vm);
+    release(parent[0]);
+    for (size_t i = 0; i < 3; i++) release(publish[i]);
+    await_idle();
+    char destination[512];
+    snprintf(destination, sizeof(destination), "%s/published-after-cancel", directory);
+    /* Cancellation abandons waiting; it must not undo or remove a committed rename. */
+    assert(access(destination, F_OK) == 0 && rmdir(destination) == 0);
+}
+
+static void stage_creation_contracts(const char *directory)
+{
+    for (size_t mode = 0; mode < 3; mode++) {
+        VM vm = {0};
+        Value *arguments[] = {path_value(directory)};
+        VMRootRead *read = filesystem_async_start(&vm, "stage_create", arguments);
+        release(arguments[0]);
+        assert(read && !vm.error);
+        Value *owned = NULL;
+        if (mode) {
+            root_read_wait(read);
+            Value *result = root_read_result(read);
+            assert(result && !strcmp(result->as.named.name, "Ok"));
+            if (mode == 2) {
+                owned = retain(result->as.named.values[0]);
+                root_read_accept(read);
+            }
+        }
+        root_read_destroy(read);
+        if (owned) {
+            /* The successful handoff must release busy before bytecode resumes. */
+            Value *args[] = {owned};
+            Value *result = filesystem_stage_resource_call(&vm, "stage_path", args);
+            assert(result && !strcmp(result->as.named.name, "Ok"));
+            release(result);
+            release(owned);
+        }
+        filesystem_stage_destroy(&vm);
+        await_idle();
+        DIR *entries = opendir(directory);
+        assert(entries);
+        struct dirent *entry;
+        while ((entry = readdir(entries))) assert(strncmp(entry->d_name, ".panack-stage-", 14));
+        assert(closedir(entries) == 0);
     }
 }
 
@@ -281,6 +345,8 @@ void root_read_contracts(void)
     release(general[1]);
     assert(!filesystem_async_start(&vm, "not_a_filesystem_operation", NULL) && vm.error);
     temporary_contracts(directory);
+    stage_creation_contracts(directory);
+    stage_cancelled_publication(directory);
     assert(unlink(filename) == 0 && rmdir(directory) == 0);
     await_idle();
 }

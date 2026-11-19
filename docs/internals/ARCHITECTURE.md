@@ -1986,5 +1986,7 @@ its table reference; cleanup waits until the last lease is released. The legacy 
 kept for existing callers. The native value is not a serializable bytecode
 constant and does not change bytecode v9. The candidate compiler exposes DirectoryStage through the ordinary staging module.
 Table and identity reference counts are atomic; shared stage mutation is excluded
-by a per-stage busy flag. The public async dispatcher and creation/cancellation
-handoff are still pending.
+by a per-stage busy flag. The async dispatcher retains leases and copies worker arguments. Creation reserves
+a slot before dispatch, then hands ownership over only after successful result
+delivery. Cancelled creation cleans up on its worker. Teardown with no pending
+lease can still clean up on the owner thread and remains an integration blocker.

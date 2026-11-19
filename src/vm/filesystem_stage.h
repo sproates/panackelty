@@ -9,6 +9,9 @@ void filesystem_stage_owner_release(VMStageOwner *owner);
 typedef struct VMStageLease VMStageLease;
 VMStageLease *filesystem_stage_acquire(VM *vm, Value *resource, Value **failure);
 Value *filesystem_stage_leased_call(VMStageLease *lease, const char *name, Value **arguments);
+VMStageLease *filesystem_stage_reserve(VM *vm, Value **failure);
+Value *filesystem_stage_leased_create(VMStageLease *lease, Value **arguments);
+void filesystem_stage_cancel_created(VMStageLease *lease);
 void filesystem_stage_lease_release(VMStageLease *lease);
 void filesystem_stage_destroy(VM *vm);
 #endif

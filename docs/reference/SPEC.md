@@ -1744,3 +1744,15 @@ staging publishes one complete directory atomically. See the
 [adapter contracts](../../src/stdlib/README.md#native-streaming-and-confined-filesystem-adapters-on-next)
 for limits, cleanup and platform restrictions. These modules introduce no
 arbitrary foreign-function interface or new bytecode version.
+
+### Directory staging in alpha.16 development
+
+`DirectoryStage` is an opaque native resource type exposed by the development
+`stdlib/filesystem/staging` module. Programs cannot construct it from a number
+or inspect native identity fields. Values belong to one invocation; aliases
+refer to the same stage and become unusable after successful publication or
+discard. Publication uses the module enum `PublishMode` with `CreateOnly` and
+`ReplaceExisting` variants. Staging functions are ordinary effectful functions;
+pure and async functions cannot call them. The matching async module remains
+unimplemented. See the [stdlib API contract](../STDLIB_API_CONTRACT.md) for failure
+and ownership transitions.

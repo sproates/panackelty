@@ -150,8 +150,11 @@ The native opaque DirectoryStage representation now retains an invocation identi
 token independently of the VM table. Native regressions reject forged numbers,
 foreign invocation handles, stale handles after table recreation, and consumed
 aliases. The token is owner-thread-only metadata, not worker resource ownership.
-Public compiler/module exposure, worker lifetime, busy handling and deterministic
-async cancellation/fault tests remain outstanding. No async staging wrapper
+The ordinary `filesystem/staging` module now exposes DirectoryStage and PublishMode
+through the candidate compiler. Source/bytecode tests cover creation, writes,
+create-only rejection, replacement, discard and alias consumption; negative cases
+reject numeric handles, direct construction and pure side effects. Worker lifetime,
+busy handling and deterministic async cancellation/fault tests remain outstanding. No async staging wrapper
 is exposed until those guarantees are implemented.
 
 ## Console, environment and process

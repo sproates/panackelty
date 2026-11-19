@@ -153,3 +153,70 @@ panack compile "$work/confined-ordinary.panack" -o "$work/confined-ordinary.bc" 
 ./bin/panack run "$work/confined-ordinary.bc" "$work/root" > "$work/output"
 cmp "$work/expected" "$work/output"
 printf 'Canonical confined ordinary source/bytecode passed.\n'
+cat > "$work/staging.panack" <<'SOURCE'
+import stdlib/filesystem/staging as stage
+import stdlib/filesystem/staging::{PublishMode.CreateOnly, PublishMode.ReplaceExisting}
+import stdlib/filesystem/confined as confined
+import stdlib/host as host
+import stdlib/path as path
+pure require[T](result: Result[T,stage.HostError]): T {
+  match result { Ok(value) => value, Error(_) => { empty: [T] = []; empty[0] } }
+}
+pure expect(value: Bool): Unit { checked = [0][if value { 0 } else { 1 }]; () }
+main(): Unit {
+  args = host.arguments()
+  root = path.from_text(args[0]).value_or(path.current())
+  relative = path.from_text("payload").value_or(path.current())
+  destination = path.from_text("published").value_or(path.current())
+  first: DirectoryStage = require(stage.create(root))
+  alias = first
+  wrote = require(stage.write_chunk(first, relative, "first".encode_utf8(), 0))
+  published = require(stage.publish(first, destination, CreateOnly()))
+  match stage.discard(alias) { Ok(_) => expect(false), Error(_) => () }
+  second = require(stage.create(root))
+  wrote_again = require(stage.write_chunk(second, relative, "second".encode_utf8(), 0))
+  match stage.publish(second, destination, CreateOnly()) { Ok(_) => expect(false), Error(_) => () }
+  replaced = require(stage.publish(second, destination, ReplaceExisting()))
+  published_root = root.join(destination).value_or(root)
+  expect(require(confined.read(published_root, relative, 100)).contents == "second".encode_utf8())
+  third = require(stage.create(root))
+  discarded = require(stage.discard(third))
+  host.stdout("staging: ok")
+  ()
+}
+SOURCE
+mkdir "$work/staging-source" "$work/staging-bytecode"
+printf 'staging: ok\n' > "$work/expected"
+panack run "$work/staging.panack" "$work/staging-source" > "$work/output"
+cmp "$work/expected" "$work/output"
+panack compile "$work/staging.panack" -o "$work/staging.bc" > /dev/null
+./bin/panack run "$work/staging.bc" "$work/staging-bytecode" > "$work/output"
+cmp "$work/expected" "$work/output"
+cat > "$work/forged-stage.panack" <<'SOURCE'
+import stdlib/filesystem/staging as stage
+main(): Unit { ignored = stage.discard(1); () }
+SOURCE
+if panack check "$work/forged-stage.panack" > "$work/forged-error" 2>&1; then
+  echo 'Forged numeric stage unexpectedly accepted' >&2
+  exit 1
+fi
+grep 'DirectoryStage' "$work/forged-error" > /dev/null
+printf 'Opaque staging source/bytecode and numeric rejection passed.\n'
+cat > "$work/pure-stage.panack" <<'SOURCE'
+import stdlib/filesystem/staging as stage
+pure invalid(resource: DirectoryStage): Unit { ignored = stage.discard(resource); () }
+main(): Unit { () }
+SOURCE
+if panack check "$work/pure-stage.panack" > "$work/pure-error" 2>&1; then
+  echo 'Pure staging side effect unexpectedly accepted' >&2
+  exit 1
+fi
+grep 'pure' "$work/pure-error" > /dev/null
+cat > "$work/constructed-stage.panack" <<'SOURCE'
+main(): Unit { forged = DirectoryStage(1); () }
+SOURCE
+if panack check "$work/constructed-stage.panack" > "$work/constructed-error" 2>&1; then
+  echo 'Opaque stage constructor unexpectedly accepted' >&2
+  exit 1
+fi
+grep 'DirectoryStage' "$work/constructed-error" > /dev/null

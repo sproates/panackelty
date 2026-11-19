@@ -1983,5 +1983,5 @@ stage table when values remain alive, preventing allocator address reuse from
 reviving a stale handle. Table shutdown still closes native resources; retaining
 a value does not retain the VM or directory descriptors. The legacy Nat API is
 kept for existing callers. The native value is not a serializable bytecode
-constant and does not change bytecode v9. Public compiler/type exposure and
-async resource ownership are pending; reference counts remain owner-thread-only.
+constant and does not change bytecode v9. The candidate compiler exposes DirectoryStage through the ordinary staging module.
+Async resource ownership is pending; reference counts remain owner-thread-only.

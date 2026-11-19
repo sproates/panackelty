@@ -291,3 +291,11 @@ Development modules `filesystem/confined` and `filesystem/confined/async` expose
 `root_identity`, `read`, `read_beneath` and `read_link`, sharing existing record
 types. Reads resolve relative symlinks within the root and reject escape.
 `read_link` returns the final link target bytes without following that link.
+
+The development module `filesystem/staging` provides an opaque `DirectoryStage`
+and `PublishMode.CreateOnly` / `PublishMode.ReplaceExisting`. Use `create`, `path`,
+`create_directory`, `write_chunk`, `create_symlink`, `publish` and `discard`.
+Successful publication/discard consumes the resource, including aliases. Failed
+publication leaves it owned; failed discard retains ownership for retry. Legacy
+`filesystem_stage` numeric handles remain supported during migration. The async
+staging module is not yet implemented.

@@ -202,7 +202,7 @@ pub pure signature_type(
       shape.base == "Bytes" ||
       shape.base == "Path" ||
       shape.base == "Duration" ||
-      shape.base == "Instant" || shape.base == "HttpResponseState"
+      shape.base == "Instant" || shape.base == "HttpResponseState" || shape.base == "DirectoryStage"
     if shape.base == "Void" {
       known = true
       if !allow_void {

@@ -1946,3 +1946,9 @@ token; this token does not keep the native stage alive or grant worker ownership
 Native-only foundation: no public typed source API or bytecode-format change.
 Performance: one small shared identity allocation per invocation using staging,
 and one normal Value allocation per opaque result. Full batch checks remain pending.
+
+Candidate source and saved-bytecode staging checks now exercise the ordinary
+opaque API, named publication modes, rejected create-only publication followed by
+replacement, alias consumption and discard. Negative source cases reject Nat
+handles, direct DirectoryStage construction and staging effects in pure functions.
+No bytecode format change; coverage inventory and final batch acceptance pending.

@@ -157,7 +157,9 @@ Zero budget processes events/timeouts only. The host supplies virtual monotonic
 ticks; backwards time is rejected. Children inherit the earlier ancestor deadline;
 `UINT64_MAX` means no deadline. Deadlines include joining scopes: a queued result
 delivered at the deadline does not make an unfinished task immune to cancellation.
-The next deadline is exposed for a future host adapter; no OS clock is read.
+The next task deadline is exposed for a host adapter. These cancellation deadlines
+use virtual ticks; real timer waits use the OS monotonic clock and are polled
+without blocking before budgeted dispatch. They do not reinterpret virtual ticks.
 
 Limits bound total admitted tasks and queued completions, with one pending request
 per task. Task slots/results remain reserved until session destruction; this
@@ -428,3 +430,10 @@ manifest or lock records, URLs, or archive headers. Panack modules decide policy
 Handles are invocation scoped and non-reused. Normal completion and traps destroy
 them; synchronous `process_exit` also releases the active VM and its nested
 execution parents before exiting. Browser builds expose unsupported results.
+
+Async `time.sleep` retains only a monotonic deadline in `VMExecution`. Polling
+returns a typed result when due, or a clock error; destroying the execution drops
+the timer without worker or descriptor cleanup. TCP handlers and task sessions
+poll without blocking. A standalone CLI may wait until the deadline in bounded
+one-second intervals when no server runtime is active. Timer expiry permits
+resumption; it does not guarantee exact scheduling latency.

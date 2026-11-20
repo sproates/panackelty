@@ -4,6 +4,7 @@
 #include "builtins.h"
 #include "console_write.h"
 #include "host.h"
+#include "host_capabilities.h"
 #include "host_types.h"
 #include "http_transport.h"
 #include "http_runtime.h"
@@ -74,6 +75,8 @@ struct VMExecution {
     VMTcpServer *server;
     VMRootRead *root_read;
     VMConsoleWrite *console_write;
+    uint64_t sleep_deadline;
+    bool sleeping;
     bool console_enabled, yield_requested;
     Value *http_waiting;
 #ifndef __wasi__
@@ -601,6 +604,12 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
     }
     if (entry->dispatch == BUILTIN_TCP_SERVICE) {
         return service_call(execution, arguments);
+    }
+    if (entry->dispatch == BUILTIN_HOST_SLEEP_ASYNC) {
+        Value *result = NULL;
+        execution->sleeping = host_sleep_start(vm, arguments[0], &execution->sleep_deadline, &result);
+        if (execution->sleeping) execution->status = VM_WAITING;
+        return result;
     }
     if (entry->dispatch == BUILTIN_INSTANT_NOW_ASYNC) {
         return host_type_call(vm, "instant_now", NULL);
@@ -1489,6 +1498,11 @@ Value *execute(VM *vm, Function *function, Value **arguments)
                 vm_execution_pump_server(&execution, 1024, active ? 1 : 10);
                 continue;
             }
+            if (status == VM_WAITING && execution.sleeping) {
+                if (!active) host_sleep_wait(execution.sleep_deadline);
+                vm_execution_poll_network(&execution, 0);
+                continue;
+            }
             if (status == VM_WAITING && execution.console_write) {
                 if (!active) console_write_wait(execution.console_write);
                 vm_execution_poll_console(&execution);
@@ -1708,6 +1722,21 @@ bool vm_execution_poll_filesystem(VMExecution *execution)
 
 bool vm_execution_poll_network(VMExecution *execution, unsigned max_wait_ms)
 {
+    if (execution->sleeping) {
+        if (execution->running || execution->status != VM_WAITING) return false;
+        Value *result = NULL;
+        if (!host_sleep_poll(execution->sleep_deadline, &result)) return true;
+        execution->sleeping = false;
+        if (!result || !stack_push(&execution->frames[execution->frame_count - 1], result)) {
+            execution->vm->error = "native VM out of memory";
+        }
+        execution->status = execution->vm->error ? VM_TRAPPED : VM_YIELDED;
+        if (execution->vm->error) {
+            vm_coverage_terminal(execution->vm->coverage, 2);
+            frames_clear(execution);
+        } else coverage_complete_pending(execution);
+        return true;
+    }
     if (execution->console_write) {
         return vm_execution_poll_console(execution);
     }

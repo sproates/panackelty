@@ -48,7 +48,8 @@ negative or unsupported durations. Zero sleep is immediate, not an infinite wait
 
 Aliases: from_nanoseconds -> nanoseconds; from_seconds ->
 from_fractional_seconds; ticks -> as_nanoseconds; is_before -> is_less_than.
-`host.sleep` delegates to the ordinary time API. Clock/calendar semantics do not
+`host.sleep` and ordinary `time.sleep` share the native blocking implementation
+during compatibility, avoiding a cycle through the existing HostError owner. Clock/calendar semantics do not
 change. Sleep initially retains HostError; domain-error migration is a separate
 semantic delivery below, not an accidental new nominal identity.
 
@@ -172,7 +173,8 @@ Capacity exhaustion returns resource_limit. Normal CLI runtime shutdown drains
 queued cleanup after stopping the runtime; embedded event loops never drain it.
 A paused-fstat regression proves destruction returns while cleanup is blocked.
 Admission/recovery tests cover the global table bound. This closes the recorded
-owner-thread teardown gap; final batch/coverage/integration checks remain pending.
+owner-thread teardown gap; local batch and coverage-inventory checks passed on
+19 November. Integration remains pending.
 
 ## Console, environment and process
 
@@ -350,3 +352,21 @@ reassessment. This expanded run is not a controlled performance comparison and n
 speed improvement is claimed. Integration and hosted validation remain pending;
 development CI stays off. AS2 remains in progress, including remaining specialist
 resource decisions and migrations; this does not complete the expanded programme.
+
+## Timer development checkpoint, 20 November 2026
+
+Ordinary `time.sleep` and `time/async.sleep` now have matching signatures; the
+legacy host operation remains available. Async sleep retains only a monotonic
+deadline in its suspended execution. HTTP handler polling and task-session polling
+allow other executions to progress. Cancellation drops the timer immediately.
+Zero duration completes immediately; negative/oversized durations and clock
+failures return the existing HostError representation. The existing 365-day bound
+and exact nanosecond representation remain unchanged.
+
+Candidate source and saved-bytecode checks, native module contracts and native
+fault contracts pass, including task-session resumption, independent execution,
+cancellation, error types and completion allocation failure. No worker is created
+per timer; polling costs one clock read per pending timer per host poll. No
+throughput claim is made. The compiler seed and final batch validation are deferred
+until the related console/process implementation settles. This is a development
+checkpoint, not AS3 completion or integration acceptance.

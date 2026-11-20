@@ -11,4 +11,9 @@
 
 Value *host_capability_call(VM *vm, const char *name, Value **a);
 
+/* A pending timer owns only a monotonic deadline. Poll never blocks. */
+bool host_sleep_start(VM *vm, Value *duration, uint64_t *deadline, Value **result);
+bool host_sleep_poll(uint64_t deadline, Value **result);
+void host_sleep_wait(uint64_t deadline);
+
 #endif

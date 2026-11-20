@@ -2000,3 +2000,15 @@ function instruction bodies match after module renumbering; 12 wrapper/import
 functions are added and old/new output matches. Refreshed compiler stages 2–4
 agree, as do stdlib conformance bytes. Integration and hosted validation are
 pending; development CI remains off.
+
+### Timer development checks, 20 November 2026
+
+Candidate source and saved-bytecode checks cover async sleep at zero/positive
+durations, negative/oversized errors, ordinary and legacy compatibility, argument
+types, missing await, pure effects and rejected direct primitive access. Native
+contracts cover independent execution while another timer waits, cancellation,
+rejected fake completion, task-session resumption and immediate expiry. Fault
+contracts cover clock failure at registration and polling and completion allocation
+failure. The native module and fault suites pass. Final `make check`, refreshed
+seed and inventory reconciliation remain for the settled console/process batch;
+the 19 November full-run result applies to the preceding filesystem revision.

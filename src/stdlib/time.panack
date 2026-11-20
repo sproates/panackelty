@@ -1,3 +1,4 @@
+pub import stdlib/host::{HostError}
 pub import stdlib/core::{DurationError, DurationError.FractionalNanosecond, DurationError.ZeroDurationDivisor}
 pub enum ClockError { ClockUnavailable }
 
@@ -18,3 +19,6 @@ pub pure nanoseconds(value: Int): Duration { from_nanoseconds(value) }
 pub pure from_fractional_seconds(value: Rat): Result[Duration,DurationError] {
   from_seconds(value)
 }
+
+// Blocking wait; use time/async from an async function.
+pub sleep(duration: Duration): Result[Unit,HostError] { host_sleep(duration) }

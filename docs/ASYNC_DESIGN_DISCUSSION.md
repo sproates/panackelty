@@ -335,7 +335,7 @@ Documentation is its own acceptance work, not a final optional polish step.
 | --- | ---: | --- |
 | AS1: Imports, clock and environment | 10 | In review: PR #693, local full validation passed; integration pending |
 | AS2: Filesystem and resource-operation boundary | 30 | General, confined and typed staging APIs locally validated (606s full check, 19 November), including async cleanup and relocated installation. Remaining specialist decisions/migrations and integration pending |
-| AS3: Timers, console and processes | 25 | Inventory recorded; input/nested-execution boundary and runtime contracts pending |
+| AS3: Timers, console and processes | 25 | Timer implementation passes candidate source/bytecode and focused native checks (20 November). Console, processes, input/nested-execution boundary, seed refresh and final batch acceptance remain |
 | AS4: Streaming HTTP | 15 | Inventory recorded; lifecycle contracts and implementation pending |
 | AS5: Stdlib reference, guides and website | 20 | Documentation gap verified; pages, examples and review pending |
 | Total | 100 | No accepted completion credit yet; AS1 and the filesystem batch are locally validated but unmerged |

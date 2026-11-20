@@ -319,6 +319,11 @@ bool vm_tasks_pump(VMTasks *tasks, uint64_t now, size_t budget)
         Task *task = &tasks->tasks[i];
         if (!terminal(task) && task->deadline != UINT64_MAX && task->deadline <= now) {
             cancel_tree(tasks, task->slot);
+        } else if (task->status == TASK_WAITING && !task->pending &&
+                   vm_execution_poll_network(task->execution, 0)) {
+            /* Poll real services without waiting. An unfinished operation will
+             * return to TASK_WAITING on its next budgeted dispatch. */
+            task->status = TASK_READY;
         }
     }
     settle(tasks);

@@ -1260,6 +1260,15 @@ sleep or process launch. Duration arithmetic itself remains arbitrary precision.
 System-suspension accounting follows the host clock and sleep implementations;
 no portable across-suspension deadline promise is made.
 
+The canonical blocking operation is also available as `time.sleep`, with
+`host.sleep` retained for compatibility. `stdlib/time/async.sleep` has the same
+argument and result types, called with `await`. It suspends only the calling task
+until its monotonic deadline, allowing other handlers to progress. Zero completes
+immediately. Negative/oversized durations use the same errors; clock failures
+return a HostError with native detail. Cancellation discards the timer. No worker,
+child process or descriptor is retained for a pending timer. Expiry makes a task
+eligible to resume, not a guarantee that it runs at that exact instant.
+
 ## Bounded async/await interface
 
 An `async` declaration marks a function that may suspend. `await helper(args)`

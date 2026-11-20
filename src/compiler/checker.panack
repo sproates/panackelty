@@ -1081,7 +1081,7 @@ pure builtin_legacy_return(name: Str): Str {
                         if name == "host_decode_utf8" {
                           "Result[Str,HostError]"
                         } else {
-                          if name == "host_sleep" {
+                          if (name == "host_sleep" || name == "host_sleep_async") {
                             "Result[Unit,HostError]"
                           } else {
                             if (name == "process_run" || name == "process_run_isolated") {
@@ -1322,7 +1322,7 @@ pure builtin_legacy_arity(name: Str): Nat {
                         if name == "host_decode_utf8" {
                           1
                         } else {
-                          if name == "host_sleep" {
+                          if (name == "host_sleep" || name == "host_sleep_async") {
                             1
                           } else {
                             if (name == "process_run" || name == "process_run_isolated") {
@@ -1633,7 +1633,7 @@ pure builtin_legacy_parameter(name: Str, index: Nat): Str {
                             "Any"
                           }
                         } else {
-                          if name == "host_sleep" {
+                          if (name == "host_sleep" || name == "host_sleep_async") {
                             if index == 0 {
                               "Duration"
                             } else {

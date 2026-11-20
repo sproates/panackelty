@@ -2,6 +2,7 @@
 #undef NDEBUG
 #endif
 #include "builtins.h"
+#include "host_capabilities.h"
 #include "decode.h"
 #include "fault_injection.h"
 #include "http_transport.h"
@@ -674,6 +675,26 @@ static void host_failures(void)
     assert(fault_triggered() && result && !strcmp(result->as.named.name, "Error"));
     assert(!strcmp(result->as.named.values[0]->as.named.name, "ClockUnavailable"));
     assert(vm_execution_destroy(clock_run));
+
+    Value *timer_duration = value_size(1000000000);
+    timer_duration->kind = V_DURATION;
+    uint64_t deadline;
+    for (size_t mode = 0; mode < 2; mode++) {
+        fault_reset(0);
+        fault_syscall("clock_gettime", 1, EIO);
+        bool pending = mode ? !host_sleep_poll(0, &result)
+                            : host_sleep_start(&vm, timer_duration, &deadline, &result);
+        assert(!pending && fault_triggered() && result);
+        assert(!strcmp(result->as.named.name, "Error"));
+        release(result);
+    }
+    fault_reset(0);
+    release(timer_duration);
+    size_t timer_baseline = fault_live();
+    fault_reset(1);
+    assert(host_sleep_poll(0, &result));
+    assert(fault_triggered() && !result && fault_live() == timer_baseline);
+    fault_reset(0);
 
     Value *duration = value_size(0);
     duration->kind = V_DURATION;

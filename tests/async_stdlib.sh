@@ -23,6 +23,14 @@ pure expect(value: Bool): Unit {
 }
 
 async main(): Unit {
+  expect(await time.sleep(time.nanoseconds(0)) == Ok(()))
+  expect(await time.sleep(time.nanoseconds(1)) == Ok(()))
+  match await time.sleep(time.nanoseconds(-1)) {
+    Ok(_) => expect(false), Error(problem) => expect(problem.code == "negative_duration")
+  }
+  match await time.sleep(time.seconds(31536001)) {
+    Ok(_) => expect(false), Error(problem) => expect(problem.code == "out_of_range")
+  }
   expect(time.seconds(1) == ordinary_time.milliseconds(1000))
   expect(time.nanoseconds(1000000) == ordinary_time.milliseconds(1))
   expect(time.from_fractional_seconds(1 / 2) == Ok(time.milliseconds(500)))
@@ -54,6 +62,21 @@ cmp "$work/expected" "$work/output"
 panack compile "$work/main.panack" -o "$work/main.bc" > /dev/null
 ./bin/panack run "$work/main.bc" > "$work/output"
 cmp "$work/expected" "$work/output"
+cat > "$work/ordinary.panack" <<'SOURCE'
+import stdlib/time as time
+import stdlib/host as host
+main(): Unit {
+  first = time.sleep(time.nanoseconds(0))
+  second = host.sleep(time.nanoseconds(0))
+  checked = [0][if first == Ok(()) && second == first { 0 } else { 1 }]
+  ()
+}
+SOURCE
+panack run "$work/ordinary.panack" > "$work/output"
+test ! -s "$work/output"
+panack compile "$work/ordinary.panack" -o "$work/ordinary.bc" > /dev/null
+./bin/panack run "$work/ordinary.bc" > "$work/output"
+test ! -s "$work/output"
 reject() {
     source=$1
     expected=$2
@@ -84,4 +107,11 @@ reject 'import stdlib/time/async as time
 async main(): Unit { value = await time.now(1); () }' 'arguments'
 reject 'import stdlib/time/async as time
 async main(): Unit { value = await time.seconds(1); () }' 'await requires an async call'
+reject 'import stdlib/time/async as time
+async main(): Unit { value = time.sleep(time.seconds(1)); () }' 'async call requires await'
+reject 'import stdlib/time/async as time
+pure main(): Unit { value = await time.sleep(time.seconds(1)); () }' 'pure function cannot call impure'
+reject 'import stdlib/time/async as time
+async main(): Unit { value = await time.sleep(1); () }' 'Duration'
+reject 'async main(): Unit { value = await host_sleep_async(1); () }' 'removed global primitive'
 printf '%s\n' 'Async stdlib paths, source/bytecode execution, and effect diagnostics: ok'

@@ -96,6 +96,46 @@ static bool hc_clock(uint64_t *ns)
     return true;
 }
 
+bool host_sleep_start(VM *vm, Value *duration, uint64_t *deadline, Value **result)
+{
+    *result = NULL;
+    if (duration->kind != V_DURATION) {
+        vm->error = "VM trap: sleep requires Duration";
+        return false;
+    }
+    size_t ns;
+    const char *problem = hc_duration(duration, &ns);
+    uint64_t now;
+    if (problem) *result = hc_error("host_sleep", problem, 0);
+    else if (!ns) *result = hc_unit();
+    else if (!hc_clock(&now)) *result = hc_error("host_sleep", NULL, errno);
+    else if (UINT64_MAX - now < ns) *result = hc_error("host_sleep", "out_of_range", 0);
+    else { *deadline = now + ns; return true; }
+    if (!*result) vm->error = "native VM out of memory";
+    return false;
+}
+
+bool host_sleep_poll(uint64_t deadline, Value **result)
+{
+    uint64_t now;
+    *result = NULL;
+    if (!hc_clock(&now)) *result = hc_error("host_sleep", NULL, errno);
+    else if (now < deadline) return false;
+    else *result = hc_unit();
+    return true;
+}
+
+void host_sleep_wait(uint64_t deadline)
+{
+    uint64_t now;
+    if (!hc_clock(&now) || now >= deadline) return;
+    uint64_t remaining = deadline - now;
+    // Bound a standalone wait so external runtime state is revisited regularly.
+    if (remaining > UINT64_C(1000000000)) remaining = UINT64_C(1000000000);
+    struct timespec delay = {(time_t)(remaining / 1000000000), (long)(remaining % 1000000000)};
+    (void)nanosleep(&delay, NULL);
+}
+
 static bool hc_string(Value *v, ValueKind kind)
 {
     return v->kind == kind && !memchr(v->as.bytes.data, 0, v->as.bytes.length);

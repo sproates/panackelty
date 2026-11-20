@@ -1,0 +1,18 @@
+pub import stdlib/host::{HostError}
+
+// Messages are limited to 16 KiB before the optional newline.
+pub async write(message: Str): Result[Unit,HostError] {
+  await console_output_async(message, false, false)
+}
+
+pub async write_line(message: Str): Result[Unit,HostError] {
+  await console_output_async(message, false, true)
+}
+
+pub async write_error(message: Str): Result[Unit,HostError] {
+  await console_output_async(message, true, false)
+}
+
+pub async write_error_line(message: Str): Result[Unit,HostError] {
+  await console_output_async(message, true, true)
+}

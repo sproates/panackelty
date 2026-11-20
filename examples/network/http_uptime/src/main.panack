@@ -1,0 +1,48 @@
+import http/server as http
+import stdlib/time/async as time
+import stdlib/environment/async as environment
+import stdlib/host/async as host
+
+record AppContext { started: Instant, service_name: Str }
+
+async health(context: AppContext, request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  match await time.now() {
+    Error(problem) => {
+      response.status(503)
+      response.send("The monotonic clock is unavailable; uptime cannot be measured.")
+      Ok(())
+    },
+    Ok(now) => {
+      elapsed = now.difference(context.started)
+      response.header("X-Service", context.service_name)
+      ticks = elapsed.ticks()
+      response.send("uptime_ns=${ticks}")
+      Ok(())
+    }
+  }
+}
+
+async main(): Unit {
+  arguments = await host.arguments()
+  port = if arguments.len() == 0 { 8082 } else { arguments[0].parse_nat() }
+  service_name = (await environment.get("PANACK_SERVICE_NAME")).value_or("uptime-example")
+  match await time.now() {
+    Error(problem) => {
+      reported = await host.stderr("Cannot start the service: the monotonic clock is unavailable.")
+      await host.exit(1)
+    },
+    Ok(started) => {
+      server = http.create_bound_contextual_server(
+        "127.0.0.1", port, AppContext(started, service_name)
+      )
+      server.get("/health", @health)
+      match await server.listen() {
+        Ok(done) => (),
+        Error(problem) => {
+          reported = await host.stderr(problem.message)
+          await host.exit(1)
+        }
+      }
+    }
+  }
+}

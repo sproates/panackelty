@@ -1,0 +1,19 @@
+pub import stdlib/host::{HostError}
+pub import stdlib/filesystem/staging::{PublishMode, PublishMode.CreateOnly, PublishMode.ReplaceExisting}
+
+pub async create(parent: Path): Result[DirectoryStage,HostError] { await stage_create_async(parent) }
+pub async path(stage: DirectoryStage): Result[Path,HostError] { await stage_path_async(stage) }
+pub async create_directory(stage: DirectoryStage, relative: Path): Result[Unit,HostError] {
+  await stage_directory_async(stage, relative)
+}
+pub async write_chunk(stage: DirectoryStage, relative: Path, data: Bytes, offset: Nat): Result[Unit,HostError] {
+  await stage_write_async(stage, relative, data, offset)
+}
+pub async create_symlink(stage: DirectoryStage, relative: Path, target: Path): Result[Unit,HostError] {
+  await stage_symlink_async(stage, relative, target)
+}
+pub async publish(stage: DirectoryStage, name: Path, mode: PublishMode): Result[Unit,HostError] {
+  replace = match mode { CreateOnly() => false, ReplaceExisting() => true }
+  await stage_publish_async(stage, name, replace)
+}
+pub async discard(stage: DirectoryStage): Result[Unit,HostError] { await stage_discard_async(stage) }

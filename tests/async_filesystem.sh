@@ -19,7 +19,7 @@ cat > "$work/app/panack.json" <<MANIFEST
 MANIFEST
 ./bin/panack deps lock --project "$work/app/panack.json" > /dev/null
 cat > "$work/template.panack" <<'SOURCE'
-import stdlib/async_filesystem as files
+import stdlib/filesystem/async as files
 import stdlib/path as path
 import http/server as http
 

@@ -15,3 +15,10 @@ The [local ESI include example](esi_includes/README.md) serves two pages that sh
 
 For ordinary directory serving use [panack-http-server](../../tools/http-server/README.md).
 For application HTTP APIs and limitations, read the [HTTP package guide](../../packages/http/README.md).
+
+## HTTP healthcheck with uptime (alpha.16 development)
+
+The [uptime service](http_uptime/README.md) keeps its start instant in immutable
+context and awaits the monotonic clock inside `/health`. It also reads a service
+name through `stdlib/environment/async`. This requires the development toolchain
+with async stdlib imports; alpha.15 does not support this example.

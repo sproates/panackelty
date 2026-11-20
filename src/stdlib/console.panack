@@ -1,0 +1,18 @@
+pub import stdlib/host::{HostError}
+
+// Messages are limited to 16 KiB before the optional newline.
+pub write(message: Str): Result[Unit,HostError] {
+  console_output(message, false, false)
+}
+
+pub write_line(message: Str): Result[Unit,HostError] {
+  console_output(message, false, true)
+}
+
+pub write_error(message: Str): Result[Unit,HostError] {
+  console_output(message, true, false)
+}
+
+pub write_error_line(message: Str): Result[Unit,HostError] {
+  console_output(message, true, true)
+}

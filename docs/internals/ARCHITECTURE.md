@@ -1326,6 +1326,14 @@ VM lifetime safety even when a filesystem is slow; physical I/O completion and
 resource release can occur later. The fault harness protects concurrent allocation
 bookkeeping and can pause a read to prove this cancellation path deterministically.
 
+Temporary-file/directory creation retains its worker until the owner acknowledges
+result delivery or cancellation. A successful stack handoff transfers ownership;
+otherwise the worker removes the created file or empty directory. Failed cleanup
+reports the path and native error on stderr without recursive deletion. The owner
+releases its result reference before waking the worker after successful handoff,
+so reference counts are never shared concurrently with resumed bytecode. This
+does not roll back other filesystem writes or guarantee cleanup on process exit.
+
 ## Native HTTP client (P5 proof of concept)
 
 The [P5 design](../design/NATIVE_HTTP_CLIENT_DESIGN.md) keeps URL/request/response
@@ -1958,3 +1966,33 @@ parsing, and unsuccessful preparation falls back to full discovery. Summaries re
 loader diagnostics and implicit validation imports. This remains module-level reuse,
 with fresh signature/effect checks and conservative dependency invalidation. See the
 [summary contract](../COMPILER_PERSISTENT_REUSE.md#standalone-declaration-summary-reuse).
+
+### Async stdlib selection
+
+The `stdlib/<domain>/async` module convention keeps selection at the import
+boundary. Clock and environment operations use immediate async VM dispatch;
+existing host and confined-filesystem operations are re-exported without new
+workers or duplicated implementations. Bytecode remains v9. Native installs and
+browser source bundles preserve the nested stdlib directory layout.
+
+### Staging resource identity in development
+
+The native staging adapter can return an opaque DirectoryStage value containing
+a slot and a reference-counted invocation identity. The identity outlives the
+stage table when values remain alive, preventing allocator address reuse from
+reviving a stale handle. Retaining a value does not retain the VM or directory descriptors. Worker leases
+retain the native table and exclusively reserve their stage. VM shutdown drops
+its table reference; cleanup waits until the last lease is released. The legacy Nat API is
+kept for existing callers. The native value is not a serializable bytecode
+constant and does not change bytecode v9. The candidate compiler exposes DirectoryStage through the ordinary staging module.
+Table and identity reference counts are atomic; shared stage mutation is excluded
+by a per-stage busy flag. The async dispatcher retains leases and copies worker arguments. Creation reserves
+a slot before dispatch, then hands ownership over only after successful result
+delivery. Cancelled creation cleans up on its worker. Embedded teardown transfers the table reference to one persistent cleanup worker
+using an intrusive queue, without allocation or host I/O. Global admission limits
+retained tables to 32 (64 stage slots per invocation), bounding queued resources
+while cleanup is slow. Startup failure or capacity exhaustion refuses creation.
+The CLI drains queued cleanup only after its owned runtime stops; event-loop
+execution destruction never waits for cleanup. Active leases still retain their
+tables independently until their operations return. Process termination cannot
+guarantee cleanup of an outstanding blocked host operation.

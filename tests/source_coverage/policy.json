@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Review module-summary imports, metadata records and shifted declaration positions.",
+    "reason": "Review timer imports and canonical checked console adapters using the production declaration inventory.",
     "basis": "Computed with the production parser and inventory_module over every eligible source. Only imports, type refinements, records and enums are excluded; executable functions remain eligible.",
-    "scopeChange": "Adds module_summaries.panack to eligible source; the existing executable corpus remains unchanged. Only imports, type refinements, records and enums are excluded; no executable functions are excluded."
+    "scopeChange": "Two console adapters are explicitly unmeasured and have focused source/bytecode/native tests. Eligible sources and execution corpus remain unchanged. This is not a coverage collection."
   },
-  "manifestHash": "1eaf4a60e1fd992b00472c01ce7f7c511e648664d14fb6d95f48f881fa3e639e",
-  "exclusionHash": "98640697c26308e0b9df8b089af6bf96f531faa1dcb78538914082035281322a"
+  "manifestHash": "4b65f31ab8e5a5b108572b88bf2e7215a1cfbe6e1be4c7a84bef7c384317aebd",
+  "exclusionHash": "860b6066c454469f460d77f698d2ebb2d8856078bb28a8b34ba1b97ae3885acd"
 }

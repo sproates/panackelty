@@ -1260,6 +1260,15 @@ sleep or process launch. Duration arithmetic itself remains arbitrary precision.
 System-suspension accounting follows the host clock and sleep implementations;
 no portable across-suspension deadline promise is made.
 
+The canonical blocking operation is also available as `time.sleep`, with
+`host.sleep` retained for compatibility. `stdlib/time/async.sleep` has the same
+argument and result types, called with `await`. It suspends only the calling task
+until its monotonic deadline, allowing other handlers to progress. Zero completes
+immediately. Negative/oversized durations use the same errors; clock failures
+return a HostError with native detail. Cancellation discards the timer. No worker,
+child process or descriptor is retained for a pending timer. Expiry makes a task
+eligible to resume, not a guarantee that it runs at that exact instant.
+
 ## Bounded async/await interface
 
 An `async` declaration marks a function that may suspend. `await helper(args)`
@@ -1542,7 +1551,46 @@ seconds per connection and one second of signal-driven drain. The [tool guide](.
 defines arguments, readiness and exit codes; the [package guide](../../packages/static_http/README.md)
 defines library configuration and cancellation limits.
 
+### Selecting asynchronous standard-library modules
+
+The logical import path may contain an `async` segment, for example
+`import stdlib/time/async as time`. It selects a module in the same toolchain;
+it does not implicitly make ordinary functions async or import a separate
+package. Other uses of the `async` keyword are unchanged.
+
+`stdlib/time/async` exports `async now(): Result[Instant,ClockError]` and
+re-exports the ordinary time module's pure duration constructors and shared
+error types. It uses the same monotonic clock and typed failure as
+`stdlib/time`. `stdlib/environment/async` exports
+`async get(name: Str): Option[Str]`, reading the invocation environment snapshot.
+Missing and empty values remain distinct. Both reads complete immediately on
+the owner task; no worker or pending host operation is created. They remain
+impure, require `await` in an async function, and cannot be called from pure
+functions. Async functions still cannot call the ordinary variants.
+
+`stdlib/host/async` and `stdlib/filesystem/async` re-export the operations and
+shared types of `stdlib/async_host` and `stdlib/async_filesystem` respectively.
+Both original paths remain supported. The canonical filesystem async module also
+provides the general file operations described above. The host module does
+not expose blocking sleep, subprocess execution, or nested bytecode execution.
+Existing bounds, grants, worker ownership and cancellation rules are unchanged.
+
 ### Asynchronous command-line host operations
+
+`stdlib/console` and `stdlib/console/async` expose `write`, `write_line`,
+`write_error` and `write_error_line`. Each accepts Str and returns
+`Result[Unit,HostError]`; the async forms require `await`. Raw writes preserve
+exact message bytes, including embedded NUL. Line writes append exactly one LF,
+including when the message already ends in LF or is empty. Error variants use
+stderr; the others use stdout. All share the bounds, worker ownership and error
+categories below. The 16 KiB limit excludes the optional appended LF. Ordinary
+calls wait for their checked result; async calls suspend without blocking the
+execution thread. Empty raw writes still check the output descriptor.
+
+Legacy print/host wrappers retain their existing return types. Legacy synchronous
+printing flushes its stream before returning so sequential mixed legacy/console
+calls preserve order. Concurrent writes can still interleave. A failed write may
+already have emitted part of the message; an error does not mean no bytes were sent.
 
 `stdlib/async_host` provides `await arguments(): [Str]`, `await stdout(Str)` and
 `await stderr(Str)` returning `Result[Unit,HostError]`, and `await exit(Nat): Unit`.
@@ -1720,3 +1768,20 @@ staging publishes one complete directory atomically. See the
 [adapter contracts](../../src/stdlib/README.md#native-streaming-and-confined-filesystem-adapters-on-next)
 for limits, cleanup and platform restrictions. These modules introduce no
 arbitrary foreign-function interface or new bytecode version.
+
+### Directory staging in alpha.16 development
+
+`DirectoryStage` is an opaque native resource type exposed by the development
+`stdlib/filesystem/staging` module. Programs cannot construct it from a number
+or inspect native identity fields. Values belong to one invocation; aliases
+refer to the same stage and become unusable after successful publication or
+discard. Publication uses the module enum `PublishMode` with `CreateOnly` and
+`ReplaceExisting` variants. Staging functions are ordinary effectful functions;
+pure and async functions cannot call them. Matching async functions are available
+on the development branch through `stdlib/filesystem/staging/async`; they use
+`await` and share the same resource and publication-mode types. Creation cancelled
+before result delivery is discarded; cancellation of publication does not promise
+rollback. Embedded shutdown transfers cleanup to a worker without waiting for filesystem
+I/O. Staging admits at most 32 retained invocation tables per process and 64
+stages per invocation; capacity exhaustion returns a resource_limit error. See the [stdlib API contract](../STDLIB_API_CONTRACT.md) for failure
+and ownership transitions.

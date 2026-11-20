@@ -31,12 +31,14 @@ typedef enum {
     V_ITER,
     V_HTTP_STATE,
     V_HTTP_WRITER,
-    V_HTTP_CONNECTION
+    V_HTTP_CONNECTION,
+    V_DIRECTORY_STAGE
 } ValueKind;
 
 typedef struct Value Value;
 typedef struct ArrayStorage ArrayStorage;
 typedef struct CollectionIndex CollectionIndex;
+typedef struct VMStageOwner VMStageOwner;
 typedef struct VMHttpState VMHttpState;
 typedef struct VMHttpWriter VMHttpWriter;
 typedef struct VMHttpConnection VMHttpConnection;
@@ -95,6 +97,7 @@ struct Value {
         Sequence sequence;
         NamedValues named;
         Iterator iterator;
+        struct { VMStageOwner *owner; size_t slot; } directory_stage;
         VMHttpState *http_state;
         VMHttpWriter *http_writer;
         VMHttpConnection *http_connection;

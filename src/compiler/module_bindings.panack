@@ -39,7 +39,7 @@ pub pure builtin_owner_arity(name: Str): Option[Nat] {
   else if name == "Map" || name == "HttpServerState" || name == "HttpConnectionState" { Some(2) }
   else if name == "Nat" || name == "Int" || name == "Dec" || name == "Rat" ||
       name == "Bool" || name == "Unit" || name == "Str" || name == "Bytes" ||
-      name == "Path" || name == "Duration" || name == "Instant" || name == "HttpResponseState" { Some(0) }
+      name == "Path" || name == "Duration" || name == "Instant" || name == "HttpResponseState" || name == "DirectoryStage" { Some(0) }
   else { None() }
 }
 
@@ -227,7 +227,7 @@ pub pure module_reserved_binding(name: Str): Bool {
     name == "Str" ||
     name == "Bytes" ||
     name == "Unit" ||
-    name == "HttpServerState" || name == "HttpConnectionState" || name == "HttpResponseState" ||
+    name == "HttpServerState" || name == "HttpConnectionState" || name == "HttpResponseState" || name == "DirectoryStage" ||
     name == "Void" || name == "Path" || name == "Duration" || name == "Instant" ||
     name == "Option" || name == "Result" || name == "Map" || name == "Set" ||
     name == "PureFn" || name == "Fn" || name == "AsyncFn" ||
@@ -420,6 +420,18 @@ pub pure module_declaration_display(binding: ModuleDeclarationBinding): Str {
 // A matching source filename in an application never grants primitive access.
 pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool {
   owner.module.package == ToolchainModulePackage() && (
+    (owner.module.path == "filesystem/async.panack" && owner.name == "metadata" && name == "fs_metadata_async") ||
+    (owner.module.path == "filesystem/async.panack" && owner.name == "read_chunk" && name == "fs_read_chunk_async") ||
+    (owner.module.path == "filesystem/async.panack" && owner.name == "write_atomic" && name == "fs_atomic_write_async") ||
+    (owner.module.path == "filesystem/async.panack" && owner.name == "read" && name == "fs_read_async") ||
+    (owner.module.path == "filesystem/async.panack" && owner.name == "write" && name == "fs_write_async") ||
+    (owner.module.path == "filesystem/async.panack" && owner.name == "list_directory" && name == "fs_list_async") ||
+    (owner.module.path == "filesystem/async.panack" && owner.name == "remove_file" && name == "fs_remove_file_async") ||
+    (owner.module.path == "filesystem/async.panack" && owner.name == "remove_directory" && name == "fs_remove_directory_async") ||
+    (owner.module.path == "filesystem/async.panack" && owner.name == "create_directory" && name == "fs_create_directory_async") ||
+    (owner.module.path == "filesystem/async.panack" && owner.name == "temp_directory" && name == "fs_temp_directory_async") ||
+    (owner.module.path == "filesystem/async.panack" && owner.name == "temp_file" && name == "fs_temp_file_async") ||
+    (owner.module.path == "package_filesystem/async.panack" && owner.name == "directories_overlap" && name == "fs_directories_overlap_async") ||
     (owner.module.path == "bytes.panack" && owner.name == "slice" && name == "http_bytes_slice") ||
     (owner.module.path == "http_runtime.panack" && ((owner.name == "bytes_slice" && name == "http_bytes_slice") || (owner.name == "body" && name == "http_body") || (owner.name == "body_size" && name == "http_body_size") || (owner.name == "body_append" && name == "http_body_append") || (owner.name == "connection_continue" && name == "http_connection_continue"))) ||
     (owner.module.path == "http_runtime.panack" && ((owner.name == "listen_ordinary" && name == "http_listen_ordinary") || (owner.name == "listen_contextual" && name == "http_listen_contextual") || (owner.name == "close" && name == "http_close") || (owner.name == "destroy" && name == "http_destroy"))) ||
@@ -431,17 +443,39 @@ pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool 
       (owner.name == "setup_error" && name == "http_state_setup_error") ||
       (owner.name == "invalid_route" && name == "http_state_fail_setup") ||
       (owner.name == "register" && name == "http_state_register"))) ||
+    (((owner.module.path == "console.panack" && name == "console_output") ||
+      (owner.module.path == "console/async.panack" && name == "console_output_async")) &&
+      (owner.name == "write" || owner.name == "write_line" || owner.name == "write_error" || owner.name == "write_error_line")) ||
     (owner.module.path == "async_host.panack" && owner.name == "arguments" && (name == "host_arguments_async")) ||
     (owner.module.path == "async_host.panack" && owner.name == "stdout" && (name == "host_stdout_async")) ||
     (owner.module.path == "async_host.panack" && owner.name == "stderr" && (name == "host_stderr_async")) ||
     (owner.module.path == "async_host.panack" && owner.name == "exit" && (name == "host_exit_async")) ||
     (owner.module.path == "time.panack" && owner.name == "from_nanoseconds" && (name == "duration_nanoseconds")) ||
     (owner.module.path == "time.panack" && owner.name == "from_seconds" && (name == "duration_from_seconds")) ||
+    (owner.module.path == "time/async.panack" && ((owner.name == "now" && name == "instant_now_async") || (owner.name == "sleep" && name == "host_sleep_async"))) ||
+    (owner.module.path == "time.panack" && owner.name == "sleep" && name == "host_sleep") ||
+    (owner.module.path == "environment/async.panack" && owner.name == "get" && name == "environment_lookup_async") ||
     (owner.module.path == "time.panack" && owner.name == "now" && (name == "instant_now")) ||
     (owner.module.path == "time.panack" && owner.name == "seconds" && (name == "duration_nanoseconds")) ||
     (owner.module.path == "time.panack" && owner.name == "milliseconds" && (name == "duration_nanoseconds")) ||
     (owner.module.path == "process.panack" && owner.name == "run_isolated" && name == "process_run_isolated") ||
+    (owner.module.path == "filesystem/confined.panack" && owner.name == "root_identity" && name == "fs_root_identity") ||
+    (owner.module.path == "filesystem/confined/async.panack" && owner.name == "read_link" && name == "fs_read_link_async") ||
     (owner.module.path == "bounded_filesystem.panack" && owner.name == "read_link" && name == "fs_read_link") ||
+    (owner.module.path == "filesystem/staging/async.panack" && owner.name == "create" && name == "stage_create_async") ||
+    (owner.module.path == "filesystem/staging/async.panack" && owner.name == "path" && name == "stage_path_async") ||
+    (owner.module.path == "filesystem/staging/async.panack" && owner.name == "create_directory" && name == "stage_directory_async") ||
+    (owner.module.path == "filesystem/staging/async.panack" && owner.name == "write_chunk" && name == "stage_write_async") ||
+    (owner.module.path == "filesystem/staging/async.panack" && owner.name == "create_symlink" && name == "stage_symlink_async") ||
+    (owner.module.path == "filesystem/staging/async.panack" && owner.name == "publish" && name == "stage_publish_async") ||
+    (owner.module.path == "filesystem/staging/async.panack" && owner.name == "discard" && name == "stage_discard_async") ||
+    (owner.module.path == "filesystem/staging.panack" && owner.name == "create" && name == "stage_create") ||
+    (owner.module.path == "filesystem/staging.panack" && owner.name == "path" && name == "stage_path") ||
+    (owner.module.path == "filesystem/staging.panack" && owner.name == "create_directory" && name == "stage_directory") ||
+    (owner.module.path == "filesystem/staging.panack" && owner.name == "write_chunk" && name == "stage_write") ||
+    (owner.module.path == "filesystem/staging.panack" && owner.name == "create_symlink" && name == "stage_symlink") ||
+    (owner.module.path == "filesystem/staging.panack" && owner.name == "publish" && name == "stage_publish") ||
+    (owner.module.path == "filesystem/staging.panack" && owner.name == "discard" && name == "stage_discard") ||
     (owner.module.path == "filesystem_stage.panack" && owner.name == "symlink" && name == "fs_stage_symlink") ||
     (owner.module.path == "process.panack" && owner.name == "run" && (name == "process_run")) ||
     (owner.module.path == "http_transport.panack" && owner.name == "exchange" && (name == "http_transport_exchange")) ||
@@ -522,13 +556,28 @@ pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool 
 
 pub pure module_internal_primitive_name(identity: ModuleIdentity, name: Str): Bool {
   identity.package == ToolchainModulePackage() && (
+    (identity.path == "filesystem/async.panack" && name == "fs_metadata_async") ||
+    (identity.path == "filesystem/async.panack" && (name == "fs_read_chunk_async" || name == "fs_atomic_write_async" || name == "fs_read_async")) ||
+    (identity.path == "filesystem/async.panack" && name == "fs_write_async") ||
+    (identity.path == "filesystem/async.panack" && name == "fs_list_async") ||
+    (identity.path == "filesystem/async.panack" && name == "fs_remove_file_async") ||
+    (identity.path == "filesystem/async.panack" && name == "fs_remove_directory_async") ||
+    (identity.path == "filesystem/async.panack" && name == "fs_create_directory_async") ||
+    (identity.path == "filesystem/async.panack" && name == "fs_temp_directory_async") ||
+    (identity.path == "filesystem/async.panack" && name == "fs_temp_file_async") ||
+    (identity.path == "package_filesystem/async.panack" && name == "fs_directories_overlap_async") ||
     (identity.path == "bytes.panack" && name == "http_bytes_slice") ||
     (identity.path == "http_runtime.panack" && (name == "http_bytes_slice" || name == "http_body" || name == "http_body_size" || name == "http_body_append" || name == "http_connection_continue")) ||
     (identity.path == "http_runtime.panack" && (name == "http_listen_ordinary" || name == "http_listen_contextual" || name == "http_close" || name == "http_destroy")) ||
     (identity.path == "http_runtime.panack" && (name == "http_connection_writer" || name == "http_connection_routes" || name == "http_connection_fallback" || name == "http_connection_admit" || name == "http_connection_invoke")) ||
     (identity.path == "http_runtime.panack" && (name == "http_writer_get_status" || name == "http_writer_get_headers" || name == "http_writer_reject" || name == "http_writer_status" || name == "http_writer_headers" || name == "http_writer_commit")) ||
     (identity.path == "http_runtime.panack" && (name == "http_state_create" || name == "http_state_context" || name == "http_state_setup_error" || name == "http_state_fail_setup" || name == "http_state_register")) ||
+    (identity.path == "console.panack" && name == "console_output") ||
+    (identity.path == "console/async.panack" && name == "console_output_async") ||
     (identity.path == "async_host.panack" && (name == "host_arguments_async" || name == "host_exit_async" || name == "host_stderr_async" || name == "host_stdout_async")) ||
+    (identity.path == "time/async.panack" && (name == "instant_now_async" || name == "host_sleep_async")) ||
+    (identity.path == "time.panack" && name == "host_sleep") ||
+    (identity.path == "environment/async.panack" && name == "environment_lookup_async") ||
     (identity.path == "time.panack" && (name == "duration_from_seconds" || name == "duration_nanoseconds" || name == "instant_now")) ||
     (identity.path == "process.panack" && (name == "process_run" || name == "process_run_isolated")) ||
     (identity.path == "http_transport.panack" && (name == "http_transport_exchange")) ||
@@ -539,10 +588,14 @@ pub pure module_internal_primitive_name(identity: ModuleIdentity, name: Str): Bo
     (identity.path == "tcp.panack" && (name == "tcp_exchange" || name == "tcp_serve" || name == "tcp_serve_stream" || name == "tcp_server_read_chunk")) ||
     (identity.path == "path.panack" && (name == "path_current" || name == "path_from_native" || name == "path_from_text")) ||
     (identity.path == "testing_async.panack" && (name == "async_fake_read")) ||
+    (identity.path == "filesystem/staging/async.panack" && (name == "stage_create_async" || name == "stage_path_async" || name == "stage_directory_async" || name == "stage_write_async" || name == "stage_symlink_async" || name == "stage_publish_async" || name == "stage_discard_async")) ||
+    (identity.path == "filesystem/staging.panack" && (name == "stage_create" || name == "stage_path" || name == "stage_directory" || name == "stage_write" || name == "stage_symlink" || name == "stage_publish" || name == "stage_discard")) ||
     (identity.path == "filesystem_stage.panack" && (name == "fs_stage_symlink" || name == "fs_stage_begin" || name == "fs_stage_path" || name == "fs_stage_directory" || name == "fs_stage_write" || name == "fs_stage_publish" || name == "fs_stage_close")) ||
     (identity.path == "digest.panack" && (name == "digest_sha256_open" || name == "digest_update" || name == "digest_finish" || name == "digest_close")) ||
     (identity.path == "http_stream.panack" && (name == "http_stream_open" || name == "http_stream_read" || name == "http_stream_close")) ||
     (identity.path == "gzip.panack" && (name == "gzip_open" || name == "gzip_step" || name == "gzip_close")) ||
+    (identity.path == "filesystem/confined.panack" && name == "fs_root_identity") ||
+    (identity.path == "filesystem/confined/async.panack" && name == "fs_read_link_async") ||
     (identity.path == "bounded_filesystem.panack" && (name == "fs_read_link" || name == "fs_read_chunk" || name == "fs_atomic_write")) ||
     (identity.path == "filesystem.panack" && (name == "fs_create_directory" || name == "fs_list" || name == "fs_metadata" || name == "fs_read" || name == "fs_remove_directory" || name == "fs_remove_file" || name == "fs_temp_directory" || name == "fs_temp_file" || name == "fs_write")) ||
     (identity.path == "core.panack" && (name == "duration_from_seconds" || name == "duration_nanoseconds" || name == "path_absolute" || name == "path_append" || name == "path_directory" || name == "path_display" || name == "path_filename" || name == "path_native_bytes" || name == "path_to_text")) ||

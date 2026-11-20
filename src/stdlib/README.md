@@ -22,6 +22,42 @@ For complete runnable examples, see the [API recipes guide](../../docs/guides/AP
 data, or use `error.render()` for plain text. See the
 [language specification](../../docs/reference/SPEC.md#runtime-validation).
 
+## Choosing an async API
+
+Import the asynchronous module under the same alias when calling from an async
+function:
+
+```panack
+import stdlib/time/async as time
+
+async reading(): Result[Instant,time.ClockError] {
+  await time.now()
+}
+```
+
+The ordinary module remains `stdlib/time`. Both modules expose the same pure
+helpers, such as `time.seconds(5)`, and the same clock/error types. Only the
+clock read is asynchronous. `stdlib/environment/async` similarly provides
+`await environment.get(name): Option[Str]`; missing values return `None()`
+and present empty values return `Some("")`.
+
+Clock and environment reads complete immediately in the current task turn;
+async describes their effect contract and does not promise suspension or a
+worker thread. Neither operation is pure. Environment reads retain the VM's
+invocation snapshot semantics.
+
+`stdlib/host/async` re-exports `arguments`, `stdout`, `stderr`, `exit`, and
+`HostError`. `stdlib/filesystem/async` re-exports `read_beneath`,
+`root_identity`, and their shared types. These paths retain existing bounds,
+cancellation behaviour and capability grants. The old `stdlib/async_host`
+and `stdlib/async_filesystem` paths remain compatible; there is one
+implementation of each operation. The first batch did not add all filesystem/host operations. The broader
+development APIs and their remaining acceptance are described below; sleep and
+process execution still await their async implementations.
+
+See the [uptime service](../../examples/network/http_uptime/README.md) for a
+complete HTTP handler using the clock and immutable start context.
+
 ## Curated prelude
 
 `stdlib/prelude` re-exports a curated set of modules while preserving each
@@ -225,3 +261,46 @@ and cleanup. Neither operation provides a process sandbox.
 
 Live handles are released on VM completion, failure and synchronous process exit.
 The native adapters are unavailable in the browser and report `unsupported`.
+
+## Canonical names in alpha.16 development
+
+The development branch adds `time.nanoseconds` and
+`time.from_fractional_seconds`; the latter returns an error for fractional
+nanoseconds. Both are pure and are re-exported by `time/async`. Existing
+`from_nanoseconds` and `from_seconds` remain compatible.
+
+The ordinary filesystem module also exposes `create_temp_file`,
+`create_temp_directory`, `read_chunk`, `write_atomic`, and `directories_overlap`.
+These delegate to existing implementations and preserve their limits and path
+safety rules. The development async module now includes general metadata, read,
+write, listing, creation, removal and overlap operations. This broader batch is
+not a released capability. Cancelling temporary creation before delivery removes
+the new file or empty directory on its worker. If removal fails, Panack reports
+the path and native error on stderr; it does not recursively delete contents.
+After successful delivery, the caller owns the path and its cleanup. Process
+termination is not a cleanup guarantee. Final batch acceptance remains pending.
+See the [implementation contract](../../docs/STDLIB_API_CONTRACT.md) for the
+complete inventory and remaining migration work.
+
+Async `filesystem.read_chunk` and `filesystem.write_atomic` now share the ordinary
+bounded implementation on the development branch. Reads allow chunks up to 64 KiB
+and offsets up to 256 MiB; atomic writes accept at most 32 MiB. Cancelling an
+atomic write does not roll back a replacement already in progress.
+
+Development modules `filesystem/confined` and `filesystem/confined/async` expose
+`root_identity`, `read`, `read_beneath` and `read_link`, sharing existing record
+types. Reads resolve relative symlinks within the root and reject escape.
+`read_link` returns the final link target bytes without following that link.
+
+The development module `filesystem/staging` provides an opaque `DirectoryStage`
+and `PublishMode.CreateOnly` / `PublishMode.ReplaceExisting`. Use `create`, `path`,
+`create_directory`, `write_chunk`, `create_symlink`, `publish` and `discard`.
+Successful publication/discard consumes the resource, including aliases. Failed
+publication leaves it owned; failed discard retains ownership for retry. Legacy
+`filesystem_stage` numeric handles remain supported during migration. The development async
+module `filesystem/staging/async` provides matching functions using `await` and
+the same publication modes. Creation cancelled before delivery is discarded;
+publication may still commit after cancellation. Embedded shutdown queues cleanup on a dedicated worker. The process permits
+32 retained stage tables, including pending cleanup, with 64 slots per invocation;
+exhaustion returns resource_limit. Final batch validation is still pending, so
+this module is not yet accepted for release.

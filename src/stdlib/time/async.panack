@@ -1,0 +1,14 @@
+pub import stdlib/host::{HostError}
+pub import stdlib/time::{ClockError, ClockError.ClockUnavailable, DurationError,
+  DurationError.FractionalNanosecond, DurationError.ZeroDurationDivisor,
+  nanoseconds, from_fractional_seconds, from_nanoseconds, from_seconds, seconds, milliseconds}
+
+// An impure monotonic clock read that completes in the current task turn.
+pub async now(): Result[Instant,ClockError] {
+  await instant_now_async()
+}
+
+// Suspend this task; cancellation discards the timer.
+pub async sleep(duration: Duration): Result[Unit,HostError] {
+  await host_sleep_async(duration)
+}

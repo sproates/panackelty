@@ -4,6 +4,8 @@
 #include "builtins.h"
 #include "console_write.h"
 #include "host.h"
+#include "host_capabilities.h"
+#include "host_types.h"
 #include "http_transport.h"
 #include "http_runtime.h"
 #include "filesystem_stage.h"
@@ -73,6 +75,8 @@ struct VMExecution {
     VMTcpServer *server;
     VMRootRead *root_read;
     VMConsoleWrite *console_write;
+    uint64_t sleep_deadline;
+    bool sleeping;
     bool console_enabled, yield_requested;
     Value *http_waiting;
 #ifndef __wasi__
@@ -601,6 +605,18 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
     if (entry->dispatch == BUILTIN_TCP_SERVICE) {
         return service_call(execution, arguments);
     }
+    if (entry->dispatch == BUILTIN_HOST_SLEEP_ASYNC) {
+        Value *result = NULL;
+        execution->sleeping = host_sleep_start(vm, arguments[0], &execution->sleep_deadline, &result);
+        if (execution->sleeping) execution->status = VM_WAITING;
+        return result;
+    }
+    if (entry->dispatch == BUILTIN_INSTANT_NOW_ASYNC) {
+        return host_type_call(vm, "instant_now", NULL);
+    }
+    if (entry->dispatch == BUILTIN_ENVIRONMENT_LOOKUP_ASYNC) {
+        return host_call(vm, "environment_lookup_async", arguments);
+    }
     if (entry->dispatch == BUILTIN_HOST_ARGUMENTS_ASYNC) {
         if (execution->embedded && !execution->console_enabled) {
             vm->error = "VM trap: invocation service is unavailable in this execution";
@@ -619,12 +635,22 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         }
         return NULL;
     }
-    if (entry->dispatch == BUILTIN_HOST_STDOUT_ASYNC || entry->dispatch == BUILTIN_HOST_STDERR_ASYNC) {
+    if (entry->dispatch == BUILTIN_HOST_STDOUT_ASYNC || entry->dispatch == BUILTIN_HOST_STDERR_ASYNC ||
+        entry->dispatch == BUILTIN_CONSOLE_OUTPUT_ASYNC) {
         if (execution->embedded && !execution->console_enabled) {
             vm->error = "VM trap: console service is unavailable in this execution";
         } else {
-            execution->console_write =
-                console_write_start(vm, arguments[0], entry->dispatch == BUILTIN_HOST_STDERR_ASYNC);
+            if (entry->dispatch == BUILTIN_CONSOLE_OUTPUT_ASYNC) {
+                if (arguments[1]->kind != V_BOOL || arguments[2]->kind != V_BOOL) {
+                    vm->error = "VM trap: console output flags require Bool";
+                    return NULL;
+                }
+                execution->console_write = console_write_start_mode(vm, arguments[0],
+                    arguments[1]->as.boolean, arguments[2]->as.boolean, false);
+            } else {
+                execution->console_write =
+                    console_write_start(vm, arguments[0], entry->dispatch == BUILTIN_HOST_STDERR_ASYNC);
+            }
             if (!execution->console_write && !vm->error) {
                 vm->error = "native VM out of memory";
             }
@@ -635,12 +661,24 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         return NULL;
     }
     if (entry->dispatch == BUILTIN_FS_READ_BENEATH_ASYNC ||
-        entry->dispatch == BUILTIN_FS_ROOT_IDENTITY_ASYNC) {
+        entry->dispatch == BUILTIN_FS_ROOT_IDENTITY_ASYNC || entry->dispatch == BUILTIN_FILESYSTEM_ASYNC) {
         if (execution->embedded && !execution->filesystem_enabled) {
             vm->error = "VM trap: filesystem service is unavailable in this execution";
         } else {
-            execution->root_read =
-                root_read_start(vm, arguments, entry->dispatch == BUILTIN_FS_ROOT_IDENTITY_ASYNC);
+            if (entry->dispatch == BUILTIN_FILESYSTEM_ASYNC) {
+                char operation[64];
+                size_t length = strlen(entry->name) - strlen("_async");
+                if (length >= sizeof(operation)) {
+                    vm->error = "VM trap: invalid asynchronous filesystem dispatch";
+                    return NULL;
+                }
+                memcpy(operation, entry->name, length);
+                operation[length] = 0;
+                execution->root_read = filesystem_async_start(vm, operation, arguments);
+            } else {
+                execution->root_read =
+                    root_read_start(vm, arguments, entry->dispatch == BUILTIN_FS_ROOT_IDENTITY_ASYNC);
+            }
             if (!execution->root_read && !vm->error) {
                 vm->error = "native VM out of memory";
             }
@@ -1415,7 +1453,8 @@ bool vm_execution_destroy(VMExecution *execution)
     console_write_destroy(execution->console_write);
     tcp_server_destroy(execution->server);
     restore_stop_signals(execution);
-    filesystem_stage_destroy(execution->vm);
+    if (execution->embedded) filesystem_stage_destroy_deferred(execution->vm);
+    else filesystem_stage_destroy(execution->vm);
     gzip_stream_destroy(execution->vm);
     http_stream_destroy(execution->vm);
     digest_destroy(execution->vm);
@@ -1469,6 +1508,11 @@ Value *execute(VM *vm, Function *function, Value **arguments)
                 vm_execution_pump_server(&execution, 1024, active ? 1 : 10);
                 continue;
             }
+            if (status == VM_WAITING && execution.sleeping) {
+                if (!active) host_sleep_wait(execution.sleep_deadline);
+                vm_execution_poll_network(&execution, 0);
+                continue;
+            }
             if (status == VM_WAITING && execution.console_write) {
                 if (!active) console_write_wait(execution.console_write);
                 vm_execution_poll_console(&execution);
@@ -1509,6 +1553,7 @@ Value *execute(VM *vm, Function *function, Value **arguments)
     constants_clear(&execution);
     release(execution.http_waiting);
     vm->execution = NULL;
+    if (owns_runtime) filesystem_stage_drain_cleanup();
     if (owns_runtime && !vm->error && (execution.status == VM_EXITED || runtime.exit_requested)) {
         Value *code = value_size(runtime.exit_requested ? runtime.exit_status : execution.exit_status);
         if (!code) vm->error = "native VM out of memory";
@@ -1672,6 +1717,7 @@ bool vm_execution_poll_filesystem(VMExecution *execution)
         (!result || !stack_push(&execution->frames[execution->frame_count - 1], retain(result)))) {
         execution->vm->error = "native VM out of memory";
     }
+    if (!execution->vm->error) root_read_accept(execution->root_read);
     root_read_destroy(execution->root_read);
     execution->root_read = NULL;
     execution->status = execution->vm->error ? VM_TRAPPED : VM_YIELDED;
@@ -1686,6 +1732,21 @@ bool vm_execution_poll_filesystem(VMExecution *execution)
 
 bool vm_execution_poll_network(VMExecution *execution, unsigned max_wait_ms)
 {
+    if (execution->sleeping) {
+        if (execution->running || execution->status != VM_WAITING) return false;
+        Value *result = NULL;
+        if (!host_sleep_poll(execution->sleep_deadline, &result)) return true;
+        execution->sleeping = false;
+        if (!result || !stack_push(&execution->frames[execution->frame_count - 1], result)) {
+            execution->vm->error = "native VM out of memory";
+        }
+        execution->status = execution->vm->error ? VM_TRAPPED : VM_YIELDED;
+        if (execution->vm->error) {
+            vm_coverage_terminal(execution->vm->coverage, 2);
+            frames_clear(execution);
+        } else coverage_complete_pending(execution);
+        return true;
+    }
     if (execution->console_write) {
         return vm_execution_poll_console(execution);
     }

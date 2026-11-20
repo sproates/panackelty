@@ -1,0 +1,19 @@
+pub import stdlib/host::{HostError}
+pub enum PublishMode { CreateOnly, ReplaceExisting }
+
+pub create(parent: Path): Result[DirectoryStage,HostError] { stage_create(parent) }
+pub path(stage: DirectoryStage): Result[Path,HostError] { stage_path(stage) }
+pub create_directory(stage: DirectoryStage, relative: Path): Result[Unit,HostError] {
+  stage_directory(stage, relative)
+}
+pub write_chunk(stage: DirectoryStage, relative: Path, data: Bytes, offset: Nat): Result[Unit,HostError] {
+  stage_write(stage, relative, data, offset)
+}
+pub create_symlink(stage: DirectoryStage, relative: Path, target: Path): Result[Unit,HostError] {
+  stage_symlink(stage, relative, target)
+}
+pub publish(stage: DirectoryStage, name: Path, mode: PublishMode): Result[Unit,HostError] {
+  replace = match mode { CreateOnly() => false, ReplaceExisting() => true }
+  stage_publish(stage, name, replace)
+}
+pub discard(stage: DirectoryStage): Result[Unit,HostError] { stage_discard(stage) }

@@ -22,7 +22,11 @@ for source in "$out"/vm/*.[ch]; do
   done
 done
 cp "$root/bootstrap/compiler-v9.bc" "$out/compiler-v9.bc"
-cp "$root"/src/stdlib/*.panack "$out/stdlib/"
+find "$root/src/stdlib" -type f -name '*.panack' | while IFS= read -r source; do
+  relative=${source#"$root/src/stdlib/"}
+  mkdir -p "$out/stdlib/$(dirname "$relative")"
+  cp "$source" "$out/stdlib/$relative"
+done
 cp "$root/src/bytecode/FORMAT.md" "$out/BYTECODE_FORMAT.md"
 cp "$root/LICENSE" "$out/LICENSE"
 

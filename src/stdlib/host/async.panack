@@ -1,0 +1,2 @@
+// Keep the original module working while offering the common async import path.
+pub import stdlib/async_host::{HostError, arguments, stdout, stderr, exit}

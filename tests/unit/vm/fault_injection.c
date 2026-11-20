@@ -21,6 +21,7 @@ static atomic_size_t syscall_at, syscall_seen;
 static atomic_int syscall_error;
 static atomic_bool descriptors[4096];
 static atomic_size_t descriptor_count, child_count;
+static atomic_bool pause_fstat, fstat_paused;
 static atomic_bool pause_reads, read_paused, pause_writes, write_paused;
 
 static pthread_once_t fork_lock_once = PTHREAD_ONCE_INIT;
@@ -345,8 +346,17 @@ int fault_open(const char *path, int flags, ...)
     return fd;
 }
 
+void fault_pause_fstat(bool pause) { atomic_store(&pause_fstat, pause); }
+bool fault_fstat_paused(void) { return atomic_load(&fstat_paused); }
+
 int fault_fstat(int fd, struct stat *info)
 {
+    if (atomic_load(&pause_fstat)) {
+        atomic_store(&fstat_paused, true);
+        struct timespec delay = {.tv_nsec = 1000000};
+        while (atomic_load(&pause_fstat)) nanosleep(&delay, NULL);
+        atomic_store(&fstat_paused, false);
+    }
     return syscall_fails("fstat") ? -1 : fstat(fd, info);
 }
 

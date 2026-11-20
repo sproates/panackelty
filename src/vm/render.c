@@ -54,6 +54,8 @@ bool render(Buffer *b, const Value *v, bool display)
 {
     char *number = NULL;
     switch (v->kind) {
+    case V_DIRECTORY_STAGE:
+        return buffer_text(b, "<DirectoryStage>");
     case V_HTTP_CONNECTION:
         return buffer_text(b, "<HttpConnectionState>");
     case V_HTTP_STATE:

@@ -1858,6 +1858,18 @@ probe tests filter the new trace. The source manifest now includes
 530 import/type/record/enum exclusions against the prior 509; no executable functions
 are excluded and this is not a new coverage collection.
 
+### Async stdlib batch (alpha.16 development)
+
+`tests/async_stdlib.sh` checks the new import paths, source and bytecode
+execution, missing/empty environment values, monotonic readings, compatibility
+imports, await/purity rejection and actionable ordinary-call diagnostics.
+`tests/http_uptime.sh` runs the real uptime example in both execution modes
+and compares successive responses. The existing async filesystem integration
+uses the new path. Native async tests independently check forged call edges;
+fault injection checks the typed clock failure. Installation inventory and
+relocation tests include the nested modules. These tests do not establish
+source-execution coverage percentages for the new async adapters.
+
 ### Process-group launch race regression
 
 The native fault suite deterministically exercises a child process-group assignment
@@ -1878,3 +1890,136 @@ the automated regression therefore uses deterministic syscall fault injection.
 Performance: the normal successful launch adds no syscall. Only an EPERM result
 checks the existing process group; there is no retry loop, sleep or timeout change.
 Existing process timeout/descendant cleanup functional coverage remains applicable.
+
+### Async temporary-resource ownership
+
+Native module checks cover immediate cancellation, cancellation after creation,
+and accepted results for both temporary files and directories. Retained results
+remain usable after the worker releases its operation. A non-empty temporary
+directory proves cleanup failure preserves contents and reports its exact path
+and native error. Allocation-failure sweeps assert no retained memory, descriptors
+or orphaned temporary entries. General filesystem source and saved-bytecode
+functional cases still pass with the candidate compiler. Final batch acceptance
+remains pending; these focused checks do not replace `make check`.
+
+Performance: temporary creation retains one of the existing 32 worker slots until
+result handoff or abandonment. Cleanup runs on that worker; cancellation adds no
+blocking filesystem call to the event loop. No bytecode or compiler change.
+Website impact: included in the existing pending async stdlib reference update;
+no published article changes.
+
+Async filesystem candidate tests also cover atomic replacement followed by chunk
+reads, a nonzero offset, EOF and rejection above the 64 KiB chunk limit, through
+source and saved bytecode. These operations reuse the existing no-follow native
+implementation in bounded workers; no new bytecode format or execution engine.
+Final expanded stdlib batch validation remains pending.
+
+Canonical confined filesystem tests exercise ordinary and async source and saved
+bytecode, root/read identity equality, contained symlink reads, escaping-link
+rejection and link-target reads. Native dispatch reuses existing safety logic;
+async link reads use bounded workers with a 4096-byte reservation. Coverage
+inventory/hash reconciliation and final batch acceptance remain pending.
+
+### Staging lifetime baseline (19 November)
+
+The native I/O suite now verifies create-only publication conflict, stage reuse
+after rejection, later successful publication, rejection of path/write/publish
+after consumption, and VM shutdown removing unpublished content while preserving
+published contents. This establishes the existing synchronous baseline, not async
+cancellation safety. The API contract records the outstanding native ownership,
+cleanup-error and pre-commit allocation work. Production behaviour is unchanged;
+there is no runtime performance or current website change in this checkpoint.
+
+Staging cleanup now has focused native regressions for retry after a substituted
+directory blocks discard, and successful publication despite permission-denied
+old-generation cleanup. The latter checks the path/error diagnostic, consumed
+handle, shutdown retry and preservation of published content; it runs for non-root
+users. Publication preallocates its success result before rename. These focused
+checks do not establish complete allocation-fault or async staging acceptance.
+Performance: no extra successful-path filesystem operation; failed cleanup retains
+its bounded stage slot until retry/shutdown. Final batch make check is pending.
+
+Native opaque stage values now have tests rejecting Nat forgery, handles from
+another invocation, stale handles after VM-table recreation, and aliases after
+discard. Retained values outlive table destruction safely through an identity
+token; this token does not keep the native stage alive or grant worker ownership.
+Native-only foundation: no public typed source API or bytecode-format change.
+Performance: one small shared identity allocation per invocation using staging,
+and one normal Value allocation per opaque result. Full batch checks remain pending.
+
+Candidate source and saved-bytecode staging checks now exercise the ordinary
+opaque API, named publication modes, rejected create-only publication followed by
+replacement, alias consumption and discard. Negative source cases reject Nat
+handles, direct DirectoryStage construction and staging effects in pure functions.
+No bytecode format change; coverage inventory and final batch acceptance pending.
+
+A deterministic native-thread staging test acquires a lease, rejects a second
+lease and ordinary discard as busy, destroys the VM table and releases all source
+values, then starts a worker that creates a child directory. Lease release removes
+the unpublished stage. This proves native lifetime independence without relying on
+timing. It does not yet exercise public await dispatch or cancellation. Atomic
+reference counts and per-stage admission add bounded bookkeeping; native slots
+remain bounded at 64 per invocation. Full batch validation remains pending.
+
+Async staging source/bytecode tests now cover create/path/directory/write/symlink/
+publish/discard, named modes and alias consumption. Native creation tests cover
+immediate cancellation, cancellation after completion and accepted ownership
+without a transient busy result. Allocation sweeps check abandoned creation
+without retained memory or leftover stage directories. A cancelled publication
+finishes and preserves its committed destination after VM teardown. These checks
+do not establish event-loop-safe shutdown with no lease pending; that and final
+batch/coverage-inventory acceptance remain outstanding. Worker admission remains
+32 operations with existing byte reservations and 64 stage slots per invocation.
+
+Embedded staging teardown now has a deterministic paused-fstat fault test: VM
+execution destruction returns while cleanup remains blocked, then draining after
+unpausing releases all tracked allocations and descriptors. Native admission tests
+fill 32 invocation tables, reject the next, drain one, and verify capacity recovery.
+Cleanup uses one worker and an allocation-free intrusive queue bounded by table
+admission. The CLI drains queued cleanup after stopping its runtime; active host
+operations can still outlive cancellation, and process termination gives no
+cleanup guarantee for such operations. Final expanded-batch validation pending.
+
+### Expanded filesystem batch acceptance, 19 November 2026
+
+Final `make check` passed in 606 seconds: unit 389s, bootstrap 83s in parallel,
+functional 142s, plus the remaining build/release checks. Historical budget warnings
+remain informational; these timings are not a controlled performance comparison.
+The general, confined and ordinary/async opaque staging fixtures all passed source
+and saved-bytecode execution. A separate relocated installation repeated ordinary
+and async staging from an unrelated working directory without checkout overrides.
+
+Installation inventory reconciliation and all 13 coverage manifest/policy tests
+pass. Four canonical confined/staging modules are explicitly unmeasured; eligible
+sources and the bounded execution corpus are unchanged. Policy hashes were
+regenerated with the production parser and declaration inventory. No measured
+coverage increase is claimed.
+
+Artifact preflight passes after a reviewed stdlib golden update: all 35 original
+function instruction bodies match after module renumbering; 12 wrapper/import
+functions are added and old/new output matches. Refreshed compiler stages 2–4
+agree, as do stdlib conformance bytes. Integration and hosted validation are
+pending; development CI remains off.
+
+### Timer development checks, 20 November 2026
+
+Candidate source and saved-bytecode checks cover async sleep at zero/positive
+durations, negative/oversized errors, ordinary and legacy compatibility, argument
+types, missing await, pure effects and rejected direct primitive access. Native
+contracts cover independent execution while another timer waits, cancellation,
+rejected fake completion, task-session resumption and immediate expiry. Fault
+contracts cover clock failure at registration and polling and completion allocation
+failure. The native module and fault suites pass. Final `make check`, refreshed
+seed and inventory reconciliation remain for the settled console/process batch;
+the 19 November full-run result applies to the preceding filesystem revision.
+
+### Console development checks, 20 November 2026
+
+`tests/console.sh` covers all four checked console operations through ordinary and
+async imports in source and saved-bytecode modes, exact UTF-8 and empty/line output,
+legacy output ordering and rejected effect/type/direct-primitive uses. Native tests
+cover embedded NUL, descriptor errors and existing broken-pipe handling. Allocation,
+syscall, blocked-write cancellation and four-slot admission tests run for both the
+legacy and new raw writer paths. New module installation and source inventories
+are reconciled; the two console adapters are explicitly unmeasured by the bounded
+coverage corpus. Final seed refresh and full checks remain for the settled batch.

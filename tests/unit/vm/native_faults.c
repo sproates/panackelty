@@ -2,6 +2,7 @@
 #undef NDEBUG
 #endif
 #include "builtins.h"
+#include "host_capabilities.h"
 #include "decode.h"
 #include "fault_injection.h"
 #include "http_transport.h"
@@ -658,6 +659,42 @@ static void host_failures(void)
     assert(fault_triggered() && result && !strcmp(result->as.named.name, "Error"));
     assert(!strcmp(result->as.named.values[0]->as.named.name, "ClockUnavailable"));
     release(result);
+
+    fault_reset(0);
+    Instruction clock_code[] = {{.op = OP_AWAIT_CALL, .name = "instant_now_async"},
+                                {.op = OP_RETURN}};
+    Function clock_fn = {.name = "read_clock", .is_async = true, .ins = clock_code, .ins_count = 2};
+    Program clock_program = {.functions = &clock_fn, .count = 1};
+    VM clock_vm = {.program = &clock_program};
+    const char *clock_error = NULL;
+    VMExecution *clock_run = vm_execution_create_async(&clock_vm, &clock_fn, NULL, NULL, NULL, &clock_error);
+    assert(clock_run && !clock_error);
+    fault_syscall("clock_gettime", 1, EIO);
+    assert(vm_execution_advance(clock_run, 10) == VM_COMPLETED);
+    result = vm_execution_result(clock_run);
+    assert(fault_triggered() && result && !strcmp(result->as.named.name, "Error"));
+    assert(!strcmp(result->as.named.values[0]->as.named.name, "ClockUnavailable"));
+    assert(vm_execution_destroy(clock_run));
+
+    Value *timer_duration = value_size(1000000000);
+    timer_duration->kind = V_DURATION;
+    uint64_t deadline;
+    for (size_t mode = 0; mode < 2; mode++) {
+        fault_reset(0);
+        fault_syscall("clock_gettime", 1, EIO);
+        bool pending = mode ? !host_sleep_poll(0, &result)
+                            : host_sleep_start(&vm, timer_duration, &deadline, &result);
+        assert(!pending && fault_triggered() && result);
+        assert(!strcmp(result->as.named.name, "Error"));
+        release(result);
+    }
+    fault_reset(0);
+    release(timer_duration);
+    size_t timer_baseline = fault_live();
+    fault_reset(1);
+    assert(host_sleep_poll(0, &result));
+    assert(fault_triggered() && !result && fault_live() == timer_baseline);
+    fault_reset(0);
 
     Value *duration = value_size(0);
     duration->kind = V_DURATION;

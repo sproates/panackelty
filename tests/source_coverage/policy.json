@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Review canonical confined and staging adapters plus compiler declaration positions using the production inventory.",
+    "reason": "Review timer imports and canonical checked console adapters using the production declaration inventory.",
     "basis": "Computed with the production parser and inventory_module over every eligible source. Only imports, type refinements, records and enums are excluded; executable functions remain eligible.",
-    "scopeChange": "Four canonical filesystem modules are unmeasured and covered by focused source/bytecode/native tests. Eligible sources and execution corpus are unchanged; this is not a coverage collection."
+    "scopeChange": "Two console adapters are explicitly unmeasured and have focused source/bytecode/native tests. Eligible sources and execution corpus remain unchanged. This is not a coverage collection."
   },
-  "manifestHash": "47a217357da9c447125c4ba2320cee348d27f5b50ee96ef62e01ceb05b1e71ea",
-  "exclusionHash": "f3c476a86d435a714d0eb9d59977f52b94f913e077473cfa445e2ea66432e378"
+  "manifestHash": "4b65f31ab8e5a5b108572b88bf2e7215a1cfbe6e1be4c7a84bef7c384317aebd",
+  "exclusionHash": "860b6066c454469f460d77f698d2ebb2d8856078bb28a8b34ba1b97ae3885acd"
 }

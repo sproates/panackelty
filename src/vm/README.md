@@ -437,3 +437,11 @@ the timer without worker or descriptor cleanup. TCP handlers and task sessions
 poll without blocking. A standalone CLI may wait until the deadline in bounded
 one-second intervals when no server runtime is active. Timer expiry permits
 resumption; it does not guarantee exact scheduling latency.
+
+Canonical console wrappers select raw/line output and stdout/stderr through the
+same bounded `console_write.c` backend. Ordinary calls wait for a checked result;
+async dispatch stores the operation on the execution and polls without blocking.
+Raw empty writes still validate the descriptor. Legacy print flushes before return
+so sequential calls do not reorder buffered legacy output around checked writes.
+The legacy newline entry point remains compatible. Partial writes are possible on
+failure; cancellation does not retract emitted bytes or release a blocked worker.

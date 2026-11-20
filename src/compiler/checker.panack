@@ -991,6 +991,7 @@ pure builtin_return(name: Str): Str {
 }
 
 pure builtin_host_return(name: Str): Str {
+  if name == "console_output" || name == "console_output_async" { "Result[Unit,HostError]" } else
   if name == "instant_now_async" { "Result[Instant,ClockError]" }
   else if name == "environment_lookup_async" { "Option[Str]" }
   else if name == "host_arguments_async" { "[Str]" }
@@ -1230,6 +1231,7 @@ pub pure builtin_arity(name: Str): Nat {
 }
 
 pure builtin_host_arity(name: Str): Nat {
+  if name == "console_output" || name == "console_output_async" { 3 } else
   if name == "instant_now_async" || name == "host_arguments_async" { 0 }
   else if name == "environment_lookup_async" { 1 }
   else if name == "host_exit_async" || name == "host_stdout_async" ||
@@ -1449,6 +1451,7 @@ pure builtin_parameter(name: Str, index: Nat): Str {
 }
 
 pure builtin_host_parameter(name: Str, index: Nat): Str {
+  if name == "console_output" || name == "console_output_async" { if index == 0 { "Str" } else { "Bool" } } else
   if name == "host_exit_async" { "Nat" }
   else if name == "host_stdout_async" || name == "host_stderr_async" { "Str" }
   else { builtin_filesystem_parameter(name, index) }

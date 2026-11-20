@@ -1570,12 +1570,27 @@ functions. Async functions still cannot call the ordinary variants.
 
 `stdlib/host/async` and `stdlib/filesystem/async` re-export the operations and
 shared types of `stdlib/async_host` and `stdlib/async_filesystem` respectively.
-Both original paths remain supported. The filesystem module contains only
-`root_identity` and `read_beneath`, not general file I/O. The host module does
+Both original paths remain supported. The canonical filesystem async module also
+provides the general file operations described above. The host module does
 not expose blocking sleep, subprocess execution, or nested bytecode execution.
 Existing bounds, grants, worker ownership and cancellation rules are unchanged.
 
 ### Asynchronous command-line host operations
+
+`stdlib/console` and `stdlib/console/async` expose `write`, `write_line`,
+`write_error` and `write_error_line`. Each accepts Str and returns
+`Result[Unit,HostError]`; the async forms require `await`. Raw writes preserve
+exact message bytes, including embedded NUL. Line writes append exactly one LF,
+including when the message already ends in LF or is empty. Error variants use
+stderr; the others use stdout. All share the bounds, worker ownership and error
+categories below. The 16 KiB limit excludes the optional appended LF. Ordinary
+calls wait for their checked result; async calls suspend without blocking the
+execution thread. Empty raw writes still check the output descriptor.
+
+Legacy print/host wrappers retain their existing return types. Legacy synchronous
+printing flushes its stream before returning so sequential mixed legacy/console
+calls preserve order. Concurrent writes can still interleave. A failed write may
+already have emitted part of the message; an error does not mean no bytes were sent.
 
 `stdlib/async_host` provides `await arguments(): [Str]`, `await stdout(Str)` and
 `await stderr(Str)` returning `Result[Unit,HostError]`, and `await exit(Nat): Unit`.

@@ -370,3 +370,22 @@ per timer; polling costs one clock read per pending timer per host poll. No
 throughput claim is made. The compiler seed and final batch validation are deferred
 until the related console/process implementation settles. This is a development
 checkpoint, not AS3 completion or integration acceptance.
+
+## Console development checkpoint, 20 November 2026
+
+Both console modules now implement write/write_line/write_error/write_error_line,
+returning the shared HostError result. Raw writes add no bytes; line writes append
+one LF. The existing 16 KiB message bound (excluding LF), four retained operations,
+SIGPIPE-safe worker and cancellation ownership apply to both paths. Ordinary calls
+wait for that worker; async calls suspend. Legacy host wrappers retain their return
+types; legacy synchronous printing flushes before returning to preserve ordering
+with descriptor-based checked output. Concurrent writes can interleave and failed
+writes may have emitted a prefix.
+
+Focused source/bytecode tests cover every operation, UTF-8, empty/raw/line output,
+legacy ordering, type checking and effect restrictions. Native tests add exact
+embedded-NUL bytes and closed descriptors; fault tests exercise legacy and raw
+checked paths through allocation failures, blocked-write cancellation and admission
+exhaustion. Candidate builds are used; final seed and combined batch validation
+remain pending with subprocess work. Ordinary checked output now pays the bounded
+worker setup/wait cost; no throughput improvement is claimed.

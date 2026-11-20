@@ -204,6 +204,8 @@ Value *host_call(VM *vm, const char *name, Value **a)
         }
         FILE *out = !strcmp(name, "print") ? stdout : stderr;
         fprintf(out, "%s\n", b.data ? b.data : "");
+        /* Preserve call order with checked console writes using the descriptor. */
+        fflush(out);
         free(b.data);
         return value_void();
     }

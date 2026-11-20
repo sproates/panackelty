@@ -2012,3 +2012,14 @@ contracts cover clock failure at registration and polling and completion allocat
 failure. The native module and fault suites pass. Final `make check`, refreshed
 seed and inventory reconciliation remain for the settled console/process batch;
 the 19 November full-run result applies to the preceding filesystem revision.
+
+### Console development checks, 20 November 2026
+
+`tests/console.sh` covers all four checked console operations through ordinary and
+async imports in source and saved-bytecode modes, exact UTF-8 and empty/line output,
+legacy output ordering and rejected effect/type/direct-primitive uses. Native tests
+cover embedded NUL, descriptor errors and existing broken-pipe handling. Allocation,
+syscall, blocked-write cancellation and four-slot admission tests run for both the
+legacy and new raw writer paths. New module installation and source inventories
+are reconciled; the two console adapters are explicitly unmeasured by the bounded
+coverage corpus. Final seed refresh and full checks remain for the settled batch.

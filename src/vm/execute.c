@@ -635,12 +635,22 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         }
         return NULL;
     }
-    if (entry->dispatch == BUILTIN_HOST_STDOUT_ASYNC || entry->dispatch == BUILTIN_HOST_STDERR_ASYNC) {
+    if (entry->dispatch == BUILTIN_HOST_STDOUT_ASYNC || entry->dispatch == BUILTIN_HOST_STDERR_ASYNC ||
+        entry->dispatch == BUILTIN_CONSOLE_OUTPUT_ASYNC) {
         if (execution->embedded && !execution->console_enabled) {
             vm->error = "VM trap: console service is unavailable in this execution";
         } else {
-            execution->console_write =
-                console_write_start(vm, arguments[0], entry->dispatch == BUILTIN_HOST_STDERR_ASYNC);
+            if (entry->dispatch == BUILTIN_CONSOLE_OUTPUT_ASYNC) {
+                if (arguments[1]->kind != V_BOOL || arguments[2]->kind != V_BOOL) {
+                    vm->error = "VM trap: console output flags require Bool";
+                    return NULL;
+                }
+                execution->console_write = console_write_start_mode(vm, arguments[0],
+                    arguments[1]->as.boolean, arguments[2]->as.boolean, false);
+            } else {
+                execution->console_write =
+                    console_write_start(vm, arguments[0], entry->dispatch == BUILTIN_HOST_STDERR_ASYNC);
+            }
             if (!execution->console_write && !vm->error) {
                 vm->error = "native VM out of memory";
             }

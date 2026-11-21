@@ -386,3 +386,13 @@ previous HostError results. Existing bounded/package/numeric staging modules and
 compatibility aliases remain available. Compiler and testing adapters use explicit
 compatibility imports. Ordinary stdlib declarations now retain module identity in
 bytecode; native-owned FileKind/FileMetadata and HostError remain compatible.
+
+## Digest/gzip errors on the development branch
+
+The canonical typed SHA-256 and gzip modules, including their async counterparts,
+now return Sha256Error and GzipError. Inspect kind, operation and native, or use
+render() for an explanation. Creation-limit errors and exhausted decoding budgets
+are distinct; oversized chunks can be retried, while a stopped gzip decoder must
+be closed. Legacy numeric digest/gzip APIs retain HostError. See the
+[resource error contract](../../docs/design/STDLIB_DOMAIN_ERRORS.md#sha-256-and-gzip-resources)
+for categories, resource quotas and migration. Pure digest.hash is unchanged.

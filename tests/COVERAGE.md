@@ -2179,3 +2179,14 @@ stdlib modules with identically named enums, constructors and records but differ
 payloads, then checks their values and native FileKind compatibility in source and
 saved bytecode. New adapters/errors are explicitly unmeasured in source coverage.
 Final local make check passed in 628s (unit 393s, bootstrap 85s, functional 167s, 21 November), including packaging and installed smoke. Relocated ordinary/async source, saved-bytecode and unrelated-directory acceptance passes. Integration remains pending; development CI stays off.
+
+## Digest/gzip domain errors
+
+resource_errors.sh exercises ordinary/async source and saved bytecode for oversized
+chunks, successful retry, completed/closed handles, invalid creation limits,
+exhausted output budgets, corrupt CRC, truncated input, zero-budget empty output,
+unknown native preservation, exact rendering and cumulative decoder quotas.
+Host-runtime unit checks distinguish the same native code by operation and verify
+unknown/native and successful-value preservation. Existing cpu_resources.sh keeps
+resource/effect and successful concatenated-member coverage. New error modules
+are explicitly unmeasured in the bounded source-coverage corpus. Focused ordinary/async source and saved-bytecode checks pass. Final local make check passed in 645s (21 November), including unit, functional, bootstrap and packaging checks. Relocated installation with a spaced path passed the ordinary/async resource and compatibility fixtures. Integration remains pending and development CI stays off.

@@ -181,6 +181,8 @@ website follow-up; publication is separate.
 
 Filesystem domain errors and explicit compatibility facades are implemented; focused ordinary/async failure, lifecycle and rendering tests pass. Stdlib nominal identity emission also preserves colliding enum/record declarations. Final local make check passed in 628s (21 November), plus relocated ordinary/async source and saved-bytecode acceptance. Integration remains pending. Digest/gzip and network error mappings remain. The existing stdlib website follow-up applies; no website publication is part of this batch.
 
+Digest/gzip domain errors pass focused ordinary/async category, context, rendering, lifecycle and compatibility checks, final local make check (645s, 21 November), and relocated-install source/bytecode acceptance. Compiler seed and unchanged-program oracle artifacts are unchanged. This extends the existing stdlib website documentation follow-up; publication is separate.
+
 **Next available roadmap identifier: RM#163.**
 
 ## Example inventory preflight — 2026-10-20

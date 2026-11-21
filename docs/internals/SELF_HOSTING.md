@@ -786,3 +786,7 @@ Filesystem domain errors require a refreshed seed because compiler filesystem
 imports now explicitly select the compatibility facade. The same batch corrects
 ordinary stdlib nominal emission so colliding constructor names retain their
 original owners. Native ABI and bytecode format are unchanged. Final local make check passed in 628s (unit 393s, bootstrap 85s, functional 167s, 21 November), including packaging and installed smoke. Relocated ordinary/async source, saved-bytecode and unrelated-directory acceptance passes. Integration remains pending; development CI stays off.
+
+Digest/gzip error adaptation (21 November) changes only the corresponding Panack
+stdlib modules and tests/documentation. The compiler candidate equals the saved
+seed and existing bytecode oracles remain unchanged. Focused ordinary/async source and saved-bytecode checks pass. Final local make check passed in 645s (21 November), including unit, functional, bootstrap and packaging checks. Relocated installation with a spaced path passed the ordinary/async resource and compatibility fixtures. Integration remains pending and development CI stays off.

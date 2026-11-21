@@ -14,9 +14,9 @@ native_code. Unknown codes map to OtherFailure; they are not silently relabelled
 as a specific known cause. Native numeric errors remain available, not guessed
 from platform-specific errno values. Render appends a nonzero host error number.
 
-Console, sleep, process and filesystem errors are implemented in Panack. Native ABI,
+Console, sleep, process, filesystem, SHA-256 and gzip errors are implemented in Panack. Native ABI,
 worker ownership, limits, cancellation and successful result values do not change.
-Digest/gzip and network errors remain separate acceptance work.
+Network errors remain separate acceptance work.
 Network error delivery must preserve detailed TLS causes, not only rename Str.
 
 ## Console
@@ -227,3 +227,86 @@ the public launcher deliberately selected its own stdlib instead of an environme
 override. The regression now creates an isolated toolchain and passes through the
 public launcher in both default and candidate modes. The full run was repeated
 after that test-only correction; no product or seed change was needed.
+
+## SHA-256 and gzip resources
+
+Canonical digest/sha256 and /async return Sha256Error from create, update, finish
+and close. compression/gzip and /async return GzipError from create_decoder,
+decode_chunk and close. Both families re-export their error, kind and operation
+types; their errors submodules own conversion and rendering. Each error stores
+operation, kind and the original native HostError. No input bytes or resource
+handles are retained in an error. The pure hash(Bytes) operation is unchanged:
+it returns Bytes, accepts at most 16 MiB and traps above that existing bound.
+
+Sha256Operation is Create, Update(Nat byte count), Finish or Close.
+GzipOperation is CreateDecoder(Nat output limit), DecodeChunk(Nat input byte count,
+Bool final input) or Close. A decode error cannot recover the configured total
+budget from an opaque decoder, so it does not invent a limit value. All operation
+context comes from the requested call, without another native operation.
+
+| Native failure | SHA-256 category |
+| --- | --- |
+| invalid_handle | InvalidContext |
+| invalid_argument on an update larger than 65,536 bytes | ChunkTooLarge |
+| other invalid_argument | InvalidArgument |
+| digest_unavailable | InitializationFailed |
+| digest_failed | DigestFailed |
+| resource_limit | ResourceLimit |
+| unsupported / unsupported_host | UnsupportedHost |
+| Other code | OtherFailure |
+
+| Native failure | Gzip category |
+| --- | --- |
+| invalid_handle | InvalidDecoder |
+| invalid_argument on a chunk larger than 65,536 bytes | ChunkTooLarge |
+| invalid_argument or output_limit when creation requests more than 256 MiB | UnsupportedOutputLimit |
+| output_limit during decoding | OutputLimitExceeded |
+| decoder_finished | DecoderStopped |
+| invalid_gzip | DecodeFailed |
+| truncated_gzip | IncompleteInput |
+| decoder_unavailable | DecoderUnavailable |
+| other invalid_argument | InvalidArgument |
+| resource_limit | ResourceLimit |
+| unsupported / unsupported_host | UnsupportedHost |
+| Other code | OtherFailure |
+
+Native output_limit at creation denotes an unsupported configured limit. The
+same code during decoding means the chosen budget was exhausted. An oversized
+Nat rejected before native integer conversion is also UnsupportedOutputLimit.
+A zero-byte output budget is allowed and can decode an empty gzip member.
+
+Oversized chunks are rejected before modifying the resource: callers may retry
+with smaller chunks. A digest library failure invalidates its context; finish
+consumes the context even when finalisation fails. A gzip decode failure,
+truncation or exhausted budget stops further decoding, but the decoder still
+needs closing. Successful final input also stops decoding. DecoderStopped does
+not claim which history occurred: the native decoder_finished code conflates
+successful completion and a previous failed step. Closing an already closed
+resource is a different InvalidContext/InvalidDecoder failure.
+
+The native invalid_gzip code covers zlib decoding failures without preserving
+the specific zlib status. DecodeFailed therefore does not claim corruption is
+proven. Similarly, initialisation errors do not claim a missing library or an
+allocation failure without evidence. Native detail remains unchanged, including
+zero when no native error number is provided. Unknown codes remain available.
+
+Resource quotas count creations within an invocation, including finished/closed
+resources: 65,536 SHA-256 contexts and 64 gzip decoders, shared with their legacy
+numeric APIs. Closing resources releases native state but does not replenish
+these quotas. ResourceLimit can also represent allocation failure. Rendered
+guidance does not incorrectly promise that closing a handle enables another
+creation in the same invocation.
+
+Examples:
+
+- Cannot update a SHA-256 context with 65537 bytes: an update accepts at most 65536 bytes. Split the input into smaller chunks and update the context with each chunk.
+- Cannot create a gzip decoder with an output limit of 268435457 bytes: the output limit must be at most 268435456 bytes (256 MiB). Choose a supported limit; zero permits no decompressed output.
+
+Legacy stdlib/digest and stdlib/gzip retain numeric handles and HostError results.
+Canonical typed-resource callers migrate error annotations and read native.code
+where they previously used code, or branch on the new typed kind. Successful
+values, bounds, invocation ownership, bounded async steps, cancellation and native
+OpenSSL/zlib implementations are unchanged. No compiler/VM/bytecode-format change
+is involved; the compiler candidate and checked stdlib oracle remain identical.
+
+Focused ordinary/async source and saved-bytecode checks pass. Final local make check passed in 645s (21 November), including unit, functional, bootstrap and packaging checks. Relocated installation with a spaced path passed the ordinary/async resource and compatibility fixtures. Integration remains pending and development CI stays off.

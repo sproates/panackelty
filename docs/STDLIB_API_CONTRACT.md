@@ -227,15 +227,15 @@ Do not conflate lexical `current()` with a host call resolving the working direc
 
 ## Digest, compression and networking
 
-`digest/sha256`: create(): Result[Sha256Context,HostError], update(context,data):
-Result[Unit,HostError], finish(context): Result[Bytes,HostError], close(context):
-Result[Unit,HostError]. finish consumes the context. A pure one-shot hash(Bytes)
+`digest/sha256`: create(): Result[Sha256Context,Sha256Error], update(context,data):
+Result[Unit,Sha256Error], finish(context): Result[Bytes,Sha256Error], close(context):
+Result[Unit,Sha256Error]. finish consumes the context. A pure one-shot hash(Bytes)
 returns Bytes and is separately tested for bounds/fairness; context mutation is
 not pure. Preserve old digest adapters during migration.
 
-`compression/gzip`: create_decoder(output_limit: Nat): Result[GzipDecoder,HostError],
-decode_chunk(decoder,input: Bytes,finish: Bool): Result[GzipChunk,HostError],
-close(decoder): Result[Unit,HostError]. Preserve consumed/data/finished, concatenated
+`compression/gzip`: create_decoder(output_limit: Nat): Result[GzipDecoder,GzipError],
+decode_chunk(decoder,input: Bytes,finish: Bool): Result[GzipChunk,GzipError],
+close(decoder): Result[Unit,GzipError]. Preserve consumed/data/finished, concatenated
 member handling, trailer checks and budgets. The execution/lifetime contract below
 defines bounded async CPU work.
 
@@ -665,3 +665,9 @@ shared FilesystemError, operation context, categories, native preservation and
 compatibility paths. Both ordinary/async APIs and staging are covered. Compiler
 emission separates ordinary stdlib declarations while preserving core/native ABI
 identities. No VM or bytecode-format change is required. Final local make check passed in 628s (unit 393s, bootstrap 85s, functional 167s, 21 November), including packaging and installed smoke. Relocated ordinary/async source, saved-bytecode and unrelated-directory acceptance passes. Integration remains pending; development CI stays off.
+
+## Digest/gzip domain errors (21 November 2026)
+
+The [resource error contract](design/STDLIB_DOMAIN_ERRORS.md#sha-256-and-gzip-resources)
+defines Sha256Error and GzipError, operation context, typed categories, honest
+native limitations, retry/lifetime guidance and legacy migration. Focused ordinary/async source and saved-bytecode checks pass. Final local make check passed in 645s (21 November), including unit, functional, bootstrap and packaging checks. Relocated installation with a spaced path passed the ordinary/async resource and compatibility fixtures. Integration remains pending and development CI stays off.

@@ -1,15 +1,18 @@
+import stdlib/compression/gzip/errors as errors
+pub import stdlib/compression/gzip/errors::{GzipError, GzipErrorKind, GzipOperation}
+import stdlib/compression/gzip/errors::{GzipOperation.CreateDecoder, GzipOperation.DecodeChunk, GzipOperation.Close}
 pub import stdlib/host::{HostError}
 pub import stdlib/gzip::{GzipChunk}
 
 // Handles belong to this invocation. Async mutations yield after one bounded step.
-pub create_decoder(output_limit: Nat): Result[GzipDecoder,HostError] {
-  gzip_decoder_create(output_limit)
+pub create_decoder(output_limit: Nat): Result[GzipDecoder,GzipError] {
+  errors.convert(gzip_decoder_create(output_limit), CreateDecoder(output_limit))
 }
 
-pub decode_chunk(decoder: GzipDecoder, data: Bytes, finish: Bool): Result[GzipChunk,HostError] {
-  gzip_decoder_decode(decoder, data, finish)
+pub decode_chunk(decoder: GzipDecoder, data: Bytes, finish: Bool): Result[GzipChunk,GzipError] {
+  errors.convert(gzip_decoder_decode(decoder, data, finish), DecodeChunk(data.length(), finish))
 }
 
-pub close(decoder: GzipDecoder): Result[Unit,HostError] {
-  gzip_decoder_close(decoder)
+pub close(decoder: GzipDecoder): Result[Unit,GzipError] {
+  errors.convert(gzip_decoder_close(decoder), Close())
 }

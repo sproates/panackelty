@@ -1,19 +1,22 @@
+import stdlib/digest/sha256/errors as errors
+pub import stdlib/digest/sha256/errors::{Sha256Error, Sha256ErrorKind, Sha256Operation}
+import stdlib/digest/sha256/errors::{Sha256Operation.Create, Sha256Operation.Update, Sha256Operation.Finish, Sha256Operation.Close}
 pub import stdlib/host::{HostError}
 pub import stdlib/digest/sha256::{hash}
 
 // Handles belong to this invocation. Async mutations yield after one bounded step.
-pub async create(): Result[Sha256Context,HostError] {
-  await sha256_create_async()
+pub async create(): Result[Sha256Context,Sha256Error] {
+  errors.convert(await sha256_create_async(), Create())
 }
 
-pub async update(context: Sha256Context, data: Bytes): Result[Unit,HostError] {
-  await sha256_update_async(context, data)
+pub async update(context: Sha256Context, data: Bytes): Result[Unit,Sha256Error] {
+  errors.convert(await sha256_update_async(context, data), Update(data.length()))
 }
 
-pub async finish(context: Sha256Context): Result[Bytes,HostError] {
-  await sha256_finish_async(context)
+pub async finish(context: Sha256Context): Result[Bytes,Sha256Error] {
+  errors.convert(await sha256_finish_async(context), Finish())
 }
 
-pub async close(context: Sha256Context): Result[Unit,HostError] {
-  await sha256_close_async(context)
+pub async close(context: Sha256Context): Result[Unit,Sha256Error] {
+  errors.convert(await sha256_close_async(context), Close())
 }

@@ -2109,3 +2109,13 @@ filesystem error renderer/converter. Final local validation took 628s versus
 621s for the preceding batch; these are single runs with different work, not a
 controlled runtime benchmark. Existing GI#106 validation-budget reassessment stays
 open with the delivery owner; no new performance budget is introduced.
+
+## Resource error adapters
+
+SHA-256/gzip domain errors are Panack conversion and rendering around the existing
+OpenSSL/zlib adapters. Operations retain sizes, requested creation limits and the
+final-input flag without retaining input or opaque handles. No extra native call
+is used to enrich an error. Success adds a small result/context conversion; text
+is rendered only on request. The compiler seed, VM, native ABI and bytecode format
+are unchanged. Exact compiler/oracle equality provides compatibility evidence;
+this is not a performance optimisation or a controlled runtime benchmark.

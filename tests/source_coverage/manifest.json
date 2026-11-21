@@ -22,6 +22,8 @@
     "src/stdlib/time.panack", "src/stdlib/validation.panack"
   ],
   "unmeasured": [
+    {"path":"src/stdlib/digest/sha256/errors.panack","reason":"Resource domain-error mappings and rendering are checked by focused unit and source/bytecode tests outside the bounded execution corpus."},
+    {"path":"src/stdlib/compression/gzip/errors.panack","reason":"Resource domain-error mappings and rendering are checked by focused unit and source/bytecode tests outside the bounded execution corpus."},
     {"path":"src/stdlib/filesystem/errors.panack","reason":"Filesystem domain errors and compatibility adapters are checked by focused source/bytecode tests outside the bounded execution corpus."},
     {"path":"src/stdlib/filesystem/legacy.panack","reason":"Filesystem domain errors and compatibility adapters are checked by focused source/bytecode tests outside the bounded execution corpus."},
     {"path":"src/stdlib/filesystem/legacy/async.panack","reason":"Filesystem domain errors and compatibility adapters are checked by focused source/bytecode tests outside the bounded execution corpus."},

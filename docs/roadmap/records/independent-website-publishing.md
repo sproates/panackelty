@@ -1377,3 +1377,8 @@ The filesystem error delivery adds FilesystemError, operation/path context,
 rendered diagnostics and explicit filesystem/legacy migration imports to this
 existing alpha.16 reference follow-up. Cover both ordinary and async examples.
 Owner and release prerequisites remain unchanged; no site publication is included.
+
+The same alpha.16 stdlib follow-up includes Sha256Error/GzipError categories,
+rendering, retry/lifecycle guidance and cumulative creation quotas in digest/gzip
+reference pages. Core integration/release prerequisites and publication permissions
+are unchanged.

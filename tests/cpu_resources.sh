@@ -31,7 +31,7 @@ ASYNC main(): Unit {
       match AWAIT digest.finish(context) {
         Error(_) => AWAIT fail(3), Ok(hash) => AWAIT expect(hash == known_hash())
       }
-      match AWAIT digest.close(context) { Error(problem) => AWAIT expect(problem.code == "invalid_handle"), Ok(_) => AWAIT fail(4) }
+      match AWAIT digest.close(context) { Error(problem) => AWAIT expect(problem.native.code == "invalid_handle"), Ok(_) => AWAIT fail(4) }
     }
   }
   match AWAIT digest.create() {
@@ -63,7 +63,7 @@ ASYNC main(): Unit {
             }
           }
           AWAIT expect(offset == data.length() && total == 10)
-          match AWAIT gzip.decode_chunk(decoder, byte_buffer.empty(), true) { Error(problem) => AWAIT expect(problem.code == "decoder_finished"), Ok(_) => AWAIT fail(10) }
+          match AWAIT gzip.decode_chunk(decoder, byte_buffer.empty(), true) { Error(problem) => AWAIT expect(problem.native.code == "decoder_finished"), Ok(_) => AWAIT fail(10) }
           AWAIT expect(AWAIT gzip.close(decoder) == Ok(()))
           match AWAIT gzip.close(decoder) { Error(_) => (), Ok(_) => AWAIT fail(11) }
         }
@@ -71,7 +71,7 @@ ASYNC main(): Unit {
       match AWAIT gzip.create_decoder(4) {
         Error(_) => AWAIT fail(12),
         Ok(decoder) => {
-          match AWAIT gzip.decode_chunk(decoder, data, true) { Error(problem) => AWAIT expect(problem.code == "output_limit"), Ok(_) => AWAIT fail(13) }
+          match AWAIT gzip.decode_chunk(decoder, data, true) { Error(problem) => AWAIT expect(problem.native.code == "output_limit"), Ok(_) => AWAIT fail(13) }
           AWAIT expect(AWAIT gzip.close(decoder) == Ok(()))
         }
       }
@@ -98,7 +98,7 @@ grep -q 'Sha256Context' "$work/error"
 grep -q 'GzipDecoder' "$work/error"
 cat > "$work/pure.panack" <<'SOURCE'
 import stdlib/digest/sha256 as digest
-pure bad(context: Sha256Context): Result[Bytes,digest.HostError] { digest.finish(context) }
+pure bad(context: Sha256Context): Result[Bytes,digest.Sha256Error] { digest.finish(context) }
 main(): Unit { () }
 SOURCE
 if panack check "$work/pure.panack" > "$work/error" 2>&1; then echo 'pure mutation accepted' >&2; exit 1; fi

@@ -1938,3 +1938,12 @@ compatibility APIs continue returning HostError. Ordinary stdlib declarations ha
 module-qualified runtime identities, including enum constructors and records;
 only core declarations and explicitly owned native ABI names retain global
 runtime names. Same-spelled declarations in distinct modules remain distinct.
+
+## Digest/gzip domain errors
+
+The development digest/sha256 and compression/gzip modules use shared ordinary/async
+Sha256Error and GzipError records. Each holds the requested operation, a typed kind
+and unchanged native HostError. Input bytes and resource handles are not retained.
+The [resource error contract](../design/STDLIB_DOMAIN_ERRORS.md#sha-256-and-gzip-resources)
+specifies categorisation, rendering, retry/lifecycle rules and native limitations.
+Legacy numeric adapters and pure hash semantics remain unchanged.

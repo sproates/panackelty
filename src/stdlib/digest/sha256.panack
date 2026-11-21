@@ -1,20 +1,23 @@
+import stdlib/digest/sha256/errors as errors
+pub import stdlib/digest/sha256/errors::{Sha256Error, Sha256ErrorKind, Sha256Operation}
+import stdlib/digest/sha256/errors::{Sha256Operation.Create, Sha256Operation.Update, Sha256Operation.Finish, Sha256Operation.Close}
 pub import stdlib/host::{HostError}
 
 // Handles belong to this invocation. Async mutations yield after one bounded step.
-pub create(): Result[Sha256Context,HostError] {
-  sha256_create()
+pub create(): Result[Sha256Context,Sha256Error] {
+  errors.convert(sha256_create(), Create())
 }
 
-pub update(context: Sha256Context, data: Bytes): Result[Unit,HostError] {
-  sha256_update(context, data)
+pub update(context: Sha256Context, data: Bytes): Result[Unit,Sha256Error] {
+  errors.convert(sha256_update(context, data), Update(data.length()))
 }
 
-pub finish(context: Sha256Context): Result[Bytes,HostError] {
-  sha256_finish(context)
+pub finish(context: Sha256Context): Result[Bytes,Sha256Error] {
+  errors.convert(sha256_finish(context), Finish())
 }
 
-pub close(context: Sha256Context): Result[Unit,HostError] {
-  sha256_close(context)
+pub close(context: Sha256Context): Result[Unit,Sha256Error] {
+  errors.convert(sha256_close(context), Close())
 }
 
 // One-shot input is bounded to 16 MiB. Use a context for larger inputs.

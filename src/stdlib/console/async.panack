@@ -16,3 +16,8 @@ pub async write_error(message: Str): Result[Unit,HostError] {
 pub async write_error_line(message: Str): Result[Unit,HostError] {
   await console_output_async(message, true, true)
 }
+
+// One non-empty chunk of at most limit bytes, or None at EOF. Limit: 1..65536.
+pub async read(limit: Nat): Result[Option[Bytes],HostError] {
+  await console_input_async(limit)
+}

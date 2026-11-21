@@ -164,6 +164,14 @@ Canonical TCP Duration adapters and Duration aliases pass focused source/bytecod
 loopback and compatibility checks; final local make check passed in 626s (21 November), plus relocated TCP source/bytecode/disassembly acceptance. Website
 reference changes remain covered by the existing follow-up, not published here.
 
+Bounded ordinary/async console input is implemented with explicit EOF, short-read,
+exclusive-reader and cancellation contracts. Focused native lifecycle, fault,
+sanitizer and source/bytecode checks pass; final local make check passed in 654s
+(21 November), plus relocated-install source/bytecode/disassembly acceptance.
+Integration remains pending. This extends the existing website stdlib follow-up and
+has no hot-path compiler performance impact. Legacy line input shares the bounded
+read-ahead broker to avoid swallowing bytes when mixed with the new API.
+
 **Next available roadmap identifier: RM#163.**
 
 ## Example inventory preflight — 2026-10-20

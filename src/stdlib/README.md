@@ -349,3 +349,18 @@ concurrency and lifetime limits remain; continuous serving still uses the existi
 readiness callback and signal-driven bounded drain. No synchronous server is added.
 Duration also exposes `as_nanoseconds()` and `is_less_than(right)` alongside its
 compatibility names.
+
+### Bounded console input
+
+Import stdlib/console or stdlib/console/async for read(limit: Nat), returning
+Result[Option[Bytes],HostError]. Await the async variant. Limits are 1..65,536;
+Some contains a nonempty chunk up to that size, and None means EOF. Short reads
+are normal. Bytes are unchanged, including NUL and non-UTF-8 data. Accumulate
+chunks before decoding text, since a character can span reads.
+
+Only one read may be outstanding per process. Overlap returns busy. Cancellation
+before async delivery preserves any consumed bytes for the next read. Reading
+from a terminal normally waits for a line; this API does not change terminal
+modes. Legacy read_line remains ordinary and shares the same input buffer.
+See the [input contract](../../docs/STDLIB_API_CONTRACT.md#bounded-console-input-21-november-2026)
+for errors, embedding permission and cancellation limits.

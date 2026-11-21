@@ -3,6 +3,7 @@
 #include "buffer.h"
 #include "builtins.h"
 #include "console_write.h"
+#include "console_read.h"
 #include "host.h"
 #include "host_capabilities.h"
 #include "host_types.h"
@@ -77,6 +78,8 @@ struct VMExecution {
     VMTcpServer *server;
     VMRootRead *root_read;
     VMConsoleWrite *console_write;
+    VMConsoleRead *console_read;
+    bool input_enabled;
     VMProcess *process;
     bool process_enabled;
     uint64_t sleep_deadline;
@@ -657,6 +660,16 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
             execution->status = VM_EXITED;
         } else {
             return host_call(vm, "process_exit", arguments);
+        }
+        return NULL;
+    }
+    if (entry->dispatch == BUILTIN_CONSOLE_INPUT_ASYNC) {
+        if (execution->embedded && !execution->input_enabled) {
+            vm->error = "VM trap: console input is unavailable in this execution";
+        } else {
+            execution->console_read = console_read_start(vm, arguments[0]);
+            if (!execution->console_read && !vm->error) vm->error = "native VM out of memory";
+            if (execution->console_read) execution->status = VM_WAITING;
         }
         return NULL;
     }
@@ -1451,7 +1464,7 @@ VMExecution *vm_execution_create_pending(VM *vm, Function *function, Value **arg
 bool vm_execution_complete_print(VMExecution *execution, const char *error)
 {
     if (execution->running || execution->status != VM_WAITING || execution->waiting_read ||
-        execution->server || execution->http_waiting || execution->console_write ||
+        execution->server || execution->http_waiting || execution->console_write || execution->console_read ||
         execution->root_read || execution->process || execution->sleeping) {
         return false;
     }
@@ -1496,6 +1509,7 @@ bool vm_execution_destroy(VMExecution *execution)
     http_transport_destroy(execution->http);
     root_read_destroy(execution->root_read);
     console_write_destroy(execution->console_write);
+    console_read_destroy(execution->console_read);
     process_async_destroy(execution->process);
     tcp_server_destroy(execution->server);
     restore_stop_signals(execution);
@@ -1564,6 +1578,11 @@ Value *execute(VM *vm, Function *function, Value **arguments)
                 vm_execution_poll_network(&execution, 0);
                 continue;
             }
+            if (status == VM_WAITING && execution.console_read) {
+                if (!active) console_read_wait(execution.console_read);
+                vm_execution_poll_console_input(&execution);
+                continue;
+            }
             if (status == VM_WAITING && execution.console_write) {
                 if (!active) console_write_wait(execution.console_write);
                 vm_execution_poll_console(&execution);
@@ -1594,6 +1613,7 @@ Value *execute(VM *vm, Function *function, Value **arguments)
     http_transport_destroy(execution.http);
     root_read_destroy(execution.root_read);
     console_write_destroy(execution.console_write);
+    console_read_destroy(execution.console_read);
     process_async_destroy(execution.process);
     tcp_server_destroy(execution.server);
     restore_stop_signals(&execution);
@@ -1719,6 +1739,31 @@ bool vm_execution_enable_process(VMExecution *execution)
     return true;
 }
 
+bool vm_execution_enable_console_input(VMExecution *execution)
+{
+    if (execution->running || execution->status != VM_YIELDED) return false;
+    execution->input_enabled = true;
+    return true;
+}
+
+bool vm_execution_poll_console_input(VMExecution *execution)
+{
+    if (execution->running || execution->status != VM_WAITING || !execution->console_read) return false;
+    if (!console_read_poll(execution->console_read)) return true;
+    Value *result = console_read_result(execution->console_read);
+    if (!result || !stack_push(&execution->frames[execution->frame_count - 1], result)) {
+        execution->vm->error = "native VM out of memory";
+    } else console_read_accept(execution->console_read);
+    console_read_destroy(execution->console_read);
+    execution->console_read = NULL;
+    execution->status = execution->vm->error ? VM_TRAPPED : VM_YIELDED;
+    if (execution->vm->error) {
+        vm_coverage_terminal(execution->vm->coverage, 2);
+        frames_clear(execution);
+    } else coverage_complete_pending(execution);
+    return true;
+}
+
 bool vm_execution_enable_console(VMExecution *execution)
 {
     if (execution->running || execution->status != VM_YIELDED) {
@@ -1833,6 +1878,7 @@ bool vm_execution_poll_network(VMExecution *execution, unsigned max_wait_ms)
         } else coverage_complete_pending(execution);
         return true;
     }
+    if (execution->console_read) return vm_execution_poll_console_input(execution);
     if (execution->console_write) {
         return vm_execution_poll_console(execution);
     }

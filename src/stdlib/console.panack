@@ -16,3 +16,8 @@ pub write_error(message: Str): Result[Unit,HostError] {
 pub write_error_line(message: Str): Result[Unit,HostError] {
   console_output(message, true, true)
 }
+
+// One non-empty chunk of at most limit bytes, or None at EOF. Limit: 1..65536.
+pub read(limit: Nat): Result[Option[Bytes],HostError] {
+  console_input(limit)
+}

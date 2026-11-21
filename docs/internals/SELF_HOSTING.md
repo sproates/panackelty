@@ -762,3 +762,13 @@ Stages 2–4 agree, and the stdlib conformance artifact is unchanged. Compiler
 emission now protects the native TcpServerLimits/TcpServiceLimits schemas from
 same-named Duration records. Duration aliases and TCP conversion are Panack code;
 no VM primitive or bytecode format change is introduced.
+
+Bounded console input (21 November): ordinary/async private input primitives are
+recognized by checking, effects and trusted module binding. Fresh stages 2/3/4
+converge to compiler SHA-256
+`26e0ff0f9f08334e58d0e6e702b31bf97894cb28f5884802bafb36a053aae98f`;
+the standard-library oracle remains
+`49fd630f84c62a042c96c9b76864d040d69237f641da8063be1d3f74ff2e4a50`.
+Bytecode remains version 9. Final local make check passed in 654s (21 November),
+plus relocated-install source/bytecode/disassembly acceptance. Integration remains
+pending.

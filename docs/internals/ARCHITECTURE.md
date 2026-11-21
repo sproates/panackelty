@@ -2059,3 +2059,23 @@ TcpServiceLimits runtime names for their legacy millisecond schemas; new records
 with Duration fields receive distinct names. Readiness/summary records retain
 their canonical owner. Conversion occurs once per exchange or server admission,
 not per byte or per accepted client.
+
+## Console input broker
+
+console_read.c owns process-wide stdin admission and a 64 KiB retained-byte buffer.
+One detached worker polls a duplicated descriptor and reads at most the requested
+bound. It owns no VM values or source-program pointers. Cancellation marks its
+operation abandoned without joining; completion retains consumed bytes and frees
+the abandoned operation. The owner creates Result/Option/Bytes values only after
+completion and acknowledges delivery after an async stack push succeeds. Failed
+allocation leaves the native bytes available to the next reader. The mutex
+protects admission, completion and retained bytes. EOF and read errors also await
+acknowledgement. Hosts reporting a valid device as non-pollable are handled by
+letting read establish EOF or the actual error.
+
+Ordinary and legacy line reads use the same broker. Legacy reads acknowledge only
+the bytes through a newline, retaining read-ahead for subsequent callers. The
+embedding API adds an explicit console-input grant and polling operation; the
+existing generic polling entry point routes input completions too. HTTP child
+creation does not grant stdin. VM destruction abandons pending input safely.
+The one reader slot remains occupied if an underlying host read has not returned.

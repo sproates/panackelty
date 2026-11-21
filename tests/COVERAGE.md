@@ -2132,3 +2132,24 @@ admission. Final local `make check` passed in 626s (unit 391s, bootstrap 83s, fu
 installation tests pass with exact seed/module comparisons, live TCP traffic
 and unrelated-directory source/bytecode/disassembly. The preceding batch also
 took 626s; historical validation-budget warnings remain subject to GI#106 review.
+
+## Bounded console input
+
+Native console_read contracts cover overlap rejection, cancellation before input,
+cancellation racing a completed read, unacknowledged-result recovery, EOF, mixed
+legacy/new reads, and separate embedded input permission. Fault injection sweeps
+allocation failures and checks byte recovery, descriptor cleanup and allocation
+balance. Native module contracts pass under address/undefined-behavior sanitizers.
+
+console_input.sh runs ordinary and async programs as source and saved bytecode,
+including raw NUL/non-UTF-8 input, invalid limits, repeated EOF, closed stdin,
+/dev/null, the 64 KiB boundary and legacy read-ahead compatibility. Pure callers
+are rejected. The unsupported-host branch compiles in native header checks; a
+WASI-guarded adapter probe preserves legacy line input while rejecting the new
+bounded API. This is branch coverage on the host, not a full browser acceptance run.
+The fixture is part of make functional. Existing console modules remain explicitly
+unmeasured in source coverage; these checks do not claim collected source coverage.
+Final local make check passed in 654s (21 November), including unit/functional,
+bootstrap, packaging and installed smoke. The exact packaged seed and console
+modules pass the complete fixtures after relocation, plus source, saved bytecode
+and disassembly from an unrelated directory without checkout overrides.

@@ -1126,6 +1126,7 @@ static void coverage_session_allocations(void)
 
 void root_read_faults(void);
 void console_write_faults(void);
+void console_read_faults(void);
 void process_async_faults(void);
 
 int main(int argc, char **argv)
@@ -1183,6 +1184,7 @@ int main(int argc, char **argv)
     }
     root_read_faults();
     console_write_faults();
+    console_read_faults();
     process_async_faults();
     if (argc == 3) {
         check_artifact(argv[1], argv[2]);

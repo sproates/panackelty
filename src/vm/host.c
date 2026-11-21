@@ -7,6 +7,7 @@
 #include "buffer.h"
 #include "builtins_internal.h"
 #include "host.h"
+#include "console_read.h"
 #include "host_types.h"
 #include "render.h"
 #include "utf8.h"
@@ -210,22 +211,7 @@ Value *host_call(VM *vm, const char *name, Value **a)
         return value_void();
     }
 
-    if (!strcmp(name, "read_line")) {
-        Buffer b = {0};
-        int c;
-        while ((c = fgetc(stdin)) != EOF && c != '\n') {
-            if (c != '\r') {
-                char ch = (char)c;
-                if (!buffer_add(&b, &ch, 1)) {
-                    free(b.data);
-                    return NULL;
-                }
-            }
-        }
-        Value *v = value_data(V_STR, (uint8_t *)(b.data ? b.data : ""), b.length);
-        free(b.data);
-        return v;
-    }
+    if (!strcmp(name, "read_line")) return console_legacy_read_line(vm);
 
     if (!strcmp(name, "read_file") || !strcmp(name, "read_bytes")) {
         REQUIRE_PATH(a[0], "VM trap: file path requires Str");

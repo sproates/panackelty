@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Review Duration aliases and TCP compatibility record ownership against the production declaration inventory.",
+    "reason": "Review bounded console input compiler declarations using the production declaration inventory.",
     "basis": "Computed with the production parser and inventory_module over every eligible source. Only imports, type refinements, records and enums are excluded; executable functions remain eligible.",
-    "scopeChange": "The TCP adapter is explicitly unmeasured; Duration methods are reviewed declaration exclusions. Eligible paths and execution corpus are unchanged. Loopback tests do not establish source coverage."
+    "scopeChange": "Eligible paths and execution corpus are unchanged. Existing console modules remain unmeasured; focused input tests are not a source coverage collection."
   },
   "manifestHash": "93ccbfb8b05ea214cd3ca56c3a21e52369f7d8d32e51a49c0f465710da019b88",
-  "exclusionHash": "d979225b9354d8c41fc3722ea388a6a9f2861b7c4219e3a75be500d6b1a76f8c"
+  "exclusionHash": "37c0b208e25af886f4cb2f1bcc1ed39fd959fe5a9dafa38821809a37265d7d98"
 }

@@ -443,6 +443,8 @@ pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool 
       (owner.name == "setup_error" && name == "http_state_setup_error") ||
       (owner.name == "invalid_route" && name == "http_state_fail_setup") ||
       (owner.name == "register" && name == "http_state_register"))) ||
+    (owner.module.path == "console.panack" && owner.name == "read" && name == "console_input") ||
+    (owner.module.path == "console/async.panack" && owner.name == "read" && name == "console_input_async") ||
     (((owner.module.path == "console.panack" && name == "console_output") ||
       (owner.module.path == "console/async.panack" && name == "console_output_async")) &&
       (owner.name == "write" || owner.name == "write_line" || owner.name == "write_error" || owner.name == "write_error_line")) ||
@@ -596,8 +598,8 @@ pub pure module_internal_primitive_name(identity: ModuleIdentity, name: Str): Bo
     (identity.path == "http_runtime.panack" && (name == "http_connection_writer" || name == "http_connection_routes" || name == "http_connection_fallback" || name == "http_connection_admit" || name == "http_connection_invoke")) ||
     (identity.path == "http_runtime.panack" && (name == "http_writer_get_status" || name == "http_writer_get_headers" || name == "http_writer_reject" || name == "http_writer_status" || name == "http_writer_headers" || name == "http_writer_commit")) ||
     (identity.path == "http_runtime.panack" && (name == "http_state_create" || name == "http_state_context" || name == "http_state_setup_error" || name == "http_state_fail_setup" || name == "http_state_register")) ||
-    (identity.path == "console.panack" && name == "console_output") ||
-    (identity.path == "console/async.panack" && name == "console_output_async") ||
+    (identity.path == "console.panack" && (name == "console_output" || name == "console_input")) ||
+    (identity.path == "console/async.panack" && (name == "console_output_async" || name == "console_input_async")) ||
     (identity.path == "async_host.panack" && (name == "host_arguments_async" || name == "host_exit_async" || name == "host_stderr_async" || name == "host_stdout_async")) ||
     (identity.path == "time/async.panack" && (name == "instant_now_async" || name == "host_sleep_async")) ||
     (identity.path == "time.panack" && name == "host_sleep") ||

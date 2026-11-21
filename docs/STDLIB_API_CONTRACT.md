@@ -182,8 +182,8 @@ owner-thread teardown gap; local batch and coverage-inventory checks passed on
 accept Str and return Result[Unit,HostError]. A line operation adds exactly the
 existing line terminator. Raw write does not. Ordinary writes gain checked failure
 behaviour; preserve legacy host wrappers separately during compatibility.
-A bounded stdin API still needs an explicit EOF/partial-read contract before
-adding it. Do not invent one as a documentation-only addition.
+Both modules also provide read(limit: Nat): Result[Option[Bytes],HostError],
+with the bounded input contract below.
 
 `environment`/`environment/async`: `get(name: Str): Option[Str]`, preserving the
 invocation snapshot, missing versus empty distinction and coverage-marker rules.
@@ -425,8 +425,8 @@ Canonical runtime/bytecode.run re-exports the ordinary host.run operation. It
 executes verified bytecode synchronously, preserves arguments and exit propagation,
 and cannot be called from async or pure code. There is no async embedding API in
 this batch, as agreed above. This completes the nested-execution classification.
-Standard input remains a distinct open contract: read_line is ordinary and does
-not provide the bounded EOF/partial-read/cancellation model needed for async input.
+The later bounded console input delivery below supplies the distinct
+EOF/partial-read/cancellation contract; legacy read_line remains ordinary.
 
 Canonical testing/filesystem provides create_workspace, discover_fixtures and
 remove_empty(workspace). Its /async module awaits filesystem operations and shares
@@ -591,3 +591,54 @@ error strings and invocation ownership remain. No synchronous server is added.
 Duration.as_nanoseconds() and is_less_than(right) now preserve ticks() and
 is_before(right) respectively; compatibility methods remain. TCP error types are
 still Str until the explicit domain-error delivery.
+
+## Bounded console input (21 November 2026)
+
+console.read(limit: Nat) returns Result[Option[Bytes],HostError]. Import
+stdlib/console for ordinary calls or stdlib/console/async for awaited calls.
+A limit from 1 through 65,536 is required. This 64 KiB per-read bound matches the
+streaming chunk scale and bounds retained input after cancellation. Invalid
+limits return out_of_range without consuming input. Some contains a nonempty
+chunk no longer than limit; short reads are normal. None means end of input.
+Empty input and subsequent EOF reads return None. No text decoding, newline
+stripping or carriage-return conversion occurs. Use encoding/utf8.decode for
+checked text conversion, allowing for a UTF-8 sequence split across chunks.
+
+Standard input is shared by the process. Exactly one read may be outstanding;
+overlapping ordinary, async or legacy reads fail with busy. Async input uses one
+worker, leaving the VM owner thread free. The worker owns a duplicated descriptor
+and native buffer, never VM values. Terminal modes remain unchanged, so an
+interactive terminal normally waits for a complete line. Ordinary calls wait for
+the same worker. On unsupported hosts the result is unsupported_host. Other codes
+are io_error and resource_limit; HostError.operation is console_read and
+native_code retains the host failure number where available. Domain-specific
+error migration remains separate work.
+
+Cancellation abandons the async result without joining the worker. The worker
+checks cancellation between readiness waits (currently 50 ms) and before reading.
+A host read already in progress cannot be forcibly cancelled and keeps the sole
+read reservation until it returns. Input already consumed is retained in a
+process-owned buffer of at most 64 KiB until successfully delivered to a caller.
+Result allocation or async stack-delivery failure also preserves those bytes.
+A later read, including one in a later VM invocation, receives the retained bytes
+first. Cancellation after delivery does not rewind input. Embedders must not
+read or replace stdin concurrently outside this adapter.
+
+Embedded async executions require vm_execution_enable_console_input. Output
+permission does not imply input permission; HTTP request children do not inherit
+stdin access. Legacy read_line shares the broker and its retained bytes, keeping
+its existing carriage-return stripping and empty-string EOF behavior. It may
+read ahead but consumes only through its newline. Its result remains unbounded
+for compatibility; the new read API is the bounded alternative. On WASI, legacy
+read_line retains its synchronous stdio implementation; the new bounded API
+returns unsupported_host.
+
+Focused native lifecycle, allocation-failure, sanitizer and ordinary/async
+source/bytecode tests pass. Final local make check passed in 654 seconds (unit
+407s, bootstrap 83s, functional 167s), including packaging and installed smoke.
+A relocated installation with spaces in its path passes all input fixtures and
+unrelated-directory source/bytecode/disassembly acceptance. All 308 bytecode
+reader checks pass. Integration remains pending; development CI stays off.
+No bytecode-format change is required. The previous full check took 626 seconds;
+these runs are not a controlled performance comparison. Historical validation
+budget warnings remain under the existing GI#106 reassessment.

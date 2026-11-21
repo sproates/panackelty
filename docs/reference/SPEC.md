@@ -1897,3 +1897,21 @@ and serve_stream return per-client reports; continuous serve returns the existin
 summary. Native millisecond records remain separate nominal types.
 Duration.as_nanoseconds and is_less_than alias ticks and is_before. See the
 [canonical TCP contract](../STDLIB_API_CONTRACT.md#canonical-tcp-adapters-21-november-2026).
+
+## Bounded console input
+
+stdlib/console.read(limit: Nat) and its awaited stdlib/console/async counterpart
+return Result[Option[Bytes],HostError]. Limits must be 1..65,536. Some carries a
+nonempty chunk no longer than limit; None denotes EOF. Short reads are permitted;
+bytes, including carriage returns and invalid UTF-8, are preserved. Invalid limits
+consume no input. One process-wide outstanding read is permitted; overlap returns
+busy. Ordinary reads block, async reads yield while a worker waits.
+
+Cancellation or result-allocation failure before async delivery preserves consumed
+bytes for a later read, including across VM invocations. A read already in a host
+system call may finish later, retaining the single reader reservation meanwhile.
+Embedding input permission is separate from output permission and is not inherited
+by HTTP children. Legacy read_line shares the broker while retaining line/CR/EOF
+compatibility. WASI preserves synchronous legacy line input while the new API
+returns unsupported_host. See the [complete input contract](../STDLIB_API_CONTRACT.md#bounded-console-input-21-november-2026)
+for host errors and terminal behavior. Bytecode remains version 9.

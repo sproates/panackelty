@@ -335,3 +335,17 @@ invalid input is rejected without inserting replacement characters.
 Use `data.len()` and `data.slice(start,end)` for byte counts and half-open slices.
 Invalid bounds trap. Existing `length()` and `stdlib/bytes.slice` still work.
 `path.parent()` is the lexical equivalent of `path.directory()`, without I/O.
+
+### Canonical TCP (alpha.16 development)
+
+`stdlib/network/tcp/async` provides `exchange`, `serve_bounded`, finite
+`serve_stream`, continuous `serve` and server-child `read_chunk`. Its limit records
+use Duration fields (`client_timeout`, `admission_timeout`, `drain`) instead of
+raw millisecond counts. Timeouts accept whole milliseconds from 1 ms to 60 seconds;
+drain also accepts zero. Finer values are rejected explicitly, never rounded.
+Use `time.milliseconds` or `time.seconds` to construct supported durations.
+Existing `tcp` and `tcp_service` modules remain compatible. All original byte,
+concurrency and lifetime limits remain; continuous serving still uses the existing
+readiness callback and signal-driven bounded drain. No synchronous server is added.
+Duration also exposes `as_nanoseconds()` and `is_less_than(right)` alongside its
+compatibility names.

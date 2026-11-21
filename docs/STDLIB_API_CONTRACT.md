@@ -561,3 +561,33 @@ Bytes.len() aliases length(); slice(start,end) uses the existing half-open bound
 slice operation and traps when start > end or end > length. Empty and whole-value
 slices are valid. Path.parent() preserves directory() exactly, including lexical
 relative/root behaviour; it performs no filesystem access. Old names remain.
+
+## Canonical TCP adapters (21 November 2026)
+
+Implemented in network/tcp/async, with the existing TCP runtime:
+
+- exchange(address,port,request,response_limit,timeout: Duration): Result[Bytes,Str].
+- serve_bounded(address,port,handler,limits: TcpServerLimits): Result[[Result[Unit,Str]],Str].
+- `serve_stream[T](address,port,worker,context,limits: TcpServerLimits): Result[[Result[Unit,Str]],Str]`. This remains a finite streaming server.
+- `serve[T](address,port,worker,context,limits: TcpServiceLimits,ready): Result[TcpServiceSummary,Str]`. This is continuous serving, with existing readiness/signal/drain behaviour.
+- read_chunk(limit: Nat): Result[Bytes,Str], usable only in the existing streaming-server child context.
+
+TcpServerLimits fields are clients, concurrency, request_limit, response_limit
+(all Nat), client_timeout, admission_timeout and drain (all Duration).
+TcpServiceLimits retains concurrency/request_limit/response_limit and uses
+client_timeout/drain Duration fields. TcpServiceReady and TcpServiceSummary are
+re-exported from their existing owner, not duplicated. The new Duration records
+have distinct nominal identities from legacy millisecond records; the compiler
+reserves native compatibility names for tcp/tcp_service's original declarations.
+
+Timeouts must be whole milliseconds from 1 ms through 60 seconds. Drain permits
+zero through 60 seconds, also in whole milliseconds. Negative, over-limit or
+fractional-millisecond values return a specific error before network admission;
+zero does not mean unlimited. These adapters preserve the existing timer precision
+and do not silently round. Supporting finer TCP timers requires separate runtime
+work. Existing IPv4-only addressing, byte/concurrency/client limits, result shapes,
+error strings and invocation ownership remain. No synchronous server is added.
+
+Duration.as_nanoseconds() and is_less_than(right) now preserve ticks() and
+is_before(right) respectively; compatibility methods remain. TCP error types are
+still Str until the explicit domain-error delivery.

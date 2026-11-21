@@ -2049,3 +2049,13 @@ the native string directly; a Panack pass classifies invalid input and produces
 typed errors with byte offsets. No native ABI or bytecode format changes. Core
 Bytes slicing delegates to the existing bounded slice primitive; Path.parent
 and Bytes.len delegate to their existing methods.
+
+### TCP migration adapters
+
+The canonical network/tcp/async module validates exact Duration values in Panack
+and delegates to the existing async TCP modules. It introduces no VM primitive,
+worker or scheduling mechanism. Compiler emission reserves TcpServerLimits and
+TcpServiceLimits runtime names for their legacy millisecond schemas; new records
+with Duration fields receive distinct names. Readiness/summary records retain
+their canonical owner. Conversion occurs once per exchange or server admission,
+not per byte or per accepted client.

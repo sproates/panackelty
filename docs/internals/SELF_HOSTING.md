@@ -755,3 +755,10 @@ A candidate built against the previous core methods introduces the two trusted
 adapter grants; stages 2–4 then reproduce it against the updated core library.
 The stdlib conformance artifact remains unchanged. New error records and methods
 are implemented in Panack; no VM or bytecode format change is required.
+
+The canonical TCP batch refreshes the seed to
+`71e925beabb5d96dde6e50d38feff706c02136adb8f945a2f9f8d4263e3dc510`.
+Stages 2–4 agree, and the stdlib conformance artifact is unchanged. Compiler
+emission now protects the native TcpServerLimits/TcpServiceLimits schemas from
+same-named Duration records. Duration aliases and TCP conversion are Panack code;
+no VM primitive or bytecode format change is introduced.

@@ -164,6 +164,8 @@ impl Path {
 }
 
 impl Duration {
+  pub pure as_nanoseconds(): Int { self.ticks() }
+  pub pure is_less_than(right: Duration): Bool { self.is_before(right) }
   pub pure add(right: Duration): Duration {
     duration_nanoseconds(self.ticks() + right.ticks())
   }

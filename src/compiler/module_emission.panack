@@ -81,8 +81,10 @@ pure module_emission_native_record_owner(name: Str): Str {
   if name == "FileMetadata" { "filesystem.panack" } else {
   if name == "FilesystemRootIdentity" || name == "FilesystemRootRead" { "package_filesystem.panack" } else {
   if name == "GzipChunk" { "gzip.panack" } else {
+  if name == "TcpServerLimits" { "tcp.panack" } else {
+  if name == "TcpServiceLimits" { "tcp_service.panack" } else {
   if name == "TcpServiceReady" || name == "TcpServiceSummary" { "tcp_service.panack" } else { "" }
-  } } } } }
+  } } } } } } }
 }
 
 pub pure module_emission_symbol(

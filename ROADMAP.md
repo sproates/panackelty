@@ -160,6 +160,10 @@ source/bytecode/disassembly checks. The existing website follow-up includes thes
 Checked pure UTF-8 decoding and byte/path aliases are implemented with focused
 source/bytecode and compatibility acceptance; final local make check passed in 626s (21 November), plus relocated source/bytecode/disassembly acceptance.
 
+Canonical TCP Duration adapters and Duration aliases pass focused source/bytecode
+loopback and compatibility checks; final local make check passed in 626s (21 November), plus relocated TCP source/bytecode/disassembly acceptance. Website
+reference changes remain covered by the existing follow-up, not published here.
+
 **Next available roadmap identifier: RM#163.**
 
 ## Example inventory preflight — 2026-10-20

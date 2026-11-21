@@ -249,6 +249,7 @@ functional-impl: package-tool $(BUILD_DIR)/vm/static_http_client $(STAGE2_COMPIL
 	@$(PROFILE) functional/owned-dispatch-removal sh tests/owned_dispatch_removal.sh
 	@$(PROFILE) functional/owned-dot-dispatch sh tests/owned_dot_dispatch.sh
 	@PANACK_TCP_CLIENT="$(abspath $(BUILD_DIR)/vm/tcp_client)" $(PROFILE) functional/tcp-serve sh tests/tcp_serve.sh
+	@PANACK_TCP_CLIENT="$(abspath $(BUILD_DIR)/vm/tcp_client)" PANACK_TCP_SERVER="$(abspath $(BUILD_DIR)/vm/tcp_server)" $(PROFILE) functional/tcp-canonical sh tests/tcp_canonical.sh
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/http-package sh tests/http_package.sh
 	@$(PROFILE) functional/async-stdlib sh tests/async_stdlib.sh
 	@$(PROFILE) functional/console sh tests/console.sh

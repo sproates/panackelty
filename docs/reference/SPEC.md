@@ -1886,3 +1886,14 @@ provides a human-readable explanation. No replacement decoding is performed.
 semantics; `Path.parent()` preserves lexical `directory()` behaviour.
 See the [API contract](../STDLIB_API_CONTRACT.md#checked-utf-8-and-value-methods-21-november-2026)
 for error precedence, offsets and compatibility.
+
+### Duration-based TCP adapters
+
+`stdlib/network/tcp/async` exposes exchange and finite/continuous server operations
+with Duration timeouts and drain fields. The existing whole-millisecond runtime
+precision is enforced without rounding: timeout 1 ms–60 seconds, drain 0–60 seconds.
+Unsupported durations return an error before network admission. Finite serve_bounded
+and serve_stream return per-client reports; continuous serve returns the existing
+summary. Native millisecond records remain separate nominal types.
+Duration.as_nanoseconds and is_less_than alias ticks and is_before. See the
+[canonical TCP contract](../STDLIB_API_CONTRACT.md#canonical-tcp-adapters-21-november-2026).

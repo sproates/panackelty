@@ -1,0 +1,85 @@
+import stdlib/tcp as legacy
+import stdlib/tcp_service as service
+pub import stdlib/tcp_service::{TcpServiceReady, TcpServiceSummary}
+
+pub record TcpServerLimits {
+  clients: Nat, concurrency: Nat, request_limit: Nat, response_limit: Nat,
+  client_timeout: Duration, admission_timeout: Duration, drain: Duration
+}
+pub record TcpServiceLimits {
+  concurrency: Nat, request_limit: Nat, response_limit: Nat,
+  client_timeout: Duration, drain: Duration
+}
+
+// The existing TCP runtime measures whole milliseconds. Never round a duration.
+pure milliseconds(value: Duration, field: Str, allow_zero: Bool): Result[Nat,Str] {
+  ticks = value.as_nanoseconds()
+  zero: Int = 0
+  million: Int = 1000000
+  maximum: Int = 60000000000
+  if ticks < zero || ticks > maximum || (!allow_zero && ticks <= zero) {
+    Error("TCP ${field} must be " + if allow_zero { "between zero and 60 seconds." } else { "greater than zero and at most 60 seconds." })
+  } else if ticks % million > zero {
+    Error("TCP ${field} must be a whole number of milliseconds; this runtime cannot represent finer TCP deadlines.")
+  } else { Ok((ticks / million).nat()) }
+}
+
+pure bounded_limits(limits: TcpServerLimits): Result[legacy.TcpServerLimits,Str] {
+  match milliseconds(limits.client_timeout, "client_timeout", false) {
+    Error(problem) => Error(problem), Ok(client) =>
+      match milliseconds(limits.admission_timeout, "admission_timeout", false) {
+        Error(problem) => Error(problem), Ok(admission) =>
+          match milliseconds(limits.drain, "drain", true) {
+            Error(problem) => Error(problem), Ok(drain) => Ok(legacy.TcpServerLimits(
+              limits.clients, limits.concurrency, limits.request_limit,
+              limits.response_limit, client, admission, drain))
+          }
+      }
+  }
+}
+
+pure service_limits(limits: TcpServiceLimits): Result[service.TcpServiceLimits,Str] {
+  match milliseconds(limits.client_timeout, "client_timeout", false) {
+    Error(problem) => Error(problem), Ok(client) =>
+      match milliseconds(limits.drain, "drain", true) {
+        Error(problem) => Error(problem), Ok(drain) => Ok(service.TcpServiceLimits(
+          limits.concurrency, limits.request_limit, limits.response_limit, client, drain))
+      }
+  }
+}
+
+pub async exchange(address: Str, port: Nat, request: Bytes, response_limit: Nat,
+  timeout: Duration): Result[Bytes,Str] {
+  match milliseconds(timeout, "timeout", false) {
+    Error(problem) => Error(problem),
+    Ok(timeout_ms) => await legacy.exchange(address, port, request, response_limit, timeout_ms)
+  }
+}
+
+pub async serve_bounded(address: Str, port: Nat, handler: AsyncFn[Bytes,Result[Bytes,Str]],
+  limits: TcpServerLimits): Result[[Result[Unit,Str]],Str] {
+  match bounded_limits(limits) {
+    Error(problem) => Error(problem),
+    Ok(native) => await legacy.serve(address, port, handler, native)
+  }
+}
+
+// Finite streaming server: clients and admission timeout remain bounded.
+pub async serve_stream[T](address: Str, port: Nat, worker: AsyncFn[T,Result[Bytes,Str]],
+  context: T, limits: TcpServerLimits): Result[[Result[Unit,Str]],Str] {
+  match bounded_limits(limits) {
+    Error(problem) => Error(problem),
+    Ok(native) => await legacy.serve_stream(address, port, worker, context, native)
+  }
+}
+
+pub async serve[T](address: Str, port: Nat, worker: AsyncFn[T,Result[Bytes,Str]],
+  context: T, limits: TcpServiceLimits,
+  ready: AsyncFn[TcpServiceReady,Result[Unit,Str]]): Result[TcpServiceSummary,Str] {
+  match service_limits(limits) {
+    Error(problem) => Error(problem),
+    Ok(native) => await service.serve(address, port, worker, context, native, ready)
+  }
+}
+
+pub async read_chunk(limit: Nat): Result[Bytes,Str] { await legacy.read_chunk(limit) }

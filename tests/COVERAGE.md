@@ -2116,3 +2116,19 @@ A separate malformed-input probe reports an invalid byte after 1 MiB of ASCII at
 offset 1,048,576 in 0.41s on the development Mac, including VM execution/startup.
 Valid input avoids the Panack diagnostic scan. This is a workload observation,
 not a latency guarantee; invalid-input diagnosis remains linear in prefix length.
+
+### Canonical TCP and Duration aliases (21 November 2026)
+
+`tests/tcp_canonical.sh` uses independent native peers to test exchange, bounded,
+streaming and continuous servers in source/bytecode modes, including signal-driven
+shutdown. Duration tests cover negative, zero, fractional milliseconds, 1 ms,
+60 seconds and over-limit values; invalid durations are rejected before native
+network admission. Zero drain is accepted. Compiler unit tests reserve legacy
+native record schemas while keeping canonical limit identities distinct.
+The new module is explicitly unmeasured by source coverage. There is no per-byte
+or per-client conversion overhead: conversion happens once at exchange/server
+admission. Final local `make check` passed in 626s (unit 391s, bootstrap 83s, functional
+160s), including packaging/archive smoke and quick-start checks. Relocated
+installation tests pass with exact seed/module comparisons, live TCP traffic
+and unrelated-directory source/bytecode/disassembly. The preceding batch also
+took 626s; historical validation-budget warnings remain subject to GI#106 review.

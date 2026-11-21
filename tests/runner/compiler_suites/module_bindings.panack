@@ -330,6 +330,7 @@ pub run_suite(): Void {
   results = results.concat(namespace_aggregate_tests())
   results = results.concat(namespace_else_if_tests())
   results = results.concat(module_emission_identity_tests())
+  results = results.concat(tcp_limit_identity_tests())
   results = results.concat(module_emission_program_tests())
   results = results.concat(module_emission_effect_tests())
   results = results.concat(module_emission_status_tests())
@@ -5229,6 +5230,24 @@ pure encoding_primitive_tests(): [TestResult] {
         !module_internal_primitive(DeclarationIdentity(spoof, name), primitive) &&
         !module_internal_primitive_name(spoof, primitive), "spoofed toolchain grant"))
     }
+  }
+  results
+}
+
+
+pure tcp_limit_identity_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  graph = ModuleBindingGraph([], [])
+  entry = ModuleIdentity(StandaloneModulePackage(), "main.panack")
+  canonical = ModuleIdentity(ToolchainModulePackage(), "network/tcp/async.panack")
+  for name in ["TcpServerLimits", "TcpServiceLimits"] {
+    legacy = ModuleIdentity(ToolchainModulePackage(), if name == "TcpServerLimits" { "tcp.panack" } else { "tcp_service.panack" })
+    results = results.append(std_testing.expect("TCP limits/legacy ABI/" + name,
+      module_emission_symbol(graph, entry, DeclarationIdentity(legacy, name)) == name,
+      "legacy runtime name changed"))
+    results = results.append(std_testing.expect("TCP limits/canonical identity/" + name,
+      module_emission_symbol(graph, entry, DeclarationIdentity(canonical, name)) != name,
+      "Duration record replaced millisecond runtime schema"))
   }
   results
 }

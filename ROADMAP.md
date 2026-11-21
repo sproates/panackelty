@@ -151,7 +151,9 @@ before shared-state work; it has a provisional five-group baseline, including
 website stdlib references, within RM#162. The timer, checked console and
 Command-based subprocess batch passed combined local validation on 21 November
 (612s); PR #693 remains a CI-free draft, with integration and the remaining
-programme scope still pending.
+programme scope still pending. The subsequent runtime/testing support and compiler
+compatibility batch passed final local validation in 583s, including relocated
+source/bytecode/disassembly tests; no integration or website publication is implied.
 
 **Next available roadmap identifier: RM#163.**
 

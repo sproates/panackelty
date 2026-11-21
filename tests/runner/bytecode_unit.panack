@@ -1,3 +1,6 @@
+import project/src/compiler/emitter::{BytecodeProgram, FunctionCode, Instruction, Instruction.ConstInstruction, Instruction.AwaitCallInstruction, Instruction.CallInstruction, Instruction.ReturnInstruction, ConstantValue.VoidConstant}
+import project/src/compiler/checker::{builtin_arity}
+import project/src/bytecode/codec::{serialize_bytecode}
 import stdlib/testing as std_testing
 import project/src/compiler/filesystem_support as filesystem_support
 import project/src/bytecode/decoder::{valid_utf8, validate_bytecode, round_trip_bytecode, disassemble_bytecode}
@@ -41,6 +44,23 @@ bytecode_case(name: Str, file: Str, expected: Str): TestResult {
 }
 main(): Void {
   mut results: [TestResult] = []
+  for service in ["stage_create_async", "stage_path_async", "stage_directory_async", "stage_write_async", "stage_symlink_async", "stage_publish_async", "stage_discard_async", "fs_read_link_async", "fs_read_chunk_async", "fs_atomic_write_async", "fs_metadata_async", "fs_read_async", "fs_write_async", "fs_list_async", "fs_remove_file_async", "fs_remove_directory_async", "fs_create_directory_async", "fs_temp_directory_async", "fs_temp_file_async", "fs_directories_overlap_async", "http_connection_continue", "http_listen_ordinary", "http_listen_contextual", "http_close", "http_destroy", "http_connection_invoke", "process_run_async", "process_run_isolated_async", "console_output_async", "host_sleep_async", "instant_now_async", "environment_lookup_async", "host_arguments_async", "host_stdout_async", "host_stderr_async", "host_exit_async", "fs_read_beneath_async", "fs_root_identity_async", "async_fake_read", "$tcp_exchange", "$http_transport_exchange", "$tcp_serve", "tcp_service", "$tcp_serve_stream", "$tcp_server_read_chunk"] {
+    arity = builtin_arity(service)
+    mut operands: [Instruction] = []
+    for index in 0..arity { operands = operands.append(ConstInstruction(VoidConstant())) }
+    accepted = BytecodeProgram([FunctionCode("main", [], false, true,
+      operands.concat([AwaitCallInstruction(service, arity), ReturnInstruction()]))])
+    results = results.append(std_testing.equal_str("async service decodes: " + service,
+      validate_bytecode(serialize_bytecode(accepted)), "ok"))
+    ordinary = BytecodeProgram([FunctionCode("main", [], false, false,
+      operands.concat([CallInstruction(service, arity), ReturnInstruction()]))])
+    results = results.append(std_testing.expect("ordinary service call rejected: " + service,
+      bytecode_contains(validate_bytecode(serialize_bytecode(ordinary)), "ordinary call cannot enter async function"), "accepted ordinary service call"))
+    wrong = BytecodeProgram([FunctionCode("main", [], false, true,
+      operands.concat([ConstInstruction(VoidConstant()), AwaitCallInstruction(service, arity + 1), ReturnInstruction()]))])
+    results = results.append(std_testing.expect("service arity checked: " + service,
+      bytecode_contains(validate_bytecode(serialize_bytecode(wrong)), "async service arity mismatch"), "accepted wrong arity"))
+  }
   utf8_cases = [
     Utf8Case("empty", "", true), Utf8Case("ASCII and NUL", "007f", true),
     Utf8Case("two byte minimum", "c280", true), Utf8Case("two byte maximum", "dfbf", true),

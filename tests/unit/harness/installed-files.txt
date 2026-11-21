@@ -76,9 +76,16 @@ share/panackelty/stdlib/process.panack
 share/panackelty/stdlib/process/async.panack
 share/panackelty/stdlib/process/legacy.panack
 share/panackelty/stdlib/process/types.panack
+share/panackelty/stdlib/runtime/bytecode.panack
 share/panackelty/stdlib/tcp.panack
 share/panackelty/stdlib/tcp_service.panack
 share/panackelty/stdlib/testing.panack
+share/panackelty/stdlib/testing/filesystem.panack
+share/panackelty/stdlib/testing/filesystem/async.panack
+share/panackelty/stdlib/testing/process.panack
+share/panackelty/stdlib/testing/process/async.panack
+share/panackelty/stdlib/testing/reporting.panack
+share/panackelty/stdlib/testing/reporting/async.panack
 share/panackelty/stdlib/testing_async.panack
 share/panackelty/stdlib/testing_commands.panack
 share/panackelty/stdlib/testing_files.panack

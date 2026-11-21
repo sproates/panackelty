@@ -726,3 +726,11 @@ oracle changes module numbering after the time-to-host import and adds time.slee
 reviewed disassembly and identical execution output support the fixture update.
 Canonical process wrappers accept Command; compiler/package/test positional calls
 now explicitly use process/legacy. No bytecode version change is required.
+
+The runtime/testing-support batch refreshes the v9 seed to
+`1b881d54dc241696d3466273855a4798833dbe3799d02bca86c541a8abf07a75`.
+Compiler stages 2–4 agree. The stdlib conformance artifact is unchanged from the
+preceding batch. Compiler changes protect native compatibility record schemas
+from same-named stdlib declarations and align the Panack bytecode reader with
+source checking's closed async-service list. The seven new Panack support modules
+require no new VM capability; no bytecode format change is needed.

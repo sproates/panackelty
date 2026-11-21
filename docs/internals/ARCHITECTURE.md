@@ -2004,3 +2004,12 @@ The CLI drains queued cleanup only after its owned runtime stops; event-loop
 execution destruction never waits for cleanup. Active leases still retain their
 tables independently until their operations return. Process termination cannot
 guarantee cleanup of an outstanding blocked host operation.
+
+
+Canonical runtime/bytecode and testing modules are Panack adapters over the existing
+host and test support. Async test helpers use the filesystem/process/console async
+services and preserve shared test type identities. They add no native capabilities.
+Native adapter record spellings are reserved for their owning stdlib declaration
+during emission, preventing a new same-named record from changing the native schema.
+The Panack decoder shares the source resolver's closed async-service classification
+with effect checking, while independently checking call mode and arity.

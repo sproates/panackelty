@@ -39,7 +39,8 @@ error behaviour, untyped resource handles and exposed compiler/runtime adapters.
 | `stdlib/compression/gzip` | Gzip decoding | Stateful streaming effect/fairness review |
 | `stdlib/network/tcp` | TCP | Existing async capabilities under `/async` |
 | `stdlib/validation` | Structured validation errors/rendering | None |
-| `stdlib/testing` | Assertions/results | Async reporting where needed |
+| `stdlib/testing` | Assertions/results and compatibility report | Pure assertions shared |
+| `stdlib/testing/reporting` | Checked report output and failure counts | `/async` |
 | `stdlib/testing/filesystem` | Workspaces/fixtures | `/async` for effects |
 | `stdlib/testing/process` | Command execution/assertions | `/async` for effects |
 

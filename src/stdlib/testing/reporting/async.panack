@@ -1,0 +1,33 @@
+pub import stdlib/testing::{TestResult, TestOutcome, TestOutcome.TestPassed, TestOutcome.TestFailed, expect, equal_str, equal_nat}
+pub import stdlib/host::{HostError}
+import stdlib/console/async as console
+
+// Preserve order and failure counts; stop at the first checked output failure.
+pub async report(results: [TestResult]): Result[Nat,HostError] {
+  mut failures: Nat = 0
+  mut problem: Option[HostError] = None()
+  for result in results {
+    match problem {
+      Some(_) => {},
+      None() => {
+        name = result.name
+        message = match result.outcome {
+          TestPassed() => "PASS ${name}",
+          TestFailed(reason) => { failures = failures + 1; "FAIL ${name}: ${reason}" }
+        }
+        match await console.write_line(message) {
+          Ok(_) => {}, Error(error) => { problem = Some(error) }
+        }
+      }
+    }
+  }
+  match problem {
+    Some(error) => Error(error),
+    None() => {
+      total = results.len()
+      match await console.write_line("tests: ${total}, failures: ${failures}") {
+        Ok(_) => Ok(failures), Error(error) => Error(error)
+      }
+    }
+  }
+}

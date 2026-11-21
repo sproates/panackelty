@@ -335,9 +335,9 @@ Documentation is its own acceptance work, not a final optional polish step.
 | --- | ---: | --- |
 | AS1: Imports, clock and environment | 10 | In review: PR #693, local full validation passed; integration pending |
 | AS2: Filesystem and resource-operation boundary | 30 | General, confined and typed staging APIs locally validated (606s full check, 19 November), including async cleanup and relocated installation. Remaining specialist decisions/migrations and integration pending |
-| AS3: Timers, console and processes | 25 | Timer, checked console and Command-based process implementation passed final local make check in 612s (21 November), including HTTP progress, lifecycle/fault, source/bytecode and seed checks. Input/nested-execution boundary review and integration remain |
+| AS3: Timers, console and processes | 25 | Timer, checked console and Command-based process implementation passed final local make check in 612s (21 November), including HTTP progress, lifecycle/fault, source/bytecode and seed checks. Nested execution is classified as ordinary runtime/bytecode support; canonical runtime/testing adapters and compiler compatibility fixes passed final local make check (583s) and relocated-install tests on 21 November. Bounded input contract and integration remain |
 | AS4: Streaming HTTP | 15 | Inventory recorded; lifecycle contracts and implementation pending |
-| AS5: Stdlib reference, guides and website | 20 | Documentation gap verified; pages, examples and review pending |
+| AS5: Stdlib reference, guides and website | 20 | Core API reference and canonical runtime/testing modules are progressing; website pages, complete examples and review remain pending |
 | Total | 100 | No accepted completion credit yet; AS1 and the filesystem batch are locally validated but unmerged |
 
 Do not count AS1 twice within RM#162 or equate this programme's weights with a

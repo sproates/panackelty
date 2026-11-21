@@ -252,6 +252,7 @@ functional-impl: package-tool $(BUILD_DIR)/vm/static_http_client $(STAGE2_COMPIL
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/http-package sh tests/http_package.sh
 	@$(PROFILE) functional/async-stdlib sh tests/async_stdlib.sh
 	@$(PROFILE) functional/console sh tests/console.sh
+	@$(PROFILE) functional/stdlib-support sh tests/stdlib_support.sh
 	@$(PROFILE) functional/process-async sh tests/process_async.sh
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/http-process sh tests/http_process.sh
 	@$(PROFILE) functional/async-filesystem-general sh tests/async_filesystem_general.sh

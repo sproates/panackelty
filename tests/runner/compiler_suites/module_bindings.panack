@@ -390,6 +390,18 @@ pure module_emission_identity_tests(): [TestResult] {
     module_emission_symbol(graph, entry, DeclarationIdentity(left, "main")) != "main",
     "imported main collides with the entry"
   ))
+  legacy = ModuleIdentity(ToolchainModulePackage(), "process/legacy.panack")
+  canonical = ModuleIdentity(ToolchainModulePackage(), "process/types.panack")
+  mixed = ModuleBindingGraph([
+    ModuleBindings(legacy, [], [], map(), None()),
+    ModuleBindings(canonical, [], [], map(), None())
+  ], [])
+  results = results.append(std_testing.equal_str("native process record keeps runtime ABI name",
+    module_emission_symbol(mixed, entry, DeclarationIdentity(legacy, "ProcessOutput")), "ProcessOutput"))
+  results = results.append(std_testing.equal_str("new process record has a distinct schema symbol",
+    module_emission_symbol(mixed, entry, DeclarationIdentity(canonical, "ProcessOutput")), "$module1_ProcessOutput"))
+  results = results.append(std_testing.equal_str("other native record names cannot be shadowed",
+    module_emission_symbol(mixed, entry, DeclarationIdentity(canonical, "HostError")), "$module1_HostError"))
   results
 }
 

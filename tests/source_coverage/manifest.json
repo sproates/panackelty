@@ -22,6 +22,13 @@
     "src/stdlib/time.panack", "src/stdlib/validation.panack"
   ],
   "unmeasured": [
+    {"path":"src/stdlib/testing/reporting.panack","reason":"Checked test reporting is covered by ordinary/async source/bytecode and output-failure tests outside the bounded coverage corpus."},
+    {"path":"src/stdlib/testing/reporting/async.panack","reason":"Checked test reporting is covered by ordinary/async source/bytecode and output-failure tests outside the bounded coverage corpus."},
+    {"path":"src/stdlib/runtime/bytecode.panack","reason":"Canonical runtime/testing adapter checked by focused source/bytecode and failure tests outside the bounded coverage corpus; no execution coverage percentage is claimed."},
+    {"path":"src/stdlib/testing/filesystem.panack","reason":"Canonical runtime/testing adapter checked by focused source/bytecode and failure tests outside the bounded coverage corpus; no execution coverage percentage is claimed."},
+    {"path":"src/stdlib/testing/filesystem/async.panack","reason":"Canonical runtime/testing adapter checked by focused source/bytecode and failure tests outside the bounded coverage corpus; no execution coverage percentage is claimed."},
+    {"path":"src/stdlib/testing/process.panack","reason":"Canonical runtime/testing adapter checked by focused source/bytecode and failure tests outside the bounded coverage corpus; no execution coverage percentage is claimed."},
+    {"path":"src/stdlib/testing/process/async.panack","reason":"Canonical runtime/testing adapter checked by focused source/bytecode and failure tests outside the bounded coverage corpus; no execution coverage percentage is claimed."},
     {"path":"src/stdlib/process/async.panack","reason":"Async process adapter checked by source/bytecode, HTTP progress and native lifecycle tests outside the bounded coverage corpus."},
     {"path":"src/stdlib/process/legacy.panack","reason":"Positional compatibility wrappers moved from process.panack; retained behavior is checked by existing process and package tests outside this module measurement."},
     {"path":"src/stdlib/process/types.panack","reason":"Shared command/result representation checked by ordinary/async source and bytecode cases outside the bounded coverage corpus."},

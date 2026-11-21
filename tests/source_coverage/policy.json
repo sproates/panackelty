@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Review canonical Command/result declarations, explicit legacy process imports and async adapters using the production declaration inventory.",
+    "reason": "Review runtime/testing support modules and shared async-service classification using the production declaration inventory.",
     "basis": "Computed with the production parser and inventory_module over every eligible source. Only imports, type refinements, records and enums are excluded; executable functions remain eligible.",
-    "scopeChange": "Three process modules are explicitly unmeasured, including positional wrappers moved to process/legacy. Focused tests cover their behavior; this is not a coverage collection. Eligible paths and execution corpus are unchanged."
+    "scopeChange": "Seven support modules are explicitly unmeasured and covered by source/bytecode regression tests. Eligible paths and execution corpus remain unchanged; this is not a coverage collection."
   },
-  "manifestHash": "15125248d2b3ef0fce28bd189ac824c0e288007b01d2744092cedb3795ec0583",
-  "exclusionHash": "0d905971e6e9707531d102d408d55a7394921b148023df6b7d0b57bd4c609d06"
+  "manifestHash": "e15e725f1305ca56a3b57a57a5500c0df6c7aafeac5b8ec681a9048d2bfca788",
+  "exclusionHash": "6f20535d557b6df60dfe799dd803b22d615b689432234e09ec8d8df81a704951"
 }

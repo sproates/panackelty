@@ -418,3 +418,45 @@ remain tracked. Integration and hosted validation are pending; development CI is
 
 Ordinary and async Command APIs also pass source and saved-bytecode tests from a
 relocated installation with spaces in its path, without checkout library overrides.
+
+## Runtime and testing support checkpoint, 21 November 2026
+
+Canonical runtime/bytecode.run re-exports the ordinary host.run operation. It
+executes verified bytecode synchronously, preserves arguments and exit propagation,
+and cannot be called from async or pure code. There is no async embedding API in
+this batch, as agreed above. This completes the nested-execution classification.
+Standard input remains a distinct open contract: read_line is ordinary and does
+not provide the bounded EOF/partial-read/cancellation model needed for async input.
+
+Canonical testing/filesystem provides create_workspace, discover_fixtures and
+remove_empty(workspace). Its /async module awaits filesystem operations and shares
+the existing TestWorkspace identity. TestWorkspace.remove_empty remains ordinary;
+async callers use the module function. Callers own workspace contents and cleanup;
+discovery preserves sorted immediate directories and rejects partial results.
+
+Canonical testing/process provides run, command_output, command_result,
+capture_report and expect_command_error. Both variants share TestCommand and the
+compatibility ProcessOutput types. Async execution adapts explicit termination
+back to those existing test observations. Failed observations never overwrite a
+capture destination; capture_report retains its existing mismatch-diagnostic UTF-8 decoding behavior
+(invalid UTF-8 can trap). A destination-write failure may leave partial output.
+The command-supervisor harness remains on internal compatibility support and is
+not re-exported as a new public helper.
+
+Testing/reporting and testing/reporting/async share pure assertions and TestResult/TestOutcome. Both report operations return
+Result[Nat,HostError]: Ok carries the failure count; a checked console error stops
+reporting and returns Error. Prior output is not rolled back. Lines and the final
+summary preserve caller order and the existing transcript format. Ordinary report
+continues returning Nat, and old testing_files/testing_commands imports remain.
+
+Mixed process APIs exposed native-record schema aliasing during emission. Native
+adapter record names are now reserved for their actual owning module; new stdlib
+declarations with those names receive private emitted symbols. A second regression
+showed that the Panack bytecode reader lacked recent async services. Source effect
+checking and bytecode validation now share their closed async classification.
+Final local make check passed in 583 seconds on 21 November (unit 371s,
+bootstrap 81s, functional 146s), including packaging and release-smoke checks.
+All 275 focused bytecode-reader checks and 13 coverage-inventory checks pass.
+The seven support modules also pass ordinary/async source, saved-bytecode and
+disassembly tests from a relocated installation without checkout overrides.
+No bytecode format change. Integration remains pending; development CI stays off.

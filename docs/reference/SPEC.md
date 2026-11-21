@@ -1810,3 +1810,36 @@ rollback. Embedded shutdown transfers cleanup to a worker without waiting for fi
 I/O. Staging admits at most 32 retained invocation tables per process and 64
 stages per invocation; capacity exhaustion returns a resource_limit error. See the [stdlib API contract](../STDLIB_API_CONTRACT.md) for failure
 and ownership transitions.
+
+
+## Canonical runtime and testing support (alpha.16 development)
+
+Import stdlib/runtime/bytecode for run(data: Bytes, arguments: [Str]): Void.
+This is the existing synchronous nested-VM operation, with verification, argument
+and exit behavior unchanged. It is ordinary, not async; it does not launch an OS
+process. stdlib/host.run remains compatible.
+
+stdlib/testing/filesystem and its /async module expose create_workspace(parent),
+discover_fixtures(root) and remove_empty(workspace), with the existing TestWorkspace,
+Path and HostError result types. Discovery returns sorted immediate directories,
+does not follow links, and returns no partial list on failure. Cleanup refuses a
+nonempty workspace. The owned TestWorkspace.remove_empty method remains ordinary;
+await the module's remove_empty function from async code.
+
+stdlib/testing/process and /async expose run(name, TestCommand, expected),
+capture_report and expect_command_error, plus shared pure command_output and
+command_result. The existing TestCommand and compatibility ProcessOutput identities
+are retained. A nonzero subprocess exit can be an expected successful observation.
+Capture writes only after a matching complete result; write failures produce a
+failed TestResult and may leave a partial file. A mismatch diagnostic retains the
+compatibility behavior of decoding stdout as UTF-8; malformed text can trap.
+Timeout, output and cancellation bounds follow process execution.
+The old testing_files/testing_commands imports remain available.
+
+stdlib/testing/reporting and stdlib/testing/reporting/async share pure assertions
+and result types. Both report(results: [TestResult]) operations return
+Result[Nat,HostError]; the /async operation is awaited. Ok contains the count
+of failed tests; Error identifies the first checked output failure, after which
+no further lines are emitted. Output already written remains visible. Ordinary
+stdlib/testing.report continues returning Nat. Both preserve input order and the
+PASS/FAIL lines followed by the total/failure summary.

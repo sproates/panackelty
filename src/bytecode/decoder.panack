@@ -18,7 +18,7 @@ import project/src/compiler/emitter::{
   ConstantValue.DecimalPartsConstant, ConstantValue.StringConstant,
   ConstantValue.BoolConstant, ConstantValue.VoidConstant, render_bytecode
 }
-import project/src/compiler/resolver::{is_builtin}
+import project/src/compiler/resolver::{is_builtin, is_async_builtin}
 import project/src/compiler/purity::{is_impure_builtin}
 import project/src/compiler/checker::{builtin_arity}
 
@@ -515,8 +515,7 @@ pure verify_instruction(instruction: Instruction, function: FunctionCode, progra
         expected: Nat = if builtin_exists(name) { builtin_arity(name) } else { target.value.parameters.len() }
         target_pure: Bool = if builtin_exists(name) { builtin_is_pure(name) } else { target.value.is_pure }
         if (!builtin_exists(name) && target.found && target.value.is_async) ||
-          name == "async_fake_read" || name == "$tcp_exchange" || name == "$http_transport_exchange" || name == "$tcp_serve" ||
-          name == "$tcp_serve_stream" || name == "$tcp_server_read_chunk" {
+          bytecode_async_builtin(name) {
           "ordinary call cannot enter async function"
         }
         else { if function.is_async && !target_pure { "async function cannot call blocking function" }
@@ -661,11 +660,16 @@ pub pure round_trip_bytecode(data: Bytes): Bytes {
   }
 }
 
+pure bytecode_async_builtin(name: Str): Bool {
+  builtin_exists(name) && (is_async_builtin(name) ||
+    name == "$tcp_exchange" || name == "$http_transport_exchange" || name == "$tcp_serve" ||
+    name == "$tcp_serve_stream" || name == "$tcp_server_read_chunk")
+}
+
 pure verify_await_call(name: Str, arity: Nat, function: FunctionCode, program: BytecodeProgram): Str {
   target: FunctionCodeLookup = bytecode_function(program, name)
   if !function.is_async { "await requires async function" }
-  else { if name == "async_fake_read" || name == "$tcp_exchange" || name == "$http_transport_exchange" || name == "$tcp_serve" ||
-    name == "$tcp_serve_stream" || name == "$tcp_server_read_chunk" {
+  else { if bytecode_async_builtin(name) {
     if arity == builtin_arity(name) { "" } else { "async service arity mismatch" }
   } else { if builtin_exists(name) || !target.found || !target.value.is_async { "await target must be async" }
   else { if arity != target.value.parameters.len() { "async call arity mismatch" } else { "" } } } }

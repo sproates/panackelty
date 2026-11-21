@@ -2045,3 +2045,22 @@ comparison; no throughput improvement or regression is inferred from this run.
 
 Ordinary and async Command APIs also pass source and saved-bytecode tests from a
 relocated installation with spaces in its path, without checkout library overrides.
+
+
+## Runtime/testing support migration
+
+stdlib_support.sh exercises ordinary and async workspace creation, sorted fixture
+discovery, failed nonempty cleanup, successful cleanup, command comparisons, error
+assertions, capture success/failure and unchanged destinations after mismatch.
+It runs source and saved bytecode, checks ordered reporting/failure counts and
+closed-output errors, and verifies nested bytecode arguments and async rejection.
+The compiler binding suite checks native record owner names versus conflicting
+stdlib declarations. Bytecode unit tests check every closed async service's await
+acceptance, wrong-arity rejection and ordinary-call rejection. Seven new support
+modules are explicitly unmeasured by the bounded source coverage corpus.
+
+Final runtime/testing-support acceptance passed on 21 November: make check 583s
+(unit 371s, bootstrap 81s, functional 146s), 275 focused bytecode-reader checks,
+13 coverage-inventory checks, and relocated source/bytecode/disassembly tests.
+Both ordinary and async checked reporting reject closed output with HostError.
+These elapsed times are not a controlled performance comparison.

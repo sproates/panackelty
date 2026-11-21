@@ -1847,9 +1847,9 @@ PASS/FAIL lines followed by the total/failure summary.
 ### Typed raw HTTP streams (alpha.16 development)
 
 `stdlib/network/http_stream` and its `/async` counterpart provide
-`open(host: Str, port: Nat, tls: Bool, request: Bytes, response_limit: Nat, timeout: Duration): Result[HttpStream,Str]`,
-`read(stream: HttpStream): Result[Bytes,Str]` and
-`close(stream: HttpStream): Result[Unit,Str]`. The async counterparts require await.
+`open(host: Str, port: Nat, tls: Bool, request: Bytes, response_limit: Nat, timeout: Duration): Result[HttpStream,HttpStreamError]`,
+`read(stream: HttpStream): Result[Bytes,HttpStreamError]` and
+`close(stream: HttpStream): Result[Unit,HttpStreamError]`. The async counterparts require await.
 HttpStream is an opaque core type with no public constructor. It belongs to one
 invocation; aliases share closure and cancellation. Close during a read and
 concurrent reads fail. Cancellation consumes a pending stream, so undelivered
@@ -1947,3 +1947,9 @@ and unchanged native HostError. Input bytes and resource handles are not retaine
 The [resource error contract](../design/STDLIB_DOMAIN_ERRORS.md#sha-256-and-gzip-resources)
 specifies categorisation, rendering, retry/lifecycle rules and native limitations.
 Legacy numeric adapters and pure hash semantics remain unchanged.
+
+## HTTP stream domain errors (21 November 2026)
+
+Canonical raw HTTP streams return the shared HttpStreamError domain type. Native libcurl connection/read/write diagnostics are retained on typed streams without changing the v9 bytecode or intrinsic signatures. See [domain error contract](../design/STDLIB_DOMAIN_ERRORS.md#http-streams) for lifecycle and compatibility.
+
+HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibility checks, final local make check (685s, 21 November), and relocated-install real TLS source/bytecode acceptance. Compiler seed and unchanged-program bytecode artifacts remain unchanged. Integration remains pending and development CI stays off.

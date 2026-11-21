@@ -258,6 +258,7 @@ functional-impl: package-tool $(BUILD_DIR)/vm/static_http_client $(STAGE2_COMPIL
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/http-process sh tests/http_process.sh
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/http-stream-async sh tests/http_stream_async.sh
 	@$(PROFILE) functional/cpu-resources sh tests/cpu_resources.sh
+	@$(PROFILE) functional/http-stream-errors sh tests/http_stream_errors.sh
 	@$(PROFILE) functional/resource-errors sh tests/resource_errors.sh
 	@$(PROFILE) functional/encoding-values sh tests/encoding_values.sh
 	@$(PROFILE) functional/console-input sh tests/console_input.sh

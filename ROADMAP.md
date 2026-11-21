@@ -183,6 +183,8 @@ Filesystem domain errors and explicit compatibility facades are implemented; foc
 
 Digest/gzip domain errors pass focused ordinary/async category, context, rendering, lifecycle and compatibility checks, final local make check (645s, 21 November), and relocated-install source/bytecode acceptance. Compiler seed and unchanged-program oracle artifacts are unchanged. This extends the existing stdlib website documentation follow-up; publication is separate.
 
+HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibility checks, final local make check (685s, 21 November), and relocated-install real TLS source/bytecode acceptance. Compiler seed and unchanged-program bytecode artifacts remain unchanged. Integration remains pending and development CI stays off. TCP domain errors and high-level HTTP package migration remain outstanding.
+
 **Next available roadmap identifier: RM#163.**
 
 ## Example inventory preflight — 2026-10-20

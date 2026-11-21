@@ -1,0 +1,72 @@
+pub enum HttpStreamOperation { Open(Str, Nat, Bool, Nat, Duration), Read, Close }
+pub enum HttpStreamErrorKind {
+  InvalidArguments, TimedOut, NameResolutionFailed, TlsVerificationFailed, TlsFailed, ConnectionFailed, WriteFailed, ReadFailed, ResponseLimitExceeded, InvalidStream, ReadBusy, ResourceLimit, Unavailable, ResolverUnavailable, ClockFailed, InitializationFailed, PollingFailed, InvocationEnded, OtherFailure
+}
+// Native text is bounded by the transport and retains libcurl's available detail.
+// No request bytes or opaque handles are retained here.
+pub record HttpStreamError { operation: HttpStreamOperation, kind: HttpStreamErrorKind, native: Str }
+
+impl HttpStreamError {
+  pub pure render(): Str {
+    action = match self.operation {
+      Open(host, port, tls, limit, timeout) => {
+        ticks = timeout.as_nanoseconds()
+        protocol = if tls { "HTTPS" } else { "HTTP" }
+        "open an ${protocol} stream to '${host}:${port}' (response limit: ${limit} bytes, timeout: ${ticks} nanoseconds)"
+      },
+      Read() => "read the HTTP stream",
+      Close() => "close the HTTP stream"
+    }
+    reason = match self.kind {
+      InvalidArguments() => "check the hostname, port (1–65535), request size (at most 65536 bytes), response limit (at most 268435456 bytes) and timeout (greater than zero and at most 60 seconds)",
+      TimedOut() => "the transport deadline expired. The deadline includes connection setup and time between reads; choose a timeout appropriate for the operation",
+      NameResolutionFailed() => "the hostname could not be resolved. Check the hostname and this machine’s DNS/network access",
+      TlsVerificationFailed() => "the server’s TLS identity or certificate could not be verified. Use the native details to identify whether the hostname, certificate or trust configuration needs correcting",
+      TlsFailed() => "the TLS connection could not be established. The native details describe the failure",
+      ConnectionFailed() => "the connection could not be established. Check the destination and whether the service is reachable",
+      WriteFailed() => "sending the request failed. Some bytes may already have been sent; do not assume that retrying the request is safe",
+      ReadFailed() => "reading the response failed. The response may be incomplete; the native details describe the failure",
+      ResponseLimitExceeded() => "the response exceeded the byte limit selected when the stream was opened. Close the stream; a larger limit requires opening a new stream",
+      InvalidStream() => "the stream is not usable in this invocation. Use a stream created here that has not been closed or cancelled",
+      ReadBusy() => "another read owns this stream. Wait for that read to finish before reading or closing the stream",
+      ResourceLimit() => "this invocation cannot allocate another stream slot. At most 512 streams can be opened, including streams already closed",
+      Unavailable() => "this host does not support HTTP transport",
+      ResolverUnavailable() => "the native transport could not initialise asynchronous DNS support. Check this installation’s libcurl support",
+      ClockFailed() => "the transport could not read or represent its monotonic deadline",
+      InitializationFailed() => "the native transport could not be initialised",
+      PollingFailed() => "waiting for network activity failed",
+      InvocationEnded() => "the invocation that owns this stream has ended",
+      OtherFailure() => "the transport returned an unrecognised failure; its original details are preserved below"
+    }
+    detail = self.native
+    "Cannot ${action}: ${reason}.\nNative details: ${detail}"
+  }
+}
+
+pub pure convert[T](result: Result[T,Str], operation: HttpStreamOperation): Result[T,HttpStreamError] {
+  match result {
+    Ok(value) => Ok(value),
+    Error(problem) => {
+      kind = if problem == "invalid HTTP transport arguments" || problem.starts_with_at("invalid HTTP transport arguments\n", 0) { InvalidArguments() }
+      else if problem == "HTTP transport timed out" || problem.starts_with_at("HTTP transport timed out\n", 0) { TimedOut() }
+      else if problem == "HTTP DNS failed" || problem.starts_with_at("HTTP DNS failed\n", 0) { NameResolutionFailed() }
+      else if problem == "HTTP TLS verification failed" || problem.starts_with_at("HTTP TLS verification failed\n", 0) { TlsVerificationFailed() }
+      else if problem == "HTTP TLS failed" || problem.starts_with_at("HTTP TLS failed\n", 0) { TlsFailed() }
+      else if problem == "HTTP connection failed" || problem.starts_with_at("HTTP connection failed\n", 0) { ConnectionFailed() }
+      else if problem == "HTTP transport write failed" || problem.starts_with_at("HTTP transport write failed\n", 0) { WriteFailed() }
+      else if problem == "HTTP transport read failed" || problem.starts_with_at("HTTP transport read failed\n", 0) { ReadFailed() }
+      else if problem == "HTTP response limit exceeded" || problem.starts_with_at("HTTP response limit exceeded\n", 0) { ResponseLimitExceeded() }
+      else if problem == "invalid HTTP stream handle" || problem.starts_with_at("invalid HTTP stream handle\n", 0) { InvalidStream() }
+      else if problem == "HTTP stream read is already in progress" || problem.starts_with_at("HTTP stream read is already in progress\n", 0) { ReadBusy() }
+      else if problem == "HTTP stream resource limit exceeded" || problem.starts_with_at("HTTP stream resource limit exceeded\n", 0) { ResourceLimit() }
+      else if problem == "HTTP transport is unavailable on this host" || problem.starts_with_at("HTTP transport is unavailable on this host\n", 0) { Unavailable() }
+      else if problem == "HTTP asynchronous DNS is unavailable" || problem.starts_with_at("HTTP asynchronous DNS is unavailable\n", 0) { ResolverUnavailable() }
+      else if problem == "HTTP transport clock failed" || problem.starts_with_at("HTTP transport clock failed\n", 0) { ClockFailed() }
+      else if problem == "HTTP transport initialization failed" || problem.starts_with_at("HTTP transport initialization failed\n", 0) { InitializationFailed() }
+      else if problem == "HTTP transport polling failed" || problem.starts_with_at("HTTP transport polling failed\n", 0) { PollingFailed() }
+      else if problem == "HTTP stream invocation has ended" || problem.starts_with_at("HTTP stream invocation has ended\n", 0) { InvocationEnded() }
+      else { OtherFailure() }
+      Error(HttpStreamError(operation, kind, problem))
+    }
+  }
+}

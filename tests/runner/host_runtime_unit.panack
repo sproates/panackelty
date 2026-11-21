@@ -1,3 +1,5 @@
+import stdlib/network/http_stream/errors as http_errors
+import stdlib/network/http_stream/errors::{HttpStreamOperation.Read, HttpStreamErrorKind.TlsVerificationFailed, HttpStreamErrorKind.OtherFailure as HttpOtherFailure}
 import stdlib/digest/sha256/errors as digest_errors
 import stdlib/digest/sha256/errors::{Sha256Operation.Finish, Sha256ErrorKind.OtherFailure as DigestOtherFailure}
 import stdlib/compression/gzip/errors as gzip_errors
@@ -329,7 +331,7 @@ main(): Void {
   match std_testing_files.workspace_create(host_path("/tmp")) {
     Error(problem) => { std_host.stderr("host test workspace failed: " + problem.code); std_host.exit(1) },
     Ok(workspace) => {
-      mut results = host_direct(workspace).concat(host_paths()).concat(resource_error_mapping_tests())
+      mut results = host_direct(workspace).concat(host_paths()).concat(resource_error_mapping_tests()).concat(http_error_mapping_tests())
       results = results.append(host_fixture("testing report order and empty case", "library_reports", [], [],
         ProcessOutput(0, 0, "tests: 0, failures: 0\n0\nFAIL first: reason\nPASS second\ntests: 2, failures: 1\n1\n".encode_utf8(), byte_buffer.empty())))
       results = results.append(host_fixture("testing command comparison", "library_commands", [], [],
@@ -413,5 +415,20 @@ pure resource_error_mapping_tests(): [TestResult] {
     }, "unknown failure was discarded or relabelled"),
     std_testing.expect("resource conversion preserves successful values",
       gzip_errors.convert[Nat](Ok(42),CreateDecoder(0)) == Ok(42), "successful result changed")
+  ]
+}
+
+pure http_error_mapping_tests(): [TestResult] {
+  native = "HTTP TLS verification failed\nlibcurl error 60: certificate hostname mismatch"
+  converted = http_errors.convert[Bytes](Error(native), Read())
+  unknown = http_errors.convert[Unit](Error("HTTP TLS verification failed unexpectedly"), Read())
+  [
+    std_testing.expect("HTTP preserves native TLS cause", match converted {
+      Ok(_) => false, Error(problem) => problem.kind == TlsVerificationFailed() && problem.native == native && problem.operation == Read()
+    }, "TLS detail or operation lost"),
+    std_testing.expect("HTTP unknown text is not prefix-misclassified", match unknown {
+      Ok(_) => false, Error(problem) => problem.kind == HttpOtherFailure()
+    }, "unknown native failure incorrectly classified"),
+    std_testing.expect("HTTP preserves success", http_errors.convert[Nat](Ok(42),Read()) == Ok(42), "successful value changed")
   ]
 }

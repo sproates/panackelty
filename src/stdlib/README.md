@@ -396,3 +396,9 @@ are distinct; oversized chunks can be retried, while a stopped gzip decoder must
 be closed. Legacy numeric digest/gzip APIs retain HostError. See the
 [resource error contract](../../docs/design/STDLIB_DOMAIN_ERRORS.md#sha-256-and-gzip-resources)
 for categories, resource quotas and migration. Pure digest.hash is unchanged.
+
+## HTTP stream domain errors (21 November 2026)
+
+Canonical network/http_stream and network/http_stream/async now return HttpStreamError; use kind for decisions, native for original transport/TLS details and render() for explanations. Network connection failures normally arrive on read, because open only creates the stream. The legacy http_stream module retains Result[...,Str].
+
+HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibility checks, final local make check (685s, 21 November), and relocated-install real TLS source/bytecode acceptance. Compiler seed and unchanged-program bytecode artifacts remain unchanged. Integration remains pending and development CI stays off.

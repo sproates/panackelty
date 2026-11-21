@@ -790,3 +790,9 @@ original owners. Native ABI and bytecode format are unchanged. Final local make 
 Digest/gzip error adaptation (21 November) changes only the corresponding Panack
 stdlib modules and tests/documentation. The compiler candidate equals the saved
 seed and existing bytecode oracles remain unchanged. Focused ordinary/async source and saved-bytecode checks pass. Final local make check passed in 645s (21 November), including unit, functional, bootstrap and packaging checks. Relocated installation with a spaced path passed the ordinary/async resource and compatibility fixtures. Integration remains pending and development CI stays off.
+
+## HTTP stream domain errors (21 November 2026)
+
+HTTP stream domain errors require only stdlib adapters and a native transport diagnostic buffer; existing intrinsic signatures, compiler seed and bytecode oracle artifacts remain unchanged.
+
+HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibility checks, final local make check (685s, 21 November), and relocated-install real TLS source/bytecode acceptance. Compiler seed and unchanged-program bytecode artifacts remain unchanged. Integration remains pending and development CI stays off.

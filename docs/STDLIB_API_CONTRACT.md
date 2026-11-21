@@ -471,9 +471,9 @@ No bytecode format change. Integration remains pending; development CI stays off
 `stdlib/network/http_stream` and `stdlib/network/http_stream/async` expose the
 same signatures; the latter's operations are async:
 
-- `open(host: Str, port: Nat, tls: Bool, request: Bytes, response_limit: Nat, timeout: Duration): Result[HttpStream,Str]`
-- `read(stream: HttpStream): Result[Bytes,Str]`
-- `close(stream: HttpStream): Result[Unit,Str]`
+- `open(host: Str, port: Nat, tls: Bool, request: Bytes, response_limit: Nat, timeout: Duration): Result[HttpStream,HttpStreamError]`
+- `read(stream: HttpStream): Result[Bytes,HttpStreamError]`
+- `close(stream: HttpStream): Result[Unit,HttpStreamError]`
 
 These are raw transport support, not a second high-level HTTP client. The HTTP
 package retains parsing and framing. `open` allocates a transport; it does not
@@ -671,3 +671,9 @@ identities. No VM or bytecode-format change is required. Final local make check 
 The [resource error contract](design/STDLIB_DOMAIN_ERRORS.md#sha-256-and-gzip-resources)
 defines Sha256Error and GzipError, operation context, typed categories, honest
 native limitations, retry/lifetime guidance and legacy migration. Focused ordinary/async source and saved-bytecode checks pass. Final local make check passed in 645s (21 November), including unit, functional, bootstrap and packaging checks. Relocated installation with a spaced path passed the ordinary/async resource and compatibility fixtures. Integration remains pending and development CI stays off.
+
+## HTTP stream domain errors (21 November 2026)
+
+Canonical network/http_stream and /async return HttpStreamError. Open errors retain host/port/TLS/limit/timeout context; first-read transport failures retain available bounded libcurl detail. Legacy numeric transport strings and high-level HTTP package signatures remain unchanged. See [domain errors](design/STDLIB_DOMAIN_ERRORS.md#http-streams).
+
+HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibility checks, final local make check (685s, 21 November), and relocated-install real TLS source/bytecode acceptance. Compiler seed and unchanged-program bytecode artifacts remain unchanged. Integration remains pending and development CI stays off.

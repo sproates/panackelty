@@ -1382,3 +1382,5 @@ The same alpha.16 stdlib follow-up includes Sha256Error/GzipError categories,
 rendering, retry/lifecycle guidance and cumulative creation quotas in digest/gzip
 reference pages. Core integration/release prerequisites and publication permissions
 are unchanged.
+
+The existing alpha.16 stdlib follow-up also covers HttpStreamError: first-read connection failures, shared ordinary/async error kinds, preserved TLS details, explicit rendering and unchanged legacy/high-level HTTP APIs. Publish with the accepted core reference, not as a claim about alpha.15.

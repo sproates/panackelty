@@ -84,14 +84,14 @@ if panack check "$work/forged.panack" > "$work/stderr" 2>&1; then echo 'numeric 
 grep -Eq 'HttpStream' "$work/stderr"
 cat > "$work/pure.panack" <<'SOURCE'
 import stdlib/network/http_stream as stream
-pure bad(handle: HttpStream): Result[Bytes,Str] { stream.read(handle) }
+pure bad(handle: HttpStream): Result[Bytes,stream.HttpStreamError] { stream.read(handle) }
 main(): Unit { () }
 SOURCE
 if panack check "$work/pure.panack" > "$work/stderr" 2>&1; then echo 'pure stream access was accepted' >&2; exit 1; fi
 grep -Eq 'pure' "$work/stderr"
 cat > "$work/ordinary-await.panack" <<'SOURCE'
 import stdlib/network/http_stream/async as stream
-bad(handle: HttpStream): Result[Bytes,Str] { await stream.read(handle) }
+bad(handle: HttpStream): Result[Bytes,stream.HttpStreamError] { await stream.read(handle) }
 main(): Unit { () }
 SOURCE
 if panack check "$work/ordinary-await.panack" > "$work/stderr" 2>&1; then echo 'ordinary await was accepted' >&2; exit 1; fi
@@ -121,7 +121,7 @@ async fast(request: http.Request, response: http.ResponseWriter): Result[Unit,St
 async loopback(request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
   raw = "GET /fast HTTP/1.1\r\nHost: local\r\nConnection: close\r\n\r\n".encode_utf8()
   match await stream.open("127.0.0.1", PORT, false, raw, 4096, time.seconds(3)) {
-    Error(problem) => Error(problem),
+    Error(problem) => Error(problem.render()),
     Ok(handle) => {
       mut total: Nat = 0
       mut ended = false

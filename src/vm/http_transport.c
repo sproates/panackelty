@@ -23,10 +23,11 @@ struct VMHttpTransport {
     uint8_t *response;
     size_t sent, received, limit, total;
     uint64_t deadline;
-    bool done, connecting, streaming, paused;
+    bool done, connecting, streaming, paused, detailed_errors;
 #ifndef __wasi__
     CURLM *multi;
     CURL *easy;
+    char error_buffer[CURL_ERROR_SIZE];
     curl_socket_t socket;
 #endif
 };
@@ -120,6 +121,17 @@ static void finish(VMHttpTransport *transport, const char *error)
 }
 
 #ifndef __wasi__
+/* Keep compatibility strings unchanged. Typed streams retain bounded libcurl
+ * diagnostics before cleanup destroys the easy handle. Never retain request bytes. */
+static void finish_curl(VMHttpTransport *transport, const char *category, CURLcode code)
+{
+    if (!transport->detailed_errors) { finish(transport, category); return; }
+    char message[CURL_ERROR_SIZE + 256];
+    const char *detail = transport->error_buffer[0] ? transport->error_buffer : curl_easy_strerror(code);
+    snprintf(message, sizeof(message), "%s\nlibcurl error %d: %s", category, (int)code, detail);
+    finish(transport, message);
+}
+
 static const char *connect_error(CURLcode result)
 {
     if (result == CURLE_OPERATION_TIMEDOUT) return "HTTP transport timed out";
@@ -138,6 +150,7 @@ static VMHttpTransport *transport_start(Value **arguments, bool streaming, bool 
     VMHttpTransport *transport = calloc(1, sizeof(*transport));
     if (!transport) return NULL;
     transport->streaming = streaming;
+    transport->detailed_errors = duration;
 #ifndef __wasi__
     transport->socket = CURL_SOCKET_BAD;
 #endif
@@ -196,6 +209,7 @@ static VMHttpTransport *transport_start(Value **arguments, bool streaming, bool 
 #define SETOPT(option, value) do { \
     if (easy_result == CURLE_OK) easy_result = curl_easy_setopt(transport->easy, option, value); \
 } while (0)
+    SETOPT(CURLOPT_ERRORBUFFER, transport->error_buffer);
     SETOPT(CURLOPT_URL, url);
     SETOPT(CURLOPT_CONNECT_ONLY, 1L);
     SETOPT(CURLOPT_HTTP_VERSION, (long)CURL_HTTP_VERSION_1_1);
@@ -286,7 +300,7 @@ static bool poll_connect(VMHttpTransport *transport, unsigned max_wait_ms)
     while ((message = curl_multi_info_read(transport->multi, &queued))) {
         if (message->msg != CURLMSG_DONE) continue;
         if (message->data.result != CURLE_OK) {
-            finish(transport, connect_error(message->data.result));
+            finish_curl(transport, connect_error(message->data.result), message->data.result);
             return transport->done;
         }
         if (curl_easy_getinfo(transport->easy, CURLINFO_ACTIVESOCKET, &transport->socket) != CURLE_OK ||
@@ -328,6 +342,7 @@ bool http_transport_poll(VMHttpTransport *transport, unsigned max_wait_ms)
         size_t left = transport->request->as.bytes.length - transport->sent;
         if (left > HTTP_TRANSPORT_CHUNK) left = HTTP_TRANSPORT_CHUNK;
         size_t sent = 0;
+        transport->error_buffer[0] = 0;
         CURLcode code = curl_easy_send(transport->easy,
                                       transport->request->as.bytes.data + transport->sent,
                                       left, &sent);
@@ -335,11 +350,12 @@ bool http_transport_poll(VMHttpTransport *transport, unsigned max_wait_ms)
             transport->sent += sent;
             return false;
         }
-        if (code != CURLE_AGAIN) finish(transport, "HTTP transport write failed");
+        if (code != CURLE_AGAIN) finish_curl(transport, "HTTP transport write failed", code);
         return transport->done;
     }
     uint8_t buffer[HTTP_TRANSPORT_CHUNK];
     size_t received = 0;
+    transport->error_buffer[0] = 0;
     CURLcode code = curl_easy_recv(transport->easy, buffer, sizeof(buffer), &received);
     if (code == CURLE_OK) {
         if (!received) {
@@ -358,7 +374,7 @@ bool http_transport_poll(VMHttpTransport *transport, unsigned max_wait_ms)
             }
         }
     } else if (code != CURLE_AGAIN) {
-        finish(transport, "HTTP transport read failed");
+        finish_curl(transport, "HTTP transport read failed", code);
     }
 #endif
     return transport->done || transport->paused;

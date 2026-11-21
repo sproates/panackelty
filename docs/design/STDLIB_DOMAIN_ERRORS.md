@@ -9,15 +9,15 @@ Ordinary and async operations return the same nominal error type. Domain modules
 re-export their error type and kind; the corresponding errors module owns the
 record, enum, pure conversion and render method. Callers can inspect kind without
 parsing a message, and can use render() for a complete human-readable explanation.
-The native field retains the original HostError unchanged: operation, code and
-native_code. Unknown codes map to OtherFailure; they are not silently relabelled
+For host-backed APIs, the native field retains the original HostError unchanged:
+operation, code and native_code. HTTP streams retain their native transport Str,
+including available libcurl detail, as specified below. Unknown codes map to OtherFailure; they are not silently relabelled
 as a specific known cause. Native numeric errors remain available, not guessed
 from platform-specific errno values. Render appends a nonzero host error number.
 
 Console, sleep, process, filesystem, SHA-256 and gzip errors are implemented in Panack. Native ABI,
 worker ownership, limits, cancellation and successful result values do not change.
-Network errors remain separate acceptance work.
-Network error delivery must preserve detailed TLS causes, not only rename Str.
+Canonical HTTP stream errors preserve detailed TLS causes; TCP errors and high-level HTTP package migration remain separate acceptance work.
 
 ## Console
 
@@ -310,3 +310,54 @@ OpenSSL/zlib implementations are unchanged. No compiler/VM/bytecode-format chang
 is involved; the compiler candidate and checked stdlib oracle remain identical.
 
 Focused ordinary/async source and saved-bytecode checks pass. Final local make check passed in 645s (21 November), including unit, functional, bootstrap and packaging checks. Relocated installation with a spaced path passed the ordinary/async resource and compatibility fixtures. Integration remains pending and development CI stays off.
+
+## HTTP streams
+
+Both network/http_stream modules return HttpStreamError with operation, kind and
+native (the original transport Str). HttpStreamOperation is Open(host, port, tls,
+response_limit, timeout), Read or Close. Open validates configuration but does not
+complete a network connection: DNS, connection and TLS failures normally surface
+on the first read. Read/Close do not invent endpoint information absent from the
+opaque handle. No request bytes or handle are retained in the error.
+
+Categories distinguish InvalidArguments, TimedOut, NameResolutionFailed,
+TlsVerificationFailed, TlsFailed, ConnectionFailed, WriteFailed, ReadFailed,
+ResponseLimitExceeded, InvalidStream, ReadBusy, ResourceLimit, Unavailable,
+ResolverUnavailable, ClockFailed, InitializationFailed, PollingFailed,
+InvocationEnded and OtherFailure. Classification matches an exact native category
+or that category followed by a newline and native detail; arbitrary shared prefixes
+are not classified as known errors. Unknown native text is retained unchanged.
+
+The native typed transport now retains libcurl's bounded error buffer and numeric
+CURLcode for connection, write and read failures, falling back to libcurl's error
+text when the buffer is empty. The original category precedes the detail. Details
+are copied before the easy handle is cleaned up; the buffer remains alive for the
+handle's lifetime. Error text can vary by TLS backend and libcurl version and is
+not an application matching API. This is a VM implementation change, without a
+new intrinsic signature, compiler seed or bytecode version. Numeric compatibility
+streams and the legacy exchange transport retain their previous strings.
+
+For example, a hostname mismatch is rendered as:
+
+> Cannot read the HTTP stream: the server’s TLS identity or certificate could not be verified. Use the native details to identify whether the hostname, certificate or trust configuration needs correcting.
+> Native details: HTTP TLS verification failed
+> libcurl error 60: [the TLS backend's specific hostname-mismatch explanation]
+
+The bracketed line describes variable native output, not literal emitted text.
+Verification remains enabled. No speculative clock advice or unsafe retry promise
+is added. WriteFailed warns that some request bytes may already have been sent.
+Errors do not close a stream automatically; close it when finished, except that
+cancellation invalidates the stream. ResourceLimit documents the existing 512
+cumulative stream slots; closing a stream does not replenish that quota.
+
+Migration: canonical callers replace Result[...,Str] with HttpStreamError and use
+problem.render() when deliberately converting to a textual callback error. Prefer
+kind for decisions and preserve native for diagnostics. The HTTP package still
+uses compatibility transports; its public error model has not changed in this
+batch. TCP domain errors and high-level HTTP migration remain outstanding.
+
+Real certificate fixtures exercise trusted success, hostname mismatch and an
+untrusted CA in ordinary/async source and saved-bytecode modes. They verify that
+the two failure causes produce distinct native details without pinning backend
+wording. Pure tests check unknown-prefix safety, native preservation and success.
+HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibility checks, final local make check (685s, 21 November), and relocated-install real TLS source/bytecode acceptance. Compiler seed and unchanged-program bytecode artifacts remain unchanged. Integration remains pending and development CI stays off.

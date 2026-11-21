@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Review digest/gzip domain-error modules against the production declaration inventory.",
+    "reason": "Review HTTP stream domain errors against production declaration inventory.",
     "basis": "Computed with the production parser and inventory_module over every eligible source. Only imports, type refinements, records and enums are excluded; executable functions remain eligible.",
-    "scopeChange": "Digest/gzip error modules are explicitly unmeasured and exercised by focused unit and source/bytecode tests. Eligible paths and execution corpus are unchanged."
+    "scopeChange": "HTTP error module explicitly unmeasured; focused TLS and source/bytecode tests added. Eligible paths and corpus unchanged."
   },
-  "manifestHash": "ae8ad9500e98a1dbe199848240472718a8ffdd19730090ba5529b695e46d82c3",
+  "manifestHash": "d2e9982c567d2217dd2c93aebc9a088bff768c1221698aa267a6b4743f020a0a",
   "exclusionHash": "72ce6e8053e56bff6f8520320e0f8fb13e2c6c286bd2d503efb00504294dc5fc"
 }

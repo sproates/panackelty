@@ -2119,3 +2119,9 @@ is used to enrich an error. Success adds a small result/context conversion; text
 is rendered only on request. The compiler seed, VM, native ABI and bytecode format
 are unchanged. Exact compiler/oracle equality provides compatibility evidence;
 this is not a performance optimisation or a controlled runtime benchmark.
+
+## HTTP stream domain errors (21 November 2026)
+
+Typed HTTP transports own a CURL_ERROR_SIZE buffer for the easy handle lifetime. Connection/read/write failure code and available detail are copied into bounded native text before cleanup. Panack owns categorisation/context/rendering; legacy transport strings remain unchanged. No request bytes are retained. A fixed per-transport buffer and failure-only text construction are added; this is not a performance optimisation. Successful canonical calls also construct small operation context and convert Result. No controlled runtime speed claim is made; existing GI#106 timing review remains open.
+
+HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibility checks, final local make check (685s, 21 November), and relocated-install real TLS source/bytecode acceptance. Compiler seed and unchanged-program bytecode artifacts remain unchanged. Integration remains pending and development CI stays off.

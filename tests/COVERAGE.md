@@ -2190,3 +2190,9 @@ Host-runtime unit checks distinguish the same native code by operation and verif
 unknown/native and successful-value preservation. Existing cpu_resources.sh keeps
 resource/effect and successful concatenated-member coverage. New error modules
 are explicitly unmeasured in the bounded source-coverage corpus. Focused ordinary/async source and saved-bytecode checks pass. Final local make check passed in 645s (21 November), including unit, functional, bootstrap and packaging checks. Relocated installation with a spaced path passed the ordinary/async resource and compatibility fixtures. Integration remains pending and development CI stays off.
+
+## HTTP stream domain errors (21 November 2026)
+
+HTTP stream error fixtures cover trusted TLS, hostname mismatch, untrusted certificates, ordinary/async source and bytecode, native-cause preservation, invalid timeout, stale stream and unknown errors. Existing stream progress/lifecycle and legacy TLS tests remain registered. The new error module is explicitly unmeasured in the bounded source-coverage corpus.
+
+HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibility checks, final local make check (685s, 21 November), and relocated-install real TLS source/bytecode acceptance. Compiler seed and unchanged-program bytecode artifacts remain unchanged. Integration remains pending and development CI stays off.

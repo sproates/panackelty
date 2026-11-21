@@ -154,6 +154,9 @@ Command-based subprocess batch passed combined local validation on 21 November
 programme scope still pending. The subsequent runtime/testing support and compiler
 compatibility batch passed final local validation in 583s, including relocated
 source/bytecode/disassembly tests. Typed streaming HTTP passed final local make check in 647s, with handler-progress, lifecycle/fault/sanitizer and relocated-install checks; no integration or website publication is implied.
+Typed digest/gzip ordinary/async adapters and bounded pure hashing now pass focused
+source/bytecode, scheduler, lifecycle/fault and sanitizer checks; final local make check passed in 625s (21 November), as did relocated-install
+source/bytecode/disassembly checks. The existing website follow-up includes these modules; publication remains separate.
 
 **Next available roadmap identifier: RM#163.**
 

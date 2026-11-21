@@ -1,0 +1,21 @@
+pub import stdlib/host::{HostError}
+
+// Handles belong to this invocation. Async mutations yield after one bounded step.
+pub create(): Result[Sha256Context,HostError] {
+  sha256_create()
+}
+
+pub update(context: Sha256Context, data: Bytes): Result[Unit,HostError] {
+  sha256_update(context, data)
+}
+
+pub finish(context: Sha256Context): Result[Bytes,HostError] {
+  sha256_finish(context)
+}
+
+pub close(context: Sha256Context): Result[Unit,HostError] {
+  sha256_close(context)
+}
+
+// One-shot input is bounded to 16 MiB. Use a context for larger inputs.
+pub pure hash(data: Bytes): Bytes { sha256_hash(data) }

@@ -1863,3 +1863,16 @@ exact deadline includes time between reads. The ordinary API blocks; the async
 API uses owner-thread polling and requires an embedder's network grant. Teardown
 closes resources; cancellation does not retract bytes already sent. Native-only
 transport remains unavailable in WASI. Legacy numeric-handle imports remain.
+
+## Typed digest and gzip resources
+
+The standard library provides `digest/sha256` and `compression/gzip`, each with an
+`/async` counterpart. `Sha256Context` and `GzipDecoder` are opaque, invocation-owned
+types; their values cannot be constructed from numbers. Copies alias one resource.
+Digest finish and resource close invalidate aliases. Mutation is effectful; the
+bounded one-shot SHA-256 hash is pure. Async operations yield after each bounded
+atomic step; cancellation does not undo a completed step.
+
+The [stdlib API contract](../STDLIB_API_CONTRACT.md#digestgzip-execution-and-lifetime)
+defines byte bounds, teardown, allocation failures and unsupported-target behavior.
+Legacy numeric adapters remain available during migration.

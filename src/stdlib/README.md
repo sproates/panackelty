@@ -304,3 +304,22 @@ publication may still commit after cancellation. Embedded shutdown queues cleanu
 32 retained stage tables, including pending cleanup, with 64 slots per invocation;
 exhaustion returns resource_limit. Final batch validation is still pending, so
 this module is not yet accepted for release.
+
+### Typed digest and gzip APIs (alpha.16 development)
+
+Import `stdlib/digest/sha256` or `stdlib/digest/sha256/async` for matching
+`create`, `update`, `finish` and `close` operations on an opaque `Sha256Context`.
+Each update accepts at most 64 KiB. `finish` returns 32 hash bytes and consumes
+the context. Both modules also expose pure `hash(Bytes): Bytes`, bounded to
+16 MiB; use a context for larger input. Pure hashing does not yield.
+
+Import `stdlib/compression/gzip` or `stdlib/compression/gzip/async` for matching
+`create_decoder`, `decode_chunk` and `close` operations on an opaque `GzipDecoder`.
+Preserve unconsumed input using `GzipChunk.consumed`; output and input are bounded
+to 64 KiB per step, with a total output budget of at most 256 MiB. Concatenated
+members and trailer checks are retained.
+
+Async operations perform one bounded CPU step, then yield. They use OpenSSL/zlib
+on the VM owner thread. Cancellation does not undo a completed step. Handles
+belong to their invocation, copies alias, and finish/close invalidate aliases.
+Legacy `digest` and `gzip` modules remain for existing package-tool callers.

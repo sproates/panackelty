@@ -2029,3 +2029,14 @@ uses the scheduler's read-completion path. External fake completions cannot
 satisfy a real pending stream read. No blocking worker or new bytecode encoding
 is introduced. Deadlines are monotonic nanoseconds; curl's millisecond timeout is
 only a rounded-up backstop. Framing remains in Panack HTTP package code.
+
+### Bounded CPU resource adapters
+
+Digest and gzip use reference-counted invocation tables shared by opaque values.
+VM teardown closes provider resources before releasing its table reference;
+outliving values retain only a closed table. Common adapters serve legacy numeric
+and typed handles without mixing their namespaces. New CPU async dispatch runs a
+bounded step on the owner thread and requests a scheduler yield before resumption.
+OpenSSL/zlib retain hashing/decompression responsibility; no worker or bytecode
+format change is introduced. The stdlib contract records the hard input/output
+bounds and cancellation behavior.

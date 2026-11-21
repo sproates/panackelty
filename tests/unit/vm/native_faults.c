@@ -6,6 +6,8 @@
 #include "decode.h"
 #include "fault_injection.h"
 #include "http_transport.h"
+#include "digest.h"
+#include "gzip_stream.h"
 #include "http_state.h"
 #include "numeric.h"
 #include "render.h"
@@ -872,6 +874,43 @@ static void tcp_allocations(void)
     assert(fault_descriptors() == 0);
 }
 
+static bool cpu_gzip;
+static unsigned cpu_mode;
+static void cpu_resource_allocations(void)
+{
+    static const uint8_t compressed[] = {31,139,8,0,0,0,0,0,0,3,203,72,205,201,201,7,0,134,166,16,54,5,0,0,0};
+    VM vm = {0};
+    Value *data = value_data(V_BYTES, cpu_gzip ? compressed : (const uint8_t *)"abc", cpu_gzip ? sizeof(compressed) : 3);
+    Value *limit = value_size(100);
+    if (data && limit) {
+        Value *opened = cpu_gzip ? gzip_resource_call(&vm, "gzip_decoder_create", &limit)
+                                : digest_resource_call(&vm, "sha256_create", NULL);
+        if (opened && !strcmp(opened->as.named.name, "Ok")) {
+            Value *args[] = {opened->as.named.values[0], data, value_bool(true)};
+            if (cpu_mode == 0) {
+                release(cpu_gzip ? gzip_resource_call(&vm, "gzip_decoder_close", args)
+                                 : digest_resource_call(&vm, "sha256_close", args));
+            } else if (cpu_mode == 1) {
+                release(cpu_gzip ? gzip_resource_call(&vm, "gzip_decoder_decode", args)
+                                 : digest_resource_call(&vm, "sha256_update", args));
+            } else if (!cpu_gzip) {
+                release(digest_resource_call(&vm, "sha256_finish", args));
+            }
+        }
+        digest_destroy(&vm); gzip_stream_destroy(&vm);
+        release(opened); // Resource values outlive their invocation table.
+    }
+    release(data); release(limit);
+}
+
+static void hash_allocations(void)
+{
+    VM vm = {0};
+    Value *data = value_data(V_BYTES, (const uint8_t *)"abc", 3);
+    if (data) release(digest_hash_call(&vm, "sha256_hash", &data));
+    release(data);
+}
+
 static unsigned stream_fault_mode;
 static void http_stream_allocations(void)
 {
@@ -1150,6 +1189,11 @@ int main(int argc, char **argv)
         return 0;
     }
     sweep("TCP request and completion", tcp_allocations);
+    sweep("pure SHA-256", hash_allocations);
+    for (unsigned kind = 0; kind < 2; kind++) {
+        cpu_gzip = kind == 1;
+        for (cpu_mode = 0; cpu_mode < 3; cpu_mode++) sweep("typed digest/gzip", cpu_resource_allocations);
+    }
     sweep("HTTP transport ownership", http_allocations);
     for (stream_fault_mode = 0; stream_fault_mode < 4; stream_fault_mode++)
         sweep("HTTP typed stream ownership", http_stream_allocations);

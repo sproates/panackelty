@@ -1,0 +1,15 @@
+pub import stdlib/host::{HostError}
+pub import stdlib/gzip::{GzipChunk}
+
+// Handles belong to this invocation. Async mutations yield after one bounded step.
+pub async create_decoder(output_limit: Nat): Result[GzipDecoder,HostError] {
+  await gzip_decoder_create_async(output_limit)
+}
+
+pub async decode_chunk(decoder: GzipDecoder, data: Bytes, finish: Bool): Result[GzipChunk,HostError] {
+  await gzip_decoder_decode_async(decoder, data, finish)
+}
+
+pub async close(decoder: GzipDecoder): Result[Unit,HostError] {
+  await gzip_decoder_close_async(decoder)
+}

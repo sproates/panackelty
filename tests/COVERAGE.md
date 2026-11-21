@@ -2082,3 +2082,20 @@ bootstrap 86s, functional 158s), native sanitizer checks, 2,200 native allocatio
 failures, all 284 bytecode-reader checks, 13 coverage-inventory checks, and
 relocated-install API/handler tests with exact seed and module comparisons.
 These are acceptance timings, not a controlled performance comparison.
+
+### Typed digest/gzip adapters (21 November 2026)
+
+`tests/cpu_resources.sh` checks ordinary/async source execution, compiled artifacts,
+disassembly, known SHA-256 output, pure mutation rejection and opaque-handle type
+checking. Native digest tests cover alias lifetime, foreign/forged handles,
+teardown, gzip member/trailer/truncation/output budgets, bounded multi-step output,
+forced scheduler yields and cancellation before/after a step. Allocation sweeps
+include resource creation, mutation, close, teardown and pure hash output.
+Sanitizer checks pass. Four new modules are explicitly unmeasured by the bounded
+source-coverage corpus; focused assertions do not imply execution coverage.
+Final local `make check` passed in 625s: unit 386s, bootstrap 84s and functional
+161s, plus archive/quick-start checks. All 305 bytecode-reader checks pass.
+Relocated-install ordinary/async tests and unrelated-directory imports pass in
+source, bytecode and disassembly modes. This run is comparable with the preceding
+647s checkpoint, not evidence of a product performance improvement. Historical
+validation-budget warnings remain subject to GI#106 reassessment.

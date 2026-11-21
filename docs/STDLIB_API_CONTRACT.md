@@ -232,8 +232,8 @@ not pure. Preserve old digest adapters during migration.
 `compression/gzip`: create_decoder(output_limit: Nat): Result[GzipDecoder,HostError],
 decode_chunk(decoder,input: Bytes,finish: Bool): Result[GzipChunk,HostError],
 close(decoder): Result[Unit,HostError]. Preserve consumed/data/finished, concatenated
-member handling, trailer checks and budgets. Define async admission/cancellation
-for stateful CPU work before adding counterparts; do not disguise blocking work.
+member handling, trailer checks and budgets. The execution/lifetime contract below
+defines bounded async CPU work.
 
 `network/tcp/async` retains exchange, finite serving as serve_bounded, continuous
 serving as serve, and streaming/read operations. Replace timeout/drain Nat units
@@ -507,3 +507,34 @@ bytecode-reader checks and 13 coverage-inventory checks pass. A relocated packag
 with spaces in its path passes the stream API and handler tests, plus imports,
 source execution, saved bytecode and disassembly from an unrelated directory
 without checkout overrides. Integration remains pending; development CI stays off.
+
+### Digest/gzip execution and lifetime
+
+Both ordinary and async modules are implemented. Async create/update/finish/close
+and decoder operations execute one bounded atomic native step on the VM owner
+thread, then yield before the caller resumes. They do not occupy an I/O worker.
+Cancellation before the step makes no mutation; cancellation afterwards does not
+roll back the step. Task/VM teardown closes owned resources. No operation suspends
+halfway through a mutation, so there is no in-flight busy state.
+
+Sha256Context and GzipDecoder are opaque invocation-owned handles. Copies alias
+the same resource; finish/close invalidate all copies. Numeric and foreign handles
+are rejected. Output/acknowledgement allocation failure after mutation closes the
+resource rather than leaving an uncertain state reusable. Compatibility numeric
+adapters remain separate and retain their existing callers.
+
+SHA-256 updates accept at most 64 KiB per call. The pure hash(Bytes): Bytes helper
+accepts at most 16 MiB; larger input traps with guidance to use a context. It does
+not yield and is re-exported unchanged by the async module. Ten 16 MiB hashes took
+about 5–7 ms each on the development Mac; this is an observation, not a portable
+latency guarantee. Streaming contexts are appropriate for larger input or finer
+cooperative scheduling. At most 65,536 contexts can be created per invocation.
+
+Gzip takes at most 64 KiB input and emits at most 64 KiB per step, with a total
+output budget of at most 256 MiB and at most 64 decoder slots per invocation.
+Callers preserve unconsumed input using GzipChunk.consumed. Concatenated members,
+trailer verification and truncated input remain checked. Slots are not reused.
+
+Native builds reuse OpenSSL and zlib. Unsupported targets return HostError with
+code unsupported for resource operations; pure hash reports an unsupported VM
+error. Domain-specific error migration remains separate work.

@@ -49,10 +49,14 @@ share/panackelty/stdlib/bounded_filesystem.panack
 share/panackelty/stdlib/bytes.panack
 share/panackelty/stdlib/compiler_files.panack
 share/panackelty/stdlib/compiler_paths.panack
+share/panackelty/stdlib/compression/gzip.panack
+share/panackelty/stdlib/compression/gzip/async.panack
 share/panackelty/stdlib/console.panack
 share/panackelty/stdlib/console/async.panack
 share/panackelty/stdlib/core.panack
 share/panackelty/stdlib/digest.panack
+share/panackelty/stdlib/digest/sha256.panack
+share/panackelty/stdlib/digest/sha256/async.panack
 share/panackelty/stdlib/environment.panack
 share/panackelty/stdlib/environment/async.panack
 share/panackelty/stdlib/filesystem.panack

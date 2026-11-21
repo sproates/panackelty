@@ -35,8 +35,8 @@ error behaviour, untyped resource handles and exposed compiler/runtime adapters.
 | `stdlib/filesystem/staging` | Staged directory construction/publication | `/async` |
 | `stdlib/bytes` | Byte construction helpers | None; receiver operations stay methods |
 | `stdlib/encoding/utf8` | Checked text encoding/decoding | None |
-| `stdlib/digest/sha256` | SHA-256 | Pure one-shot API; separately designed stateful streaming |
-| `stdlib/compression/gzip` | Gzip decoding | Stateful streaming effect/fairness review |
+| `stdlib/digest/sha256` | SHA-256 | Bounded pure hash; typed streaming context and `/async` |
+| `stdlib/compression/gzip` | Gzip decoding | Typed decoder and `/async`; bounded steps yield cooperatively |
 | `stdlib/network/tcp` | TCP | Existing async capabilities under `/async` |
 | `stdlib/network/http_stream` | Raw HTTP transport support, opaque handles | `/async`; framing stays in the HTTP package |
 | `stdlib/validation` | Structured validation errors/rendering | None |

@@ -629,6 +629,13 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         if (execution->sleeping) execution->status = VM_WAITING;
         return result;
     }
+    if (entry->dispatch == BUILTIN_CPU_RESOURCE_ASYNC) {
+        Value *result = !strncmp(entry->name, "sha256_", 7)
+            ? digest_resource_call(vm, entry->name, arguments)
+            : gzip_resource_call(vm, entry->name, arguments);
+        execution->yield_requested = true;
+        return result;
+    }
     if (entry->dispatch == BUILTIN_INSTANT_NOW_ASYNC) {
         return host_type_call(vm, "instant_now", NULL);
     }

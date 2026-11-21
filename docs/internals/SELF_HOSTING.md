@@ -741,3 +741,10 @@ Stages 2–4 reproduce it. Stdlib conformance remains
 `49fd630f84c62a042c96c9b76864d040d69237f641da8063be1d3f74ff2e4a50`.
 The compiler adds the opaque HttpStream type and closed ordinary/async transport
 grants; VM scheduling reuses libcurl polling. No bytecode format change.
+
+The typed digest/gzip batch refreshes the v9 seed to
+`7a2b1fe262f3cf83021d4edb0f9055b3398fc0ab68c5ab50b4f92e65cd21d7dd`.
+Stages 2–4 agree. The stdlib conformance artifact remains
+`49fd630f84c62a042c96c9b76864d040d69237f641da8063be1d3f74ff2e4a50`.
+The compiler adds opaque Sha256Context/GzipDecoder types, bounded pure hashing and
+closed ordinary/async primitive grants. No bytecode format change is needed.

@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Review typed raw HTTP stream wrappers and closed compiler capability declarations.",
+    "reason": "Review typed digest and gzip adapters and compiler grants against the production declaration inventory.",
     "basis": "Computed with the production parser and inventory_module over every eligible source. Only imports, type refinements, records and enums are excluded; executable functions remain eligible.",
-    "scopeChange": "Two streaming HTTP modules are explicitly unmeasured and covered by focused source/bytecode and lifecycle tests. Eligible paths and execution corpus are unchanged; this is not a coverage collection."
+    "scopeChange": "Four CPU resource modules are explicitly unmeasured. Focused tests cover their behavior; this is not a coverage collection. Eligible paths and execution corpus are unchanged."
   },
-  "manifestHash": "bef698606ed26a1c2255fe8c4c62a7a16e93778907dc89011628ad67a442a3c3",
-  "exclusionHash": "572329748c28e0036a02fb6b8b6f0533feff5f6e6396ec7f7b18d845ecabd30b"
+  "manifestHash": "6640ce129f586673700837aa458772f7f5789493ce2bca40d02baeef666875e7",
+  "exclusionHash": "d979225b9354d8c41fc3722ea388a6a9f2861b7c4219e3a75be500d6b1a76f8c"
 }

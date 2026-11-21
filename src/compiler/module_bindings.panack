@@ -39,7 +39,7 @@ pub pure builtin_owner_arity(name: Str): Option[Nat] {
   else if name == "Map" || name == "HttpServerState" || name == "HttpConnectionState" { Some(2) }
   else if name == "Nat" || name == "Int" || name == "Dec" || name == "Rat" ||
       name == "Bool" || name == "Unit" || name == "Str" || name == "Bytes" ||
-      name == "Path" || name == "Duration" || name == "Instant" || name == "HttpResponseState" || name == "HttpStream" || name == "DirectoryStage" { Some(0) }
+      name == "Path" || name == "Duration" || name == "Instant" || name == "HttpResponseState" || name == "Sha256Context" || name == "GzipDecoder" || name == "HttpStream" || name == "DirectoryStage" { Some(0) }
   else { None() }
 }
 
@@ -227,7 +227,7 @@ pub pure module_reserved_binding(name: Str): Bool {
     name == "Str" ||
     name == "Bytes" ||
     name == "Unit" ||
-    name == "HttpServerState" || name == "HttpConnectionState" || name == "HttpResponseState" || name == "HttpStream" || name == "DirectoryStage" ||
+    name == "HttpServerState" || name == "HttpConnectionState" || name == "HttpResponseState" || name == "Sha256Context" || name == "GzipDecoder" || name == "HttpStream" || name == "DirectoryStage" ||
     name == "Void" || name == "Path" || name == "Duration" || name == "Instant" ||
     name == "Option" || name == "Result" || name == "Map" || name == "Set" ||
     name == "PureFn" || name == "Fn" || name == "AsyncFn" ||
@@ -524,6 +524,21 @@ pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool 
     (owner.module.path == "network/http_stream/async.panack" && owner.name == "read" && name == "http_stream_read_async") ||
     (owner.module.path == "network/http_stream.panack" && owner.name == "close" && name == "http_stream_close_typed") ||
     (owner.module.path == "network/http_stream/async.panack" && owner.name == "close" && name == "http_stream_close_async") ||
+    (owner.module.path == "digest/sha256.panack" && owner.name == "create" && name == "sha256_create") ||
+    (owner.module.path == "digest/sha256/async.panack" && owner.name == "create" && name == "sha256_create_async") ||
+    (owner.module.path == "digest/sha256.panack" && owner.name == "update" && name == "sha256_update") ||
+    (owner.module.path == "digest/sha256/async.panack" && owner.name == "update" && name == "sha256_update_async") ||
+    (owner.module.path == "digest/sha256.panack" && owner.name == "finish" && name == "sha256_finish") ||
+    (owner.module.path == "digest/sha256/async.panack" && owner.name == "finish" && name == "sha256_finish_async") ||
+    (owner.module.path == "digest/sha256.panack" && owner.name == "close" && name == "sha256_close") ||
+    (owner.module.path == "digest/sha256/async.panack" && owner.name == "close" && name == "sha256_close_async") ||
+    (owner.module.path == "compression/gzip.panack" && owner.name == "create_decoder" && name == "gzip_decoder_create") ||
+    (owner.module.path == "compression/gzip/async.panack" && owner.name == "create_decoder" && name == "gzip_decoder_create_async") ||
+    (owner.module.path == "compression/gzip.panack" && owner.name == "decode_chunk" && name == "gzip_decoder_decode") ||
+    (owner.module.path == "compression/gzip/async.panack" && owner.name == "decode_chunk" && name == "gzip_decoder_decode_async") ||
+    (owner.module.path == "compression/gzip.panack" && owner.name == "close" && name == "gzip_decoder_close") ||
+    (owner.module.path == "compression/gzip/async.panack" && owner.name == "close" && name == "gzip_decoder_close_async") ||
+    (owner.module.path == "digest/sha256.panack" && owner.name == "hash" && name == "sha256_hash") ||
     (owner.module.path == "http_stream.panack" && owner.name == "open" && name == "http_stream_open") ||
     (owner.module.path == "http_stream.panack" && owner.name == "read" && name == "http_stream_read") ||
     (owner.module.path == "http_stream.panack" && owner.name == "close" && name == "http_stream_close") ||
@@ -602,6 +617,10 @@ pub pure module_internal_primitive_name(identity: ModuleIdentity, name: Str): Bo
     (identity.path == "digest.panack" && (name == "digest_sha256_open" || name == "digest_update" || name == "digest_finish" || name == "digest_close")) ||
     (identity.path == "network/http_stream.panack" && (name == "http_stream_open_typed" || name == "http_stream_read_typed" || name == "http_stream_close_typed")) ||
     (identity.path == "network/http_stream/async.panack" && (name == "http_stream_open_async" || name == "http_stream_read_async" || name == "http_stream_close_async")) ||
+    (identity.path == "digest/sha256.panack" && (name == "sha256_create" || name == "sha256_update" || name == "sha256_finish" || name == "sha256_close" || name == "sha256_hash")) ||
+    (identity.path == "digest/sha256/async.panack" && (name == "sha256_create_async" || name == "sha256_update_async" || name == "sha256_finish_async" || name == "sha256_close_async")) ||
+    (identity.path == "compression/gzip.panack" && (name == "gzip_decoder_create" || name == "gzip_decoder_decode" || name == "gzip_decoder_close")) ||
+    (identity.path == "compression/gzip/async.panack" && (name == "gzip_decoder_create_async" || name == "gzip_decoder_decode_async" || name == "gzip_decoder_close_async")) ||
     (identity.path == "http_stream.panack" && (name == "http_stream_open" || name == "http_stream_read" || name == "http_stream_close")) ||
     (identity.path == "gzip.panack" && (name == "gzip_open" || name == "gzip_step" || name == "gzip_close")) ||
     (identity.path == "filesystem/confined.panack" && name == "fs_root_identity") ||

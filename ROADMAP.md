@@ -185,6 +185,8 @@ Digest/gzip domain errors pass focused ordinary/async category, context, renderi
 
 HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibility checks, final local make check (685s, 21 November), and relocated-install real TLS source/bytecode acceptance. Compiler seed and unchanged-program bytecode artifacts remain unchanged. Integration remains pending and development CI stays off. TCP domain errors and high-level HTTP package migration remain outstanding.
 
+TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. An additional disassembly check remains blocked by a pre-existing http_body arity-table mismatch, reproduced with the legacy client and previous package manifest. Compiler seed and unchanged-program oracle artifacts remain unchanged. Integration remains pending and development CI stays off.
+
 **Next available roadmap identifier: RM#163.**
 
 ## Example inventory preflight — 2026-10-20
@@ -668,3 +670,8 @@ release allocation; see the linked record for scope and acceptance.
 <a id="rm-83"></a> [rm-83](docs/roadmap/records/change-panackelty-syntax--complete.md#rm-83)
 
 </details>
+
+RM#162 next acceptance repair: reconcile the self-hosted disassembler's HTTP
+builtin arity table with the native VM. Relocated source/bytecode execution passes,
+but disassembly reports `http_body` invalid arity. The unchanged legacy client
+and previous HTTP manifest reproduce it; this is not introduced by client/async.

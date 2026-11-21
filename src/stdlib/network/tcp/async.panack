@@ -1,3 +1,6 @@
+import stdlib/network/tcp/errors as errors
+pub import stdlib/network/tcp/errors::{TcpError, TcpErrorKind, TcpOperation}
+import stdlib/network/tcp/errors::{TcpOperation.Exchange, TcpOperation.ServeBounded, TcpOperation.ServeStream, TcpOperation.Serve, TcpOperation.ReadChunk}
 import stdlib/tcp as legacy
 import stdlib/tcp_service as service
 pub import stdlib/tcp_service::{TcpServiceReady, TcpServiceSummary}
@@ -49,37 +52,37 @@ pure service_limits(limits: TcpServiceLimits): Result[service.TcpServiceLimits,S
 }
 
 pub async exchange(address: Str, port: Nat, request: Bytes, response_limit: Nat,
-  timeout: Duration): Result[Bytes,Str] {
-  match milliseconds(timeout, "timeout", false) {
+  timeout: Duration): Result[Bytes,TcpError] {
+  match errors.configuration(milliseconds(timeout, "timeout", false), Exchange(address,port,timeout,response_limit)) {
     Error(problem) => Error(problem),
-    Ok(timeout_ms) => await legacy.exchange(address, port, request, response_limit, timeout_ms)
+    Ok(timeout_ms) => errors.convert(await legacy.exchange(address, port, request, response_limit, timeout_ms), Exchange(address,port,timeout,response_limit))
   }
 }
 
 pub async serve_bounded(address: Str, port: Nat, handler: AsyncFn[Bytes,Result[Bytes,Str]],
-  limits: TcpServerLimits): Result[[Result[Unit,Str]],Str] {
-  match bounded_limits(limits) {
+  limits: TcpServerLimits): Result[[Result[Unit,TcpError]],TcpError] {
+  match errors.configuration(bounded_limits(limits),ServeBounded(address,port)) {
     Error(problem) => Error(problem),
-    Ok(native) => await legacy.serve(address, port, handler, native)
+    Ok(native) => errors.outcomes(await legacy.serve(address, port, handler, native),ServeBounded(address,port))
   }
 }
 
 // Finite streaming server: clients and admission timeout remain bounded.
 pub async serve_stream[T](address: Str, port: Nat, worker: AsyncFn[T,Result[Bytes,Str]],
-  context: T, limits: TcpServerLimits): Result[[Result[Unit,Str]],Str] {
-  match bounded_limits(limits) {
+  context: T, limits: TcpServerLimits): Result[[Result[Unit,TcpError]],TcpError] {
+  match errors.configuration(bounded_limits(limits),ServeStream(address,port)) {
     Error(problem) => Error(problem),
-    Ok(native) => await legacy.serve_stream(address, port, worker, context, native)
+    Ok(native) => errors.outcomes(await legacy.serve_stream(address, port, worker, context, native),ServeStream(address,port))
   }
 }
 
 pub async serve[T](address: Str, port: Nat, worker: AsyncFn[T,Result[Bytes,Str]],
   context: T, limits: TcpServiceLimits,
-  ready: AsyncFn[TcpServiceReady,Result[Unit,Str]]): Result[TcpServiceSummary,Str] {
-  match service_limits(limits) {
+  ready: AsyncFn[TcpServiceReady,Result[Unit,Str]]): Result[TcpServiceSummary,TcpError] {
+  match errors.configuration(service_limits(limits),Serve(address,port)) {
     Error(problem) => Error(problem),
-    Ok(native) => await service.serve(address, port, worker, context, native, ready)
+    Ok(native) => errors.convert(await service.serve(address, port, worker, context, native, ready),Serve(address,port))
   }
 }
 
-pub async read_chunk(limit: Nat): Result[Bytes,Str] { await legacy.read_chunk(limit) }
+pub async read_chunk(limit: Nat): Result[Bytes,TcpError] { errors.convert(await legacy.read_chunk(limit),ReadChunk(limit)) }

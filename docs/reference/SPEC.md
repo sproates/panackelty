@@ -1953,3 +1953,9 @@ Legacy numeric adapters and pure hash semantics remain unchanged.
 Canonical raw HTTP streams return the shared HttpStreamError domain type. Native libcurl connection/read/write diagnostics are retained on typed streams without changing the v9 bytecode or intrinsic signatures. See [domain error contract](../design/STDLIB_DOMAIN_ERRORS.md#http-streams) for lifecycle and compatibility.
 
 HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibility checks, final local make check (685s, 21 November), and relocated-install real TLS source/bytecode acceptance. Compiler seed and unchanged-program bytecode artifacts remain unchanged. Integration remains pending and development CI stays off.
+
+## TCP and diagnostic HTTP client (21 November 2026)
+
+Canonical async TCP operations return TcpError and finite-server client results use ClientFailure when native/handler provenance is unavailable. The optional HTTP client/async export returns HttpClientError with typed transport details. See [domain errors](../design/STDLIB_DOMAIN_ERRORS.md#tcp-operations). No compiler, intrinsic or bytecode change is required.
+
+TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. An additional disassembly check remains blocked by a pre-existing http_body arity-table mismatch, reproduced with the legacy client and previous package manifest. Compiler seed and unchanged-program oracle artifacts remain unchanged. Integration remains pending and development CI stays off.

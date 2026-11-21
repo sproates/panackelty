@@ -796,3 +796,9 @@ seed and existing bytecode oracles remain unchanged. Focused ordinary/async sour
 HTTP stream domain errors require only stdlib adapters and a native transport diagnostic buffer; existing intrinsic signatures, compiler seed and bytecode oracle artifacts remain unchanged.
 
 HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibility checks, final local make check (685s, 21 November), and relocated-install real TLS source/bytecode acceptance. Compiler seed and unchanged-program bytecode artifacts remain unchanged. Integration remains pending and development CI stays off.
+
+## TCP and diagnostic HTTP client (21 November 2026)
+
+TCP domain errors and the diagnostic HTTP package client use existing compiler/VM capabilities; the compiler seed and unchanged-program oracle artifacts remain unchanged.
+
+TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. An additional disassembly check remains blocked by a pre-existing http_body arity-table mismatch, reproduced with the legacy client and previous package manifest. Compiler seed and unchanged-program oracle artifacts remain unchanged. Integration remains pending and development CI stays off.

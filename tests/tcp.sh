@@ -9,7 +9,9 @@ cleanup() {
 }
 trap cleanup 0
 trap 'exit 1' HUP INT TERM
-for mode in echo empty example limit stall refuse; do
+modes="echo empty example limit stall refuse"
+if [ "${PANACK_TCP_CANONICAL_ERRORS:-0}" = 1 ]; then modes="limit stall refuse"; fi
+for mode in $modes; do
     fixture=$mode
     [ "$mode" != empty ] || fixture=echo
     [ "$mode" != example ] || fixture=echo
@@ -31,18 +33,30 @@ for mode in echo empty example limit stall refuse; do
         stall) timeout=30; expected='Ok(data) => expect(false), Error(problem) => expect(problem == "TCP timed out")' ;;
         refuse) expected='Ok(data) => expect(false), Error(problem) => expect(problem == "TCP connect failed")' ;;
     esac
+    tcp_module=stdlib/tcp; error_type=Str; timeout_argument=$timeout
+    if [ "${PANACK_TCP_CANONICAL_ERRORS:-0}" = 1 ]; then
+        tcp_module=stdlib/network/tcp/async; error_type=transport_tcp.TcpError
+        timeout_argument="time.milliseconds($timeout)"
+        case "$mode" in
+            limit) category=ResponseLimitExceeded ;;
+            stall) category=TimedOut ;;
+            refuse) category=ConnectFailed ;;
+        esac
+        expected="Ok(data) => expect(false), Error(problem) => { expect(problem.kind == transport_tcp.TcpErrorKind.$category()); expect(problem.render().starts_with_at(\"Cannot exchange TCP bytes with\",0)) }"
+    fi
     request_source='"hello".encode_utf8().push(0)'
     [ "$mode" != empty ] || request_source='bytes()'
     cat > "$work/main.panack" <<SOURCE
-import stdlib/tcp as transport_tcp
+import $tcp_module as transport_tcp
+import stdlib/time as time
 pure expect(value: Bool): Unit { checked = [0][if value { 0 } else { 1 }]; () }
-async exchange(request: Bytes): Result[Bytes,Str] {
-  await transport_tcp.exchange("127.0.0.1", $port, request, $limit, $timeout)
+async exchange(request: Bytes): Result[Bytes,$error_type] {
+  await transport_tcp.exchange("127.0.0.1", $port, request, $limit, $timeout_argument)
 }
 async main(): Unit {
   mut request: Bytes = $request_source
   for i in 0..12 { request = request.join(request) }
-  operation: AsyncFn[Bytes,Result[Bytes,Str]] = @exchange
+  operation: AsyncFn[Bytes,Result[Bytes,$error_type]] = @exchange
   match await operation.call(request) { $expected }
   ()
 }

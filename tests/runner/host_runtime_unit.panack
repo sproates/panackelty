@@ -1,3 +1,4 @@
+import stdlib/network/tcp/errors as tcp_errors
 import stdlib/network/http_stream/errors as http_errors
 import stdlib/network/http_stream/errors::{HttpStreamOperation.Read, HttpStreamErrorKind.TlsVerificationFailed, HttpStreamErrorKind.OtherFailure as HttpOtherFailure}
 import stdlib/digest/sha256/errors as digest_errors
@@ -331,7 +332,7 @@ main(): Void {
   match std_testing_files.workspace_create(host_path("/tmp")) {
     Error(problem) => { std_host.stderr("host test workspace failed: " + problem.code); std_host.exit(1) },
     Ok(workspace) => {
-      mut results = host_direct(workspace).concat(host_paths()).concat(resource_error_mapping_tests()).concat(http_error_mapping_tests())
+      mut results = host_direct(workspace).concat(host_paths()).concat(resource_error_mapping_tests()).concat(http_error_mapping_tests()).concat(tcp_error_mapping_tests())
       results = results.append(host_fixture("testing report order and empty case", "library_reports", [], [],
         ProcessOutput(0, 0, "tests: 0, failures: 0\n0\nFAIL first: reason\nPASS second\ntests: 2, failures: 1\n1\n".encode_utf8(), byte_buffer.empty())))
       results = results.append(host_fixture("testing command comparison", "library_commands", [], [],
@@ -430,5 +431,19 @@ pure http_error_mapping_tests(): [TestResult] {
       Ok(_) => false, Error(problem) => problem.kind == HttpOtherFailure()
     }, "unknown native failure incorrectly classified"),
     std_testing.expect("HTTP preserves success", http_errors.convert[Nat](Ok(42),Read()) == Ok(42), "successful value changed")
+  ]
+}
+
+pure tcp_error_mapping_tests(): [TestResult] {
+  unknown = tcp_errors.convert[Unit](Error("future TCP failure"),tcp_errors.TcpOperation.ReadChunk(10))
+  callback = tcp_errors.outcomes(Ok([Error("TCP timed out")]),tcp_errors.TcpOperation.ServeBounded("127.0.0.1",1))
+  [
+    std_testing.expect("TCP preserves unknown detail", match unknown { Ok(_) => false,
+      Error(problem) => problem.kind == tcp_errors.TcpErrorKind.OtherFailure() && problem.native == "future TCP failure"
+    }, "unknown TCP failure misclassified"),
+    std_testing.expect("TCP client result cannot impersonate native timeout", match callback { Error(_) => false,
+      Ok(values) => match values[0] { Ok(_) => false, Error(problem) => problem.kind == tcp_errors.TcpErrorKind.ClientFailure() && problem.native == "TCP timed out" }
+    }, "ambiguous callback text classified as native timeout"),
+    std_testing.expect("TCP preserves successful values", tcp_errors.convert[Nat](Ok(42),tcp_errors.TcpOperation.ReadChunk(10)) == Ok(42), "success changed")
   ]
 }

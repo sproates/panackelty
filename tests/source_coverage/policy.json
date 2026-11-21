@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Review HTTP stream domain errors against production declaration inventory.",
+    "reason": "Review TCP domain error module against production declaration inventory.",
     "basis": "Computed with the production parser and inventory_module over every eligible source. Only imports, type refinements, records and enums are excluded; executable functions remain eligible.",
-    "scopeChange": "HTTP error module explicitly unmeasured; focused TLS and source/bytecode tests added. Eligible paths and corpus unchanged."
+    "scopeChange": "New TCP error module explicitly unmeasured; focused unit and loopback fixtures cover behavior. Existing eligible scope unchanged."
   },
-  "manifestHash": "d2e9982c567d2217dd2c93aebc9a088bff768c1221698aa267a6b4743f020a0a",
+  "manifestHash": "a9b706aa4dda2cb6304b8717dfa6812c6de3321fcd37aa34abcae19d12360951",
   "exclusionHash": "72ce6e8053e56bff6f8520320e0f8fb13e2c6c286bd2d503efb00504294dc5fc"
 }

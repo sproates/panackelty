@@ -10,14 +10,14 @@ re-export their error type and kind; the corresponding errors module owns the
 record, enum, pure conversion and render method. Callers can inspect kind without
 parsing a message, and can use render() for a complete human-readable explanation.
 For host-backed APIs, the native field retains the original HostError unchanged:
-operation, code and native_code. HTTP streams retain their native transport Str,
+operation, code and native_code. HTTP streams and TCP retain their native transport Str,
 including available libcurl detail, as specified below. Unknown codes map to OtherFailure; they are not silently relabelled
 as a specific known cause. Native numeric errors remain available, not guessed
 from platform-specific errno values. Render appends a nonzero host error number.
 
 Console, sleep, process, filesystem, SHA-256 and gzip errors are implemented in Panack. Native ABI,
 worker ownership, limits, cancellation and successful result values do not change.
-Canonical HTTP stream errors preserve detailed TLS causes; TCP errors and high-level HTTP package migration remain separate acceptance work.
+Canonical HTTP stream errors preserve detailed TLS causes; TCP errors and the opt-in high-level HTTP async client are specified below.
 
 ## Console
 
@@ -361,3 +361,73 @@ untrusted CA in ordinary/async source and saved-bytecode modes. They verify that
 the two failure causes produce distinct native details without pinning backend
 wording. Pure tests check unknown-prefix safety, native preservation and success.
 HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibility checks, final local make check (685s, 21 November), and relocated-install real TLS source/bytecode acceptance. Compiler seed and unchanged-program bytecode artifacts remain unchanged. Integration remains pending and development CI stays off.
+
+## TCP operations
+
+network/tcp/async returns TcpError with operation, kind and native (the original
+runtime Str). Operations retain exchange address/port/deadline/response limit,
+server address/port, or the chunk-read limit. Invalid Duration configuration is
+reported as InvalidDuration before network admission; the native text names the
+field and its supported whole-millisecond range. Legacy tcp/tcp_service contracts
+remain unchanged. Handler and readiness callbacks still return Result[...,Str].
+
+Exchange and bounded-server setup distinguish invalid arguments/address, timeout,
+connection/socket/bind/listen/accept/read/write/shutdown/poll/clock failures,
+peer closure, byte limits, unavailable host and unknown failure. Unknown text
+remains OtherFailure. Native errno is not provided by this runtime; the adapter
+does not claim otherwise or infer a missing port/permission cause.
+
+Finite-server client outcomes are Result[Unit,TcpError] with ClientFailure on
+failure. The native runtime mixes handler-returned strings with client transport
+strings, so these are not classified by their text. Continuous-service failures
+similarly use ServiceOrCallbackFailure because readiness callbacks can supply the
+same text as a native failure. Tests deliberately return “TCP server bind failed”
+from a readiness callback and “TCP timed out” as a client result to verify no
+false native classification. Improving that distinction requires native provenance
+and is not secretly supplied by a string-matching heuristic.
+
+When forwarding read_chunk errors from a callback whose contract is Str, use
+problem.render() for explanation or problem.native for exact legacy text. Domain
+errors retain no request/response contents. Server summaries and successful values
+remain unchanged. No synchronous TCP server is introduced.
+
+## High-level HTTP diagnostic client
+
+The HTTP package additionally exports http/client/async, with get and
+get_with_limits and the existing ClientLimits/Response types. Results carry
+HttpClientError: kind is the existing HttpError, transport is an optional
+HttpStreamError, and endpoint is an optional scheme/host/port string. The endpoint
+excludes path, query, userinfo and request headers. Invalid URLs/configuration do
+not cause network I/O. render() includes the endpoint when known and the detailed
+transport explanation, or the parser/configuration explanation when no transport
+failure occurred. Applications can inspect kind without parsing native text.
+
+This client uses typed async streams, closes its handle on success or error, and
+inherits cancellation invalidation while a read is pending. Response accumulation
+remains bounded to 16 MiB. Chunks use binary-carry assembly with at most 25 slots, avoiding both a full-prefix
+copy on every read and an unbounded list of one-byte chunks. Existing response framing/parsing and ClientLimits semantics
+are reused. The typed transport also limits request bytes to 65536; an oversized
+request is reported with its original InvalidArguments transport category.
+
+The released http/client, http/stream and HttpError contracts are retained. The
+blocking streaming client and package manager remain compatibility consumers;
+they do not acquire detailed TLS errors simply because the new module exists.
+This is an opt-in migration path, not a claim that every legacy consumer has
+migrated. Migration guidance and the public examples/reference remain explicit
+follow-up work. Replacing every legacy consumer is not an alpha.16 acceptance
+requirement; compatibility APIs deliberately remain available. New code can import http/client/async as http without introducing
+getAsync-style names.
+
+TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. An additional disassembly check remains blocked by a pre-existing http_body arity-table mismatch, reproduced with the legacy client and previous package manifest. Compiler seed and unchanged-program oracle artifacts remain unchanged. Integration remains pending and development CI stays off.
+
+### Known disassembler parity gap
+
+The relocated diagnostic client runs as source and saved bytecode, but the extra
+`panack disasm` check reports `bytecode call to http_body has invalid arity`.
+The same failure was reproduced with the unchanged legacy client, the previous
+HTTP manifest and the unchanged compiler seed. The native VM accepts and runs
+both artifacts. `src/bytecode/decoder.panack` uses the compiler's builtin arity
+table, which does not match the native HTTP builtin table for this case. This is
+an existing inspection-tool limitation, not a claimed passing acceptance check.
+The next bounded repair is to reconcile the HTTP builtin arities and add a
+package-bytecode disassembly regression before integration acceptance.

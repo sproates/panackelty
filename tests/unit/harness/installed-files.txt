@@ -5,6 +5,8 @@ libexec/panackelty/panack-vm
 packages/http/README.md
 packages/http/panack.json
 packages/http/src/client.panack
+packages/http/src/client_async.panack
+packages/http/src/client_errors.panack
 packages/http/src/parser.panack
 packages/http/src/parser_test.panack
 packages/http/src/request.panack
@@ -83,6 +85,7 @@ share/panackelty/stdlib/network/http_stream.panack
 share/panackelty/stdlib/network/http_stream/async.panack
 share/panackelty/stdlib/network/http_stream/errors.panack
 share/panackelty/stdlib/network/tcp/async.panack
+share/panackelty/stdlib/network/tcp/errors.panack
 share/panackelty/stdlib/package_filesystem.panack
 share/panackelty/stdlib/package_filesystem/async.panack
 share/panackelty/stdlib/path.panack

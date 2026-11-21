@@ -1384,3 +1384,5 @@ reference pages. Core integration/release prerequisites and publication permissi
 are unchanged.
 
 The existing alpha.16 stdlib follow-up also covers HttpStreamError: first-read connection failures, shared ordinary/async error kinds, preserved TLS details, explicit rendering and unchanged legacy/high-level HTTP APIs. Publish with the accepted core reference, not as a claim about alpha.15.
+
+The alpha.16 stdlib reference follow-up includes TcpError and the opt-in `http/client/async` diagnostic API, callback ambiguity and migration from legacy Str errors. The live alpha.15 HTTP guides must not claim these development APIs before release acceptance.

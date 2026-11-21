@@ -402,3 +402,9 @@ for categories, resource quotas and migration. Pure digest.hash is unchanged.
 Canonical network/http_stream and network/http_stream/async now return HttpStreamError; use kind for decisions, native for original transport/TLS details and render() for explanations. Network connection failures normally arrive on read, because open only creates the stream. The legacy http_stream module retains Result[...,Str].
 
 HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibility checks, final local make check (685s, 21 November), and relocated-install real TLS source/bytecode acceptance. Compiler seed and unchanged-program bytecode artifacts remain unchanged. Integration remains pending and development CI stays off.
+
+## TCP and diagnostic HTTP client (21 November 2026)
+
+network/tcp/async exports TcpError, TcpErrorKind and TcpOperation. TCP callbacks retain Str contracts; forward a read_chunk error using render() or native. Legacy tcp/tcp_service remain compatible. HTTP package users can select http/client/async for detailed transport diagnostics.
+
+TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. An additional disassembly check remains blocked by a pre-existing http_body arity-table mismatch, reproduced with the legacy client and previous package manifest. Compiler seed and unchanged-program oracle artifacts remain unchanged. Integration remains pending and development CI stays off.

@@ -138,3 +138,12 @@ It uses verified TLS for HTTPS and a deadline of at most 60 seconds per response
 It does not follow redirects or decompress bodies; callers own those policies.
 This blocking interface is intended for command-line consumers. The existing
 async buffered client retains its contract and limits.
+
+## Development: diagnostic async client
+
+The alpha.16 development branch exports `http/client/async`. Its `get` and
+`get_with_limits` return `HttpClientError` with the existing HTTP category,
+optional native transport details and endpoint context. Use `problem.render()`
+for a complete explanation. The released `http/client` and `http/stream` APIs
+remain compatible; choosing the new import is explicit. See the
+[error contract](../../docs/design/STDLIB_DOMAIN_ERRORS.md#high-level-http-diagnostic-client).

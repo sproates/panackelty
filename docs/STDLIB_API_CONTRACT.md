@@ -571,11 +571,11 @@ relative/root behaviour; it performs no filesystem access. Old names remain.
 
 Implemented in network/tcp/async, with the existing TCP runtime:
 
-- exchange(address,port,request,response_limit,timeout: Duration): Result[Bytes,Str].
-- serve_bounded(address,port,handler,limits: TcpServerLimits): Result[[Result[Unit,Str]],Str].
-- `serve_stream[T](address,port,worker,context,limits: TcpServerLimits): Result[[Result[Unit,Str]],Str]`. This remains a finite streaming server.
-- `serve[T](address,port,worker,context,limits: TcpServiceLimits,ready): Result[TcpServiceSummary,Str]`. This is continuous serving, with existing readiness/signal/drain behaviour.
-- read_chunk(limit: Nat): Result[Bytes,Str], usable only in the existing streaming-server child context.
+- exchange(address,port,request,response_limit,timeout: Duration): Result[Bytes,TcpError].
+- serve_bounded(address,port,handler,limits: TcpServerLimits): Result[[Result[Unit,TcpError]],TcpError].
+- `serve_stream[T](address,port,worker,context,limits: TcpServerLimits): Result[[Result[Unit,TcpError]],TcpError]`. This remains a finite streaming server.
+- `serve[T](address,port,worker,context,limits: TcpServiceLimits,ready): Result[TcpServiceSummary,TcpError]`. This is continuous serving, with existing readiness/signal/drain behaviour.
+- read_chunk(limit: Nat): Result[Bytes,TcpError], usable only in the existing streaming-server child context.
 
 TcpServerLimits fields are clients, concurrency, request_limit, response_limit
 (all Nat), client_timeout, admission_timeout and drain (all Duration).
@@ -594,8 +594,7 @@ work. Existing IPv4-only addressing, byte/concurrency/client limits, result shap
 error strings and invocation ownership remain. No synchronous server is added.
 
 Duration.as_nanoseconds() and is_less_than(right) now preserve ticks() and
-is_before(right) respectively; compatibility methods remain. TCP error types are
-still Str until the explicit domain-error delivery.
+is_before(right) respectively; compatibility methods remain. TCP error types now follow the domain-error contract below.
 
 ## Bounded console input (21 November 2026)
 
@@ -677,3 +676,9 @@ native limitations, retry/lifetime guidance and legacy migration. Focused ordina
 Canonical network/http_stream and /async return HttpStreamError. Open errors retain host/port/TLS/limit/timeout context; first-read transport failures retain available bounded libcurl detail. Legacy numeric transport strings and high-level HTTP package signatures remain unchanged. See [domain errors](design/STDLIB_DOMAIN_ERRORS.md#http-streams).
 
 HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibility checks, final local make check (685s, 21 November), and relocated-install real TLS source/bytecode acceptance. Compiler seed and unchanged-program bytecode artifacts remain unchanged. Integration remains pending and development CI stays off.
+
+## TCP and diagnostic HTTP client (21 November 2026)
+
+network/tcp/async now returns TcpError, including typed finite-server client outcomes. The HTTP package exports client/async with get/get_with_limits returning HttpClientError, preserving the original HttpError category, optional detailed transport error and safe endpoint context. See [network error contracts](design/STDLIB_DOMAIN_ERRORS.md#tcp-operations). Legacy modules and high-level client/stream contracts remain available.
+
+TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. An additional disassembly check remains blocked by a pre-existing http_body arity-table mismatch, reproduced with the legacy client and previous package manifest. Compiler seed and unchanged-program oracle artifacts remain unchanged. Integration remains pending and development CI stays off.

@@ -23,7 +23,7 @@ import stdlib/time as time
 import stdlib/bytes as byte_buffer
 pure expect(ok: Bool): Unit { n = [0][if ok { 0 } else { 1 }]; () }
 async reply(data: Bytes): Result[Bytes,Str] { Ok(data) }
-async worker(limit: Nat): Result[Bytes,Str] { await tcp.read_chunk(limit) }
+async worker(limit: Nat): Result[Bytes,Str] { match await tcp.read_chunk(limit) { Ok(data) => Ok(data), Error(problem) => Error(problem.native) } }
 async ready(info: tcp.TcpServiceReady): Result[Unit,Str] { Ok(()) }
 async main(): Unit {
   expect(time.milliseconds(2).as_nanoseconds() == time.milliseconds(2).ticks())
@@ -31,28 +31,28 @@ async main(): Unit {
   expect(!time.seconds(1).is_less_than(time.seconds(1)))
   for invalid in [time.nanoseconds(-1), time.seconds(0), time.nanoseconds(1), time.nanoseconds(1000001), time.seconds(61)] {
     match await tcp.exchange("invalid", 0, byte_buffer.empty(), 1, invalid) {
-      Error(problem) => expect(problem.starts_with_at("TCP timeout must be",0)), Ok(_) => expect(false)
+      Error(problem) => expect(problem.native.starts_with_at("TCP timeout must be",0)), Ok(_) => expect(false)
     }
     limits = tcp.TcpServerLimits(1,1,1,1,invalid,time.seconds(1),time.seconds(0))
     match await tcp.serve_bounded("invalid",0,@reply,limits) {
-      Error(problem) => expect(problem.starts_with_at("TCP client_timeout must be",0)), Ok(_) => expect(false)
+      Error(problem) => expect(problem.native.starts_with_at("TCP client_timeout must be",0)), Ok(_) => expect(false)
     }
     limits2 = tcp.TcpServerLimits(1,1,1,1,time.seconds(1),invalid,time.seconds(0))
     match await tcp.serve_stream("invalid",0,@worker,1,limits2) {
-      Error(problem) => expect(problem.starts_with_at("TCP admission_timeout must be",0)), Ok(_) => expect(false)
+      Error(problem) => expect(problem.native.starts_with_at("TCP admission_timeout must be",0)), Ok(_) => expect(false)
     }
   }
   for valid in [time.milliseconds(1), time.seconds(60)] {
     result = await tcp.exchange("invalid",1,byte_buffer.empty(),1,valid)
-    expect(result == Error("invalid IPv4 address"))
+    expect(match result { Error(problem) => problem.native == "invalid IPv4 address", Ok(_) => false })
     limits = tcp.TcpServerLimits(1,1,1,1,valid,valid,time.seconds(0))
     report = await tcp.serve_bounded("invalid",1,@reply,limits)
-    expect(report == Error("invalid IPv4 address"))
+    expect(match report { Error(problem) => problem.native == "invalid IPv4 address", Ok(_) => false })
   }
   for invalid in [time.nanoseconds(-1), time.nanoseconds(1), time.seconds(61)] {
     limits = tcp.TcpServiceLimits(1,1,1,time.seconds(1),invalid)
     match await tcp.serve("invalid",0,@worker,1,limits,@ready) {
-      Error(problem) => expect(problem.starts_with_at("TCP drain must be",0)), Ok(_) => expect(false)
+      Error(problem) => expect(problem.native.starts_with_at("TCP drain must be",0)), Ok(_) => expect(false)
     }
   }
   ()
@@ -101,7 +101,7 @@ import stdlib/network/tcp/async as tcp
 import stdlib/time as time
 pure expect(ok: Bool): Unit { n = [0][if ok { 0 } else { 1 }]; () }
 async reply(data: Bytes): Result[Bytes,Str] { Ok(data) }
-async worker(limit: Nat): Result[Bytes,Str] { await tcp.read_chunk(limit) }
+async worker(limit: Nat): Result[Bytes,Str] { match await tcp.read_chunk(limit) { Ok(data) => Ok(data), Error(problem) => Error(problem.native) } }
 async ready(info: tcp.TcpServiceReady): Result[Unit,Str] { expect(info.port == PORT); Ok(()) }
 async main(): Unit { $call; () }
 SOURCE
@@ -129,3 +129,23 @@ if "$command" check "$work/wrong-timeout.panack" > "$work/type-error" 2>&1; then
 fi
 grep -q Duration "$work/type-error"
 printf '%s\n' 'Canonical TCP exchange, finite/streaming/continuous servers and duration validation passed in source/bytecode modes.'
+# Readiness callbacks can return the same text as a native failure. Do not guess.
+port=$("$client" port)
+cat > "$work/readiness.panack" <<SOURCE
+import stdlib/network/tcp/async as tcp
+import stdlib/time as time
+async worker(value: Nat): Result[Bytes,Str] { Ok(bytes()) }
+async ready(info: tcp.TcpServiceReady): Result[Unit,Str] { Error("TCP server bind failed") }
+pure expect(ok: Bool): Unit { check = [0][if ok { 0 } else { 1 }]; () }
+async main(): Unit {
+  result = await tcp.serve("127.0.0.1",$port,@worker,0,tcp.TcpServiceLimits(1,1,1,time.seconds(1),time.seconds(0)),@ready)
+  expect(match result {
+    Ok(_) => false,
+    Error(problem) => problem.kind == tcp.TcpErrorKind.ServiceOrCallbackFailure() && problem.native == "TCP server bind failed"
+  })
+}
+SOURCE
+"$command" run "$work/readiness.panack"
+"$command" compile "$work/readiness.panack" -o "$work/readiness.bc" > /dev/null
+"$command" run "$work/readiness.bc"
+printf '%s\n' 'TCP readiness callback text preserved without misclassification.'

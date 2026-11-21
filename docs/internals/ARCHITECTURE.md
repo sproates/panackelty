@@ -2079,3 +2079,14 @@ embedding API adds an explicit console-input grant and polling operation; the
 existing generic polling entry point routes input completions too. HTTP child
 creation does not grant stdin. VM destruction abandons pending input safely.
 The one reader slot remains occupied if an underlying host read has not returned.
+
+## Panack domain-error adapters
+
+console/errors, time/errors and process/errors own typed error records, pure
+classifiers and render methods. Canonical ordinary/async wrappers translate native
+Result errors through these modules; the native HostError record and worker ABI
+remain unchanged. Raw native detail is retained inside the domain record. Process
+errors copy paths and limits but not arguments, environment or input/output data.
+The test-process compatibility adapter unwraps native explicitly. No VM/compiler
+source or bytecode version change is involved. Successful calls add a small Panack
+result-conversion step; failure context and rendered text are built only as needed.

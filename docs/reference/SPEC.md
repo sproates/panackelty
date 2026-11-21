@@ -1207,7 +1207,7 @@ Both operations are native-only and return `unsupported` in the browser.
 
 Import `stdlib/process` for ordinary calls or `stdlib/process/async` for
 awaited calls with the same names. Both provide `arguments(): [Str]`,
-`exit(status: Nat): Unit` and `run(command: Command): Result[ProcessOutput,HostError]`.
+`exit(status: Nat): Unit` and `run(command: Command): Result[ProcessOutput,ProcessError]`.
 
 `Command` has these fields, in order: executable: Path, arguments: [Str],
 stdin: Bytes, working_directory: Path, environment: ProcessEnvironment,
@@ -1285,12 +1285,12 @@ sleep or process launch. Duration arithmetic itself remains arbitrary precision.
 System-suspension accounting follows the host clock and sleep implementations;
 no portable across-suspension deadline promise is made.
 
-The canonical blocking operation is also available as `time.sleep`, with
+The canonical blocking operation is `time.sleep`, returning Result[Unit,SleepError], with
 `host.sleep` retained for compatibility. `stdlib/time/async.sleep` has the same
 argument and result types, called with `await`. It suspends only the calling task
 until its monotonic deadline, allowing other handlers to progress. Zero completes
 immediately. Negative/oversized durations use the same errors; clock failures
-return a HostError with native detail. Cancellation discards the timer. No worker,
+return a SleepError preserving native detail. Cancellation discards the timer. No worker,
 child process or descriptor is retained for a pending timer. Expiry makes a task
 eligible to resume, not a guarantee that it runs at that exact instant.
 
@@ -1604,7 +1604,7 @@ Existing bounds, grants, worker ownership and cancellation rules are unchanged.
 
 `stdlib/console` and `stdlib/console/async` expose `write`, `write_line`,
 `write_error` and `write_error_line`. Each accepts Str and returns
-`Result[Unit,HostError]`; the async forms require `await`. Raw writes preserve
+`Result[Unit,ConsoleError]`; the async forms require `await`. Raw writes preserve
 exact message bytes, including embedded NUL. Line writes append exactly one LF,
 including when the message already ends in LF or is empty. Error variants use
 stderr; the others use stdout. All share the bounds, worker ownership and error
@@ -1838,7 +1838,7 @@ The old testing_files/testing_commands imports remain available.
 
 stdlib/testing/reporting and stdlib/testing/reporting/async share pure assertions
 and result types. Both report(results: [TestResult]) operations return
-Result[Nat,HostError]; the /async operation is awaited. Ok contains the count
+Result[Nat,ConsoleError]; the /async operation is awaited. Ok contains the count
 of failed tests; Error identifies the first checked output failure, after which
 no further lines are emitted. Output already written remains visible. Ordinary
 stdlib/testing.report continues returning Nat. Both preserve input order and the
@@ -1901,7 +1901,7 @@ Duration.as_nanoseconds and is_less_than alias ticks and is_before. See the
 ## Bounded console input
 
 stdlib/console.read(limit: Nat) and its awaited stdlib/console/async counterpart
-return Result[Option[Bytes],HostError]. Limits must be 1..65,536. Some carries a
+return Result[Option[Bytes],ConsoleError]. Limits must be 1..65,536. Some carries a
 nonempty chunk no longer than limit; None denotes EOF. Short reads are permitted;
 bytes, including carriage returns and invalid UTF-8, are preserved. Invalid limits
 consume no input. One process-wide outstanding read is permitted; overlap returns
@@ -1915,3 +1915,15 @@ by HTTP children. Legacy read_line shares the broker while retaining line/CR/EOF
 compatibility. WASI preserves synchronous legacy line input while the new API
 returns unsupported_host. See the [complete input contract](../STDLIB_API_CONTRACT.md#bounded-console-input-21-november-2026)
 for host errors and terminal behavior. Bytecode remains version 9.
+
+## Domain-specific console, sleep and process errors
+
+Canonical console operations, time.sleep and Command-based process.run use
+ConsoleError, SleepError and ProcessError respectively. Ordinary/async imports
+share the same records and kind enums. Each error preserves the underlying
+HostError in native and has a pure render() method. Unknown codes remain available
+under OtherFailure; callers need not parse explanatory text. Process errors retain
+paths and limits without retaining arguments, environment values, stdin or partial
+output. Nonzero process exits remain successful ProcessOutput values. Released
+host and positional legacy process APIs retain their old error contracts. See the
+[complete categories and migration](../design/STDLIB_DOMAIN_ERRORS.md).

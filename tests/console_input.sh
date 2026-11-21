@@ -15,7 +15,7 @@ import stdlib/bytes as byte_buffer
 pure expect(ok: Bool): Unit { n = [0][if ok { 0 } else { 1 }]; () }
 ASYNC main(): Unit {
   for limit in [0,65537] {
-    match AWAIT console.read(limit) { Error(problem) => expect(problem.code == "out_of_range"), Ok(_) => expect(false) }
+    match AWAIT console.read(limit) { Error(problem) => expect(problem.native.code == "out_of_range"), Ok(_) => expect(false) }
   }
   mut data = byte_buffer.empty()
   mut done = false
@@ -48,7 +48,7 @@ for mode in ordinary async; do
 import stdlib/console$suffix as console
 pure expect(ok: Bool): Unit { n = [0][if ok { 0 } else { 1 }]; () }
 $effect main(): Unit {
-  match $wait console.read(65536) { Error(problem) => expect(problem.code == "io_error"), Ok(_) => expect(false) }
+  match $wait console.read(65536) { Error(problem) => expect(problem.native.code == "io_error"), Ok(_) => expect(false) }
 }
 SOURCE
   panack compile "$work/errors.panack" -o "$work/errors.bc" > /dev/null
@@ -100,8 +100,8 @@ panack compile "$work/legacy.panack" -o "$work/legacy.bc" > /dev/null
 panack run "$work/legacy.bc" < "$work/lines"
 cat > "$work/pure.panack" <<'SOURCE'
 import stdlib/console as console
-import stdlib/host::{HostError}
-pure main(): Result[Option[Bytes],HostError] { console.read(1) }
+import stdlib/console::{ConsoleError}
+pure main(): Result[Option[Bytes],ConsoleError] { console.read(1) }
 SOURCE
 if panack check "$work/pure.panack" > "$work/rejection" 2>&1; then echo 'pure stdin read accepted' >&2; exit 1; fi
 grep -q 'pure function cannot call impure function' "$work/rejection"

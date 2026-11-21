@@ -2153,3 +2153,17 @@ Final local make check passed in 654s (21 November), including unit/functional,
 bootstrap, packaging and installed smoke. The exact packaged seed and console
 modules pass the complete fixtures after relocation, plus source, saved bytecode
 and disassembly from an unrelated directory without checkout overrides.
+
+## Console, sleep and process domain errors
+
+domain_errors.sh asserts typed categories, requested context, exact representative
+rendering, unknown-code/native-number preservation, zero versus elapsed timeout,
+negative/oversized timeouts, launch failures, output limits, invalid environments
+and successful nonzero exits. It runs ordinary and async source and saved bytecode,
+including shared-type annotations. Existing console, process, timer, HTTP-progress
+and testing-helper fixtures cover compatibility and effects. New error modules
+are explicitly unmeasured in source coverage. Final local make check passed in
+621s (21 November), with corrected installation inventory, packaging and installed
+smoke. The relocated toolchain passes the complete error fixture and unrelated-
+directory source/bytecode/disassembly checks. Ordinary and sanitizer oracle checks
+also pass; compiler seed bytes are unchanged.

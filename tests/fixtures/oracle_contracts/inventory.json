@@ -27,7 +27,7 @@
     "integer.stdout": "b76ed4198632a6466e759d15b4ba7968cb2395f81400e28e1ec0aead6c5b76cd",
     "rational.panack": "90083187fd0e85d3d5310517390ca796b8695206ec15ab7a75fde85349dd60d6",
     "rational.stdout": "0090c4a2f10d38441e3801b3a4aadd236f2475ae3921eb1092259161d052ae3a",
-    "stdlib.hex": "69c04c492f66c6fb67e6bf196c1f417786579b3e6bfdae3bbdb0c92f758e4de7"
+    "stdlib.hex": "11c42996a67255c406f75bd47acc9983cfd041d7ffbfd61149533535278d9147"
   },
   "artifact_updates": {
     "stdlib": {
@@ -77,6 +77,12 @@
       "reason": "Expose exact-environment process launch through the existing process module",
       "generator": "Fixed-point prerequisite seed, compared with previous independent artifact disassembly",
       "review": "Exactly one added function block: $module7_run_isolated loads its seven parameters, calls process_run_isolated with arity seven, and returns. Existing function instructions and expected stdout are unchanged."
+    },
+    "rm162-sleep-errors": {
+      "date": "2026-11-21",
+      "reason": "Canonical time.sleep returns a structured SleepError with duration context and rendering; host.sleep remains compatible.",
+      "generator": "Unchanged fixed-point v9 seed; old/new disassembly compared with imported-module index normalization.",
+      "review": "All 47 unaffected function blocks including main are identical after module-index normalization. Only time.sleep adds a result conversion; new blocks are SleepError.render, its converter and the already-existing Duration.as_nanoseconds method. Both old/new artifacts produce identical independent stdout. Compiler candidate remains byte-for-byte identical to the saved seed."
     }
   }
 }

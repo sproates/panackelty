@@ -20,11 +20,11 @@ pure command(script: Str, environment: ProcessEnvironment, timeout: Duration, li
   Command(path.from_text("/bin/sh").value_or(path.current()), ["-c", script], "input".encode_utf8(),
     path.current(), environment, timeout, limit)
 }
-pure output(result: Result[process.ProcessOutput,process.HostError]): process.ProcessOutput {
+pure output(result: Result[process.ProcessOutput,process.ProcessError]): process.ProcessOutput {
   match result { Ok(value) => value, Error(_) => { empty: [process.ProcessOutput] = []; empty[0] } }
 }
-pure failure(result: Result[process.ProcessOutput,process.HostError], code: Str): Unit {
-  match result { Ok(_) => expect(false), Error(problem) => expect(problem.code == code) }
+pure failure(result: Result[process.ProcessOutput,process.ProcessError], code: Str): Unit {
+  match result { Ok(_) => expect(false), Error(problem) => expect(problem.native.code == code) }
 }
 async main(): Unit {
   exact = ExactEnvironment([])

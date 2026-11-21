@@ -353,7 +353,7 @@ compatibility names.
 ### Bounded console input
 
 Import stdlib/console or stdlib/console/async for read(limit: Nat), returning
-Result[Option[Bytes],HostError]. Await the async variant. Limits are 1..65,536;
+Result[Option[Bytes],ConsoleError]. Await the async variant. Limits are 1..65,536;
 Some contains a nonempty chunk up to that size, and None means EOF. Short reads
 are normal. Bytes are unchanged, including NUL and non-UTF-8 data. Accumulate
 chunks before decoding text, since a character can span reads.
@@ -364,3 +364,13 @@ from a terminal normally waits for a line; this API does not change terminal
 modes. Legacy read_line remains ordinary and shares the same input buffer.
 See the [input contract](../../docs/STDLIB_API_CONTRACT.md#bounded-console-input-21-november-2026)
 for errors, embedding permission and cancellation limits.
+
+### Readable, structured errors
+
+Console operations return ConsoleError; time.sleep returns SleepError; the
+Command-based process.run returns ProcessError. Their async counterparts share
+those types. Inspect kind for stable categories, render() for an explanation and
+native for the original host details. Process errors retain executable, working
+directory and limits, not arguments or environment values. Nonzero process exits
+remain successful results. Existing host and process/legacy callers stay compatible.
+See the [error contract and migration](../../docs/design/STDLIB_DOMAIN_ERRORS.md).

@@ -8,6 +8,11 @@ concrete. Signature choices below are implementation recommendations under that
 direction, not claims about the released library. Changes with new semantics are
 identified explicitly rather than hidden inside a rename.
 
+Console, sleep and process domain-error migration is now implemented. The
+[domain-error contract](design/STDLIB_DOMAIN_ERRORS.md) defines categories, context,
+rendering and compatibility. Dated checkpoints below retain their historical
+validation evidence; this contract supersedes their provisional HostError results.
+
 ## Common rules
 
 - Ordinary and `/async` modules use identical operation names, arguments and
@@ -34,7 +39,7 @@ Ordinary owner `stdlib/time`; counterpart `stdlib/time/async`.
 | Signature | Effect/meaning |
 | --- | --- |
 | `now(): Result[Instant,ClockError]` | Monotonic clock, ordinary/async |
-| `sleep(duration: Duration): Result[Unit,HostError]` | Ordinary wait / scheduler timer |
+| `sleep(duration: Duration): Result[Unit,SleepError]` | Ordinary wait / scheduler timer |
 | `seconds(value: Int): Duration` | Pure exact whole seconds |
 | `milliseconds(value: Int): Duration` | Pure exact whole milliseconds |
 | `nanoseconds(value: Int): Duration` | Pure exact nanoseconds |
@@ -49,9 +54,8 @@ negative or unsupported durations. Zero sleep is immediate, not an infinite wait
 Aliases: from_nanoseconds -> nanoseconds; from_seconds ->
 from_fractional_seconds; ticks -> as_nanoseconds; is_before -> is_less_than.
 `host.sleep` and ordinary `time.sleep` share the native blocking implementation
-during compatibility, avoiding a cycle through the existing HostError owner. Clock/calendar semantics do not
-change. Sleep initially retains HostError; domain-error migration is a separate
-semantic delivery below, not an accidental new nominal identity.
+during compatibility. Canonical sleep now returns SleepError, retaining the
+original HostError in its native field. Clock and calendar semantics do not change.
 
 ## Filesystem
 
@@ -179,17 +183,17 @@ owner-thread teardown gap; local batch and coverage-inventory checks passed on
 ## Console, environment and process
 
 `console`/`console/async`: write, write_line, write_error, write_error_line each
-accept Str and return Result[Unit,HostError]. A line operation adds exactly the
+accept Str and return Result[Unit,ConsoleError]. A line operation adds exactly the
 existing line terminator. Raw write does not. Ordinary writes gain checked failure
 behaviour; preserve legacy host wrappers separately during compatibility.
-Both modules also provide read(limit: Nat): Result[Option[Bytes],HostError],
+Both modules also provide read(limit: Nat): Result[Option[Bytes],ConsoleError],
 with the bounded input contract below.
 
 `environment`/`environment/async`: `get(name: Str): Option[Str]`, preserving the
 invocation snapshot, missing versus empty distinction and coverage-marker rules.
 
 `process`/`process/async`: arguments(): [Str], exit(status: Nat): Unit, and
-`run(command: Command): Result[ProcessOutput,HostError]`.
+`run(command: Command): Result[ProcessOutput,ProcessError]`.
 
 Command fields: executable: Path, arguments: [Str], stdin: Bytes,
 working_directory: Path, environment: ProcessEnvironment, timeout: Duration,
@@ -266,7 +270,8 @@ async embedding API. Keep prelude curated; do not flatten effectful APIs into gl
 
 ## Errors and migration acceptance
 
-Domain errors are a later semantic step in this same redesign. Before replacing
+Console, sleep and process errors follow the linked domain-error contract. For the
+remaining domains, before replacing
 HostError, specify and test each operation's stable categories, native detail,
 context and render output. Ordinary/async modules must share these types. Existing
 callers get adapters; do not create new nominal types just by renaming imports.
@@ -594,7 +599,7 @@ still Str until the explicit domain-error delivery.
 
 ## Bounded console input (21 November 2026)
 
-console.read(limit: Nat) returns Result[Option[Bytes],HostError]. Import
+console.read(limit: Nat) returns Result[Option[Bytes],ConsoleError]. Import
 stdlib/console for ordinary calls or stdlib/console/async for awaited calls.
 A limit from 1 through 65,536 is required. This 64 KiB per-read bound matches the
 streaming chunk scale and bounds retained input after cancellation. Invalid
@@ -610,9 +615,9 @@ worker, leaving the VM owner thread free. The worker owns a duplicated descripto
 and native buffer, never VM values. Terminal modes remain unchanged, so an
 interactive terminal normally waits for a complete line. Ordinary calls wait for
 the same worker. On unsupported hosts the result is unsupported_host. Other codes
-are io_error and resource_limit; HostError.operation is console_read and
-native_code retains the host failure number where available. Domain-specific
-error migration remains separate work.
+are io_error and resource_limit in ConsoleError.native; the native operation is
+console_read and native_code retains the host failure number where available.
+ConsoleError adds the typed category, requested operation and render().
 
 Cancellation abandons the async result without joining the worker. The worker
 checks cancellation between readiness waits (currently 50 ms) and before reading.
@@ -642,3 +647,13 @@ reader checks pass. Integration remains pending; development CI stays off.
 No bytecode-format change is required. The previous full check took 626 seconds;
 these runs are not a controlled performance comparison. Historical validation
 budget warnings remain under the existing GI#106 reassessment.
+
+## Console, sleep and process errors (21 November 2026)
+
+The [domain-error contract](design/STDLIB_DOMAIN_ERRORS.md) defines the implemented
+ConsoleError, SleepError and ProcessError records, stable categories, native detail,
+rendered examples and migration. Ordinary/async APIs share identities. Compatibility
+host and positional process APIs retain their old results. Focused tests pass;
+final local make check passed in 621s (21 November), plus relocated source,
+saved-bytecode and disassembly acceptance. Integration remains pending. Remaining filesystem,
+digest/gzip and network error work is not complete.

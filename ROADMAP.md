@@ -172,6 +172,13 @@ Integration remains pending. This extends the existing website stdlib follow-up 
 has no hot-path compiler performance impact. Legacy line input shares the bounded
 read-ahead broker to avoid swallowing bytes when mixed with the new API.
 
+Console, sleep and process errors now have shared ordinary/async types, typed
+categories, native detail and readable renderers implemented in Panack. Focused
+checks pass; final local make check passed in 621s (21 November), plus relocated
+source/bytecode/disassembly acceptance. Integration remains pending. Filesystem,
+resource and network error mappings remain. This continues the existing stdlib
+website follow-up; publication is separate.
+
 **Next available roadmap identifier: RM#163.**
 
 ## Example inventory preflight — 2026-10-20

@@ -8,7 +8,7 @@ import stdlib/process::{Command, ProcessEnvironment.InheritEnvironment, ProcessT
 async execute(command: TestCommand): Result[ProcessOutput,HostError] {
   match await process.run(Command(command.executable, command.arguments, command.stdin,
       command.working_directory, InheritEnvironment(command.environment), command.timeout, command.output_limit)) {
-    Error(problem) => Error(problem),
+    Error(problem) => Error(problem.native),
     Ok(output) => match output.termination {
       Exited(code) => Ok(ProcessOutput(code, 0, output.stdout, output.stderr)),
       Signalled(signal) => Ok(ProcessOutput(0, signal, output.stdout, output.stderr))

@@ -1,3 +1,5 @@
+pub import stdlib/process/errors::{ProcessError, ProcessErrorKind}
+import stdlib/process/errors as errors
 pub import stdlib/process/types::{HostError, Command, ProcessEnvironment, ProcessEnvironment.InheritEnvironment,
   ProcessEnvironment.ExactEnvironment, ProcessTermination, ProcessTermination.Exited,
   ProcessTermination.Signalled, ProcessOutput}
@@ -6,11 +8,11 @@ import stdlib/process/legacy as legacy
 import stdlib/host as host
 pub arguments(): [Str] { host.arguments() }
 pub exit(status: Nat): Unit { host.exit(status); () }
-pub run(command: Command): Result[ProcessOutput,HostError] {
-  representation.convert(match command.environment {
+pub run(command: Command): Result[ProcessOutput,ProcessError] {
+  errors.convert(representation.convert(match command.environment {
     InheritEnvironment(entries) => legacy.run(command.executable, command.arguments, command.stdin,
       command.working_directory, entries, command.timeout, command.output_limit),
     ExactEnvironment(entries) => legacy.run_isolated(command.executable, command.arguments, command.stdin,
       command.working_directory, entries, command.timeout, command.output_limit)
-  })
+  }), command)
 }

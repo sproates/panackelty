@@ -90,3 +90,10 @@ calls `process_run_isolated` with arity seven, and returns. Existing function
 instructions and the independently fixed stdout remain unchanged. Compiler and
 stdlib stage 2/3/4 fixed points also match. This is an explicit reviewed oracle
 update, not automatic regeneration during tests.
+
+On 2026-11-21, canonical time.sleep gains the typed SleepError adapter. After
+normalizing imported-module indices, all 47 unaffected blocks (including main)
+are identical. Only time.sleep adds result conversion; new blocks are the error
+renderer, converter and existing Duration.as_nanoseconds method. Both artifacts
+produce identical stdout, and the compiler candidate equals the saved seed.
+The inventory records this reviewed change; native validation never refreshes it.

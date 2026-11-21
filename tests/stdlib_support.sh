@@ -22,7 +22,7 @@ pure p(text: Str): Path { path.from_text(text).value_or(path.current()) }
 pure passed(result: TestResult): Bool {
   match result.outcome { TestPassed() => true, TestFailed(_) => false }
 }
-pure count_result(result: Result[Nat,testing.HostError]): Nat {
+pure count_result(result: Result[Nat,testing.ConsoleError]): Nat {
   match result { Ok(count) => count, Error(_) => { expect(false); 0 } }
 }
 async main(): Unit {
@@ -76,7 +76,7 @@ async main(): Unit {
   expect(failures == 1)
 }
 SOURCE
-sed 's|stdlib/testing/reporting/async|stdlib/testing/reporting|;s|stdlib/testing/filesystem/async|stdlib/testing/filesystem|;s|stdlib/testing/process/async|stdlib/testing/process|;s|stdlib/filesystem/async|stdlib/filesystem|;s|stdlib/process/async|stdlib/process|;s/async main/main/;s/await //g;s/testing.HostError/workspaces.HostError/g' "$work/async.panack" > "$work/ordinary.panack"
+sed 's|stdlib/testing/reporting/async|stdlib/testing/reporting|;s|stdlib/testing/filesystem/async|stdlib/testing/filesystem|;s|stdlib/testing/process/async|stdlib/testing/process|;s|stdlib/filesystem/async|stdlib/filesystem|;s|stdlib/process/async|stdlib/process|;s/async main/main/;s/await //g' "$work/async.panack" > "$work/ordinary.panack"
 printf 'PASS first\nFAIL second: expected failure\ntests: 2, failures: 1\n' > "$work/expected"
 for mode in ordinary async; do
   panack run "$work/$mode.panack" "$work" > "$work/output"

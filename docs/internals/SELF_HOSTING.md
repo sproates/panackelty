@@ -772,3 +772,12 @@ the standard-library oracle remains
 Bytecode remains version 9. Final local make check passed in 654s (21 November),
 plus relocated-install source/bytecode/disassembly acceptance. Integration remains
 pending.
+
+Console, sleep and process domain errors (21 November) are Panack adapters; the
+compiler candidate remains byte-for-byte identical to the saved seed. The stdlib
+oracle has a reviewed transformation: 47 unchanged normalized function blocks,
+time.sleep result conversion, and three added supporting blocks. Old/new stdout
+is identical. The new stdlib SHA-256 is
+`98f2713ac7679d7ee45fefb1549f9775a19916bbfe3c42b108a65aa770d28c56`.
+Final local make check passed in 621s (21 November), plus relocated source,
+saved-bytecode and disassembly acceptance. Integration remains pending.

@@ -22,6 +22,9 @@
     "src/stdlib/time.panack", "src/stdlib/validation.panack"
   ],
   "unmeasured": [
+    {"path":"src/stdlib/console/errors.panack","reason":"Typed error mappings and rendered diagnostics are checked outside the bounded source-coverage corpus."},
+    {"path":"src/stdlib/time/errors.panack","reason":"Typed error mappings and rendered diagnostics are checked outside the bounded source-coverage corpus."},
+    {"path":"src/stdlib/process/errors.panack","reason":"Typed error mappings and rendered diagnostics are checked outside the bounded source-coverage corpus."},
     {"path":"src/stdlib/network/tcp/async.panack","reason":"Duration-based TCP adapters are exercised with independent loopback peers outside the bounded coverage corpus."},
     {"path":"src/stdlib/encoding/utf8.panack","reason":"Checked UTF-8 is exercised by source/bytecode error and boundary cases outside the bounded coverage corpus."},
     {"path":"src/stdlib/digest/sha256.panack","reason":"Typed CPU resource adapter checked by source/bytecode, scheduling and native lifecycle tests outside the bounded coverage corpus."},

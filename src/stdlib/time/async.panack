@@ -1,3 +1,5 @@
+pub import stdlib/time/errors::{SleepError, SleepErrorKind}
+import stdlib/time/errors as sleep_errors
 pub import stdlib/host::{HostError}
 pub import stdlib/time::{ClockError, ClockError.ClockUnavailable, DurationError,
   DurationError.FractionalNanosecond, DurationError.ZeroDurationDivisor,
@@ -9,6 +11,6 @@ pub async now(): Result[Instant,ClockError] {
 }
 
 // Suspend this task; cancellation discards the timer.
-pub async sleep(duration: Duration): Result[Unit,HostError] {
-  await host_sleep_async(duration)
+pub async sleep(duration: Duration): Result[Unit,SleepError] {
+  sleep_errors.convert(await host_sleep_async(duration), duration)
 }

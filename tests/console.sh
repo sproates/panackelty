@@ -15,7 +15,7 @@ for mode in ordinary async; do
     else module=stdlib/console; effect=; wait=; fi
     cat > "$work/$mode.panack" <<SOURCE
 import $module as console
-pure require(result: Result[Unit,console.HostError]): Unit {
+pure require(result: Result[Unit,console.ConsoleError]): Unit {
   match result { Ok(_) => (), Error(_) => { checked = [0][1]; () } }
 }
 $effect main(): Unit {

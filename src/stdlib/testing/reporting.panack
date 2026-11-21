@@ -1,11 +1,11 @@
 pub import stdlib/testing::{TestResult, TestOutcome, TestOutcome.TestPassed, TestOutcome.TestFailed, expect, equal_str, equal_nat}
-pub import stdlib/host::{HostError}
+pub import stdlib/console/errors::{ConsoleError}
 import stdlib/console as console
 
 // Preserve order and failure counts; stop at the first checked output failure.
-pub report(results: [TestResult]): Result[Nat,HostError] {
+pub report(results: [TestResult]): Result[Nat,ConsoleError] {
   mut failures: Nat = 0
-  mut problem: Option[HostError] = None()
+  mut problem: Option[ConsoleError] = None()
   for result in results {
     match problem {
       Some(_) => {},

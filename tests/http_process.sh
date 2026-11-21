@@ -30,7 +30,7 @@ async slow(request: http.Request, response: http.ResponseWriter): Result[Unit,St
   command = Command(p("/bin/sh"), ["-c", "printf ready > 'ROOT/started'; while [ ! -f 'ROOT/release' ]; do /bin/sleep 0.01; done; printf ok"],
     "".encode_utf8(), path.current(), ExactEnvironment([]), time.seconds(10), 100)
   match await process.run(command) {
-    Error(problem) => Error(problem.code),
+    Error(problem) => Error(problem.native.code),
     Ok(output) => { response.send_bytes(output.stdout); Ok(()) }
   }
 }

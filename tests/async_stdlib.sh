@@ -26,10 +26,10 @@ async main(): Unit {
   expect(await time.sleep(time.nanoseconds(0)) == Ok(()))
   expect(await time.sleep(time.nanoseconds(1)) == Ok(()))
   match await time.sleep(time.nanoseconds(-1)) {
-    Ok(_) => expect(false), Error(problem) => expect(problem.code == "negative_duration")
+    Ok(_) => expect(false), Error(problem) => expect(problem.native.code == "negative_duration")
   }
   match await time.sleep(time.seconds(31536001)) {
-    Ok(_) => expect(false), Error(problem) => expect(problem.code == "out_of_range")
+    Ok(_) => expect(false), Error(problem) => expect(problem.native.code == "out_of_range")
   }
   expect(time.seconds(1) == ordinary_time.milliseconds(1000))
   expect(time.nanoseconds(1000000) == ordinary_time.milliseconds(1))
@@ -68,7 +68,7 @@ import stdlib/host as host
 main(): Unit {
   first = time.sleep(time.nanoseconds(0))
   second = host.sleep(time.nanoseconds(0))
-  checked = [0][if first == Ok(()) && second == first { 0 } else { 1 }]
+  checked = [0][if first == Ok(()) && second == Ok(()) { 0 } else { 1 }]
   ()
 }
 SOURCE

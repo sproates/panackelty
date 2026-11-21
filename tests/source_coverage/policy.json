@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Review runtime/testing support modules and shared async-service classification using the production declaration inventory.",
+    "reason": "Review typed raw HTTP stream wrappers and closed compiler capability declarations.",
     "basis": "Computed with the production parser and inventory_module over every eligible source. Only imports, type refinements, records and enums are excluded; executable functions remain eligible.",
-    "scopeChange": "Seven support modules are explicitly unmeasured and covered by source/bytecode regression tests. Eligible paths and execution corpus remain unchanged; this is not a coverage collection."
+    "scopeChange": "Two streaming HTTP modules are explicitly unmeasured and covered by focused source/bytecode and lifecycle tests. Eligible paths and execution corpus are unchanged; this is not a coverage collection."
   },
-  "manifestHash": "e15e725f1305ca56a3b57a57a5500c0df6c7aafeac5b8ec681a9048d2bfca788",
-  "exclusionHash": "6f20535d557b6df60dfe799dd803b22d615b689432234e09ec8d8df81a704951"
+  "manifestHash": "bef698606ed26a1c2255fe8c4c62a7a16e93778907dc89011628ad67a442a3c3",
+  "exclusionHash": "572329748c28e0036a02fb6b8b6f0533feff5f6e6396ec7f7b18d845ecabd30b"
 }

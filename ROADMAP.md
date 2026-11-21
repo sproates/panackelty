@@ -153,7 +153,7 @@ Command-based subprocess batch passed combined local validation on 21 November
 (612s); PR #693 remains a CI-free draft, with integration and the remaining
 programme scope still pending. The subsequent runtime/testing support and compiler
 compatibility batch passed final local validation in 583s, including relocated
-source/bytecode/disassembly tests; no integration or website publication is implied.
+source/bytecode/disassembly tests. Typed streaming HTTP passed final local make check in 647s, with handler-progress, lifecycle/fault/sanitizer and relocated-install checks; no integration or website publication is implied.
 
 **Next available roadmap identifier: RM#163.**
 

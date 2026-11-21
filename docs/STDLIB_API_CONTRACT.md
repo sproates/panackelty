@@ -460,3 +460,50 @@ All 275 focused bytecode-reader checks and 13 coverage-inventory checks pass.
 The seven support modules also pass ordinary/async source, saved-bytecode and
 disassembly tests from a relocated installation without checkout overrides.
 No bytecode format change. Integration remains pending; development CI stays off.
+
+## Streaming HTTP implementation — 21 November 2026
+
+`stdlib/network/http_stream` and `stdlib/network/http_stream/async` expose the
+same signatures; the latter's operations are async:
+
+- `open(host: Str, port: Nat, tls: Bool, request: Bytes, response_limit: Nat, timeout: Duration): Result[HttpStream,Str]`
+- `read(stream: HttpStream): Result[Bytes,Str]`
+- `close(stream: HttpStream): Result[Unit,Str]`
+
+These are raw transport support, not a second high-level HTTP client. The HTTP
+package retains parsing and framing. `open` allocates a transport; it does not
+confirm a connection or response. Reads drive connection, request transmission
+and response receipt. Async reads yield through libcurl polling on the VM owner
+thread, without occupying a worker. Ordinary reads block.
+
+HttpStream is an opaque, invocation-owned value. Copies refer to the same stream;
+close invalidates every copy. Numeric compatibility handles cannot address typed
+streams. An overlapping read, or close during a read, returns
+`HTTP stream read is already in progress`. Foreign and closed handles return
+`invalid HTTP stream handle`. Cancelling a pending read consumes the stream,
+including when bytes arrived before cancellation; a subsequent read cannot
+silently skip those bytes. Teardown closes idle streams and pending reads retain
+safe ownership until their cancellation/completion. Cancellation cannot undo a
+request already sent to a server. Explicit close is required for early release;
+invocation teardown provides final cleanup.
+
+Each read returns at most 16 KiB; empty Bytes means EOF and remains repeatable
+until close. Request size is at most 64 KiB, total raw response size at most
+256 MiB, with at most 512 opens per invocation (slots are not reused). Timeout
+must be positive and at most 60 seconds. Its exact nanosecond deadline starts at
+open and includes time between reads; the curl millisecond backstop rounds up,
+while VM deadline checks retain the original value. Transport failures retain
+existing Str categories pending the separately tracked domain-error work.
+The legacy stdlib/http_stream numeric/millisecond API remains compatible.
+Native embedders must grant network access for the async operations. Browser/WASI
+hosts retain the existing unsupported-transport result.
+
+Final local make check passed in 647 seconds (unit 406s, bootstrap 86s,
+functional 158s), including package/archive smoke and quick-start checks.
+Ordinary/async source and saved-bytecode tests, same-server handler progress,
+native lifecycle and 2,200 native allocation-failure cases pass. Native module
+contracts also pass under address/undefined-behaviour sanitizers. All 284
+bytecode-reader checks and 13 coverage-inventory checks pass. A relocated package
+with spaces in its path passes the stream API and handler tests, plus imports,
+source execution, saved bytecode and disassembly from an unrelated directory
+without checkout overrides. Integration remains pending; development CI stays off.

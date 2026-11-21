@@ -68,6 +68,8 @@ share/panackelty/stdlib/host/async.panack
 share/panackelty/stdlib/http_runtime.panack
 share/panackelty/stdlib/http_stream.panack
 share/panackelty/stdlib/http_transport.panack
+share/panackelty/stdlib/network/http_stream.panack
+share/panackelty/stdlib/network/http_stream/async.panack
 share/panackelty/stdlib/package_filesystem.panack
 share/panackelty/stdlib/package_filesystem/async.panack
 share/panackelty/stdlib/path.panack

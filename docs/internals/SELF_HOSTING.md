@@ -734,3 +734,10 @@ preceding batch. Compiler changes protect native compatibility record schemas
 from same-named stdlib declarations and align the Panack bytecode reader with
 source checking's closed async-service list. The seven new Panack support modules
 require no new VM capability; no bytecode format change is needed.
+
+The typed streaming HTTP batch refreshes the v9 seed to
+`83437d1b496ae812624141b338fbaf82f62dfc7a95ac5397bea5516f00a9f6f0`.
+Stages 2–4 reproduce it. Stdlib conformance remains
+`49fd630f84c62a042c96c9b76864d040d69237f641da8063be1d3f74ff2e4a50`.
+The compiler adds the opaque HttpStream type and closed ordinary/async transport
+grants; VM scheduling reuses libcurl polling. No bytecode format change.

@@ -38,6 +38,7 @@ error behaviour, untyped resource handles and exposed compiler/runtime adapters.
 | `stdlib/digest/sha256` | SHA-256 | Pure one-shot API; separately designed stateful streaming |
 | `stdlib/compression/gzip` | Gzip decoding | Stateful streaming effect/fairness review |
 | `stdlib/network/tcp` | TCP | Existing async capabilities under `/async` |
+| `stdlib/network/http_stream` | Raw HTTP transport support, opaque handles | `/async`; framing stays in the HTTP package |
 | `stdlib/validation` | Structured validation errors/rendering | None |
 | `stdlib/testing` | Assertions/results and compatibility report | Pure assertions shared |
 | `stdlib/testing/reporting` | Checked report output and failure counts | `/async` |

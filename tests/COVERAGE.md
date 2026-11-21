@@ -2064,3 +2064,21 @@ Final runtime/testing-support acceptance passed on 21 November: make check 583s
 13 coverage-inventory checks, and relocated source/bytecode/disassembly tests.
 Both ordinary and async checked reporting reject closed output with HostError.
 These elapsed times are not a controlled performance comparison.
+
+## Typed streaming HTTP
+
+http_stream_async.sh checks identical ordinary/async APIs through source and
+saved bytecode, EOF, response limits, invalid durations, closed handles, opaque
+handle checking and effect rejection. Its live HTTP handler reads from another
+route on the same server, proving the scheduler can advance that route while
+the first handler waits. Native tests cover foreign handles, numeric forgery,
+overlapping reads/close, cancellation before and after receipt, teardown during
+a read, exact sub-millisecond deadlines, repeated EOF and embedding grants.
+Allocation sweeps cover open/result/read/close failure cleanup. The two new
+Panack wrappers are explicitly unmeasured by the bounded coverage corpus.
+
+Final streaming acceptance passed on 21 November: make check 647s (unit 406s,
+bootstrap 86s, functional 158s), native sanitizer checks, 2,200 native allocation
+failures, all 284 bytecode-reader checks, 13 coverage-inventory checks, and
+relocated-install API/handler tests with exact seed and module comparisons.
+These are acceptance timings, not a controlled performance comparison.

@@ -1,4 +1,5 @@
 #include "filesystem_stage.h"
+#include "http_transport.h"
 #include "value.h"
 
 #include "numeric.h"
@@ -42,6 +43,9 @@ void release(Value *v)
         return;
     }
     switch (v->kind) {
+    case V_HTTP_STREAM:
+        http_stream_owner_release(v->as.http_stream.owner);
+        break;
     case V_DIRECTORY_STAGE:
         filesystem_stage_owner_release(v->as.directory_stage.owner);
         break;

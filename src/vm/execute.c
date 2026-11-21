@@ -73,6 +73,7 @@ struct VMExecution {
     bool waiting_read, fake_fail, network_enabled, server_read_enabled;
     VMTcpExchange *tcp;
     VMHttpTransport *http;
+    VMHttpStreamRead *http_read;
     VMTcpServer *server;
     VMRootRead *root_read;
     VMConsoleWrite *console_write;
@@ -736,6 +737,24 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
                 execution->status = VM_WAITING;
             }
         }
+        return NULL;
+    }
+    if (entry->dispatch == BUILTIN_HTTP_STREAM_OPEN || entry->dispatch == BUILTIN_HTTP_STREAM_READ ||
+        entry->dispatch == BUILTIN_HTTP_STREAM_CLOSE) {
+        if (execution->embedded && !execution->network_enabled) {
+            vm->error = "VM trap: HTTP transport is unavailable in this execution";
+            return NULL;
+        }
+        if (entry->dispatch == BUILTIN_HTTP_STREAM_OPEN) return http_stream_open_typed(vm, arguments);
+        if (entry->dispatch == BUILTIN_HTTP_STREAM_CLOSE) return http_stream_close_typed(vm, arguments[0]);
+        Value *error = NULL;
+        execution->http_read = http_stream_read_start(vm, arguments[0], &error);
+        if (!execution->http_read) {
+            if (!error) vm->error = "native VM out of memory";
+            return error;
+        }
+        execution->waiting_read = true;
+        execution->status = VM_WAITING;
         return NULL;
     }
     if (entry->dispatch == BUILTIN_HTTP_TRANSPORT_EXCHANGE) {
@@ -1466,6 +1485,7 @@ bool vm_execution_destroy(VMExecution *execution)
         return false;
     }
     tcp_exchange_destroy(execution->tcp);
+    http_stream_read_cancel(execution->http_read);
     http_transport_destroy(execution->http);
     root_read_destroy(execution->root_read);
     console_write_destroy(execution->console_write);
@@ -1548,7 +1568,7 @@ Value *execute(VM *vm, Function *function, Value **arguments)
                 continue;
             }
             if (status != VM_WAITING || !execution.waiting_read) break;
-            if (execution.tcp || execution.http) {
+            if (execution.tcp || execution.http || execution.http_read) {
                 vm_execution_poll_network(&execution, active ? 1 : 1000);
                 continue;
             }
@@ -1563,6 +1583,7 @@ Value *execute(VM *vm, Function *function, Value **arguments)
         vm->http_runtime = NULL;
     }
     tcp_exchange_destroy(execution.tcp);
+    http_stream_read_cancel(execution.http_read);
     http_transport_destroy(execution.http);
     root_read_destroy(execution.root_read);
     console_write_destroy(execution.console_write);
@@ -1633,7 +1654,7 @@ Value *vm_fake_read_result(bool fail)
 bool vm_execution_complete_read(VMExecution *execution, Value *result)
 {
     if (execution->running || execution->status != VM_WAITING || !execution->waiting_read ||
-        execution->tcp || execution->http) {
+        execution->tcp || execution->http || execution->http_read) {
         return false;
     }
     execution->waiting_read = false;
@@ -1764,6 +1785,15 @@ bool vm_execution_poll_filesystem(VMExecution *execution)
 
 bool vm_execution_poll_network(VMExecution *execution, unsigned max_wait_ms)
 {
+    if (execution->http_read) {
+        if (execution->running || execution->status != VM_WAITING) return false;
+        if (!http_stream_read_poll(execution->http_read, max_wait_ms)) return true;
+        Value *result = http_stream_read_finish(execution->http_read);
+        execution->http_read = NULL;
+        vm_execution_complete_read(execution, result);
+        release(result);
+        return true;
+    }
     if (execution->process) {
         if (execution->running || execution->status != VM_WAITING) return false;
         if (!process_async_poll(execution->process)) return true;

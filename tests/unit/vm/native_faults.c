@@ -872,6 +872,47 @@ static void tcp_allocations(void)
     assert(fault_descriptors() == 0);
 }
 
+static unsigned stream_fault_mode;
+static void http_stream_allocations(void)
+{
+    VM vm = {0};
+    Value *args[] = {
+        value_data(V_STR, (const uint8_t *)"127.0.0.1", 9),
+        value_size(1), value_bool(false), value_data(V_BYTES, NULL, 0),
+        value_size(64), value_size(1),
+    };
+    bool valid = true;
+    for (size_t i = 0; i < 6; i++) if (!args[i]) valid = false;
+    if (valid) {
+        Value *duration = value_big(V_DURATION, &args[5]->as.integer);
+        if (duration) {
+            release(args[5]); args[5] = duration;
+            Value *opened = http_stream_open_typed(&vm, args);
+            if (opened && !strcmp(opened->as.named.name, "Ok")) {
+                Value *handle = opened->as.named.values[0], *error = NULL;
+                if (stream_fault_mode == 0) {
+                    release(http_stream_close_typed(&vm, handle));
+                } else {
+                    VMHttpStreamRead *read = http_stream_read_start(&vm, handle, &error);
+                    release(error);
+                    if (read) {
+                        if (stream_fault_mode == 1) http_stream_read_cancel(read);
+                        else {
+                            if (stream_fault_mode == 2) http_stream_destroy(&vm);
+                            while (!http_stream_read_poll(read, 1)) { }
+                            release(http_stream_read_finish(read));
+                        }
+                    }
+                }
+            }
+            http_stream_destroy(&vm);
+            release(opened); // Handle may outlive its VM table.
+        }
+    }
+    http_stream_destroy(&vm);
+    for (size_t i = 0; i < 6; i++) release(args[i]);
+}
+
 static void http_allocations(void)
 {
     static const uint8_t request[] = "GET / HTTP/1.1\r\nHost: test\r\n\r\n";
@@ -1110,6 +1151,8 @@ int main(int argc, char **argv)
     }
     sweep("TCP request and completion", tcp_allocations);
     sweep("HTTP transport ownership", http_allocations);
+    for (stream_fault_mode = 0; stream_fault_mode < 4; stream_fault_mode++)
+        sweep("HTTP typed stream ownership", http_stream_allocations);
     fault_reset(0);
     http_values[0] = value_data(V_STR, (const uint8_t *)"127.0.0.1", 9);
     http_values[1] = value_size(8080);

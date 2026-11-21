@@ -1,0 +1,14 @@
+// Raw bounded transport support. HTTP parsing and framing belong to the HTTP package.
+// The deadline includes time between reads. Empty Bytes means end of stream.
+// Handles belong to this invocation; close invalidates every alias.
+pub open(host: Str, port: Nat, tls: Bool, request: Bytes, response_limit: Nat, timeout: Duration): Result[HttpStream,Str] {
+  http_stream_open_typed(host, port, tls, request, response_limit, timeout)
+}
+
+pub read(stream: HttpStream): Result[Bytes,Str] {
+  http_stream_read_typed(stream)
+}
+
+pub close(stream: HttpStream): Result[Unit,Str] {
+  http_stream_close_typed(stream)
+}

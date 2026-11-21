@@ -2013,3 +2013,19 @@ Native adapter record spellings are reserved for their owning stdlib declaration
 during emission, preventing a new same-named record from changing the native schema.
 The Panack decoder shares the source resolver's closed async-service classification
 with effect checking, while independently checking call mode and arity.
+
+### Typed streaming HTTP lifetime
+
+HttpStream values retain a reference-counted invocation table and nonreused slot.
+A pending read acquires exclusive use and independently retains the table.
+Completion releases that use; cancellation closes the slot, including a received
+but undelivered chunk. VM teardown marks the table closed, closes idle slots and
+lets pending leases observe teardown safely. Typed and legacy numeric slots are
+not interchangeable. Failed handle-result allocation destroys the unopened
+transport rather than leaking an inaccessible slot.
+
+The async adapter polls the existing libcurl transport on the owner thread and
+uses the scheduler's read-completion path. External fake completions cannot
+satisfy a real pending stream read. No blocking worker or new bytecode encoding
+is introduced. Deadlines are monotonic nanoseconds; curl's millisecond timeout is
+only a rounded-up backstop. Framing remains in Panack HTTP package code.

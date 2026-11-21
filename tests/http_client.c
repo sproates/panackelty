@@ -447,6 +447,8 @@ int main(int argc, char **argv)
     if (argc != 3) return 2;
     const char *port = argv[1];
     const char *mode = argv[2];
+    if (!strcmp(mode, "stream-progress"))
+        return exchange(port, "GET /stream HTTP/1.1\r\nHost: local\r\nConnection: close\r\n\r\n", "200 OK", "stream-ok", 0) ? 1 : 0;
     if (!strcmp(mode, "uptime")) return uptime_progress(port);
     if (!strcmp(mode, "example-ordinary")) {
         return exchange(port, "GET / HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\nHello", 0) ||

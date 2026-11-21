@@ -1,0 +1,15 @@
+// Raw bounded transport support. HTTP parsing and framing belong to the HTTP package.
+// The deadline includes time between reads. Empty Bytes means end of stream.
+// Handles belong to this invocation; close invalidates every alias.
+// Cancellation of a pending read closes the stream.
+pub async open(host: Str, port: Nat, tls: Bool, request: Bytes, response_limit: Nat, timeout: Duration): Result[HttpStream,Str] {
+  await http_stream_open_async(host, port, tls, request, response_limit, timeout)
+}
+
+pub async read(stream: HttpStream): Result[Bytes,Str] {
+  await http_stream_read_async(stream)
+}
+
+pub async close(stream: HttpStream): Result[Unit,Str] {
+  await http_stream_close_async(stream)
+}

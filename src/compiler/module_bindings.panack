@@ -39,7 +39,7 @@ pub pure builtin_owner_arity(name: Str): Option[Nat] {
   else if name == "Map" || name == "HttpServerState" || name == "HttpConnectionState" { Some(2) }
   else if name == "Nat" || name == "Int" || name == "Dec" || name == "Rat" ||
       name == "Bool" || name == "Unit" || name == "Str" || name == "Bytes" ||
-      name == "Path" || name == "Duration" || name == "Instant" || name == "HttpResponseState" || name == "DirectoryStage" { Some(0) }
+      name == "Path" || name == "Duration" || name == "Instant" || name == "HttpResponseState" || name == "HttpStream" || name == "DirectoryStage" { Some(0) }
   else { None() }
 }
 
@@ -227,7 +227,7 @@ pub pure module_reserved_binding(name: Str): Bool {
     name == "Str" ||
     name == "Bytes" ||
     name == "Unit" ||
-    name == "HttpServerState" || name == "HttpConnectionState" || name == "HttpResponseState" || name == "DirectoryStage" ||
+    name == "HttpServerState" || name == "HttpConnectionState" || name == "HttpResponseState" || name == "HttpStream" || name == "DirectoryStage" ||
     name == "Void" || name == "Path" || name == "Duration" || name == "Instant" ||
     name == "Option" || name == "Result" || name == "Map" || name == "Set" ||
     name == "PureFn" || name == "Fn" || name == "AsyncFn" ||
@@ -518,6 +518,12 @@ pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool 
     (owner.module.path == "digest.panack" && owner.name == "update" && name == "digest_update") ||
     (owner.module.path == "digest.panack" && owner.name == "finish" && name == "digest_finish") ||
     (owner.module.path == "digest.panack" && owner.name == "close" && name == "digest_close") ||
+    (owner.module.path == "network/http_stream.panack" && owner.name == "open" && name == "http_stream_open_typed") ||
+    (owner.module.path == "network/http_stream/async.panack" && owner.name == "open" && name == "http_stream_open_async") ||
+    (owner.module.path == "network/http_stream.panack" && owner.name == "read" && name == "http_stream_read_typed") ||
+    (owner.module.path == "network/http_stream/async.panack" && owner.name == "read" && name == "http_stream_read_async") ||
+    (owner.module.path == "network/http_stream.panack" && owner.name == "close" && name == "http_stream_close_typed") ||
+    (owner.module.path == "network/http_stream/async.panack" && owner.name == "close" && name == "http_stream_close_async") ||
     (owner.module.path == "http_stream.panack" && owner.name == "open" && name == "http_stream_open") ||
     (owner.module.path == "http_stream.panack" && owner.name == "read" && name == "http_stream_read") ||
     (owner.module.path == "http_stream.panack" && owner.name == "close" && name == "http_stream_close") ||
@@ -594,6 +600,8 @@ pub pure module_internal_primitive_name(identity: ModuleIdentity, name: Str): Bo
     (identity.path == "filesystem/staging.panack" && (name == "stage_create" || name == "stage_path" || name == "stage_directory" || name == "stage_write" || name == "stage_symlink" || name == "stage_publish" || name == "stage_discard")) ||
     (identity.path == "filesystem_stage.panack" && (name == "fs_stage_symlink" || name == "fs_stage_begin" || name == "fs_stage_path" || name == "fs_stage_directory" || name == "fs_stage_write" || name == "fs_stage_publish" || name == "fs_stage_close")) ||
     (identity.path == "digest.panack" && (name == "digest_sha256_open" || name == "digest_update" || name == "digest_finish" || name == "digest_close")) ||
+    (identity.path == "network/http_stream.panack" && (name == "http_stream_open_typed" || name == "http_stream_read_typed" || name == "http_stream_close_typed")) ||
+    (identity.path == "network/http_stream/async.panack" && (name == "http_stream_open_async" || name == "http_stream_read_async" || name == "http_stream_close_async")) ||
     (identity.path == "http_stream.panack" && (name == "http_stream_open" || name == "http_stream_read" || name == "http_stream_close")) ||
     (identity.path == "gzip.panack" && (name == "gzip_open" || name == "gzip_step" || name == "gzip_close")) ||
     (identity.path == "filesystem/confined.panack" && name == "fs_root_identity") ||

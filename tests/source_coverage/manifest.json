@@ -22,6 +22,8 @@
     "src/stdlib/time.panack", "src/stdlib/validation.panack"
   ],
   "unmeasured": [
+    {"path":"src/stdlib/network/http_stream.panack","reason":"Typed transport wrapper checked by source/bytecode, HTTP progress and native lifecycle tests outside the bounded coverage corpus."},
+    {"path":"src/stdlib/network/http_stream/async.panack","reason":"Typed transport wrapper checked by source/bytecode, HTTP progress and native lifecycle tests outside the bounded coverage corpus."},
     {"path":"src/stdlib/testing/reporting.panack","reason":"Checked test reporting is covered by ordinary/async source/bytecode and output-failure tests outside the bounded coverage corpus."},
     {"path":"src/stdlib/testing/reporting/async.panack","reason":"Checked test reporting is covered by ordinary/async source/bytecode and output-failure tests outside the bounded coverage corpus."},
     {"path":"src/stdlib/runtime/bytecode.panack","reason":"Canonical runtime/testing adapter checked by focused source/bytecode and failure tests outside the bounded coverage corpus; no execution coverage percentage is claimed."},

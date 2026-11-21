@@ -1843,3 +1843,23 @@ of failed tests; Error identifies the first checked output failure, after which
 no further lines are emitted. Output already written remains visible. Ordinary
 stdlib/testing.report continues returning Nat. Both preserve input order and the
 PASS/FAIL lines followed by the total/failure summary.
+
+### Typed raw HTTP streams (alpha.16 development)
+
+`stdlib/network/http_stream` and its `/async` counterpart provide
+`open(host: Str, port: Nat, tls: Bool, request: Bytes, response_limit: Nat, timeout: Duration): Result[HttpStream,Str]`,
+`read(stream: HttpStream): Result[Bytes,Str]` and
+`close(stream: HttpStream): Result[Unit,Str]`. The async counterparts require await.
+HttpStream is an opaque core type with no public constructor. It belongs to one
+invocation; aliases share closure and cancellation. Close during a read and
+concurrent reads fail. Cancellation consumes a pending stream, so undelivered
+bytes cannot disappear into a subsequent successful read. Open prepares the
+transport; reads perform network progress. Empty Bytes means EOF. HTTP framing
+belongs to the HTTP package, not this raw adapter.
+
+Bounds are 64 KiB per request, 16 KiB per returned chunk, 256 MiB total response,
+512 opens per invocation and a positive Duration of at most 60 seconds. The
+exact deadline includes time between reads. The ordinary API blocks; the async
+API uses owner-thread polling and requires an embedder's network grant. Teardown
+closes resources; cancellation does not retract bytes already sent. Native-only
+transport remains unavailable in WASI. Legacy numeric-handle imports remain.

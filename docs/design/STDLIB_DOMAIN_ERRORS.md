@@ -14,9 +14,9 @@ native_code. Unknown codes map to OtherFailure; they are not silently relabelled
 as a specific known cause. Native numeric errors remain available, not guessed
 from platform-specific errno values. Render appends a nonzero host error number.
 
-This batch implements console, sleep and process errors in Panack. Native ABI,
+Console, sleep, process and filesystem errors are implemented in Panack. Native ABI,
 worker ownership, limits, cancellation and successful result values do not change.
-Filesystem, digest/gzip and network errors remain separate acceptance work.
+Digest/gzip and network errors remain separate acceptance work.
 Network error delivery must preserve detailed TLS causes, not only rename Str.
 
 ## Console
@@ -126,3 +126,104 @@ checks pass. The first full run caught three omitted installation-inventory entr
 those entries were corrected and the complete packaged source set was checked
 before the passing run. Integration remains pending. No compiler or VM source change is
 required; a compiler candidate is byte-for-byte identical to the saved seed.
+
+## Filesystem
+
+Canonical filesystem, filesystem/async, filesystem/confined and its async twin,
+and filesystem/staging and its async twin return FilesystemError. The shared
+record contains operation: FilesystemOperation, kind: FilesystemErrorKind and
+native: HostError. All error construction and rendering is Panack code.
+
+Operations retain caller-supplied paths, without performing another filesystem
+lookup. Metadata, writes, listing, removal and creation retain the path; temporary
+creation retains the parent. Read retains path/limit; ReadChunk adds offset;
+DirectoriesOverlap retains both paths. RootIdentity retains the root; ReadConfined
+retains root, relative path and limit; ReadLink retains root and relative path.
+CreateStage retains its parent. StagePath and StageDiscard have no path available.
+StageCreateDirectory retains its relative path; StageWriteChunk retains relative
+path and offset; StageCreateSymlink retains relative path and stored target;
+StagePublish retains name and whether replacement was requested. Errors do not
+retain file contents or the opaque stage handle. Relative paths are labelled as
+relative; no diagnostic pretends to know an unavailable absolute path.
+
+| Native code | FilesystemErrorKind |
+| --- | --- |
+| not_found | NotFound |
+| permission_denied | PermissionDenied |
+| already_exists | AlreadyExists |
+| not_directory | NotDirectory |
+| is_directory | IsDirectory |
+| not_regular_file | NotRegularFile |
+| not_empty | DirectoryNotEmpty |
+| symlink_loop | SymlinkRejected |
+| output_limit | OutputLimitExceeded |
+| out_of_range | LimitExceeded |
+| invalid_argument | InvalidArgument |
+| invalid_path | InvalidPath |
+| invalid_parent | InvalidParent |
+| invalid_handle | InvalidStage |
+| busy | StageBusy |
+| parent_changed | ParentChanged |
+| stage_changed | StageChanged |
+| destination_conflict | DestinationConflict |
+| publication_failed | PublicationFailed |
+| cleanup_failed | CleanupFailed |
+| create_failed | StageCreationFailed |
+| open_failed | StageOpenFailed |
+| filesystem_error | FilesystemFailure |
+| io_error | IOFailure |
+| resource_limit | ResourceLimit |
+| out_of_memory | OutOfMemory |
+| cancelled | Cancelled |
+| unsupported_host / unsupported | UnsupportedHost |
+| Any other code | OtherFailure |
+
+Examples, with native numbers omitted where unavailable:
+
+- Cannot read metadata for '/work/app/config.json': the path or a required path component could not be found. Check the spelling and that the required files and directories exist. Host error number: 2.
+- Cannot get the staging directory's path: the staging handle is no longer usable. Use a live stage that has not been published or discarded.
+
+NotFound does not claim that the final component is missing; an ancestor may be
+missing. SymlinkRejected covers both refused traversal and a link-loop limit.
+DestinationConflict covers an inspection failure as well as an ineligible target,
+because the native adapter does not distinguish those cases. FilesystemFailure
+is deliberately broad: bounded reads, atomic writes and link/staging operations
+can return filesystem_error plus a native number without a portable category.
+The renderer does not guess errno meanings. Ordinary and async host validation
+can differ: an async request can be rejected as out_of_range before dispatch,
+where an ordinary bounded operation reports filesystem_error. Native detail is
+preserved in either case. No new promise of identical native failure ordering is
+made. Unknown failures preserve all native fields.
+
+Cancellation, confinement, ownership, limits, cleanup and publication semantics
+are unchanged. A failed write does not promise no side effects; a failed cleanup
+does not promise that nothing remains. A completed publication is not relabelled
+as a failure if cleanup subsequently warns.
+
+### Filesystem migration
+
+Use filesystem/legacy and filesystem/legacy/async for the previous HostError
+result contract. These thin adapters call the canonical implementation and unwrap
+native. FileKind/FileMetadata retain their native identities. Existing bounded_filesystem,
+package_filesystem, async_filesystem and numeric filesystem_stage APIs remain.
+Compatibility read_beneath exports and the old root_identity export from
+filesystem/async retain HostError; use filesystem/confined for the canonical
+root_identity/read/read_link interface. Canonical temp_file/temp_directory aliases
+now return FilesystemError, just like create_temp_file/create_temp_directory.
+Compiler, package-tool and existing testing-helper callers explicitly retain the
+compatibility contract. The prelude filesystem namespace uses the canonical type.
+
+The compiler now gives ordinary stdlib declarations distinct module identities,
+as it already does for project declarations. Core and explicitly owned native ABI
+names remain unchanged. This prevents same-named enum constructors and records
+in different stdlib modules from replacing one another during emission. The
+bytecode format and VM are unchanged; the compiler seed is refreshed once for
+this batch.
+
+Final local make check passed in 628s (unit 393s, bootstrap 85s, functional 167s, 21 November), including packaging and installed smoke. Relocated ordinary/async source, saved-bytecode and unrelated-directory acceptance passes. Integration remains pending; development CI stays off.
+
+The first final run passed unit/bootstrap but exposed a fixture setup error:
+the public launcher deliberately selected its own stdlib instead of an environment
+override. The regression now creates an isolated toolchain and passes through the
+public launcher in both default and candidate modes. The full run was repeated
+after that test-only correction; no product or seed change was needed.

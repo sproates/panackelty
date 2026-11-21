@@ -2090,3 +2090,22 @@ errors copy paths and limits but not arguments, environment or input/output data
 The test-process compatibility adapter unwraps native explicitly. No VM/compiler
 source or bytecode version change is involved. Successful calls add a small Panack
 result-conversion step; failure context and rendered text are built only as needed.
+
+## Filesystem error boundary and nominal identity
+
+Filesystem domain errors are pure Panack conversion/rendering around the existing
+native operations. Compatibility facades unwrap native detail; the compiler and
+package tool retain those HostError contracts. The filesystem module still owns
+native FileKind and FileMetadata. Module emission qualifies ordinary stdlib
+declarations just as project declarations, preserving only core and explicitly
+owned native ABI names. This prevents cross-module constructor/record collisions
+without changing the VM or bytecode format. Successful operations add a result
+conversion and operation-context value; render text is built only on request.
+This is not a performance optimisation; final suite timing is recorded separately.
+
+Artifact impact for this batch: compiler seed 1,408,796 -> 1,423,631 bytes;
+stdlib conformance bytecode 6,787 -> 19,753 bytes. The latter includes the complete
+filesystem error renderer/converter. Final local validation took 628s versus
+621s for the preceding batch; these are single runs with different work, not a
+controlled runtime benchmark. Existing GI#106 validation-budget reassessment stays
+open with the delivery owner; no new performance budget is introduced.

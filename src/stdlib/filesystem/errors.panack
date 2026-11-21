@@ -1,0 +1,159 @@
+pub import stdlib/host::{HostError}
+
+pub enum FilesystemOperation {
+  Metadata(Path),
+  Read(Path, Nat),
+  Write(Path),
+  ListDirectory(Path),
+  RemoveFile(Path),
+  RemoveDirectory(Path),
+  CreateDirectory(Path),
+  CreateTempFile(Path),
+  CreateTempDirectory(Path),
+  ReadChunk(Path, Nat, Nat),
+  WriteAtomic(Path),
+  DirectoriesOverlap(Path, Path),
+  RootIdentity(Path),
+  ReadConfined(Path, Path, Nat),
+  ReadLink(Path, Path),
+  CreateStage(Path),
+  StagePath,
+  StageCreateDirectory(Path),
+  StageWriteChunk(Path, Nat),
+  StageCreateSymlink(Path, Path),
+  StagePublish(Path, Bool),
+  StageDiscard
+}
+pub enum FilesystemErrorKind {
+  NotFound,
+  PermissionDenied,
+  AlreadyExists,
+  NotDirectory,
+  IsDirectory,
+  NotRegularFile,
+  DirectoryNotEmpty,
+  SymlinkRejected,
+  OutputLimitExceeded,
+  LimitExceeded,
+  InvalidArgument,
+  InvalidPath,
+  InvalidParent,
+  InvalidStage,
+  StageBusy,
+  ParentChanged,
+  StageChanged,
+  DestinationConflict,
+  PublicationFailed,
+  CleanupFailed,
+  StageCreationFailed,
+  StageOpenFailed,
+  FilesystemFailure,
+  IOFailure,
+  ResourceLimit,
+  OutOfMemory,
+  Cancelled,
+  UnsupportedHost,
+  OtherFailure
+}
+pub record FilesystemError { operation: FilesystemOperation, kind: FilesystemErrorKind, native: HostError }
+
+impl FilesystemError {
+  pub pure render(): Str {
+    action = match self.operation {
+      Metadata(path) => { path_text = path.display(); "read metadata for '${path_text}'" },
+      Read(path, limit) => { path_text = path.display(); "read '${path_text}' (limit: ${limit} bytes)" },
+      Write(path) => { path_text = path.display(); "write '${path_text}'" },
+      ListDirectory(path) => { path_text = path.display(); "list directory '${path_text}'" },
+      RemoveFile(path) => { path_text = path.display(); "remove file '${path_text}'" },
+      RemoveDirectory(path) => { path_text = path.display(); "remove directory '${path_text}'" },
+      CreateDirectory(path) => { path_text = path.display(); "create directory '${path_text}'" },
+      CreateTempFile(path) => { path_text = path.display(); "create a temporary file in '${path_text}'" },
+      CreateTempDirectory(path) => { path_text = path.display(); "create a temporary directory in '${path_text}'" },
+      ReadChunk(path, offset, limit) => { path_text = path.display(); "read '${path_text}' at byte offset ${offset} (limit: ${limit} bytes)" },
+      WriteAtomic(path) => { path_text = path.display(); "atomically replace '${path_text}'" },
+      DirectoriesOverlap(left, right) => { left_text = left.display(); right_text = right.display(); "check whether directories '${left_text}' and '${right_text}' overlap" },
+      RootIdentity(root) => { root_text = root.display(); "identify root directory '${root_text}'" },
+      ReadConfined(root, relative, limit) => { relative_text = relative.display(); root_text = root.display(); "read relative path '${relative_text}' within root '${root_text}' (limit: ${limit} bytes)" },
+      ReadLink(root, relative) => { relative_text = relative.display(); root_text = root.display(); "read symbolic link '${relative_text}' relative to root '${root_text}'" },
+      CreateStage(parent) => { parent_text = parent.display(); "create a staging directory in '${parent_text}'" },
+      StagePath() => "get the staging directory's path",
+      StageCreateDirectory(relative) => { relative_text = relative.display(); "create directory '${relative_text}' relative to the staging directory" },
+      StageWriteChunk(relative, offset) => { relative_text = relative.display(); "write '${relative_text}' relative to the staging directory at byte offset ${offset}" },
+      StageCreateSymlink(relative, target) => { relative_text = relative.display(); target_text = target.display(); "create symbolic link '${relative_text}' relative to the staging directory (stored target: '${target_text}')" },
+      StagePublish(name, replace) => { name_text = name.display(); mode = if replace { "allowing replacement of an existing directory" } else { "requiring a new destination" }; "publish the staging directory as '${name_text}' within its parent directory (${mode})" },
+      StageDiscard() => "discard the staging directory"
+    }
+    reason = match self.kind {
+      NotFound() => "the path or a required path component could not be found. Check the spelling and that the required files and directories exist",
+      PermissionDenied() => "the host denied permission. Check access to the path and its parent directories",
+      AlreadyExists() => "an entry already exists where this operation requires a new entry. Choose another name or handle the existing entry explicitly",
+      NotDirectory() => "a path component required to be a directory is not a directory",
+      IsDirectory() => "the operation requires a file but encountered a directory",
+      NotRegularFile() => "the operation requires a regular file",
+      DirectoryNotEmpty() => "the directory is not empty. Remove its contents only if they are no longer needed",
+      SymlinkRejected() => "symbolic-link traversal was refused or exceeded the host limit. Check the path and the operation’s link policy",
+      OutputLimitExceeded() => "the result exceeds the allowed output limit. Use a smaller input or a supported larger limit",
+      LimitExceeded() => "an argument or filesystem value exceeds a supported bound. Check this operation’s documented limits",
+      InvalidArgument() => "the host rejected an argument. Check the operation’s path and value requirements",
+      InvalidPath() => "the path does not meet this operation’s requirements",
+      InvalidParent() => "the required parent directory could not be opened safely. Check that it exists, is accessible and meets the operation’s link policy",
+      InvalidStage() => "the staging handle is no longer usable. Use a live stage that has not been published or discarded",
+      StageBusy() => "another operation still owns the staging directory. Wait for that operation to finish",
+      ParentChanged() => "the staging parent no longer matches the directory originally opened. Stop using this stage and check the parent before creating another",
+      StageChanged() => "the staging directory no longer matches the directory originally created. Stop using this stage and investigate the changed entry",
+      DestinationConflict() => "the destination could not be inspected or is not eligible for the requested publication mode. Check the destination and whether replacement was requested",
+      PublicationFailed() => "the host could not publish the staging directory. Check the destination and native error details",
+      CleanupFailed() => "the host could not finish removing the staging directory. Check for remaining files before retrying cleanup",
+      StageCreationFailed() => "the host could not create the staging directory. Check the parent directory and native error details",
+      StageOpenFailed() => "the host could not open the staging directory it created. Check the native error details",
+      FilesystemFailure() => "the host reported a filesystem failure without a more specific category. The native field preserves the operation, code and host error number",
+      IOFailure() => "the host could not complete the filesystem operation. The native field preserves the host error number",
+      ResourceLimit() => "the host has no capacity for this operation. Finish outstanding operations and release unused resources before retrying",
+      OutOfMemory() => "the host could not allocate memory for this operation",
+      Cancelled() => "the operation was cancelled. A filesystem change that had already started may still have occurred",
+      UnsupportedHost() => "this host does not support the filesystem operation",
+      OtherFailure() => "the host returned an unrecognised failure. The native field preserves its details"
+    }
+    number = self.native.native_code
+    detail = if number == 0 { "" } else { " Host error number: ${number}." }
+    "Cannot ${action}: ${reason}.${detail}"
+  }
+}
+
+pub pure convert[T](result: Result[T,HostError], operation: FilesystemOperation): Result[T,FilesystemError] {
+  match result {
+    Ok(value) => Ok(value),
+    Error(problem) => {
+      kind = if problem.code == "not_found" { NotFound() }
+      else if problem.code == "permission_denied" { PermissionDenied() }
+      else if problem.code == "already_exists" { AlreadyExists() }
+      else if problem.code == "not_directory" { NotDirectory() }
+      else if problem.code == "is_directory" { IsDirectory() }
+      else if problem.code == "not_regular_file" { NotRegularFile() }
+      else if problem.code == "not_empty" { DirectoryNotEmpty() }
+      else if problem.code == "symlink_loop" { SymlinkRejected() }
+      else if problem.code == "output_limit" { OutputLimitExceeded() }
+      else if problem.code == "out_of_range" { LimitExceeded() }
+      else if problem.code == "invalid_argument" { InvalidArgument() }
+      else if problem.code == "invalid_path" { InvalidPath() }
+      else if problem.code == "invalid_parent" { InvalidParent() }
+      else if problem.code == "invalid_handle" { InvalidStage() }
+      else if problem.code == "busy" { StageBusy() }
+      else if problem.code == "parent_changed" { ParentChanged() }
+      else if problem.code == "stage_changed" { StageChanged() }
+      else if problem.code == "destination_conflict" { DestinationConflict() }
+      else if problem.code == "publication_failed" { PublicationFailed() }
+      else if problem.code == "cleanup_failed" { CleanupFailed() }
+      else if problem.code == "create_failed" { StageCreationFailed() }
+      else if problem.code == "open_failed" { StageOpenFailed() }
+      else if problem.code == "filesystem_error" { FilesystemFailure() }
+      else if problem.code == "io_error" { IOFailure() }
+      else if problem.code == "resource_limit" { ResourceLimit() }
+      else if problem.code == "out_of_memory" { OutOfMemory() }
+      else if problem.code == "cancelled" { Cancelled() }
+      else if problem.code == "unsupported_host" || problem.code == "unsupported" { UnsupportedHost() }
+      else { OtherFailure() }
+      Error(FilesystemError(operation, kind, problem))
+    }
+  }
+}

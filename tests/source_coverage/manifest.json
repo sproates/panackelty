@@ -22,6 +22,9 @@
     "src/stdlib/time.panack", "src/stdlib/validation.panack"
   ],
   "unmeasured": [
+    {"path":"src/stdlib/filesystem/errors.panack","reason":"Filesystem domain errors and compatibility adapters are checked by focused source/bytecode tests outside the bounded execution corpus."},
+    {"path":"src/stdlib/filesystem/legacy.panack","reason":"Filesystem domain errors and compatibility adapters are checked by focused source/bytecode tests outside the bounded execution corpus."},
+    {"path":"src/stdlib/filesystem/legacy/async.panack","reason":"Filesystem domain errors and compatibility adapters are checked by focused source/bytecode tests outside the bounded execution corpus."},
     {"path":"src/stdlib/console/errors.panack","reason":"Typed error mappings and rendered diagnostics are checked outside the bounded source-coverage corpus."},
     {"path":"src/stdlib/time/errors.panack","reason":"Typed error mappings and rendered diagnostics are checked outside the bounded source-coverage corpus."},
     {"path":"src/stdlib/process/errors.panack","reason":"Typed error mappings and rendered diagnostics are checked outside the bounded source-coverage corpus."},

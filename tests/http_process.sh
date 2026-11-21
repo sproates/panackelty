@@ -21,7 +21,7 @@ cat > "$work/template.panack" <<'SOURCE'
 import http/server as http
 import stdlib/process/async as process
 import stdlib/process::{Command, ProcessEnvironment.ExactEnvironment, ProcessTermination.Exited}
-import stdlib/filesystem/async as files
+import stdlib/filesystem/legacy/async as files
 import stdlib/path as path
 import stdlib/time as time
 import stdlib/host/async as host

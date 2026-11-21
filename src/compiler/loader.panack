@@ -6,7 +6,7 @@ import project/src/bytecode/codec::{encode_functions, EncodedFunction}
 pub import project/src/compiler/module_reuse::{reusable_body_modules, CachedModuleBodies, CachedModuleCode}
 import project/src/compiler/path_support as path_support
 import stdlib/path as std_path
-import stdlib/filesystem as std_filesystem
+import stdlib/filesystem/legacy as std_filesystem
 import stdlib/environment as std_environment
 import stdlib/package_filesystem as std_package_filesystem
 import project/src/compiler/filesystem_support as filesystem_support

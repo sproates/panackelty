@@ -1,6 +1,6 @@
 import project/src/packages/git_snapshot::{GitSource, stage_git_commit}
 import stdlib/host as host
-import stdlib/filesystem as filesystem
+import stdlib/filesystem/legacy as filesystem
 import stdlib/bounded_filesystem as bounded
 import stdlib/bytes as byte_buffer
 import stdlib/path as path

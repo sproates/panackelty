@@ -331,6 +331,7 @@ pub run_suite(): Void {
   results = results.concat(namespace_else_if_tests())
   results = results.concat(module_emission_identity_tests())
   results = results.concat(tcp_limit_identity_tests())
+  results = results.concat(stdlib_nominal_identity_tests())
   results = results.concat(module_emission_program_tests())
   results = results.concat(module_emission_effect_tests())
   results = results.concat(module_emission_status_tests())
@@ -5248,6 +5249,31 @@ pure tcp_limit_identity_tests(): [TestResult] {
     results = results.append(std_testing.expect("TCP limits/canonical identity/" + name,
       module_emission_symbol(graph, entry, DeclarationIdentity(canonical, name)) != name,
       "Duration record replaced millisecond runtime schema"))
+  }
+  results
+}
+
+pure stdlib_nominal_identity_tests(): [TestResult] {
+  left = signature_test_module(ModuleIdentity(ToolchainModulePackage(), "identity_left.panack"),
+    "pub enum Outcome { Shared(Nat), Absent }; pub record Packet { value: Nat }")
+  right = signature_test_module(ModuleIdentity(ToolchainModulePackage(), "identity_right.panack"),
+    "pub enum Outcome { Shared(Str, Bool), Absent }; pub record Packet { text: Str, valid: Bool }")
+  graph = ModuleBindingGraph([left.bindings, right.bindings], [])
+  entry = ModuleIdentity(StandaloneModulePackage(), "main.panack")
+  mut results: [TestResult] = []
+  for name in ["Outcome", "Shared", "Absent", "Packet"] {
+    left_name = module_emission_symbol(graph, entry, DeclarationIdentity(left.bindings.identity, name))
+    right_name = module_emission_symbol(graph, entry, DeclarationIdentity(right.bindings.identity, name))
+    results = results.append(std_testing.expect("stdlib nominal identity/" + name,
+      left_name != right_name && left_name != name && right_name != name,
+      "stdlib declarations from different modules share a runtime name"))
+  }
+  for name in ["FileKind", "RegularFile", "Directory", "SymbolicLink", "OtherFile", "FileMetadata"] {
+    native = ModuleIdentity(ToolchainModulePackage(), "filesystem.panack")
+    results = results.append(std_testing.expect("filesystem native identity/" + name,
+      module_emission_symbol(graph, entry, DeclarationIdentity(native, name)) == name &&
+      module_emission_symbol(graph, entry, DeclarationIdentity(left.bindings.identity, name)) != name,
+      "native filesystem identity was replaced"))
   }
   results
 }

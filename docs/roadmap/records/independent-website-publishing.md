@@ -1372,3 +1372,8 @@ streaming references with tested examples. See the
 [programme boundary](../../ASYNC_DESIGN_DISCUSSION.md#expanded-async-stdlib-and-documentation-programme-8-november-2026).
 This authorises preparation and preview, not publishing development APIs as
 released or editing published articles without showing the changes.
+
+The filesystem error delivery adds FilesystemError, operation/path context,
+rendered diagnostics and explicit filesystem/legacy migration imports to this
+existing alpha.16 reference follow-up. Cover both ordinary and async examples.
+Owner and release prerequisites remain unchanged; no site publication is included.

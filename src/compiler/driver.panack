@@ -5,7 +5,7 @@ import stdlib/bytes as byte_buffer
 import project/src/compiler/path_support as path_support
 import stdlib/environment as std_environment
 import stdlib/path as std_path
-import stdlib/filesystem as std_filesystem
+import stdlib/filesystem/legacy as std_filesystem
 import stdlib/package_filesystem as std_package_filesystem
 import stdlib/filesystem::{FileKind.RegularFile}
 import project/src/compiler/filesystem_support as filesystem_support

@@ -1,7 +1,7 @@
 pub import stdlib/testing_commands::{TestResult, TestCommand, ProcessOutput, HostError, command_output, command_result}
 import stdlib/testing::{TestOutcome.TestPassed, TestOutcome.TestFailed}
 import stdlib/testing as std_testing
-import stdlib/filesystem/async as std_filesystem
+import stdlib/filesystem/legacy/async as std_filesystem
 import stdlib/process/async as process
 import stdlib/process::{Command, ProcessEnvironment.InheritEnvironment, ProcessTermination.Exited, ProcessTermination.Signalled}
 

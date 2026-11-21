@@ -1,4 +1,4 @@
-import stdlib/filesystem as fixture_files
+import stdlib/filesystem/legacy as fixture_files
 import stdlib/path as fixture_path
 import project/tests/runner/compiler_backend_fixtures::{check_source_types}
 import project/src/compiler/loader::{LoadedProject, load_project}

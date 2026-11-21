@@ -89,7 +89,7 @@ cat > "$work/logical-import.panack" <<'PROGRAM'
 import stdlib/time/async as time
 import stdlib/environment/async as environment
 import stdlib/host/async as async_host
-import stdlib/filesystem/async as files
+import stdlib/filesystem/legacy/async as files
 import stdlib/path as path
 main(): Void {
   print(Some(42).value_or(0))

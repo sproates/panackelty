@@ -261,6 +261,8 @@ functional-impl: package-tool $(BUILD_DIR)/vm/static_http_client $(STAGE2_COMPIL
 	@$(PROFILE) functional/encoding-values sh tests/encoding_values.sh
 	@$(PROFILE) functional/console-input sh tests/console_input.sh
 	@$(PROFILE) functional/domain-errors sh tests/domain_errors.sh
+	@$(PROFILE) functional/filesystem-errors sh tests/filesystem_errors.sh
+	@$(PROFILE) functional/stdlib-nominal-identity sh tests/stdlib_nominal_identity.sh
 	@$(PROFILE) functional/async-filesystem-general sh tests/async_filesystem_general.sh
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/http-uptime sh tests/http_uptime.sh
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/async-filesystem sh tests/async_filesystem.sh

@@ -13,7 +13,7 @@ import stdlib/testing/reporting/async as testing
 import stdlib/testing/filesystem/async as workspaces
 import stdlib/testing/process/async as commands
 import stdlib/testing::{TestResult, TestOutcome.TestPassed, TestOutcome.TestFailed}
-import stdlib/filesystem/async as files
+import stdlib/filesystem/legacy/async as files
 import stdlib/process/async as process
 import stdlib/path as path
 import stdlib/time as time
@@ -76,7 +76,7 @@ async main(): Unit {
   expect(failures == 1)
 }
 SOURCE
-sed 's|stdlib/testing/reporting/async|stdlib/testing/reporting|;s|stdlib/testing/filesystem/async|stdlib/testing/filesystem|;s|stdlib/testing/process/async|stdlib/testing/process|;s|stdlib/filesystem/async|stdlib/filesystem|;s|stdlib/process/async|stdlib/process|;s/async main/main/;s/await //g' "$work/async.panack" > "$work/ordinary.panack"
+sed 's|stdlib/testing/reporting/async|stdlib/testing/reporting|;s|stdlib/testing/filesystem/async|stdlib/testing/filesystem|;s|stdlib/testing/process/async|stdlib/testing/process|;s|stdlib/filesystem/legacy/async|stdlib/filesystem/legacy|;s|stdlib/process/async|stdlib/process|;s/async main/main/;s/await //g' "$work/async.panack" > "$work/ordinary.panack"
 printf 'PASS first\nFAIL second: expected failure\ntests: 2, failures: 1\n' > "$work/expected"
 for mode in ordinary async; do
   panack run "$work/$mode.panack" "$work" > "$work/output"
@@ -108,7 +108,7 @@ panack compile "$work/child.panack" -o "$work/child.bc" > /dev/null
 cat > "$work/nested.panack" <<'SOURCE'
 import stdlib/runtime/bytecode as runtime
 import stdlib/host as host
-import stdlib/filesystem as files
+import stdlib/filesystem/legacy as files
 import stdlib/path as path
 main(): Unit {
   args = host.arguments()

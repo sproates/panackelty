@@ -21,7 +21,7 @@ pure expect(value: Bool): Unit {
   checked = [0][if value { 0 } else { 1 }]
   ()
 }
-pure require[T](result: Result[T,fs.HostError]): T {
+pure require[T,E](result: Result[T,E]): T {
   match result {
     Ok(value) => value,
     Error(problem) => { failed: [T] = []; failed[0] }
@@ -38,7 +38,7 @@ async main(): Unit {
   expect(require(await fs.read_chunk(file, 100000, 3)).length() == 0)
   match await fs.read_chunk(file, 0, 65537) {
     Ok(_) => expect(false),
-    Error(problem) => expect(problem.code == "out_of_range")
+    Error(problem) => expect(problem.native.code == "out_of_range")
   }
   wrote = require(await fs.write(file, payload))
   expect(require(await fs.read(file, 1024)) == payload)
@@ -53,13 +53,13 @@ async main(): Unit {
   expect(require(await fs.directories_overlap(directory, child)))
   match await fs.read(file, 134217729) {
     Ok(value) => expect(false),
-    Error(problem) => expect(problem.code == "out_of_range")
+    Error(problem) => expect(problem.native.code == "out_of_range")
   }
   removed_child = require(await fs.remove_directory(child))
   removed_file = require(await fs.remove_file(file))
   match await fs.read(file, 1024) {
     Ok(value) => expect(false),
-    Error(problem) => expect(problem.code == "not_found")
+    Error(problem) => expect(problem.native.code == "not_found")
   }
   removed_directory = require(await fs.remove_directory(directory))
   reported = require(await host.stdout("async filesystem general: ok"))
@@ -81,7 +81,7 @@ pure expect(value: Bool): Unit {
   checked = [0][if value { 0 } else { 1 }]
   ()
 }
-pure require[T](result: Result[T,fs.HostError]): T {
+pure require[T,E](result: Result[T,E]): T {
   match result { Ok(value) => value, Error(problem) => { failed: [T] = []; failed[0] } }
 }
 main(): Void {
@@ -112,7 +112,7 @@ import stdlib/filesystem/confined/async as fs
 import stdlib/filesystem/confined as ordinary
 import stdlib/host/async as host
 import stdlib/path as path
-pure require[T](result: Result[T,fs.HostError]): T {
+pure require[T,E](result: Result[T,E]): T {
   match result { Ok(value) => value, Error(_) => { empty: [T] = []; empty[0] } }
 }
 pure expect(value: Bool): Unit { checked = [0][if value { 0 } else { 1 }]; () }
@@ -159,7 +159,7 @@ import stdlib/filesystem/staging::{PublishMode.CreateOnly, PublishMode.ReplaceEx
 import stdlib/filesystem/confined as confined
 import stdlib/host as host
 import stdlib/path as path
-pure require[T](result: Result[T,stage.HostError]): T {
+pure require[T,E](result: Result[T,E]): T {
   match result { Ok(value) => value, Error(_) => { empty: [T] = []; empty[0] } }
 }
 pure expect(value: Bool): Unit { checked = [0][if value { 0 } else { 1 }]; () }

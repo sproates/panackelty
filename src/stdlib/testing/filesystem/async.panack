@@ -1,5 +1,5 @@
 pub import stdlib/testing_files::{HostError, TestWorkspace}
-import stdlib/filesystem/async as files
+import stdlib/filesystem/legacy/async as files
 import stdlib/filesystem::{FileKind.Directory}
 
 pub async create_workspace(parent: Path): Result[TestWorkspace,HostError] {

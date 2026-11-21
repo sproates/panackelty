@@ -179,6 +179,8 @@ source/bytecode/disassembly acceptance. Integration remains pending. Filesystem,
 resource and network error mappings remain. This continues the existing stdlib
 website follow-up; publication is separate.
 
+Filesystem domain errors and explicit compatibility facades are implemented; focused ordinary/async failure, lifecycle and rendering tests pass. Stdlib nominal identity emission also preserves colliding enum/record declarations. Final local make check passed in 628s (21 November), plus relocated ordinary/async source and saved-bytecode acceptance. Integration remains pending. Digest/gzip and network error mappings remain. The existing stdlib website follow-up applies; no website publication is part of this batch.
+
 **Next available roadmap identifier: RM#163.**
 
 ## Example inventory preflight — 2026-10-20

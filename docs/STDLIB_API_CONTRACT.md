@@ -60,22 +60,22 @@ original HostError in its native field. Clock and calendar semantics do not chan
 ## Filesystem
 
 Ordinary `stdlib/filesystem`; counterpart `/async`. Keep FileKind/FileMetadata
-identities, and retain HostError until the explicit domain-error delivery.
+identities. Canonical APIs now return FilesystemError; compatibility paths retain HostError.
 
 | Signature | Preserved contract |
 | --- | --- |
-| `metadata(path: Path): Result[FileMetadata,HostError]` | Existing metadata semantics |
-| `read(path: Path, limit: Nat): Result[Bytes,HostError]` | Bounded whole-file read |
-| `write(path: Path, data: Bytes): Result[Unit,HostError]` | Existing write semantics, not atomic publication |
-| `read_chunk(path: Path, offset: Nat, limit: Nat): Result[Bytes,HostError]` | Existing bounded/no-follow regular-file semantics |
-| `write_atomic(path: Path, data: Bytes): Result[Unit,HostError]` | Existing atomic replacement, not crash durability |
-| `list_directory(path: Path): Result[[Path],HostError]` | Existing deterministic ordering |
-| `create_directory(path: Path): Result[Unit,HostError]` | Existing single-directory creation |
-| `remove_file(path: Path): Result[Unit,HostError]` | Existing file removal |
-| `remove_directory(path: Path): Result[Unit,HostError]` | Empty directory only |
-| `create_temp_file(parent: Path): Result[Path,HostError]` | Creates an owned file, not a name reservation |
-| `create_temp_directory(parent: Path): Result[Path,HostError]` | Creates an owned directory |
-| `directories_overlap(left: Path, right: Path): Result[Bool,HostError]` | Existing physical overlap check |
+| `metadata(path: Path): Result[FileMetadata,FilesystemError]` | Existing metadata semantics |
+| `read(path: Path, limit: Nat): Result[Bytes,FilesystemError]` | Bounded whole-file read |
+| `write(path: Path, data: Bytes): Result[Unit,FilesystemError]` | Existing write semantics, not atomic publication |
+| `read_chunk(path: Path, offset: Nat, limit: Nat): Result[Bytes,FilesystemError]` | Existing bounded/no-follow regular-file semantics |
+| `write_atomic(path: Path, data: Bytes): Result[Unit,FilesystemError]` | Existing atomic replacement, not crash durability |
+| `list_directory(path: Path): Result[[Path],FilesystemError]` | Existing deterministic ordering |
+| `create_directory(path: Path): Result[Unit,FilesystemError]` | Existing single-directory creation |
+| `remove_file(path: Path): Result[Unit,FilesystemError]` | Existing file removal |
+| `remove_directory(path: Path): Result[Unit,FilesystemError]` | Empty directory only |
+| `create_temp_file(parent: Path): Result[Path,FilesystemError]` | Creates an owned file, not a name reservation |
+| `create_temp_directory(parent: Path): Result[Path,FilesystemError]` | Creates an owned directory |
+| `directories_overlap(left: Path, right: Path): Result[Bool,FilesystemError]` | Existing physical overlap check |
 
 Aliases retain temp_file/temp_directory/atomic_write. The old bounded_filesystem
 and package_filesystem paths delegate without weakening confinement or bounds.
@@ -86,9 +86,9 @@ cancellation abandons waiting, not an already-started filesystem side effect.
 
 `stdlib/filesystem/confined` and `/async` export:
 
-- `root_identity(root: Path): Result[FilesystemRootIdentity,HostError]`.
-- `read(root: Path, relative: Path, limit: Nat): Result[FilesystemRootRead,HostError]`.
-- `read_link(root: Path, relative: Path): Result[Bytes,HostError]`.
+- `root_identity(root: Path): Result[FilesystemRootIdentity,FilesystemError]`.
+- `read(root: Path, relative: Path, limit: Nat): Result[FilesystemRootRead,FilesystemError]`.
+- `read_link(root: Path, relative: Path): Result[Bytes,FilesystemError]`.
 
 Preserve the existing identity/read record fields. Confined reads resolve bounded
 relative symlinks inside the root and reject escape; read_link reads the final
@@ -100,13 +100,13 @@ read, not a permanent capability or a promise the filesystem cannot change.
 
 `stdlib/filesystem/staging` and `/async` use an opaque DirectoryStage:
 
-- `create(parent: Path): Result[DirectoryStage,HostError]`.
-- `path(stage: DirectoryStage): Result[Path,HostError]`.
-- `create_directory(stage: DirectoryStage, relative: Path): Result[Unit,HostError]`.
-- `write_chunk(stage: DirectoryStage, relative: Path, data: Bytes, offset: Nat): Result[Unit,HostError]`.
-- `create_symlink(stage: DirectoryStage, relative: Path, target: Path): Result[Unit,HostError]`.
-- `publish(stage: DirectoryStage, name: Path, mode: PublishMode): Result[Unit,HostError]`.
-- `discard(stage: DirectoryStage): Result[Unit,HostError]`.
+- `create(parent: Path): Result[DirectoryStage,FilesystemError]`.
+- `path(stage: DirectoryStage): Result[Path,FilesystemError]`.
+- `create_directory(stage: DirectoryStage, relative: Path): Result[Unit,FilesystemError]`.
+- `write_chunk(stage: DirectoryStage, relative: Path, data: Bytes, offset: Nat): Result[Unit,FilesystemError]`.
+- `create_symlink(stage: DirectoryStage, relative: Path, target: Path): Result[Unit,FilesystemError]`.
+- `publish(stage: DirectoryStage, name: Path, mode: PublishMode): Result[Unit,FilesystemError]`.
+- `discard(stage: DirectoryStage): Result[Unit,FilesystemError]`.
 
 PublishMode is CreateOnly or ReplaceExisting. Retain existing relative child-name
 and target-link policies. Successful publication consumes the stage; discard
@@ -657,3 +657,11 @@ host and positional process APIs retain their old results. Focused tests pass;
 final local make check passed in 621s (21 November), plus relocated source,
 saved-bytecode and disassembly acceptance. Integration remains pending. Remaining filesystem,
 digest/gzip and network error work is not complete.
+
+## Filesystem errors and nominal identities (21 November 2026)
+
+The [domain-error contract](design/STDLIB_DOMAIN_ERRORS.md#filesystem) defines the
+shared FilesystemError, operation context, categories, native preservation and
+compatibility paths. Both ordinary/async APIs and staging are covered. Compiler
+emission separates ordinary stdlib declarations while preserving core/native ABI
+identities. No VM or bytecode-format change is required. Final local make check passed in 628s (unit 393s, bootstrap 85s, functional 167s, 21 November), including packaging and installed smoke. Relocated ordinary/async source, saved-bytecode and unrelated-directory acceptance passes. Integration remains pending; development CI stays off.

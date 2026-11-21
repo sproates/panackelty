@@ -1,0 +1,65 @@
+// Compatibility contract for callers that still consume HostError.
+import stdlib/filesystem as files
+pub import stdlib/host::{HostError}
+pub import stdlib/filesystem::{FileKind, FileKind.RegularFile, FileKind.Directory, FileKind.SymbolicLink, FileKind.OtherFile, FileMetadata}
+import stdlib/filesystem/errors::{FilesystemError}
+
+pure unwrap[T](result: Result[T,FilesystemError]): Result[T,HostError] {
+  match result { Ok(value) => Ok(value), Error(problem) => Error(problem.native) }
+}
+
+pub metadata(path: Path): Result[FileMetadata, HostError] {
+  unwrap(files.metadata(path))
+}
+
+pub read(path: Path, limit: Nat): Result[Bytes, HostError] {
+  unwrap(files.read(path, limit))
+}
+
+pub write(path: Path, data: Bytes): Result[Unit, HostError] {
+  unwrap(files.write(path, data))
+}
+
+pub list_directory(path: Path): Result[[Path], HostError] {
+  unwrap(files.list_directory(path))
+}
+
+pub remove_file(path: Path): Result[Unit, HostError] {
+  unwrap(files.remove_file(path))
+}
+
+pub remove_directory(path: Path): Result[Unit, HostError] {
+  unwrap(files.remove_directory(path))
+}
+
+pub create_directory(path: Path): Result[Unit, HostError] {
+  unwrap(files.create_directory(path))
+}
+
+pub temp_directory(parent: Path): Result[Path, HostError] {
+  unwrap(files.temp_directory(parent))
+}
+
+pub temp_file(parent: Path): Result[Path, HostError] {
+  unwrap(files.temp_file(parent))
+}
+
+pub create_temp_file(parent: Path): Result[Path,HostError] {
+  unwrap(files.create_temp_file(parent))
+}
+
+pub create_temp_directory(parent: Path): Result[Path,HostError] {
+  unwrap(files.create_temp_directory(parent))
+}
+
+pub read_chunk(file: Path, offset: Nat, limit: Nat): Result[Bytes,HostError] {
+  unwrap(files.read_chunk(file, offset, limit))
+}
+
+pub write_atomic(file: Path, data: Bytes): Result[Unit,HostError] {
+  unwrap(files.write_atomic(file, data))
+}
+
+pub directories_overlap(left: Path, right: Path): Result[Bool,HostError] {
+  unwrap(files.directories_overlap(left, right))
+}

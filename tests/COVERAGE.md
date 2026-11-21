@@ -2167,3 +2167,15 @@ are explicitly unmeasured in source coverage. Final local make check passed in
 smoke. The relocated toolchain passes the complete error fixture and unrelated-
 directory source/bytecode/disassembly checks. Ordinary and sanitizer oracle checks
 also pass; compiler seed bytes are unchanged.
+
+## Filesystem errors and stdlib nominal identity
+
+filesystem_errors.sh covers ordinary/async metadata, missing paths, read limits,
+file kinds, directory failures, confined reads, staging conflicts and invalid
+handles, native preservation, unknown codes and exact representative rendering
+in source and saved bytecode. async_filesystem_general.sh retains successful
+ordinary/async/staging and effect acceptance. stdlib_nominal_identity.sh loads two
+stdlib modules with identically named enums, constructors and records but different
+payloads, then checks their values and native FileKind compatibility in source and
+saved bytecode. New adapters/errors are explicitly unmeasured in source coverage.
+Final local make check passed in 628s (unit 393s, bootstrap 85s, functional 167s, 21 November), including packaging and installed smoke. Relocated ordinary/async source, saved-bytecode and unrelated-directory acceptance passes. Integration remains pending; development CI stays off.

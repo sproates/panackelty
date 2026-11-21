@@ -6,7 +6,7 @@ import project/src/compiler/loader::{LoadedProject, load_project, load_project_d
 import stdlib/package_filesystem::{FilesystemRootIdentity}
 import project/src/compiler/module_bodies::{BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyInvalid}
 import stdlib/bytes as byte_buffer
-import stdlib/filesystem as std_filesystem
+import stdlib/filesystem/legacy as std_filesystem
 import stdlib/host as std_host
 import stdlib/path as std_path
 import stdlib/testing::{TestResult}
@@ -161,7 +161,7 @@ pub run_suite(): Void {
       path_entry: Path = confinement_child(project, "path-identities.panack")
       std_filesystem.write(
         path_entry,
-        "import stdlib/path as std_path\nimport project/src/compiler/path_support as path_support\nimport stdlib/environment as std_environment\nimport stdlib/time as std_time\nimport stdlib/host as std_host\nimport stdlib/filesystem as std_filesystem\nimport project/src/compiler/filesystem_support as filesystem_support\nmain(): Void { print(path_support.join(\"a\", \"b\")); print(path_support.suffix(\"file.panack\")); print(path_support.parent(\"a/b\")); print(path_support.is_absolute(\"/tmp\")); print(path_support.with_suffix(\"file\", \".panack\")); print(path_support.resolve(\".\")); print(std_environment.get(\"PATH\").value_or(\"\")); print((std_environment.get(\"PATH\") != None())); print(std_time.seconds(1)); print(filesystem_support.exists(\".\")); }\n".encode_utf8()
+        "import stdlib/path as std_path\nimport project/src/compiler/path_support as path_support\nimport stdlib/environment as std_environment\nimport stdlib/time as std_time\nimport stdlib/host as std_host\nimport stdlib/filesystem/legacy as std_filesystem\nimport project/src/compiler/filesystem_support as filesystem_support\nmain(): Void { print(path_support.join(\"a\", \"b\")); print(path_support.suffix(\"file.panack\")); print(path_support.parent(\"a/b\")); print(path_support.is_absolute(\"/tmp\")); print(path_support.with_suffix(\"file\", \".panack\")); print(path_support.resolve(\".\")); print(std_environment.get(\"PATH\").value_or(\"\")); print((std_environment.get(\"PATH\") != None())); print(std_time.seconds(1)); print(filesystem_support.exists(\".\")); }\n".encode_utf8()
       )
       path_project: LoadedProject = load_project(confinement_text(path_entry))
       mut path_module_ready: Bool = true

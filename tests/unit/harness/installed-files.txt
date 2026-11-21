@@ -65,6 +65,9 @@ share/panackelty/stdlib/filesystem.panack
 share/panackelty/stdlib/filesystem/async.panack
 share/panackelty/stdlib/filesystem/confined.panack
 share/panackelty/stdlib/filesystem/confined/async.panack
+share/panackelty/stdlib/filesystem/errors.panack
+share/panackelty/stdlib/filesystem/legacy.panack
+share/panackelty/stdlib/filesystem/legacy/async.panack
 share/panackelty/stdlib/filesystem/staging.panack
 share/panackelty/stdlib/filesystem/staging/async.panack
 share/panackelty/stdlib/filesystem_stage.panack

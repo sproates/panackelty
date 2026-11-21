@@ -166,7 +166,8 @@ Import `stdlib/filesystem` for typed byte I/O, metadata, sorted directory
 enumeration, and explicitly owned temporary resources. Import
 `stdlib/process` for bounded subprocess execution. These APIs use `Path`,
 `Duration`, and structured `Result` errors. They do not provide recursive
-deletion, atomic writes, implicit PATH search, or a shell.
+deletion, implicit PATH search, or a shell. For atomic file replacement use
+`filesystem.write_atomic`; ordinary `write` is not atomic.
 
 Import `stdlib/host` for process arguments, exit, terminal output, nested
 bytecode execution, checked UTF-8 decoding, and sleep. The pure portable
@@ -278,7 +279,7 @@ not a released capability. Cancelling temporary creation before delivery removes
 the new file or empty directory on its worker. If removal fails, Panack reports
 the path and native error on stderr; it does not recursively delete contents.
 After successful delivery, the caller owns the path and its cleanup. Process
-termination is not a cleanup guarantee. Final batch acceptance remains pending.
+termination is not a cleanup guarantee. Integration acceptance remains pending.
 See the [implementation contract](../../docs/STDLIB_API_CONTRACT.md) for the
 complete inventory and remaining migration work.
 
@@ -302,8 +303,8 @@ module `filesystem/staging/async` provides matching functions using `await` and
 the same publication modes. Creation cancelled before delivery is discarded;
 publication may still commit after cancellation. Embedded shutdown queues cleanup on a dedicated worker. The process permits
 32 retained stage tables, including pending cleanup, with 64 slots per invocation;
-exhaustion returns resource_limit. Final batch validation is still pending, so
-this module is not yet accepted for release.
+exhaustion returns resource_limit in the native detail. Local validation has
+passed; integration and release acceptance remain pending.
 
 ### Typed digest and gzip APIs (alpha.16 development)
 
@@ -374,3 +375,14 @@ native for the original host details. Process errors retain executable, working
 directory and limits, not arguments or environment values. Nonzero process exits
 remain successful results. Existing host and process/legacy callers stay compatible.
 See the [error contract and migration](../../docs/design/STDLIB_DOMAIN_ERRORS.md).
+
+## Filesystem domain errors on the development branch
+
+Canonical filesystem, confined and staging operations (ordinary and async) return
+FilesystemError with operation context, a typed kind, native detail and render().
+The [error contract](../../docs/design/STDLIB_DOMAIN_ERRORS.md#filesystem) records
+all categories and migration. Use filesystem/legacy and /legacy/async for the
+previous HostError results. Existing bounded/package/numeric staging modules and
+compatibility aliases remain available. Compiler and testing adapters use explicit
+compatibility imports. Ordinary stdlib declarations now retain module identity in
+bytecode; native-owned FileKind/FileMetadata and HostError remain compatible.

@@ -1,5 +1,5 @@
 import stdlib/bytes as byte_buffer
-import stdlib/filesystem as filesystem
+import stdlib/filesystem/legacy as filesystem
 import stdlib/host as host
 import stdlib/host::{HostError}
 import stdlib/path as paths

@@ -97,3 +97,11 @@ are identical. Only time.sleep adds result conversion; new blocks are the error
 renderer, converter and existing Duration.as_nanoseconds method. Both artifacts
 produce identical stdout, and the compiler candidate equals the saved seed.
 The inventory records this reviewed change; native validation never refreshes it.
+
+On 2026-11-21, filesystem domain errors add two blocks (conversion and rendering).
+After accounting for the inserted module and qualified SleepError declarations,
+38 of the previous 51 function blocks are identical. Twelve filesystem wrappers
+add operation context and result conversion; main selects native.code in its
+error arm. Old/new successful stdout is identical. The nominal-identity fix
+prevents filesystem error constructors replacing SleepError constructors. The
+inventory records the reviewed transformation; tests do not regenerate it.

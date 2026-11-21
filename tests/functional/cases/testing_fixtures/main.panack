@@ -1,7 +1,7 @@
 import stdlib/testing_files as std_testing_files
 import stdlib/testing_files::{HostError}
 import stdlib/path as std_path
-import stdlib/filesystem as std_filesystem
+import stdlib/filesystem/legacy as std_filesystem
 pure path(text: Str): Path {
   std_path.from_text(text).value_or(std_path.current())
 }

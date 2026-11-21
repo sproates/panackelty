@@ -1,6 +1,6 @@
 import stdlib/bytes as byte_buffer
 import stdlib/path as std_path
-import stdlib/filesystem as std_filesystem
+import stdlib/filesystem/legacy as std_filesystem
 pub import project/src/compiler/loader::{LoadedProject}
 import project/src/compiler/loader::{loaded_binding_graph}
 import project/src/compiler/diagnostics::{diagnostic_character}

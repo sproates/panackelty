@@ -1071,7 +1071,7 @@ Host calls are effectful, including metadata, enumeration, and sleep. The
 portable `text.decode_utf8` operation is pure and traps on invalid input;
 `host.decode_utf8` returns a checked result.
 
-Failures return `Result[T,HostError]`, where
+Native and compatibility failures return `Result[T,HostError]`, where
 `HostError { operation: Str, code: Str, native_code: Nat }` identifies the service,
 a portable category, and POSIX errno (zero for language-defined failures).
 Categories are `not_found`, `permission_denied`, `already_exists`, `not_directory`,
@@ -1088,15 +1088,15 @@ allocate an error value.
 | Function | Result |
 | --- | --- |
 | `package_filesystem.read_beneath(root: Path, relative: Path, limit: Nat)` | `Result[FilesystemRootRead,HostError]` |
-| `filesystem.read(path: Path, limit: Nat)` | `Result[Bytes,HostError]` |
-| `filesystem.write(path: Path, contents: Bytes)` | `Result[Unit,HostError]` |
-| `filesystem.metadata(path: Path)` | `Result[FileMetadata,HostError]` |
-| `filesystem.list_directory(path: Path)` | `Result[[Path],HostError]` |
-| `filesystem.create_directory(path: Path)` | `Result[Unit,HostError]` |
-| `filesystem.remove_file(path: Path)` | `Result[Unit,HostError]` |
-| `filesystem.remove_directory(path: Path)` | `Result[Unit,HostError]` |
-| `filesystem.temp_file(parent: Path)` | `Result[Path,HostError]` |
-| `filesystem.temp_directory(parent: Path)` | `Result[Path,HostError]` |
+| `filesystem.read(path: Path, limit: Nat)` | `Result[Bytes,FilesystemError]` |
+| `filesystem.write(path: Path, contents: Bytes)` | `Result[Unit,FilesystemError]` |
+| `filesystem.metadata(path: Path)` | `Result[FileMetadata,FilesystemError]` |
+| `filesystem.list_directory(path: Path)` | `Result[[Path],FilesystemError]` |
+| `filesystem.create_directory(path: Path)` | `Result[Unit,FilesystemError]` |
+| `filesystem.remove_file(path: Path)` | `Result[Unit,FilesystemError]` |
+| `filesystem.remove_directory(path: Path)` | `Result[Unit,FilesystemError]` |
+| `filesystem.temp_file(parent: Path)` | `Result[Path,FilesystemError]` |
+| `filesystem.temp_directory(parent: Path)` | `Result[Path,FilesystemError]` |
 | `host.decode_utf8(contents: Bytes)` | `Result[Str,HostError]` |
 
 Reads and writes accept regular files, follow symlinks, and preserve bytes.
@@ -1593,10 +1593,10 @@ the owner task; no worker or pending host operation is created. They remain
 impure, require `await` in an async function, and cannot be called from pure
 functions. Async functions still cannot call the ordinary variants.
 
-`stdlib/host/async` and `stdlib/filesystem/async` re-export the operations and
-shared types of `stdlib/async_host` and `stdlib/async_filesystem` respectively.
-Both original paths remain supported. The canonical filesystem async module also
-provides the general file operations described above. The host module does
+`stdlib/host/async` re-exports the operations and shared types of `stdlib/async_host`.
+The canonical `stdlib/filesystem/async` provides the general file operations with
+FilesystemError results; its compatibility root_identity/read_beneath aliases
+retain HostError. Both original async_host/async_filesystem paths remain supported. The host module does
 not expose blocking sleep, subprocess execution, or nested bytecode execution.
 Existing bounds, grants, worker ownership and cancellation rules are unchanged.
 
@@ -1927,3 +1927,14 @@ paths and limits without retaining arguments, environment values, stdin or parti
 output. Nonzero process exits remain successful ProcessOutput values. Released
 host and positional legacy process APIs retain their old error contracts. See the
 [complete categories and migration](../design/STDLIB_DOMAIN_ERRORS.md).
+
+## Filesystem domain errors and stdlib identities
+
+On the development branch, canonical filesystem, confined and staging APIs return
+FilesystemError in both ordinary and async forms. Operation context, typed
+categories, native preservation and legacy import paths are specified in the
+[domain-error contract](../design/STDLIB_DOMAIN_ERRORS.md#filesystem). Existing
+compatibility APIs continue returning HostError. Ordinary stdlib declarations have
+module-qualified runtime identities, including enum constructors and records;
+only core declarations and explicitly owned native ABI names retain global
+runtime names. Same-spelled declarations in distinct modules remain distinct.

@@ -3,7 +3,7 @@ import project/src/compiler/path_support as path_support
 import stdlib/path as std_path
 import stdlib/bytes as byte_buffer
 import stdlib/environment as std_environment
-import stdlib/filesystem as std_filesystem
+import stdlib/filesystem/legacy as std_filesystem
 pub import project/src/compiler/coverage::{CoverageData}
 import project/src/compiler/coverage::{CoverageCell, CoverageFunction, coverage_number, coverage_prefix, decode_coverage_at, render_coverage, coverage_mapped_project}
 import project/src/compiler/loader::{LoadedProject, load_project_for_inventory}

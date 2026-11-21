@@ -2099,3 +2099,20 @@ Relocated-install ordinary/async tests and unrelated-directory imports pass in
 source, bytecode and disassembly modes. This run is comparable with the preceding
 647s checkpoint, not evidence of a product performance improvement. Historical
 validation-budget warnings remain subject to GI#106 reassessment.
+
+### Checked UTF-8 and byte/path aliases (21 November 2026)
+
+`tests/encoding_values.sh` covers empty/multibyte/NUL input, scalar boundaries, all
+256 single-byte inputs, six failure categories, first-error byte offsets, rendering,
+byte slice bounds and lexical parent compatibility in source and saved bytecode.
+Legacy invalid UTF-8 and slice bounds still trap. Compiler unit tests reject
+spoofed module identities and wrong-function access to the two primitive grants.
+Existing compiled oracle fixtures are unchanged. The new encoding module is
+explicitly unmeasured in source coverage. Final local `make check` passed in 626s (unit 391s, bootstrap 83s, functional
+158s), including archive and quick-start checks. Relocated source/bytecode and
+unrelated-directory import/disassembly checks pass. The preceding batch took
+625s; historical validation-budget warnings remain subject to GI#106 review.
+A separate malformed-input probe reports an invalid byte after 1 MiB of ASCII at
+offset 1,048,576 in 0.41s on the development Mac, including VM execution/startup.
+Valid input avoids the Panack diagnostic scan. This is a workload observation,
+not a latency guarantee; invalid-input diagnosis remains linear in prefix length.

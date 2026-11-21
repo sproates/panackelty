@@ -323,3 +323,15 @@ Async operations perform one bounded CPU step, then yield. They use OpenSSL/zlib
 on the VM owner thread. Cancellation does not undo a completed step. Handles
 belong to their invocation, copies alias, and finish/close invalidate aliases.
 Legacy `digest` and `gzip` modules remain for existing package-tool callers.
+
+### Checked UTF-8 and value methods (alpha.16 development)
+
+Prefer pure `stdlib/encoding/utf8.decode(data)` for untrusted bytes. It returns
+`Result[Str,Utf8Error]`; the error carries a zero-based byte offset, a decoding
+category and a `render()` explanation. Empty input and embedded NUL are valid;
+invalid input is rejected without inserting replacement characters.
+`Bytes.decode_utf8()` still traps, and `host.decode_utf8` remains compatible.
+
+Use `data.len()` and `data.slice(start,end)` for byte counts and half-open slices.
+Invalid bounds trap. Existing `length()` and `stdlib/bytes.slice` still work.
+`path.parent()` is the lexical equivalent of `path.directory()`, without I/O.

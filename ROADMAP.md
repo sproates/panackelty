@@ -157,6 +157,8 @@ source/bytecode/disassembly tests. Typed streaming HTTP passed final local make 
 Typed digest/gzip ordinary/async adapters and bounded pure hashing now pass focused
 source/bytecode, scheduler, lifecycle/fault and sanitizer checks; final local make check passed in 625s (21 November), as did relocated-install
 source/bytecode/disassembly checks. The existing website follow-up includes these modules; publication remains separate.
+Checked pure UTF-8 decoding and byte/path aliases are implemented with focused
+source/bytecode and compatibility acceptance; final local make check passed in 626s (21 November), plus relocated source/bytecode/disassembly acceptance.
 
 **Next available roadmap identifier: RM#163.**
 

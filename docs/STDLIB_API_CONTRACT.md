@@ -538,3 +538,26 @@ trailer verification and truncated input remain checked. Slots are not reused.
 Native builds reuse OpenSSL and zlib. Unsupported targets return HostError with
 code unsupported for resource operations; pure hash reports an unsupported VM
 error. Domain-specific error migration remains separate work.
+
+## Checked UTF-8 and value methods (21 November 2026)
+
+Implemented on the development branch: pure encoding/utf8.decode returns
+Result[Str,Utf8Error]. Utf8Error contains offset: Nat and kind: Utf8ErrorKind.
+Offsets count bytes from zero, not Unicode characters. InvalidContinuationByte
+points to the offending byte; other categories point to the sequence start.
+The remaining categories are InvalidLeadingByte, TruncatedSequence,
+OverlongEncoding, SurrogateCodePoint and CodePointOutOfRange. The first invalid
+sequence is reported. Within a sequence, an invalid leader takes priority, then
+insufficient remaining bytes, then continuation validation, then scalar validity.
+No replacement characters are inserted. Empty input and embedded NUL are valid.
+
+Utf8Error.render() explains the offset convention and specific failure in one
+sentence. The existing native validator supplies the successful fast path; only
+invalid input is scanned in Panack to classify the problem. Internal HostError
+values never escape this public API. Existing host.decode_utf8 and trapping
+Bytes.decode_utf8 remain compatible. There is no async twin for pure conversion.
+
+Bytes.len() aliases length(); slice(start,end) uses the existing half-open bounded
+slice operation and traps when start > end or end > length. Empty and whole-value
+slices are valid. Path.parent() preserves directory() exactly, including lexical
+relative/root behaviour; it performs no filesystem access. Old names remain.

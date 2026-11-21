@@ -1876,3 +1876,13 @@ atomic step; cancellation does not undo a completed step.
 The [stdlib API contract](../STDLIB_API_CONTRACT.md#digestgzip-execution-and-lifetime)
 defines byte bounds, teardown, allocation failures and unsupported-target behavior.
 Legacy numeric adapters remain available during migration.
+
+### Checked UTF-8 and byte/path aliases
+
+`stdlib/encoding/utf8.decode(Bytes)` is pure and returns `Result[Str,Utf8Error]`.
+The error has a zero-based byte offset and a typed decoding category; `render()`
+provides a human-readable explanation. No replacement decoding is performed.
+`Bytes.len()` and `Bytes.slice(start,end)` preserve existing length and slice
+semantics; `Path.parent()` preserves lexical `directory()` behaviour.
+See the [API contract](../STDLIB_API_CONTRACT.md#checked-utf-8-and-value-methods-21-november-2026)
+for error precedence, offsets and compatibility.

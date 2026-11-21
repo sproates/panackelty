@@ -748,3 +748,10 @@ Stages 2–4 agree. The stdlib conformance artifact remains
 `49fd630f84c62a042c96c9b76864d040d69237f641da8063be1d3f74ff2e4a50`.
 The compiler adds opaque Sha256Context/GzipDecoder types, bounded pure hashing and
 closed ordinary/async primitive grants. No bytecode format change is needed.
+
+The encoding/value-method batch refreshes the seed to
+`3073183adbe8e4d852147e3ad57c72469e50950aad49fe5bdc849c5e70ac509e`.
+A candidate built against the previous core methods introduces the two trusted
+adapter grants; stages 2–4 then reproduce it against the updated core library.
+The stdlib conformance artifact remains unchanged. New error records and methods
+are implemented in Panack; no VM or bytecode format change is required.

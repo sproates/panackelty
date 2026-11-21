@@ -1,3 +1,4 @@
+import project/src/compiler/module_bindings::{module_internal_primitive, module_internal_primitive_name}
 import project/tests/runner/compiler_suites/module_summaries::{module_summary_tests}
 import project/src/compiler/module_bindings::{ModuleBodyAvailability.CompleteModuleBodies}
 import project/tests/runner/compiler_suites/code_cache::{code_cache_tests}
@@ -318,6 +319,7 @@ pub run_suite(): Void {
   results = results.concat(owned_generic_method_tests())
   results = results.concat(builtin_owner_tests())
   results = results.concat(owned_intrinsic_tests())
+  results = results.concat(encoding_primitive_tests())
   results = results.concat(owned_callback_tests())
   results = results.concat(core_error_identity_tests())
   results = results.concat(core_adapter_emission_tests())
@@ -5206,5 +5208,27 @@ pure effect_fact_permission_tests(): [TestResult] {
     check_module_effects(graph, [module], signatures, unusual, false) ==
       check_function_effect_facts(graph, [module], signatures, collect_function_effect_facts(unusual)),
     "invalid or deferred function status changed"))
+  results
+}
+
+
+pure encoding_primitive_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  for path in ["encoding/utf8.panack", "core.panack"] {
+    name = if path == "core.panack" { "$owned$Bytes$slice" } else { "decode" }
+    primitive = if path == "core.panack" { "http_bytes_slice" } else { "host_decode_utf8" }
+    trusted = ModuleIdentity(ToolchainModulePackage(), path)
+    results = results.append(std_testing.expect("encoding/trusted/" + path,
+      module_internal_primitive(DeclarationIdentity(trusted, name), primitive) &&
+      module_internal_primitive_name(trusted, primitive), "trusted adapter rejected"))
+    results = results.append(std_testing.expect("encoding/wrong function/" + path,
+      !module_internal_primitive(DeclarationIdentity(trusted, "other"), primitive), "grant escaped its function"))
+    for package in [StandaloneModulePackage(), ManifestModulePackage("toolchain", "1")] {
+      spoof = ModuleIdentity(package, path)
+      results = results.append(std_testing.expect("encoding/spoof/" + path,
+        !module_internal_primitive(DeclarationIdentity(spoof, name), primitive) &&
+        !module_internal_primitive_name(spoof, primitive), "spoofed toolchain grant"))
+    }
+  }
   results
 }

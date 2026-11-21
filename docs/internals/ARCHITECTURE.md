@@ -2040,3 +2040,12 @@ bounded step on the owner thread and requests a scheduler yield before resumptio
 OpenSSL/zlib retain hashing/decompression responsibility; no worker or bytecode
 format change is introduced. The stdlib contract records the hard input/output
 bounds and cancellation behavior.
+
+### Pure encoding adapter
+
+The encoding/utf8 module reuses the existing pure native UTF-8 validation and
+decoding capability through an exact trusted-function grant. Valid input returns
+the native string directly; a Panack pass classifies invalid input and produces
+typed errors with byte offsets. No native ABI or bytecode format changes. Core
+Bytes slicing delegates to the existing bounded slice primitive; Path.parent
+and Bytes.len delegate to their existing methods.

@@ -491,6 +491,7 @@ pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool 
     (owner.module.path == "host.panack" && owner.name == "exit" && (name == "process_exit")) ||
     (owner.module.path == "host.panack" && owner.name == "stderr" && (name == "eprint")) ||
     (owner.module.path == "host.panack" && owner.name == "sleep" && (name == "host_sleep")) ||
+    (owner.module.path == "encoding/utf8.panack" && owner.name == "decode" && name == "host_decode_utf8") ||
     (owner.module.path == "host.panack" && owner.name == "decode_utf8" && (name == "host_decode_utf8")) ||
     (owner.module.path == "tcp.panack" && owner.name == "exchange" && (name == "tcp_exchange")) ||
     (owner.module.path == "tcp.panack" && owner.name == "serve" && (name == "tcp_serve")) ||
@@ -553,6 +554,7 @@ pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool 
     (owner.module.path == "core.panack" && owner.name == "$owned$Path$native_bytes" && (name == "path_native_bytes")) ||
     (owner.module.path == "core.panack" && owner.name == "$owned$Path$display" && (name == "path_display")) ||
     (owner.module.path == "core.panack" && owner.name == "$owned$Path$is_absolute" && (name == "path_absolute")) ||
+    (owner.module.path == "core.panack" && owner.name == "$owned$Bytes$slice" && name == "http_bytes_slice") ||
     (owner.module.path == "core.panack" && owner.name == "$owned$Path$directory" && (name == "path_directory")) ||
     (owner.module.path == "core.panack" && owner.name == "$owned$Path$filename" && (name == "path_filename")) ||
     (owner.module.path == "core.panack" && owner.name == "$owned$Duration$add" && (name == "duration_nanoseconds")) ||
@@ -607,6 +609,7 @@ pub pure module_internal_primitive_name(identity: ModuleIdentity, name: Str): Bo
     (identity.path == "async_filesystem.panack" && (name == "fs_read_beneath_async" || name == "fs_root_identity_async")) ||
     (identity.path == "environment.panack" && (name == "environment_get" || name == "environment_has")) ||
     (identity.path == "testing_files.panack" && (name == "fs_list" || name == "fs_metadata" || name == "fs_remove_directory" || name == "fs_temp_directory")) ||
+    (identity.path == "encoding/utf8.panack" && name == "host_decode_utf8") ||
     (identity.path == "host.panack" && (name == "command_args" || name == "eprint" || name == "host_decode_utf8" || name == "host_sleep" || name == "process_exit" || name == "run_bytecode_args")) ||
     (identity.path == "tcp.panack" && (name == "tcp_exchange" || name == "tcp_serve" || name == "tcp_serve_stream" || name == "tcp_server_read_chunk")) ||
     (identity.path == "path.panack" && (name == "path_current" || name == "path_from_native" || name == "path_from_text")) ||
@@ -627,7 +630,7 @@ pub pure module_internal_primitive_name(identity: ModuleIdentity, name: Str): Bo
     (identity.path == "filesystem/confined/async.panack" && name == "fs_read_link_async") ||
     (identity.path == "bounded_filesystem.panack" && (name == "fs_read_link" || name == "fs_read_chunk" || name == "fs_atomic_write")) ||
     (identity.path == "filesystem.panack" && (name == "fs_create_directory" || name == "fs_list" || name == "fs_metadata" || name == "fs_read" || name == "fs_remove_directory" || name == "fs_remove_file" || name == "fs_temp_directory" || name == "fs_temp_file" || name == "fs_write")) ||
-    (identity.path == "core.panack" && (name == "duration_from_seconds" || name == "duration_nanoseconds" || name == "path_absolute" || name == "path_append" || name == "path_directory" || name == "path_display" || name == "path_filename" || name == "path_native_bytes" || name == "path_to_text")) ||
+    (identity.path == "core.panack" && (name == "http_bytes_slice" || name == "duration_from_seconds" || name == "duration_nanoseconds" || name == "path_absolute" || name == "path_append" || name == "path_directory" || name == "path_display" || name == "path_filename" || name == "path_native_bytes" || name == "path_to_text")) ||
     (identity.path == "compiler_paths.panack" && (name == "path_is_absolute" || name == "path_join" || name == "path_parent" || name == "path_resolve" || name == "path_suffix" || name == "path_with_suffix")) ||
     (identity.path == "package_filesystem.panack" && (name == "fs_directories_overlap" || name == "fs_read_beneath")) ||
     (identity.path == "tcp_service.panack" && (name == "tcp_service")) ||

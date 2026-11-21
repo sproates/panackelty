@@ -147,6 +147,11 @@ impl[T,E] Result[T,E] {
   }
 }
 
+impl Bytes {
+  pub pure len(): Nat { self.length() }
+  pub pure slice(start: Nat, end: Nat): Bytes { http_bytes_slice(self, start, end) }
+}
+
 impl Path {
   pub pure join(child: Path): Result[Path,PathError] { path_append(self, child) }
   pub pure to_text(): Result[Str,PathError] { path_to_text(self) }
@@ -154,6 +159,7 @@ impl Path {
   pub pure display(): Str { path_display(self) }
   pub pure is_absolute(): Bool { path_absolute(self) }
   pub pure directory(): Path { path_directory(self) }
+  pub pure parent(): Path { self.directory() }
   pub pure filename(): Option[Path] { path_filename(self) }
 }
 

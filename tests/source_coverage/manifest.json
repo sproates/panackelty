@@ -22,6 +22,7 @@
     "src/stdlib/time.panack", "src/stdlib/validation.panack"
   ],
   "unmeasured": [
+    {"path":"src/stdlib/encoding/utf8.panack","reason":"Checked UTF-8 is exercised by source/bytecode error and boundary cases outside the bounded coverage corpus."},
     {"path":"src/stdlib/digest/sha256.panack","reason":"Typed CPU resource adapter checked by source/bytecode, scheduling and native lifecycle tests outside the bounded coverage corpus."},
     {"path":"src/stdlib/digest/sha256/async.panack","reason":"Typed CPU resource adapter checked by source/bytecode, scheduling and native lifecycle tests outside the bounded coverage corpus."},
     {"path":"src/stdlib/compression/gzip.panack","reason":"Typed CPU resource adapter checked by source/bytecode, scheduling and native lifecycle tests outside the bounded coverage corpus."},

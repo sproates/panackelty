@@ -57,6 +57,7 @@ share/panackelty/stdlib/core.panack
 share/panackelty/stdlib/digest.panack
 share/panackelty/stdlib/digest/sha256.panack
 share/panackelty/stdlib/digest/sha256/async.panack
+share/panackelty/stdlib/encoding/utf8.panack
 share/panackelty/stdlib/environment.panack
 share/panackelty/stdlib/environment/async.panack
 share/panackelty/stdlib/filesystem.panack

@@ -1085,7 +1085,7 @@ pure builtin_legacy_return(name: Str): Str {
                           if (name == "host_sleep" || name == "host_sleep_async") {
                             "Result[Unit,HostError]"
                           } else {
-                            if (name == "process_run" || name == "process_run_isolated") {
+                            if (name == "process_run" || name == "process_run_isolated" || name == "process_run_async" || name == "process_run_isolated_async") {
                               "Result[ProcessOutput,HostError]"
                             } else {
                               if name == "path_from_text" ||
@@ -1327,7 +1327,7 @@ pure builtin_legacy_arity(name: Str): Nat {
                           if (name == "host_sleep" || name == "host_sleep_async") {
                             1
                           } else {
-                            if (name == "process_run" || name == "process_run_isolated") {
+                            if (name == "process_run" || name == "process_run_isolated" || name == "process_run_async" || name == "process_run_isolated_async") {
                               7
                             } else {
                               if name == "path_from_text" ||
@@ -1643,7 +1643,7 @@ pure builtin_legacy_parameter(name: Str, index: Nat): Str {
                               "Any"
                             }
                           } else {
-                            if (name == "process_run" || name == "process_run_isolated") {
+                            if (name == "process_run" || name == "process_run_isolated" || name == "process_run_async" || name == "process_run_isolated_async") {
                               if index == 0 {
                                 "Path"
                               } else {

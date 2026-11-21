@@ -252,6 +252,8 @@ functional-impl: package-tool $(BUILD_DIR)/vm/static_http_client $(STAGE2_COMPIL
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/http-package sh tests/http_package.sh
 	@$(PROFILE) functional/async-stdlib sh tests/async_stdlib.sh
 	@$(PROFILE) functional/console sh tests/console.sh
+	@$(PROFILE) functional/process-async sh tests/process_async.sh
+	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/http-process sh tests/http_process.sh
 	@$(PROFILE) functional/async-filesystem-general sh tests/async_filesystem_general.sh
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/http-uptime sh tests/http_uptime.sh
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/async-filesystem sh tests/async_filesystem.sh
@@ -321,8 +323,8 @@ compiler-watchdog-check: compiler-watchdog-build
 
 -include $(BUILD_DIR)/vm/compiler-observer.d
 
-$(BUILD_DIR)/vm/test_modules: tests/unit/vm/native_modules.c tests/unit/vm/resumable.c tests/unit/vm/coverage.c tests/unit/vm/coverage_session.c tests/unit/vm/tasks.c tests/unit/vm/async.c tests/unit/vm/tcp.c tests/unit/vm/http.c tests/unit/vm/http_state.c tests/unit/vm/root_read.c tests/unit/vm/console_write.c tests/unit/vm/tcp_server.c $(VM_LIBRARY_OBJECTS)
-	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< tests/unit/vm/resumable.c tests/unit/vm/coverage.c tests/unit/vm/coverage_session.c tests/unit/vm/tasks.c tests/unit/vm/async.c tests/unit/vm/tcp.c tests/unit/vm/http.c tests/unit/vm/http_state.c tests/unit/vm/root_read.c tests/unit/vm/console_write.c tests/unit/vm/tcp_server.c $(VM_LIBRARY_OBJECTS) -o $@ $(LDLIBS)
+$(BUILD_DIR)/vm/test_modules: tests/unit/vm/native_modules.c tests/unit/vm/resumable.c tests/unit/vm/coverage.c tests/unit/vm/coverage_session.c tests/unit/vm/tasks.c tests/unit/vm/async.c tests/unit/vm/tcp.c tests/unit/vm/http.c tests/unit/vm/http_state.c tests/unit/vm/root_read.c tests/unit/vm/console_write.c tests/unit/vm/process_async.c tests/unit/vm/tcp_server.c $(VM_LIBRARY_OBJECTS)
+	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< tests/unit/vm/resumable.c tests/unit/vm/coverage.c tests/unit/vm/coverage_session.c tests/unit/vm/tasks.c tests/unit/vm/async.c tests/unit/vm/tcp.c tests/unit/vm/http.c tests/unit/vm/http_state.c tests/unit/vm/root_read.c tests/unit/vm/console_write.c tests/unit/vm/process_async.c tests/unit/vm/tcp_server.c $(VM_LIBRARY_OBJECTS) -o $@ $(LDLIBS)
 
 FAULT_OBJECTS := $(patsubst src/vm/%.c,$(BUILD_DIR)/fault/%.o,$(filter-out src/vm/main.c,$(VM_SOURCES)))
 export PANACK_NATIVE_FAULT_TEST := $(abspath $(BUILD_DIR)/fault/test_faults)
@@ -335,8 +337,8 @@ $(BUILD_DIR)/fault/injection.o: tests/unit/vm/fault_injection.c tests/unit/vm/fa
 	@mkdir -p "$(@D)"
 	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm -c $< -o $@
 
-$(BUILD_DIR)/fault/test_faults: tests/unit/vm/native_faults.c tests/unit/vm/root_read_faults.c tests/unit/vm/console_write_faults.c $(BUILD_DIR)/fault/injection.o $(FAULT_OBJECTS)
-	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm -DPANACK_TEST_INJECT -include tests/unit/vm/fault_injection.h $(LDFLAGS) $< tests/unit/vm/root_read_faults.c tests/unit/vm/console_write_faults.c $(FAULT_OBJECTS) $(BUILD_DIR)/fault/injection.o -o $@ $(LDLIBS)
+$(BUILD_DIR)/fault/test_faults: tests/unit/vm/native_faults.c tests/unit/vm/root_read_faults.c tests/unit/vm/console_write_faults.c tests/unit/vm/process_async.c $(BUILD_DIR)/fault/injection.o $(FAULT_OBJECTS)
+	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm -DPANACK_TEST_INJECT -include tests/unit/vm/fault_injection.h $(LDFLAGS) $< tests/unit/vm/root_read_faults.c tests/unit/vm/console_write_faults.c tests/unit/vm/process_async.c $(FAULT_OBJECTS) $(BUILD_DIR)/fault/injection.o -o $@ $(LDLIBS)
 
 .PHONY: native-fault-build native-fault
 native-fault-build: $(BUILD_DIR)/fault/test_faults

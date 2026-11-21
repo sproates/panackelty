@@ -403,6 +403,22 @@ static int uptime_progress(const char *port)
     return second > first ? 0 : 1;
 }
 
+static int process_progress(const char *port, const char *started)
+{
+    int slow = connect_to(port);
+    if (slow < 0) return 1;
+    const char *request = "GET /slow HTTP/1.1\r\nHost: local\r\n\r\n";
+    if (send_all(slow, request, strlen(request))) { close(slow); return 1; }
+    struct timespec pause = {.tv_nsec = 1000000};
+    size_t tries;
+    for (tries = 0; tries < 5000 && access(started, F_OK); tries++) nanosleep(&pause, NULL);
+    if (tries == 5000) { close(slow); return 1; }
+    int failed = exchange(port, "GET /release HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\nok", 0);
+    if (!failed) failed = response_contains(slow, "200 OK", "\r\n\r\nok", 0);
+    close(slow);
+    return failed ? 1 : 0;
+}
+
 int main(int argc, char **argv)
 {
     signal(SIGPIPE, SIG_IGN);
@@ -427,6 +443,7 @@ int main(int argc, char **argv)
     }
     if (argc == 4 && (!strcmp(argv[2], "close") || !strcmp(argv[2], "destroy") || !strcmp(argv[2], "escalate")))
         return routed_shutdown(argv[1], argv[3], !strcmp(argv[2], "escalate") ? 2 : !strcmp(argv[2], "destroy"));
+    if (argc == 4 && !strcmp(argv[2], "process-progress")) return process_progress(argv[1], argv[3]);
     if (argc != 3) return 2;
     const char *port = argv[1];
     const char *mode = argv[2];

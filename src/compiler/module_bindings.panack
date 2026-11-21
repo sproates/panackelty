@@ -458,7 +458,8 @@ pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool 
     (owner.module.path == "time.panack" && owner.name == "now" && (name == "instant_now")) ||
     (owner.module.path == "time.panack" && owner.name == "seconds" && (name == "duration_nanoseconds")) ||
     (owner.module.path == "time.panack" && owner.name == "milliseconds" && (name == "duration_nanoseconds")) ||
-    (owner.module.path == "process.panack" && owner.name == "run_isolated" && name == "process_run_isolated") ||
+    (owner.module.path == "process/async.panack" && owner.name == "run" && (name == "process_run_async" || name == "process_run_isolated_async")) ||
+    (owner.module.path == "process/legacy.panack" && owner.name == "run_isolated" && name == "process_run_isolated") ||
     (owner.module.path == "filesystem/confined.panack" && owner.name == "root_identity" && name == "fs_root_identity") ||
     (owner.module.path == "filesystem/confined/async.panack" && owner.name == "read_link" && name == "fs_read_link_async") ||
     (owner.module.path == "bounded_filesystem.panack" && owner.name == "read_link" && name == "fs_read_link") ||
@@ -477,7 +478,7 @@ pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool 
     (owner.module.path == "filesystem/staging.panack" && owner.name == "publish" && name == "stage_publish") ||
     (owner.module.path == "filesystem/staging.panack" && owner.name == "discard" && name == "stage_discard") ||
     (owner.module.path == "filesystem_stage.panack" && owner.name == "symlink" && name == "fs_stage_symlink") ||
-    (owner.module.path == "process.panack" && owner.name == "run" && (name == "process_run")) ||
+    (owner.module.path == "process/legacy.panack" && owner.name == "run" && (name == "process_run")) ||
     (owner.module.path == "http_transport.panack" && owner.name == "exchange" && (name == "http_transport_exchange")) ||
     (owner.module.path == "async_filesystem.panack" && owner.name == "read_beneath" && (name == "fs_read_beneath_async")) ||
     (owner.module.path == "async_filesystem.panack" && owner.name == "root_identity" && (name == "fs_root_identity_async")) ||
@@ -579,7 +580,8 @@ pub pure module_internal_primitive_name(identity: ModuleIdentity, name: Str): Bo
     (identity.path == "time.panack" && name == "host_sleep") ||
     (identity.path == "environment/async.panack" && name == "environment_lookup_async") ||
     (identity.path == "time.panack" && (name == "duration_from_seconds" || name == "duration_nanoseconds" || name == "instant_now")) ||
-    (identity.path == "process.panack" && (name == "process_run" || name == "process_run_isolated")) ||
+    (identity.path == "process/async.panack" && (name == "process_run_async" || name == "process_run_isolated_async")) ||
+    (identity.path == "process/legacy.panack" && (name == "process_run" || name == "process_run_isolated")) ||
     (identity.path == "http_transport.panack" && (name == "http_transport_exchange")) ||
     (identity.path == "async_filesystem.panack" && (name == "fs_read_beneath_async" || name == "fs_root_identity_async")) ||
     (identity.path == "environment.panack" && (name == "environment_get" || name == "environment_has")) ||

@@ -250,10 +250,10 @@ Do not interpret a proposed module path as an already implemented API.
 | Area | Operations and disposition |
 | --- | --- |
 | Time and environment | `time.now`, `environment.get`: implemented in PR #693 under `/async`. Pure duration helpers remain shared. |
-| Host I/O | Async `arguments`, `stdout`, `stderr`, `exit` already exist; PR #693 adds `host/async`. Add `sleep` here, matching its ordinary owner. Audit standard input separately: a bounded async input contract is needed before adding an API, rather than assuming an existing `host.read` exists. |
+| Host I/O | Async `arguments`, `stdout`, `stderr`, `exit` already exist; PR #693 adds `host/async`. The approved API contract places canonical sleep under `time`/`time/async`, retaining host.sleep for compatibility; checked output uses `console`/`console/async`. Audit standard input separately: a bounded async input contract is needed before adding an API, rather than assuming an existing `host.read` exists. |
 | General filesystem | Provide async `metadata`, `read`, `write`, `list_directory`, `remove_file`, `remove_directory`, `create_directory`, `temp_directory`, `temp_file`. Retain current result types, Path semantics and documented bounds. |
 | Bounded/confined filesystem | Existing async `root_identity`, `read_beneath` remain. Include `read_chunk`, `atomic_write`, `read_link`, and `directories_overlap` in the capability review and define their matching module paths without silently moving existing public owners. |
-| Processes | Async `run`, `run_isolated`, preserving their distinct child-environment behaviour, bounded input/output, timeout and exit/signal results. |
+| Processes | Ordinary/async `run(Command)` with explicit inherited/exact environment modes and Exited/Signalled results. The positional run/run_isolated API remains in process/legacy for compatibility. Bounded input/output, timeouts and cancellation/reaping are implemented; integration acceptance remains pending. |
 | Streaming HTTP | Async `open`, `read`, `close` counterparts for `http_stream`; preserve framing responsibility in the HTTP package. Existing async HTTP exchanges and TCP services are reused. |
 | Staged filesystem | Explicitly assess `begin`, `path`, `directory`, `write`, `symlink`, `publish`, `close`. Handle ownership and cancellation during publication must be settled before choosing implementations. Do not quietly omit these public I/O operations or equate cancellation with rollback. |
 | Digest and gzip | Explicitly assess digest `sha256_open`, `update`, `finish`, `close` and gzip `open`, `step`, `close`. These are stateful native computation, not necessarily blocking I/O; determine how async callers use them safely and how large work yields. Do not automatically add worker threads or call them pure. |
@@ -335,7 +335,7 @@ Documentation is its own acceptance work, not a final optional polish step.
 | --- | ---: | --- |
 | AS1: Imports, clock and environment | 10 | In review: PR #693, local full validation passed; integration pending |
 | AS2: Filesystem and resource-operation boundary | 30 | General, confined and typed staging APIs locally validated (606s full check, 19 November), including async cleanup and relocated installation. Remaining specialist decisions/migrations and integration pending |
-| AS3: Timers, console and processes | 25 | Timer and checked console implementation pass candidate source/bytecode and focused native checks (20 November). Processes, input/nested-execution boundary, seed refresh and final batch acceptance remain |
+| AS3: Timers, console and processes | 25 | Timer, checked console and Command-based process implementation passed final local make check in 612s (21 November), including HTTP progress, lifecycle/fault, source/bytecode and seed checks. Input/nested-execution boundary review and integration remain |
 | AS4: Streaming HTTP | 15 | Inventory recorded; lifecycle contracts and implementation pending |
 | AS5: Stdlib reference, guides and website | 20 | Documentation gap verified; pages, examples and review pending |
 | Total | 100 | No accepted completion credit yet; AS1 and the filesystem batch are locally validated but unmerged |

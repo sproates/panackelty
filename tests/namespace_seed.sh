@@ -90,7 +90,7 @@ import stdlib/testing_files::{TestWorkspace}
 import stdlib/time::{DurationError, DurationError.ZeroDurationDivisor, ClockError, ClockError.ClockUnavailable}
 import stdlib/host::{HostError}
 import stdlib/filesystem::{FileKind, FileKind.RegularFile, FileMetadata}
-import stdlib/process::{ProcessOutput}
+import stdlib/process/legacy::{ProcessOutput}
 import stdlib/tcp::{TcpServerLimits}
 import stdlib/path::{PathError, PathError.EmptyPath}
 import project/src/compiler/module_bodies::{check_module_bodies, CheckedModuleBodies, BoundFunctionBody, BodyCheckStatus, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}

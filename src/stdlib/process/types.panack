@@ -1,0 +1,19 @@
+pub import stdlib/host::{HostError}
+pub import stdlib/process/legacy as legacy
+pub enum ProcessEnvironment { InheritEnvironment([Str]), ExactEnvironment([Str]) }
+pub enum ProcessTermination { Exited(Nat), Signalled(Nat) }
+pub record Command {
+  executable: Path, arguments: [Str], stdin: Bytes, working_directory: Path,
+  environment: ProcessEnvironment, timeout: Duration, output_limit: Nat
+}
+pub record ProcessOutput { termination: ProcessTermination, stdout: Bytes, stderr: Bytes }
+
+// Shared representation adapter; public facades expose only the data types.
+pub pure convert(result: Result[legacy.ProcessOutput,HostError]): Result[ProcessOutput,HostError] {
+  match result {
+    Error(problem) => Error(problem),
+    Ok(output) => Ok(ProcessOutput(
+      if output.signal == 0 { Exited(output.exit_code) } else { Signalled(output.signal) },
+      output.stdout, output.stderr))
+  }
+}

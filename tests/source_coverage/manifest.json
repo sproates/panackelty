@@ -22,6 +22,9 @@
     "src/stdlib/time.panack", "src/stdlib/validation.panack"
   ],
   "unmeasured": [
+    {"path":"src/stdlib/process/async.panack","reason":"Async process adapter checked by source/bytecode, HTTP progress and native lifecycle tests outside the bounded coverage corpus."},
+    {"path":"src/stdlib/process/legacy.panack","reason":"Positional compatibility wrappers moved from process.panack; retained behavior is checked by existing process and package tests outside this module measurement."},
+    {"path":"src/stdlib/process/types.panack","reason":"Shared command/result representation checked by ordinary/async source and bytecode cases outside the bounded coverage corpus."},
     {"path":"src/stdlib/console.panack","reason":"Checked console adapter covered by source/bytecode output and native failure/lifecycle tests outside the bounded source-coverage corpus."},
     {"path":"src/stdlib/console/async.panack","reason":"Checked console adapter covered by source/bytecode output and native failure/lifecycle tests outside the bounded source-coverage corpus."},
     {"path":"src/stdlib/filesystem/confined.panack","reason":"Canonical filesystem adapter checked by focused source/bytecode and native lifecycle tests outside the bounded source-coverage corpus."},

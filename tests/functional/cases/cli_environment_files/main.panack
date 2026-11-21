@@ -1,4 +1,4 @@
-import stdlib/process as std_process
+import stdlib/process/legacy as std_process
 import stdlib/testing as std_testing
 import stdlib/testing::{TestResult}
 import stdlib/testing_files as std_testing_files

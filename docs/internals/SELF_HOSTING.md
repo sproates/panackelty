@@ -718,3 +718,11 @@ Stages 2, 3 and 4 produce identical compiler bytes and standard-library conforma
 bytes. The standard-library fixture gains canonical wrappers and imported helpers;
 all 35 pre-existing function instruction bodies remain identical after module
 renumbering, and execution output is unchanged. The bytecode format remains v9.
+
+The timer/console/process batch refreshes the v9 seed to
+`af5f581b42740ae8e6edc77b25624300c9d67d4a7a99c87e35134751594087ea`.
+Stages 2–4 again agree for compiler and stdlib conformance artifacts. The stdlib
+oracle changes module numbering after the time-to-host import and adds time.sleep;
+reviewed disassembly and identical execution output support the fixture update.
+Canonical process wrappers accept Command; compiler/package/test positional calls
+now explicitly use process/legacy. No bytecode version change is required.

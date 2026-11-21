@@ -2023,3 +2023,25 @@ syscall, blocked-write cancellation and four-slot admission tests run for both t
 legacy and new raw writer paths. New module installation and source inventories
 are reconciled; the two console adapters are explicitly unmeasured by the bounded
 coverage corpus. Final seed refresh and full checks remain for the settled batch.
+
+## Command-based process adapters, 21 November 2026
+
+`tests/process_async.sh` checks ordinary/async source and saved-bytecode paths,
+explicit environments, stdin/stdout/stderr, nonzero exits, signals, deadlines,
+output limits, launch failure and effect/type rejection. Native process tests
+cover copied environment ownership, four retained slots and recovery, cancellation
+with direct-child reaping, explicit embedding grants and rejection of unrelated
+completion callbacks. Fault tests cover allocation, thread, pipe, fork, poll and
+read failures without retained resources. `tests/http_process.sh` checks that a
+second HTTP handler can release a subprocess awaited by the first handler.
+The three new process modules are explicitly unmeasured in the bounded source
+coverage corpus. Focused tests do not establish an execution coverage percentage.
+
+Combined timer/console/process local `make check` passed on 21 November in 612s
+(unit 379s, bootstrap 82s), including functional and release-smoke checks. The
+browser runtime bundle and unsupported-host process compilation path pass.
+The 606s filesystem checkpoint is a preceding run, not a controlled performance
+comparison; no throughput improvement or regression is inferred from this run.
+
+Ordinary and async Command APIs also pass source and saved-bytecode tests from a
+relocated installation with spaces in its path, without checkout library overrides.

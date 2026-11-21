@@ -148,7 +148,10 @@ scope and effort are unknown, and this is an implementation allocation rather
 than an issue-gathering exercise. The owner selected the
 [expanded async stdlib and documentation programme](docs/ASYNC_DESIGN_DISCUSSION.md#expanded-async-stdlib-and-documentation-programme-8-november-2026)
 before shared-state work; it has a provisional five-group baseline, including
-website stdlib references, within RM#162.
+website stdlib references, within RM#162. The timer, checked console and
+Command-based subprocess batch passed combined local validation on 21 November
+(612s); PR #693 remains a CI-free draft, with integration and the remaining
+programme scope still pending.
 
 **Next available roadmap identifier: RM#163.**
 

@@ -12,7 +12,7 @@ struct VMHttpRuntime {
 };
 
 Value *http_runtime_listen(VM *vm, Value *handle, Function *worker, bool contextual,
-                           bool outbound, bool filesystem, bool console);
+                           bool outbound, bool filesystem, bool console, bool process);
 bool http_runtime_request_close(struct VMHttpRuntime *runtime, Value *handle, bool destroy);
 bool http_runtime_active(const struct VMHttpRuntime *runtime);
 void http_runtime_pump(struct VMHttpRuntime *runtime, size_t budget, unsigned wait_ms);

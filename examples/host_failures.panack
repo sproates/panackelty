@@ -3,8 +3,8 @@ import stdlib/filesystem as filesystem
 import stdlib/host as host
 import stdlib/host::{HostError}
 import stdlib/path as paths
-import stdlib/process as process
-import stdlib/process::{ProcessOutput}
+import stdlib/process/legacy as process
+import stdlib/process/legacy::{ProcessOutput}
 import stdlib/testing as testing
 import stdlib/time as time
 

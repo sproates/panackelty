@@ -64,6 +64,8 @@ static const Builtin BUILTINS[] = {
     {"http_state_fail_setup", 1, false, BUILTIN_ORDINARY, builtins_http_state_call},
     {"http_state_register", 4, false, BUILTIN_ORDINARY, builtins_http_state_call},
     {"tcp_service", 6, false, BUILTIN_TCP_SERVICE, async_service_only},
+    {"process_run_async", 7, false, BUILTIN_PROCESS_RUN_ASYNC, async_service_only},
+    {"process_run_isolated_async", 7, false, BUILTIN_PROCESS_RUN_ASYNC, async_service_only},
     {"console_output", 3, false, BUILTIN_ORDINARY, console_output_call},
     {"console_output_async", 3, false, BUILTIN_CONSOLE_OUTPUT_ASYNC, async_service_only},
     {"host_sleep_async", 1, false, BUILTIN_HOST_SLEEP_ASYNC, async_service_only},

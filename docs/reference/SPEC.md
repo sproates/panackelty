@@ -1063,8 +1063,10 @@ should be added when those programs demonstrate a concrete need.
 
 ## Typed filesystem, process, and sleep APIs
 
-Import `stdlib/filesystem`, `stdlib/process`, or `stdlib/time`; the prelude
-re-exports these modules. These APIs use opaque `Path` and `Duration` values.
+Import `stdlib/filesystem`, `stdlib/process`, or `stdlib/time`. The prelude
+retains its existing process namespace through `stdlib/process/legacy` during
+migration; import `stdlib/process` explicitly for the Command API. These APIs use
+opaque `Path` and `Duration` values.
 Host calls are effectful, including metadata, enumeration, and sleep. The
 portable `text.decode_utf8` operation is pure and traps on invalid input;
 `host.decode_utf8` returns a checked result.
@@ -1203,19 +1205,26 @@ Both operations are native-only and return `unsupported` in the browser.
 
 ### Process execution
 
-```panack
-process.run(
-  executable: Path, arguments: [Str], stdin: Bytes, working_directory: Path,
-  environment: [Str], timeout: Duration, output_limit: Nat
-): Result[ProcessOutput,HostError]
-```
+Import `stdlib/process` for ordinary calls or `stdlib/process/async` for
+awaited calls with the same names. Both provide `arguments(): [Str]`,
+`exit(status: Nat): Unit` and `run(command: Command): Result[ProcessOutput,HostError]`.
 
-`ProcessOutput { exit_code: Nat, signal: Nat, stdout: Bytes, stderr: Bytes }`
-represents completed execution. A normal exit has `signal == 0`, including a
-nonzero exit code. Signal termination has a nonzero signal number and
-`exit_code == 0`. Failure before execution returns `launch_failed`, with errno;
-timeout and output exhaustion return their own error categories, without partial
-output. There is no implicit UTF-8 decoding: use `host.decode_utf8` explicitly.
+`Command` has these fields, in order: executable: Path, arguments: [Str],
+stdin: Bytes, working_directory: Path, environment: ProcessEnvironment,
+timeout: Duration, output_limit: Nat. `ProcessEnvironment` is either
+`InheritEnvironment([Str])` or `ExactEnvironment([Str])`.
+
+`ProcessOutput` contains termination: ProcessTermination, stdout: Bytes and
+stderr: Bytes. Termination is `Exited(Nat)` or `Signalled(Nat)`.
+A nonzero exit is a completed result. Failure before execution returns
+`launch_failed`, with native detail; timeout and output exhaustion return their
+own error categories, without partial output. Bytes are not implicitly decoded.
+
+The former seven-argument `run` and `run_isolated` operations remain in
+`stdlib/process/legacy` for existing compiler, package-tool and test callers.
+Its compatibility ProcessOutput retains exit_code, signal, stdout and stderr;
+normal exits have signal zero, and signal termination has exit_code zero.
+The canonical adapters convert that representation into the termination enum.
 
 The executable is an exact path, resolved relative to the requested child
 working directory when relative. There is no PATH search or implicit shell.
@@ -1225,13 +1234,11 @@ and override the invocation's captured environment only in the child; empty
 names, missing `=`, duplicate names, and NUL are rejected. Empty values are
 allowed. Native-byte argument construction is deferred.
 
-`process.run_isolated` has the same signature, limits and termination semantics,
-but supplies exactly the explicit environment entries. An empty list gives an
+`ExactEnvironment(entries)` supplies exactly the explicit environment entries. An empty list gives an
 empty environment. It neither inherits invocation variables nor injects an
 automatic coverage ticket. During coverage collection it marks the session
 incomplete because the child is unobserved, even if the caller supplies a ticket
-explicitly. `process.run` retains its inherited-environment
-behaviour. Environment isolation is not a filesystem or process sandbox, and
+explicitly. `InheritEnvironment(entries)` retains inherited-environment behaviour. Environment isolation is not a filesystem or process sandbox, and
 does not prevent a child from reading its normal configuration files.
 
 The parent concurrently writes stdin and drains stdout and stderr, closing stdin
@@ -1249,6 +1256,24 @@ group are not contained; this is not a process sandbox. Descendants holding
 output streams open remain subject to the timeout. Deadlines are scheduling
 bounds, not hard real-time guarantees; host launch, termination, and cleanup can
 add latency.
+
+Async process execution copies its inputs and environment before launching a
+worker; no VM frame or mutable collector is borrowed. At most four operations
+are retained process-wide, including completed results awaiting consumption and
+cancelled operations awaiting cleanup. Admission exhaustion returns
+`resource_limit`. Copied input payload is limited to 32 MiB per operation,
+including inherited environment text; inherited environments are limited to
+4096 entries. These are payload bounds, not a total allocator-memory guarantee.
+The existing 16 MiB input/output bounds still apply independently.
+
+The async call suspends its task while other handlers can run. Timeout starts in
+the worker and covers launch/collection, not the initial input copy. Cancelling
+the execution requests termination and reaping without waiting on its owner
+thread. Cleanup retains its slot until finished. Cancellation cannot undo child
+side effects or contain descendants that escape the process group. Normal CLI
+shutdown drains pending cleanup; embedded hosts explicitly grant the process
+service and must keep the native runtime loaded until cleanup completes.
+Browser execution returns an unsupported-host error.
 
 ### Sleep and timing bounds
 

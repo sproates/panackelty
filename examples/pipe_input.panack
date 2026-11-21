@@ -1,5 +1,5 @@
 import stdlib/path as paths
-import stdlib/process as process
+import stdlib/process/legacy as process
 import stdlib/time as time
 
 copy_text(cat: Path, limit: Nat): Str {

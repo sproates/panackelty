@@ -445,3 +445,14 @@ Raw empty writes still validate the descriptor. Legacy print flushes before retu
 so sequential calls do not reorder buffered legacy output around checked writes.
 The legacy newline entry point remains compatible. Partial writes are possible on
 failure; cancellation does not retract emitted bytes or release a blocked worker.
+
+Async subprocesses use `process_async.c` and the shared cancellable host process
+collector. Four retained operations are allowed process-wide; each copies at
+most 32 MiB of input payload, with the existing 16 MiB stdin/output bounds.
+Workers own operand values and environment strings. Coverage tickets are prepared
+on the owner thread; exact-environment execution records an unobserved-child gap.
+Cancellation requests group/direct-child termination and reaping, and releases
+the slot only after cleanup. It does not roll back side effects. CLI shutdown
+drains cleanup; embedded execution destruction remains nonblocking. Embedders use
+`vm_execution_enable_process`; HTTP/TCP request children inherit that grant.
+Hosts must keep the runtime loaded until `process_async_drain` completes.

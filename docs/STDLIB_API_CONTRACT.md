@@ -389,3 +389,32 @@ checked paths through allocation failures, blocked-write cancellation and admiss
 exhaustion. Candidate builds are used; final seed and combined batch validation
 remain pending with subprocess work. Ordinary checked output now pays the bounded
 worker setup/wait cost; no throughput improvement is claimed.
+
+## Subprocess development checkpoint, 21 November 2026
+
+Ordinary and async process modules implement Command, explicit environment modes
+and Exited/Signalled results. Positional compatibility is isolated in
+process/legacy; existing compiler/package/test callers import it explicitly.
+The shared native collector retains existing deadlines, output bounds and
+termination policy. Async calls copy their operands and environment, prepare
+coverage tickets on the owner thread, and suspend through a four-operation
+worker service. A 32 MiB copied-payload bound and 4096 inherited-entry bound limit
+admission. Cancellation requests termination/reaping without blocking the owner.
+
+Focused source/bytecode, native lifecycle and allocation/syscall-fault tests pass:
+environment ownership, nonzero exits, signals, limits, deadlines, cancellation,
+slot recovery and embedded grants. HTTP progress passes in source and bytecode modes. Final combined local
+`make check` passed in 612 seconds on 21 November (unit 379s, bootstrap 82s);
+packaging and release-smoke checks are included. The browser runtime bundle and
+its unsupported-host process compilation path also pass. Ordinary execution retains its direct collector path; async
+execution adds a bounded copy and worker setup cost. No throughput claim is made.
+The timer import changes the stdlib oracle's module numbering and adds time.sleep;
+reviewed disassembly and identical old/new output support that fixture update.
+
+This is local acceptance of the timer/console/process implementation batch, not
+completion of AS3 or RM#162. Input and nested-bytecode boundaries, remaining
+specialist/resource work, streaming HTTP, domain errors and documentation delivery
+remain tracked. Integration and hosted validation are pending; development CI is off.
+
+Ordinary and async Command APIs also pass source and saved-bytecode tests from a
+relocated installation with spaces in its path, without checkout library overrides.

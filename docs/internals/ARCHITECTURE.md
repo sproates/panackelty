@@ -1822,10 +1822,18 @@ client and low-level service contracts remain unchanged during this foundation.
 ### Generic acquisition prerequisites
 
 The process runtime shares one bounded launch/collection implementation between
-`process.run` and `process.run_isolated`. The latter constructs an exact explicit
+the positional `process/legacy.run` and `run_isolated` adapters. The latter constructs an exact explicit
 environment and omits automatic coverage-ticket propagation. Existing callers
 retain inheritance and coverage behaviour. The compiler grants each operation
 only to its designated standard-library wrapper.
+
+Canonical ordinary and async process facades accept a Command record and return
+an explicit Exited/Signalled termination. The async adapter uses process_async.c:
+four retained workers, copied inputs/environment, a 32 MiB input-payload bound,
+and owner-thread coverage-ticket preparation. Workers share the native bounded
+launch/collection code; cancellation kills/reaps without blocking the scheduler.
+Embedded executions require a process grant, propagated to HTTP/TCP handlers.
+No bytecode format change is required.
 
 The staging adapter also supports exclusive symbolic-link creation beneath its
 retained directory handle. Bounded link inspection opens ancestors without

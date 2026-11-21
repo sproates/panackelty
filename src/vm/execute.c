@@ -14,6 +14,7 @@
 #include "http_state.h"
 #include "numeric.h"
 #include "program.h"
+#include "process_async.h"
 #include "render.h"
 #include "root_read.h"
 #include "tcp.h"
@@ -75,6 +76,8 @@ struct VMExecution {
     VMTcpServer *server;
     VMRootRead *root_read;
     VMConsoleWrite *console_write;
+    VMProcess *process;
+    bool process_enabled;
     uint64_t sleep_deadline;
     bool sleeping;
     bool console_enabled, yield_requested;
@@ -427,6 +430,7 @@ static Value *service_call(VMExecution *execution, Value **arguments)
     if (!execution->embedded || execution->console_enabled) {
         tcp_server_enable_console(execution->server);
     }
+    if (!execution->embedded || execution->process_enabled) tcp_server_enable_process(execution->server);
     if (!tcp_server_done(execution->server)) {
         char *names[] = {"address", "port"};
         Value *fields[] = {arguments[0], arguments[1]};
@@ -505,6 +509,7 @@ static Value *server_call_mode(VMExecution *execution, Value **arguments, bool s
     if (execution->server && (!execution->embedded || execution->console_enabled)) {
         tcp_server_enable_console(execution->server);
     }
+    if (execution->server && (!execution->embedded || execution->process_enabled)) tcp_server_enable_process(execution->server);
     if (!execution->server) {
         vm->error = "native VM out of memory";
     } else {
@@ -562,7 +567,8 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
             entry->dispatch == BUILTIN_HTTP_LISTEN_CONTEXTUAL,
             !execution->embedded || execution->network_enabled,
             !execution->embedded || execution->filesystem_enabled,
-            !execution->embedded || execution->console_enabled);
+            !execution->embedded || execution->console_enabled,
+            !execution->embedded || execution->process_enabled);
 #ifndef __wasi__
         if (http_runtime_active(vm->http_runtime) && !vm->http_runtime->owner->owns_stop_signals &&
             !install_stop_signals(vm->http_runtime->owner)) {
@@ -604,6 +610,17 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
     }
     if (entry->dispatch == BUILTIN_TCP_SERVICE) {
         return service_call(execution, arguments);
+    }
+    if (entry->dispatch == BUILTIN_PROCESS_RUN_ASYNC) {
+        if (execution->embedded && !execution->process_enabled) {
+            vm->error = "VM trap: subprocess service is unavailable in this execution";
+        } else {
+            execution->process = process_async_start(vm, arguments,
+                !strcmp(entry->name, "process_run_isolated_async"));
+            if (execution->process) execution->status = VM_WAITING;
+            else if (!vm->error) vm->error = "native VM out of memory";
+        }
+        return NULL;
     }
     if (entry->dispatch == BUILTIN_HOST_SLEEP_ASYNC) {
         Value *result = NULL;
@@ -1408,7 +1425,8 @@ VMExecution *vm_execution_create_pending(VM *vm, Function *function, Value **arg
 bool vm_execution_complete_print(VMExecution *execution, const char *error)
 {
     if (execution->running || execution->status != VM_WAITING || execution->waiting_read ||
-        execution->server || execution->http_waiting) {
+        execution->server || execution->http_waiting || execution->console_write ||
+        execution->root_read || execution->process || execution->sleeping) {
         return false;
     }
     VM *vm = execution->vm;
@@ -1451,6 +1469,7 @@ bool vm_execution_destroy(VMExecution *execution)
     http_transport_destroy(execution->http);
     root_read_destroy(execution->root_read);
     console_write_destroy(execution->console_write);
+    process_async_destroy(execution->process);
     tcp_server_destroy(execution->server);
     restore_stop_signals(execution);
     if (execution->embedded) filesystem_stage_destroy_deferred(execution->vm);
@@ -1508,6 +1527,11 @@ Value *execute(VM *vm, Function *function, Value **arguments)
                 vm_execution_pump_server(&execution, 1024, active ? 1 : 10);
                 continue;
             }
+            if (status == VM_WAITING && execution.process) {
+                if (!active) process_async_wait(execution.process);
+                vm_execution_poll_network(&execution, 0);
+                continue;
+            }
             if (status == VM_WAITING && execution.sleeping) {
                 if (!active) host_sleep_wait(execution.sleep_deadline);
                 vm_execution_poll_network(&execution, 0);
@@ -1542,6 +1566,7 @@ Value *execute(VM *vm, Function *function, Value **arguments)
     http_transport_destroy(execution.http);
     root_read_destroy(execution.root_read);
     console_write_destroy(execution.console_write);
+    process_async_destroy(execution.process);
     tcp_server_destroy(execution.server);
     restore_stop_signals(&execution);
     filesystem_stage_destroy(vm);
@@ -1553,7 +1578,7 @@ Value *execute(VM *vm, Function *function, Value **arguments)
     constants_clear(&execution);
     release(execution.http_waiting);
     vm->execution = NULL;
-    if (owns_runtime) filesystem_stage_drain_cleanup();
+    if (owns_runtime) { filesystem_stage_drain_cleanup(); process_async_drain(); }
     if (owns_runtime && !vm->error && (execution.status == VM_EXITED || runtime.exit_requested)) {
         Value *code = value_size(runtime.exit_requested ? runtime.exit_status : execution.exit_status);
         if (!code) vm->error = "native VM out of memory";
@@ -1659,6 +1684,13 @@ bool vm_execution_poll_http(VMExecution *execution, unsigned max_wait_ms)
     return true;
 }
 
+bool vm_execution_enable_process(VMExecution *execution)
+{
+    if (execution->running || execution->status != VM_YIELDED) return false;
+    execution->process_enabled = true;
+    return true;
+}
+
 bool vm_execution_enable_console(VMExecution *execution)
 {
     if (execution->running || execution->status != VM_YIELDED) {
@@ -1732,6 +1764,23 @@ bool vm_execution_poll_filesystem(VMExecution *execution)
 
 bool vm_execution_poll_network(VMExecution *execution, unsigned max_wait_ms)
 {
+    if (execution->process) {
+        if (execution->running || execution->status != VM_WAITING) return false;
+        if (!process_async_poll(execution->process)) return true;
+        Value *result = process_async_result(execution->process);
+        execution->vm->error = process_async_error(execution->process);
+        if (!execution->vm->error &&
+            (!result || !stack_push(&execution->frames[execution->frame_count - 1], retain(result))))
+            execution->vm->error = "native VM out of memory";
+        process_async_destroy(execution->process);
+        execution->process = NULL;
+        execution->status = execution->vm->error ? VM_TRAPPED : VM_YIELDED;
+        if (execution->vm->error) {
+            vm_coverage_terminal(execution->vm->coverage, 2);
+            frames_clear(execution);
+        } else coverage_complete_pending(execution);
+        return true;
+    }
     if (execution->sleeping) {
         if (execution->running || execution->status != VM_WAITING) return false;
         Value *result = NULL;

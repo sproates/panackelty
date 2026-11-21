@@ -1,7 +1,7 @@
 import project/src/compiler/path_support as path_support
 import stdlib/path as std_path
 import stdlib/filesystem as std_filesystem
-import stdlib/process as std_process
+import stdlib/process/legacy as std_process
 pub import stdlib/testing_commands::{ProcessOutput}
 import stdlib/filesystem::{FileKind.Directory}
 import stdlib/environment as std_environment

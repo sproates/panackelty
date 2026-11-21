@@ -1,9 +1,9 @@
 import stdlib/testing as std_testing
-import stdlib/process as std_process
+import stdlib/process/legacy as std_process
 import project/src/compiler/filesystem_support as filesystem_support
 import stdlib/testing::{TestResult}
 import stdlib/testing_files as std_testing_files
-import stdlib/process::{ProcessOutput}
+import stdlib/process/legacy::{ProcessOutput}
 import stdlib/time as std_time
 import stdlib/bytes as byte_buffer
 import stdlib/filesystem as std_filesystem

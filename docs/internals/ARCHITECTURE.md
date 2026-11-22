@@ -2130,4 +2130,13 @@ HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibilit
 
 TCP domain conversion lives in Panack, preserving legacy/native strings and avoiding false classification of callback-origin errors. HTTP client/async reuses the parser and URL validation, reads through typed async streams and joins bounded chunks using binary-carry assembly with at most 25 slots. This adds Panack result conversion and bounded chunk storage; it is not a performance optimisation. Compiler, VM and bytecode do not change in this batch. Runtime allocation/latency is not characterised by correctness tests; GI#106 remains open.
 
-TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. An additional disassembly check remains blocked by a pre-existing http_body arity-table mismatch, reproduced with the legacy client and previous package manifest. Compiler seed and unchanged-program oracle artifacts remain unchanged. Integration remains pending and development CI stays off.
+TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. The subsequent 22 November repair reconciles all 25 HTTP builtin arities and local-resource call permissions in the self-hosted decoder with the native verifier. Focused legacy/diagnostic-client and routed-server disassembly checks pass. The compiler seed is refreshed; unchanged-program native oracle contracts pass. Final local make check passed in 674s (22 November), including all 427 bytecode tests, public HTTP disassembly, packaging and installed smoke. Relocated TCP and diagnostic-client source/bytecode/disassembly acceptance also passed. Integration remains pending and development CI stays off.
+
+The self-hosted decoder infers local-resource wrappers once per decoded program,
+using the native verifier’s conservative fixed-point rule. This adds inspection
+work only; execution and emitted user-program bytecode are unchanged. The compiler
+seed grows by 5,036 bytes (1,423,631 to 1,428,667). No runtime speed claim is made.
+
+Final local validation took 674s (unit 397s, bootstrap 86s), versus 676s for the
+preceding batch. These are contextual suite timings, not a controlled performance
+benchmark. Historical budget warnings remain subject to GI#106 reassessment.

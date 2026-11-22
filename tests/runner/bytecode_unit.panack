@@ -1,4 +1,4 @@
-import project/src/compiler/emitter::{BytecodeProgram, FunctionCode, Instruction, Instruction.ConstInstruction, Instruction.AwaitCallInstruction, Instruction.CallInstruction, Instruction.ReturnInstruction, ConstantValue.VoidConstant}
+import project/src/compiler/emitter::{BytecodeProgram, FunctionCode, Instruction, Instruction.ConstInstruction, Instruction.AwaitCallInstruction, Instruction.CallInstruction, Instruction.CallValueInstruction, Instruction.ReturnInstruction, ConstantValue.VoidConstant}
 import project/src/compiler/checker::{builtin_arity}
 import project/src/bytecode/codec::{serialize_bytecode}
 import stdlib/testing as std_testing
@@ -8,6 +8,8 @@ import project/src/bytecode/codec::{compile_source_bytecode}
 import stdlib/testing::{TestResult}
 import stdlib/bytes as byte_buffer
 import stdlib/host as std_host
+
+record HttpBuiltinCase { name: Str, arity: Nat, asynchronous: Bool, local: Bool, pure_call: Bool }
 
 record Utf8Case { name: Str, hex: Str, accepted: Bool }
 
@@ -43,7 +45,7 @@ bytecode_case(name: Str, file: Str, expected: Str): TestResult {
     "expected ${expected}, got ${actual}")
 }
 main(): Void {
-  mut results: [TestResult] = []
+  mut results: [TestResult] = http_builtin_parity_tests()
   for service in ["sha256_create_async", "sha256_update_async", "sha256_finish_async", "sha256_close_async", "gzip_decoder_create_async", "gzip_decoder_decode_async", "gzip_decoder_close_async", "http_stream_open_async", "http_stream_read_async", "http_stream_close_async", "stage_create_async", "stage_path_async", "stage_directory_async", "stage_write_async", "stage_symlink_async", "stage_publish_async", "stage_discard_async", "fs_read_link_async", "fs_read_chunk_async", "fs_atomic_write_async", "fs_metadata_async", "fs_read_async", "fs_write_async", "fs_list_async", "fs_remove_file_async", "fs_remove_directory_async", "fs_create_directory_async", "fs_temp_directory_async", "fs_temp_file_async", "fs_directories_overlap_async", "http_connection_continue", "http_listen_ordinary", "http_listen_contextual", "http_close", "http_destroy", "http_connection_invoke", "process_run_async", "process_run_isolated_async", "console_input_async", "console_output_async", "host_sleep_async", "instant_now_async", "environment_lookup_async", "host_arguments_async", "host_stdout_async", "host_stderr_async", "host_exit_async", "fs_read_beneath_async", "fs_root_identity_async", "async_fake_read", "$tcp_exchange", "$http_transport_exchange", "$tcp_serve", "tcp_service", "$tcp_serve_stream", "$tcp_server_read_chunk"] {
     arity = builtin_arity(service)
     mut operands: [Instruction] = []
@@ -249,4 +251,67 @@ main(): Void {
   results = results.append(std_testing.equal_str("codec/disassembly/independent listing",
     disassemble_bytecode(golden_disassembly), filesystem_support.read_text("tests/fixtures/oracle_contracts/codec-disassembly.stdout")))
   if std_testing.report(results) > 0 { std_host.exit(1) }
+}
+
+pure http_builtin_parity_tests(): [TestResult] {
+  // Independent expected native ABI values, not builtin_arity-derived inputs.
+  cases = [
+    HttpBuiltinCase("http_bytes_slice",3,false,true,true),
+    HttpBuiltinCase("http_body",1,false,true,false),
+    HttpBuiltinCase("http_body_size",1,false,true,false),
+    HttpBuiltinCase("http_body_append",4,false,true,false),
+    HttpBuiltinCase("http_connection_continue",1,true,false,false),
+    HttpBuiltinCase("http_listen_ordinary",2,true,false,false),
+    HttpBuiltinCase("http_listen_contextual",2,true,false,false),
+    HttpBuiltinCase("http_close",1,true,false,false),
+    HttpBuiltinCase("http_destroy",1,true,false,false),
+    HttpBuiltinCase("http_connection_invoke",4,true,false,false),
+    HttpBuiltinCase("http_connection_writer",1,false,true,false),
+    HttpBuiltinCase("http_connection_routes",1,false,true,false),
+    HttpBuiltinCase("http_connection_fallback",1,false,true,false),
+    HttpBuiltinCase("http_connection_admit",1,false,true,false),
+    HttpBuiltinCase("http_writer_get_status",1,false,true,false),
+    HttpBuiltinCase("http_writer_get_headers",1,false,true,false),
+    HttpBuiltinCase("http_writer_reject",1,false,true,false),
+    HttpBuiltinCase("http_writer_status",2,false,true,false),
+    HttpBuiltinCase("http_writer_headers",2,false,true,false),
+    HttpBuiltinCase("http_writer_commit",2,false,true,false),
+    HttpBuiltinCase("http_state_create",3,false,true,false),
+    HttpBuiltinCase("http_state_context",1,false,true,true),
+    HttpBuiltinCase("http_state_setup_error",1,false,true,false),
+    HttpBuiltinCase("http_state_fail_setup",1,false,true,false),
+    HttpBuiltinCase("http_state_register",4,false,true,false)
+  ]
+  mut results: [TestResult] = []
+  for item in cases {
+    results = results.append(std_testing.equal_nat("HTTP ABI arity: " + item.name,builtin_arity(item.name),item.arity))
+    mut operands: [Instruction] = []
+    for index in 0..item.arity { operands = operands.append(ConstInstruction(VoidConstant())) }
+    call = if item.asynchronous { AwaitCallInstruction(item.name,item.arity) } else { CallInstruction(item.name,item.arity) }
+    accepted = BytecodeProgram([FunctionCode("main",[],false,item.asynchronous,operands.concat([call,ReturnInstruction()]))])
+    results = results.append(std_testing.equal_str("HTTP valid ABI decodes: " + item.name,validate_bytecode(serialize_bytecode(accepted)),"ok"))
+    wrong_call = if item.asynchronous { AwaitCallInstruction(item.name,item.arity + 1) } else { CallInstruction(item.name,item.arity + 1) }
+    wrong = BytecodeProgram([FunctionCode("main",[],false,item.asynchronous,operands.concat([ConstInstruction(VoidConstant()),wrong_call,ReturnInstruction()]))])
+    results = results.append(std_testing.expect("HTTP wrong ABI rejected: " + item.name,validate_bytecode(serialize_bytecode(wrong)) != "ok","accepted wrong arity"))
+    if item.local {
+      async_call = BytecodeProgram([FunctionCode("main",[],false,true,operands.concat([call,ReturnInstruction()]))])
+      results = results.append(std_testing.equal_str("HTTP local call in async: " + item.name,validate_bytecode(serialize_bytecode(async_call)),"ok"))
+      pure_call = BytecodeProgram([FunctionCode("main",[],true,false,operands.concat([call,ReturnInstruction()]))])
+      results = results.append(std_testing.expect("HTTP purity preserved: " + item.name,(validate_bytecode(serialize_bytecode(pure_call)) == "ok") == item.pure_call,"wrong pure-call permission"))
+    }
+  }
+  leaf = FunctionCode("leaf",[],false,false,[ConstInstruction(VoidConstant()),CallInstruction("http_body",1),ReturnInstruction()])
+  wrapper = FunctionCode("wrapper",[],false,false,[CallInstruction("leaf",0),ReturnInstruction()])
+  entry = FunctionCode("main",[],false,true,[CallInstruction("wrapper",0),ReturnInstruction()])
+  valid = BytecodeProgram([entry,wrapper,leaf])
+  results = results.append(std_testing.equal_str("HTTP local wrapper fixed point",validate_bytecode(serialize_bytecode(valid)),"ok"))
+  blocking = FunctionCode("leaf",[],false,false,[ConstInstruction(VoidConstant()),CallInstruction("print",1),ReturnInstruction()])
+  results = results.append(std_testing.expect("blocking wrapper still rejected",validate_bytecode(serialize_bytecode(BytecodeProgram([entry,wrapper,blocking]))) != "ok","blocking call gained local permission"))
+  recursive = FunctionCode("leaf",[],false,false,[CallInstruction("leaf",0),ConstInstruction(VoidConstant()),CallInstruction("http_body",1),ReturnInstruction()])
+  results = results.append(std_testing.expect("unproved recursive wrapper rejected",validate_bytecode(serialize_bytecode(BytecodeProgram([entry,wrapper,recursive]))) != "ok","recursive call gained local permission"))
+  for unsafe_call in [CallValueInstruction(0), AwaitCallInstruction("instant_now_async",0), CallInstruction("missing_target",0)] {
+    unsafe_leaf = FunctionCode("leaf",[],false,false,[ConstInstruction(VoidConstant()),CallInstruction("http_body",1),unsafe_call,ReturnInstruction()])
+    results = results.append(std_testing.expect("indirect, awaited or unknown wrapper rejected",validate_bytecode(serialize_bytecode(BytecodeProgram([entry,wrapper,unsafe_leaf]))) != "ok","unsafe edge gained local permission"))
+  }
+  results
 }

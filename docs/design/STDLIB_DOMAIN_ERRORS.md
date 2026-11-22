@@ -418,16 +418,15 @@ follow-up work. Replacing every legacy consumer is not an alpha.16 acceptance
 requirement; compatibility APIs deliberately remain available. New code can import http/client/async as http without introducing
 getAsync-style names.
 
-TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. An additional disassembly check remains blocked by a pre-existing http_body arity-table mismatch, reproduced with the legacy client and previous package manifest. Compiler seed and unchanged-program oracle artifacts remain unchanged. Integration remains pending and development CI stays off.
+TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. The subsequent 22 November repair reconciles all 25 HTTP builtin arities and local-resource call permissions in the self-hosted decoder with the native verifier. Focused legacy/diagnostic-client and routed-server disassembly checks pass. The compiler seed is refreshed; unchanged-program native oracle contracts pass. Final local make check passed in 674s (22 November), including all 427 bytecode tests, public HTTP disassembly, packaging and installed smoke. Relocated TCP and diagnostic-client source/bytecode/disassembly acceptance also passed. Integration remains pending and development CI stays off.
 
-### Known disassembler parity gap
+### HTTP disassembler parity repair
 
-The relocated diagnostic client runs as source and saved bytecode, but the extra
-`panack disasm` check reports `bytecode call to http_body has invalid arity`.
-The same failure was reproduced with the unchanged legacy client, the previous
-HTTP manifest and the unchanged compiler seed. The native VM accepts and runs
-both artifacts. `src/bytecode/decoder.panack` uses the compiler's builtin arity
-table, which does not match the native HTTP builtin table for this case. This is
-an existing inspection-tool limitation, not a claimed passing acceptance check.
-The next bounded repair is to reconcile the HTTP builtin arities and add a
-package-bytecode disassembly regression before integration acceptance.
+The pre-existing HTTP arity mismatch also concealed missing local-resource call
+permissions in the self-hosted decoder. The repair checks all 25 builtin arities
+and infers ordinary local wrappers to a fixed point, matching the native verifier.
+Pure callers still cannot mutate resources, and blocking, indirect, awaited,
+unknown and unproved recursive edges do not gain local permission.
+Both HTTP clients and a routed server now pass focused disassembly checks.
+Final local make check passed in 674s (22 November), plus relocated acceptance.
+No bytecode format or native ABI changes were needed.

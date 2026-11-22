@@ -1239,6 +1239,31 @@ pure builtin_legacy_return(name: Str): Str {
 }
 
 pub pure builtin_arity(name: Str): Nat {
+  if name == "http_bytes_slice" { 3 } else
+  if name == "http_body" { 1 } else
+  if name == "http_body_size" { 1 } else
+  if name == "http_body_append" { 4 } else
+  if name == "http_connection_continue" { 1 } else
+  if name == "http_listen_ordinary" { 2 } else
+  if name == "http_listen_contextual" { 2 } else
+  if name == "http_close" { 1 } else
+  if name == "http_destroy" { 1 } else
+  if name == "http_connection_invoke" { 4 } else
+  if name == "http_connection_writer" { 1 } else
+  if name == "http_connection_routes" { 1 } else
+  if name == "http_connection_fallback" { 1 } else
+  if name == "http_connection_admit" { 1 } else
+  if name == "http_writer_get_status" { 1 } else
+  if name == "http_writer_get_headers" { 1 } else
+  if name == "http_writer_reject" { 1 } else
+  if name == "http_writer_status" { 2 } else
+  if name == "http_writer_headers" { 2 } else
+  if name == "http_writer_commit" { 2 } else
+  if name == "http_state_create" { 3 } else
+  if name == "http_state_context" { 1 } else
+  if name == "http_state_setup_error" { 1 } else
+  if name == "http_state_fail_setup" { 1 } else
+  if name == "http_state_register" { 4 } else
   if name == "tcp_service" { 6 } else { builtin_host_arity(name) }
 }
 

@@ -273,6 +273,7 @@ functional-impl: package-tool $(BUILD_DIR)/vm/static_http_client $(STAGE2_COMPIL
 	@PANACK_STATIC_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/static_http_client)" PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/static-http sh tests/static_http.sh
 	@PANACK_BIN="$(abspath bin/panack)" PANACK_HTTP_FIXTURE="$(abspath $(BUILD_DIR)/vm/http_fixture)" $(PROFILE) functional/http-client sh tests/http_client_package.sh
 	@PANACK_BIN="$(abspath bin/panack)" PANACK_HTTP_FIXTURE="$(abspath $(BUILD_DIR)/vm/http_fixture)" $(PROFILE) functional/http-client-diagnostics sh tests/http_client_diagnostics.sh
+	@$(PROFILE) functional/http-disassembly sh tests/http_disassembly.sh
 	@PANACK_TCP_SERVER="$(abspath $(BUILD_DIR)/vm/tcp_server)" $(PROFILE) functional/tcp sh tests/tcp.sh
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACK_TEST_NAMESPACE_EMISSION=1 $(PROFILE) functional/compiler-driver $(PROBE) tests/runner/compiler_driver.panack
 	@mkdir -p "$(BUILD_DIR)"

@@ -2201,9 +2201,15 @@ HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibilit
 
 TCP fixtures cover all server modes, typed refusal/timeout/response-limit failures, Duration rejection, unknown detail and callback/native ambiguity. The diagnostic HTTP client reuses success/framing/limit/invalid-URL/DNS/connect/timeout/TLS fixtures in source and bytecode modes, including actual native TLS detail. No execution-coverage percentage is inferred; the TCP errors module is explicitly unmeasured in the bounded corpus.
 
-TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. An additional disassembly check remains blocked by a pre-existing http_body arity-table mismatch, reproduced with the legacy client and previous package manifest. Compiler seed and unchanged-program oracle artifacts remain unchanged. Integration remains pending and development CI stays off.
+TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. The subsequent 22 November repair reconciles all 25 HTTP builtin arities and local-resource call permissions in the self-hosted decoder with the native verifier. Focused legacy/diagnostic-client and routed-server disassembly checks pass. The compiler seed is refreshed; unchanged-program native oracle contracts pass. Final local make check passed in 674s (22 November), including all 427 bytecode tests, public HTTP disassembly, packaging and installed smoke. Relocated TCP and diagnostic-client source/bytecode/disassembly acceptance also passed. Integration remains pending and development CI stays off.
 
-The additional relocated package disassembly probe found an existing `http_body`
-arity mismatch in the self-hosted decoder. Legacy client + previous manifest
-reproduces it. Native source/saved-bytecode execution passed; disassembly did not.
-Add the parity repair/regression under RM#162 before claiming that acceptance.
+HTTP disassembly regressions now cover both package clients and a routed server
+through the public CLI (`tests/http_disassembly.sh`). The bytecode unit suite uses
+independent expected signatures for all 25 HTTP builtins, wrong arities, pure
+mutation rejection, transitive local wrappers and unsafe wrapper boundaries.
+Final local make check passed in 674s (22 November), including all 427 bytecode
+tests. Relocated source/bytecode/disassembly acceptance passed.
+
+The first restricted-environment full run stopped when the packaged HTTP smoke
+fixture could not allocate a loopback port. The focused packaged smoke passed
+with socket access before the successful full rerun; no assertion was relaxed.

@@ -185,7 +185,7 @@ Digest/gzip domain errors pass focused ordinary/async category, context, renderi
 
 HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibility checks, final local make check (685s, 21 November), and relocated-install real TLS source/bytecode acceptance. Compiler seed and unchanged-program bytecode artifacts remain unchanged. Integration remains pending and development CI stays off. TCP domain errors and high-level HTTP package migration remain outstanding.
 
-TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. An additional disassembly check remains blocked by a pre-existing http_body arity-table mismatch, reproduced with the legacy client and previous package manifest. Compiler seed and unchanged-program oracle artifacts remain unchanged. Integration remains pending and development CI stays off.
+TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. The subsequent 22 November repair reconciles all 25 HTTP builtin arities and local-resource call permissions in the self-hosted decoder with the native verifier. Focused legacy/diagnostic-client and routed-server disassembly checks pass. The compiler seed is refreshed; unchanged-program native oracle contracts pass. Final local make check passed in 674s (22 November), including all 427 bytecode tests, public HTTP disassembly, packaging and installed smoke. Relocated TCP and diagnostic-client source/bytecode/disassembly acceptance also passed. Integration remains pending and development CI stays off.
 
 **Next available roadmap identifier: RM#163.**
 
@@ -671,7 +671,7 @@ release allocation; see the linked record for scope and acceptance.
 
 </details>
 
-RM#162 next acceptance repair: reconcile the self-hosted disassembler's HTTP
-builtin arity table with the native VM. Relocated source/bytecode execution passes,
-but disassembly reports `http_body` invalid arity. The unchanged legacy client
-and previous HTTP manifest reproduce it; this is not introduced by client/async.
+RM#162 HTTP inspection repair (22 November): all HTTP builtin arities and local
+wrapper permissions now match the native verifier in the self-hosted decoder.
+Focused client/server disassembly and native artifact checks pass; final local make check passed in 674s, as did relocated acceptance. No new public API or website change is
+required: this restores inspection of already supported bytecode.

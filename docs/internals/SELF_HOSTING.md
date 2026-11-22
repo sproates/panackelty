@@ -801,4 +801,14 @@ HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibilit
 
 TCP domain errors and the diagnostic HTTP package client use existing compiler/VM capabilities; the compiler seed and unchanged-program oracle artifacts remain unchanged.
 
-TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. An additional disassembly check remains blocked by a pre-existing http_body arity-table mismatch, reproduced with the legacy client and previous package manifest. Compiler seed and unchanged-program oracle artifacts remain unchanged. Integration remains pending and development CI stays off.
+TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. The subsequent 22 November repair reconciles all 25 HTTP builtin arities and local-resource call permissions in the self-hosted decoder with the native verifier. Focused legacy/diagnostic-client and routed-server disassembly checks pass. The compiler seed is refreshed; unchanged-program native oracle contracts pass. Final local make check passed in 674s (22 November), including all 427 bytecode tests, public HTTP disassembly, packaging and installed smoke. Relocated TCP and diagnostic-client source/bytecode/disassembly acceptance also passed. Integration remains pending and development CI stays off.
+
+## HTTP inspection parity (22 November 2026)
+
+The compiler seed now includes the complete HTTP builtin arity table and the
+self-hosted decoder’s local-wrapper inference. The native ABI and bytecode
+format remain unchanged. Three independently built stages have SHA-256
+`7f9c0fb26a11b53186997f22f99c7fe2ee494f2a73eff8fd65d99f1cb6028f6a`;
+standard-library conformance remains
+`dae3879804075aa6675ccbd510eb0499324888b86e1fb63abf525930ae28b409`.
+The native oracle artifact contracts pass without updating their expected bytes.

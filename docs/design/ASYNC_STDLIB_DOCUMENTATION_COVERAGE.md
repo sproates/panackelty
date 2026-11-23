@@ -30,3 +30,5 @@ source/compile/saved-bytecode evidence where executable; honest limits and clean
 links from the relevant guide/index; development-versus-release labelling. Website
 acceptance additionally needs the real site layout, persistent Panack HTTP preview
 and owner review. Core integration and website publication remain separate.
+
+Owner review correction (23 November): website PR #77 now provides nineteen self-contained module references with 72 function entries, parameter/result/error details, bounds and ownership, plus embedded complete examples. All signatures match pinned core source; 51 local website tests and assembly checks pass. The persistent preview is refreshed. Owner review, integration and publication remain pending; no CI was triggered.

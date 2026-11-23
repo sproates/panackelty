@@ -724,3 +724,5 @@ checks, console Unicode/bounds/failure cases, HTTP 200/404/invalid URL cases,
 Only example/guide/test-registration work changed; compiler, VM, stdlib and
 shared runner logic are unchanged. No full-suite rerun or development CI.
 Website adaptation is ready in [website PR #77](https://github.com/sproates/panackelty-website/pull/77): five development-labelled pages and nine complete examples, with 49 local website tests and assembly checks passing. Desktop and phone-width preview checked; owner review, integration and publication remain pending. No development CI was triggered.
+
+Owner review correction (23 November): website PR #77 now provides nineteen self-contained module references with 72 function entries, parameter/result/error details, bounds and ownership, plus embedded complete examples. All signatures match pinned core source; 51 local website tests and assembly checks pass. The persistent preview is refreshed. Owner review, integration and publication remain pending; no CI was triggered.

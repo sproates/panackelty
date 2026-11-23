@@ -1,8 +1,9 @@
 # Anonymous functions, closures and explicit state
 
-Proposal for RM#162: Real-program fixes, 23 November 2026.
-Based on next at `9e7e911`. This is a reviewable contract, not implemented syntax
-or an amendment to the current language specification. The owner selected this
+Contract for RM#162: Real-program fixes, approved 23 November 2026.
+Based on next at `9e7e911`. Owner approval takes effect on merge of PR #700.
+This contract does not describe implemented syntax or amend the current language
+specification. The owner selected this
 design task after completing the expanded async stdlib batch.
 
 ## Outcome
@@ -338,11 +339,11 @@ Implementation has not started and all earned contributions are zero.
 
 | Slice | Deliverable | Weight | Status | Earned |
 | --- | --- | --- | --- | --- |
-| CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | Proposed | 0 |
-| CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | Proposed | 0 |
-| CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | Proposed | 0 |
-| CS4 | Both service examples, installed acceptance, reference and website guidance | 20 | Proposed | 0 |
-| Total | Working callable/state feature | 100 | Contract review | 0 |
+| CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | Planned | 0 |
+| CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | Planned | 0 |
+| CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | Planned | 0 |
+| CS4 | Both service examples, installed acceptance, reference and website guidance | 20 | Planned | 0 |
+| Total | Working callable/state feature | 100 | Approved; implementation not started | 0 |
 
 Order: CS1, then CS2 and CS3, then CS4. CS3 can use named pure callbacks; it need
 not depend on closure syntax. Implement related work in a development branch with
@@ -384,3 +385,7 @@ before body checking, but its local result can determine remaining generic outpu
 parameters, including map's U. Existing scalar Map-key/Set-element eligibility is
 unchanged; State/callable equality applies in allowed value positions. Acceptance
 cases cover both rules. No scope, weight or implementation-status change.
+
+Owner approved merging PR #700 on 23 November and requested a stop afterwards.
+The contract is accepted on merge; CS1–CS4 remain unstarted, with zero earned
+implementation contribution. No implementation is authorised by this stop point.

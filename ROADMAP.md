@@ -751,3 +751,7 @@ PR #700 second-review clarifications: infer callback input types before checking
 the body, then infer generic output types from its result; preserve existing
 scalar Map-key/Set-element restrictions. Acceptance cases updated. Contract
 approval remains pending; implementation and proposed weights are unchanged.
+
+23 November: the owner approved PR #700 for merge and requested a stop. The
+callable/state contract is accepted on merge. CS1–CS4 are planned, unstarted
+(0/100 earned implementation points); work pauses before CS1.

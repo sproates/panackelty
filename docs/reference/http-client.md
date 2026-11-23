@@ -19,7 +19,8 @@ existing HTTP category plus optional transport details and scheme/host/port
 context. This includes detailed TLS failures. The released `http/client`
 contract documented below remains available. See the
 [development stdlib reference](STANDARD_LIBRARY.md#streams-and-owned-resources)
-and [migration guide](../guides/STDLIB_MIGRATION.md).
+and [migration guide](../guides/STDLIB_MIGRATION.md), or run the complete
+[diagnostic client example](../../examples/network/http_diagnostic_client/README.md).
 
 ## Import and dependency
 

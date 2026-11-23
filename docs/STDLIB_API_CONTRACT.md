@@ -713,3 +713,14 @@ source/bytecode fixture. No compiler, VM or stdlib implementation changed.
 The [coverage checklist](design/ASYNC_STDLIB_DOCUMENTATION_COVERAGE.md) names four
 remaining core documentation gaps before website adaptation/review. This records
 existing scope rather than introducing a new example quota. AS5 remains open.
+
+AS5 core gaps covered (23 November): added console EOF/bounds and staged/confined
+publication examples, a diagnostic HTTP client package example, and their
+walkthroughs. Canonical UTF-8 decoding and checked reporting examples retain
+their transcripts; compatibility filesystem/process recipes are explicitly
+labelled rather than silently removed. Focused named source/compile/bytecode
+checks, console Unicode/bounds/failure cases, HTTP 200/404/invalid URL cases,
+45-example/610-assertion inventory mutation checks and documentation links pass.
+Only example/guide/test-registration work changed; compiler, VM, stdlib and
+shared runner logic are unchanged. No full-suite rerun or development CI.
+Website adaptation and owner review remain, as does integration acceptance.

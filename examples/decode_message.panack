@@ -1,7 +1,7 @@
-import stdlib/host as host
+import stdlib/encoding/utf8 as utf8
 
 read_message(payload: Bytes): Str {
-  match host.decode_utf8(payload) {
+  match utf8.decode(payload) {
     Ok(text) => text,
     Error(problem) => "Message contains invalid UTF-8"
   }

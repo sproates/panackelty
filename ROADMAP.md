@@ -690,3 +690,14 @@ The documentation coverage checklist names the four remaining core gaps before
 website adaptation/review; no additional example quota or runtime scope is added.
 No runtime performance impact; the two bounded examples add small fixture work.
 Website follow-up remains open and nothing is published.
+
+AS5 core gaps covered (23 November): added console EOF/bounds and staged/confined
+publication examples, a diagnostic HTTP client package example, and their
+walkthroughs. Canonical UTF-8 decoding and checked reporting examples retain
+their transcripts; compatibility filesystem/process recipes are explicitly
+labelled rather than silently removed. Focused named source/compile/bytecode
+checks, console Unicode/bounds/failure cases, HTTP 200/404/invalid URL cases,
+45-example/610-assertion inventory mutation checks and documentation links pass.
+Only example/guide/test-registration work changed; compiler, VM, stdlib and
+shared runner logic are unchanged. No full-suite rerun or development CI.
+Website adaptation and owner review remain, as does integration acceptance.

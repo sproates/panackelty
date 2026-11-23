@@ -23,3 +23,9 @@ The [uptime service](http_uptime/README.md) keeps its start instant in immutable
 context and awaits the monotonic clock inside `/health`. It also reads a service
 name through `stdlib/environment/async`. This requires the development toolchain
 with async stdlib imports; alpha.15 does not support this example.
+
+## Diagnostic HTTP client (alpha.16 development)
+
+The [diagnostic client](http_diagnostic_client/README.md) uses `http/client/async`,
+explicit bounds and rendered transport details. It distinguishes received HTTP
+error statuses from failed requests.

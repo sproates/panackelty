@@ -1,0 +1,45 @@
+import stdlib/console/async as console
+import stdlib/encoding/utf8 as utf8
+import stdlib/host/async as host
+
+async read_message(limit: Nat): Result[Bytes,Str] {
+  mut data = bytes()
+  mut finished = false
+  mut failure: Option[Str] = None()
+  while !finished {
+    match await console.read(512) {
+      Error(problem) => { failure = Some(problem.render()); finished = true },
+      Ok(input) => match input {
+        None() => { finished = true },
+        Some(chunk) => {
+          if data.len() + chunk.len() > limit {
+            failure = Some("Input exceeds the ${limit}-byte message limit.")
+            finished = true
+          } else { data = data.join(chunk) }
+        }
+      }
+    }
+  }
+  match failure { Some(message) => Error(message), None() => Ok(data) }
+}
+
+async main(): Unit {
+  match await read_message(4096) {
+    Error(message) => {
+      reported = await console.write_error_line(message)
+      await host.exit(1)
+    },
+    Ok(data) => match utf8.decode(data) {
+      Error(problem) => {
+        reported = await console.write_error_line("Input is not valid UTF-8.")
+        await host.exit(1)
+      },
+      Ok(text) => {
+        count = text.len()
+        match await console.write_line("Received ${count} characters.") {
+          Error(write_error) => await host.exit(1), Ok(written) => ()
+        }
+      }
+    }
+  }
+}

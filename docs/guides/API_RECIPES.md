@@ -1,6 +1,8 @@
 # Standard-library API recipes
 
-These complete programs demonstrate the APIs available on alpha.15 `next`.
+This checkout includes alpha.16 development recipes as well as retained
+alpha.15 compatibility examples. Use the matching development toolchain for
+checked UTF-8 and checked test-reporting examples.
 Run commands from the checkout root after `make`, or from an extracted release
 containing these examples. The host examples use POSIX tools including `/bin/sh` and `/bin/cat`;
 they are not browser examples. Each program is checked from source and saved
@@ -177,8 +179,8 @@ does. Interpolation accepts local names.
 
 Use `text.encode_utf8()` to obtain `Bytes`, `buffer.length()` for its byte count,
 and `buffer.decode_utf8()` for known valid UTF-8. For untrusted bytes, use
-`host.decode_utf8` after `import stdlib/host as host`. It returns
-`Result[Str, HostError]`; handle
+`utf8.decode` after `import stdlib/encoding/utf8 as utf8`. It returns
+`Result[Str, Utf8Error]`; handle
 failure explicitly. The example's encoded text is valid by construction.
 
 Use `name.ends_with(".panack")` for suffix checks. The collections example also
@@ -217,8 +219,10 @@ Run `./bin/panack run examples/testing_report.panack`.
 See the [complete program](../../examples/testing_report.panack).
 
 `testing.expect`, `equal_nat` and `equal_str` return test results. Collect them
-and call `testing.report(results)`, which prints results in order and returns
-the number of failures. It does not exit the process.
+and import `stdlib/testing/reporting as testing` for checked reporting.
+`testing.report(results)` prints results in order and returns
+`Result[Nat,ConsoleError]`: either the failure count or a console-write failure.
+Handle both cases; reporting itself does not exit the process.
 
 ```text
 PASS greeting
@@ -231,9 +235,22 @@ returned failures: 1
 This teaching example deliberately includes one failing assertion and exits
 successfully only when that expected count is returned. In a real test suite,
 use `if failures > 0 { host.exit(1) }` after reporting. The host-failure recipe
-uses that normal policy.
+uses that normal policy through its retained compatibility reporter.
 
-## Filesystem and process failures
+## Filesystem and process failures (compatibility example)
+
+`host_failures.panack`, `read_temporary_note.panack` and `pipe_input.panack`
+retain the alpha.15 compatibility APIs deliberately. For the preferred
+alpha.16 interfaces, use [the migration guide](STDLIB_MIGRATION.md),
+[async_temporary_note](../../examples/async_temporary_note.panack) and
+[async_pipe_input](../../examples/async_pipe_input.panack). Native-code examples
+below explain the compatibility contract; domain APIs expose typed categories.
+
+Pure assertions remain in `stdlib/testing`. Effectful test support has canonical
+`stdlib/testing/filesystem`, `stdlib/testing/process` and
+`stdlib/testing/reporting` modules, with `/async` counterparts. Reporting returns
+a checked result; filesystem/process helpers retain the test-support contracts
+listed in [the reference](../reference/STANDARD_LIBRARY.md).
 
 Run `./bin/panack run examples/host_failures.panack`.
 See the [complete program](../../examples/host_failures.panack).

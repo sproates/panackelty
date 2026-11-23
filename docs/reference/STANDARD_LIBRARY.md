@@ -113,6 +113,8 @@ operation and cleanup fail. Ordinary control flow does not promise that cleanup
 code runs after task cancellation or process termination. Use each resource's
 specified cancellation behaviour rather than assuming automatic language scopes.
 
+The [input and publication walkthrough](../guides/ASYNC_INPUT_AND_FILES.md) provides complete console-EOF and staged/confined filesystem examples.
+
 ## Processes
 
 `process.run(Command)` returns `Result[ProcessOutput,ProcessError]`. Construct a
@@ -154,7 +156,8 @@ For complete GET requests, use the package export `http/client/async`: its
 `get`/`get_with_limits` return `HttpClientError`, retaining the HTTP category,
 optional transport detail and scheme/host/port context. This is a package import,
 not `stdlib/http`. Existing `http/client` and `http/stream` remain compatible.
-See [the package documentation](../../packages/http/README.md).
+See [the package documentation](../../packages/http/README.md) and the
+[diagnostic client example](../../examples/network/http_diagnostic_client/README.md).
 
 Canonical TCP APIs take `Duration` values. Current TCP deadlines must be whole
 milliseconds, at most 60 seconds; client/admission deadlines must be positive and

@@ -42,6 +42,8 @@ in alpha.15 archives. Each has a source/compiled-bytecode transcript check.
 
 | Program | Demonstrates |
 | --- | --- |
+| [async_console_input.panack](async_console_input.panack) | Bounded input until EOF and checked UTF-8 |
+| [async_publish_note.panack](async_publish_note.panack) | Create-only stage publication, confined reads and cleanup |
 | [async_digest.panack](async_digest.panack) | Chunked SHA-256 and consuming a context safely |
 | [async_gzip.panack](async_gzip.panack) | Bounded decompression, chunk consumption and explicit cleanup |
 | [async_timing.panack](async_timing.panack) | Monotonic clock reads and a suspending timer through one time import |
@@ -50,7 +52,9 @@ in alpha.15 archives. Each has a source/compiled-bytecode transcript check.
 
 Run with `./bin/panack run examples/async_timing.panack`, substituting another
 filename as needed. The temporary-note example needs a writable current directory;
-the subprocess example needs `/bin/cat`. See the
+the subprocess example needs `/bin/cat`. The console example waits for EOF;
+its default test has empty input, with separate fixtures for non-empty input,
+invalid UTF-8 and the total byte limit. See the
 [stdlib reference](../docs/reference/STANDARD_LIBRARY.md) and
 [migration guide](../docs/guides/STDLIB_MIGRATION.md).
 

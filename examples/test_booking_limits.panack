@@ -1,5 +1,5 @@
 import stdlib/host as host
-import stdlib/testing as testing
+import stdlib/testing/reporting as testing
 import stdlib/testing::{TestResult}
 
 record BookingCase {
@@ -22,5 +22,8 @@ main(): Void {
       item.name, can_book_pair(item.seats) == item.expected, "wrong booking decision"
     ))
   }
-  if testing.report(results) > 0 { host.exit(1) }
+  match testing.report(results) {
+    Error(problem) => { host.stderr(problem.render()); host.exit(1) },
+    Ok(failures) => { if failures > 0 { host.exit(1) } }
+  }
 }

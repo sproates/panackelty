@@ -32,3 +32,5 @@ acceptance additionally needs the real site layout, persistent Panack HTTP previ
 and owner review. Core integration and website publication remain separate.
 
 Owner review correction (23 November): website PR #77 now provides nineteen self-contained module references with 72 function entries, parameter/result/error details, bounds and ownership, plus embedded complete examples. All signatures match pinned core source; 51 local website tests and assembly checks pass. The persistent preview is refreshed. Owner review, integration and publication remain pending; no CI was triggered.
+
+23 November integration handoff: the owner approved the website documentation approach and preview. Core PR #693 is ready for integration into next under the alpha.16 trial; its merge starts hosted validation. AS1–AS4 implementation and AS5 core guides/examples are locally validated; hosted acceptance remains pending. Website PR #77 has preview approval, not publication permission. RM#162 remains open for the broader real-program work; this stdlib batch does not implement closures, anonymous functions or shared state.

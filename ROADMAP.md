@@ -728,3 +728,15 @@ broader real-program work, including anonymous functions, closures and shared st
 These are alpha.16 development docs; release pins, the playground and published articles
 are unchanged. This completion record changes no runtime or build behaviour and requires
 no performance measurement or repeated product validation.
+
+
+## Callable and state contract proposal, 23 November 2026
+
+The owner selected the next design task after stdlib completion. The
+[contract proposal](docs/CALLABLES_AND_STATE_PROPOSAL.md) records syntax, effects, immutable capture,
+explicit state, lifetime/cancellation rules, diagnostics and the complete target
+uptime/counter service. Four provisional implementation slices carry weights
+20/30/30/20; all are proposed with zero earned contribution. Owner review is
+pending; this is not implementation approval or a current language specification.
+No runtime/performance impact or CI is required for this informational record.
+Website and published-article updates await agreement and separate review.

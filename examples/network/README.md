@@ -1,7 +1,8 @@
 # Network examples
 
-These examples use the native toolchain. Install [alpha.13](../../docs/guides/INSTALLATION.md)
-for the TCP examples; the routed HTTP examples require the alpha.14 toolchain. Run them from the root of the extracted archive with `./bin/panack`.
+These examples use the native toolchain. Use [alpha.15](../../docs/guides/INSTALLATION.md)
+for the released TCP and routed HTTP examples. The uptime example below requires
+the alpha.16 development toolchain. Run them from the root of the extracted archive with `./bin/panack`.
 The same command path works in a built source checkout.
 
 | Example | What it demonstrates |

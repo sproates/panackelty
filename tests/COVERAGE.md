@@ -2224,3 +2224,11 @@ runners; no execution logic changes. The focused-example route applies on top
 of fully validated revision 3d4daae. Existing domain-error regression fixtures
 retain failure, cancellation and lifecycle coverage; the new examples demonstrate
 normal application use rather than replacing those tests.
+
+Async resource example follow-up (23 November): async_digest and async_gzip pass
+named source/compile/bytecode transcripts. Inventory now contains 43 examples
+and 604 assertions; mutation checks and runner_smoke compilation pass. Uptime
+HTTP source/bytecode checks cover the canonical as_nanoseconds spelling. Existing
+resource_errors/cpu_resources regressions remain the failure/lifecycle evidence.
+Focused example validation applies over dbbc3f7; execution logic, compiler, VM
+and stdlib implementation are unchanged.

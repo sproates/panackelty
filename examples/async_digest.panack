@@ -1,0 +1,46 @@
+import stdlib/digest/sha256/async as digest
+import stdlib/console/async as console
+import stdlib/host/async as host
+
+async hash_parts(parts: [Bytes]): Result[Bytes,Str] {
+  match await digest.create() {
+    Error(problem) => Error(problem.render()),
+    Ok(context) => {
+      mut failure: Option[Str] = None()
+      for part in parts {
+        if failure == None() {
+          match await digest.update(context, part) {
+            Ok(updated) => (), Error(problem) => { failure = Some(problem.render()); () }
+          }
+        }
+      }
+      match failure {
+        None() => {
+          // finish consumes the context, even if finalisation fails.
+          match await digest.finish(context) {
+            Ok(hash) => Ok(hash), Error(problem) => Error(problem.render())
+          }
+        },
+        Some(message) => match await digest.close(context) {
+          Ok(closed) => Error(message),
+          Error(cleanup) => Error(message + "\nCleanup also reported: " + cleanup.render())
+        }
+      }
+    }
+  }
+}
+
+async main(): Unit {
+  match await hash_parts(["a".encode_utf8(), "bc".encode_utf8()]) {
+    Error(message) => {
+      reported = await console.write_error_line(message)
+      await host.exit(1)
+    },
+    Ok(hash) => {
+      matches = hash == digest.hash("abc".encode_utf8())
+      match await console.write_line("Chunked SHA-256 matches one-shot: ${matches}") {
+        Error(write_error) => await host.exit(1), Ok(written) => ()
+      }
+    }
+  }
+}

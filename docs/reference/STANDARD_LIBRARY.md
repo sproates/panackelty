@@ -161,6 +161,8 @@ milliseconds, at most 60 seconds; client/admission deadlines must be positive an
 drain may be zero. Callback failures and native failures cannot always be
 separated by the existing ABI, so some error categories deliberately remain broad.
 
+For complete SHA-256 and gzip examples, see [async resource ownership and cleanup](../guides/ASYNC_RESOURCES.md). The guide also links the HTTP uptime service.
+
 ## Handle domain errors
 
 Console, sleep, filesystem, process, HTTP stream, TCP, SHA-256 and gzip APIs expose

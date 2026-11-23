@@ -682,3 +682,11 @@ source/bytecode, inventory mutation and documentation checks pass. Runtime and
 compiler are unchanged from the preceding full validation. Broader examples,
 website adaptation/review and integration remain; the existing stdlib website
 follow-up applies. No website publication is included.
+
+RM#162 / AS5 resource follow-up (23 November): SHA-256 and gzip examples and the
+resource walkthrough pass focused source/bytecode, inventory and documentation
+checks. Uptime uses canonical duration naming with its HTTP fixture passing.
+The documentation coverage checklist names the four remaining core gaps before
+website adaptation/review; no additional example quota or runtime scope is added.
+No runtime performance impact; the two bounded examples add small fixture work.
+Website follow-up remains open and nothing is published.

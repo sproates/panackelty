@@ -15,7 +15,7 @@ async health(context: AppContext, request: http.Request, response: http.Response
     Ok(now) => {
       elapsed = now.difference(context.started)
       response.header("X-Service", context.service_name)
-      ticks = elapsed.ticks()
+      ticks = elapsed.as_nanoseconds()
       response.send("uptime_ns=${ticks}")
       Ok(())
     }

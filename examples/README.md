@@ -42,6 +42,8 @@ in alpha.15 archives. Each has a source/compiled-bytecode transcript check.
 
 | Program | Demonstrates |
 | --- | --- |
+| [async_digest.panack](async_digest.panack) | Chunked SHA-256 and consuming a context safely |
+| [async_gzip.panack](async_gzip.panack) | Bounded decompression, chunk consumption and explicit cleanup |
 | [async_timing.panack](async_timing.panack) | Monotonic clock reads and a suspending timer through one time import |
 | [async_temporary_note.panack](async_temporary_note.panack) | Bounded file reads, checked UTF-8 and cleanup after success or failure |
 | [async_pipe_input.panack](async_pipe_input.panack) | Explicit subprocess input/environment/limits and termination handling |

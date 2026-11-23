@@ -701,3 +701,15 @@ No runtime performance impact is expected; the suite gains three short examples.
 AS5 remains in progress: broader examples, website adaptation/review and integration
 are pending. The existing website follow-up applies; no website is changed or
 published by this batch.
+
+### AS5 resource examples and bounded remaining scope (23 November)
+
+The [resource walkthrough](guides/ASYNC_RESOURCES.md) links complete async SHA-256
+and gzip examples, explains consuming versus explicitly closed resources, and
+connects the existing uptime service. Both new examples pass named source/compile/
+saved-bytecode transcript checks; 43-example/604-assertion inventory and mutation
+checks pass. The uptime example uses as_nanoseconds and passes its focused HTTP
+source/bytecode fixture. No compiler, VM or stdlib implementation changed.
+The [coverage checklist](design/ASYNC_STDLIB_DOCUMENTATION_COVERAGE.md) names four
+remaining core documentation gaps before website adaptation/review. This records
+existing scope rather than introducing a new example quota. AS5 remains open.

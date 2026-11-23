@@ -4,6 +4,7 @@
 
 - [Standard-library API recipes: text, collections, test reports and host failures](API_RECIPES.md)
 - [Migrating to the alpha.16 stdlib APIs](STDLIB_MIGRATION.md)
+- [Async resource ownership and cleanup](ASYNC_RESOURCES.md)
 - [Async and HTTP](ASYNC_AND_HTTP.md)
 - [Compiler explanations: expression and argument types, guarded conversions, subtraction and effects](COMPILER_EXPLANATIONS.md)
 - [Install Panackelty](INSTALLATION.md)

@@ -16,7 +16,10 @@ compiler, VM and stdlib together.
 
 Try [async timing](../../examples/async_timing.panack),
 [a temporary note with cleanup](../../examples/async_temporary_note.panack), or
-[a bounded subprocess](../../examples/async_pipe_input.panack).
+[a bounded subprocess](../../examples/async_pipe_input.panack). The
+[resource walkthrough](ASYNC_RESOURCES.md) adds SHA-256 and gzip examples with
+explicit cleanup. The [uptime service](../../examples/network/http_uptime/README.md)
+shows async clock access in a real HTTP handler.
 
 ## Choose the right interface
 

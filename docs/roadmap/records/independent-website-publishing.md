@@ -1403,3 +1403,15 @@ broader real-program work, including anonymous functions, closures and shared st
 These are alpha.16 development docs; release pins, the playground and published articles
 are unchanged. This completion record changes no runtime or build behaviour and requires
 no performance measurement or repeated product validation.
+
+### Callable/state proposal follow-up, 23 November 2026
+
+RM#162 now has a [contract proposal](../../CALLABLES_AND_STATE_PROPOSAL.md)
+for anonymous functions, retained captures and ordinary/async explicit state.
+Owner review precedes implementation. After agreement and working acceptance,
+update the language/callable reference, add the state module reference and both
+uptime/counter examples, and review the illustrative article
+`async-functions-closures-and-state` for differences from the final API.
+The proposed module-level state operations differ from that article's method
+sketch. Do not edit the published article without showing the owner those changes.
+No immediate live-site correction or publication is authorised by this proposal.

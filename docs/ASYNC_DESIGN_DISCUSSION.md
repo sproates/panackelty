@@ -378,3 +378,30 @@ broader real-program work, including anonymous functions, closures and shared st
 These are alpha.16 development docs; release pins, the playground and published articles
 are unchanged. This completion record changes no runtime or build behaviour and requires
 no performance measurement or repeated product validation.
+
+
+## Callable and state contract proposal, 23 November 2026
+
+The owner selected the next design task after stdlib completion. The
+[contract proposal](CALLABLES_AND_STATE_PROPOSAL.md) records syntax, effects, immutable capture,
+explicit state, lifetime/cancellation rules, diagnostics and the complete target
+uptime/counter service. Four provisional implementation slices carry weights
+20/30/30/20; all are proposed with zero earned contribution. Owner review is
+pending; this is not implementation approval or a current language specification.
+No runtime/performance impact or CI is required for this informational record.
+Website and published-article updates await agreement and separate review.
+
+23 November review revision: PR #700 now defines scheduler-preemptible cell
+reservations with cancellation before commit, State identity and closure capture
+equality, explicit resource-capture restrictions, contextual callback parameter
+types and committed-increment counting. Owner contract review remains pending;
+implementation has not started and the proposed weights remain unchanged.
+
+PR #700 second-review clarifications: infer callback input types before checking
+the body, then infer generic output types from its result; preserve existing
+scalar Map-key/Set-element restrictions. Acceptance cases updated. Contract
+approval remains pending; implementation and proposed weights are unchanged.
+
+23 November: the owner approved PR #700 for merge and requested a stop. The
+callable/state contract is accepted on merge. CS1–CS4 are planned, unstarted
+(0/100 earned implementation points); work pauses before CS1.

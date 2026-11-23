@@ -711,3 +711,20 @@ Owner review correction (23 November): website PR #77 now provides nineteen self
 Integration follow-up, 23 November: run 45163842662 passed both platform package jobs but stopped before full validation because the manifest regression expected an older unmeasured-source list. The manifest already accounts for the ten added error/compatibility modules with reasons. This correction updates only the explicit expected inventory; coverage eligibility, measurement and thresholds are unchanged. The exact seven-file policy suite passes locally. Hosted full acceptance remains pending a new integration run.
 
 23 November: core stdlib PR #693 and inventory correction PR #697 are merged. [integration run 45164349102](https://github.com/sproates/panackelty/actions/runs/45164349102) passed on `12dccfb` (both platform package jobs, coverage policy and integration gate). AS1–AS4 are accepted; AS5 website preview is approved, with publication/live verification remaining. This is not completion of the broader RM#162 language work or a full hosted release-matrix run.
+
+### Expanded async stdlib documentation: complete, 23 November 2026
+
+23 November publication acceptance: the owner authorised website checks and publication.
+[Website PR #77](https://github.com/sproates/panackelty-website/pull/77) merged as
+`e59e93e` after [checks 45165626275](https://github.com/sproates/panackelty-website/actions/runs/45165626275)
+passed. [Deployment 45166480787](https://github.com/sproates/panackelty-website/actions/runs/45166480787)
+passed, including verification of deployed bytes and provenance. Live browser review
+confirmed the Time reference, signatures, errors, complete example and stdlib-before-HTTP
+navigation. The [published reference](https://panackelty.com/reference/standard-library/)
+contains nineteen module pages and 72 function entries, alongside four guides and nine
+complete examples. AS5 is accepted: all five slices of the expanded async stdlib and
+documentation batch are complete (100/100 weighted points). RM#162 remains open for
+broader real-program work, including anonymous functions, closures and shared state.
+These are alpha.16 development docs; release pins, the playground and published articles
+are unchanged. This completion record changes no runtime or build behaviour and requires
+no performance measurement or repeated product validation.

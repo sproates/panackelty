@@ -1386,3 +1386,20 @@ are unchanged.
 The existing alpha.16 stdlib follow-up also covers HttpStreamError: first-read connection failures, shared ordinary/async error kinds, preserved TLS details, explicit rendering and unchanged legacy/high-level HTTP APIs. Publish with the accepted core reference, not as a claim about alpha.15.
 
 The alpha.16 stdlib reference follow-up includes TcpError and the opt-in `http/client/async` diagnostic API, callback ambiguity and migration from legacy Str errors. The live alpha.15 HTTP guides must not claim these development APIs before release acceptance.
+
+### Expanded async stdlib documentation: complete, 23 November 2026
+
+23 November publication acceptance: the owner authorised website checks and publication.
+[Website PR #77](https://github.com/sproates/panackelty-website/pull/77) merged as
+`e59e93e` after [checks 45165626275](https://github.com/sproates/panackelty-website/actions/runs/45165626275)
+passed. [Deployment 45166480787](https://github.com/sproates/panackelty-website/actions/runs/45166480787)
+passed, including verification of deployed bytes and provenance. Live browser review
+confirmed the Time reference, signatures, errors, complete example and stdlib-before-HTTP
+navigation. The [published reference](https://panackelty.com/reference/standard-library/)
+contains nineteen module pages and 72 function entries, alongside four guides and nine
+complete examples. AS5 is accepted: all five slices of the expanded async stdlib and
+documentation batch are complete (100/100 weighted points). RM#162 remains open for
+broader real-program work, including anonymous functions, closures and shared state.
+These are alpha.16 development docs; release pins, the playground and published articles
+are unchanged. This completion record changes no runtime or build behaviour and requires
+no performance measurement or repeated product validation.

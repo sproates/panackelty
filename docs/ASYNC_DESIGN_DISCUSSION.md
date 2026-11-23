@@ -337,8 +337,8 @@ Documentation is its own acceptance work, not a final optional polish step.
 | AS2: Filesystem and resource-operation boundary | 30 | Accepted on next: ordinary/async general, confined and staged filesystem; typed digest/gzip resources and TCP adapters; domain errors and compatibility. Lifecycle/fault/source/bytecode/relocated evidence is recorded in STDLIB_API_CONTRACT.md. Earned: 30 points. |
 | AS3: Timers, console and processes | 25 | Accepted on next: checked timers, bounded console input/output, Command subprocesses and runtime/testing adapters. Local full and focused acceptance plus green integration. Earned: 25 points. |
 | AS4: Streaming HTTP | 15 | Accepted on next: typed streams, detailed errors, diagnostic HTTP client and disassembly parity. Local full, TLS, lifecycle and relocated checks plus green integration. Earned: 15 points. |
-| AS5: Stdlib reference, guides and website | 20 | Core guides/examples integrated. Website PR #77 has nineteen module references / 72 function entries, 51 passing website tests and approved desktop/phone preview. Separate publication approval and live verification remain. No final acceptance credit yet. |
-| Total | 100 | Accepted contribution: 80/100 points. AS5 is implemented and preview-approved but publication remains; do not present this as the whole release percentage. |
+| AS5: Stdlib reference, guides and website | 20 | Accepted. Core guides/examples integrated; website PR #77 published after owner approval and passing checks. Deployment and live content/navigation verified. Earned contribution: 20/100 points. |
+| Total | 100 | Accepted contribution: 100/100 points. All five slices complete; this is the expanded stdlib/documentation batch, not the whole release or broader RM#162. |
 
 Do not count AS1 twice within RM#162 or equate this programme's weights with a
 release percentage. Shared state, closures and anonymous functions remain
@@ -363,3 +363,18 @@ committed on the development branch, not integrated or accepted as all of AS2.
 23 November: PR #693 merged as `930f951`; [integration run](https://github.com/sproates/panackelty/actions/runs/45163842662) stopped at a stale coverage-inventory test; its explicit expectation is corrected and the exact policy suite passes locally. Hosted acceptance is pending a new integration run. Website PR #77 has owner preview approval but no publication permission. The implementation is integrated, not yet declared hosted-accepted.
 
 23 November acceptance: [integration run 45164349102](https://github.com/sproates/panackelty/actions/runs/45164349102) passed on `12dccfb` after the explicit inventory expectation was corrected in PR #697. These are the configured next package/policy/integration checks, not the full hosted release matrix. Earlier full local validation remains the product evidence. Website publication is still separately authorised.
+
+23 November publication acceptance: the owner authorised website checks and publication.
+[Website PR #77](https://github.com/sproates/panackelty-website/pull/77) merged as
+`e59e93e` after [checks 45165626275](https://github.com/sproates/panackelty-website/actions/runs/45165626275)
+passed. [Deployment 45166480787](https://github.com/sproates/panackelty-website/actions/runs/45166480787)
+passed, including verification of deployed bytes and provenance. Live browser review
+confirmed the Time reference, signatures, errors, complete example and stdlib-before-HTTP
+navigation. The [published reference](https://panackelty.com/reference/standard-library/)
+contains nineteen module pages and 72 function entries, alongside four guides and nine
+complete examples. AS5 is accepted: all five slices of the expanded async stdlib and
+documentation batch are complete (100/100 weighted points). RM#162 remains open for
+broader real-program work, including anonymous functions, closures and shared state.
+These are alpha.16 development docs; release pins, the playground and published articles
+are unchanged. This completion record changes no runtime or build behaviour and requires
+no performance measurement or repeated product validation.

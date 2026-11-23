@@ -396,3 +396,8 @@ reservations with cancellation before commit, State identity and closure capture
 equality, explicit resource-capture restrictions, contextual callback parameter
 types and committed-increment counting. Owner contract review remains pending;
 implementation has not started and the proposed weights remain unchanged.
+
+PR #700 second-review clarifications: infer callback input types before checking
+the body, then infer generic output types from its result; preserve existing
+scalar Map-key/Set-element restrictions. Acceptance cases updated. Contract
+approval remains pending; implementation and proposed weights are unchanged.

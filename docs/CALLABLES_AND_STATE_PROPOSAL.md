@@ -30,10 +30,14 @@ Parameters may omit types when an already-known expected callable signature
 supplies them. For example, `state.update(requests, (current) => current + 1)`
 gets Nat from State[Nat], and a route handler gets its parameter types from the
 route method. An isolated `(current) => current + 1` still requires an annotation.
-Resolve generic arguments from explicitly typed arguments or an annotated target
-before checking an unannotated callback; do not solve circular constraints from
-its body or guess among overloads. Explicit annotations must match the expected
-parameter types. Context supplies types, not permission to perform effects.
+Resolve the callback parameter types from the receiver, other typed arguments or
+an annotated target before checking an unannotated callback. Its locally inferred
+result may then determine remaining generic result parameters. For example, with
+`values: [Nat]`, `values.map((x) => x + 1)` obtains x: Nat from the receiver, then
+infers the callback result and map result parameter U as Nat. Not every generic
+argument must be known before the body is checked. Do not infer an unknown input
+parameter type backwards from its body, solve circular constraints or guess among
+overloads. Explicit annotations must match the expected parameter types. Context supplies types, not permission to perform effects.
 A result annotation is optional when the body determines a single result type;
 otherwise the diagnostic asks for it. This is local callable checking, not a wider
 change to binding or generic inference. Block bodies follow existing named-function
@@ -136,8 +140,10 @@ serialised or ordered. Equality compares cell identity, never the current payloa
 two aliases of one cell compare equal, and two separate cells containing zero do
 not. Comparison is pure and does not acquire the cell reservation or read its
 contents. Generic `same[T](a: T, b: T): Bool { a == b }` and recursive container
-comparison use this same rule when T contains State. Map/Set membership and any
-hash acceleration must agree with equality; updates cannot change key identity.
+comparison use this same rule when T contains State. This covers arrays, record
+fields and Map values. Current scalar-type restrictions on Map keys and Set
+elements remain unchanged: neither State nor callable values become eligible
+keys/elements merely because equality is defined for them.
 Its lifetime ends when its last reachable reference is released. There is no
 manual close or use-after-close state.
 
@@ -150,7 +156,8 @@ text matches. Captured State values compare by cell identity, without reading
 payloads. No new allocation identity is observable for closure creation, so creating
 a pure closure does not introduce a hidden identity-generating effect. Widening a
 PureFn to Fn preserves its callable identity. Collection comparisons follow the
-same rule; callable hashing must agree or use the existing equality fallback.
+same rule for eligible container positions, including Map values. This proposal
+does not add callable hashing or broaden Map-key/Set-element eligibility.
 
 Payloads are immutable data values: primitives and recursively compatible records,
 enums and collections, including guarded types. State handles, callable values,
@@ -292,7 +299,10 @@ Acceptance includes:
 
 1. Pure, ordinary and async anonymous functions; expression/block bodies; explicit
    result annotations, contextual parameter typing, annotation-required failures
-   without context, and useful failures for incompatible results/effects.
+   without context, and useful failures for incompatible results/effects. With
+   `values: [Nat]`, both `values.map((x) => x + 1)` and
+   `values.map((x: Nat) => x + 1)` produce [Nat]; a body returning Str determines
+   [Str] without requiring the result parameter U to be known beforehand.
 2. Existing named references and collection callbacks retain behaviour; `.call`
    checks arity, type and effect. Source and saved bytecode agree.
 3. Returned, nested and copied closures retain captures after the creator returns.
@@ -303,8 +313,9 @@ Acceptance includes:
    cannot capture its owning server and form a retained-reference cycle.
 5. State aliases share updates; separate cells stay independent; ordinary/async
    interoperability works. Reads are snapshots and updates return committed values.
-   Direct/generic/nested State equality and collection membership use stable cell
-   identity. Callable equality distinguishes lexical bodies, compares captures,
+   Direct/generic/nested State equality, including arrays, records and Map values,
+   uses stable cell identity. State and callable Map keys/Set elements remain
+   rejected under the existing scalar-type restrictions. Callable equality distinguishes lexical bodies, compares captures,
    preserves named references and has no fresh allocation identity.
 6. Overlapping successful updates never lose an increment. Test unrelated-task
    progress and request deadlines during a long callback, same-cell read/update
@@ -367,3 +378,9 @@ lists prohibited capture capabilities without escape analysis, allows parameter
 types from an already-known callable context, and counts committed increments in
 the service. These are revised recommendations, not implementation or final owner
 acceptance. The four slice weights and zero earned contribution are unchanged.
+
+Second review clarification, 23 November: callback input types must be known
+before body checking, but its local result can determine remaining generic output
+parameters, including map's U. Existing scalar Map-key/Set-element eligibility is
+unchanged; State/callable equality applies in allowed value positions. Acceptance
+cases cover both rules. No scope, weight or implementation-status change.

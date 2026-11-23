@@ -1,0 +1,60 @@
+pub import stdlib/testing_commands::{TestResult, TestCommand, ProcessOutput, HostError, command_output, command_result}
+import stdlib/testing::{TestOutcome.TestPassed, TestOutcome.TestFailed}
+import stdlib/testing as std_testing
+import stdlib/filesystem/legacy/async as std_filesystem
+import stdlib/process/async as process
+import stdlib/process::{Command, ProcessEnvironment.InheritEnvironment, ProcessTermination.Exited, ProcessTermination.Signalled}
+
+async execute(command: TestCommand): Result[ProcessOutput,HostError] {
+  match await process.run(Command(command.executable, command.arguments, command.stdin,
+      command.working_directory, InheritEnvironment(command.environment), command.timeout, command.output_limit)) {
+    Error(problem) => Error(problem.native),
+    Ok(output) => match output.termination {
+      Exited(code) => Ok(ProcessOutput(code, 0, output.stdout, output.stderr)),
+      Signalled(signal) => Ok(ProcessOutput(0, signal, output.stdout, output.stderr))
+    }
+  }
+}
+
+// Publish only a complete, byte-exact successful subprocess observation.
+pub async capture_report(name: Str, command: TestCommand, expected: ProcessOutput,
+                        destination: Option[Path]): TestResult {
+  actual = await execute(command)
+  result = command_result(name, actual, expected)
+  match result.outcome {
+    TestFailed(reason) => match actual {
+      Error(error) => result,
+      Ok(output) => if output.exit_code != expected.exit_code ||
+          output.signal != expected.signal || output.stdout != expected.stdout {
+        actual_stdout: Str = output.stdout.decode_utf8()
+        std_testing.expect(name, false, "${reason}; actual stdout: ${actual_stdout}")
+      } else { result }
+    },
+    TestPassed() => match destination {
+      None() => result,
+      Some(file) => match actual {
+        Error(error) => std_testing.expect(name, false, "report command failed"),
+        Ok(output) => match await std_filesystem.write(file, output.stdout) {
+          Ok(done) => result,
+          Error(error) => std_testing.expect(name, false, "runner report capture failed")
+        }
+      }
+    }
+  }
+}
+
+pub async run(name: Str, command: TestCommand,
+                 expected: ProcessOutput): TestResult {
+  command_result(name, await execute(command), expected)
+}
+
+pub async expect_command_error(name: Str, command: TestCommand,
+                          expected_code: Str): TestResult {
+  match await execute(command) {
+    Ok(output) => std_testing.expect(name, false, "expected host error ${expected_code}, command completed"),
+    Error(error) => {
+      code = error.code
+      std_testing.expect(name, code == expected_code, "expected host error ${expected_code}, got ${code}")
+    }
+  }
+}

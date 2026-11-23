@@ -1858,6 +1858,18 @@ probe tests filter the new trace. The source manifest now includes
 530 import/type/record/enum exclusions against the prior 509; no executable functions
 are excluded and this is not a new coverage collection.
 
+### Async stdlib batch (alpha.16 development)
+
+`tests/async_stdlib.sh` checks the new import paths, source and bytecode
+execution, missing/empty environment values, monotonic readings, compatibility
+imports, await/purity rejection and actionable ordinary-call diagnostics.
+`tests/http_uptime.sh` runs the real uptime example in both execution modes
+and compares successive responses. The existing async filesystem integration
+uses the new path. Native async tests independently check forged call edges;
+fault injection checks the typed clock failure. Installation inventory and
+relocation tests include the nested modules. These tests do not establish
+source-execution coverage percentages for the new async adapters.
+
 ### Process-group launch race regression
 
 The native fault suite deterministically exercises a child process-group assignment
@@ -1878,3 +1890,356 @@ the automated regression therefore uses deterministic syscall fault injection.
 Performance: the normal successful launch adds no syscall. Only an EPERM result
 checks the existing process group; there is no retry loop, sleep or timeout change.
 Existing process timeout/descendant cleanup functional coverage remains applicable.
+
+### Async temporary-resource ownership
+
+Native module checks cover immediate cancellation, cancellation after creation,
+and accepted results for both temporary files and directories. Retained results
+remain usable after the worker releases its operation. A non-empty temporary
+directory proves cleanup failure preserves contents and reports its exact path
+and native error. Allocation-failure sweeps assert no retained memory, descriptors
+or orphaned temporary entries. General filesystem source and saved-bytecode
+functional cases still pass with the candidate compiler. Final batch acceptance
+remains pending; these focused checks do not replace `make check`.
+
+Performance: temporary creation retains one of the existing 32 worker slots until
+result handoff or abandonment. Cleanup runs on that worker; cancellation adds no
+blocking filesystem call to the event loop. No bytecode or compiler change.
+Website impact: included in the existing pending async stdlib reference update;
+no published article changes.
+
+Async filesystem candidate tests also cover atomic replacement followed by chunk
+reads, a nonzero offset, EOF and rejection above the 64 KiB chunk limit, through
+source and saved bytecode. These operations reuse the existing no-follow native
+implementation in bounded workers; no new bytecode format or execution engine.
+Final expanded stdlib batch validation remains pending.
+
+Canonical confined filesystem tests exercise ordinary and async source and saved
+bytecode, root/read identity equality, contained symlink reads, escaping-link
+rejection and link-target reads. Native dispatch reuses existing safety logic;
+async link reads use bounded workers with a 4096-byte reservation. Coverage
+inventory/hash reconciliation and final batch acceptance remain pending.
+
+### Staging lifetime baseline (19 November)
+
+The native I/O suite now verifies create-only publication conflict, stage reuse
+after rejection, later successful publication, rejection of path/write/publish
+after consumption, and VM shutdown removing unpublished content while preserving
+published contents. This establishes the existing synchronous baseline, not async
+cancellation safety. The API contract records the outstanding native ownership,
+cleanup-error and pre-commit allocation work. Production behaviour is unchanged;
+there is no runtime performance or current website change in this checkpoint.
+
+Staging cleanup now has focused native regressions for retry after a substituted
+directory blocks discard, and successful publication despite permission-denied
+old-generation cleanup. The latter checks the path/error diagnostic, consumed
+handle, shutdown retry and preservation of published content; it runs for non-root
+users. Publication preallocates its success result before rename. These focused
+checks do not establish complete allocation-fault or async staging acceptance.
+Performance: no extra successful-path filesystem operation; failed cleanup retains
+its bounded stage slot until retry/shutdown. Final batch make check is pending.
+
+Native opaque stage values now have tests rejecting Nat forgery, handles from
+another invocation, stale handles after VM-table recreation, and aliases after
+discard. Retained values outlive table destruction safely through an identity
+token; this token does not keep the native stage alive or grant worker ownership.
+Native-only foundation: no public typed source API or bytecode-format change.
+Performance: one small shared identity allocation per invocation using staging,
+and one normal Value allocation per opaque result. Full batch checks remain pending.
+
+Candidate source and saved-bytecode staging checks now exercise the ordinary
+opaque API, named publication modes, rejected create-only publication followed by
+replacement, alias consumption and discard. Negative source cases reject Nat
+handles, direct DirectoryStage construction and staging effects in pure functions.
+No bytecode format change; coverage inventory and final batch acceptance pending.
+
+A deterministic native-thread staging test acquires a lease, rejects a second
+lease and ordinary discard as busy, destroys the VM table and releases all source
+values, then starts a worker that creates a child directory. Lease release removes
+the unpublished stage. This proves native lifetime independence without relying on
+timing. It does not yet exercise public await dispatch or cancellation. Atomic
+reference counts and per-stage admission add bounded bookkeeping; native slots
+remain bounded at 64 per invocation. Full batch validation remains pending.
+
+Async staging source/bytecode tests now cover create/path/directory/write/symlink/
+publish/discard, named modes and alias consumption. Native creation tests cover
+immediate cancellation, cancellation after completion and accepted ownership
+without a transient busy result. Allocation sweeps check abandoned creation
+without retained memory or leftover stage directories. A cancelled publication
+finishes and preserves its committed destination after VM teardown. These checks
+do not establish event-loop-safe shutdown with no lease pending; that and final
+batch/coverage-inventory acceptance remain outstanding. Worker admission remains
+32 operations with existing byte reservations and 64 stage slots per invocation.
+
+Embedded staging teardown now has a deterministic paused-fstat fault test: VM
+execution destruction returns while cleanup remains blocked, then draining after
+unpausing releases all tracked allocations and descriptors. Native admission tests
+fill 32 invocation tables, reject the next, drain one, and verify capacity recovery.
+Cleanup uses one worker and an allocation-free intrusive queue bounded by table
+admission. The CLI drains queued cleanup after stopping its runtime; active host
+operations can still outlive cancellation, and process termination gives no
+cleanup guarantee for such operations. Final expanded-batch validation pending.
+
+### Expanded filesystem batch acceptance, 19 November 2026
+
+Final `make check` passed in 606 seconds: unit 389s, bootstrap 83s in parallel,
+functional 142s, plus the remaining build/release checks. Historical budget warnings
+remain informational; these timings are not a controlled performance comparison.
+The general, confined and ordinary/async opaque staging fixtures all passed source
+and saved-bytecode execution. A separate relocated installation repeated ordinary
+and async staging from an unrelated working directory without checkout overrides.
+
+Installation inventory reconciliation and all 13 coverage manifest/policy tests
+pass. Four canonical confined/staging modules are explicitly unmeasured; eligible
+sources and the bounded execution corpus are unchanged. Policy hashes were
+regenerated with the production parser and declaration inventory. No measured
+coverage increase is claimed.
+
+Artifact preflight passes after a reviewed stdlib golden update: all 35 original
+function instruction bodies match after module renumbering; 12 wrapper/import
+functions are added and old/new output matches. Refreshed compiler stages 2–4
+agree, as do stdlib conformance bytes. Integration and hosted validation are
+pending; development CI remains off.
+
+### Timer development checks, 20 November 2026
+
+Candidate source and saved-bytecode checks cover async sleep at zero/positive
+durations, negative/oversized errors, ordinary and legacy compatibility, argument
+types, missing await, pure effects and rejected direct primitive access. Native
+contracts cover independent execution while another timer waits, cancellation,
+rejected fake completion, task-session resumption and immediate expiry. Fault
+contracts cover clock failure at registration and polling and completion allocation
+failure. The native module and fault suites pass. Final `make check`, refreshed
+seed and inventory reconciliation remain for the settled console/process batch;
+the 19 November full-run result applies to the preceding filesystem revision.
+
+### Console development checks, 20 November 2026
+
+`tests/console.sh` covers all four checked console operations through ordinary and
+async imports in source and saved-bytecode modes, exact UTF-8 and empty/line output,
+legacy output ordering and rejected effect/type/direct-primitive uses. Native tests
+cover embedded NUL, descriptor errors and existing broken-pipe handling. Allocation,
+syscall, blocked-write cancellation and four-slot admission tests run for both the
+legacy and new raw writer paths. New module installation and source inventories
+are reconciled; the two console adapters are explicitly unmeasured by the bounded
+coverage corpus. Final seed refresh and full checks remain for the settled batch.
+
+## Command-based process adapters, 21 November 2026
+
+`tests/process_async.sh` checks ordinary/async source and saved-bytecode paths,
+explicit environments, stdin/stdout/stderr, nonzero exits, signals, deadlines,
+output limits, launch failure and effect/type rejection. Native process tests
+cover copied environment ownership, four retained slots and recovery, cancellation
+with direct-child reaping, explicit embedding grants and rejection of unrelated
+completion callbacks. Fault tests cover allocation, thread, pipe, fork, poll and
+read failures without retained resources. `tests/http_process.sh` checks that a
+second HTTP handler can release a subprocess awaited by the first handler.
+The three new process modules are explicitly unmeasured in the bounded source
+coverage corpus. Focused tests do not establish an execution coverage percentage.
+
+Combined timer/console/process local `make check` passed on 21 November in 612s
+(unit 379s, bootstrap 82s), including functional and release-smoke checks. The
+browser runtime bundle and unsupported-host process compilation path pass.
+The 606s filesystem checkpoint is a preceding run, not a controlled performance
+comparison; no throughput improvement or regression is inferred from this run.
+
+Ordinary and async Command APIs also pass source and saved-bytecode tests from a
+relocated installation with spaces in its path, without checkout library overrides.
+
+
+## Runtime/testing support migration
+
+stdlib_support.sh exercises ordinary and async workspace creation, sorted fixture
+discovery, failed nonempty cleanup, successful cleanup, command comparisons, error
+assertions, capture success/failure and unchanged destinations after mismatch.
+It runs source and saved bytecode, checks ordered reporting/failure counts and
+closed-output errors, and verifies nested bytecode arguments and async rejection.
+The compiler binding suite checks native record owner names versus conflicting
+stdlib declarations. Bytecode unit tests check every closed async service's await
+acceptance, wrong-arity rejection and ordinary-call rejection. Seven new support
+modules are explicitly unmeasured by the bounded source coverage corpus.
+
+Final runtime/testing-support acceptance passed on 21 November: make check 583s
+(unit 371s, bootstrap 81s, functional 146s), 275 focused bytecode-reader checks,
+13 coverage-inventory checks, and relocated source/bytecode/disassembly tests.
+Both ordinary and async checked reporting reject closed output with HostError.
+These elapsed times are not a controlled performance comparison.
+
+## Typed streaming HTTP
+
+http_stream_async.sh checks identical ordinary/async APIs through source and
+saved bytecode, EOF, response limits, invalid durations, closed handles, opaque
+handle checking and effect rejection. Its live HTTP handler reads from another
+route on the same server, proving the scheduler can advance that route while
+the first handler waits. Native tests cover foreign handles, numeric forgery,
+overlapping reads/close, cancellation before and after receipt, teardown during
+a read, exact sub-millisecond deadlines, repeated EOF and embedding grants.
+Allocation sweeps cover open/result/read/close failure cleanup. The two new
+Panack wrappers are explicitly unmeasured by the bounded coverage corpus.
+
+Final streaming acceptance passed on 21 November: make check 647s (unit 406s,
+bootstrap 86s, functional 158s), native sanitizer checks, 2,200 native allocation
+failures, all 284 bytecode-reader checks, 13 coverage-inventory checks, and
+relocated-install API/handler tests with exact seed and module comparisons.
+These are acceptance timings, not a controlled performance comparison.
+
+### Typed digest/gzip adapters (21 November 2026)
+
+`tests/cpu_resources.sh` checks ordinary/async source execution, compiled artifacts,
+disassembly, known SHA-256 output, pure mutation rejection and opaque-handle type
+checking. Native digest tests cover alias lifetime, foreign/forged handles,
+teardown, gzip member/trailer/truncation/output budgets, bounded multi-step output,
+forced scheduler yields and cancellation before/after a step. Allocation sweeps
+include resource creation, mutation, close, teardown and pure hash output.
+Sanitizer checks pass. Four new modules are explicitly unmeasured by the bounded
+source-coverage corpus; focused assertions do not imply execution coverage.
+Final local `make check` passed in 625s: unit 386s, bootstrap 84s and functional
+161s, plus archive/quick-start checks. All 305 bytecode-reader checks pass.
+Relocated-install ordinary/async tests and unrelated-directory imports pass in
+source, bytecode and disassembly modes. This run is comparable with the preceding
+647s checkpoint, not evidence of a product performance improvement. Historical
+validation-budget warnings remain subject to GI#106 reassessment.
+
+### Checked UTF-8 and byte/path aliases (21 November 2026)
+
+`tests/encoding_values.sh` covers empty/multibyte/NUL input, scalar boundaries, all
+256 single-byte inputs, six failure categories, first-error byte offsets, rendering,
+byte slice bounds and lexical parent compatibility in source and saved bytecode.
+Legacy invalid UTF-8 and slice bounds still trap. Compiler unit tests reject
+spoofed module identities and wrong-function access to the two primitive grants.
+Existing compiled oracle fixtures are unchanged. The new encoding module is
+explicitly unmeasured in source coverage. Final local `make check` passed in 626s (unit 391s, bootstrap 83s, functional
+158s), including archive and quick-start checks. Relocated source/bytecode and
+unrelated-directory import/disassembly checks pass. The preceding batch took
+625s; historical validation-budget warnings remain subject to GI#106 review.
+A separate malformed-input probe reports an invalid byte after 1 MiB of ASCII at
+offset 1,048,576 in 0.41s on the development Mac, including VM execution/startup.
+Valid input avoids the Panack diagnostic scan. This is a workload observation,
+not a latency guarantee; invalid-input diagnosis remains linear in prefix length.
+
+### Canonical TCP and Duration aliases (21 November 2026)
+
+`tests/tcp_canonical.sh` uses independent native peers to test exchange, bounded,
+streaming and continuous servers in source/bytecode modes, including signal-driven
+shutdown. Duration tests cover negative, zero, fractional milliseconds, 1 ms,
+60 seconds and over-limit values; invalid durations are rejected before native
+network admission. Zero drain is accepted. Compiler unit tests reserve legacy
+native record schemas while keeping canonical limit identities distinct.
+The new module is explicitly unmeasured by source coverage. There is no per-byte
+or per-client conversion overhead: conversion happens once at exchange/server
+admission. Final local `make check` passed in 626s (unit 391s, bootstrap 83s, functional
+160s), including packaging/archive smoke and quick-start checks. Relocated
+installation tests pass with exact seed/module comparisons, live TCP traffic
+and unrelated-directory source/bytecode/disassembly. The preceding batch also
+took 626s; historical validation-budget warnings remain subject to GI#106 review.
+
+## Bounded console input
+
+Native console_read contracts cover overlap rejection, cancellation before input,
+cancellation racing a completed read, unacknowledged-result recovery, EOF, mixed
+legacy/new reads, and separate embedded input permission. Fault injection sweeps
+allocation failures and checks byte recovery, descriptor cleanup and allocation
+balance. Native module contracts pass under address/undefined-behavior sanitizers.
+
+console_input.sh runs ordinary and async programs as source and saved bytecode,
+including raw NUL/non-UTF-8 input, invalid limits, repeated EOF, closed stdin,
+/dev/null, the 64 KiB boundary and legacy read-ahead compatibility. Pure callers
+are rejected. The unsupported-host branch compiles in native header checks; a
+WASI-guarded adapter probe preserves legacy line input while rejecting the new
+bounded API. This is branch coverage on the host, not a full browser acceptance run.
+The fixture is part of make functional. Existing console modules remain explicitly
+unmeasured in source coverage; these checks do not claim collected source coverage.
+Final local make check passed in 654s (21 November), including unit/functional,
+bootstrap, packaging and installed smoke. The exact packaged seed and console
+modules pass the complete fixtures after relocation, plus source, saved bytecode
+and disassembly from an unrelated directory without checkout overrides.
+
+## Console, sleep and process domain errors
+
+domain_errors.sh asserts typed categories, requested context, exact representative
+rendering, unknown-code/native-number preservation, zero versus elapsed timeout,
+negative/oversized timeouts, launch failures, output limits, invalid environments
+and successful nonzero exits. It runs ordinary and async source and saved bytecode,
+including shared-type annotations. Existing console, process, timer, HTTP-progress
+and testing-helper fixtures cover compatibility and effects. New error modules
+are explicitly unmeasured in source coverage. Final local make check passed in
+621s (21 November), with corrected installation inventory, packaging and installed
+smoke. The relocated toolchain passes the complete error fixture and unrelated-
+directory source/bytecode/disassembly checks. Ordinary and sanitizer oracle checks
+also pass; compiler seed bytes are unchanged.
+
+## Filesystem errors and stdlib nominal identity
+
+filesystem_errors.sh covers ordinary/async metadata, missing paths, read limits,
+file kinds, directory failures, confined reads, staging conflicts and invalid
+handles, native preservation, unknown codes and exact representative rendering
+in source and saved bytecode. async_filesystem_general.sh retains successful
+ordinary/async/staging and effect acceptance. stdlib_nominal_identity.sh loads two
+stdlib modules with identically named enums, constructors and records but different
+payloads, then checks their values and native FileKind compatibility in source and
+saved bytecode. New adapters/errors are explicitly unmeasured in source coverage.
+Final local make check passed in 628s (unit 393s, bootstrap 85s, functional 167s, 21 November), including packaging and installed smoke. Relocated ordinary/async source, saved-bytecode and unrelated-directory acceptance passes. Integration remains pending; development CI stays off.
+
+## Digest/gzip domain errors
+
+resource_errors.sh exercises ordinary/async source and saved bytecode for oversized
+chunks, successful retry, completed/closed handles, invalid creation limits,
+exhausted output budgets, corrupt CRC, truncated input, zero-budget empty output,
+unknown native preservation, exact rendering and cumulative decoder quotas.
+Host-runtime unit checks distinguish the same native code by operation and verify
+unknown/native and successful-value preservation. Existing cpu_resources.sh keeps
+resource/effect and successful concatenated-member coverage. New error modules
+are explicitly unmeasured in the bounded source-coverage corpus. Focused ordinary/async source and saved-bytecode checks pass. Final local make check passed in 645s (21 November), including unit, functional, bootstrap and packaging checks. Relocated installation with a spaced path passed the ordinary/async resource and compatibility fixtures. Integration remains pending and development CI stays off.
+
+## HTTP stream domain errors (21 November 2026)
+
+HTTP stream error fixtures cover trusted TLS, hostname mismatch, untrusted certificates, ordinary/async source and bytecode, native-cause preservation, invalid timeout, stale stream and unknown errors. Existing stream progress/lifecycle and legacy TLS tests remain registered. The new error module is explicitly unmeasured in the bounded source-coverage corpus.
+
+HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibility checks, final local make check (685s, 21 November), and relocated-install real TLS source/bytecode acceptance. Compiler seed and unchanged-program bytecode artifacts remain unchanged. Integration remains pending and development CI stays off.
+
+## TCP and diagnostic HTTP client (21 November 2026)
+
+TCP fixtures cover all server modes, typed refusal/timeout/response-limit failures, Duration rejection, unknown detail and callback/native ambiguity. The diagnostic HTTP client reuses success/framing/limit/invalid-URL/DNS/connect/timeout/TLS fixtures in source and bytecode modes, including actual native TLS detail. No execution-coverage percentage is inferred; the TCP errors module is explicitly unmeasured in the bounded corpus.
+
+TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. The subsequent 22 November repair reconciles all 25 HTTP builtin arities and local-resource call permissions in the self-hosted decoder with the native verifier. Focused legacy/diagnostic-client and routed-server disassembly checks pass. The compiler seed is refreshed; unchanged-program native oracle contracts pass. Final local make check passed in 674s (22 November), including all 427 bytecode tests, public HTTP disassembly, packaging and installed smoke. Relocated TCP and diagnostic-client source/bytecode/disassembly acceptance also passed. Integration remains pending and development CI stays off.
+
+HTTP disassembly regressions now cover both package clients and a routed server
+through the public CLI (`tests/http_disassembly.sh`). The bytecode unit suite uses
+independent expected signatures for all 25 HTTP builtins, wrong arities, pure
+mutation rejection, transitive local wrappers and unsafe wrapper boundaries.
+Final local make check passed in 674s (22 November), including all 427 bytecode
+tests. Relocated source/bytecode/disassembly acceptance passed.
+
+The first restricted-environment full run stopped when the packaged HTTP smoke
+fixture could not allocate a loopback port. The focused packaged smoke passed
+with socket access before the successful full rerun; no assertion was relaxed.
+
+## Async stdlib examples (23 November 2026)
+
+Three new named examples (async_timing, async_temporary_note, async_pipe_input)
+pass source, compilation and saved-bytecode transcript checks. Inventory grows
+from 38/589 to 41 examples/598 assertions. Inventory mutation tests and updated
+runner_smoke compilation pass. Only example registration data changes in the
+runners; no execution logic changes. The focused-example route applies on top
+of fully validated revision 3d4daae. Existing domain-error regression fixtures
+retain failure, cancellation and lifecycle coverage; the new examples demonstrate
+normal application use rather than replacing those tests.
+
+Async resource example follow-up (23 November): async_digest and async_gzip pass
+named source/compile/bytecode transcripts. Inventory now contains 43 examples
+and 604 assertions; mutation checks and runner_smoke compilation pass. Uptime
+HTTP source/bytecode checks cover the canonical as_nanoseconds spelling. Existing
+resource_errors/cpu_resources regressions remain the failure/lifecycle evidence.
+Focused example validation applies over dbbc3f7; execution logic, compiler, VM
+and stdlib implementation are unchanged.
+
+AS5 core gaps covered (23 November): added console EOF/bounds and staged/confined
+publication examples, a diagnostic HTTP client package example, and their
+walkthroughs. Canonical UTF-8 decoding and checked reporting examples retain
+their transcripts; compatibility filesystem/process recipes are explicitly
+labelled rather than silently removed. Focused named source/compile/bytecode
+checks, console Unicode/bounds/failure cases, HTTP 200/404/invalid URL cases,
+45-example/610-assertion inventory mutation checks and documentation links pass.
+Only example/guide/test-registration work changed; compiler, VM, stdlib and
+shared runner logic are unchanged. No full-suite rerun or development CI.
+Website adaptation and owner review remain, as does integration acceptance.

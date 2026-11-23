@@ -22,6 +22,42 @@ For complete runnable examples, see the [API recipes guide](../../docs/guides/AP
 data, or use `error.render()` for plain text. See the
 [language specification](../../docs/reference/SPEC.md#runtime-validation).
 
+## Choosing an async API
+
+Import the asynchronous module under the same alias when calling from an async
+function:
+
+```panack
+import stdlib/time/async as time
+
+async reading(): Result[Instant,time.ClockError] {
+  await time.now()
+}
+```
+
+The ordinary module remains `stdlib/time`. Both modules expose the same pure
+helpers, such as `time.seconds(5)`, and the same clock/error types. Only the
+clock read is asynchronous. `stdlib/environment/async` similarly provides
+`await environment.get(name): Option[Str]`; missing values return `None()`
+and present empty values return `Some("")`.
+
+Clock and environment reads complete immediately in the current task turn;
+async describes their effect contract and does not promise suspension or a
+worker thread. Neither operation is pure. Environment reads retain the VM's
+invocation snapshot semantics.
+
+`stdlib/host/async` re-exports `arguments`, `stdout`, `stderr`, `exit`, and
+`HostError`. `stdlib/filesystem/async` re-exports `read_beneath`,
+`root_identity`, and their shared types. These paths retain existing bounds,
+cancellation behaviour and capability grants. The old `stdlib/async_host`
+and `stdlib/async_filesystem` paths remain compatible; there is one
+implementation of each operation. The first batch did not add all filesystem/host operations. The broader
+development APIs and their remaining acceptance are described below; sleep and
+process execution still await their async implementations.
+
+See the [uptime service](../../examples/network/http_uptime/README.md) for a
+complete HTTP handler using the clock and immutable start context.
+
 ## Curated prelude
 
 `stdlib/prelude` re-exports a curated set of modules while preserving each
@@ -130,7 +166,8 @@ Import `stdlib/filesystem` for typed byte I/O, metadata, sorted directory
 enumeration, and explicitly owned temporary resources. Import
 `stdlib/process` for bounded subprocess execution. These APIs use `Path`,
 `Duration`, and structured `Result` errors. They do not provide recursive
-deletion, atomic writes, implicit PATH search, or a shell.
+deletion, implicit PATH search, or a shell. For atomic file replacement use
+`filesystem.write_atomic`; ordinary `write` is not atomic.
 
 Import `stdlib/host` for process arguments, exit, terminal output, nested
 bytecode execution, checked UTF-8 decoding, and sleep. The pure portable
@@ -225,3 +262,151 @@ and cleanup. Neither operation provides a process sandbox.
 
 Live handles are released on VM completion, failure and synchronous process exit.
 The native adapters are unavailable in the browser and report `unsupported`.
+
+## Canonical names in alpha.16 development
+
+The development branch adds `time.nanoseconds` and
+`time.from_fractional_seconds`; the latter returns an error for fractional
+nanoseconds. Both are pure and are re-exported by `time/async`. Existing
+`from_nanoseconds` and `from_seconds` remain compatible.
+
+The ordinary filesystem module also exposes `create_temp_file`,
+`create_temp_directory`, `read_chunk`, `write_atomic`, and `directories_overlap`.
+These delegate to existing implementations and preserve their limits and path
+safety rules. The development async module now includes general metadata, read,
+write, listing, creation, removal and overlap operations. This broader batch is
+not a released capability. Cancelling temporary creation before delivery removes
+the new file or empty directory on its worker. If removal fails, Panack reports
+the path and native error on stderr; it does not recursively delete contents.
+After successful delivery, the caller owns the path and its cleanup. Process
+termination is not a cleanup guarantee. Integration acceptance remains pending.
+See the [implementation contract](../../docs/STDLIB_API_CONTRACT.md) for the
+complete inventory and remaining migration work.
+
+Async `filesystem.read_chunk` and `filesystem.write_atomic` now share the ordinary
+bounded implementation on the development branch. Reads allow chunks up to 64 KiB
+and offsets up to 256 MiB; atomic writes accept at most 32 MiB. Cancelling an
+atomic write does not roll back a replacement already in progress.
+
+Development modules `filesystem/confined` and `filesystem/confined/async` expose
+`root_identity`, `read`, `read_beneath` and `read_link`, sharing existing record
+types. Reads resolve relative symlinks within the root and reject escape.
+`read_link` returns the final link target bytes without following that link.
+
+The development module `filesystem/staging` provides an opaque `DirectoryStage`
+and `PublishMode.CreateOnly` / `PublishMode.ReplaceExisting`. Use `create`, `path`,
+`create_directory`, `write_chunk`, `create_symlink`, `publish` and `discard`.
+Successful publication/discard consumes the resource, including aliases. Failed
+publication leaves it owned; failed discard retains ownership for retry. Legacy
+`filesystem_stage` numeric handles remain supported during migration. The development async
+module `filesystem/staging/async` provides matching functions using `await` and
+the same publication modes. Creation cancelled before delivery is discarded;
+publication may still commit after cancellation. Embedded shutdown queues cleanup on a dedicated worker. The process permits
+32 retained stage tables, including pending cleanup, with 64 slots per invocation;
+exhaustion returns resource_limit in the native detail. Local validation has
+passed; integration and release acceptance remain pending.
+
+### Typed digest and gzip APIs (alpha.16 development)
+
+Import `stdlib/digest/sha256` or `stdlib/digest/sha256/async` for matching
+`create`, `update`, `finish` and `close` operations on an opaque `Sha256Context`.
+Each update accepts at most 64 KiB. `finish` returns 32 hash bytes and consumes
+the context. Both modules also expose pure `hash(Bytes): Bytes`, bounded to
+16 MiB; use a context for larger input. Pure hashing does not yield.
+
+Import `stdlib/compression/gzip` or `stdlib/compression/gzip/async` for matching
+`create_decoder`, `decode_chunk` and `close` operations on an opaque `GzipDecoder`.
+Preserve unconsumed input using `GzipChunk.consumed`; output and input are bounded
+to 64 KiB per step, with a total output budget of at most 256 MiB. Concatenated
+members and trailer checks are retained.
+
+Async operations perform one bounded CPU step, then yield. They use OpenSSL/zlib
+on the VM owner thread. Cancellation does not undo a completed step. Handles
+belong to their invocation, copies alias, and finish/close invalidate aliases.
+Legacy `digest` and `gzip` modules remain for existing package-tool callers.
+
+### Checked UTF-8 and value methods (alpha.16 development)
+
+Prefer pure `stdlib/encoding/utf8.decode(data)` for untrusted bytes. It returns
+`Result[Str,Utf8Error]`; the error carries a zero-based byte offset, a decoding
+category and a `render()` explanation. Empty input and embedded NUL are valid;
+invalid input is rejected without inserting replacement characters.
+`Bytes.decode_utf8()` still traps, and `host.decode_utf8` remains compatible.
+
+Use `data.len()` and `data.slice(start,end)` for byte counts and half-open slices.
+Invalid bounds trap. Existing `length()` and `stdlib/bytes.slice` still work.
+`path.parent()` is the lexical equivalent of `path.directory()`, without I/O.
+
+### Canonical TCP (alpha.16 development)
+
+`stdlib/network/tcp/async` provides `exchange`, `serve_bounded`, finite
+`serve_stream`, continuous `serve` and server-child `read_chunk`. Its limit records
+use Duration fields (`client_timeout`, `admission_timeout`, `drain`) instead of
+raw millisecond counts. Timeouts accept whole milliseconds from 1 ms to 60 seconds;
+drain also accepts zero. Finer values are rejected explicitly, never rounded.
+Use `time.milliseconds` or `time.seconds` to construct supported durations.
+Existing `tcp` and `tcp_service` modules remain compatible. All original byte,
+concurrency and lifetime limits remain; continuous serving still uses the existing
+readiness callback and signal-driven bounded drain. No synchronous server is added.
+Duration also exposes `as_nanoseconds()` and `is_less_than(right)` alongside its
+compatibility names.
+
+### Bounded console input
+
+Import stdlib/console or stdlib/console/async for read(limit: Nat), returning
+Result[Option[Bytes],ConsoleError]. Await the async variant. Limits are 1..65,536;
+Some contains a nonempty chunk up to that size, and None means EOF. Short reads
+are normal. Bytes are unchanged, including NUL and non-UTF-8 data. Accumulate
+chunks before decoding text, since a character can span reads.
+
+Only one read may be outstanding per process. Overlap returns busy. Cancellation
+before async delivery preserves any consumed bytes for the next read. Reading
+from a terminal normally waits for a line; this API does not change terminal
+modes. Legacy read_line remains ordinary and shares the same input buffer.
+See the [input contract](../../docs/STDLIB_API_CONTRACT.md#bounded-console-input-21-november-2026)
+for errors, embedding permission and cancellation limits.
+
+### Readable, structured errors
+
+Console operations return ConsoleError; time.sleep returns SleepError; the
+Command-based process.run returns ProcessError. Their async counterparts share
+those types. Inspect kind for stable categories, render() for an explanation and
+native for the original host details. Process errors retain executable, working
+directory and limits, not arguments or environment values. Nonzero process exits
+remain successful results. Existing host and process/legacy callers stay compatible.
+See the [error contract and migration](../../docs/design/STDLIB_DOMAIN_ERRORS.md).
+
+## Filesystem domain errors on the development branch
+
+Canonical filesystem, confined and staging operations (ordinary and async) return
+FilesystemError with operation context, a typed kind, native detail and render().
+The [error contract](../../docs/design/STDLIB_DOMAIN_ERRORS.md#filesystem) records
+all categories and migration. Use filesystem/legacy and /legacy/async for the
+previous HostError results. Existing bounded/package/numeric staging modules and
+compatibility aliases remain available. Compiler and testing adapters use explicit
+compatibility imports. Ordinary stdlib declarations now retain module identity in
+bytecode; native-owned FileKind/FileMetadata and HostError remain compatible.
+
+## Digest/gzip errors on the development branch
+
+The canonical typed SHA-256 and gzip modules, including their async counterparts,
+now return Sha256Error and GzipError. Inspect kind, operation and native, or use
+render() for an explanation. Creation-limit errors and exhausted decoding budgets
+are distinct; oversized chunks can be retried, while a stopped gzip decoder must
+be closed. Legacy numeric digest/gzip APIs retain HostError. See the
+[resource error contract](../../docs/design/STDLIB_DOMAIN_ERRORS.md#sha-256-and-gzip-resources)
+for categories, resource quotas and migration. Pure digest.hash is unchanged.
+
+## HTTP stream domain errors (21 November 2026)
+
+Canonical network/http_stream and network/http_stream/async now return HttpStreamError; use kind for decisions, native for original transport/TLS details and render() for explanations. Network connection failures normally arrive on read, because open only creates the stream. The legacy http_stream module retains Result[...,Str].
+
+HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibility checks, final local make check (685s, 21 November), and relocated-install real TLS source/bytecode acceptance. Compiler seed and unchanged-program bytecode artifacts remain unchanged. Integration remains pending and development CI stays off.
+
+## TCP and diagnostic HTTP client (21 November 2026)
+
+network/tcp/async exports TcpError, TcpErrorKind and TcpOperation. TCP callbacks retain Str contracts; forward a read_chunk error using render() or native. Legacy tcp/tcp_service remain compatible. HTTP package users can select http/client/async for detailed transport diagnostics.
+
+TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. An additional disassembly check remains blocked by a pre-existing http_body arity-table mismatch, reproduced with the legacy client and previous package manifest. Compiler seed and unchanged-program oracle artifacts remain unchanged. Integration remains pending and development CI stays off.
+
+For the alpha.16 development interfaces, see the [ordinary/async reference](../../docs/reference/STANDARD_LIBRARY.md) and [migration guide](../../docs/guides/STDLIB_MIGRATION.md). These distinguish new APIs from retained compatibility imports.

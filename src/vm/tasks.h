@@ -44,7 +44,8 @@ VMTasks *vm_tasks_create(const VM *template_vm, size_t task_limit, size_t event_
  */
 VMTaskId vm_tasks_spawn(VMTasks *tasks, VMTaskId parent, Function *function, Value **arguments,
                         uint64_t deadline, const char **error);
-/* FIFO completions, then expired deadlines, then round-robin bytecode dispatch.
+/* FIFO completions, expired deadlines and nonblocking service polls, then
+ * round-robin bytecode dispatch.
  * Zero budget still processes events/deadlines. Time may not move backwards.
  * Cancellation after enqueue but before delivery wins; deadlines cancel a task
  * even if its operation was just delivered. Budget counts dispatched VM steps,

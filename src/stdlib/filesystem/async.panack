@@ -1,0 +1,63 @@
+import stdlib/filesystem/errors::{FilesystemOperation.Metadata, FilesystemOperation.Read, FilesystemOperation.Write, FilesystemOperation.ListDirectory, FilesystemOperation.RemoveFile, FilesystemOperation.RemoveDirectory, FilesystemOperation.CreateDirectory, FilesystemOperation.CreateTempDirectory, FilesystemOperation.CreateTempFile, FilesystemOperation.DirectoriesOverlap, FilesystemOperation.ReadChunk, FilesystemOperation.WriteAtomic}
+import stdlib/filesystem/errors as errors
+pub import stdlib/filesystem/errors::{FilesystemError, FilesystemErrorKind, FilesystemOperation}
+import stdlib/package_filesystem/async as confined_support
+pub import stdlib/filesystem::{HostError, FileKind, FileKind.RegularFile, FileKind.Directory,
+  FileKind.SymbolicLink, FileKind.OtherFile, FileMetadata}
+pub import stdlib/async_filesystem::{FilesystemRootIdentity, FilesystemRootRead,
+  read_beneath, root_identity}
+
+
+pub async metadata(path: Path): Result[FileMetadata, FilesystemError] {
+  errors.convert(await fs_metadata_async(path), Metadata(path))
+}
+
+pub async read(path: Path, limit: Nat): Result[Bytes, FilesystemError] {
+  errors.convert(await fs_read_async(path, limit), Read(path, limit))
+}
+
+pub async write(path: Path, data: Bytes): Result[Unit, FilesystemError] {
+  errors.convert(await fs_write_async(path, data), Write(path))
+}
+
+pub async list_directory(path: Path): Result[[Path], FilesystemError] {
+  errors.convert(await fs_list_async(path), ListDirectory(path))
+}
+
+pub async remove_file(path: Path): Result[Unit, FilesystemError] {
+  errors.convert(await fs_remove_file_async(path), RemoveFile(path))
+}
+
+pub async remove_directory(path: Path): Result[Unit, FilesystemError] {
+  errors.convert(await fs_remove_directory_async(path), RemoveDirectory(path))
+}
+
+pub async create_directory(path: Path): Result[Unit, FilesystemError] {
+  errors.convert(await fs_create_directory_async(path), CreateDirectory(path))
+}
+
+pub async temp_directory(parent: Path): Result[Path, FilesystemError] {
+  errors.convert(await fs_temp_directory_async(parent), CreateTempDirectory(parent))
+}
+
+pub async temp_file(parent: Path): Result[Path, FilesystemError] {
+  errors.convert(await fs_temp_file_async(parent), CreateTempFile(parent))
+}
+
+pub async create_temp_file(parent: Path): Result[Path,FilesystemError] {
+  await temp_file(parent)
+}
+pub async create_temp_directory(parent: Path): Result[Path,FilesystemError] {
+  await temp_directory(parent)
+}
+pub async directories_overlap(left: Path, right: Path): Result[Bool,FilesystemError] {
+  errors.convert(await confined_support.directories_overlap(left, right), DirectoriesOverlap(left, right))
+}
+
+pub async read_chunk(file: Path, offset: Nat, limit: Nat): Result[Bytes,FilesystemError] {
+  errors.convert(await fs_read_chunk_async(file, offset, limit), ReadChunk(file, offset, limit))
+}
+
+pub async write_atomic(file: Path, data: Bytes): Result[Unit,FilesystemError] {
+  errors.convert(await fs_atomic_write_async(file, data), WriteAtomic(file))
+}

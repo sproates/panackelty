@@ -73,12 +73,33 @@ pure module_emission_nat_text(value: Nat): Str {
   "${value}"
 }
 
+// Native adapters construct these compatibility records and variants by runtime name.
+// A new stdlib declaration with the same spelling must not replace their schema.
+pure module_emission_native_record_owner(name: Str): Str {
+  if name == "FileKind" || name == "RegularFile" || name == "Directory" ||
+    name == "SymbolicLink" || name == "OtherFile" { "filesystem.panack" } else {
+  if name == "HostError" { "host.panack" } else {
+  if name == "ProcessOutput" { "process/legacy.panack" } else {
+  if name == "FileMetadata" { "filesystem.panack" } else {
+  if name == "FilesystemRootIdentity" || name == "FilesystemRootRead" { "package_filesystem.panack" } else {
+  if name == "GzipChunk" { "gzip.panack" } else {
+  if name == "TcpServerLimits" { "tcp.panack" } else {
+  if name == "TcpServiceLimits" { "tcp_service.panack" } else {
+  if name == "TcpServiceReady" || name == "TcpServiceSummary" { "tcp_service.panack" } else { "" }
+  } } } } } } } }
+}
+
 pub pure module_emission_symbol(
   graph: ModuleBindingGraph,
   entry: ModuleIdentity,
   identity: DeclarationIdentity
 ): Str {
-  if identity.module.package == ToolchainModulePackage() {
+  // Ordinary stdlib declarations need the same nominal separation as project
+  // declarations. Only core and explicitly owned native ABI names stay global.
+  native_owner = module_emission_native_record_owner(identity.name)
+  if identity.module.package == ToolchainModulePackage() &&
+      (identity.module.path == "core.panack" ||
+        (native_owner != "" && identity.module.path == native_owner)) {
     identity.name
   } else {
     if identity.module == entry && identity.name == "main" {

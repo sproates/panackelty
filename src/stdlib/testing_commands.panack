@@ -1,13 +1,13 @@
 pub import stdlib/testing::{TestResult}
 import stdlib/testing::{TestOutcome.TestPassed, TestOutcome.TestFailed}
-pub import stdlib/process::{ProcessOutput}
+pub import stdlib/process/legacy::{ProcessOutput}
 pub import stdlib/host::{HostError}
 import stdlib/path as std_path
 import stdlib/time as std_time
 import stdlib/host as std_host
-import stdlib/filesystem as std_filesystem
+import stdlib/filesystem/legacy as std_filesystem
 import stdlib/testing as std_testing
-import stdlib/process as std_process
+import stdlib/process/legacy as std_process
 
 // Callers select the exact executable and resource bounds; there is no shell
 // or PATH search unless the caller explicitly invokes a shell.

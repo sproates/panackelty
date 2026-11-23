@@ -3,6 +3,8 @@
 #undef NDEBUG
 #endif
 #include "tasks.h"
+#include "numeric.h"
+#include "host_capabilities.h"
 #include "verify.h"
 
 #include <assert.h>
@@ -332,8 +334,136 @@ static void shared_booleans_survive_wait_and_cancellation(void)
     }
 }
 
+static void immediate_host_reads(void)
+{
+    const char *names[] = {"instant_now_async", "environment_lookup_async"};
+    char *environment[] = {"PRESENT=ready", "EMPTY="};
+    for (size_t operation = 0; operation < 2; operation++) {
+        for (size_t caller = 0; caller < 3; caller++) {
+            for (size_t awaited = 0; awaited < 2; awaited++) {
+                bool allowed = caller == 2 && awaited;
+                Instruction code[] = {{.op = OP_CONST,
+                    .constant = {.tag = 3, .text = "PRESENT", .text_length = 7}},
+                    {.op = awaited ? OP_AWAIT_CALL : OP_CALL,
+                     .name = (char *)names[operation], .arity = operation ? 1 : 0},
+                    {.op = OP_RETURN}};
+                Function fn = {.name = "read_host", .pure = caller == 1, .is_async = caller == 2,
+                    .ins = code + (operation ? 0 : 1), .ins_count = operation ? 3 : 2};
+                Instruction main_code[] = {{.op = OP_RETURN}};
+                Function functions[] = {{.name = "main", .ins = main_code, .ins_count = 1}, fn};
+                Program program = {.functions = functions, .count = 2};
+                const char *error = NULL;
+                assert(verify(&program, &error) == allowed);
+                VM vm = {.program = &program, .environment = environment, .env_count = 2};
+                Value *result = execute(&vm, &functions[1], NULL);
+                assert((result != NULL) == allowed && (vm.error == NULL) == allowed);
+                if (allowed) {
+                    assert(result->kind == V_VARIANT);
+                    assert(!strcmp(result->as.named.name, operation ? "Some" : "Ok"));
+                    if (operation) assert(!strcmp((char *)result->as.named.values[0]->as.bytes.data, "ready"));
+                    else assert(result->as.named.values[0]->kind == V_INSTANT);
+                }
+                release(result);
+            }
+        }
+    }
+    char *keys[] = {"EMPTY", "MISSING"};
+    for (size_t i = 0; i < 2; i++) {
+        Instruction code[] = {{.op = OP_CONST,
+            .constant = {.tag = 3, .text = keys[i], .text_length = strlen(keys[i])}},
+            {.op = OP_AWAIT_CALL, .name = "environment_lookup_async", .arity = 1},
+            {.op = OP_RETURN}};
+        Function fn = {.name = "read_host", .is_async = true, .ins = code, .ins_count = 3};
+        Instruction main_code[] = {{.op = OP_RETURN}};
+        Function functions[] = {{.name = "main", .ins = main_code, .ins_count = 1}, fn};
+        Program program = {.functions = functions, .count = 2};
+        VM vm = {.program = &program, .environment = environment, .env_count = 2};
+        const char *error = NULL;
+        assert(verify(&program, &error));
+        VMExecution *run = vm_execution_create_async(&vm, &functions[1], NULL, NULL, NULL, &error);
+        assert(run && !error);
+        /* Immediate reads need no pending operation, worker, or console grant. */
+        assert(vm_execution_advance(run, 10) == VM_COMPLETED);
+        Value *result = vm_execution_result(run);
+        assert(!strcmp(result->as.named.name, i ? "None" : "Some"));
+        if (!i) assert(result->as.named.values[0]->as.bytes.length == 0);
+        assert(vm_execution_destroy(run));
+    }
+}
+
+static void timer_contracts(void)
+{
+    char *parameters[] = {"duration"};
+    Instruction code[] = {{.op = OP_LOAD, .name = "duration"},
+                          {.op = OP_AWAIT_CALL, .name = "host_sleep_async", .arity = 1},
+                          {.op = OP_RETURN}};
+    Instruction main_code[] = {{.op = OP_RETURN}};
+    Function functions[] = {{.name = "main", .ins = main_code, .ins_count = 1},
+                            {.name = "sleep", .is_async = true, .params = parameters,
+                             .param_count = 1, .ins = code, .ins_count = 3}};
+    Program program = {.functions = functions, .count = 2};
+    const char *error = NULL;
+    assert(verify(&program, &error));
+    Value *long_delay = value_size(86400000000000ULL);
+    long_delay->kind = V_DURATION;
+    VM waiting_vm = {.program = &program};
+    VMExecution *waiting = vm_execution_create_async(&waiting_vm, &functions[1], &long_delay, NULL, NULL, &error);
+    assert(waiting && vm_execution_advance(waiting, 10) == VM_WAITING);
+    assert(vm_execution_poll_network(waiting, 0));
+    assert(vm_execution_advance(waiting, 10) == VM_WAITING);
+    /* A different execution completes while the first timer is still waiting. */
+    for (size_t mode = 0; mode < 4; mode++) {
+        Value *duration = value_size(mode == 3 ? 31536000000000001ULL : mode == 2 ? 1 : mode);
+        duration->kind = V_DURATION;
+        if (mode == 1) duration->as.integer.sign = -1;
+        VM vm = {.program = &program};
+        VMExecution *run = vm_execution_create_async(&vm, &functions[1], &duration, NULL, NULL, &error);
+        assert(run);
+        VMExecutionStatus status = vm_execution_advance(run, 10);
+        if (mode == 2) {
+            for (size_t polls = 0; polls < 10000 && status == VM_WAITING; polls++) {
+                assert(vm_execution_poll_network(run, 0));
+                status = vm_execution_advance(run, 10);
+            }
+        }
+        assert(status == VM_COMPLETED);
+        Value *result = vm_execution_result(run);
+        assert(result && !strcmp(result->as.named.name, mode == 1 || mode == 3 ? "Error" : "Ok"));
+        if (mode == 1 || mode == 3) {
+            Value *problem = result->as.named.values[0]->as.named.values[1];
+            assert(!strcmp((char *)problem->as.bytes.data, mode == 1 ? "negative_duration" : "out_of_range"));
+        }
+        assert(vm_execution_destroy(run));
+        release(duration);
+    }
+    Value *fake = vm_fake_read_result(false);
+    assert(!vm_execution_complete_read(waiting, fake));
+    release(fake);
+    assert(vm_execution_destroy(waiting));
+    release(long_delay);
+    VM template_vm = {.program = &program};
+    VMTasks *tasks = vm_tasks_create(&template_vm, 2, 2, &error);
+    Value *short_delay = value_size(1);
+    short_delay->kind = V_DURATION;
+    VMTaskId timer = vm_tasks_spawn(tasks, (VMTaskId){0}, &functions[1], &short_delay, UINT64_MAX, &error);
+    assert(timer.slot && !error);
+    for (size_t i = 0; i < 10000 && vm_tasks_status(tasks, timer) != TASK_COMPLETED; i++) {
+        assert(vm_tasks_pump(tasks, i, 10));
+    }
+    assert(vm_tasks_status(tasks, timer) == TASK_COMPLETED);
+    assert(vm_tasks_destroy(tasks));
+    release(short_delay);
+    /* Completion allocation failure is handled by the execution; an already due
+     * deadline can be polled without sleeping or acquiring native resources. */
+    Value *result = NULL;
+    assert(host_sleep_poll(0, &result) && result);
+    release(result);
+}
+
 void async_contracts(void)
 {
+    timer_contracts();
+    immediate_host_reads();
     shared_booleans_survive_wait_and_cancellation();
     verified_calls_survive_async_wait();
     independent_progress();

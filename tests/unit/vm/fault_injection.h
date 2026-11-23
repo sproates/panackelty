@@ -23,6 +23,8 @@ void fault_reset(size_t allocation);
 void fault_pause_writes(bool pause);
 bool fault_write_paused(void);
 int fault_fcntl(int fd, int command, ...);
+void fault_pause_fstat(bool pause);
+bool fault_fstat_paused(void);
 void fault_pause_reads(bool pause);
 bool fault_read_paused(void);
 int fault_pthread_create(pthread_t *thread, const pthread_attr_t *attributes,

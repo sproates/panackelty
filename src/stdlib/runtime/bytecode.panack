@@ -1,0 +1,3 @@
+// Synchronous nested VM execution. This is not an operating-system subprocess.
+// The host.run compatibility entry point retains the same implementation.
+pub import stdlib/host::{run}

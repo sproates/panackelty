@@ -1,0 +1,28 @@
+import stdlib/time/async as time
+import stdlib/console/async as console
+import stdlib/host/async as host
+
+async measure_pause(): Result[Bool,Str] {
+  match await time.now() {
+    Error(clock_error) => Error("The monotonic clock is unavailable."),
+    Ok(start) => match await time.sleep(time.milliseconds(1)) {
+      Error(problem) => Error(problem.render()),
+      Ok(slept) => match await time.now() {
+        Error(second_clock_error) => Error("The monotonic clock is unavailable."),
+        Ok(end) => Ok(!end.is_before(start))
+      }
+    }
+  }
+}
+
+async main(): Unit {
+  match await measure_pause() {
+    Error(message) => {
+      reported = await console.write_error_line(message)
+      await host.exit(1)
+    },
+    Ok(monotonic) => match await console.write_line("Clock did not move backwards: ${monotonic}") {
+      Error(write_error) => await host.exit(1), Ok(written) => ()
+    }
+  }
+}

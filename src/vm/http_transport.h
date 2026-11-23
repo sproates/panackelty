@@ -28,4 +28,17 @@ void http_transport_destroy(VMHttpTransport *transport);
 Value *http_stream_call(VM *vm, const char *name, Value **arguments);
 void http_stream_destroy(VM *vm);
 
+/* Typed stream handles and read leases belong to one invocation. All operations
+ * run on its owner thread. A lease keeps the table alive after VM teardown.
+ * A successful finish transfers one owned Result; cancel consumes the stream. */
+typedef struct VMHttpStreamRead VMHttpStreamRead;
+Value *http_stream_typed_call(VM *vm, const char *name, Value **arguments);
+Value *http_stream_open_typed(VM *vm, Value **arguments);
+Value *http_stream_close_typed(VM *vm, Value *handle);
+VMHttpStreamRead *http_stream_read_start(VM *vm, Value *handle, Value **error);
+bool http_stream_read_poll(VMHttpStreamRead *read, unsigned max_wait_ms);
+Value *http_stream_read_finish(VMHttpStreamRead *read);
+void http_stream_read_cancel(VMHttpStreamRead *read);
+void http_stream_owner_release(VMHttpStreams *owner);
+
 #endif

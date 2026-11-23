@@ -1,4 +1,4 @@
-import stdlib/testing as testing
+import stdlib/testing/reporting as testing
 import stdlib/host as host
 
 main(): Void {
@@ -9,7 +9,10 @@ main(): Void {
     testing.expect("empty collection", empty.len() == 0, "expected no items")
   ]
   // Reporting prints every result and returns a count; it does not exit.
-  failures = testing.report(results)
+  failures = match testing.report(results) {
+    Ok(count) => count,
+    Error(problem) => { host.stderr(problem.render()); host.exit(1); 0 }
+  }
   print("returned failures: ${failures}")
   // This demonstration expects one failure. A real suite exits for failures > 0.
   if failures != 1 { host.exit(1) }

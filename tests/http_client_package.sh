@@ -145,7 +145,17 @@ pure expect(value: Bool): Unit {
 
 async main(): Unit {
   selected: Str = "$selected_case"
-  if selected == "ok" || selected == "installed" {
+  if selected == "pattern" {
+    result = await http.get("http://127.0.0.1:$http_port/pattern")
+    match result {
+      Error(_) => expect(false),
+      Ok(response) => {
+        expect(response.body.length() == 65537)
+        for index in 0..65537 { expect(response.body.at(index) == index % 251) }
+        ()
+      }
+    }
+  } else if selected == "ok" || selected == "installed" {
     result = await http.get("http://127.0.0.1:$http_port/ok")
     expect(match result {
       Ok(response) => response.status == 200 && response.body == "ok".encode_utf8() &&
@@ -269,6 +279,15 @@ async main(): Unit {
   ()
 }
 SOURCE
+
+# Reuse the same parser/transport cases for the diagnostic client facade.
+if [ "${PANACK_HTTP_DIAGNOSTIC_CLIENT:-0}" = 1 ]; then
+    sed -e 's@import http/client as http@import http/client/async as http@' \
+        -e 's/Error(error) => error ==/Error(error) => error.kind ==/g' \
+        -e 's/error.kind == TlsFailure()/if error.kind == TlsFailure() { match error.transport { Some(detail) => if detail.native.len() > 60 { error.render().starts_with_at("HTTP GET for",0) } else { false }, None() => false } } else { false }/g' \
+        "$app/src/main.panack" > "$work/diagnostic.panack"
+    mv "$work/diagnostic.panack" "$app/src/main.panack"
+fi
 
 case "$selected_case" in
     body-*)

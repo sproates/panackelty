@@ -1,4 +1,4 @@
-import stdlib/process as process
+import stdlib/process/legacy as process
 import stdlib/path as path
 import stdlib/time as time
 import stdlib/bytes as byte_buffer

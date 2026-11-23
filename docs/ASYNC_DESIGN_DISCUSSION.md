@@ -12,7 +12,8 @@ do. HTTP routes requests to async handlers, but useful async programs elsewhere
 need the same capabilities.
 
 The [investigation](ASYNC_USEFUL_PROGRAMS_INVESTIGATION.md) records source evidence
-and reduced reproductions against alpha.15. No fix has been implemented.
+and reduced reproductions against alpha.15. The findings below describe that
+baseline; the implementation and expanded programme sections record later work.
 
 - `time.now()` works in ordinary functions but is rejected in async functions.
 - It reads a monotonic clock and returns `Result[Instant,ClockError]`. Subtracting
@@ -61,8 +62,9 @@ import stdlib/time/async as time
 now = await time.now()
 ```
 
-These are interface sketches, not complete programs. The proposed async path
-has not been implemented or validated with the resolver. The first call is
+These were interface sketches, not complete programs. The paths for time,
+environment, host and filesystem are now implemented and locally validated in
+PR #693; the expanded programme below covers the remaining APIs. The first call is
 synchronous, not necessarily blocking. The module chooses the API; `await`
 remains explicit and compiler checked. Import aliases stay convenient and stable.
 
@@ -178,7 +180,7 @@ There is no commitment to actors, locks, channels or generally mutable records.
   not selected work. No verified historical rationale for choosing `impl` was
   established in this discussion.
 
-## Next design step and workflow
+## Historical next design step and workflow
 
 Define the async clock API under the preferred module convention, checking the
 resolver and native async mechanism. Keep counter/state/closure design open until
@@ -188,3 +190,172 @@ Work stays on `feature/rm162-real-program-fixes`, branched from `next`. Under th
 alpha.16 workflow trial, no CI on branch/PR updates unless the owner explicitly
 requests it; merging into `next` may trigger CI. Local checks and review still
 apply. No website changes or implementation scope expansion follow from this note.
+
+## Implementation batch selected, 8 November 2026
+
+The owner approved batching the async module convention, immediate clock and
+environment reads, and paths for existing host/filesystem async operations on
+`feature/rm162-async-clock`, with local validation and no development CI.
+
+- `time/async`: async `now`, shared error types and pure duration constructors.
+- `environment/async`: async `get`, preserving the invocation snapshot and
+  the distinction between missing and empty values.
+- `host/async`: existing async arguments, stdout, stderr and exit.
+- `filesystem/async`: existing async root identity and confined reads.
+
+Old async import paths stay compatible through re-exports. New immediate reads
+require a compiler/VM capability update, but no bytecode format change. Nested
+modules must be installed and included in browser source bundles. The originating
+uptime service is the integration example. Blocking sleep, subprocesses, new
+filesystem operations, closures, anonymous functions and mutable shared state
+remain outside this batch.
+
+### Local validation and limits
+
+The batch passed focused native async-effect and clock-failure contracts,
+source/bytecode stdlib checks, and the real HTTP uptime and confined-filesystem
+integrations. `make check` passed in 582 seconds, including relocated installs
+with the nested modules, on 8 November 2026. Thirteen coverage manifest/policy
+checks passed; the new adapters remain explicitly unmeasured by that bounded
+coverage corpus. Browser source-bundle file identities were checked; this does
+not claim that a new browser product has been built or published.
+
+Seed stages 2/3/4 are identical:
+`f2314de2de1c47bb23de74aa3bde16d66b2f55287089ad1fe96c3b8ba5890f52`.
+Existing-program native artifact compatibility passed, and ordinary stdlib
+conformance bytecode retained its prior SHA-256.
+
+Performance: the new reads complete on the current task without worker creation
+or pending-operation storage. The full-check timing is recorded as an observation,
+not a controlled performance comparison or a new budget. Historical validation
+budget warnings remain part of the existing performance review; this batch does
+not resolve that programme. No throughput claim is made.
+
+The batch is ready for review on its development branch, not integrated or
+released. No development CI or website publication has been requested.
+
+## Expanded async stdlib and documentation programme, 8 November 2026
+
+The owner selected completing the relevant async stdlib work together before
+returning to shared state, closures or anonymous functions. Documentation is part
+of the delivery, including website reference pages for time, processes and I/O.
+PR #693 is the first locally validated batch, not completion of this programme.
+
+### Operation inventory and proposed delivery boundary
+
+The inventory below comes from the current stdlib declarations. Existing APIs
+are evidence; proposed async counterparts still need the runtime contracts below.
+Do not interpret a proposed module path as an already implemented API.
+
+| Area | Operations and disposition |
+| --- | --- |
+| Time and environment | `time.now`, `environment.get`: implemented in PR #693 under `/async`. Pure duration helpers remain shared. |
+| Host I/O | Async `arguments`, `stdout`, `stderr`, `exit` already exist; PR #693 adds `host/async`. The approved API contract places canonical sleep under `time`/`time/async`, retaining host.sleep for compatibility; checked output uses `console`/`console/async`. Bounded ordinary/async console.read now implements explicit EOF, short-read and cancellation handling; it is not an alias for a nonexistent host.read. |
+| General filesystem | Provide async `metadata`, `read`, `write`, `list_directory`, `remove_file`, `remove_directory`, `create_directory`, `temp_directory`, `temp_file`. Retain current result types, Path semantics and documented bounds. |
+| Bounded/confined filesystem | Existing async `root_identity`, `read_beneath` remain. Include `read_chunk`, `atomic_write`, `read_link`, and `directories_overlap` in the capability review and define their matching module paths without silently moving existing public owners. |
+| Processes | Ordinary/async `run(Command)` with explicit inherited/exact environment modes and Exited/Signalled results. The positional run/run_isolated API remains in process/legacy for compatibility. Bounded input/output, timeouts and cancellation/reaping are implemented; integration acceptance remains pending. |
+| Streaming HTTP | Async `open`, `read`, `close` counterparts for `http_stream`; preserve framing responsibility in the HTTP package. Existing async HTTP exchanges and TCP services are reused. |
+| Staged filesystem | Explicitly assess `begin`, `path`, `directory`, `write`, `symlink`, `publish`, `close`. Handle ownership and cancellation during publication must be settled before choosing implementations. Do not quietly omit these public I/O operations or equate cancellation with rollback. |
+| Digest and gzip | Explicitly assess digest `sha256_open`, `update`, `finish`, `close` and gzip `open`, `step`, `close`. These are stateful native computation, not necessarily blocking I/O; determine how async callers use them safely and how large work yields. Do not automatically add worker threads or call them pure. |
+| Nested execution | `host.run` executes bytecode, not an operating-system subprocess. Record whether this specialist operation belongs in the batch after reviewing embedding, exit propagation and cancellation; do not assume the process implementation covers it. |
+| Pure and specialised support | No async twins for pure path/text/collection/numeric operations. Compiler bootstrap wrappers and testing helpers need an explicit classification as tooling support, not automatic duplication. Existing HTTP-local resource operations retain their established permission model. |
+
+The first implementation step is a runtime-capability review of this finite list,
+including an explicit disposition for each specialist row. General filesystem,
+processes, sleep and streaming HTTP are the main missing user-facing groups.
+Material API choices must be made concrete with signatures and small programs;
+routine implementation decisions do not require repeated owner questions.
+
+### Runtime contracts and acceptance
+
+For each group, record and test:
+
+- Whether the call completes immediately, waits on the scheduler, or uses a
+  bounded worker. No blocking host call may hold up unrelated async tasks.
+- Arguments, return/error types, data and concurrency bounds, and host support.
+- Cancellation before start, while active and during completion. State what
+  effects may already have happened; never promise undo of a write or process.
+- Ownership and cleanup of handles, buffers, descriptors and child processes,
+  including errors, task cancellation and service shutdown.
+- For processes, timeout versus cancellation, child termination/reaping and
+  descendants; for streaming, close/read races and completion after cancellation;
+  for sleep, timer semantics and independent-task progress.
+- Purity and await checks in source, verification and runtime checks for forged
+  bytecode, and compatibility of existing ordinary/async APIs.
+- Source execution, saved bytecode and relocated installation with the actual
+  user examples. Browser/unsupported hosts must report their real capabilities.
+
+Batch related implementation on the CI-free branch. Use focused tests while
+iterating and full local validation at coherent delivery checkpoints. Development
+pushes/PR updates must not start CI; integration into next may do so. This plan
+does not authorise merging PR #693 or publishing the website now.
+
+### Documentation deliverable
+
+The website source currently has `/reference/http-client/`,
+`/reference/http-server/` and `/playbook/http-server/`, without equivalent time,
+process or general-I/O reference pages. Correct discoverability as well as prose:
+
+1. A standard-library landing page linked from the existing API navigation,
+   grouping modules by purpose and explaining ordinary versus `/async` imports.
+2. Time and durations: monotonic instants, units, exact conversions, clock errors,
+   measuring elapsed time and async sleep (in its actual owning host module).
+3. Files and paths: directory traversal, bounded reads, writes, temporary files,
+   atomic/confined operations, errors and cancellation side effects.
+4. Processes: executable paths, arguments, stdin/stdout/stderr, environments,
+   exit status versus signal, output limits, timeouts and cancellation.
+5. Console and environment: arguments, input availability, output, exit and
+   snapshot environment reads, including missing versus empty values.
+6. Streaming/network links and specialist module entries matching the final
+   inventory; reuse existing HTTP references rather than duplicating them.
+
+Each page needs exact signatures, import examples, complete runnable success and
+failure examples, expected output, limits, cleanup/cancellation and platform
+support. Reuse tested core examples as the source of website examples; extend
+existing website documentation tooling rather than inventing a second generator.
+Core reference/recipes and website content must agree. Review preview pages for
+navigation and readability, not just compilation of snippets.
+
+Document existing ordinary APIs as well as async counterparts. Explicitly label
+alpha.15 versus alpha.16-development availability. Native host examples must not
+appear runnable in the browser playground unless supported there. Publication
+follows review and the release checklist; live release claims stay accurate.
+Published articles remain untouched unless their proposed edits are separately
+shown to the owner. Preserve unrelated website drafts.
+
+### Provisional tracking baseline
+
+These weights apply only to this expanded programme, not the whole release.
+They estimate relative implementation, validation and documentation effort and
+are provisional until the specialist-operation review establishes its boundary.
+Filesystem and process/stream lifetime rules account for most uncertainty.
+Documentation is its own acceptance work, not a final optional polish step.
+
+| ID / outcome | Weight | Current state |
+| --- | ---: | --- |
+| AS1: Imports, clock and environment | 10 | In review: PR #693, local full validation passed; integration pending |
+| AS2: Filesystem and resource-operation boundary | 30 | General, confined and typed staging APIs locally validated (606s full check, 19 November), including async cleanup and relocated installation. Typed digest/gzip and bounded pure hashing implemented; focused lifecycle/fault/sanitizer and source/bytecode checks pass, final local make check passed in 625s (21 November), plus relocated source/bytecode/disassembly checks. Canonical TCP Duration adapters and remaining Duration aliases pass focused loopback/compatibility checks; final local make check passed in 626s (21 November), plus relocated TCP source/bytecode/disassembly acceptance. Filesystem domain errors and explicit compatibility facades are implemented; focused ordinary/async failure, lifecycle and rendering tests pass. Stdlib nominal identity emission also preserves colliding enum/record declarations. Final local make check passed in 628s (21 November), plus relocated ordinary/async source and saved-bytecode acceptance. Integration remains pending. Digest/gzip domain errors pass focused ordinary/async category, context, rendering, lifecycle and compatibility checks, final local make check (645s, 21 November), and relocated-install source/bytecode acceptance. Compiler seed and unchanged-program oracle artifacts are unchanged. TCP errors locally implemented; integration pending |
+| AS3: Timers, console and processes | 25 | Timer, checked console and Command-based process implementation passed final local make check in 612s (21 November), including HTTP progress, lifecycle/fault, source/bytecode and seed checks. Nested execution is classified as ordinary runtime/bytecode support; canonical runtime/testing adapters and compiler compatibility fixes passed final local make check (583s) and relocated-install tests on 21 November. Bounded ordinary/async input passed final local make check (654s) and relocated acceptance. Console, sleep and process domain errors pass focused typed-category/context/rendering tests, final local make check (621s, 21 November), and relocated source/bytecode/disassembly acceptance. Integration remains |
+| AS4: Streaming HTTP | 15 | In review: typed ordinary/async raw streams passed final local make check (647s, 21 November), live-handler progress, lifecycle/fault/sanitizer and relocated-install tests. HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibility checks, final local make check (685s, 21 November), and relocated-install real TLS source/bytecode acceptance. Compiler seed and unchanged-program bytecode artifacts remain unchanged. Integration remains pending and development CI stays off. TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. The subsequent 22 November repair reconciles all 25 HTTP builtin arities and local-resource call permissions in the self-hosted decoder with the native verifier. Focused legacy/diagnostic-client and routed-server disassembly checks pass. The compiler seed is refreshed; unchanged-program native oracle contracts pass. Final local make check passed in 674s (22 November), including all 427 bytecode tests, public HTTP disassembly, packaging and installed smoke. Relocated TCP and diagnostic-client source/bytecode/disassembly acceptance also passed. Integration remains pending and development CI stays off. Compatibility migration guidance and integration pending |
+| AS5: Stdlib reference, guides and website | 20 | Checked pure UTF-8 and byte/path method migrations are implemented, focused checks pass and final local make check passed in 626s (21 November), plus relocated source/bytecode/disassembly acceptance. Core module reference and migration guide added with three tested async timing/filesystem/process examples (23 November); 41-example inventory and mutation checks pass. Resource walkthrough and SHA-256/gzip examples also pass focused checks; inventory now has 43 examples/604 assertions. The four core gaps in [the coverage checklist](design/ASYNC_STDLIB_DOCUMENTATION_COVERAGE.md) are now covered: console EOF/bounds, staged/confined publication, diagnostic HTTP client, and canonical recipes/reporting. Focused source/bytecode checks, 45-example/610-assertion inventory and mutation checks pass. Website adaptation ready in [website PR #77](https://github.com/sproates/panackelty-website/pull/77), with nineteen module references / 72 function entries, 51 tests plus assembly checks and desktop/phone preview. Owner approved the approach and preview on 23 November. Core integration handoff / hosted acceptance and separately authorised website publication remain |
+| Total | 100 | No accepted completion credit yet; AS1–AS4 are locally validated but unmerged, and AS5 core guides/examples are checked with the website preview approved and separate publication pending |
+
+Do not count AS1 twice within RM#162 or equate this programme's weights with a
+release percentage. Shared state, closures and anonymous functions remain
+separate work after this topic, unless the owner changes the order.
+
+## Whole-library review proposal, 17 November 2026
+
+The owner requested a recommendation covering the entire stdlib, including names
+and module ownership. [The redesign proposal](STDLIB_REDESIGN_PROPOSAL.md) records
+that recommendation for review under RM#162. It does not approve the individual
+API changes or replace the existing runtime acceptance requirements.
+
+## Redesign direction approved, 18 November 2026
+
+The owner approved the whole-library redesign direction and requested continuation.
+The [API implementation contract](STDLIB_API_CONTRACT.md) records signatures,
+compatibility, ownership and ordering. This approval supersedes the earlier
+proposal-only status, while detailed semantic choices remain explicit. The subsequent
+filesystem batch now passes local acceptance, recorded in the API contract. It is
+committed on the development branch, not integrated or accepted as all of AS2.

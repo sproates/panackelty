@@ -157,7 +157,9 @@ Zero budget processes events/timeouts only. The host supplies virtual monotonic
 ticks; backwards time is rejected. Children inherit the earlier ancestor deadline;
 `UINT64_MAX` means no deadline. Deadlines include joining scopes: a queued result
 delivered at the deadline does not make an unfinished task immune to cancellation.
-The next deadline is exposed for a future host adapter; no OS clock is read.
+The next task deadline is exposed for a host adapter. These cancellation deadlines
+use virtual ticks; real timer waits use the OS monotonic clock and are polled
+without blocking before budgeted dispatch. They do not reinterpret virtual ticks.
 
 Limits bound total admitted tasks and queued completions, with one pending request
 per task. Task slots/results remain reserved until session destruction; this
@@ -428,3 +430,29 @@ manifest or lock records, URLs, or archive headers. Panack modules decide policy
 Handles are invocation scoped and non-reused. Normal completion and traps destroy
 them; synchronous `process_exit` also releases the active VM and its nested
 execution parents before exiting. Browser builds expose unsupported results.
+
+Async `time.sleep` retains only a monotonic deadline in `VMExecution`. Polling
+returns a typed result when due, or a clock error; destroying the execution drops
+the timer without worker or descriptor cleanup. TCP handlers and task sessions
+poll without blocking. A standalone CLI may wait until the deadline in bounded
+one-second intervals when no server runtime is active. Timer expiry permits
+resumption; it does not guarantee exact scheduling latency.
+
+Canonical console wrappers select raw/line output and stdout/stderr through the
+same bounded `console_write.c` backend. Ordinary calls wait for a checked result;
+async dispatch stores the operation on the execution and polls without blocking.
+Raw empty writes still validate the descriptor. Legacy print flushes before return
+so sequential calls do not reorder buffered legacy output around checked writes.
+The legacy newline entry point remains compatible. Partial writes are possible on
+failure; cancellation does not retract emitted bytes or release a blocked worker.
+
+Async subprocesses use `process_async.c` and the shared cancellable host process
+collector. Four retained operations are allowed process-wide; each copies at
+most 32 MiB of input payload, with the existing 16 MiB stdin/output bounds.
+Workers own operand values and environment strings. Coverage tickets are prepared
+on the owner thread; exact-environment execution records an unobserved-child gap.
+Cancellation requests group/direct-child termination and reaping, and releases
+the slot only after cleanup. It does not roll back side effects. CLI shutdown
+drains cleanup; embedded execution destruction remains nonblocking. Embedders use
+`vm_execution_enable_process`; HTTP/TCP request children inherit that grant.
+Hosts must keep the runtime loaded until `process_async_drain` completes.

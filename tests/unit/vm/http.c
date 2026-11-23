@@ -254,6 +254,180 @@ static void bounded_stream(bool limited)
     assert(waitpid(child, &status, 0) == child && WIFEXITED(status) && WEXITSTATUS(status) == 0);
 }
 
+static void typed_arguments(Value **args, size_t port)
+{
+    arguments(args, port, false);
+    release(args[5]);
+    Value *ns = value_size(5000000000ULL);
+    args[5] = value_big(V_DURATION, &ns->as.integer);
+    release(ns);
+    assert(args[5]);
+}
+
+static void typed_stream_lifetime(void)
+{
+    size_t port;
+    int server = listener(&port);
+    VM vm = {0}, other = {0};
+    Value *args[6];
+    typed_arguments(args, port);
+    Value *opened = http_stream_open_typed(&vm, args);
+    Value *other_opened = http_stream_open_typed(&other, args);
+    Value *handle = stream_payload(opened, "Ok"), *error = NULL;
+    assert(handle->kind == V_HTTP_STREAM);
+    assert(!http_stream_read_start(&other, handle, &error));
+    stream_payload(error, "Error"); release(error);
+    Value *numeric = value_size(1), *numeric_args[] = {numeric};
+    Value *forged = http_stream_call(&vm, "http_stream_close", numeric_args);
+    stream_payload(forged, "Error"); release(forged);
+    assert(!http_stream_read_start(&vm, numeric, &error));
+    stream_payload(error, "Error"); release(error); release(numeric);
+    VMHttpStreamRead *read = http_stream_read_start(&vm, handle, &error);
+    assert(read && !error);
+    assert(!http_stream_read_start(&vm, handle, &error));
+    stream_payload(error, "Error"); release(error);
+    Value *closed = http_stream_close_typed(&vm, handle);
+    stream_payload(closed, "Error"); release(closed);
+    assert(!http_stream_read_poll(read, 0));
+    http_stream_read_cancel(read);
+    assert(!http_stream_read_start(&vm, handle, &error));
+    stream_payload(error, "Error"); release(error);
+    closed = http_stream_close_typed(&vm, handle);
+    stream_payload(closed, "Error"); release(closed);
+    http_stream_destroy(&vm);
+    release(opened);
+
+    handle = stream_payload(other_opened, "Ok");
+    read = http_stream_read_start(&other, handle, &error);
+    assert(read && !error);
+    release(other_opened); /* Lease independently owns the table. */
+    http_stream_destroy(&other);
+    assert(http_stream_read_poll(read, 0));
+    Value *ended = http_stream_read_finish(read);
+    stream_payload(ended, "Error"); release(ended);
+    http_stream_destroy(&other);
+    release_arguments(args);
+    close(server);
+}
+
+static void typed_stream_execution(void)
+{
+    size_t port;
+    int server = listener(&port);
+    Value *args[6];
+    typed_arguments(args, port);
+    char *params[] = {"stream"};
+    Instruction code[] = {{.op = OP_LOAD, .name = "stream"},
+        {.op = OP_AWAIT_CALL, .name = "http_stream_read_async", .arity = 1}, {.op = OP_RETURN}};
+    Function fn = {.name = "main", .is_async = true, .params = params, .param_count = 1,
+                   .ins = code, .ins_count = 3};
+    Program program = {.functions = &fn, .count = 1};
+    for (unsigned enabled = 0; enabled < 2; enabled++) {
+        VM vm = {.program = &program};
+        Value *opened = http_stream_open_typed(&vm, args);
+        Value *handle = stream_payload(opened, "Ok");
+        const char *error = NULL;
+        VMExecution *execution = vm_execution_create(&vm, &fn, &handle, NULL, NULL, &error);
+        assert(execution && !error);
+        if (enabled) assert(vm_execution_enable_tcp(execution));
+        if (!enabled) {
+            assert(vm_execution_advance(execution, 10) == VM_TRAPPED);
+            assert(vm.error && strstr(vm.error, "unavailable"));
+        } else {
+            assert(vm_execution_advance(execution, 10) == VM_WAITING);
+            assert(!vm_execution_complete_read(execution, value_unit()));
+            assert(!vm_execution_complete_print(execution, NULL));
+            assert(vm_execution_poll_network(execution, 0));
+            assert(vm_execution_advance(execution, 10) == VM_WAITING);
+        }
+        assert(vm_execution_destroy(execution));
+        assert(!vm.http_streams);
+        release(opened);
+    }
+    release_arguments(args);
+    close(server);
+}
+
+static void typed_stream_deadline(void)
+{
+    VM vm = {0};
+    Value *args[6];
+    typed_arguments(args, 1);
+    release(args[5]);
+    Value *ns = value_size(1);
+    args[5] = value_big(V_DURATION, &ns->as.integer);
+    release(ns);
+    Value *opened = http_stream_open_typed(&vm, args);
+    Value *handle = stream_payload(opened, "Ok"), *error = NULL;
+    (void)poll(NULL, 0, 2);
+    VMHttpStreamRead *read = http_stream_read_start(&vm, handle, &error);
+    assert(read && !error && http_stream_read_poll(read, 0));
+    Value *result = http_stream_read_finish(read);
+    Value *message = stream_payload(result, "Error");
+    assert(contains(message->as.bytes.data, message->as.bytes.length, "timed out"));
+    release(result); release(opened); release_arguments(args);
+    http_stream_destroy(&vm);
+}
+
+static void typed_stream_delivery(bool cancel_ready)
+{
+    size_t port;
+    int server = listener(&port);
+    Value *args[6];
+    typed_arguments(args, port);
+    VM vm = {0};
+    Value *opened = http_stream_open_typed(&vm, args);
+    Value *handle = stream_payload(opened, "Ok"), *error = NULL;
+    VMHttpStreamRead *read = http_stream_read_start(&vm, handle, &error);
+    assert(read && !error);
+    // Advance connection without blocking the thread; the peer is driven here too.
+    for (size_t i = 0; !ready(server, POLLIN, 0); i++) {
+        assert(i < 1000 && !http_stream_read_poll(read, 1));
+    }
+    int peer = accept(server, NULL, NULL);
+    assert(peer >= 0);
+    for (size_t i = 0; !ready(peer, POLLIN, 0); i++) {
+        assert(i < 1000 && !http_stream_read_poll(read, 1));
+    }
+    uint8_t request[1024];
+    assert(recv(peer, request, sizeof(request), 0) > 0);
+    assert(send(peer, "first", 5, 0) == 5);
+    for (size_t i = 0; !http_stream_read_poll(read, 1); i++) assert(i < 1000);
+    if (cancel_ready) {
+        http_stream_read_cancel(read); // Received bytes must never reappear on a new read.
+        assert(!http_stream_read_start(&vm, handle, &error));
+        stream_payload(error, "Error"); release(error);
+    } else {
+        Value *first = http_stream_read_finish(read);
+        Value *chunk = stream_payload(first, "Ok");
+        assert(chunk->as.bytes.length == 5 && !memcmp(chunk->as.bytes.data, "first", 5));
+        read = http_stream_read_start(&vm, handle, &error);
+        assert(read && !error && !http_stream_read_poll(read, 0));
+        assert(send(peer, "second", 6, 0) == 6);
+        for (size_t i = 0; !http_stream_read_poll(read, 1); i++) assert(i < 1000);
+        Value *second = http_stream_read_finish(read);
+        chunk = stream_payload(second, "Ok");
+        assert(chunk->as.bytes.length == 6 && !memcmp(chunk->as.bytes.data, "second", 6));
+        assert(stream_payload(first, "Ok")->as.bytes.length == 5);
+        release(first); release(second);
+        close(peer); peer = -1;
+        for (size_t eof = 0; eof < 2; eof++) {
+            read = http_stream_read_start(&vm, handle, &error);
+            assert(read && !error);
+            while (!http_stream_read_poll(read, 1)) { }
+            Value *result = http_stream_read_finish(read);
+            assert(stream_payload(result, "Ok")->as.bytes.length == 0);
+            release(result);
+        }
+        Value *closed = http_stream_close_typed(&vm, handle);
+        stream_payload(closed, "Ok"); release(closed);
+    }
+    if (peer >= 0) close(peer);
+    close(server);
+    http_stream_destroy(&vm);
+    release(opened); release_arguments(args);
+}
+
 void http_transport_contracts(void)
 {
     VM stream_vm = {0};
@@ -269,6 +443,11 @@ void http_transport_contracts(void)
     release(expired); release(opened); release_arguments(stream_args);
     http_stream_destroy(&stream_vm);
     http_stream_destroy(&stream_vm);
+    typed_stream_lifetime();
+    typed_stream_execution();
+    typed_stream_deadline();
+    typed_stream_delivery(false);
+    typed_stream_delivery(true);
     bounded_stream(false);
     bounded_stream(true);
     deadline_readiness_race();

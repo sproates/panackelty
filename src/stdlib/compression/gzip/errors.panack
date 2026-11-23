@@ -1,0 +1,66 @@
+pub import stdlib/host::{HostError}
+pub enum GzipOperation { CreateDecoder(Nat), DecodeChunk(Nat, Bool), Close }
+pub enum GzipErrorKind {
+  InvalidDecoder, ChunkTooLarge, UnsupportedOutputLimit, OutputLimitExceeded,
+  DecoderStopped, DecodeFailed, IncompleteInput, DecoderUnavailable,
+  InvalidArgument, ResourceLimit, UnsupportedHost, OtherFailure
+}
+pub record GzipError { operation: GzipOperation, kind: GzipErrorKind, native: HostError }
+
+impl GzipError {
+  pub pure render(): Str {
+    action = match self.operation {
+      CreateDecoder(limit) => "create a gzip decoder with an output limit of ${limit} bytes",
+      DecodeChunk(size, finish) => {
+        finality = if finish { "marked as final input" } else { "with more input allowed" }
+        "decode a gzip chunk of ${size} bytes (${finality})"
+      },
+      Close() => "close a gzip decoder"
+    }
+    reason = match self.kind {
+      InvalidDecoder() => "the decoder is not usable in this invocation. Use a decoder created here that has not been closed",
+      ChunkTooLarge() => "a decoding step accepts at most 65536 input bytes. Split the input into smaller chunks and resubmit each unconsumed suffix",
+      UnsupportedOutputLimit() => "the output limit must be at most 268435456 bytes (256 MiB). Choose a supported limit; zero permits no decompressed output",
+      OutputLimitExceeded() => "decompressed data exceeded the output budget selected when this decoder was created. Close the decoder; to allow more output, create a new decoder with a supported larger budget and supply the compressed input again",
+      DecoderStopped() => "this decoder no longer accepts input. Close it and create a new decoder if another stream must be decoded",
+      DecodeFailed() => "zlib could not decode this input as gzip. The native API has not supplied a more specific cause. Check that the input is complete gzip data; close this decoder before trying again with a new decoder",
+      IncompleteInput() => "the input was marked as final before a complete gzip member was available. Close this decoder and start again with the complete compressed input; mark only the final input as final",
+      DecoderUnavailable() => "zlib could not initialise or reset the decoder. The native API has not supplied a more specific cause; if a decoder already exists, close it before creating another",
+      InvalidArgument() => "the host rejected an argument. Check the operation’s documented requirements",
+      ResourceLimit() => "the host could not allocate another decoder slot. An invocation can create at most 64 decoders, including decoders already closed; closing a decoder does not reset that quota",
+      UnsupportedHost() => "this host does not support gzip decoding",
+      OtherFailure() => "the host returned an unrecognised failure. The native field preserves its details"
+    }
+    number = self.native.native_code
+    detail = if number == 0 { "" } else { " Host error number: ${number}." }
+    "Cannot ${action}: ${reason}.${detail}"
+  }
+}
+
+pub pure convert[T](result: Result[T,HostError], operation: GzipOperation): Result[T,GzipError] {
+  match result {
+    Ok(value) => Ok(value),
+    Error(problem) => {
+      kind = if problem.code == "invalid_handle" { InvalidDecoder() }
+      else if problem.code == "invalid_argument" {
+        match operation {
+          CreateDecoder(limit) => if limit > 268435456 { UnsupportedOutputLimit() } else { InvalidArgument() },
+          DecodeChunk(size, _) => if size > 65536 { ChunkTooLarge() } else { InvalidArgument() },
+          Close() => InvalidArgument()
+        }
+      } else if problem.code == "output_limit" {
+        match operation {
+          CreateDecoder(_) => UnsupportedOutputLimit(), DecodeChunk(ignored_size, ignored_final) => OutputLimitExceeded(),
+          Close() => OtherFailure()
+        }
+      } else if problem.code == "decoder_finished" { DecoderStopped() }
+      else if problem.code == "invalid_gzip" { DecodeFailed() }
+      else if problem.code == "truncated_gzip" { IncompleteInput() }
+      else if problem.code == "decoder_unavailable" { DecoderUnavailable() }
+      else if problem.code == "resource_limit" { ResourceLimit() }
+      else if problem.code == "unsupported" || problem.code == "unsupported_host" { UnsupportedHost() }
+      else { OtherFailure() }
+      Error(GzipError(operation, kind, problem))
+    }
+  }
+}

@@ -1,0 +1,18 @@
+import stdlib/filesystem/errors::{FilesystemOperation.RootIdentity, FilesystemOperation.ReadConfined, FilesystemOperation.ReadLink}
+import stdlib/filesystem/errors as errors
+pub import stdlib/filesystem/errors::{FilesystemError, FilesystemErrorKind, FilesystemOperation}
+pub import stdlib/package_filesystem::{HostError, FilesystemRootIdentity, FilesystemRootRead, read_beneath}
+import stdlib/bounded_filesystem as bounded
+import stdlib/package_filesystem as existing
+
+pub root_identity(root: Path): Result[FilesystemRootIdentity,FilesystemError] {
+  errors.convert(fs_root_identity(root), RootIdentity(root))
+}
+
+pub read(root: Path, relative: Path, limit: Nat): Result[FilesystemRootRead,FilesystemError] {
+  errors.convert(existing.read_beneath(root, relative, limit), ReadConfined(root, relative, limit))
+}
+
+pub read_link(root: Path, relative: Path): Result[Bytes,FilesystemError] {
+  errors.convert(bounded.read_link(root, relative), ReadLink(root, relative))
+}

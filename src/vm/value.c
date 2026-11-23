@@ -1,3 +1,7 @@
+#include "filesystem_stage.h"
+#include "http_transport.h"
+#include "digest.h"
+#include "gzip_stream.h"
 #include "value.h"
 
 #include "numeric.h"
@@ -41,6 +45,18 @@ void release(Value *v)
         return;
     }
     switch (v->kind) {
+    case V_SHA256_CONTEXT:
+        digest_owner_release(v->as.sha256.owner);
+        break;
+    case V_GZIP_DECODER:
+        gzip_owner_release(v->as.gzip.owner);
+        break;
+    case V_HTTP_STREAM:
+        http_stream_owner_release(v->as.http_stream.owner);
+        break;
+    case V_DIRECTORY_STAGE:
+        filesystem_stage_owner_release(v->as.directory_stage.owner);
+        break;
     case V_HTTP_CONNECTION:
         http_connection_free(v->as.http_connection);
         break;

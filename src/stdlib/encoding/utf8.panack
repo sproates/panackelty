@@ -1,0 +1,76 @@
+import stdlib/host::{HostError}
+
+pub enum Utf8ErrorKind {
+  InvalidLeadingByte, InvalidContinuationByte, TruncatedSequence,
+  OverlongEncoding, SurrogateCodePoint, CodePointOutOfRange
+}
+
+// Zero-based offset: offending continuation byte, otherwise the sequence start.
+pub record Utf8Error { offset: Nat, kind: Utf8ErrorKind }
+
+impl Utf8Error {
+  pub pure render(): Str {
+    reason = match self.kind {
+      InvalidLeadingByte() => "the byte cannot start a UTF-8 character",
+      InvalidContinuationByte() => "a UTF-8 continuation byte was required",
+      TruncatedSequence() => "the final UTF-8 character is incomplete",
+      OverlongEncoding() => "the character uses more bytes than UTF-8 permits",
+      SurrogateCodePoint() => "UTF-8 cannot encode a surrogate code point",
+      CodePointOutOfRange() => "the code point is greater than U+10FFFF"
+    }
+    offset = self.offset
+    "Cannot decode UTF-8 at byte offset ${offset} (counting from zero): ${reason}."
+  }
+}
+
+// The native validator handles valid input without a second Panack byte scan.
+// Only invalid input reaches this classification pass.
+pure diagnose(data: Bytes): Utf8Error {
+  mut offset: Nat = 0
+  mut failure: Option[Utf8Error] = None()
+  while offset < data.length() && failure == None() {
+    first = data.at(offset)
+    mut width: Nat = 1
+    mut scalar = first
+    mut minimum: Nat = 0
+    if first >= 128 {
+      if first < 192 || first >= 248 {
+        failure = Some(Utf8Error(offset, InvalidLeadingByte()))
+      } else if first < 224 {
+        width = 2; scalar = first % 32; minimum = 128
+      } else if first < 240 {
+        width = 3; scalar = first % 16; minimum = 2048
+      } else {
+        width = 4; scalar = first % 8; minimum = 65536
+      }
+      if failure == None() {
+        if offset + width > data.length() {
+          failure = Some(Utf8Error(offset, TruncatedSequence()))
+        } else {
+          mut index: Nat = 1
+          while index < width && failure == None() {
+            next = data.at(offset + index)
+            if next < 128 || next >= 192 {
+              failure = Some(Utf8Error(offset + index, InvalidContinuationByte()))
+            } else { scalar = scalar * 64 + next % 64 }
+            index = index + 1
+          }
+          if failure == None() {
+            if scalar < minimum { failure = Some(Utf8Error(offset, OverlongEncoding())) }
+            else if scalar >= 55296 && scalar <= 57343 { failure = Some(Utf8Error(offset, SurrogateCodePoint())) }
+            else if scalar > 1114111 { failure = Some(Utf8Error(offset, CodePointOutOfRange())) }
+          }
+        }
+      }
+    }
+    offset = offset + width
+  }
+  failure.value_or(Utf8Error(offset, InvalidLeadingByte()))
+}
+
+pub pure decode(data: Bytes): Result[Str,Utf8Error] {
+  match host_decode_utf8(data) {
+    Ok(text) => Ok(text),
+    Error(_) => Error(diagnose(data))
+  }
+}

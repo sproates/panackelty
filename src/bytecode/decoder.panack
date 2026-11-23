@@ -18,7 +18,7 @@ import project/src/compiler/emitter::{
   ConstantValue.DecimalPartsConstant, ConstantValue.StringConstant,
   ConstantValue.BoolConstant, ConstantValue.VoidConstant, render_bytecode
 }
-import project/src/compiler/resolver::{is_builtin}
+import project/src/compiler/resolver::{is_builtin, is_async_builtin}
 import project/src/compiler/purity::{is_impure_builtin}
 import project/src/compiler/checker::{builtin_arity}
 
@@ -487,7 +487,69 @@ pure duplicate_names(names: [Str]): Bool {
   duplicate
 }
 
-pure verify_instruction(instruction: Instruction, function: FunctionCode, program: BytecodeProgram): Str {
+// Mirror the native verifier: local shells may be accessed from async code,
+// but permission never crosses an unknown, indirect, awaited or blocking edge.
+pure bytecode_local_builtin(name: Str): Bool {
+  name == "http_bytes_slice" ||
+  name == "http_body" ||
+  name == "http_body_size" ||
+  name == "http_body_append" ||
+  name == "http_connection_writer" ||
+  name == "http_connection_routes" ||
+  name == "http_connection_fallback" ||
+  name == "http_connection_admit" ||
+  name == "http_writer_get_status" ||
+  name == "http_writer_get_headers" ||
+  name == "http_writer_reject" ||
+  name == "http_writer_status" ||
+  name == "http_writer_headers" ||
+  name == "http_writer_commit" ||
+  name == "http_state_create" ||
+  name == "http_state_context" ||
+  name == "http_state_setup_error" ||
+  name == "http_state_fail_setup" ||
+  name == "http_state_register"
+}
+pure bytecode_local_functions(program: BytecodeProgram): Set[Str] {
+  mut known: Set[Str] = set()
+  mut changed = true
+  while changed {
+    changed = false
+    for function in program.functions {
+      if !function.is_pure && !function.is_async && !known.has(function.name) {
+        mut safe = true
+        mut local = false
+        for instruction in function.instructions {
+          match instruction {
+            CallValueInstruction(arity) => { safe = false },
+            AwaitValueInstruction(arity) => { safe = false },
+            AwaitCallInstruction(name,arity) => { safe = false },
+            CallInstruction(name,arity) => {
+              target = bytecode_function(program,name)
+              pure_call = if builtin_exists(name) { builtin_is_pure(name) } else { target.found && target.value.is_pure }
+              resource = if builtin_exists(name) { bytecode_local_builtin(name) } else { known.has(name) }
+              safe = safe && (pure_call || resource)
+              local = local || resource
+            },
+            ConstInstruction(value) => {}, LoadInstruction(name) => {}, StoreInstruction(name) => {},
+            PopInstruction() => {}, UnaryInstruction(operator) => {}, BinaryInstruction(operator) => {},
+            MakeRangeInstruction() => {}, MakeArrayInstruction(count) => {}, IndexGetInstruction() => {},
+            InterpolateInstruction(parts) => {}, IterInitInstruction(name) => {},
+            IterNextInstruction(iterator, name, end) => {}, MakeRecordInstruction(name, fields) => {},
+            FieldGetInstruction(name) => {}, MakeVariantInstruction(enum_name, variant, count) => {},
+            MatchVariantInstruction(variant, failure) => {}, MatchFailInstruction() => {},
+            JumpFalseInstruction(target) => {}, JumpInstruction(target) => {},
+            PendingEndJumpInstruction() => {}, ReturnInstruction() => {}
+          }
+        }
+        if safe && local { known = known.add(function.name); changed = true }
+      }
+    }
+  }
+  known
+}
+
+pure verify_instruction(instruction: Instruction, function: FunctionCode, program: BytecodeProgram, local_functions: Set[Str]): Str {
   count: Nat = function.instructions.len()
   match instruction {
     ConstInstruction(value) => "",
@@ -513,13 +575,13 @@ pure verify_instruction(instruction: Instruction, function: FunctionCode, progra
         "bytecode calls unknown function ${name}"
       } else {
         expected: Nat = if builtin_exists(name) { builtin_arity(name) } else { target.value.parameters.len() }
+        target_local = if builtin_exists(name) { bytecode_local_builtin(name) } else { local_functions.has(name) }
         target_pure: Bool = if builtin_exists(name) { builtin_is_pure(name) } else { target.value.is_pure }
         if (!builtin_exists(name) && target.found && target.value.is_async) ||
-          name == "async_fake_read" || name == "$tcp_exchange" || name == "$http_transport_exchange" || name == "$tcp_serve" ||
-          name == "$tcp_serve_stream" || name == "$tcp_server_read_chunk" {
+          bytecode_async_builtin(name) {
           "ordinary call cannot enter async function"
         }
-        else { if function.is_async && !target_pure { "async function cannot call blocking function" }
+        else { if (function.is_async || local_functions.has(function.name)) && !target_pure && !target_local { "async function cannot call blocking function" }
         else { if arity != expected { "bytecode call to ${name} has invalid arity" }
         else { if function.is_pure && !target_pure { "pure bytecode function calls impure function ${name}" } else { "" } } } }
       }
@@ -534,7 +596,7 @@ pure verify_instruction(instruction: Instruction, function: FunctionCode, progra
   }
 }
 
-pure verify_function(function: FunctionCode, program: BytecodeProgram): Str {
+pure verify_function(function: FunctionCode, program: BytecodeProgram, local_functions: Set[Str]): Str {
   if (function.is_pure && function.is_async) || function.name.len() == 0 || duplicate_names(function.parameters) {
     "invalid function signature"
   } else {
@@ -557,7 +619,7 @@ pure verify_function(function: FunctionCode, program: BytecodeProgram): Str {
           CallValueInstruction(arity) => {}, AwaitCallInstruction(name, arity) => {}, AwaitValueInstruction(arity) => {},
           JumpInstruction(target) => {}, PendingEndJumpInstruction() => {}
         }
-        if message.len() == 0 { message = verify_instruction(instruction, function, program); } else {}
+        if message.len() == 0 { message = verify_instruction(instruction, function, program, local_functions); } else {}
       }
       if message.len() > 0 { message }
       else { if has_return { "" } else { "bytecode function has no RETURN" } }
@@ -572,10 +634,11 @@ pure verify_bytecode_program(program: BytecodeProgram): Str {
   else {
     mut message: Str = ""
     mut total: Nat = 0
+    local_functions = bytecode_local_functions(program)
     for function in program.functions {
       total = total + function.instructions.len()
       if total > 4000000 && message.len() == 0 { message = "bytecode exceeds total instruction limit"; } else {}
-      if message.len() == 0 { message = verify_function(function, program); } else {}
+      if message.len() == 0 { message = verify_function(function, program, local_functions); } else {}
     }
     message
   } }
@@ -661,11 +724,16 @@ pub pure round_trip_bytecode(data: Bytes): Bytes {
   }
 }
 
+pure bytecode_async_builtin(name: Str): Bool {
+  builtin_exists(name) && (is_async_builtin(name) ||
+    name == "$tcp_exchange" || name == "$http_transport_exchange" || name == "$tcp_serve" ||
+    name == "$tcp_serve_stream" || name == "$tcp_server_read_chunk")
+}
+
 pure verify_await_call(name: Str, arity: Nat, function: FunctionCode, program: BytecodeProgram): Str {
   target: FunctionCodeLookup = bytecode_function(program, name)
   if !function.is_async { "await requires async function" }
-  else { if name == "async_fake_read" || name == "$tcp_exchange" || name == "$http_transport_exchange" || name == "$tcp_serve" ||
-    name == "$tcp_serve_stream" || name == "$tcp_server_read_chunk" {
+  else { if bytecode_async_builtin(name) {
     if arity == builtin_arity(name) { "" } else { "async service arity mismatch" }
   } else { if builtin_exists(name) || !target.found || !target.value.is_async { "await target must be async" }
   else { if arity != target.value.parameters.len() { "async call arity mismatch" } else { "" } } } }

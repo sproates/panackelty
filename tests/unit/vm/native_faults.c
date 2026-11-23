@@ -2,9 +2,12 @@
 #undef NDEBUG
 #endif
 #include "builtins.h"
+#include "host_capabilities.h"
 #include "decode.h"
 #include "fault_injection.h"
 #include "http_transport.h"
+#include "digest.h"
+#include "gzip_stream.h"
 #include "http_state.h"
 #include "numeric.h"
 #include "render.h"
@@ -659,6 +662,42 @@ static void host_failures(void)
     assert(!strcmp(result->as.named.values[0]->as.named.name, "ClockUnavailable"));
     release(result);
 
+    fault_reset(0);
+    Instruction clock_code[] = {{.op = OP_AWAIT_CALL, .name = "instant_now_async"},
+                                {.op = OP_RETURN}};
+    Function clock_fn = {.name = "read_clock", .is_async = true, .ins = clock_code, .ins_count = 2};
+    Program clock_program = {.functions = &clock_fn, .count = 1};
+    VM clock_vm = {.program = &clock_program};
+    const char *clock_error = NULL;
+    VMExecution *clock_run = vm_execution_create_async(&clock_vm, &clock_fn, NULL, NULL, NULL, &clock_error);
+    assert(clock_run && !clock_error);
+    fault_syscall("clock_gettime", 1, EIO);
+    assert(vm_execution_advance(clock_run, 10) == VM_COMPLETED);
+    result = vm_execution_result(clock_run);
+    assert(fault_triggered() && result && !strcmp(result->as.named.name, "Error"));
+    assert(!strcmp(result->as.named.values[0]->as.named.name, "ClockUnavailable"));
+    assert(vm_execution_destroy(clock_run));
+
+    Value *timer_duration = value_size(1000000000);
+    timer_duration->kind = V_DURATION;
+    uint64_t deadline;
+    for (size_t mode = 0; mode < 2; mode++) {
+        fault_reset(0);
+        fault_syscall("clock_gettime", 1, EIO);
+        bool pending = mode ? !host_sleep_poll(0, &result)
+                            : host_sleep_start(&vm, timer_duration, &deadline, &result);
+        assert(!pending && fault_triggered() && result);
+        assert(!strcmp(result->as.named.name, "Error"));
+        release(result);
+    }
+    fault_reset(0);
+    release(timer_duration);
+    size_t timer_baseline = fault_live();
+    fault_reset(1);
+    assert(host_sleep_poll(0, &result));
+    assert(fault_triggered() && !result && fault_live() == timer_baseline);
+    fault_reset(0);
+
     Value *duration = value_size(0);
     duration->kind = V_DURATION;
     for (size_t i = 0; i < 2; i++) {
@@ -835,6 +874,84 @@ static void tcp_allocations(void)
     assert(fault_descriptors() == 0);
 }
 
+static bool cpu_gzip;
+static unsigned cpu_mode;
+static void cpu_resource_allocations(void)
+{
+    static const uint8_t compressed[] = {31,139,8,0,0,0,0,0,0,3,203,72,205,201,201,7,0,134,166,16,54,5,0,0,0};
+    VM vm = {0};
+    Value *data = value_data(V_BYTES, cpu_gzip ? compressed : (const uint8_t *)"abc", cpu_gzip ? sizeof(compressed) : 3);
+    Value *limit = value_size(100);
+    if (data && limit) {
+        Value *opened = cpu_gzip ? gzip_resource_call(&vm, "gzip_decoder_create", &limit)
+                                : digest_resource_call(&vm, "sha256_create", NULL);
+        if (opened && !strcmp(opened->as.named.name, "Ok")) {
+            Value *args[] = {opened->as.named.values[0], data, value_bool(true)};
+            if (cpu_mode == 0) {
+                release(cpu_gzip ? gzip_resource_call(&vm, "gzip_decoder_close", args)
+                                 : digest_resource_call(&vm, "sha256_close", args));
+            } else if (cpu_mode == 1) {
+                release(cpu_gzip ? gzip_resource_call(&vm, "gzip_decoder_decode", args)
+                                 : digest_resource_call(&vm, "sha256_update", args));
+            } else if (!cpu_gzip) {
+                release(digest_resource_call(&vm, "sha256_finish", args));
+            }
+        }
+        digest_destroy(&vm); gzip_stream_destroy(&vm);
+        release(opened); // Resource values outlive their invocation table.
+    }
+    release(data); release(limit);
+}
+
+static void hash_allocations(void)
+{
+    VM vm = {0};
+    Value *data = value_data(V_BYTES, (const uint8_t *)"abc", 3);
+    if (data) release(digest_hash_call(&vm, "sha256_hash", &data));
+    release(data);
+}
+
+static unsigned stream_fault_mode;
+static void http_stream_allocations(void)
+{
+    VM vm = {0};
+    Value *args[] = {
+        value_data(V_STR, (const uint8_t *)"127.0.0.1", 9),
+        value_size(1), value_bool(false), value_data(V_BYTES, NULL, 0),
+        value_size(64), value_size(1),
+    };
+    bool valid = true;
+    for (size_t i = 0; i < 6; i++) if (!args[i]) valid = false;
+    if (valid) {
+        Value *duration = value_big(V_DURATION, &args[5]->as.integer);
+        if (duration) {
+            release(args[5]); args[5] = duration;
+            Value *opened = http_stream_open_typed(&vm, args);
+            if (opened && !strcmp(opened->as.named.name, "Ok")) {
+                Value *handle = opened->as.named.values[0], *error = NULL;
+                if (stream_fault_mode == 0) {
+                    release(http_stream_close_typed(&vm, handle));
+                } else {
+                    VMHttpStreamRead *read = http_stream_read_start(&vm, handle, &error);
+                    release(error);
+                    if (read) {
+                        if (stream_fault_mode == 1) http_stream_read_cancel(read);
+                        else {
+                            if (stream_fault_mode == 2) http_stream_destroy(&vm);
+                            while (!http_stream_read_poll(read, 1)) { }
+                            release(http_stream_read_finish(read));
+                        }
+                    }
+                }
+            }
+            http_stream_destroy(&vm);
+            release(opened); // Handle may outlive its VM table.
+        }
+    }
+    http_stream_destroy(&vm);
+    for (size_t i = 0; i < 6; i++) release(args[i]);
+}
+
 static void http_allocations(void)
 {
     static const uint8_t request[] = "GET / HTTP/1.1\r\nHost: test\r\n\r\n";
@@ -1009,6 +1126,8 @@ static void coverage_session_allocations(void)
 
 void root_read_faults(void);
 void console_write_faults(void);
+void console_read_faults(void);
+void process_async_faults(void);
 
 int main(int argc, char **argv)
 {
@@ -1065,12 +1184,21 @@ int main(int argc, char **argv)
     }
     root_read_faults();
     console_write_faults();
+    console_read_faults();
+    process_async_faults();
     if (argc == 3) {
         check_artifact(argv[1], argv[2]);
         return 0;
     }
     sweep("TCP request and completion", tcp_allocations);
+    sweep("pure SHA-256", hash_allocations);
+    for (unsigned kind = 0; kind < 2; kind++) {
+        cpu_gzip = kind == 1;
+        for (cpu_mode = 0; cpu_mode < 3; cpu_mode++) sweep("typed digest/gzip", cpu_resource_allocations);
+    }
     sweep("HTTP transport ownership", http_allocations);
+    for (stream_fault_mode = 0; stream_fault_mode < 4; stream_fault_mode++)
+        sweep("HTTP typed stream ownership", http_stream_allocations);
     fault_reset(0);
     http_values[0] = value_data(V_STR, (const uint8_t *)"127.0.0.1", 9);
     http_values[1] = value_size(8080);

@@ -46,6 +46,19 @@ static bool headers_complete(const char *request, size_t length)
 
 static void respond(int descriptor, const char *target)
 {
+    if (!strcmp(target, "/pattern")) {
+        const char *head = "HTTP/1.1 200 OK\r\nContent-Length: 65537\r\nConnection: close\r\n\r\n";
+        if (send_all(descriptor, head, strlen(head)) != 0) return;
+        char block[257];
+        for (size_t offset = 0; offset < 65537;) {
+            size_t size = 65537 - offset;
+            if (size > sizeof(block)) size = sizeof(block);
+            for (size_t i = 0; i < size; i++) block[i] = (char)((offset + i) % 251);
+            if (send_all(descriptor, block, size) != 0) return;
+            offset += size;
+        }
+        return;
+    }
     if (!strcmp(target, "/large")) {
         const char *head = "HTTP/1.1 200 OK\r\nContent-Length: 33554432\r\nConnection: close\r\n\r\n";
         if (send_all(descriptor, head, strlen(head)) != 0) return;

@@ -397,7 +397,8 @@ pure parse_logical_import_path_tail(
 ): Result[ParsedImportPath, Diagnostic] {
   if index < tokens.len() && tokens[index].text == "/" {
     segment_index: Nat = index + 1
-    if segment_index >= tokens.len() || tokens[segment_index].kind != Identifier() {
+    if segment_index >= tokens.len() ||
+      (tokens[segment_index].kind != Identifier() && tokens[segment_index].text != "async") {
       Error(parse_error(
         "expected logical import path segment",
         token_position(tokens, segment_index)

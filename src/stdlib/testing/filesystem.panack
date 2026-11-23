@@ -1,0 +1,9 @@
+pub import stdlib/testing_files::{HostError, TestWorkspace, discover_fixtures}
+import stdlib/testing_files as legacy
+
+pub create_workspace(parent: Path): Result[TestWorkspace,HostError] {
+  legacy.workspace_create(parent)
+}
+pub remove_empty(workspace: TestWorkspace): Result[Unit,HostError] {
+  workspace.remove_empty()
+}

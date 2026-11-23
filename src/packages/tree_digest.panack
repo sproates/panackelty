@@ -6,7 +6,7 @@ pub import project/src/packages/sha256::{Sha256}
 import project/src/packages/sha256::{ sha256_new, sha256_feed, sha256_finish, sha256_close}
 import stdlib/bytes as byte_buffer
 import stdlib/path as path
-import stdlib/filesystem as filesystem
+import stdlib/filesystem/legacy as filesystem
 import stdlib/filesystem::{FileKind.Directory, FileKind.RegularFile, FileKind.SymbolicLink}
 import stdlib/bounded_filesystem as bounded_filesystem
 

@@ -4,7 +4,7 @@ import project/src/bytecode/codec::{serialize_bytecode}
 import stdlib/testing as testing
 pub import stdlib/testing::{TestResult}
 import stdlib/testing_files as testing_files
-import stdlib/filesystem as filesystem
+import stdlib/filesystem/legacy as filesystem
 import stdlib/path as path
 import stdlib/host as host
 

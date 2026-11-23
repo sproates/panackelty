@@ -1,0 +1,31 @@
+import http/client/async as http
+import stdlib/console/async as console
+import stdlib/host/async as host
+
+async main(): Unit {
+  arguments = await host.arguments()
+  if arguments.len() != 1 {
+    reported = await console.write_error_line("Usage: provide one HTTP or HTTPS URL.")
+    await host.exit(2)
+  } else {
+    match await http.get_with_limits(arguments[0], http.ClientLimits(5000, 16384, 65536)) {
+      Error(problem) => {
+        // render includes available transport detail; do not guess a TLS cause.
+        reported = await console.write_error_line(problem.render())
+        await host.exit(1)
+      },
+      Ok(response) => {
+        status = response.status
+        size = response.body.len()
+        match await console.write_line("HTTP ${status}; ${size} body bytes.") {
+          Error(write_error) => await host.exit(1),
+          Ok(written) => {
+            // An HTTP error status is still a successfully received response.
+            if status >= 400 { await host.exit(1) }
+            ()
+          }
+        }
+      }
+    }
+  }
+}

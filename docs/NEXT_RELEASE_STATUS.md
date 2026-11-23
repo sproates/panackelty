@@ -1,12 +1,12 @@
 # Next release status
 
-Updated: 8 November 2026. Release: **v0.1.0-alpha.16**. Integration branch: **next**.
+Updated: 23 November 2026. Release: **v0.1.0-alpha.16**. Integration branch: **next**.
 Latest published release: **v0.1.0-alpha.15**, published 6 November 2026.
 
 **Alpha.16: build useful programs. Ten VM optimisation batches are delivered by
 this integration; further VM experiments are paused. Compiler reuse has been
 implemented and validated locally and is included in this integration ahead of
-larger language changes; compiler integration and its coverage-manifest correction are green. RM#162 remains an investigation.** Alpha.15 is complete, including native archives, installer, browser
+larger language changes; compiler integration and its coverage-manifest correction are green. RM#162’s first async-stdlib batch is locally validated; the owner has selected completing relevant async stdlib capabilities and their website documentation together before shared-state work. Integration remains pending.** Alpha.15 is complete, including native archives, installer, browser
 playground and website. Its [final status snapshot](ALPHA15_FINAL_STATUS.md) and
 [release acceptance](releases/ALPHA15_RELEASE_ACCEPTANCE.md) preserve the evidence.
 
@@ -23,7 +23,7 @@ and linked work records. Update this summary whenever release work changes.
 | [GI#168: Subprocess examples](https://github.com/sproates/panackelty/issues/168) | Planned. Reuse existing examples and verify the remaining installed workflows. |
 | [GI#169: Tiny build tool](https://github.com/sproates/panackelty/issues/169) | Planned. A useful small program, not a production build system. |
 | [GI#138: Tested guides](https://github.com/sproates/panackelty/issues/138), with [GI#310: Examples](https://github.com/sproates/panackelty/issues/310) | Planned. Coordinate guides with runnable examples; do not count the same delivery twice. |
-| [RM#162: Real-program fixes](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-162) | In progress: [async capability investigation](ASYNC_USEFUL_PROGRAMS_INVESTIGATION.md) reproduces the clock restriction and separate callback-state gap. The [discussion record](ASYNC_DESIGN_DISCUSSION.md) captures the preferred async-module API direction; state and closures remain exploratory. No fix implemented yet. Scope and effort emerge from actual use; verify each originating program and agree a release cutoff. No website update. |
+| [RM#162: Real-program fixes](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-162) | In progress on `feature/rm162-async-clock`, draft PR #693 into next. Paired ordinary/async clock, filesystem/staging, timer, console, process, HTTP streaming and digest/gzip APIs are implemented, with canonical async TCP. Domain errors include operation context and preserved native details. The new HTTP package client/async export retains detailed TLS errors while keeping legacy client/stream contracts compatible. Final local make check passed in 676s (21 November), plus relocated TCP and diagnostic-client acceptance. HTTP builtin disassembler parity is repaired; final local make check passed in 674s (22 November), plus relocated source/bytecode/disassembly acceptance. A core module reference, compatibility migration guide and three async examples are added with focused source/bytecode validation (23 November). Resource walkthrough and SHA-256/gzip examples are also validated; the existing uptime service uses canonical duration naming. The four core documentation gaps now have guides and validated examples: console EOF/bounds, staged/confined publication, diagnostic HTTP client, and canonical recipe/test reporting. Website adaptation is ready in [website PR #77](https://github.com/sproates/panackelty-website/pull/77), with nineteen module API references (72 function entries), the overview/guides, nine complete examples, passing local website checks and a persistent LAN preview. Owner approved the website approach and preview on 23 November. Core PR #693 is at integration handoff; hosted acceptance and separately authorised website publication remain. RM#162 is not complete; development CI stays off. The [programme register](ASYNC_DESIGN_DISCUSSION.md#expanded-async-stdlib-and-documentation-programme-8-november-2026) retains evidence and weights. State/closures remain exploratory; website publication is separate. |
 | [GI#170: Inference/diagnostics assessment](https://github.com/sproates/panackelty/issues/170) | Planned assessment. No inference implementation or architecture is selected. |
 | [RM#157: Performance review](roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-157) | Ten owner-requested VM optimisation batches delivered by this integration; details below. Final local `make check` passed in 593 seconds with unchanged compiler bytecode. VM integration CI passed ([run](https://github.com/sproates/panackelty/actions/runs/42349747971)). Broader performance-review workloads, targets and completion criteria still need agreement; RM#157 is not complete. Further VM experiments are paused; the compiler-reuse batch passed local validation and is included in this integration (see below). |
 | [GI#435: Guard alternatives](https://github.com/sproates/panackelty/issues/435) | Planned follow-on for string, collection and record-relationship guards: proof rules and diagnostics need design. Numeric alternatives already work; the alpha.15 contract remains complete. |
@@ -110,8 +110,8 @@ integration. Further experiments remain on feature/rm162-real-program-fixes.
   On 6 November, the checkout alpha.15 compiler accepted an ordinary `main`
   binding `reading = time.now()` and rejected the identical async body with
   `async function cannot call blocking function time.panack:now`.
-  When language work resumes: define an async clock counterpart under the preferred `/async` module
-  convention, then verify a real uptime endpoint. State/closure design is not
+  The active batch adds the async clock counterpart under the preferred `/async`
+  module convention and verifies a real uptime endpoint. State/closure design is not
   committed scope.
 - Follow the [release checklist](releases/RELEASE_CHECKLIST.md) for alpha.16:
   packages, installer and browser must be ready before the final website publication.
@@ -338,10 +338,33 @@ Native artifacts and bootstrap fixed points pass; final `make check` passed in
 checks pass. The profile retains an intermittent existing TCP-test failure that
 passed direct repeats and the final run; its cause is not claimed resolved.
 The owner selected integration into `next` on 8 November. This integration includes
-the validated summary-reuse slice; hosted integration acceptance remains pending.
+the validated summary-reuse slice. PR #692 merged as `ae52903`;
+[integration checks](https://github.com/sproates/panackelty/actions/runs/42505863760)
+passed. These are the lightweight next-push gates, not the full nightly matrix.
 Development/PR CI is suppressed under the alpha.16 trial, and the merge starts
 integration CI. The experiment branch is retained. This does not complete
 RM#28/GI#106 or RM#157; no release or website publication is included.
+
+## Return to real-program work, 8 November 2026
+
+The optimisation phase is paused at the merged checkpoint. Further VM/compiler
+optimisation and ordinary cross-run CI cache adoption remain future work; this
+does not declare RM#157 or RM#28/GI#106 complete. The owner-approved article is
+[published](https://panackelty.com/articles/making-panackelty-easier-to-develop/),
+fulfilling the optimisation-wrap-up article reminder.
+
+A clean branch, `feature/rm162-async-clock`, starts from current `next`. The next
+RM#162 slice is the async clock API and a working uptime endpoint, following the
+recorded async-module preferences. The implemented and locally validated batch provides `time/async`,
+`environment/async`, and compatible paths for existing host/filesystem async APIs.
+The complete local `make check` passed in 582 seconds, including installation
+and relocation. Seed stages 2/3/4 match (`f2314de2…90f52`); ordinary stdlib
+conformance bytecode is unchanged. The real uptime endpoint passes in source
+and saved-bytecode modes. Integration is pending and development CI remains
+disabled. Anonymous
+functions, closures and state retain their recorded design questions. Development
+CI remains disabled until requested or integration; no CI is triggered by this
+local handover. The previous optimisation branch is retained.
 
 ### Nightly subprocess reliability investigation, 17 November 2026
 
@@ -356,3 +379,5 @@ recur on direct/repeated checks or final acceptance; it remains an intermittent
 observation, not a claimed fix. Integration CI and the next scheduled macOS nightly
 remain the hosted acceptance observations. The unfinished async stdlib branch is
 preserved separately.
+
+HTTP disassembly repair (22 November): the self-hosted decoder now matches native HTTP arities and local-resource call permissions. Focused client/server regressions and native artifact contracts pass; final local make check passed in 674s, as did relocated installation acceptance. Integration remains pending.

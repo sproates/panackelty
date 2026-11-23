@@ -704,3 +704,111 @@ The declaration-invalidation follow-up regenerated the version-9 seed at
 `a4bd5a03be847e8523414726ea22f162c40a299b37387e4197c6c37a8da62752`.
 Stages 2–4 agree; the standard-library digest remains unchanged. Its final local
 check is recorded in `docs/COMPILER_PERSISTENT_REUSE.md`.
+
+## Alpha.16 async stdlib batch
+
+The compiler seed is refreshed for logical `/async` imports and closed async
+clock/environment primitives. Public ordinary modules remain compatible and
+bytecode remains v9. The native clock implementation is shared between the
+ordinary and async routes; package policy and stdlib wrappers remain Panackelty.
+
+The expanded filesystem batch refreshes the v9 seed to
+`919832cc31d7f222af7253aa8a9c0dc0c15d447c6c0c777d9d9cca7983132a7c`.
+Stages 2, 3 and 4 produce identical compiler bytes and standard-library conformance
+bytes. The standard-library fixture gains canonical wrappers and imported helpers;
+all 35 pre-existing function instruction bodies remain identical after module
+renumbering, and execution output is unchanged. The bytecode format remains v9.
+
+The timer/console/process batch refreshes the v9 seed to
+`af5f581b42740ae8e6edc77b25624300c9d67d4a7a99c87e35134751594087ea`.
+Stages 2–4 again agree for compiler and stdlib conformance artifacts. The stdlib
+oracle changes module numbering after the time-to-host import and adds time.sleep;
+reviewed disassembly and identical execution output support the fixture update.
+Canonical process wrappers accept Command; compiler/package/test positional calls
+now explicitly use process/legacy. No bytecode version change is required.
+
+The runtime/testing-support batch refreshes the v9 seed to
+`1b881d54dc241696d3466273855a4798833dbe3799d02bca86c541a8abf07a75`.
+Compiler stages 2–4 agree. The stdlib conformance artifact is unchanged from the
+preceding batch. Compiler changes protect native compatibility record schemas
+from same-named stdlib declarations and align the Panack bytecode reader with
+source checking's closed async-service list. The seven new Panack support modules
+require no new VM capability; no bytecode format change is needed.
+
+The typed streaming HTTP batch refreshes the v9 seed to
+`83437d1b496ae812624141b338fbaf82f62dfc7a95ac5397bea5516f00a9f6f0`.
+Stages 2–4 reproduce it. Stdlib conformance remains
+`49fd630f84c62a042c96c9b76864d040d69237f641da8063be1d3f74ff2e4a50`.
+The compiler adds the opaque HttpStream type and closed ordinary/async transport
+grants; VM scheduling reuses libcurl polling. No bytecode format change.
+
+The typed digest/gzip batch refreshes the v9 seed to
+`7a2b1fe262f3cf83021d4edb0f9055b3398fc0ab68c5ab50b4f92e65cd21d7dd`.
+Stages 2–4 agree. The stdlib conformance artifact remains
+`49fd630f84c62a042c96c9b76864d040d69237f641da8063be1d3f74ff2e4a50`.
+The compiler adds opaque Sha256Context/GzipDecoder types, bounded pure hashing and
+closed ordinary/async primitive grants. No bytecode format change is needed.
+
+The encoding/value-method batch refreshes the seed to
+`3073183adbe8e4d852147e3ad57c72469e50950aad49fe5bdc849c5e70ac509e`.
+A candidate built against the previous core methods introduces the two trusted
+adapter grants; stages 2–4 then reproduce it against the updated core library.
+The stdlib conformance artifact remains unchanged. New error records and methods
+are implemented in Panack; no VM or bytecode format change is required.
+
+The canonical TCP batch refreshes the seed to
+`71e925beabb5d96dde6e50d38feff706c02136adb8f945a2f9f8d4263e3dc510`.
+Stages 2–4 agree, and the stdlib conformance artifact is unchanged. Compiler
+emission now protects the native TcpServerLimits/TcpServiceLimits schemas from
+same-named Duration records. Duration aliases and TCP conversion are Panack code;
+no VM primitive or bytecode format change is introduced.
+
+Bounded console input (21 November): ordinary/async private input primitives are
+recognized by checking, effects and trusted module binding. Fresh stages 2/3/4
+converge to compiler SHA-256
+`26e0ff0f9f08334e58d0e6e702b31bf97894cb28f5884802bafb36a053aae98f`;
+the standard-library oracle remains
+`49fd630f84c62a042c96c9b76864d040d69237f641da8063be1d3f74ff2e4a50`.
+Bytecode remains version 9. Final local make check passed in 654s (21 November),
+plus relocated-install source/bytecode/disassembly acceptance. Integration remains
+pending.
+
+Console, sleep and process domain errors (21 November) are Panack adapters; the
+compiler candidate remains byte-for-byte identical to the saved seed. The stdlib
+oracle has a reviewed transformation: 47 unchanged normalized function blocks,
+time.sleep result conversion, and three added supporting blocks. Old/new stdout
+is identical. The new stdlib SHA-256 is
+`98f2713ac7679d7ee45fefb1549f9775a19916bbfe3c42b108a65aa770d28c56`.
+Final local make check passed in 621s (21 November), plus relocated source,
+saved-bytecode and disassembly acceptance. Integration remains pending.
+
+Filesystem domain errors require a refreshed seed because compiler filesystem
+imports now explicitly select the compatibility facade. The same batch corrects
+ordinary stdlib nominal emission so colliding constructor names retain their
+original owners. Native ABI and bytecode format are unchanged. Final local make check passed in 628s (unit 393s, bootstrap 85s, functional 167s, 21 November), including packaging and installed smoke. Relocated ordinary/async source, saved-bytecode and unrelated-directory acceptance passes. Integration remains pending; development CI stays off.
+
+Digest/gzip error adaptation (21 November) changes only the corresponding Panack
+stdlib modules and tests/documentation. The compiler candidate equals the saved
+seed and existing bytecode oracles remain unchanged. Focused ordinary/async source and saved-bytecode checks pass. Final local make check passed in 645s (21 November), including unit, functional, bootstrap and packaging checks. Relocated installation with a spaced path passed the ordinary/async resource and compatibility fixtures. Integration remains pending and development CI stays off.
+
+## HTTP stream domain errors (21 November 2026)
+
+HTTP stream domain errors require only stdlib adapters and a native transport diagnostic buffer; existing intrinsic signatures, compiler seed and bytecode oracle artifacts remain unchanged.
+
+HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibility checks, final local make check (685s, 21 November), and relocated-install real TLS source/bytecode acceptance. Compiler seed and unchanged-program bytecode artifacts remain unchanged. Integration remains pending and development CI stays off.
+
+## TCP and diagnostic HTTP client (21 November 2026)
+
+TCP domain errors and the diagnostic HTTP package client use existing compiler/VM capabilities; the compiler seed and unchanged-program oracle artifacts remain unchanged.
+
+TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. The subsequent 22 November repair reconciles all 25 HTTP builtin arities and local-resource call permissions in the self-hosted decoder with the native verifier. Focused legacy/diagnostic-client and routed-server disassembly checks pass. The compiler seed is refreshed; unchanged-program native oracle contracts pass. Final local make check passed in 674s (22 November), including all 427 bytecode tests, public HTTP disassembly, packaging and installed smoke. Relocated TCP and diagnostic-client source/bytecode/disassembly acceptance also passed. Integration remains pending and development CI stays off.
+
+## HTTP inspection parity (22 November 2026)
+
+The compiler seed now includes the complete HTTP builtin arity table and the
+self-hosted decoder’s local-wrapper inference. The native ABI and bytecode
+format remain unchanged. Three independently built stages have SHA-256
+`7f9c0fb26a11b53186997f22f99c7fe2ee494f2a73eff8fd65d99f1cb6028f6a`;
+standard-library conformance remains
+`dae3879804075aa6675ccbd510eb0499324888b86e1fb63abf525930ae28b409`.
+The native oracle artifact contracts pass without updating their expected bytes.

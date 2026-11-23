@@ -105,3 +105,8 @@ Panackelty is [MIT licensed](LICENSE); the photograph has its own attribution ab
 The native digest adapter uses OpenSSL 3 or later under
 [Apache 2.0](docs/licenses/OpenSSL-Apache-2.0.txt). Archive collision tables use
 [Unicode data](docs/licenses/Unicode-License.txt).
+
+Development-branch async stdlib APIs are described in the
+[stdlib guide](src/stdlib/README.md#choosing-an-async-api), with a complete
+[HTTP uptime example](examples/network/http_uptime/README.md). These additions
+are intended for alpha.16 and are not part of released alpha.15.

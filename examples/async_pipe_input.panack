@@ -1,0 +1,39 @@
+import stdlib/encoding/utf8 as utf8
+import stdlib/path as paths
+import stdlib/process/async as process
+import stdlib/time/async as time
+import stdlib/console/async as console
+
+async copy_text(): Result[Str,Str] {
+  match paths.from_text("/bin/cat") {
+    Error(path_error) => Error("The executable path is invalid."),
+    Ok(executable) => {
+      command = process.Command(executable, [], "hello λ".encode_utf8(),
+        paths.current(), process.ExactEnvironment([]), time.seconds(5), 64)
+      match await process.run(command) {
+        Error(problem) => Error(problem.render()),
+        Ok(output) => match output.termination {
+          process.Signalled(signal) => Error("cat was terminated by signal ${signal}."),
+          process.Exited(status) => {
+            if status != 0 { Error("cat exited with status ${status}.") }
+            else { match utf8.decode(output.stdout) {
+              Error(decode_error) => Error("cat returned invalid UTF-8."), Ok(text) => Ok(text)
+            } }
+          }
+        }
+      }
+    }
+  }
+}
+
+async main(): Unit {
+  match await copy_text() {
+    Error(message) => {
+      reported = await console.write_error_line(message)
+      await process.exit(1)
+    },
+    Ok(text) => match await console.write_line(text) {
+      Error(write_error) => await process.exit(1), Ok(written) => ()
+    }
+  }
+}

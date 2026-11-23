@@ -1,0 +1,33 @@
+pub import stdlib/testing::{TestResult, TestOutcome, TestOutcome.TestPassed, TestOutcome.TestFailed, expect, equal_str, equal_nat}
+pub import stdlib/console/errors::{ConsoleError}
+import stdlib/console as console
+
+// Preserve order and failure counts; stop at the first checked output failure.
+pub report(results: [TestResult]): Result[Nat,ConsoleError] {
+  mut failures: Nat = 0
+  mut problem: Option[ConsoleError] = None()
+  for result in results {
+    match problem {
+      Some(_) => {},
+      None() => {
+        name = result.name
+        message = match result.outcome {
+          TestPassed() => "PASS ${name}",
+          TestFailed(reason) => { failures = failures + 1; "FAIL ${name}: ${reason}" }
+        }
+        match console.write_line(message) {
+          Ok(_) => {}, Error(error) => { problem = Some(error) }
+        }
+      }
+    }
+  }
+  match problem {
+    Some(error) => Error(error),
+    None() => {
+      total = results.len()
+      match console.write_line("tests: ${total}, failures: ${failures}") {
+        Ok(_) => Ok(failures), Error(error) => Error(error)
+      }
+    }
+  }
+}

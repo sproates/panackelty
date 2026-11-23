@@ -18,7 +18,7 @@ import project/src/packages/sha256::{sha256_bytes}
 pub import project/src/packages/acquisition::{ArchiveSource}
 import stdlib/environment as environment
 import stdlib/path as path
-import stdlib/filesystem as filesystem
+import stdlib/filesystem/legacy as filesystem
 import stdlib/bounded_filesystem as bounded_filesystem
 import stdlib/filesystem::{FileKind.RegularFile, FileKind.Directory, FileKind.SymbolicLink}
 import stdlib/package_filesystem as package_filesystem

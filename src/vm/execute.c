@@ -3,7 +3,10 @@
 #include "buffer.h"
 #include "builtins.h"
 #include "console_write.h"
+#include "console_read.h"
 #include "host.h"
+#include "host_capabilities.h"
+#include "host_types.h"
 #include "http_transport.h"
 #include "http_runtime.h"
 #include "filesystem_stage.h"
@@ -12,6 +15,7 @@
 #include "http_state.h"
 #include "numeric.h"
 #include "program.h"
+#include "process_async.h"
 #include "render.h"
 #include "root_read.h"
 #include "tcp.h"
@@ -70,9 +74,16 @@ struct VMExecution {
     bool waiting_read, fake_fail, network_enabled, server_read_enabled;
     VMTcpExchange *tcp;
     VMHttpTransport *http;
+    VMHttpStreamRead *http_read;
     VMTcpServer *server;
     VMRootRead *root_read;
     VMConsoleWrite *console_write;
+    VMConsoleRead *console_read;
+    bool input_enabled;
+    VMProcess *process;
+    bool process_enabled;
+    uint64_t sleep_deadline;
+    bool sleeping;
     bool console_enabled, yield_requested;
     Value *http_waiting;
 #ifndef __wasi__
@@ -423,6 +434,7 @@ static Value *service_call(VMExecution *execution, Value **arguments)
     if (!execution->embedded || execution->console_enabled) {
         tcp_server_enable_console(execution->server);
     }
+    if (!execution->embedded || execution->process_enabled) tcp_server_enable_process(execution->server);
     if (!tcp_server_done(execution->server)) {
         char *names[] = {"address", "port"};
         Value *fields[] = {arguments[0], arguments[1]};
@@ -501,6 +513,7 @@ static Value *server_call_mode(VMExecution *execution, Value **arguments, bool s
     if (execution->server && (!execution->embedded || execution->console_enabled)) {
         tcp_server_enable_console(execution->server);
     }
+    if (execution->server && (!execution->embedded || execution->process_enabled)) tcp_server_enable_process(execution->server);
     if (!execution->server) {
         vm->error = "native VM out of memory";
     } else {
@@ -558,7 +571,8 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
             entry->dispatch == BUILTIN_HTTP_LISTEN_CONTEXTUAL,
             !execution->embedded || execution->network_enabled,
             !execution->embedded || execution->filesystem_enabled,
-            !execution->embedded || execution->console_enabled);
+            !execution->embedded || execution->console_enabled,
+            !execution->embedded || execution->process_enabled);
 #ifndef __wasi__
         if (http_runtime_active(vm->http_runtime) && !vm->http_runtime->owner->owns_stop_signals &&
             !install_stop_signals(vm->http_runtime->owner)) {
@@ -601,6 +615,36 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
     if (entry->dispatch == BUILTIN_TCP_SERVICE) {
         return service_call(execution, arguments);
     }
+    if (entry->dispatch == BUILTIN_PROCESS_RUN_ASYNC) {
+        if (execution->embedded && !execution->process_enabled) {
+            vm->error = "VM trap: subprocess service is unavailable in this execution";
+        } else {
+            execution->process = process_async_start(vm, arguments,
+                !strcmp(entry->name, "process_run_isolated_async"));
+            if (execution->process) execution->status = VM_WAITING;
+            else if (!vm->error) vm->error = "native VM out of memory";
+        }
+        return NULL;
+    }
+    if (entry->dispatch == BUILTIN_HOST_SLEEP_ASYNC) {
+        Value *result = NULL;
+        execution->sleeping = host_sleep_start(vm, arguments[0], &execution->sleep_deadline, &result);
+        if (execution->sleeping) execution->status = VM_WAITING;
+        return result;
+    }
+    if (entry->dispatch == BUILTIN_CPU_RESOURCE_ASYNC) {
+        Value *result = !strncmp(entry->name, "sha256_", 7)
+            ? digest_resource_call(vm, entry->name, arguments)
+            : gzip_resource_call(vm, entry->name, arguments);
+        execution->yield_requested = true;
+        return result;
+    }
+    if (entry->dispatch == BUILTIN_INSTANT_NOW_ASYNC) {
+        return host_type_call(vm, "instant_now", NULL);
+    }
+    if (entry->dispatch == BUILTIN_ENVIRONMENT_LOOKUP_ASYNC) {
+        return host_call(vm, "environment_lookup_async", arguments);
+    }
     if (entry->dispatch == BUILTIN_HOST_ARGUMENTS_ASYNC) {
         if (execution->embedded && !execution->console_enabled) {
             vm->error = "VM trap: invocation service is unavailable in this execution";
@@ -619,12 +663,32 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         }
         return NULL;
     }
-    if (entry->dispatch == BUILTIN_HOST_STDOUT_ASYNC || entry->dispatch == BUILTIN_HOST_STDERR_ASYNC) {
+    if (entry->dispatch == BUILTIN_CONSOLE_INPUT_ASYNC) {
+        if (execution->embedded && !execution->input_enabled) {
+            vm->error = "VM trap: console input is unavailable in this execution";
+        } else {
+            execution->console_read = console_read_start(vm, arguments[0]);
+            if (!execution->console_read && !vm->error) vm->error = "native VM out of memory";
+            if (execution->console_read) execution->status = VM_WAITING;
+        }
+        return NULL;
+    }
+    if (entry->dispatch == BUILTIN_HOST_STDOUT_ASYNC || entry->dispatch == BUILTIN_HOST_STDERR_ASYNC ||
+        entry->dispatch == BUILTIN_CONSOLE_OUTPUT_ASYNC) {
         if (execution->embedded && !execution->console_enabled) {
             vm->error = "VM trap: console service is unavailable in this execution";
         } else {
-            execution->console_write =
-                console_write_start(vm, arguments[0], entry->dispatch == BUILTIN_HOST_STDERR_ASYNC);
+            if (entry->dispatch == BUILTIN_CONSOLE_OUTPUT_ASYNC) {
+                if (arguments[1]->kind != V_BOOL || arguments[2]->kind != V_BOOL) {
+                    vm->error = "VM trap: console output flags require Bool";
+                    return NULL;
+                }
+                execution->console_write = console_write_start_mode(vm, arguments[0],
+                    arguments[1]->as.boolean, arguments[2]->as.boolean, false);
+            } else {
+                execution->console_write =
+                    console_write_start(vm, arguments[0], entry->dispatch == BUILTIN_HOST_STDERR_ASYNC);
+            }
             if (!execution->console_write && !vm->error) {
                 vm->error = "native VM out of memory";
             }
@@ -635,12 +699,24 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         return NULL;
     }
     if (entry->dispatch == BUILTIN_FS_READ_BENEATH_ASYNC ||
-        entry->dispatch == BUILTIN_FS_ROOT_IDENTITY_ASYNC) {
+        entry->dispatch == BUILTIN_FS_ROOT_IDENTITY_ASYNC || entry->dispatch == BUILTIN_FILESYSTEM_ASYNC) {
         if (execution->embedded && !execution->filesystem_enabled) {
             vm->error = "VM trap: filesystem service is unavailable in this execution";
         } else {
-            execution->root_read =
-                root_read_start(vm, arguments, entry->dispatch == BUILTIN_FS_ROOT_IDENTITY_ASYNC);
+            if (entry->dispatch == BUILTIN_FILESYSTEM_ASYNC) {
+                char operation[64];
+                size_t length = strlen(entry->name) - strlen("_async");
+                if (length >= sizeof(operation)) {
+                    vm->error = "VM trap: invalid asynchronous filesystem dispatch";
+                    return NULL;
+                }
+                memcpy(operation, entry->name, length);
+                operation[length] = 0;
+                execution->root_read = filesystem_async_start(vm, operation, arguments);
+            } else {
+                execution->root_read =
+                    root_read_start(vm, arguments, entry->dispatch == BUILTIN_FS_ROOT_IDENTITY_ASYNC);
+            }
             if (!execution->root_read && !vm->error) {
                 vm->error = "native VM out of memory";
             }
@@ -681,6 +757,24 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
                 execution->status = VM_WAITING;
             }
         }
+        return NULL;
+    }
+    if (entry->dispatch == BUILTIN_HTTP_STREAM_OPEN || entry->dispatch == BUILTIN_HTTP_STREAM_READ ||
+        entry->dispatch == BUILTIN_HTTP_STREAM_CLOSE) {
+        if (execution->embedded && !execution->network_enabled) {
+            vm->error = "VM trap: HTTP transport is unavailable in this execution";
+            return NULL;
+        }
+        if (entry->dispatch == BUILTIN_HTTP_STREAM_OPEN) return http_stream_open_typed(vm, arguments);
+        if (entry->dispatch == BUILTIN_HTTP_STREAM_CLOSE) return http_stream_close_typed(vm, arguments[0]);
+        Value *error = NULL;
+        execution->http_read = http_stream_read_start(vm, arguments[0], &error);
+        if (!execution->http_read) {
+            if (!error) vm->error = "native VM out of memory";
+            return error;
+        }
+        execution->waiting_read = true;
+        execution->status = VM_WAITING;
         return NULL;
     }
     if (entry->dispatch == BUILTIN_HTTP_TRANSPORT_EXCHANGE) {
@@ -1370,7 +1464,8 @@ VMExecution *vm_execution_create_pending(VM *vm, Function *function, Value **arg
 bool vm_execution_complete_print(VMExecution *execution, const char *error)
 {
     if (execution->running || execution->status != VM_WAITING || execution->waiting_read ||
-        execution->server || execution->http_waiting) {
+        execution->server || execution->http_waiting || execution->console_write || execution->console_read ||
+        execution->root_read || execution->process || execution->sleeping) {
         return false;
     }
     VM *vm = execution->vm;
@@ -1410,12 +1505,16 @@ bool vm_execution_destroy(VMExecution *execution)
         return false;
     }
     tcp_exchange_destroy(execution->tcp);
+    http_stream_read_cancel(execution->http_read);
     http_transport_destroy(execution->http);
     root_read_destroy(execution->root_read);
     console_write_destroy(execution->console_write);
+    console_read_destroy(execution->console_read);
+    process_async_destroy(execution->process);
     tcp_server_destroy(execution->server);
     restore_stop_signals(execution);
-    filesystem_stage_destroy(execution->vm);
+    if (execution->embedded) filesystem_stage_destroy_deferred(execution->vm);
+    else filesystem_stage_destroy(execution->vm);
     gzip_stream_destroy(execution->vm);
     http_stream_destroy(execution->vm);
     digest_destroy(execution->vm);
@@ -1469,6 +1568,21 @@ Value *execute(VM *vm, Function *function, Value **arguments)
                 vm_execution_pump_server(&execution, 1024, active ? 1 : 10);
                 continue;
             }
+            if (status == VM_WAITING && execution.process) {
+                if (!active) process_async_wait(execution.process);
+                vm_execution_poll_network(&execution, 0);
+                continue;
+            }
+            if (status == VM_WAITING && execution.sleeping) {
+                if (!active) host_sleep_wait(execution.sleep_deadline);
+                vm_execution_poll_network(&execution, 0);
+                continue;
+            }
+            if (status == VM_WAITING && execution.console_read) {
+                if (!active) console_read_wait(execution.console_read);
+                vm_execution_poll_console_input(&execution);
+                continue;
+            }
             if (status == VM_WAITING && execution.console_write) {
                 if (!active) console_write_wait(execution.console_write);
                 vm_execution_poll_console(&execution);
@@ -1480,7 +1594,7 @@ Value *execute(VM *vm, Function *function, Value **arguments)
                 continue;
             }
             if (status != VM_WAITING || !execution.waiting_read) break;
-            if (execution.tcp || execution.http) {
+            if (execution.tcp || execution.http || execution.http_read) {
                 vm_execution_poll_network(&execution, active ? 1 : 1000);
                 continue;
             }
@@ -1495,9 +1609,12 @@ Value *execute(VM *vm, Function *function, Value **arguments)
         vm->http_runtime = NULL;
     }
     tcp_exchange_destroy(execution.tcp);
+    http_stream_read_cancel(execution.http_read);
     http_transport_destroy(execution.http);
     root_read_destroy(execution.root_read);
     console_write_destroy(execution.console_write);
+    console_read_destroy(execution.console_read);
+    process_async_destroy(execution.process);
     tcp_server_destroy(execution.server);
     restore_stop_signals(&execution);
     filesystem_stage_destroy(vm);
@@ -1509,6 +1626,7 @@ Value *execute(VM *vm, Function *function, Value **arguments)
     constants_clear(&execution);
     release(execution.http_waiting);
     vm->execution = NULL;
+    if (owns_runtime) { filesystem_stage_drain_cleanup(); process_async_drain(); }
     if (owns_runtime && !vm->error && (execution.status == VM_EXITED || runtime.exit_requested)) {
         Value *code = value_size(runtime.exit_requested ? runtime.exit_status : execution.exit_status);
         if (!code) vm->error = "native VM out of memory";
@@ -1563,7 +1681,7 @@ Value *vm_fake_read_result(bool fail)
 bool vm_execution_complete_read(VMExecution *execution, Value *result)
 {
     if (execution->running || execution->status != VM_WAITING || !execution->waiting_read ||
-        execution->tcp || execution->http) {
+        execution->tcp || execution->http || execution->http_read) {
         return false;
     }
     execution->waiting_read = false;
@@ -1611,6 +1729,38 @@ bool vm_execution_poll_http(VMExecution *execution, unsigned max_wait_ms)
         vm_execution_complete_read(execution, http_transport_result(http));
         http_transport_destroy(http);
     }
+    return true;
+}
+
+bool vm_execution_enable_process(VMExecution *execution)
+{
+    if (execution->running || execution->status != VM_YIELDED) return false;
+    execution->process_enabled = true;
+    return true;
+}
+
+bool vm_execution_enable_console_input(VMExecution *execution)
+{
+    if (execution->running || execution->status != VM_YIELDED) return false;
+    execution->input_enabled = true;
+    return true;
+}
+
+bool vm_execution_poll_console_input(VMExecution *execution)
+{
+    if (execution->running || execution->status != VM_WAITING || !execution->console_read) return false;
+    if (!console_read_poll(execution->console_read)) return true;
+    Value *result = console_read_result(execution->console_read);
+    if (!result || !stack_push(&execution->frames[execution->frame_count - 1], result)) {
+        execution->vm->error = "native VM out of memory";
+    } else console_read_accept(execution->console_read);
+    console_read_destroy(execution->console_read);
+    execution->console_read = NULL;
+    execution->status = execution->vm->error ? VM_TRAPPED : VM_YIELDED;
+    if (execution->vm->error) {
+        vm_coverage_terminal(execution->vm->coverage, 2);
+        frames_clear(execution);
+    } else coverage_complete_pending(execution);
     return true;
 }
 
@@ -1672,6 +1822,7 @@ bool vm_execution_poll_filesystem(VMExecution *execution)
         (!result || !stack_push(&execution->frames[execution->frame_count - 1], retain(result)))) {
         execution->vm->error = "native VM out of memory";
     }
+    if (!execution->vm->error) root_read_accept(execution->root_read);
     root_read_destroy(execution->root_read);
     execution->root_read = NULL;
     execution->status = execution->vm->error ? VM_TRAPPED : VM_YIELDED;
@@ -1686,6 +1837,48 @@ bool vm_execution_poll_filesystem(VMExecution *execution)
 
 bool vm_execution_poll_network(VMExecution *execution, unsigned max_wait_ms)
 {
+    if (execution->http_read) {
+        if (execution->running || execution->status != VM_WAITING) return false;
+        if (!http_stream_read_poll(execution->http_read, max_wait_ms)) return true;
+        Value *result = http_stream_read_finish(execution->http_read);
+        execution->http_read = NULL;
+        vm_execution_complete_read(execution, result);
+        release(result);
+        return true;
+    }
+    if (execution->process) {
+        if (execution->running || execution->status != VM_WAITING) return false;
+        if (!process_async_poll(execution->process)) return true;
+        Value *result = process_async_result(execution->process);
+        execution->vm->error = process_async_error(execution->process);
+        if (!execution->vm->error &&
+            (!result || !stack_push(&execution->frames[execution->frame_count - 1], retain(result))))
+            execution->vm->error = "native VM out of memory";
+        process_async_destroy(execution->process);
+        execution->process = NULL;
+        execution->status = execution->vm->error ? VM_TRAPPED : VM_YIELDED;
+        if (execution->vm->error) {
+            vm_coverage_terminal(execution->vm->coverage, 2);
+            frames_clear(execution);
+        } else coverage_complete_pending(execution);
+        return true;
+    }
+    if (execution->sleeping) {
+        if (execution->running || execution->status != VM_WAITING) return false;
+        Value *result = NULL;
+        if (!host_sleep_poll(execution->sleep_deadline, &result)) return true;
+        execution->sleeping = false;
+        if (!result || !stack_push(&execution->frames[execution->frame_count - 1], result)) {
+            execution->vm->error = "native VM out of memory";
+        }
+        execution->status = execution->vm->error ? VM_TRAPPED : VM_YIELDED;
+        if (execution->vm->error) {
+            vm_coverage_terminal(execution->vm->coverage, 2);
+            frames_clear(execution);
+        } else coverage_complete_pending(execution);
+        return true;
+    }
+    if (execution->console_read) return vm_execution_poll_console_input(execution);
     if (execution->console_write) {
         return vm_execution_poll_console(execution);
     }

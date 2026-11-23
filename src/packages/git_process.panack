@@ -1,6 +1,6 @@
 pub import project/src/packages/diagnostic::{PackageProblem}
 import project/src/packages/diagnostic::{host_detail, package_problem, problem_label, explain_problem}
-import stdlib/process as process
+import stdlib/process/legacy as process
 import stdlib/bytes as byte_buffer
 import stdlib/time as time
 import stdlib/path as path

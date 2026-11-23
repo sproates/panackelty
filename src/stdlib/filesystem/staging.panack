@@ -1,0 +1,28 @@
+import stdlib/filesystem/errors::{FilesystemOperation.CreateStage, FilesystemOperation.StagePath, FilesystemOperation.StageCreateDirectory, FilesystemOperation.StageWriteChunk, FilesystemOperation.StageCreateSymlink, FilesystemOperation.StagePublish, FilesystemOperation.StageDiscard}
+import stdlib/filesystem/errors as errors
+pub import stdlib/filesystem/errors::{FilesystemError, FilesystemErrorKind, FilesystemOperation}
+pub import stdlib/host::{HostError}
+pub enum PublishMode { CreateOnly, ReplaceExisting }
+
+pub create(parent: Path): Result[DirectoryStage,FilesystemError] {
+  errors.convert(stage_create(parent), CreateStage(parent))
+}
+pub path(stage: DirectoryStage): Result[Path,FilesystemError] {
+  errors.convert(stage_path(stage), StagePath())
+}
+pub create_directory(stage: DirectoryStage, relative: Path): Result[Unit,FilesystemError] {
+  errors.convert(stage_directory(stage, relative), StageCreateDirectory(relative))
+}
+pub write_chunk(stage: DirectoryStage, relative: Path, data: Bytes, offset: Nat): Result[Unit,FilesystemError] {
+  errors.convert(stage_write(stage, relative, data, offset), StageWriteChunk(relative, offset))
+}
+pub create_symlink(stage: DirectoryStage, relative: Path, target: Path): Result[Unit,FilesystemError] {
+  errors.convert(stage_symlink(stage, relative, target), StageCreateSymlink(relative, target))
+}
+pub publish(stage: DirectoryStage, name: Path, mode: PublishMode): Result[Unit,FilesystemError] {
+  replace = match mode { CreateOnly() => false, ReplaceExisting() => true }
+  errors.convert(stage_publish(stage, name, replace), StagePublish(name, replace))
+}
+pub discard(stage: DirectoryStage): Result[Unit,FilesystemError] {
+  errors.convert(stage_discard(stage), StageDiscard())
+}

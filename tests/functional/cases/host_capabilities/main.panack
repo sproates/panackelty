@@ -1,8 +1,8 @@
 import stdlib/filesystem_stage as staging
 import stdlib/bounded_filesystem as bounded
-import stdlib/filesystem as std_filesystem
+import stdlib/filesystem/legacy as std_filesystem
 import stdlib/host as std_host
-import stdlib/process as std_process
+import stdlib/process/legacy as std_process
 import stdlib/time as std_time
 import stdlib/path as std_path
 import stdlib/host::{HostError}

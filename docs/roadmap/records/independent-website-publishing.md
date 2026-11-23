@@ -1355,3 +1355,34 @@ The [decision process](../ROADMAP_PROCESS.md) is authoritative for these rules.
   [the profiling report](../../../tests/VALIDATION_PROFILE.md), behavioral evidence in
   [the coverage matrix](../../../tests/COVERAGE.md), and bootstrap history in
   [the self-hosting record](../../internals/SELF_HOSTING.md).
+
+### Alpha.16 async stdlib follow-up, 8 November 2026
+
+Before announcing these APIs in alpha.16, update the stdlib and HTTP examples to
+show `stdlib/time/async`, `stdlib/environment/async`, and the existing host/file
+async counterparts. Include the uptime example and make the supported-toolchain
+requirement explicit. Prerequisites: merged/validated core implementation and
+matching release/browser consumers. Owner: release maintainer. No website change
+is authorised or needed now; the live site's alpha.15 claims remain unchanged.
+
+On 8 November the owner expanded this follow-up into a stdlib documentation
+deliverable alongside the async programme: a discoverable stdlib index and
+time/duration, filesystem/path, process, console/environment and relevant
+streaming references with tested examples. See the
+[programme boundary](../../ASYNC_DESIGN_DISCUSSION.md#expanded-async-stdlib-and-documentation-programme-8-november-2026).
+This authorises preparation and preview, not publishing development APIs as
+released or editing published articles without showing the changes.
+
+The filesystem error delivery adds FilesystemError, operation/path context,
+rendered diagnostics and explicit filesystem/legacy migration imports to this
+existing alpha.16 reference follow-up. Cover both ordinary and async examples.
+Owner and release prerequisites remain unchanged; no site publication is included.
+
+The same alpha.16 stdlib follow-up includes Sha256Error/GzipError categories,
+rendering, retry/lifecycle guidance and cumulative creation quotas in digest/gzip
+reference pages. Core integration/release prerequisites and publication permissions
+are unchanged.
+
+The existing alpha.16 stdlib follow-up also covers HttpStreamError: first-read connection failures, shared ordinary/async error kinds, preserved TLS details, explicit rendering and unchanged legacy/high-level HTTP APIs. Publish with the accepted core reference, not as a claim about alpha.15.
+
+The alpha.16 stdlib reference follow-up includes TcpError and the opt-in `http/client/async` diagnostic API, callback ambiguity and migration from legacy Str errors. The live alpha.15 HTTP guides must not claim these development APIs before release acceptance.

@@ -3,7 +3,7 @@ import project/src/packages/archive::{stage_archive, discard_archive}
 import project/src/packages/tree_digest::{tree_digest, verify_tree_problem, ArchiveEntry}
 import stdlib/testing as testing
 import stdlib/host as host
-import stdlib/filesystem as filesystem
+import stdlib/filesystem/legacy as filesystem
 import stdlib/path as path
 
 pure code[T](result: Result[T, PackageProblem]): Str {

@@ -31,12 +31,20 @@ typedef enum {
     V_ITER,
     V_HTTP_STATE,
     V_HTTP_WRITER,
-    V_HTTP_CONNECTION
+    V_HTTP_CONNECTION,
+    V_DIRECTORY_STAGE,
+    V_HTTP_STREAM,
+    V_SHA256_CONTEXT,
+    V_GZIP_DECODER
 } ValueKind;
 
 typedef struct Value Value;
 typedef struct ArrayStorage ArrayStorage;
 typedef struct CollectionIndex CollectionIndex;
+typedef struct VMStageOwner VMStageOwner;
+typedef struct VMHttpStreams VMHttpStreams;
+typedef struct VMDigests VMDigests;
+typedef struct VMGzipStreams VMGzipStreams;
 typedef struct VMHttpState VMHttpState;
 typedef struct VMHttpWriter VMHttpWriter;
 typedef struct VMHttpConnection VMHttpConnection;
@@ -95,6 +103,10 @@ struct Value {
         Sequence sequence;
         NamedValues named;
         Iterator iterator;
+        struct { VMStageOwner *owner; size_t slot; } directory_stage;
+        struct { VMHttpStreams *owner; size_t slot; } http_stream;
+        struct { VMDigests *owner; size_t slot; } sha256;
+        struct { VMGzipStreams *owner; size_t slot; } gzip;
         VMHttpState *http_state;
         VMHttpWriter *http_writer;
         VMHttpConnection *http_connection;

@@ -115,3 +115,13 @@ supply investigation evidence only, not acceptance of the proposed implementatio
 - [Clock implementation](../src/vm/host_types.c)
 - [HTTP context and handler signatures](../packages/http/src/server.panack)
 - [Internal HTTP runtime bridge](../src/stdlib/http_runtime.panack)
+
+## Implementation follow-up, 8 November 2026
+
+The [approved batch](ASYNC_DESIGN_DISCUSSION.md#implementation-batch-selected-8-november-2026)
+implements explicit async clock and environment APIs plus consistent import paths
+for existing async host/filesystem operations. The [uptime service](../examples/network/http_uptime/README.md)
+uses a start instant carried in immutable context. The historical alpha.15
+findings above remain evidence of the original restriction, not a description of
+the development branch after this batch. The counter/shared-state gap remains
+open; this implementation does not relax the ordinary-call effect boundary.

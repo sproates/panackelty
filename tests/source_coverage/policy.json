@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Review module-summary imports, metadata records and shifted declaration positions.",
+    "reason": "Review TCP domain error module against production declaration inventory.",
     "basis": "Computed with the production parser and inventory_module over every eligible source. Only imports, type refinements, records and enums are excluded; executable functions remain eligible.",
-    "scopeChange": "Adds module_summaries.panack to eligible source; the existing executable corpus remains unchanged. Only imports, type refinements, records and enums are excluded; no executable functions are excluded."
+    "scopeChange": "New TCP error module explicitly unmeasured; focused unit and loopback fixtures cover behavior. Existing eligible scope unchanged."
   },
-  "manifestHash": "1eaf4a60e1fd992b00472c01ce7f7c511e648664d14fb6d95f48f881fa3e639e",
-  "exclusionHash": "98640697c26308e0b9df8b089af6bf96f531faa1dcb78538914082035281322a"
+  "manifestHash": "a9b706aa4dda2cb6304b8717dfa6812c6de3321fcd37aa34abcae19d12360951",
+  "exclusionHash": "72ce6e8053e56bff6f8520320e0f8fb13e2c6c286bd2d503efb00504294dc5fc"
 }

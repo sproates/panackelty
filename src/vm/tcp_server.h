@@ -38,6 +38,7 @@ VMTcpServer *tcp_server_start_http(const VM *vm, Function *worker, Value *handle
 /* Grant before pumping; children inherit only this explicit filesystem grant. */
 void tcp_server_enable_filesystem(VMTcpServer *server);
 /* Console access is separate from filesystem and outbound network grants. */
+void tcp_server_enable_process(VMTcpServer *server);
 void tcp_server_enable_console(VMTcpServer *server);
 bool tcp_server_done(const VMTcpServer *server);
 Value *tcp_server_result(const VMTcpServer *server);     /* borrowed */

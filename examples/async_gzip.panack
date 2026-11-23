@@ -1,0 +1,63 @@
+import stdlib/compression/gzip/async as gzip
+import stdlib/encoding/utf8 as utf8
+import stdlib/console/async as console
+import stdlib/host/async as host
+
+// A complete gzip member containing "hello"; no external file is required.
+pure compressed_greeting(): Bytes {
+  mut data = bytes()
+  for value in [31, 139, 8, 0, 0, 0, 0, 0, 0, 19, 203, 72, 205, 201, 201, 7, 0, 134, 166, 16, 54, 5, 0, 0, 0] { data = data.push(value) }
+  data
+}
+
+async decode_small_message(data: Bytes): Result[Bytes,Str] {
+  // This recipe accepts one complete, small message with a 1 KiB output budget.
+  match await gzip.create_decoder(1024) {
+    Error(problem) => Error(problem.render()),
+    Ok(decoder) => {
+      mut result: Result[Bytes,Str] = Ok(bytes())
+      mut offset: Nat = 0
+      mut finished = false
+      mut failed = false
+      while !finished && !failed {
+        match await gzip.decode_chunk(decoder, data.slice(offset, data.len()), true) {
+          Error(problem) => { result = Error(problem.render()); failed = true },
+          Ok(chunk) => {
+            offset = offset + chunk.consumed
+            finished = chunk.finished
+            result = match result {
+              Error(message) => Error(message),
+              Ok(output) => Ok(output.join(chunk.data))
+            }
+          }
+        }
+      }
+      // Unlike SHA-256 finish, completing gzip decoding does not close the handle.
+      match await gzip.close(decoder) {
+        Ok(closed) => result,
+        Error(cleanup) => match result {
+          Ok(output) => Error(cleanup.render()),
+          Error(message) => Error(message + "\nCleanup also failed: " + cleanup.render())
+        }
+      }
+    }
+  }
+}
+
+async main(): Unit {
+  match await decode_small_message(compressed_greeting()) {
+    Error(message) => {
+      reported = await console.write_error_line(message)
+      await host.exit(1)
+    },
+    Ok(data) => match utf8.decode(data) {
+      Error(decode_error) => {
+        reported = await console.write_error_line("The decompressed message is not valid UTF-8.")
+        await host.exit(1)
+      },
+      Ok(message) => match await console.write_line(message) {
+        Error(write_error) => await host.exit(1), Ok(written) => ()
+      }
+    }
+  }
+}

@@ -6,7 +6,7 @@ import stdlib/time as std_time
 import stdlib/path as std_path
 import stdlib/host as std_host
 import stdlib/bytes as byte_buffer
-import stdlib/filesystem as std_filesystem
+import stdlib/filesystem/legacy as std_filesystem
 
 pure runner_path(text: Str): Path {
   std_path.from_text(text).value_or(std_path.current())
@@ -39,7 +39,7 @@ main(): Void {
     expected_text = "${expected_text}PASS case/${name}/source\nPASS case/${name}/compile\nPASS case/${name}/bytecode\n"
   }
   expected_text = "${expected_text}PASS selected fixture count\n"
-  examples = ["callables", "collections_and_bytes", "count_votes", "decimal", "decode_message",
+  examples = ["async_console_input", "async_digest", "async_gzip", "async_pipe_input", "async_publish_note", "async_temporary_note", "async_timing", "callables", "collections_and_bytes", "count_votes", "decimal", "decode_message",
     "euler001", "euler001_iterative", "euler002", "euler003", "euler004", "euler005",
     "fibonacci", "find_files", "fizzbuzz", "generic_functions", "generic_methods", "guards", "host_failures", "infinite_stream",
     "lexer_foundation", "option_result", "owned_methods", "palindrome", "pipe_input",
@@ -90,7 +90,7 @@ main(): Void {
     }
     expected_text = "${expected_text}PASS failure/${name}/no artifact\n"
   }
-  expected = "${expected_text}PASS selected failure count\ntests: 589, failures: 0\n".encode_utf8()
+  expected = "${expected_text}PASS selected failure count\ntests: 610, failures: 0\n".encode_utf8()
   command = TestCommand(runner_path("./bin/panack"),
     ["run", "tests/runner/main.panack"], byte_buffer.empty(), std_path.current(),
     runner_test_environment(),

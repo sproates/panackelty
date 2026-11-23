@@ -367,6 +367,58 @@ static int routed_shutdown(const char *port, const char *control, int destroy)
     return result ? 1 : 0;
 }
 
+static int read_uptime(const char *port, unsigned long long *ticks)
+{
+    int fd = connect_to(port);
+    if (fd < 0) return -1;
+    const char *request = "GET /health HTTP/1.1\r\nHost: example.test\r\nConnection: close\r\n\r\n";
+    int result = send_all(fd, request, strlen(request));
+    char response[4096];
+    size_t used = 0;
+    while (!result && used < sizeof(response) - 1) {
+        ssize_t count = read(fd, response + used, sizeof(response) - used - 1);
+        if (count == 0) break;
+        if (count < 0) { result = -1; break; }
+        used += (size_t)count;
+    }
+    close(fd);
+    response[used] = 0;
+    char *body = strstr(response, "\r\n\r\nuptime_ns=");
+    if (result || !body || strncmp(response, "HTTP/1.1 200 OK", 15) ||
+        !strstr(response, "X-Service: uptime-test\r\n")) return -1;
+    char *number = body + strlen("\r\n\r\nuptime_ns=");
+    char *end;
+    errno = 0;
+    *ticks = strtoull(number, &end, 10);
+    return errno || end == number || *end || *number == '-' ? -1 : 0;
+}
+
+static int uptime_progress(const char *port)
+{
+    unsigned long long first, second;
+    if (read_uptime(port, &first)) return 1;
+    struct timespec delay = {.tv_nsec = 20000000};
+    nanosleep(&delay, NULL);
+    if (read_uptime(port, &second)) return 1;
+    return second > first ? 0 : 1;
+}
+
+static int process_progress(const char *port, const char *started)
+{
+    int slow = connect_to(port);
+    if (slow < 0) return 1;
+    const char *request = "GET /slow HTTP/1.1\r\nHost: local\r\n\r\n";
+    if (send_all(slow, request, strlen(request))) { close(slow); return 1; }
+    struct timespec pause = {.tv_nsec = 1000000};
+    size_t tries;
+    for (tries = 0; tries < 5000 && access(started, F_OK); tries++) nanosleep(&pause, NULL);
+    if (tries == 5000) { close(slow); return 1; }
+    int failed = exchange(port, "GET /release HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\nok", 0);
+    if (!failed) failed = response_contains(slow, "200 OK", "\r\n\r\nok", 0);
+    close(slow);
+    return failed ? 1 : 0;
+}
+
 int main(int argc, char **argv)
 {
     signal(SIGPIPE, SIG_IGN);
@@ -391,9 +443,13 @@ int main(int argc, char **argv)
     }
     if (argc == 4 && (!strcmp(argv[2], "close") || !strcmp(argv[2], "destroy") || !strcmp(argv[2], "escalate")))
         return routed_shutdown(argv[1], argv[3], !strcmp(argv[2], "escalate") ? 2 : !strcmp(argv[2], "destroy"));
+    if (argc == 4 && !strcmp(argv[2], "process-progress")) return process_progress(argv[1], argv[3]);
     if (argc != 3) return 2;
     const char *port = argv[1];
     const char *mode = argv[2];
+    if (!strcmp(mode, "stream-progress"))
+        return exchange(port, "GET /stream HTTP/1.1\r\nHost: local\r\nConnection: close\r\n\r\n", "200 OK", "stream-ok", 0) ? 1 : 0;
+    if (!strcmp(mode, "uptime")) return uptime_progress(port);
     if (!strcmp(mode, "example-ordinary")) {
         return exchange(port, "GET / HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\nHello", 0) ||
             exchange(port, "GET /health HTTP/1.1\r\nHost: local\r\n\r\n", "200 OK", "\r\n\r\nOK", 0) ||

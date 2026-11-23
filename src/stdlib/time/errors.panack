@@ -1,0 +1,31 @@
+pub import stdlib/host::{HostError}
+pub enum SleepErrorKind { NegativeDuration, DurationTooLarge, TimerFailure, UnsupportedHost, OtherFailure }
+pub record SleepError { duration: Duration, kind: SleepErrorKind, native: HostError }
+impl SleepError {
+  pub pure render(): Str {
+    nanoseconds = self.duration.as_nanoseconds()
+    reason = match self.kind {
+      NegativeDuration() => "the duration is negative. Use zero or a positive duration",
+      DurationTooLarge() => "the duration exceeds the host timer's supported range (at most 365 days). Choose a shorter duration",
+      TimerFailure() => "the host timer could not complete the wait",
+      UnsupportedHost() => "this host does not support waiting",
+      OtherFailure() => "the host returned an unrecognised timer failure. The native field preserves its details"
+    }
+    number = self.native.native_code
+    detail = if number == 0 { "" } else { " Host error number: ${number}." }
+    "Cannot sleep for ${nanoseconds} nanoseconds: ${reason}.${detail}"
+  }
+}
+pub pure convert(result: Result[Unit,HostError], duration: Duration): Result[Unit,SleepError] {
+  match result {
+    Ok(value) => Ok(value),
+    Error(problem) => {
+      kind = if problem.code == "negative_duration" { NegativeDuration() }
+      else if problem.code == "out_of_range" { DurationTooLarge() }
+      else if problem.code == "io_error" || problem.code == "clock_unavailable" { TimerFailure() }
+      else if problem.code == "unsupported_host" { UnsupportedHost() }
+      else { OtherFailure() }
+      Error(SleepError(duration, kind, problem))
+    }
+  }
+}

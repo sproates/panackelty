@@ -2213,3 +2213,14 @@ tests. Relocated source/bytecode/disassembly acceptance passed.
 The first restricted-environment full run stopped when the packaged HTTP smoke
 fixture could not allocate a loopback port. The focused packaged smoke passed
 with socket access before the successful full rerun; no assertion was relaxed.
+
+## Async stdlib examples (23 November 2026)
+
+Three new named examples (async_timing, async_temporary_note, async_pipe_input)
+pass source, compilation and saved-bytecode transcript checks. Inventory grows
+from 38/589 to 41 examples/598 assertions. Inventory mutation tests and updated
+runner_smoke compilation pass. Only example registration data changes in the
+runners; no execution logic changes. The focused-example route applies on top
+of fully validated revision 3d4daae. Existing domain-error regression fixtures
+retain failure, cancellation and lifecycle coverage; the new examples demonstrate
+normal application use rather than replacing those tests.

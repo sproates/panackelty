@@ -675,3 +675,10 @@ RM#162 HTTP inspection repair (22 November): all HTTP builtin arities and local
 wrapper permissions now match the native verifier in the self-hosted decoder.
 Focused client/server disassembly and native artifact checks pass; final local make check passed in 674s, as did relocated acceptance. No new public API or website change is
 required: this restores inspection of already supported bytecode.
+
+RM#162 / AS5 (23 November): core ordinary/async reference and migration guidance
+now link three validated timing, file-cleanup and subprocess examples. Focused
+source/bytecode, inventory mutation and documentation checks pass. Runtime and
+compiler are unchanged from the preceding full validation. Broader examples,
+website adaptation/review and integration remain; the existing stdlib website
+follow-up applies. No website publication is included.

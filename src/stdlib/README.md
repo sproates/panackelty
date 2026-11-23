@@ -408,3 +408,5 @@ HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibilit
 network/tcp/async exports TcpError, TcpErrorKind and TcpOperation. TCP callbacks retain Str contracts; forward a read_chunk error using render() or native. Legacy tcp/tcp_service remain compatible. HTTP package users can select http/client/async for detailed transport diagnostics.
 
 TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. An additional disassembly check remains blocked by a pre-existing http_body arity-table mismatch, reproduced with the legacy client and previous package manifest. Compiler seed and unchanged-program oracle artifacts remain unchanged. Integration remains pending and development CI stays off.
+
+For the alpha.16 development interfaces, see the [ordinary/async reference](../../docs/reference/STANDARD_LIBRARY.md) and [migration guide](../../docs/guides/STDLIB_MIGRATION.md). These distinguish new APIs from retained compatibility imports.

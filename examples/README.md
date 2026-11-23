@@ -35,6 +35,23 @@ The [validated dispatch example](validated_dispatch.panack) checks retry
 configuration and request labels. Its [walkthrough and migration guide](../docs/guides/VALIDATED_DOMAIN_TYPES.md)
 shows how to handle successful values and report every failed rule.
 
+## Async standard library (alpha.16 development)
+
+These examples require the matching development toolchain; they are not present
+in alpha.15 archives. Each has a source/compiled-bytecode transcript check.
+
+| Program | Demonstrates |
+| --- | --- |
+| [async_timing.panack](async_timing.panack) | Monotonic clock reads and a suspending timer through one time import |
+| [async_temporary_note.panack](async_temporary_note.panack) | Bounded file reads, checked UTF-8 and cleanup after success or failure |
+| [async_pipe_input.panack](async_pipe_input.panack) | Explicit subprocess input/environment/limits and termination handling |
+
+Run with `./bin/panack run examples/async_timing.panack`, substituting another
+filename as needed. The temporary-note example needs a writable current directory;
+the subprocess example needs `/bin/cat`. See the
+[stdlib reference](../docs/reference/STANDARD_LIBRARY.md) and
+[migration guide](../docs/guides/STDLIB_MIGRATION.md).
+
 ## VM walkthroughs
 
 The [VM execution guide](../docs/guides/VM_GUIDE.md) includes disassembly and recorded

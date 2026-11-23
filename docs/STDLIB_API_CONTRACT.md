@@ -682,3 +682,22 @@ HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibilit
 network/tcp/async now returns TcpError, including typed finite-server client outcomes. The HTTP package exports client/async with get/get_with_limits returning HttpClientError, preserving the original HttpError category, optional detailed transport error and safe endpoint context. See [network error contracts](design/STDLIB_DOMAIN_ERRORS.md#tcp-operations). Legacy modules and high-level client/stream contracts remain available.
 
 TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. The subsequent 22 November repair reconciles all 25 HTTP builtin arities and local-resource call permissions in the self-hosted decoder with the native verifier. Focused legacy/diagnostic-client and routed-server disassembly checks pass. The compiler seed is refreshed; unchanged-program native oracle contracts pass. Final local make check passed in 674s (22 November), including all 427 bytecode tests, public HTTP disassembly, packaging and installed smoke. Relocated TCP and diagnostic-client source/bytecode/disassembly acceptance also passed. Integration remains pending and development CI stays off.
+
+## AS5 core documentation and examples (23 November 2026)
+
+Added the [ordinary/async stdlib reference](reference/STANDARD_LIBRARY.md) and
+[migration guide](guides/STDLIB_MIGRATION.md), with development-versus-release
+boundaries and compatibility/error/lifecycle guidance. Three standalone async
+examples cover timing, temporary-file cleanup and bounded subprocesses. All pass
+the named functional runner source/compile/saved-bytecode checks. The inventory
+now contains 41 examples and 598 transcript assertions; its mutation checks pass,
+and the updated smoke fixture compiles. Documentation links pass.
+
+This is a focused example/documentation follow-up to validated revision
+`3d4daae15f5d983a210a50b0a6cf1fdd8ba08f83`; runner edits change only registration
+counts and expected transcript data. Compiler, VM, stdlib implementation and seed
+are unchanged, so the prior full validation is retained for those components.
+No runtime performance impact is expected; the suite gains three short examples.
+AS5 remains in progress: broader examples, website adaptation/review and integration
+are pending. The existing website follow-up applies; no website is changed or
+published by this batch.

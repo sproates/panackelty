@@ -1,8 +1,22 @@
 # Async and HTTP
 
-Native alpha.14 supports `async` functions, explicit `await` and `AsyncFn`
+Native alpha.15 supports `async` functions, explicit `await` and `AsyncFn`
 references. Async operations suspend through the VM's bounded scheduler. General
 source-level task spawning and resource scopes remain future work.
+
+## Alpha.16 development APIs
+
+On the development branch, async handlers can read the clock through
+`stdlib/time/async`, use filesystem and subprocess APIs through their
+`/async` modules, and handle domain-specific errors. Pure helpers still need
+no await. The [stdlib reference](../reference/STANDARD_LIBRARY.md) lists the
+modules and limits; the [migration guide](STDLIB_MIGRATION.md) explains changes
+from the compatibility interfaces. These additions require the development
+compiler, VM and stdlib together.
+
+Try [async timing](../../examples/async_timing.panack),
+[a temporary note with cleanup](../../examples/async_temporary_note.panack), or
+[a bounded subprocess](../../examples/async_pipe_input.panack).
 
 ## Choose the right interface
 
@@ -20,7 +34,7 @@ need `libcurl4`; source builds additionally need `libcurl4-openssl-dev` and
 
 ## Service lifecycle
 
-Alpha.14 exposes `http/server`: create a bound server,
+The released server API exposes `http/server`: create a bound server,
 register named handlers and await `.listen()`. Successful listening returns after
 binding; the native runtime keeps the process alive. `.close()` drains for up to
 one second, `.destroy()` cancels immediately, and SIGINT/SIGTERM perform bounded

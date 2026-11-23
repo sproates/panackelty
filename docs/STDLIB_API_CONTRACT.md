@@ -723,4 +723,4 @@ checks, console Unicode/bounds/failure cases, HTTP 200/404/invalid URL cases,
 45-example/610-assertion inventory mutation checks and documentation links pass.
 Only example/guide/test-registration work changed; compiler, VM, stdlib and
 shared runner logic are unchanged. No full-suite rerun or development CI.
-Website adaptation and owner review remain, as does integration acceptance.
+Website adaptation is ready in [website PR #77](https://github.com/sproates/panackelty-website/pull/77): five development-labelled pages and nine complete examples, with 49 local website tests and assembly checks passing. Desktop and phone-width preview checked; owner review, integration and publication remain pending. No development CI was triggered.

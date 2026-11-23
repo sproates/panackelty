@@ -2243,3 +2243,5 @@ checks, console Unicode/bounds/failure cases, HTTP 200/404/invalid URL cases,
 Only example/guide/test-registration work changed; compiler, VM, stdlib and
 shared runner logic are unchanged. No full-suite rerun or development CI.
 Website adaptation and owner review remain, as does integration acceptance.
+
+Integration follow-up, 23 November: run 45163842662 passed both platform package jobs but stopped before full validation because the manifest regression expected an older unmeasured-source list. The manifest already accounts for the ten added error/compatibility modules with reasons. This correction updates only the explicit expected inventory; coverage eligibility, measurement and thresholds are unchanged. The exact seven-file policy suite passes locally. Hosted full acceptance remains pending a new integration run.

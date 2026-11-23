@@ -360,4 +360,4 @@ proposal-only status, while detailed semantic choices remain explicit. The subse
 filesystem batch now passes local acceptance, recorded in the API contract. It is
 committed on the development branch, not integrated or accepted as all of AS2.
 
-23 November: PR #693 merged as `930f951`; [integration run](https://github.com/sproates/panackelty/actions/runs/45163842662) is running. Website PR #77 has owner preview approval but no publication permission. The implementation is integrated, not yet declared hosted-accepted.
+23 November: PR #693 merged as `930f951`; [integration run](https://github.com/sproates/panackelty/actions/runs/45163842662) stopped at a stale coverage-inventory test; its explicit expectation is corrected and the exact policy suite passes locally. Hosted acceptance is pending a new integration run. Website PR #77 has owner preview approval but no publication permission. The implementation is integrated, not yet declared hosted-accepted.

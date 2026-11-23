@@ -740,3 +740,9 @@ uptime/counter service. Four provisional implementation slices carry weights
 pending; this is not implementation approval or a current language specification.
 No runtime/performance impact or CI is required for this informational record.
 Website and published-article updates await agreement and separate review.
+
+23 November review revision: PR #700 now defines scheduler-preemptible cell
+reservations with cancellation before commit, State identity and closure capture
+equality, explicit resource-capture restrictions, contextual callback parameter
+types and committed-increment counting. Owner contract review remains pending;
+implementation has not started and the proposed weights remain unchanged.

@@ -339,11 +339,11 @@ Implementation has not started and all earned contributions are zero.
 
 | Slice | Deliverable | Weight | Status | Earned |
 | --- | --- | --- | --- | --- |
-| CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | Planned | 0 |
+| CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | In progress: header parsing; expression/checker/lowering pending | 0 |
 | CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | Planned | 0 |
 | CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | Planned | 0 |
 | CS4 | Both service examples, installed acceptance, reference and website guidance | 20 | Planned | 0 |
-| Total | Working callable/state feature | 100 | Approved; implementation not started | 0 |
+| Total | Working callable/state feature | 100 | Implementation in progress; no accepted slice yet | 0 |
 
 Order: CS1, then CS2 and CS3, then CS4. CS3 can use named pure callbacks; it need
 not depend on closure syntax. Implement related work in a development branch with
@@ -389,3 +389,29 @@ cases cover both rules. No scope, weight or implementation-status change.
 Owner approved merging PR #700 on 23 November and requested a stop afterwards.
 The contract is accepted on merge; CS1–CS4 remain unstarted, with zero earned
 implementation contribution. No implementation is authorised by this stop point.
+
+
+## CS1 development checkpoint, 25 November 2026
+
+The owner resumed implementation on `feature/rm162-anonymous-functions` from next
+at `207c067`. The anonymous-header parser now retains typed or context-dependent
+parameters, optional result types, explicit effect markers and source spans;
+parenthesised expressions remain distinguishable without consuming their tokens.
+Focused parser coverage includes duplicate names and missing separators/types.
+All 224 parser assertions pass and the candidate compiler builds and verifies.
+This helper is not yet connected to general expression parsing: anonymous functions
+are not a supported executable feature at this checkpoint.
+
+Remaining CS1 work is explicit expression syntax and body representation,
+contextual parameter/result checking (including map), pure/ordinary/async effects,
+noncapturing callable lowering, diagnostics and source/bytecode regression cases.
+Existing AST, bound-body cache codecs, source inventory and explanation walkers
+must handle the new expression before integration; do not encode it as a magic
+ordinary call or bypass module identity. CS2 owns retained environments and their
+runtime lifetime work. Missing captures in CS1 must receive a clear diagnostic.
+
+No CI or final full validation has run for this in-progress checkpoint. Do not
+refresh the bootstrap seed or integrate a partially supported language feature.
+Run the compatibility preflight and final validation after the CS1 batch settles.
+No performance improvement is claimed; candidate build success is not acceptance
+of the slice. Stable weights and zero accepted implementation contribution remain.

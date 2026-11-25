@@ -1005,6 +1005,127 @@ pure parse_call_type_arguments(tokens: [Token], index: Nat): Result[ParsedTypeRe
   }
 }
 
+// Anonymous headers are parsed independently of contextual type checking. Missing
+// annotations remain absent; they must not become guessed types in the parser.
+pub record AnonymousParameter {
+  name: Str,
+  span: SourceSpan,
+  annotation: Option[ParsedTypeRef]
+}
+
+pub record ParsedAnonymousHeader {
+  effect: Str,
+  parameters: [AnonymousParameter],
+  result: Option[ParsedTypeRef],
+  span: SourceSpan,
+  next: Nat
+}
+
+pure anonymous_header_finish(
+  tokens: [Token], start: Nat, index: Nat, effect: Str,
+  parameters: [AnonymousParameter]
+): Result[ParsedAnonymousHeader, Diagnostic] {
+  mut next: Nat = index
+  mut result: Option[ParsedTypeRef] = None()
+  mut failure: Option[Diagnostic] = None()
+  if next < tokens.len() && tokens[next].text == ":" {
+    match parse_type_ref(tokens, next + 1) {
+      Error(problem) => { failure = Some(problem) },
+      Ok(parsed) => { result = Some(parsed); next = parsed.next }
+    }
+  }
+  match failure {
+    Some(problem) => Error(problem),
+    None() => {
+      if next >= tokens.len() || tokens[next].text != "=>" {
+        Error(parse_error("expected => after anonymous function parameters and result type", token_position(tokens, next)))
+      } else {
+        Ok(ParsedAnonymousHeader(effect, parameters, result,
+          token_span(tokens, start, next + 1), next + 1))
+      }
+    }
+  }
+}
+
+pure anonymous_header_parameters(
+  tokens: [Token], start: Nat, index: Nat, effect: Str,
+  parameters: [AnonymousParameter]
+): Result[ParsedAnonymousHeader, Diagnostic] {
+  if index >= tokens.len() || tokens[index].kind != Identifier() {
+    Error(parse_error("expected anonymous function parameter name", token_position(tokens, index)))
+  } else {
+    name = tokens[index].text
+    mut next: Nat = index + 1
+    mut annotation: Option[ParsedTypeRef] = None()
+    mut failure: Option[Diagnostic] = None()
+    for parameter in parameters {
+      if parameter.name == name {
+        failure = Some(parse_error("anonymous function parameter " + name + " is declared more than once", tokens[index].position))
+      }
+    }
+    if failure == None() && next < tokens.len() && tokens[next].text == ":" {
+      match parse_type_ref(tokens, next + 1) {
+        Error(problem) => { failure = Some(problem) },
+        Ok(parsed) => { annotation = Some(parsed); next = parsed.next }
+      }
+    }
+    match failure {
+      Some(problem) => Error(problem),
+      None() => {
+        values = parameters.append(AnonymousParameter(name, token_span(tokens, index, next), annotation))
+        if next < tokens.len() && tokens[next].text == ")" {
+          anonymous_header_finish(tokens, start, next + 1, effect, values)
+        } else {
+          if next < tokens.len() && tokens[next].text == "," {
+            anonymous_header_parameters(tokens, start, next + 1, effect, values)
+          } else {
+            Error(parse_error("expected comma or closing parenthesis after anonymous function parameter", token_position(tokens, next)))
+          }
+        }
+      }
+    }
+  }
+}
+
+// None means ordinary parenthesised syntax, so lookahead must not consume it.
+// Explicit effect prefixes and a result colon identify an attempted lambda even
+// if malformed, allowing a diagnostic at the actual missing token.
+pub pure parse_anonymous_header(tokens: [Token], index: Nat): Result[Option[ParsedAnonymousHeader], Diagnostic] {
+  mut opening: Nat = index
+  mut effect: Str = "inferred"
+  if opening < tokens.len() && (tokens[opening].text == "pure" || tokens[opening].text == "async") {
+    effect = tokens[opening].text
+    opening = opening + 1
+  }
+  if opening >= tokens.len() || tokens[opening].text != "(" {
+    if effect == "inferred" { Ok(None()) } else {
+      Error(parse_error("expected opening parenthesis after anonymous function effect", token_position(tokens, opening)))
+    }
+  } else {
+    mut cursor: Nat = opening + 1
+    mut depth: Nat = 1
+    while cursor < tokens.len() && depth > 0 {
+      if tokens[cursor].text == "(" { depth = depth + 1 }
+      if tokens[cursor].text == ")" && depth > 0 { depth = depth - 1 }
+      cursor = cursor + 1
+    }
+    candidate: Bool = effect != "inferred" ||
+      (depth == 0 && cursor < tokens.len() && (tokens[cursor].text == "=>" || tokens[cursor].text == ":"))
+    if !candidate { Ok(None()) } else {
+      parsed: Result[ParsedAnonymousHeader,Diagnostic] =
+        if opening + 1 < tokens.len() && tokens[opening + 1].text == ")" {
+          anonymous_header_finish(tokens, index, opening + 2, effect, [])
+        } else {
+          anonymous_header_parameters(tokens, index, opening + 1, effect, [])
+        }
+      match parsed {
+        Error(problem) => Error(problem),
+        Ok(header) => Ok(Some(header))
+      }
+    }
+  }
+}
+
 pure parse_named_expression(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] {
   match parse_call_type_arguments(tokens, index + 1) {
     Error(error) => Error(error),

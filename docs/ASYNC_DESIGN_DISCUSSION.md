@@ -405,3 +405,10 @@ approval remains pending; implementation and proposed weights are unchanged.
 23 November: the owner approved PR #700 for merge and requested a stop. The
 callable/state contract is accepted on merge. CS1–CS4 are planned, unstarted
 (0/100 earned implementation points); work pauses before CS1.
+
+25 November: the owner resumed CS1 on `feature/rm162-anonymous-functions`.
+Anonymous header parsing is under development; 224 parser assertions and the
+candidate compiler build pass. Expression integration, contextual checking,
+effects and lowering remain; no anonymous-function feature is accepted yet.
+CS2–CS4 remain planned. No CI, seed refresh or final full validation at this
+checkpoint; implementation weights and zero accepted contribution are unchanged.

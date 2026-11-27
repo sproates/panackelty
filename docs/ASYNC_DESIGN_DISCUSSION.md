@@ -649,3 +649,11 @@ on `feature/rm162-state-cells`. Focused State/closure tests, sanitizer checks an
 compiler/runtime callable-payload checks remain, followed by final validation.
 See the [CS3 checkpoint](CALLABLES_AND_STATE_PROPOSAL.md#cs3-runtime-foundation-27-november-2026).
 No CI was triggered. CS3 earns 0/30; accepted programme progress remains 50/100.
+
+CS3 execution checkpoint, 27 November: internal ordinary/async State operations
+now use budgeted callback execution, wait polling and reservation cleanup.
+Controlled contention/cancellation/deadline tests, the complete native module
+suite, sanitizer checks and 57 State allocation-failure cases pass. Public APIs,
+compiler admission and final source/bytecode acceptance remain. See the
+[scheduling checkpoint](CALLABLES_AND_STATE_PROPOSAL.md#cs3-execution-scheduling-27-november-2026).
+CS3 remains in progress (0/30); accepted programme progress remains 50/100. No CI.

@@ -22,6 +22,7 @@
 #include "tcp_server.h"
 #include "utf8.h"
 #include "value.h"
+#include "state.h"
 #include "verify.h"
 #include "vm.h"
 
@@ -86,6 +87,9 @@ struct VMExecution {
     bool sleeping;
     bool console_enabled, yield_requested;
     Value *http_waiting;
+    Value *state_waiting, *state_transform;
+    StateReservation state_reservation;
+    size_t state_return_depth;
 #ifndef __wasi__
     bool owns_stop_signals;
     struct sigaction previous_interrupt, previous_terminate;
@@ -346,6 +350,11 @@ static void coverage_complete_pending(VMExecution *execution)
 
 static void frames_clear(VMExecution *execution)
 {
+    state_abort(&execution->state_reservation);
+    release(execution->state_waiting);
+    release(execution->state_transform);
+    execution->state_waiting = execution->state_transform = NULL;
+    execution->state_return_depth = 0;
     while (execution->frame_count) {
         frame_free(&execution->frames[--execution->frame_count]);
     }
@@ -569,10 +578,60 @@ static Value *http_unit_result(void)
     return result;
 }
 
+static void state_error(VM *vm, StateStatus status)
+{
+    vm->error = status == STATE_OUT_OF_MEMORY ? "native VM out of memory"
+        : "VM trap: State requires immutable data without cells, callables or resources";
+}
+
+/* Start the transform on this execution's normal budgeted frame stack. Retrying
+ * a reservation never runs the callback; only its successful owner invokes it. */
+static Value *execution_state(VMExecution *execution, Value *cell, Value *transform)
+{
+    VM *vm = execution->vm;
+    StateStatus status;
+    if (!transform) {
+        Value *result = state_read(cell, &status);
+        if (status == STATE_OK) return result;
+    } else {
+        VMCallable callback = vm_resolve_callable(vm, transform, 1);
+        if (!callback.function || !callback.function->pure || callback.function->is_async) {
+            vm->error = "VM trap: State update requires a pure one-argument callback";
+            return NULL;
+        }
+        status = state_reserve(cell, &execution->state_reservation);
+        if (status == STATE_OK) {
+            Value *snapshot = state_reserved_read(&execution->state_reservation);
+            execution->state_return_depth = execution->frame_count;
+            if (callback.closure) frame_push_captured(execution, callback.function, &snapshot,
+                callback.closure->as.named.values, callback.closure->as.named.count);
+            else frame_push(execution, callback.function, &snapshot);
+            release(snapshot);
+            return NULL;
+        }
+    }
+    if (status == STATE_BUSY) {
+        execution->state_waiting = retain(cell);
+        execution->state_transform = retain(transform);
+        execution->status = VM_WAITING;
+    } else state_error(vm, status);
+    return NULL;
+}
+
 static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Value **arguments,
                                 bool *called_function)
 {
     *called_function = false;
+    if (entry->dispatch == BUILTIN_STATE_CREATE) {
+        StateStatus status;
+        Value *result = state_create(arguments[0], &status);
+        if (!result) state_error(execution->vm, status);
+        return result;
+    }
+    if (entry->dispatch == BUILTIN_STATE_READ || entry->dispatch == BUILTIN_STATE_UPDATE) {
+        *called_function = entry->dispatch == BUILTIN_STATE_UPDATE;
+        return execution_state(execution, arguments[0], *called_function ? arguments[1] : NULL);
+    }
     if (entry->dispatch == BUILTIN_HTTP_CONNECTION_CONTINUE) {
         if (tcp_server_http_continue(execution->vm, arguments[0])) {
             execution->waiting_read = true;
@@ -1335,6 +1394,16 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
 #endif
             frame_free(frame);
             execution->frame_count--;
+            if (execution->state_reservation.cell &&
+                execution->frame_count == execution->state_return_depth) {
+                StateStatus status = state_commit(&execution->state_reservation, v);
+                execution->state_return_depth = 0;
+                if (status != STATE_OK) {
+                    release(v);
+                    state_error(vm, status);
+                    break;
+                }
+            }
             if (!execution->frame_count) {
                 execution->result = v;
                 execution->status = VM_COMPLETED;
@@ -1508,7 +1577,7 @@ bool vm_execution_complete_print(VMExecution *execution, const char *error)
 {
     if (execution->running || execution->status != VM_WAITING || execution->waiting_read ||
         execution->server || execution->http_waiting || execution->console_write || execution->console_read ||
-        execution->root_read || execution->process || execution->sleeping) {
+        execution->root_read || execution->process || execution->sleeping || execution->state_waiting) {
         return false;
     }
     VM *vm = execution->vm;
@@ -1607,6 +1676,11 @@ Value *execute(VM *vm, Function *function, Value **arguments)
             if (status == VM_YIELDED) continue;
             if ((status == VM_COMPLETED || status == VM_EXITED) && owns_runtime && http_runtime_active(&runtime)) continue;
             if (status == VM_WAITING && execution.http_waiting) continue;
+            if (status == VM_WAITING && execution.state_waiting) {
+                if (!active) { vm->error = "VM trap: State owner has no active scheduler"; break; }
+                vm_execution_poll_network(&execution, 0);
+                continue;
+            }
             if (status == VM_WAITING && execution.server) {
                 vm_execution_pump_server(&execution, 1024, active ? 1 : 10);
                 continue;
@@ -1899,6 +1973,24 @@ bool vm_execution_poll_filesystem(VMExecution *execution)
 
 bool vm_execution_poll_network(VMExecution *execution, unsigned max_wait_ms)
 {
+    if (execution->state_waiting) {
+        if (execution->running || execution->status != VM_WAITING) return false;
+        if (execution->state_waiting->as.state.reservation) return true;
+        Value *cell = execution->state_waiting, *transform = execution->state_transform;
+        execution->state_waiting = execution->state_transform = NULL;
+        execution->status = VM_YIELDED;
+        Value *result = execution_state(execution, cell, transform);
+        if (result && !stack_push(&execution->frames[execution->frame_count - 1], result))
+            execution->vm->error = "native VM out of memory";
+        release(cell);
+        release(transform);
+        if (execution->vm->error) {
+            execution->status = VM_TRAPPED;
+            vm_coverage_terminal(execution->vm->coverage, 2);
+            frames_clear(execution);
+        } else if (result) coverage_complete_pending(execution);
+        return true;
+    }
     if (execution->http_read) {
         if (execution->running || execution->status != VM_WAITING) return false;
         if (!http_stream_read_poll(execution->http_read, max_wait_ms)) return true;

@@ -69,7 +69,21 @@ bool builtin_is_local_state(const Builtin *entry)
                      entry->call == builtins_http_connection_call);
 }
 
+static Value *state_execution_only(VM *vm, const char *name, Value **arguments)
+{
+    (void)name;
+    (void)arguments;
+    vm->error = "VM trap: State operation requires an execution";
+    return NULL;
+}
+
 static const Builtin BUILTINS[] = {
+    {"$intrinsic_state_create", 1, false, BUILTIN_STATE_CREATE, state_execution_only},
+    {"$intrinsic_state_read", 1, false, BUILTIN_STATE_READ, state_execution_only},
+    {"$intrinsic_state_update", 2, false, BUILTIN_STATE_UPDATE, state_execution_only},
+    {"$intrinsic_state_create_async", 1, false, BUILTIN_STATE_CREATE, async_service_only},
+    {"$intrinsic_state_read_async", 1, false, BUILTIN_STATE_READ, async_service_only},
+    {"$intrinsic_state_update_async", 2, false, BUILTIN_STATE_UPDATE, async_service_only},
     {"$intrinsic_closure", 3, true, BUILTIN_ORDINARY, closure_create},
     {"http_bytes_slice", 3, true, BUILTIN_ORDINARY, builtins_http_connection_call},
     {"http_body", 1, false, BUILTIN_ORDINARY, builtins_http_connection_call},

@@ -341,7 +341,7 @@ CS1 is accepted after local and hosted integration validation.
 | --- | --- | --- | --- | --- |
 | CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | Complete: PR #701 and integration run 46042786755 passed | 20 |
 | CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | Complete: PRs #704/#705; integration run 46067730132 passed | 30 |
-| CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | In progress: VM cell/reservation foundation | 0 |
+| CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | In progress: VM cells and execution scheduling | 0 |
 | CS4 | Both service examples, installed acceptance, reference and website guidance | 20 | Planned | 0 |
 | Total | Working callable/state feature | 100 | CS1–CS2 accepted; CS3 in progress; CS4 planned | 50 |
 
@@ -747,3 +747,34 @@ values. These internal tests do not establish that source or untrusted-bytecode
 State admission is complete. Bootstrap/full validation and integration await the
 completed slice. No CI was triggered. CS3 earns 0/30; accepted programme progress
 remains 50/100, with CS4 planned.
+
+### CS3 execution scheduling, 27 November 2026
+
+Ordinary and async internal State operations now share the reservation machinery.
+An update runs its pure callback once on the execution's normal budgeted frame
+stack. A busy read/update waits without blocking other executions; polling starts
+work only after the owner releases the cell. Frame unwinding releases reservations
+and pending arguments on traps, cancellation and allocation failures. Commit is
+at the callback return boundary, before delivering the result to its caller.
+
+Controlled instruction-budget tests cover overlapping updates returning 1 then 2,
+ordinary/async contention, independent-cell progress, waiting cancellation,
+mid-callback cancellation, callback traps, cancellation after commit, retained
+capture callbacks and rejection of callable replacement payloads. Virtual-time
+task tests stop an endless callback at its existing deadline and resume a waiting
+reader; no sleep or timing threshold is involved. Forged effect tests reject
+impure callbacks, effects inside pure-labelled callbacks and pure callers trying
+to create/update State. Unrelated host-print completions cannot resume State waits.
+
+The complete native module regression suite passed, including task, resumable,
+HTTP/TCP and coverage checks. State and call-link sanitizer checks passed; 57
+State allocation-failure sites and existing closure allocation-failure checks
+passed. Self-review checked frame ownership, retained waits, callback effects,
+commit ordering and both execution cleanup paths. No CI, bootstrap refresh or
+full compiler suite was run at this intermediate checkpoint.
+
+Public ordinary/async modules, compiler generic payload restrictions, distinct
+named-callable representation, user diagnostics and source/bytecode acceptance
+remain. This checkpoint establishes runtime scheduling behaviour, not completion
+of CS3 or the public untrusted-bytecode payload contract. CS3 remains 0/30 and
+the accepted programme remains 50/100.

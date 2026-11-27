@@ -1402,6 +1402,149 @@ static void shared_unit_and_void_preserve_distinction(void)
     release(empty);
 }
 
+static void closure_invocation_contracts(void)
+{
+    /* Exercise both sides of the inline argument boundary, including a body
+     * whose capture prefix plus explicit arguments is larger than one byte. */
+    const size_t counts[] = {0, 1, 8, 9, 255};
+    for (size_t test = 0; test < sizeof(counts) / sizeof(*counts); test++) {
+        size_t count = counts[test];
+        Value *captures[255];
+        char names[256][12];
+        char *params[256], *entry_params[] = {"callback"};
+        Instruction body[258] = {0};
+        for (size_t i = 0; i <= count; i++) {
+            snprintf(names[i], sizeof(names[i]), "p%zu", i);
+            params[i] = names[i];
+            body[i] = (Instruction){.op = OP_LOAD, .name = params[i]};
+            if (i < count) captures[i] = value_size(i + 100);
+        }
+        body[count + 1] = (Instruction){.op = OP_MAKE_ARRAY, .count = count + 1};
+        body[count + 2] = (Instruction){.op = OP_RETURN};
+        Instruction code[] = {
+            {.op = OP_LOAD, .name = "callback"},
+            {.op = OP_CONST, .constant = {.tag = 4, .boolean = true}},
+            {.op = OP_CALL_VALUE, .arity = 1}, {.op = OP_RETURN}};
+        Instruction main_code[] = {{.op = OP_CONST, .constant = {.tag = 4}}, {.op = OP_RETURN}};
+        Function functions[] = {
+            {.name = "invoke", .params = entry_params, .param_count = 1,
+             .ins = code, .ins_count = 4, .pure = true},
+            {.name = "main", .ins = main_code, .ins_count = 2},
+            {.name = "target", .params = params, .param_count = count + 1,
+             .ins = body, .ins_count = count + 3, .pure = true}};
+        Program program = {.functions = functions, .count = 3};
+        const char *error = NULL;
+        assert(verify(&program, &error));
+        CaptureCheck status;
+        Value *closure = value_closure("target", captures, count, &status);
+        assert(closure && status == CAPTURE_ALLOWED);
+        for (size_t i = 0; i < count; i++) release(captures[i]);
+        for (size_t invocation = 0; invocation < 2; invocation++) {
+            VM vm = {.program = &program};
+            Value *result = execute(&vm, &functions[0], &closure);
+            assert(result && !vm.error && result->kind == V_ARRAY);
+            assert(result->as.sequence.count == count + 1);
+            for (size_t i = 0; i < count; i++) {
+                size_t actual;
+                assert(value_index(result->as.sequence.items[i], &actual) && actual == i + 100);
+                assert(closure->as.named.values[i]->refs == 2);
+            }
+            assert(result->as.sequence.items[count]->kind == V_BOOL &&
+                   result->as.sequence.items[count]->as.boolean);
+            release(result);
+            assert(closure->refs == 1);
+            for (size_t i = 0; i < count; i++) assert(closure->as.named.values[i]->refs == 1);
+        }
+        release(closure);
+    }
+
+    char *entry_params[] = {"callback"}, *target_params[] = {"captured"};
+    Instruction code[] = {{.op = OP_LOAD, .name = "callback"},
+                          {.op = OP_CALL_VALUE}, {.op = OP_RETURN}};
+    Instruction body[] = {{.op = OP_LOAD, .name = "captured"}, {.op = OP_RETURN}};
+    Instruction main_code[] = {{.op = OP_CONST, .constant = {.tag = 4}}, {.op = OP_RETURN}};
+    Function functions[] = {
+        {.name = "invoke", .params = entry_params, .param_count = 1, .ins = code, .ins_count = 3},
+        {.name = "main", .ins = main_code, .ins_count = 2},
+        {.name = "target", .params = target_params, .param_count = 1, .ins = body, .ins_count = 2}};
+    Program program = {.functions = functions, .count = 3};
+    Value *capture = value_size(42);
+    CaptureCheck status;
+    Value *closure = value_closure("target", &capture, 1, &status);
+    assert(closure);
+    for (size_t caller = 0; caller < 3; caller++) {
+        for (size_t callee = 0; callee < 3; callee++) {
+            for (size_t awaited = 0; awaited < 2; awaited++) {
+                functions[0].pure = caller == 1;
+                functions[0].is_async = caller == 2;
+                functions[2].pure = callee == 1;
+                functions[2].is_async = callee == 2;
+                code[1].op = awaited ? OP_AWAIT_VALUE : OP_CALL_VALUE;
+                const char *error = NULL;
+                bool verified = verify(&program, &error);
+                if (awaited && caller != 2) {
+                    assert(!verified && error && !strcmp(error, "invalid async instruction"));
+                    continue;
+                }
+                assert(verified);
+                bool allowed = awaited ? caller == 2 && callee == 2
+                    : callee != 2 && (caller == 0 || callee == 1);
+                VM vm = {.program = &program};
+                Value *result = execute(&vm, &functions[0], &closure);
+                if (allowed) assert(result == capture && !vm.error);
+                else assert(!result && vm.error);
+                release(result);
+                assert(closure->refs == 1 && capture->refs == 2);
+            }
+        }
+    }
+    functions[0].pure = functions[0].is_async = false;
+    functions[2].pure = functions[2].is_async = false;
+    code[1].op = OP_CALL_VALUE;
+    /* Too many captures and too few total arguments must trap before indexing. */
+    for (size_t arity = 0; arity < 3; arity += 2) {
+        functions[2].param_count = arity;
+        VM vm = {.program = &program};
+        assert(!execute(&vm, &functions[0], &closure));
+        assert(vm.error && !strcmp(vm.error, "VM trap: indirect call arity mismatch"));
+        assert(capture->refs == 2);
+    }
+    functions[2].param_count = 1;
+    release(closure);
+    const char *missing[] = {"absent", "print"};
+    for (size_t i = 0; i < 2; i++) {
+        closure = value_closure(missing[i], &capture, 1, &status);
+        VM vm = {.program = &program};
+        assert(!execute(&vm, &functions[0], &closure));
+        assert(vm.error && !strcmp(vm.error, "VM trap: closure target was not found"));
+        release(closure);
+    }
+    assert(capture->refs == 1);
+    /* The active frame owns its captures even after the external callable is
+     * released. Cancellation and a trap must release that ownership too. */
+    for (size_t ending = 0; ending < 3; ending++) {
+        closure = value_closure("target", &capture, 1, &status);
+        const char *error = NULL;
+        assert(verify(&program, &error));
+        VM vm = {.program = &program};
+        VMExecution *run = vm_execution_create(&vm, &functions[0], &closure, NULL, NULL, &error);
+        assert(run && !error && vm_execution_advance(run, 2) == VM_YIELDED);
+        release(closure);
+        assert(capture->refs == 3);
+        if (ending == 1) {
+            assert(vm_execution_advance(run, 10) == VM_COMPLETED);
+            assert(vm_execution_result(run) == capture);
+        } else if (ending == 2) {
+            body[0].op = OP_MATCH_FAIL;
+            assert(vm_execution_advance(run, 10) == VM_TRAPPED && vm.error);
+            body[0].op = OP_LOAD;
+        }
+        assert(vm_execution_destroy(run));
+        assert(capture->refs == 1);
+    }
+    release(capture);
+}
+
 static void closure_environment_contracts(void)
 {
     CaptureCheck status;
@@ -1484,6 +1627,7 @@ static void closure_environment_contracts(void)
 int main(int argc, char **argv)
 {
     closure_environment_contracts();
+    closure_invocation_contracts();
     if (argc == 2 && !strcmp(argv[1], "closures")) {
         puts("native closure environment contracts: ok");
         return 0;

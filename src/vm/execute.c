@@ -309,6 +309,30 @@ static bool frame_push(VMExecution *execution, Function *function, Value **argum
     return true;
 }
 
+/* A generated closure body receives captures before its explicit parameters.
+ * frame_push retains each value; this temporary vector only borrows them. */
+static bool frame_push_captured(VMExecution *execution, Function *function, Value **arguments,
+                                Value **captures, size_t capture_count)
+{
+    Value *inline_values[INLINE_CALL_ARGUMENTS];
+    if (function->param_count > SIZE_MAX / sizeof(Value *)) {
+        execution->vm->error = "native VM out of memory";
+        return false;
+    }
+    Value **values = function->param_count <= INLINE_CALL_ARGUMENTS ? inline_values
+        : malloc(function->param_count * sizeof(Value *));
+    if (!values) {
+        execution->vm->error = "native VM out of memory";
+        return false;
+    }
+    for (size_t i = 0; i < function->param_count; i++) {
+        values[i] = i < capture_count ? captures[i] : arguments[i - capture_count];
+    }
+    bool result = frame_push(execution, function, values);
+    if (values != inline_values) free(values);
+    return result;
+}
+
 static void coverage_complete_pending(VMExecution *execution)
 {
     if (!execution->vm->coverage || !execution->frame_count) return;
@@ -1340,7 +1364,24 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
                 release(callable);
                 break;
             }
-            if (!callable || callable->kind != V_STR) {
+            if (callable && callable->kind == V_CLOSURE) {
+                Function *called = program_function(vm->program, callable->as.named.name);
+                size_t captures = callable->as.named.count;
+                if (!called || builtin(callable->as.named.name)) {
+                    vm->error = "VM trap: closure target was not found";
+                } else if (captures > called->param_count ||
+                           instruction->arity != called->param_count - captures) {
+                    vm->error = "VM trap: indirect call arity mismatch";
+                } else if (!verify_call_edge(function, called, false, false, false,
+                                             instruction->op == OP_AWAIT_VALUE)) {
+                    vm->error = function->pure
+                        ? "VM trap: pure function invokes impure callable"
+                        : "VM trap: invalid async callable effect";
+                } else {
+                    called_function = true;
+                    frame_push_captured(execution, called, args, callable->as.named.values, captures);
+                }
+            } else if (!callable || callable->kind != V_STR) {
                 vm->error = "VM trap: indirect call requires a callable";
             } else {
                 char *callee = malloc(callable->as.bytes.length + 1);

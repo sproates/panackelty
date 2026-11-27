@@ -317,6 +317,32 @@ static void construct_array(void)
 }
 
 static Value *closure_fixture;
+static Value *invocation_fixture;
+static void invoke_closure(void)
+{
+    char *entry_params[] = {"callback"};
+    char *params[] = {"a", "b", "c", "d", "e", "f", "g", "h", "i"};
+    size_t count = invocation_fixture->as.named.count;
+    Instruction code[] = {{.op = OP_LOAD, .name = "callback"},
+                          {.op = OP_CALL_VALUE}, {.op = OP_RETURN}};
+    Instruction main_code[] = {{.op = OP_CONST, .constant = {.tag = 4}}, {.op = OP_RETURN}};
+    Instruction body[] = {{.op = OP_LOAD, .name = params[count - 1]}, {.op = OP_RETURN}};
+    Function functions[] = {
+        {.name = "invoke", .params = entry_params, .param_count = 1, .ins = code, .ins_count = 3},
+        {.name = "main", .ins = main_code, .ins_count = 2},
+        {.name = "target", .params = params, .param_count = count, .ins = body, .ins_count = 2}};
+    Program program = {.functions = functions, .count = 3};
+    const char *error = NULL;
+    if (!verify(&program, &error)) { assert(fault_triggered() && error); return; }
+    VM vm = {.program = &program};
+    Value *result = execute(&vm, &functions[0], &invocation_fixture);
+    if (fault_triggered()) assert(!result && vm.error);
+    else assert(result == invocation_fixture->as.named.values[count - 1] && !vm.error);
+    release(result);
+    assert(invocation_fixture->refs == 1);
+    for (size_t i = 0; i < count; i++) assert(invocation_fixture->as.named.values[i]->refs == 2);
+}
+
 static void construct_closure(void)
 {
     size_t refs = closure_fixture->refs;
@@ -1193,6 +1219,13 @@ int main(int argc, char **argv)
     assert(closure_fixture);
     sweep("closure environment and graph walk ownership", construct_closure);
     release(closure_fixture);
+    for (size_t count = 8; count <= 9; count++) {
+        CaptureCheck status;
+        invocation_fixture = value_closure("target", capture_items, count, &status);
+        assert(invocation_fixture && status == CAPTURE_ALLOWED);
+        sweep("closure invocation frame and argument ownership", invoke_closure);
+        release(invocation_fixture);
+    }
     for (size_t i = 0; i < 80; i++) { assert(capture_items[i]->refs == 1); release(capture_items[i]); }
     if (argc == 2 && !strcmp(argv[1], "closures")) {
         assert(fault_live() == 0);

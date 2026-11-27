@@ -340,7 +340,7 @@ CS1 is accepted after local and hosted integration validation.
 | Slice | Deliverable | Weight | Status | Earned |
 | --- | --- | --- | --- | --- |
 | CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | Complete: PR #701 and integration run 46042786755 passed | 20 |
-| CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | In progress: owned environment and resource-safety foundation; compiler/invocation pending | 0 |
+| CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | In progress: owned environment and checked VM invocation; compiler/host integration pending | 0 |
 | CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | Planned | 0 |
 | CS4 | Both service examples, installed acceptance, reference and website guidance | 20 | Planned | 0 |
 | Total | Working callable/state feature | 100 | CS1 accepted; CS2 in progress, CS3–CS4 planned | 20 |
@@ -606,3 +606,15 @@ checkpoint introduces no encoded constants or opcodes and makes no final
 bytecode-version compatibility promise. Iterators are temporarily rejected until
 snapshot and repeated-invocation semantics are implemented; that is not a change
 to the accepted CS2 contract.
+
+CS2 checked invocation checkpoint, 27 November: CALL_VALUE and AWAIT_VALUE now
+accept internal closure values. Captures precede explicit arguments in the
+callee frame; target lookup, arity and the existing pure/async call-edge rules
+are checked before entry. Named references keep their existing path. Small
+combined argument lists use stack storage; larger lists use a temporary borrowed
+pointer vector, with frame ownership handled by the existing retain/release path.
+Native tests cover argument order, repeated invocation, the effect matrix,
+missing/builtin targets, arity mismatch, suspension, cancellation and callee
+traps. Source construction/lowering, host-retained callbacks, iterator snapshots,
+cache/provenance and final slice acceptance remain. No bytecode format or compiler
+seed change. CS2 remains in progress with zero accepted points (programme 20/100).

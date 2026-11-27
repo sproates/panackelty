@@ -2352,3 +2352,19 @@ failure sweeps pass, as do collection/concatenation regressions and the existing
 public CLI callable fixture in source/compile/saved-bytecode modes (4 assertions).
 No compiler rebuild or bootstrap refresh was needed. Full validation is reserved
 for the completed CS2 implementation; this checkpoint is not slice acceptance.
+
+CS2 checked invocation adds native tests for capture-prefix/explicit-argument
+order (including inline/heap boundaries), repeated calls, pure/ordinary/async
+callee and caller combinations, verifier rejection of await outside async,
+missing/builtin targets and arity mismatch. Resumable execution retains captures
+after the caller releases the callable, and releases them on completion,
+cancellation and trap. Fault injection covers both inline and heap combined
+argument vectors and partially constructed frames. Source construction and
+host-retained callback coverage remain pending.
+
+Checked-invocation focused checks pass in normal and ASan/UBSan builds, including
+the suspension/cancellation/trap cases. Allocation-failure sweeps and existing
+call-argument/call-link regressions pass. The public CLI callable fixture passes
+all four assertions after rebuilding the VM. Documentation/link checks pass.
+No full suite, compiler bootstrap rebuild or CI was run for this intermediate
+checkpoint; those checks remain part of completed-slice acceptance.

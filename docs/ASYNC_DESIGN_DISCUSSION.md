@@ -533,3 +533,15 @@ integration, iterator snapshots, cache/provenance evidence and final functional/
 full validation remain. CS2 is in progress with zero earned points; CS1 remains
 accepted and programme progress is 20/100. No CI, bootstrap rebuild or website
 change accompanies this checkpoint.
+
+CS2 checked invocation checkpoint, 27 November: CALL_VALUE and AWAIT_VALUE now
+accept internal closure values. Captures precede explicit arguments in the
+callee frame; target lookup, arity and the existing pure/async call-edge rules
+are checked before entry. Named references keep their existing path. Small
+combined argument lists use stack storage; larger lists use a temporary borrowed
+pointer vector, with frame ownership handled by the existing retain/release path.
+Native tests cover argument order, repeated invocation, the effect matrix,
+missing/builtin targets, arity mismatch, suspension, cancellation and callee
+traps. Source construction/lowering, host-retained callbacks, iterator snapshots,
+cache/provenance and final slice acceptance remain. No bytecode format or compiler
+seed change. CS2 remains in progress with zero accepted points (programme 20/100).

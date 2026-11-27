@@ -2155,5 +2155,8 @@ locals remain rejected until retained environments are implemented.
 CS2 runtime groundwork adds an internal V_CLOSURE value owning a lexical target
 and immutable capture references. Its value graph is checked iteratively for
 resource eligibility, and array append follows its ownership edges. It is not
-yet constructible by source lowering or bytecode; checked invocation and iterator
-snapshots remain in progress. Named callable representation is unchanged.
+yet constructible by source lowering or bytecode. CALL_VALUE/AWAIT_VALUE accept
+internal closure values and validate the target, combined arity and call effect.
+Captures occupy the parameter prefix; ordinary frame ownership retains them
+through suspension and releases them on completion, cancellation or trap. Host
+callback integration and iterator snapshots remain in progress. Named callable representation is unchanged.

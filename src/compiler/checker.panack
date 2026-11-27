@@ -1,5 +1,5 @@
 pub import project/src/compiler/domain_guards::{DomainFacts}
-pub import project/src/compiler/parser::{unlocated_expression, parse_program_complete, Expr, Block, Program, Statement, FunctionParameter, RecordField, EnumVariant, IndexedVariant, MatchArm, MatchPattern, TopLevel, SourcePos, SourceSpan, Diagnostic, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, BlockValue.NoBlockValue, BlockValue.TailBlockValue}
+pub import project/src/compiler/parser::{unlocated_expression, parse_program_complete, Expr, Block, Program, Statement, FunctionParameter, RecordField, EnumVariant, IndexedVariant, MatchArm, MatchPattern, TopLevel, SourcePos, SourceSpan, Diagnostic, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.AnonymousExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, BlockValue.NoBlockValue, BlockValue.TailBlockValue}
 pub import project/src/compiler/resolver::{LoadedSource}
 import project/src/compiler/resolver::{SourceUnit, ModuleGraphState, append_program_declarations, duplicate_module_diagnostics, is_builtin, render_resolver_diagnostics, resolve_program, visit_module}
 import project/src/compiler/lexer::{lex, lex_file, prior_index}
@@ -152,6 +152,7 @@ pure subtraction_decision(
     StringExpr(text) => {},
     BoolExpr(value) => {},
     FunctionExpr(name) => {},
+    AnonymousExpr(effect, parameters, result_type, body) => {},
     ArrayExpr(items) => {},
     UnaryExpr(op, value) => {},
     BinaryExpr(op, a, b) => {},
@@ -195,6 +196,7 @@ pure checker_diagnostic_for(expression: Expr, message: Str): Diagnostic {
     BoolExpr(value) => checker_diagnostic(message),
     NameExpr(name) => checker_diagnostic(message),
     FunctionExpr(name) => checker_diagnostic(message),
+    AnonymousExpr(effect, parameters, result_type, body) => checker_diagnostic(message),
     ArrayExpr(items) => checker_diagnostic(message),
     UnaryExpr(operator, operand) => checker_diagnostic(message),
     BinaryExpr(operator, left, right) => checker_diagnostic(message),
@@ -623,6 +625,7 @@ pure evaluate_nat_guard(expression: Expr, guard_name: Str, value: Nat): Bool {
                   BoolExpr(other_bool) => {},
                   NameExpr(other_name) => {},
                   FunctionExpr(other_function) => {},
+                  AnonymousExpr(effect, parameters, result_type, body) => {},
                   ArrayExpr(other_items) => {},
                   UnaryExpr(other_op, other_operand) => {},
                   BinaryExpr(other_binary_op, other_left, other_right) => {},
@@ -643,6 +646,7 @@ pure evaluate_nat_guard(expression: Expr, guard_name: Str, value: Nat): Bool {
             StringExpr(text) => {},
             BoolExpr(item) => {},
             FunctionExpr(function_name) => {},
+            AnonymousExpr(effect, parameters, result_type, body) => {},
             ArrayExpr(items) => {},
             UnaryExpr(op, operand) => {},
             BinaryExpr(op, a, b) => {},
@@ -663,6 +667,7 @@ pure evaluate_nat_guard(expression: Expr, guard_name: Str, value: Nat): Bool {
     StringExpr(text) => {},
     NameExpr(name) => {},
     FunctionExpr(function_name) => {},
+    AnonymousExpr(effect, parameters, result_type, body) => {},
     ArrayExpr(items) => {},
     CallExpr(name, arguments, type_arguments) => {},
     OwnedCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
@@ -721,6 +726,7 @@ pub pure prove_guard_bounds(expression: Expr, guard_name: Str, bounds: Bounds): 
                   BoolExpr(other_bool) => {},
                   NameExpr(other_name) => {},
                   FunctionExpr(other_function) => {},
+                  AnonymousExpr(effect, parameters, result_type, body) => {},
                   ArrayExpr(other_items) => {},
                   UnaryExpr(other_op, other_operand) => {},
                   BinaryExpr(other_binary_op, other_left, other_right) => {},
@@ -741,6 +747,7 @@ pub pure prove_guard_bounds(expression: Expr, guard_name: Str, bounds: Bounds): 
             StringExpr(text) => {},
             BoolExpr(item) => {},
             FunctionExpr(function_name) => {},
+            AnonymousExpr(effect, parameters, result_type, body) => {},
             ArrayExpr(items) => {},
             UnaryExpr(op, operand) => {},
             BinaryExpr(op, a, b) => {},
@@ -762,6 +769,7 @@ pub pure prove_guard_bounds(expression: Expr, guard_name: Str, bounds: Bounds): 
     BoolExpr(item) => {},
     NameExpr(name) => {},
     FunctionExpr(function_name) => {},
+    AnonymousExpr(effect, parameters, result_type, body) => {},
     ArrayExpr(items) => {},
     UnaryExpr(op, operand) => {},
     CallExpr(name, arguments, type_arguments) => {},
@@ -820,6 +828,7 @@ pure assignable_checked(
           StringExpr(text) => {},
           BoolExpr(flag) => {},
           FunctionExpr(function_name) => {},
+          AnonymousExpr(effect, parameters, result_type, body) => {},
           ArrayExpr(items) => {},
           UnaryExpr(op, operand) => {},
           BinaryExpr(op, a, b) => {},
@@ -2128,7 +2137,8 @@ pure facts_after_expression(expression: Expr, facts: Map[Str, Bounds]): Map[Str,
       StringExpr(text) => {},
       BoolExpr(value) => {},
       NameExpr(name) => {},
-      FunctionExpr(name) => {}
+      FunctionExpr(name) => {},
+      AnonymousExpr(effect, parameters, result_type, body) => {},
     }
   }
 
@@ -2240,6 +2250,9 @@ pub pure check_expression_evidence(
       if info.name == "Unknown" {
         diagnostics = diagnostics.append(checker_diagnostic("unknown name ${name}"))
       } else {}
+    },
+    AnonymousExpr(effect, parameters, result_type, body) => {
+      diagnostics = diagnostics.append(checker_diagnostic("anonymous function type checking is not yet available in this development build"))
     },
     FunctionExpr(name) => {
       function: FunctionLookup = function_type(program, name)
@@ -3215,6 +3228,7 @@ pure condition_facts_evidence(
             BoolExpr(other_bool) => {},
             NameExpr(other_name) => {},
             FunctionExpr(other_function) => {},
+            AnonymousExpr(effect, parameters, result_type, body) => {},
             ArrayExpr(other_items) => {},
             UnaryExpr(other_op, other_operand) => {},
             BinaryExpr(other_binary_op, other_left, other_right) => {},
@@ -3234,6 +3248,7 @@ pure condition_facts_evidence(
         StringExpr(text) => {},
         BoolExpr(value) => {},
         FunctionExpr(function_name) => {},
+        AnonymousExpr(effect, parameters, result_type, body) => {},
         ArrayExpr(items) => {},
         UnaryExpr(op, operand) => {},
         BinaryExpr(op, a, b) => {},
@@ -3253,6 +3268,7 @@ pure condition_facts_evidence(
     BoolExpr(value) => {},
     NameExpr(name) => {},
     FunctionExpr(function_name) => {},
+    AnonymousExpr(effect, parameters, result_type, body) => {},
     ArrayExpr(items) => {},
     UnaryExpr(operator, operand) => {},
     CallExpr(name, arguments, type_arguments) => {},

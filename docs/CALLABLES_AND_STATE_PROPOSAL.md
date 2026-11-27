@@ -339,7 +339,7 @@ Implementation has not started and all earned contributions are zero.
 
 | Slice | Deliverable | Weight | Status | Earned |
 | --- | --- | --- | --- | --- |
-| CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | In progress: header parsing; expression/checker/lowering pending | 0 |
+| CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | In progress: expression syntax and traversal; checker/lowering pending | 0 |
 | CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | Planned | 0 |
 | CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | Planned | 0 |
 | CS4 | Both service examples, installed acceptance, reference and website guidance | 20 | Planned | 0 |
@@ -415,3 +415,31 @@ refresh the bootstrap seed or integrate a partially supported language feature.
 Run the compatibility preflight and final validation after the CS1 batch settles.
 No performance improvement is claimed; candidate build success is not acceptance
 of the slice. Stable weights and zero accepted implementation contribution remain.
+
+## CS1 development checkpoint, 27 November 2026
+
+27 November: CS1 now parses complete anonymous expressions, including block and
+nested bodies. Parameter scopes, qualified annotations, source inventory and
+cache encoding retain the new syntax. Focused checks cover 237 parser, 31 resolver,
+38 source-span, 28 inventory and 2,042 module-binding/cache assertions; the
+candidate compiler builds and verifies. Anonymous functions still fail closed at
+type checking: contextual types, effects and noncapturing lowering remain. No CI,
+bootstrap refresh or final full validation; no implementation slice is accepted.
+
+The AST has a distinct `AnonymousExpr` carrying effect spelling, parameters,
+result annotation and body. It is not represented as an ordinary call. Both
+expression and block bodies retain their original source spans, including
+parameter and result annotations. Rendering parenthesises anonymous expressions
+so a call on the function cannot be confused with a call inside its body.
+
+The cache schema appends an expression tag without renumbering existing tags.
+Round-trip cases cover typed, contextual, async and nested syntax. The module
+resolver visits parameter/result types and bodies with a separate parameter
+scope; source inventory visits body decisions. Scalar guard analysis does not
+treat creation of a function as execution of its body.
+
+The next implementation step is a bound callable body with contextual input
+types, result checking, its own effect boundary and generated function lowering.
+The temporary development diagnostic and defensive emission trap must be replaced
+by that checked path before CS1 acceptance. No user-facing specification or
+website claim has changed, because executable support is not delivered yet.

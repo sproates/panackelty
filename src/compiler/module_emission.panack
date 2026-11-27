@@ -16,7 +16,7 @@ import project/src/compiler/module_bodies::{
 pub import project/src/compiler/module_bodies::{
   BoundBody, BoundFunctionBody, ModuleDeclarationBinding,
   DeclarationIdentity, Diagnostic, Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr,
-  Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr,
+  Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.AnonymousExpr, Expr.ArrayExpr,
   Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr,
   Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr,
   LoadedModule, ModuleBindingGraph, ModuleIdentity, ModuleSignature
@@ -331,6 +331,7 @@ pure module_emission_guard_expression(
     StringExpr(value) => StringExpr(value),
     BoolExpr(value) => BoolExpr(value),
     NameExpr(name) => NameExpr(name),
+    AnonymousExpr(effect, parameters, result_type, body) => expression,
     FunctionExpr(name) => FunctionExpr(module_emission_guard_target(graph, entry, owner, name)),
     ArrayExpr(items) => ArrayExpr(module_emission_guard_expressions(graph, entry, owner, guard_name, items)),
     UnaryExpr(operator, value) => UnaryExpr(

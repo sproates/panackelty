@@ -9,7 +9,7 @@ import project/src/compiler/module_bindings::{ModuleIdentity, source_module_iden
 pub import project/src/compiler/module_bindings::{LoadedModule}
 import project/src/compiler/parser::{
   Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr,
-  Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr,
+  Expr.NameExpr, Expr.FunctionExpr, Expr.AnonymousExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr,
   Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr,
   Expr.BlockExpr, Expr.MatchExpr,
   Statement, Statement.BindingStatement, Statement.AssignmentStatement,
@@ -80,6 +80,9 @@ pure inventory_expression(expression: Expr, id: Str): [InventoryItem] {
     BoolExpr(value) => {},
     NameExpr(value) => {},
     FunctionExpr(value) => {},
+    AnonymousExpr(effect, parameters, result_type, body) => {
+      items = items.concat(inventory_expression(body, id + "/body"))
+    },
     ArrayExpr(values) => {
       items = items.concat(inventory_expressions(values, id))
     },

@@ -24,7 +24,7 @@ import project/src/compiler/purity::{check_source_frontend}
 import project/src/compiler/checker::{check_source_types}
 import project/src/compiler/lexer::{lex_file}
 import project/src/compiler/parser::{parse_complete}
-import project/src/compiler/module_emission::{ModuleEmissionResult, ModuleSignature, BoundBody, Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, module_emission_expression, module_emission_program, module_emission_symbol}
+import project/src/compiler/module_emission::{ModuleEmissionResult, ModuleSignature, BoundBody, Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.AnonymousExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, module_emission_expression, module_emission_program, module_emission_symbol}
 import project/src/compiler/emitter::{compile_source_disassembly, compile_program}
 import project/src/bytecode/codec::{compile_source_bytecode, serialize_bytecode}
 import project/src/compiler/driver::{diagnostic_messages}
@@ -419,6 +419,7 @@ module_emission_guard_call_name(expression: Expr): Str {
     BoolExpr(value) => "",
     NameExpr(name) => "",
     FunctionExpr(name) => "",
+    AnonymousExpr(effect, parameters, result_type, body) => "",
     ArrayExpr(items) => "",
     UnaryExpr(operator, value) => "",
     BinaryExpr(operator, left, right) => "",
@@ -518,6 +519,7 @@ module_emission_program_tests(): [TestResult] {
     BoolExpr(value) => false,
     NameExpr(name) => false,
     FunctionExpr(name) => false,
+    AnonymousExpr(effect, parameters, result_type, body) => false,
     ArrayExpr(items) => false,
     UnaryExpr(operator, operand) => false,
     BinaryExpr(operator, left, right) => false,
@@ -546,6 +548,7 @@ pure module_emission_await_call_name(expression: Expr): Str {
         BoolExpr(value) => "",
         NameExpr(name) => "",
         FunctionExpr(name) => "",
+    AnonymousExpr(effect, parameters, result_type, body) => "",
         ArrayExpr(items) => "",
         UnaryExpr(nested, value) => "",
         BinaryExpr(nested, left, right) => "",
@@ -567,6 +570,7 @@ pure module_emission_await_call_name(expression: Expr): Str {
     BoolExpr(value) => "",
     NameExpr(name) => "",
     FunctionExpr(name) => "",
+    AnonymousExpr(effect, parameters, result_type, body) => "",
     ArrayExpr(items) => "",
     BinaryExpr(operator, left, right) => "",
     CallExpr(name, arguments, types) => "",
@@ -848,7 +852,8 @@ pure raw_namespace_dot_call(expression: Expr): Bool {
     DotCallExpr(target, name, arguments, types) => unlocated_expression(target) == NameExpr("api") && name == "get" && arguments.len() == 1 && unlocated_expression(arguments[0]) == NatExpr(1),
     LocatedExpr(span, value, located_type_argument_spans) => false, NatExpr(value) => false, DecimalExpr(text) => false,
     StringExpr(text) => false, BoolExpr(value) => false, NameExpr(name) => false,
-    FunctionExpr(name) => false, ArrayExpr(items) => false, UnaryExpr(operator, operand) => false,
+    FunctionExpr(name) => false,
+    AnonymousExpr(effect, parameters, result_type, body) => false, ArrayExpr(items) => false, UnaryExpr(operator, operand) => false,
     BinaryExpr(operator, left, right) => false, CallExpr(name, arguments, types) => false,
     FieldExpr(target, field) => false, IndexExpr(target, index) => false,
     IfExpr(condition, yes, no, has_else) => false, BlockExpr(block) => false, MatchExpr(subject, arms) => false
@@ -889,6 +894,14 @@ pure namespace_resolution_failure_tests(): [TestResult] {
     results = results.append(std_testing.equal_str("unmarked qualified syntax fails closed", check_source_frontend(source), message))
     results = results.append(std_testing.expect("unmarked qualified source emits no bytecode", compile_source_bytecode(source) == bytes(), "staged syntax emitted bytecode"))
   }
+  anonymous_source = "pure f(): PureFn[Nat,Nat] { (x: Nat) => x + 1 }"
+  anonymous_message = "anonymous function type checking is not yet available in this development build"
+  results = results.append(std_testing.equal_str("anonymous syntax fails closed before checking is connected",
+    body_test_error(anonymous_source), anonymous_message))
+  results = results.append(std_testing.equal_str("legacy anonymous checking also fails closed",
+    check_source_types(anonymous_source + " main(): Void {}"), anonymous_message))
+  results = results.append(std_testing.expect("unchecked anonymous syntax emits no bytecode",
+    compile_source_bytecode(anonymous_source) == bytes(), "unchecked function emitted bytecode"))
   results = results.append(std_testing.equal_str("owned methods require identity checking", check_source_types("pure f(): Nat { [1].len() }; main(): Void {}"), "unresolved dot call requires module binding resolution"))
   mut modules: [ModuleBindings] = [namespace_test_bindings("leaf", "pub pure answer(): Nat { 1 }")]
   mut edges: [ModuleImportEdge] = []

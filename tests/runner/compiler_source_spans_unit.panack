@@ -1,5 +1,5 @@
 import stdlib/testing as std_testing
-import project/src/compiler/parser::{Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, Block, Statement, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue.NoBlockValue, BlockValue.TailBlockValue, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, expression_span, unlocated_expression, parse_complete, parse_program_complete}
+import project/src/compiler/parser::{Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.AnonymousExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, Block, Statement, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue.NoBlockValue, BlockValue.TailBlockValue, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, expression_span, unlocated_expression, parse_complete, parse_program_complete}
 import project/src/compiler/lexer::{lex_file}
 import project/src/compiler/types::{SourcePos, SourceSpan}
 import stdlib/host as std_host
@@ -53,6 +53,21 @@ pure trace_children(expression: Expr): Str {
     LocatedExpr(span, value, located_type_argument_spans) => "unexpected wrapper;",
     NatExpr(value) => "", DecimalExpr(text) => "", StringExpr(text) => "", BoolExpr(value) => "",
     NameExpr(name) => "", FunctionExpr(name) => "",
+    AnonymousExpr(effect, parameters, result_type, body) => {
+      mut output: Str = ""
+      for parameter in parameters {
+        output = output + "parameter:" + span_text(parameter.span) + ";"
+        match parameter.annotation {
+          None() => {},
+          Some(annotation) => { output = output + "type:" + span_text(annotation.span) + ";" }
+        }
+      }
+      match result_type {
+        None() => {},
+        Some(annotation) => { output = output + "result:" + span_text(annotation.span) + ";" }
+      }
+      output + trace_span(body)
+    },
     ArrayExpr(items) => { mut output: Str = ""; for item in items { output = output + trace_span(item); } output },
     UnaryExpr(operator, operand) => trace_span(operand),
     BinaryExpr(operator, left, right) => trace_span(left) + trace_span(right),
@@ -151,5 +166,10 @@ main(): Void {
   results = results.append(std_testing.equal_str("spans/else-if-partial-children",
     expression_trace("if a { 1 } else if b { 2 }"),
     "0..26;3..4;7..8;16..26;19..20;23..24;"))
+  results = results.append(std_testing.equal_str("spans/anonymous-root",
+    root_span("pure (x: Nat): Nat => x + 1"), "sample.panack|0:1:1-27:1:28"))
+  results = results.append(std_testing.equal_str("spans/anonymous-header-and-body",
+    expression_trace("(x: Nat): Nat => x"),
+    "0..18;parameter:sample.panack|1:1:2-7:1:8;type:sample.panack|4:1:5-7:1:8;result:sample.panack|10:1:11-13:1:14;17..18;"))
   if std_testing.report(results) > 0 { std_host.exit(1) }
 }

@@ -2,7 +2,7 @@
 // written conjunct and its source even when two requirements are equivalent.
 import project/src/compiler/parser as ast
 pub import project/src/compiler/parser::{Expr, SourceSpan, Diagnostic}
-import project/src/compiler/parser::{Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr}
+import project/src/compiler/parser::{Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.AnonymousExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr}
 
 pub enum DomainRequirement { Minimum(Nat), Maximum(Nat), NonBlank, ControlFree }
 pub record DomainRule { requirement: DomainRequirement, source: SourceSpan }
@@ -68,7 +68,7 @@ pure term(expression: Expr, binding: Str, text: Bool, span: SourceSpan): GuardTe
         Unsupported() => {}, Candidate() => {}, Length() => {}
       }
     },
-    DecimalExpr(n) => {}, BoolExpr(b) => {}, FunctionExpr(name) => {}, ArrayExpr(items) => {},
+    DecimalExpr(n) => {}, BoolExpr(b) => {}, FunctionExpr(name) => {}, AnonymousExpr(effect, parameters, result_type, body) => {}, ArrayExpr(items) => {},
     UnaryExpr(op, inner) => {}, CallExpr(name, args, types) => {}, FieldExpr(owner, field) => {},
     IndexExpr(owner, index) => {}, IfExpr(test, yes, no, has_else) => {}, BlockExpr(block) => {},
     MatchExpr(value, arms) => {}
@@ -141,7 +141,7 @@ pub pure record_rules(expression: Expr, binding: Str, site: SourceSpan): [Record
         }
       },
       LocatedExpr(s,v,ts) => {}, NameExpr(n) => {}, NatExpr(n) => {}, DecimalExpr(n) => {},
-      BoolExpr(b) => {}, StringExpr(s) => {}, FunctionExpr(n) => {}, ArrayExpr(items) => {},
+      BoolExpr(b) => {}, StringExpr(s) => {}, FunctionExpr(n) => {}, AnonymousExpr(effect, parameters, result_type, body) => {}, ArrayExpr(items) => {},
       UnaryExpr(op,v) => {}, CallExpr(n,args,ts) => {}, OwnedCallExpr(v,n,args,ts) => {},
       DotCallExpr(v,n,args,ts) => {}, FieldExpr(v,n) => {}, IndexExpr(v,i) => {},
       IfExpr(c,y,n,h) => {}, BlockExpr(b) => {}, MatchExpr(v,arms) => {}
@@ -313,7 +313,7 @@ pub pure guard_conjuncts(guard: Expr): [Expr] {
       guard_conjuncts(left).concat(guard_conjuncts(right))
     } else { [guard] },
     LocatedExpr(span,v,ts) => [], NameExpr(n) => [guard], NatExpr(n) => [guard], DecimalExpr(n) => [guard],
-    BoolExpr(b) => [guard], StringExpr(s) => [guard], FunctionExpr(n) => [guard], ArrayExpr(items) => [guard],
+    BoolExpr(b) => [guard], StringExpr(s) => [guard], FunctionExpr(n) => [guard], AnonymousExpr(effect, parameters, result_type, body) => [guard], ArrayExpr(items) => [guard],
     UnaryExpr(op,v) => [guard], CallExpr(n,args,ts) => [guard], OwnedCallExpr(v,n,args,ts) => [guard],
     DotCallExpr(v,n,args,ts) => [guard], FieldExpr(v,n) => [guard], IndexExpr(v,i) => [guard],
     IfExpr(condition,yes,no,has_else) => [guard], BlockExpr(b) => [guard], MatchExpr(v,arms) => [guard]
@@ -327,6 +327,7 @@ pure validation_positive_divisor(value: Expr): Bool {
     NatExpr(n) => { positive = n > 0 },
     LocatedExpr(span,v,ts) => {}, DecimalExpr(n) => {}, NameExpr(n) => {}, BoolExpr(b) => {},
     UnaryExpr(op,v) => {}, BinaryExpr(op,left,right) => {}, StringExpr(s) => {}, FunctionExpr(n) => {},
+    AnonymousExpr(effect, parameters, result_type, body) => {},
     ArrayExpr(items) => {}, CallExpr(n,args,ts) => {}, OwnedCallExpr(v,n,args,ts) => {},
     DotCallExpr(v,n,args,ts) => {}, FieldExpr(v,n) => {}, IndexExpr(v,i) => {},
     IfExpr(condition,yes,no,has_else) => {}, BlockExpr(b) => {}, MatchExpr(v,arms) => {}
@@ -342,7 +343,7 @@ pub pure runtime_numeric_supported(guard: Expr, binding: Str): Bool {
       runtime_numeric_supported(left,binding) && runtime_numeric_supported(right,binding),
     NameExpr(n) => n == binding, NatExpr(n) => true, DecimalExpr(n) => true, BoolExpr(b) => true,
     UnaryExpr(op,v) => (op == "!" || op == "-") && runtime_numeric_supported(v,binding),
-    LocatedExpr(span,v,ts) => false, StringExpr(s) => false, FunctionExpr(n) => false, ArrayExpr(items) => false,
+    LocatedExpr(span,v,ts) => false, StringExpr(s) => false, FunctionExpr(n) => false, AnonymousExpr(effect, parameters, result_type, body) => false, ArrayExpr(items) => false,
     CallExpr(n,args,ts) => false, OwnedCallExpr(v,n,args,ts) => false, DotCallExpr(v,n,args,ts) => false,
     FieldExpr(v,n) => false, IndexExpr(v,i) => false, IfExpr(condition,yes,no,has_else) => false,
     BlockExpr(b) => false, MatchExpr(v,arms) => false

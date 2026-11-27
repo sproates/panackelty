@@ -503,6 +503,34 @@
         "execution_diagnostics",
         "[Diagnostic]"
       ]
+    ],
+    "ParsedTypeRef": [
+      [
+        "text",
+        "Str"
+      ],
+      [
+        "span",
+        "SourceSpan"
+      ],
+      [
+        "next",
+        "Nat"
+      ]
+    ],
+    "AnonymousParameter": [
+      [
+        "name",
+        "Str"
+      ],
+      [
+        "span",
+        "SourceSpan"
+      ],
+      [
+        "annotation",
+        "?ParsedTypeRef"
+      ]
     ]
   },
   "enums": {
@@ -766,6 +794,13 @@
         "MatchExpr",
         "Expr",
         "[MatchArm]"
+      ],
+      [
+        "AnonymousExpr",
+        "Str",
+        "[AnonymousParameter]",
+        "?ParsedTypeRef",
+        "Expr"
       ]
     ],
     "BodyCheckStatus": [
@@ -930,7 +965,9 @@
       "OwnedMethodSyntax",
       "DeclarationSyntax",
       "OwnedImplementationSyntax",
-      "ParsedModule"
+      "ParsedModule",
+      "ParsedTypeRef",
+      "AnonymousParameter"
     ],
     "module_effects": [
       "EffectCallFact",

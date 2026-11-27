@@ -56,6 +56,10 @@ pub run_suite(): Void {
       "decision:if:a;outcome:true:a;outcome:false:a;decision:if:b;outcome:true:b;outcome:false:b;"))
   }
 
+  results = results.append(std_testing.equal_str("anonymous body retains its branch inventory",
+    chain_inventory_decisions("pure f(): PureFn[Bool,Nat] { (flag: Bool) => if flag { 1 } else { 2 } }"),
+    "decision:if:flag;outcome:true:flag;outcome:false:flag;"))
+
   entry: Str = path_support.resolve("tests/fixtures/compiler_contracts/source_inventory/main.panack")
   project: LoadedProject = load_project_for_source_map(entry)
   results = results.append(std_testing.expect("inventory fixture checks", project.diagnostics.len() == 0, "fixture failed to check"))

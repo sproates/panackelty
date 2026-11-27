@@ -762,3 +762,11 @@ candidate compiler build pass. Expression integration, contextual checking,
 effects and lowering remain; no anonymous-function feature is accepted yet.
 CS2–CS4 remain planned. No CI, seed refresh or final full validation at this
 checkpoint; implementation weights and zero accepted contribution are unchanged.
+
+27 November: CS1 now parses complete anonymous expressions, including block and
+nested bodies. Parameter scopes, qualified annotations, source inventory and
+cache encoding retain the new syntax. Focused checks cover 237 parser, 31 resolver,
+38 source-span, 28 inventory and 2,042 module-binding/cache assertions; the
+candidate compiler builds and verifies. Anonymous functions still fail closed at
+type checking: contextual types, effects and noncapturing lowering remain. No CI,
+bootstrap refresh or final full validation; no implementation slice is accepted.

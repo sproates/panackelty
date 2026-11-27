@@ -133,6 +133,8 @@ pub import project/src/compiler/parser::{
   DeclarationSyntax,
   OwnedImplementationSyntax,
   ParsedModule,
+  ParsedTypeRef,
+  AnonymousParameter,
   Expr.LocatedExpr,
   Expr.NatExpr,
   Expr.DecimalExpr,
@@ -151,6 +153,7 @@ pub import project/src/compiler/parser::{
   Expr.IfExpr,
   Expr.BlockExpr,
   Expr.MatchExpr,
+  Expr.AnonymousExpr,
   TopLevel.ImportDeclaration,
   TopLevel.TypeDeclaration,
   TopLevel.RecordDeclaration,
@@ -1111,6 +1114,74 @@ pure decode_Array_MatchArm(reader: CacheReader): CacheRead[[MatchArm]] {
   CacheRead(cursor, values)
 }
 
+pure encode_ParsedTypeRef(pool: CachePool, value: ParsedTypeRef): Bytes {
+  byte_buffer.empty().join(encode_Str(pool, value.text)).join(encode_SourceSpan(pool, value.span)).join(encode_Nat(pool, value.next))
+}
+
+pure decode_ParsedTypeRef(reader: CacheReader): CacheRead[ParsedTypeRef] {
+  mut cursor: CacheReader = reader
+  field_text = decode_Str(cursor)
+  cursor = field_text.reader
+  field_span = decode_SourceSpan(cursor)
+  cursor = field_span.reader
+  field_next = decode_Nat(cursor)
+  cursor = field_next.reader
+  CacheRead(cursor, ParsedTypeRef(field_text.value, field_span.value, field_next.value))
+}
+
+pure encode_Optional_ParsedTypeRef(pool: CachePool, value: Option[ParsedTypeRef]): Bytes {
+  match value {
+    None() => encode_u32(0),
+    Some(item) => encode_u32(1).join(encode_ParsedTypeRef(pool, item))
+  }
+}
+
+pure decode_Optional_ParsedTypeRef(reader: CacheReader): CacheRead[Option[ParsedTypeRef]] {
+  tag = read_count(reader)
+  if tag.reader.valid && tag.value == 1 {
+    item = decode_ParsedTypeRef(tag.reader)
+    CacheRead(item.reader, Some(item.value))
+  } else {
+    CacheRead(if tag.value == 0 { tag.reader } else { failed(tag.reader) }, None())
+  }
+}
+
+pure encode_AnonymousParameter(pool: CachePool, value: AnonymousParameter): Bytes {
+  byte_buffer.empty().join(encode_Str(pool, value.name)).join(encode_SourceSpan(pool, value.span)).join(encode_Optional_ParsedTypeRef(pool, value.annotation))
+}
+
+pure decode_AnonymousParameter(reader: CacheReader): CacheRead[AnonymousParameter] {
+  mut cursor: CacheReader = reader
+  field_name = decode_Str(cursor)
+  cursor = field_name.reader
+  field_span = decode_SourceSpan(cursor)
+  cursor = field_span.reader
+  field_annotation = decode_Optional_ParsedTypeRef(cursor)
+  cursor = field_annotation.reader
+  CacheRead(cursor, AnonymousParameter(field_name.value, field_span.value, field_annotation.value))
+}
+
+pure encode_Array_AnonymousParameter(pool: CachePool, value: [AnonymousParameter]): Bytes {
+  mut chunks: [Bytes] = [encode_u32(value.len())]
+  for item in value { chunks = chunks.append(encode_AnonymousParameter(pool, item)) }
+  source_map_join(chunks, 0, chunks.len())
+}
+
+pure decode_Array_AnonymousParameter(reader: CacheReader): CacheRead[[AnonymousParameter]] {
+  count = read_count(reader)
+  mut cursor: CacheReader = count.reader
+  mut values: [AnonymousParameter] = []
+  if count.value > 1000000 || count.value > reader.data.length() { cursor = failed(cursor) }
+  mut index: Nat = 0
+  while cursor.valid && index < count.value {
+    item = decode_AnonymousParameter(cursor)
+    cursor = item.reader
+    values = values.append(item.value)
+    index = index + 1
+  }
+  CacheRead(cursor, values)
+}
+
 pure encode_Expr(pool: CachePool, value: Expr): Bytes {
   match value {
     LocatedExpr(v0, v1, v2) => encode_u32(0).join(encode_SourceSpan(pool, v0)).join(encode_Expr(pool, v1)).join(encode_Array_SourceSpan(pool, v2)),
@@ -1130,7 +1201,8 @@ pure encode_Expr(pool: CachePool, value: Expr): Bytes {
     IndexExpr(v0, v1) => encode_u32(14).join(encode_Expr(pool, v0)).join(encode_Expr(pool, v1)),
     IfExpr(v0, v1, v2, v3) => encode_u32(15).join(encode_Expr(pool, v0)).join(encode_Block(pool, v1)).join(encode_Block(pool, v2)).join(encode_Bool(pool, v3)),
     BlockExpr(v0) => encode_u32(16).join(encode_Block(pool, v0)),
-    MatchExpr(v0, v1) => encode_u32(17).join(encode_Expr(pool, v0)).join(encode_Array_MatchArm(pool, v1))
+    MatchExpr(v0, v1) => encode_u32(17).join(encode_Expr(pool, v0)).join(encode_Array_MatchArm(pool, v1)),
+    AnonymousExpr(v0, v1, v2, v3) => encode_u32(18).join(encode_Str(pool, v0)).join(encode_Array_AnonymousParameter(pool, v1)).join(encode_Optional_ParsedTypeRef(pool, v2)).join(encode_Expr(pool, v3))
   }
 }
 
@@ -1273,6 +1345,17 @@ pure decode_Expr_nested(reader: CacheReader): CacheRead[Expr] {
     v1 = decode_Array_MatchArm(cursor)
     cursor = v1.reader
     CacheRead(cursor, MatchExpr(v0.value, v1.value))
+  } else if tag.reader.valid && tag.value == 18 {
+    mut cursor: CacheReader = tag.reader
+    v0 = decode_Str(cursor)
+    cursor = v0.reader
+    v1 = decode_Array_AnonymousParameter(cursor)
+    cursor = v1.reader
+    v2 = decode_Optional_ParsedTypeRef(cursor)
+    cursor = v2.reader
+    v3 = decode_Expr(cursor)
+    cursor = v3.reader
+    CacheRead(cursor, AnonymousExpr(v0.value, v1.value, v2.value, v3.value))
   } else { CacheRead(failed(tag.reader), StringExpr("\"\"")) }
 }
 
@@ -2716,6 +2799,14 @@ pure collect_Expr(pool: CachePool, value: Expr): CachePool {
       result = collect_Expr(result, v0)
       result = collect_Array_MatchArm(result, v1)
       result
+    },
+    AnonymousExpr(v0, v1, v2, v3) => {
+      mut result: CachePool = pool
+      result = collect_Str(result, v0)
+      result = collect_Array_AnonymousParameter(result, v1)
+      result = collect_Optional_ParsedTypeRef(result, v2)
+      result = collect_Expr(result, v3)
+      result
     }
   }
 }
@@ -2818,6 +2909,32 @@ pure collect_MatchPattern(pool: CachePool, value: MatchPattern): CachePool {
   result = collect_Str(result, value.variant)
   result = collect_Array_Str(result, value.bindings)
   result = collect_SourceSpan(result, value.span)
+  result
+}
+
+pure collect_Array_AnonymousParameter(pool: CachePool, value: [AnonymousParameter]): CachePool {
+  mut result: CachePool = pool
+  for item in value { result = collect_AnonymousParameter(result, item) }
+  result
+}
+
+pure collect_AnonymousParameter(pool: CachePool, value: AnonymousParameter): CachePool {
+  mut result: CachePool = pool
+  result = collect_Str(result, value.name)
+  result = collect_SourceSpan(result, value.span)
+  result = collect_Optional_ParsedTypeRef(result, value.annotation)
+  result
+}
+
+pure collect_Optional_ParsedTypeRef(pool: CachePool, value: Option[ParsedTypeRef]): CachePool {
+  match value { None() => pool, Some(item) => collect_ParsedTypeRef(pool, item) }
+}
+
+pure collect_ParsedTypeRef(pool: CachePool, value: ParsedTypeRef): CachePool {
+  mut result: CachePool = pool
+  result = collect_Str(result, value.text)
+  result = collect_SourceSpan(result, value.span)
+  result = collect_Nat(result, value.next)
   result
 }
 

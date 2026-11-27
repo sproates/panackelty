@@ -13,6 +13,7 @@ pub enum Expr {
   BoolExpr(Bool),
   NameExpr(Str),
   FunctionExpr(Str),
+  AnonymousExpr(Str, [AnonymousParameter], Option[ParsedTypeRef], Expr),
   ArrayExpr([Expr]),
   UnaryExpr(Str, Expr),
   BinaryExpr(Str, Expr, Expr),
@@ -42,6 +43,7 @@ pub pure unlocated_expression(expression: Expr): Expr {
     BoolExpr(value) => {},
     NameExpr(name) => {},
     FunctionExpr(name) => {},
+    AnonymousExpr(effect, parameters, result_type, body) => {},
     ArrayExpr(items) => {},
     UnaryExpr(operator, operand) => {},
     BinaryExpr(operator, left, right) => {},
@@ -262,6 +264,7 @@ pure expression_type_argument_spans(expression: Expr): [SourceSpan] {
     BoolExpr(value) => [],
     NameExpr(name) => [],
     FunctionExpr(name) => [],
+    AnonymousExpr(effect, parameters, result_type, body) => [],
     ArrayExpr(items) => [],
     UnaryExpr(operator, operand) => [],
     BinaryExpr(operator, left, right) => [],
@@ -285,6 +288,7 @@ pub pure expression_span(expression: Expr): Option[SourceSpan] {
     BoolExpr(value) => None(),
     NameExpr(name) => None(),
     FunctionExpr(name) => None(),
+    AnonymousExpr(effect, parameters, result_type, body) => None(),
     ArrayExpr(items) => None(),
     UnaryExpr(operator, operand) => None(),
     BinaryExpr(operator, left, right) => None(),
@@ -763,7 +767,7 @@ pure parse_pattern_bindings(
   }
 }
 
-pure parse_match_arm_body(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] {
+pure parse_expression_body(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] {
   if index < tokens.len() && tokens[index].text == "{" {
     match parse_block(tokens, index) {
       Ok(block) => Ok(ParsedExpr(
@@ -812,7 +816,7 @@ pure parse_match_arms(
                       token_position(tokens, parsed_bindings.next)
                     ))
                   } else {
-                    match parse_match_arm_body(tokens, parsed_bindings.next + 1) {
+                    match parse_expression_body(tokens, parsed_bindings.next + 1) {
                       Ok(body) => {
                         pattern: MatchPattern = MatchPattern(
                           variant,
@@ -1155,6 +1159,23 @@ pure parse_named_expression(tokens: [Token], index: Nat): Result[ParsedExpr, Dia
 }
 
 pure parse_primary(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] {
+  match parse_anonymous_header(tokens, index) {
+    Error(problem) => Error(problem),
+    Ok(candidate) => match candidate {
+      None() => parse_non_anonymous_primary(tokens, index),
+      Some(header) => match parse_expression_body(tokens, header.next) {
+        Error(problem) => Error(problem),
+        Ok(body) => Ok(ParsedExpr(
+          located_expression(tokens, index, body.next,
+            AnonymousExpr(header.effect, header.parameters, header.result, body.value)),
+          body.next
+        ))
+      }
+    }
+  }
+}
+
+pure parse_non_anonymous_primary(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] {
   if index >= tokens.len() {
     Error(parse_error("expected expression", token_position(tokens, index)))
   } else {
@@ -2621,6 +2642,22 @@ pub pure render_expr(expression: Expr): Str {
     },
     NameExpr(name) => name,
     FunctionExpr(name) => "@${name}",
+    AnonymousExpr(effect, parameters, result_type, body) => {
+      mut names: [Str] = []
+      for parameter in parameters {
+        annotation = match parameter.annotation {
+          None() => "",
+          Some(type_ref) => ": " + type_ref.text
+        }
+        names = names.append(parameter.name + annotation)
+      }
+      annotation = match result_type {
+        None() => "",
+        Some(type_ref) => ": " + type_ref.text
+      }
+      prefix = if effect == "inferred" { "" } else { effect + " " }
+      "(" + prefix + "(" + render_name_list(names) + ")" + annotation + " => " + render_expr(body) + ")"
+    },
     ArrayExpr(items) => {
       items_text: Str = render_expr_list(items)
       "[${items_text}]"
@@ -2980,6 +3017,7 @@ pub pure expression_reference_path(expression: Expr): Str {
     StringExpr(text) => "",
     BoolExpr(value) => "",
     FunctionExpr(name) => "",
+    AnonymousExpr(effect, parameters, result_type, body) => "",
     ArrayExpr(items) => "",
     UnaryExpr(operator, operand) => "",
     BinaryExpr(operator, left, right) => "",
@@ -3037,6 +3075,22 @@ pure expression_requires_namespaces(expression: Expr, aliases: Set[Str], locals:
       locals
     ),
     FunctionExpr(name) => type_has_qualification(name),
+    AnonymousExpr(effect, parameters, result_type, body) => {
+      mut nested: Set[Str] = locals
+      mut required: Bool = false
+      for parameter in parameters {
+        nested = nested.add(parameter.name)
+        match parameter.annotation {
+          None() => {},
+          Some(type_ref) => { required = required || type_has_qualification(type_ref.text) }
+        }
+      }
+      match result_type {
+        None() => {},
+        Some(type_ref) => { required = required || type_has_qualification(type_ref.text) }
+      }
+      required || expression_requires_namespaces(body, aliases, nested)
+    },
     CallExpr(name, arguments, types) => {
       mut required: Bool = type_has_qualification(name)
       for argument in arguments {

@@ -898,6 +898,37 @@ pure parser_unit_anonymous_headers(): [TestResult] {
   ]
 }
 
+pure parser_unit_anonymous_expressions(): [TestResult] {
+  [
+    std_testing.equal_str("parser/anonymous/expression",
+      parse_source("(x: Nat) => x + 1"), "((x: Nat) => (x + 1))"),
+    std_testing.equal_str("parser/anonymous/contextual-body",
+      parse_source("values.map((x) => x + 1)"), "values.map(((x) => (x + 1)))"),
+    std_testing.equal_str("parser/anonymous/result-body",
+      parse_source("pure (x: Nat): Nat => { x + 1 }"), "(pure (x: Nat): Nat => { (x + 1) })"),
+    std_testing.equal_str("parser/anonymous/async-body",
+      parse_source("async () => { await clock.now() }"), "(async () => { (await clock.now()) })"),
+    std_testing.equal_str("parser/anonymous/nested-body",
+      parse_source("(x: Nat) => (y: Nat) => x + y"), "((x: Nat) => ((y: Nat) => (x + y)))"),
+    std_testing.equal_str("parser/anonymous/callable-group",
+      parse_source("((x: Nat) => x + 1).call(2)"), "((x: Nat) => (x + 1)).call(2)"),
+    std_testing.equal_str("parser/anonymous/argument-boundary",
+      parse_source("apply((x: Nat) => x + 1, 2)"), "apply(((x: Nat) => (x + 1)), 2)"),
+    std_testing.equal_str("parser/anonymous/conditional-body",
+      parse_source("(x: Nat) => if x > 0 { x } else { 1 }"), "((x: Nat) => if (x > 0) { x } else { 1 })"),
+    std_testing.equal_str("parser/anonymous/array-bodies",
+      parse_source("[() => 1, () => 2]"), "[(() => 1), (() => 2)]"),
+    std_testing.equal_str("parser/anonymous/unit-body",
+      parse_source("() => ()"), "(() => $unit())"),
+    std_testing.equal_str("parser/anonymous/missing-body",
+      parse_source("() =>"), "expected expression"),
+    std_testing.equal_str("parser/anonymous/multiline-body",
+      parse_source("() => {\n value = 1\n value\n}"), "(() => { value = 1; value })"),
+    std_testing.equal_str("parser/anonymous/legacy-grouping",
+      parse_source("(1 + 2) * 3"), "((1 + 2) * 3)")
+  ]
+}
+
 main(): Void {
   mut results: [TestResult] = parser_unit_owned_methods()
   results = results.append(std_testing.equal_str("parser/dot-method-spelling-retained",
@@ -943,5 +974,6 @@ main(): Void {
   results = results.concat(parser_unit_reports_malformed_record_declarations())
   results = results.concat(parser_unit_reports_malformed_type_references())
   results = results.concat(parser_unit_anonymous_headers())
+  results = results.concat(parser_unit_anonymous_expressions())
   if std_testing.report(results) > 0 { std_host.exit(1) }
 }

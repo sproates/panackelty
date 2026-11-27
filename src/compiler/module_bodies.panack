@@ -16,7 +16,7 @@ import project/src/compiler/expression_contracts::{decode_string_literal, split_
 pub import project/src/compiler/module_signatures::{SignatureEffect, SignatureEffect.SignaturePure, SignatureEffect.SignatureOrdinary, SignatureEffect.SignatureAsync, SignatureTypeIdentity, SignatureTypeIdentity.SignatureCore, SignatureTypeIdentity.SignatureNominal, SignatureTypeIdentity.SignatureParameter, SignatureTypeIdentity.SignatureCallable, SignatureTypeIdentity.SignatureHole, SignatureType, SignatureSlot, ModuleSignature}
 pub import project/src/compiler/module_bindings::{LoadedModule, ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleDeclarationKind, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant}
 pub import project/src/compiler/module_resolution::{ModuleBindingGraph}
-pub import project/src/compiler/parser::{Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr}
+pub import project/src/compiler/parser::{Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.AnonymousExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr}
 pub import project/src/compiler/types::{SourceSpan, Diagnostic}
 pub import project/src/compiler/checker::{Bounds, SubtractionEvidence}
 pub import project/src/compiler/expression_contracts::{InterpolatedString}
@@ -522,6 +522,7 @@ pure body_lookup_bounds(context: BodyContext, value: BoundBody, include_invalida
       BoolExpr(flag) => {},
       NameExpr(name) => {},
       FunctionExpr(name) => {},
+      AnonymousExpr(effect, parameters, result_type, body) => {},
       ArrayExpr(items) => {},
       UnaryExpr(operator, operand) => {},
       BinaryExpr(operator, left, right) => {},
@@ -608,7 +609,7 @@ pure domain_literal_key(value: BoundBody): Option[Str] {
       BoolExpr(flag) => { key = Some(if flag { "true" } else { "false" }) },
       LocatedExpr(site, inner, types) => {},
     DecimalExpr(raw) => {}, NameExpr(name) => {},
-    FunctionExpr(name) => {}, ArrayExpr(items) => {},
+    FunctionExpr(name) => {}, AnonymousExpr(effect, parameters, result_type, body) => {}, ArrayExpr(items) => {},
     UnaryExpr(op, operand) => {}, BinaryExpr(op, lhs, rhs) => {},
     CallExpr(name, arguments, types) => {}, DotCallExpr(target, name, arguments, types) => {},
     OwnedCallExpr(target, name, arguments, types) => {}, FieldExpr(target, name) => {},
@@ -652,6 +653,7 @@ pure record_constant(value: BoundBody): Option[Rat] {
       BoolExpr(flag) => {},
       NameExpr(name) => {},
       FunctionExpr(name) => {},
+      AnonymousExpr(effect, parameters, result_type, body) => {},
       ArrayExpr(items) => {},
       UnaryExpr(operator, operand) => {},
       BinaryExpr(operator, left, right) => {},
@@ -772,7 +774,7 @@ pure value_domain_facts(context: BodyContext, value: BoundBody): DomainFacts {
       LocatedExpr(site, inner, types) => {},
     NatExpr(n) => {}, DecimalExpr(raw) => {},
     BoolExpr(flag) => {}, NameExpr(name) => {},
-    FunctionExpr(name) => {}, ArrayExpr(items) => {},
+    FunctionExpr(name) => {}, AnonymousExpr(effect, parameters, result_type, body) => {}, ArrayExpr(items) => {},
     UnaryExpr(op, operand) => {}, BinaryExpr(op, lhs, rhs) => {},
     CallExpr(name, arguments, types) => {}, DotCallExpr(target, name, arguments, types) => {},
     OwnedCallExpr(target, name, arguments, types) => {}, FieldExpr(target, name) => {},
@@ -1398,6 +1400,7 @@ pure body_condition_literal(value: BoundBody): Option[Nat] {
       BoolExpr(flag) => {},
       NameExpr(name) => {},
       FunctionExpr(name) => {},
+      AnonymousExpr(effect, parameters, result_type, body) => {},
       ArrayExpr(items) => {},
       UnaryExpr(operator, operand) => {},
       BinaryExpr(operator, left, right) => {},
@@ -1835,7 +1838,8 @@ pure body_facts_after_expression(expression: Expr, facts: Map[Str, Bounds], loca
       StringExpr(text) => {},
       BoolExpr(value) => {},
       NameExpr(name) => {},
-      FunctionExpr(name) => {}
+      FunctionExpr(name) => {},
+      AnonymousExpr(effect, parameters, result_type, body) => {}
     }
   }
 
@@ -5246,6 +5250,9 @@ pure bind_body_expression_with_type_argument_spans(
         local: BodyLocal = locals.get(name)
         result = body_result(BodyLocalUse(local.identity, captured_domain_facts(context, local.identity)), origin, [], local.type)
       }
+    },
+    AnonymousExpr(effect, parameters, result_type, body) => {
+      result = body_failure("anonymous function type checking is not yet available in this development build", origin)
     },
     FunctionExpr(name) => {
       match resolve_module_function(context.graph, context.owner.module, name) {

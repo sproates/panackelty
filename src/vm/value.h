@@ -36,7 +36,8 @@ typedef enum {
     V_HTTP_STREAM,
     V_SHA256_CONTEXT,
     V_GZIP_DECODER,
-    V_CLOSURE
+    V_CLOSURE,
+    V_STATE
 } ValueKind;
 
 typedef struct Value Value;
@@ -104,6 +105,7 @@ struct Value {
         Sequence sequence;
         NamedValues named;
         Iterator iterator;
+        struct { Value *payload; const void *reservation; } state;
         struct { VMStageOwner *owner; size_t slot; } directory_stage;
         struct { VMHttpStreams *owner; size_t slot; } http_stream;
         struct { VMDigests *owner; size_t slot; } sha256;
@@ -148,11 +150,13 @@ Value *value_array_append(Value *array, Value *item);
 /* Copies names and retains fields/payloads. names is NULL for variants. */
 Value *named_value(ValueKind kind, const char *name, char **names, Value **values, size_t count);
 
-/* Closure environments own retained immutable values. This runtime foundation
- * is not yet exposed by source lowering or bytecode construction. Iterators
- * remain ineligible until their snapshot/invocation semantics are implemented. */
+/* Closure environments own retained immutable values and shared State handles.
+ * Iterators and native resources are not eligible captures. */
 typedef enum { CAPTURE_ALLOWED, CAPTURE_REJECTED, CAPTURE_OUT_OF_MEMORY } CaptureCheck;
 CaptureCheck value_capture_check(Value *const *values, size_t count);
+/* Internal State admission: reject capabilities and seal owned array storage
+ * against later hidden suffixes. Does not distinguish legacy string callables. */
+CaptureCheck value_state_payload_check(Value *value);
 /* Borrows target/captures. On failure, status distinguishes rejection from OOM. */
 Value *value_closure(const char *target, Value *const *captures, size_t count,
                      CaptureCheck *status);

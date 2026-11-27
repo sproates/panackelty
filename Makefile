@@ -339,8 +339,8 @@ compiler-watchdog-check: compiler-watchdog-build
 
 -include $(BUILD_DIR)/vm/compiler-observer.d
 
-$(BUILD_DIR)/vm/test_modules: tests/unit/vm/native_modules.c tests/unit/vm/resumable.c tests/unit/vm/coverage.c tests/unit/vm/coverage_session.c tests/unit/vm/tasks.c tests/unit/vm/async.c tests/unit/vm/tcp.c tests/unit/vm/http.c tests/unit/vm/http_state.c tests/unit/vm/root_read.c tests/unit/vm/console_read.c tests/unit/vm/console_write.c tests/unit/vm/process_async.c tests/unit/vm/tcp_server.c $(VM_LIBRARY_OBJECTS)
-	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< tests/unit/vm/resumable.c tests/unit/vm/coverage.c tests/unit/vm/coverage_session.c tests/unit/vm/tasks.c tests/unit/vm/async.c tests/unit/vm/tcp.c tests/unit/vm/http.c tests/unit/vm/http_state.c tests/unit/vm/root_read.c tests/unit/vm/console_read.c tests/unit/vm/console_write.c tests/unit/vm/process_async.c tests/unit/vm/tcp_server.c $(VM_LIBRARY_OBJECTS) -o $@ $(LDLIBS)
+$(BUILD_DIR)/vm/test_modules: tests/unit/vm/native_modules.c tests/unit/vm/resumable.c tests/unit/vm/coverage.c tests/unit/vm/coverage_session.c tests/unit/vm/tasks.c tests/unit/vm/async.c tests/unit/vm/tcp.c tests/unit/vm/http.c tests/unit/vm/http_state.c tests/unit/vm/root_read.c tests/unit/vm/console_read.c tests/unit/vm/console_write.c tests/unit/vm/process_async.c tests/unit/vm/tcp_server.c tests/unit/vm/state.c $(VM_LIBRARY_OBJECTS)
+	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< tests/unit/vm/resumable.c tests/unit/vm/coverage.c tests/unit/vm/coverage_session.c tests/unit/vm/tasks.c tests/unit/vm/async.c tests/unit/vm/tcp.c tests/unit/vm/http.c tests/unit/vm/http_state.c tests/unit/vm/root_read.c tests/unit/vm/console_read.c tests/unit/vm/console_write.c tests/unit/vm/process_async.c tests/unit/vm/tcp_server.c tests/unit/vm/state.c $(VM_LIBRARY_OBJECTS) -o $@ $(LDLIBS)
 
 FAULT_OBJECTS := $(patsubst src/vm/%.c,$(BUILD_DIR)/fault/%.o,$(filter-out src/vm/main.c,$(VM_SOURCES)))
 export PANACK_NATIVE_FAULT_TEST := $(abspath $(BUILD_DIR)/fault/test_faults)

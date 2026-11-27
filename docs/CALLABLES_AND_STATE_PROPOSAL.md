@@ -341,9 +341,9 @@ CS1 is accepted after local and hosted integration validation.
 | --- | --- | --- | --- | --- |
 | CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | Complete: PR #701 and integration run 46042786755 passed | 20 |
 | CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | Complete: PRs #704/#705; integration run 46067730132 passed | 30 |
-| CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | Planned | 0 |
+| CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | In progress: VM cell/reservation foundation | 0 |
 | CS4 | Both service examples, installed acceptance, reference and website guidance | 20 | Planned | 0 |
-| Total | Working callable/state feature | 100 | CS1–CS2 accepted; CS3–CS4 planned | 50 |
+| Total | Working callable/state feature | 100 | CS1–CS2 accepted; CS3 in progress; CS4 planned | 50 |
 
 Order: CS1, then CS2 and CS3, then CS4. CS3 can use named pure callbacks; it need
 not depend on closure syntax. Implement related work in a development branch with
@@ -715,3 +715,35 @@ CS2 earns 30/30 points. CS1 remains 20/20; CS3 State (30) and CS4 combined examp
 installed acceptance and website guidance (20) remain planned. Accepted programme
 progress is 50/100. RM#162 remains open; there is no separate CS2 issue to close.
 No State implementation, release or website publication is claimed.
+
+### CS3 runtime foundation, 27 November 2026
+
+CS3 is in progress on `feature/rm162-state-cells`, based on accepted CS2.
+The internal VM cell owns an immutable payload and compares by cell identity.
+Reservations retain the cell, exclude competing reads/updates and support atomic
+replacement or rollback. Tests exercise two contending owners, an independent
+cell, snapshots retained across commits, invalid reservation ownership, rejection
+of nested cells/captured callables and cleanup after dropping external handles.
+No scheduler or public State entry point is connected yet.
+
+Payload admission follows the entire ownership graph, including hidden array
+suffixes. Admitted array storage is sealed against later extension through an
+alias; otherwise a resource could enter the retained graph after validation.
+Subsequent appends copy that storage and preserve the normal immutable values.
+This costs a copy when appending to a stored array; it does not change bytecode
+or compiler output. Performance acceptance remains part of the completed slice.
+
+Focused native State and existing closure/collection tests pass. State creation
+and commit pass all 17 injected allocation-failure sites without leaks or lost
+reservations. AddressSanitizer/UndefinedBehaviorSanitizer pass the State tests.
+Two initial test fixture construction errors (missing record field names and an
+uninitialized iterator payload) were corrected before these successful runs.
+
+Next: connect reservations to execution scheduling, cancellation and traps; add
+ordinary/async modules and compiler payload/effect checks. Named function values
+currently use legacy string targets, so the public API also needs a distinct
+callable representation before runtime payload admission can reject all callable
+values. These internal tests do not establish that source or untrusted-bytecode
+State admission is complete. Bootstrap/full validation and integration await the
+completed slice. No CI was triggered. CS3 earns 0/30; accepted programme progress
+remains 50/100, with CS4 planned.

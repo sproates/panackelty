@@ -1674,8 +1674,15 @@ static void closure_environment_contracts(void)
     release(first);
 }
 
+void state_cell_contracts(void);
+
 int main(int argc, char **argv)
 {
+    state_cell_contracts();
+    if (argc == 2 && !strcmp(argv[1], "state-cells")) {
+        puts("native State cell contracts: ok");
+        return 0;
+    }
     closure_environment_contracts();
     closure_construction_contracts();
     closure_invocation_contracts();

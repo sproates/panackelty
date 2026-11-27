@@ -642,3 +642,10 @@ CS2 earns 30/30 points. CS1 remains 20/20; CS3 State (30) and CS4 combined examp
 installed acceptance and website guidance (20) remain planned. Accepted programme
 progress is 50/100. RM#162 remains open; there is no separate CS2 issue to close.
 No State implementation, release or website publication is claimed.
+
+CS3 started, 27 November: the internal VM cell/reservation foundation is implemented
+on `feature/rm162-state-cells`. Focused State/closure tests, sanitizer checks and
+17 allocation-failure sites pass. Scheduler integration, ordinary/async APIs and
+compiler/runtime callable-payload checks remain, followed by final validation.
+See the [CS3 checkpoint](CALLABLES_AND_STATE_PROPOSAL.md#cs3-runtime-foundation-27-november-2026).
+No CI was triggered. CS3 earns 0/30; accepted programme progress remains 50/100.

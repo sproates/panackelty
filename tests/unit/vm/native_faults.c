@@ -2,6 +2,7 @@
 #undef NDEBUG
 #endif
 #include "builtins.h"
+#include "state.h"
 #include "host_capabilities.h"
 #include "decode.h"
 #include "fault_injection.h"
@@ -1196,8 +1197,58 @@ void console_write_faults(void);
 void console_read_faults(void);
 void process_async_faults(void);
 
+static Value *state_fixture, *state_cell_fixture;
+
+static void state_creation_allocations(void)
+{
+    size_t refs = state_fixture->refs;
+    StateStatus status;
+    Value *cell = state_create(state_fixture, &status);
+    if (fault_triggered()) assert(!cell && status == STATE_OUT_OF_MEMORY);
+    else assert(cell && status == STATE_OK);
+    release(cell);
+    assert(state_fixture->refs == refs);
+}
+
+static void state_commit_allocations(void)
+{
+    StateReservation reservation = {0};
+    assert(state_reserve(state_cell_fixture, &reservation) == STATE_OK);
+    StateStatus status = state_commit(&reservation, state_fixture);
+    if (fault_triggered()) {
+        assert(status == STATE_OUT_OF_MEMORY && reservation.cell == state_cell_fixture);
+        Value *snapshot = state_reserved_read(&reservation);
+        assert(snapshot->kind == V_UNIT);
+        release(snapshot);
+        state_abort(&reservation);
+    } else {
+        assert(status == STATE_OK && !reservation.cell);
+    }
+    /* Restore the fixture directly without adding allocation sites to the
+     * sweep. Production rollback uses state_abort, as checked above. */
+    release(state_cell_fixture->as.state.payload);
+    state_cell_fixture->as.state.payload = value_unit();
+    assert(state_fixture->refs == 1 && state_cell_fixture->refs == 1);
+}
+
 int main(int argc, char **argv)
 {
+    Value *state_items[80];
+    for (size_t i = 0; i < 80; i++) state_items[i] = value_size(i);
+    state_fixture = value_sequence(V_ARRAY, state_items, 80);
+    for (size_t i = 0; i < 80; i++) release(state_items[i]);
+    StateStatus state_status;
+    state_cell_fixture = state_create(value_unit(), &state_status);
+    assert(state_fixture && state_cell_fixture && state_status == STATE_OK);
+    sweep("State creation admission and ownership", state_creation_allocations);
+    sweep("State commit failure and reservation rollback", state_commit_allocations);
+    release(state_cell_fixture);
+    release(state_fixture);
+    if (argc == 2 && !strcmp(argv[1], "state-cells")) {
+        printf("State allocation failures: %zu checked\n", sweeps);
+        return 0;
+    }
+
     /* Boolean construction/ownership must not attempt an allocation. */
     fault_reset(1);
     Value *shared_yes = value_bool(true), *shared_no = value_bool(false);

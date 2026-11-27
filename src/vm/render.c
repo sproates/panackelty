@@ -54,6 +54,8 @@ bool render(Buffer *b, const Value *v, bool display)
 {
     char *number = NULL;
     switch (v->kind) {
+    case V_STATE:
+        return buffer_text(b, "<State>");
     case V_CLOSURE:
         return buffer_text(b, "<closure>");
     case V_SHA256_CONTEXT:

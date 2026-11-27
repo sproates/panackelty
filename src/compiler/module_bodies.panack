@@ -2486,8 +2486,10 @@ pure body_call_with_receiver(
   mut index: Nat = 0
 
   mut has_anonymous: Bool = false
+  mut has_compound: Bool = false
   for argument in arguments {
-    anonymous = body_is_anonymous(argument)
+    anonymous = body_needs_callable_context(argument) && !(index == 0 && receiver != None())
+    has_compound = has_compound || (anonymous && !body_is_anonymous(argument))
     has_anonymous = has_anonymous || anonymous
     checked: BodyResult = if anonymous {
       body_result(BodyEmpty(), expression_span(argument).value_or(span), [], None())
@@ -2513,7 +2515,13 @@ pure body_call_with_receiver(
     }
     index = index + 1
   }
-  context: BodyContext = current_context
+  // The first pass only supplies types for compound callbacks. Recheck the
+  // argument list in source order once those expected types are available.
+  if has_compound {
+    diagnostics = []
+    deferred = []
+  }
+  mut context: BodyContext = current_context
   mut resolved_types: [SignatureType] = []
   mut call_arguments: [CallArgumentEvidence] = []
   mut type_checks: [BodyTypeCheckEvidence] = []
@@ -2542,20 +2550,34 @@ pure body_call_with_receiver(
   if has_anonymous {
     expectations = body_contextual_arguments(context, target, resolved_types, children, path)
     mut completed: [BoundBody] = []
+    mut replay_context: BodyContext = incoming_context
     index = 0
     for argument in arguments {
-      if body_is_anonymous(argument) {
+      contextual = body_needs_callable_context(argument) && !(index == 0 && receiver != None())
+      if contextual || has_compound {
         expected = if index < expectations.len() { expectations[index] } else { None() }
-        checked = bind_body_expression_expected(context, argument, span, locals, path.append(index), expected)
+        checked: BodyResult = if index == 0 && receiver != None() {
+          receiver.value_or(body_result(BodyEmpty(), span, [], None()))
+        } else {
+          bind_body_expression_expected(if has_compound { replay_context } else { context },
+            argument, span, locals, path.append(index), expected)
+        }
         completed = completed.append(checked.body)
         diagnostics = diagnostics.concat(checked.diagnostics)
         deferred = deferred.concat(checked.deferred)
+        if checked.body.type == body_core_type("Void") {
+          diagnostics = diagnostics.append(Diagnostic(
+            "Void is not a value and cannot be passed as an argument", checked.body.span.start))
+        }
+        replay_context = body_context_with_facts(replay_context,
+          body_invalidate_assigned_locals(replay_context.facts, checked.body))
       } else {
         completed = completed.append(children[index])
       }
       index = index + 1
     }
     children = completed
+    if has_compound { context = replay_context }
   }
   mut output: Option[SignatureType] = None()
   if !body_special_core_call(target) {
@@ -5460,6 +5482,41 @@ pure body_is_anonymous(expression: Expr): Bool {
   anonymous
 }
 
+pure body_needs_callable_context(expression: Expr): Bool {
+  mut anonymous: Bool = false
+  match unlocated_expression(expression) {
+    AnonymousExpr(effect, parameters, result_type, body) => { anonymous = true },
+    LocatedExpr(site, value, types) => {},
+    NatExpr(value) => {},
+    DecimalExpr(value) => {},
+    StringExpr(value) => {},
+    BoolExpr(value) => {},
+    NameExpr(name) => {},
+    FunctionExpr(name) => {},
+    ArrayExpr(values) => {},
+    UnaryExpr(operator, value) => {},
+    BinaryExpr(operator, left, right) => {},
+    CallExpr(name, values, types) => {},
+    DotCallExpr(target, name, values, types) => {},
+    OwnedCallExpr(target, name, values, types) => {},
+    FieldExpr(target, name) => {},
+    IndexExpr(target, index) => {},
+    IfExpr(condition, yes, no, has_else) => { anonymous = body_block_needs_callable_context(yes) || body_block_needs_callable_context(no) },
+    BlockExpr(block) => { anonymous = body_block_needs_callable_context(block) },
+    MatchExpr(subject, arms) => {
+      for arm in arms { anonymous = anonymous || body_needs_callable_context(arm.body) }
+    },
+  }
+  anonymous
+}
+
+pure body_block_needs_callable_context(block: Block): Bool {
+  match block.value {
+    NoBlockValue() => false,
+    TailBlockValue(value) => body_needs_callable_context(value)
+  }
+}
+
 pure bind_body_expression_expected(
   context: BodyContext, expression: Expr, origin: SourceSpan,
   locals: Map[Str, BodyLocal], path: [Nat], expected: Option[SignatureType]
@@ -5485,9 +5542,18 @@ pure bind_body_expression_expected(
     OwnedCallExpr(target, name, values, types) => {},
     FieldExpr(target, name) => {},
     IndexExpr(target, index) => {},
-    IfExpr(condition, yes, no, has_else) => {},
-    BlockExpr(block) => {},
-    MatchExpr(subject, arms) => {},
+    IfExpr(condition, yes, no, has_else) => {
+      result = Some(bind_body_if(context, condition, yes, no, has_else,
+        expression_span(expression).value_or(origin), locals, path, expected))
+    },
+    BlockExpr(block) => {
+      result = Some(bind_body_block_expected(context, block,
+        expression_span(expression).value_or(origin), locals, path, expected))
+    },
+    MatchExpr(subject, arms) => {
+      result = Some(bind_body_match(context, subject, arms,
+        expression_span(expression).value_or(origin), locals, path, expected))
+    },
   }
   match result {
     Some(checked) => checked,
@@ -5564,7 +5630,6 @@ pure bind_anonymous_body(
   }
   mut checked: BodyResult = body_result(BodyEmpty(), span, [], None())
   if diagnostics.len() == 0 {
-    checked = bind_body_expression(context, expression, span, locals, [1])
     match result_annotation {
       None() => {},
       Some(annotation) => match signature_type(context.graph, context.modules, owner,
@@ -5576,6 +5641,7 @@ pure bind_anonymous_body(
         }
       }
     }
+    checked = bind_body_expression_expected(context, expression, span, locals, [1], declared_result)
     match declared_result {
       None() => {},
       Some(required_type) => {
@@ -5843,10 +5909,10 @@ pure bind_body_expression_with_type_argument_spans(
       )
     },
     IfExpr(condition, yes, no, has_else) => {
-      result = bind_body_if(context, condition, yes, no, has_else, origin, locals, path)
+      result = bind_body_if(context, condition, yes, no, has_else, origin, locals, path, None())
     },
     MatchExpr(subject, arms) => {
-      result = bind_body_match(context, subject, arms, origin, locals, path)
+      result = bind_body_match(context, subject, arms, origin, locals, path, None())
     }
   }
 
@@ -5861,7 +5927,8 @@ pure bind_body_if(
   has_else: Bool,
   origin: SourceSpan,
   locals: Map[Str, BodyLocal],
-  path: [Nat]
+  path: [Nat],
+  expected: Option[SignatureType]
 ): BodyResult {
   checked_condition: BodyResult = bind_body_expression(
     context,
@@ -5878,19 +5945,19 @@ pure bind_body_if(
     context,
     body_condition_facts(checked_condition.body, body_invalidate_assigned_locals(context.facts, checked_condition.body), false)
   )
-  checked_yes: BodyResult = bind_body_expression(
+  checked_yes: BodyResult = bind_body_expression_expected(
     yes_context,
     BlockExpr(yes),
     origin,
     locals,
-    path.append(1)
+    path.append(1), expected
   )
-  checked_no: BodyResult = bind_body_expression(
+  checked_no: BodyResult = bind_body_expression_expected(
     no_context,
     BlockExpr(no),
     origin,
     locals,
-    path.append(2)
+    path.append(2), expected
   )
   condition_result: BodyResult = BodyResult(
     BoundBody(
@@ -5974,7 +6041,7 @@ pure bind_body_block_expected(
           )
         }
         mut expected_value: Option[SignatureType] = None()
-        if spelling != "" && body_is_anonymous(value) {
+        if spelling != "" && body_needs_callable_context(value) {
           match signature_type(current_context.graph, current_context.modules, current_context.owner,
               current_context.parameters, spelling, false, false) {
             Error(message) => {},
@@ -6096,7 +6163,9 @@ pure bind_body_block_expected(
         )
       },
       AssignmentStatement(name, value) => {
-        checked = bind_body_expression(current_context, value, span, visible, statement_path.append(0))
+        expected_value = if visible.has(name) { visible.get(name).type } else { None() }
+        checked = bind_body_expression_expected(current_context, value, span, visible,
+          statement_path.append(0), expected_value)
         if !visible.has(name) {
           diagnostics = diagnostics.concat(body_incomplete_local(name, checked))
           mut value_type_checks: [BodyTypeCheckEvidence] = []
@@ -8378,7 +8447,8 @@ pure bind_body_match(
   arms: [MatchArm],
   span: SourceSpan,
   locals: Map[Str, BodyLocal],
-  path: [Nat]
+  path: [Nat],
+  expected_result: Option[SignatureType]
 ): BodyResult {
   subject_result: BodyResult = bind_body_expression(context, subject, span, locals, path.append(0))
   mut children: [BoundBody] = [subject_result.body]
@@ -8607,12 +8677,12 @@ pure bind_body_match(
       arm_locals = arm_locals.put(name, BodyLocal(local, type, false))
       binding_index = binding_index + 1
     }
-    checked: BodyResult = bind_body_expression(
+    checked: BodyResult = bind_body_expression_expected(
       context,
       arm.body,
       span,
       arm_locals,
-      path.concat([index, 1])
+      path.concat([index, 1]), expected_result
     )
     children = children.append(checked.body)
     bindings = bindings.append(arm_bindings)

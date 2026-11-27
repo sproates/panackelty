@@ -339,7 +339,7 @@ Implementation has not started and all earned contributions are zero.
 
 | Slice | Deliverable | Weight | Status | Earned |
 | --- | --- | --- | --- | --- |
-| CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | In progress: working noncapturing execution; contextual propagation and acceptance pending | 0 |
+| CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | In progress: working noncapturing execution and compound contextual typing; acceptance audit pending | 0 |
 | CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | Planned | 0 |
 | CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | Planned | 0 |
 | CS4 | Both service examples, installed acceptance, reference and website guidance | 20 | Planned | 0 |
@@ -489,3 +489,23 @@ plus the final full suite. Do not merge this development checkpoint as CS1 done.
 The unchanged explanation, purity and source-map regression probes also pass
 (266, 39 and 48 assertions respectively). Runtime output is checked against the
 fixture’s fixed `stdout.txt`, not only compared between execution modes.
+
+
+27 November, compound contextual typing checkpoint: expected callable inputs now
+flow through if/match results, block tails, reassignment and compound callback
+arguments. Nested anonymous bodies also receive an explicit result annotation.
+Argument checking replays compound callbacks in source order after gathering
+input types, preserving mutation-based invalidation of guarded facts. A paired
+regression accepts guarded subtraction without a preceding mutation and rejects
+it when an earlier argument writes the guarded variable. Runtime selection
+effects occur once.
+
+The module-binding/cache suite passes 2,180 assertions, explanations 266 and
+purity 39. Candidate source execution and verified saved bytecode match the
+expanded fixed transcript. Remaining work is the contextual-type acceptance
+audit (including aggregate/constructor positions), explanation/diagnostic review,
+final functional registration and compatibility/full validation. CS1 remains in
+progress, with zero accepted implementation points; CS2–CS4 remain planned. No
+CI or bootstrap refresh. The extra checking pass is limited to calls containing
+compound callback expressions; ordinary calls retain their current path. No VM
+or bytecode changes. Website claims remain unchanged until feature acceptance.

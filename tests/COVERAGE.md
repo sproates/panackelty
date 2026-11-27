@@ -2261,3 +2261,23 @@ This is development evidence, not acceptance of CS1: compound contextual typing,
 explanation/diagnostic review, final functional registration, compatibility and
 full validation remain. No bytecode-version change or CI run accompanies this
 checkpoint.
+
+
+27 November, compound contextual typing checkpoint: expected callable inputs now
+flow through if/match results, block tails, reassignment and compound callback
+arguments. Nested anonymous bodies also receive an explicit result annotation.
+Argument checking replays compound callbacks in source order after gathering
+input types, preserving mutation-based invalidation of guarded facts. A paired
+regression accepts guarded subtraction without a preceding mutation and rejects
+it when an earlier argument writes the guarded variable. Runtime selection
+effects occur once.
+
+The module-binding/cache suite passes 2,180 assertions, explanations 266 and
+purity 39. Candidate source execution and verified saved bytecode match the
+expanded fixed transcript. Remaining work is the contextual-type acceptance
+audit (including aggregate/constructor positions), explanation/diagnostic review,
+final functional registration and compatibility/full validation. CS1 remains in
+progress, with zero accepted implementation points; CS2–CS4 remain planned. No
+CI or bootstrap refresh. The extra checking pass is limited to calls containing
+compound callback expressions; ordinary calls retain their current path. No VM
+or bytecode changes. Website claims remain unchanged until feature acceptance.

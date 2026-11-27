@@ -5301,6 +5301,12 @@ pure stdlib_nominal_identity_tests(): [TestResult] {
 pure anonymous_body_tests(): [TestResult] {
   mut results: [TestResult] = []
   for source in [
+    "pure f(flag: Bool): PureFn[Nat,Nat] { if flag { (x) => x + 1 } else { (x) => x + 2 } }",
+    "pure f(flag: Option[Bool]): PureFn[Nat,Nat] { match flag { Some(value) => (x) => x + 1, None() => (x) => x + 2 } }",
+    "pure f(): PureFn[PureFn[Nat,Nat]] { (): PureFn[Nat,Nat] => (x) => x + 1 }",
+    "pure f(): Nat { mut callback: PureFn[Nat,Nat] = (x) => x; callback = if true { (x) => x + 1 } else { (x) => x }; callback.call(2) }",
+    "pure apply[T,U](f: PureFn[T,U], x: T): U { f.call(x) }; pure f(): Str { apply(if true { (x) => \"yes\" } else { (x) => \"no\" }, 2) }",
+    "pure apply(f: PureFn[Nat,Nat], x: Nat): Nat { f.call(x) }; pure f(): Nat { mut count: Nat = 2; if count >= 1 { apply(if true { (x) => x } else { (x) => x }, count - 1) } else { 0 } }",
     "pure f(): PureFn[Nat,Nat] { (x: Nat) => x + 1 }",
     "pure f(): PureFn[Nat,Nat] { (x) => x + 1 }",
     "pure f(): Nat { callback: PureFn[Nat,Nat] = (x) => x + 1; callback.call(2) }",
@@ -5330,5 +5336,8 @@ pure anonymous_body_tests(): [TestResult] {
     results = results.append(std_testing.expect("anonymous invalid body/effects rejected", direct.diagnostics.len() > 0, source))
     results = results.append(std_testing.expect("anonymous invalid cached facts agree", direct == cached, source))
   }
+  results = results.append(std_testing.equal_str("compound callback preserves argument fact invalidation",
+    body_test_error("pure apply(f: PureFn[Nat,Nat], x: Nat): Nat { f.call(x) }; pure f(): Nat { mut count: Nat = 2; if count >= 1 { apply(if true { count = 0; (x) => x } else { (x) => x }, count - 1) } else { 0 } }"),
+    "Nat subtraction may underflow; prove the left side is large enough or use Int"))
   results
 }

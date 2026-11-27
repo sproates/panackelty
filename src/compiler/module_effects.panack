@@ -1,3 +1,4 @@
+import project/src/compiler/module_bodies::{body_functions_with_anonymous}
 import project/src/compiler/resolver::{is_async_builtin}
 pub import project/src/compiler/types::{SourceSpan}
 import project/src/compiler/module_bindings::{module_declaration_display}
@@ -12,7 +13,7 @@ import project/src/compiler/module_bodies::{
   BodyContext, BodyTarget.BodyCore, BodyTarget.BodyDeclaration,
   BodyNode, BodyNode.BodyArray, BodyNode.BodyAssignment, BodyNode.BodyBinary,
   BodyNode.BodyBinding, BodyNode.BodyBlock, BodyNode.BodyCall, BodyNode.BodyEmpty,
-  BodyNode.BodyField, BodyNode.BodyFor, BodyNode.BodyFunction, BodyNode.BodyIf,
+  BodyNode.BodyField, BodyNode.BodyFor, BodyNode.BodyFunction, BodyNode.BodyAnonymousFunction, BodyNode.BodyIf,
   BodyNode.BodyIndex, BodyNode.BodyInterpolation, BodyNode.BodyLiteral,
   BodyNode.BodyLocalUse, BodyNode.BodyMatch, BodyNode.BodyUnary, BodyNode.BodyWhile,
   BoundBody, body_signature, body_type_text,
@@ -214,7 +215,8 @@ pure module_local_body(context: BodyContext, body: BoundBody, known: Set[Declara
       }
     },
     BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity, captured_domain) => {},
-    BodyFunction(binding) => {}, BodyArray() => {}, BodyUnary(operator) => {},
+    BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {}, BodyArray() => {}, BodyUnary(operator) => {},
     BodyBinary(operator) => {}, BodyField(field) => {}, BodyIndex() => {}, BodyIf(value) => {},
     BodyBlock(value, original_span, statement_spans) => {}, BodyMatch(targets, locals, spans) => {}, BodyBinding(identity, type, mutable, inferred, evidence) => {},
     BodyAssignment(identity, evidence) => {}, BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
@@ -235,7 +237,7 @@ pure module_local_functions(graph: ModuleBindingGraph, modules: [LoadedModule],
   mut changed = true
   while changed {
     changed = false
-    for function in functions {
+    for function in body_functions_with_anonymous(functions) {
       identity = function.signature.binding.identity
       if function.status != BodyInvalid() && function.signature.effect == Some(SignatureOrdinary()) && !known.has(identity) {
         context = BodyContext(graph, modules, signatures, identity, function.signature.parameters, map(), false)
@@ -375,6 +377,7 @@ pure module_effect_expression(
             BodyInterpolation(parts) => { invalid_await_operand = true },
             BodyLocalUse(identity, captured_domain) => { invalid_await_operand = true },
             BodyFunction(binding) => { invalid_await_operand = true },
+            BodyAnonymousFunction(anonymous) => { invalid_await_operand = true },
             BodyArray() => { invalid_await_operand = true },
             BodyUnary(nested) => { invalid_await_operand = true },
             BodyBinary(nested) => { invalid_await_operand = true },
@@ -462,7 +465,8 @@ pure module_effect_expression(
               }
             },
             BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity, captured_domain) => {},
-            BodyFunction(binding) => {}, BodyCall(target, types, call_arguments) => {}, BodyArray() => {},
+            BodyFunction(binding) => {},
+            BodyAnonymousFunction(anonymous) => {}, BodyCall(target, types, call_arguments) => {}, BodyArray() => {},
             BodyBinary(operator) => {}, BodyField(field) => {}, BodyIndex() => {}, BodyIf(value) => {},
             BodyBlock(value, nested_span, nested_statement_spans) => {}, BodyMatch(targets, locals, spans) => {}, BodyBinding(identity, type, mutable, inferred, type_evidence) => {},
             BodyAssignment(identity, assignment_evidence) => {}, BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
@@ -474,7 +478,8 @@ pure module_effect_expression(
       children_walked = true
     },
     BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity, captured_domain) => {},
-    BodyFunction(binding) => {}, BodyArray() => {}, BodyBinary(operator) => {}, BodyField(field) => {},
+    BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {}, BodyArray() => {}, BodyBinary(operator) => {}, BodyField(field) => {},
     BodyIndex() => {}, BodyIf(value) => {}, BodyMatch(targets, locals, spans) => {},
     BodyBinding(identity, type, mutable, inferred, type_evidence) => {}, BodyAssignment(identity, assignment_evidence) => {},
     BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
@@ -498,7 +503,7 @@ pub pure check_module_effects(
   mut evidence: [EffectEvidence] = []
   mut function_types: Map[Str, Bool] = map()
   local_functions = module_local_functions(graph, modules, signatures, functions, retain)
-  for function in functions {
+  for function in body_functions_with_anonymous(functions) {
     valid_body: Bool = function.status != BodyInvalid()
     function_types = function_types.put(function.signature.binding.identity.name,
       valid_body && function.status == BodyIdentityChecked())
@@ -575,7 +580,8 @@ pure effect_local_calls(body: BoundBody): [EffectCallFact] {
   match body.node {
     BodyCall(target, types, arguments) => { calls = calls.append(effect_call_fact(body, target)) },
     BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity, domain) => {},
-    BodyFunction(binding) => {}, BodyArray() => {}, BodyUnary(ignored_unary) => {},
+    BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {}, BodyArray() => {}, BodyUnary(ignored_unary) => {},
     BodyBinary(ignored_binary) => {}, BodyField(field) => {}, BodyIndex() => {}, BodyIf(value) => {},
     BodyBlock(value, ignored_span, ignored_spans) => {}, BodyMatch(targets, locals, ignored_match_spans) => {},
     BodyBinding(identity, type, mutable, inferred, evidence) => {}, BodyAssignment(identity, evidence) => {},
@@ -599,7 +605,8 @@ pure effect_check_facts(expression: BoundBody, mode: Str, awaited: Bool): [Effec
           match expression.children[0].node {
             BodyCall(target, types, arguments) => { valid_operand = true },
             BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity, domain) => {},
-            BodyFunction(binding) => {}, BodyArray() => {}, BodyUnary(ignored_unary) => {},
+            BodyFunction(binding) => {},
+            BodyAnonymousFunction(anonymous) => {}, BodyArray() => {}, BodyUnary(ignored_unary) => {},
             BodyBinary(ignored_binary) => {}, BodyField(field) => {}, BodyIndex() => {}, BodyIf(value) => {},
             BodyBlock(value, ignored_span, ignored_spans) => {}, BodyMatch(targets, locals, ignored_match_spans) => {},
             BodyBinding(identity, type, mutable, inferred, evidence) => {}, BodyAssignment(identity, evidence) => {},
@@ -634,7 +641,8 @@ pure effect_check_facts(expression: BoundBody, mode: Str, awaited: Bool): [Effec
               }
             },
             BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity, domain) => {},
-            BodyFunction(binding) => {}, BodyCall(target, types, arguments) => {}, BodyArray() => {},
+            BodyFunction(binding) => {},
+            BodyAnonymousFunction(anonymous) => {}, BodyCall(target, types, arguments) => {}, BodyArray() => {},
             BodyBinary(ignored_binary) => {}, BodyField(field) => {}, BodyIndex() => {}, BodyIf(value) => {},
             BodyBlock(value, ignored_span, ignored_spans) => {}, BodyMatch(targets, locals, ignored_match_spans) => {},
             BodyBinding(identity, type, mutable, inferred, evidence) => {}, BodyAssignment(identity, evidence) => {},
@@ -647,7 +655,8 @@ pure effect_check_facts(expression: BoundBody, mode: Str, awaited: Bool): [Effec
       walked = true
     },
     BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity, domain) => {},
-    BodyFunction(binding) => {}, BodyArray() => {}, BodyBinary(ignored_binary) => {}, BodyField(field) => {},
+    BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {}, BodyArray() => {}, BodyBinary(ignored_binary) => {}, BodyField(field) => {},
     BodyIndex() => {}, BodyIf(value) => {}, BodyMatch(targets, locals, ignored_match_spans) => {},
     BodyBinding(identity, type, mutable, inferred, evidence) => {}, BodyAssignment(identity, evidence) => {},
     BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
@@ -660,7 +669,7 @@ pure effect_check_facts(expression: BoundBody, mode: Str, awaited: Bool): [Effec
 
 pub pure collect_function_effect_facts(functions: [BoundFunctionBody]): [FunctionEffectFacts] {
   mut result: [FunctionEffectFacts] = []
-  for function in functions {
+  for function in body_functions_with_anonymous(functions) {
     valid = function.status != BodyInvalid()
     result = result.append(FunctionEffectFacts(
       function.signature.binding.identity, function.signature.binding.span.start.file,

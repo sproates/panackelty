@@ -1,0 +1,23 @@
+import stdlib/testing_async as testing_async
+
+pure expect(value: Bool): Unit {
+  checked = [0][if value { 0 } else { 1 }]
+  ()
+}
+
+pure make_reader(): AsyncFn[Bool,Result[Bytes,Str]] {
+  async (fail) => { await testing_async.read(fail) }
+}
+
+async main(): Unit {
+  reader = make_reader()
+  match await reader.call(false) {
+    Ok(data) => expect(data.decode_utf8() == "fake bytes"),
+    Error(problem) => expect(false)
+  }
+  match await reader.call(true) {
+    Ok(data) => expect(false),
+    Error(problem) => expect(problem == "fake I/O error")
+  }
+  ()
+}

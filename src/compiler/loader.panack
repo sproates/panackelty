@@ -17,7 +17,7 @@ pub import project/src/compiler/module_bodies::{
   Diagnostic, LoadedModule, ModuleBindingGraph, ModuleSignature, BoundFunctionBody
 }
 import project/src/compiler/module_bodies::{
-  CheckedModuleBodies, check_module_guards, body_subtraction_evidence_entries, BodyCheckStatus.BodyIdentityChecked, check_module_bodies, check_module_bodies_explained
+  body_anonymous_functions, CheckedModuleBodies, check_module_guards, body_subtraction_evidence_entries, BodyCheckStatus.BodyIdentityChecked, check_module_bodies, check_module_bodies_explained
 }
 import project/src/compiler/module_effects::{CheckedModuleEffects, check_module_effects, FunctionEffectFacts, collect_function_effect_facts, check_function_effect_facts}
 pub import project/src/compiler/module_bindings::{ModuleIdentity}
@@ -1243,6 +1243,13 @@ pure check_project_sources_with_reuse(
                   own_facts = own_facts.append(fact)
                   for binding in module.bindings.declarations {
                     if binding.identity == fact.identity { names = names.add(module_emission_callable_symbol(graph, entry_identity, binding)) }
+                  }
+                }
+              }
+              for body in bodies {
+                if body.signature.binding.identity.module == module.bindings.identity {
+                  for anonymous in body_anonymous_functions(body.body) {
+                    names = names.add(module_emission_callable_symbol(graph, entry_identity, anonymous.signature.binding))
                   }
                 }
               }

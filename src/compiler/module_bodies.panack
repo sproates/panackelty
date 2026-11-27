@@ -1,3 +1,5 @@
+import project/src/compiler/purity::{is_impure_builtin}
+import project/src/compiler/resolver::{is_async_builtin}
 import project/src/compiler/module_bindings::{ModuleBodyAvailability.SummaryModuleBodies}
 pub import project/src/compiler/domain_guards::{DomainFacts}
 import project/src/compiler/domain_guards::{with_fact_source, guard_conjuncts, record_rules, FieldOrder, FieldNumber, size_facts, record_facts, runtime_validation_expression, runtime_numeric_supported, common_facts, combine_facts, DomainRule, domain_base, domain_rules, rule_outcome, fact_text, rule_text, declared_facts, unknown_facts}
@@ -8,7 +10,7 @@ import project/src/compiler/module_resolution::{resolve_owned_method, resolve_bu
 import project/src/compiler/module_signatures::{signature_effect, signature_declaration, signature_type, substitute_signature_type, check_module_signatures}
 import project/src/compiler/module_bindings::{ModulePackageIdentity, ModulePackageIdentity.ToolchainModulePackage, ModulePackageIdentity.StandaloneModulePackage, ModulePackageIdentity.ManifestModulePackage, module_import_names, module_internal_primitive, module_reserved_binding}
 import project/src/compiler/module_resolution::{ResolvedModuleUses, ResolvedModuleTarget, ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget, ResolvedDotCall, ResolvedDotCall.NamespaceCall, ResolvedDotCall.OwnedDotCall, binding_graph_module, binding_graph_target, module_identity_in, resolve_module_expression_uses, resolve_module_path_inner, resolve_module_type, module_head_is_namespace, resolve_module_function, resolve_module_path, resolve_module_dot_call_scoped, module_import_shadow_diagnostics}
-import project/src/compiler/parser::{Statement, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue, BlockValue.NoBlockValue, BlockValue.TailBlockValue, Block, Program, MatchArm, MatchPattern, ParsedModule, ParsedTypeRef, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, DeclarationSyntax, RecordField, FunctionParameter, EnumVariant, expression_span, expression_reference_path, reference_head, unlocated_expression, render_expr}
+import project/src/compiler/parser::{Statement, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue, BlockValue.NoBlockValue, BlockValue.TailBlockValue, Block, Program, MatchArm, MatchPattern, ParsedModule, ParsedTypeRef, AnonymousParameter, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, DeclarationSyntax, RecordField, FunctionParameter, EnumVariant, expression_span, expression_reference_path, reference_head, unlocated_expression, render_expr}
 import project/src/compiler/lexer::{prior_index}
 import project/src/compiler/types::{SourcePos}
 import project/src/compiler/checker::{is_scalar_base, TypeInfo, SubtractionDecision, GuardOrigin, GuardedTypeLookup, condition_facts, render_type, prove_guard_bounds}
@@ -47,6 +49,7 @@ pub enum BodyNode {
   BodyInterpolation([Str]),
   BodyLocalUse(BodyLocalIdentity, Option[DomainFacts]),
   BodyFunction(ModuleDeclarationBinding),
+  BodyAnonymousFunction(BoundFunctionBody),
   BodyCall(BodyTarget, [SignatureType], [CallArgumentEvidence]),
   BodyArray,
   BodyUnary(Str),
@@ -195,6 +198,31 @@ pub record BoundFunctionBody {
   return_type_evidence: Option[ReturnTypeEvidence]
 }
 
+// Evidence visitors enter nested bodies; execution/data-flow visitors do not.
+pub pure body_evidence_children(body: BoundBody): [BoundBody] {
+  match body.node {
+    BodyLiteral(value0) => body.children,
+    BodyInterpolation(value0) => body.children,
+    BodyLocalUse(value0, value1) => body.children,
+    BodyFunction(value0) => body.children,
+    BodyCall(value0, value1, value2) => body.children,
+    BodyArray() => body.children,
+    BodyUnary(value0) => body.children,
+    BodyBinary(value0) => body.children,
+    BodyField(value0) => body.children,
+    BodyIndex() => body.children,
+    BodyIf(value0) => body.children,
+    BodyBlock(value0, value1, value2) => body.children,
+    BodyMatch(value0, value1, value2) => body.children,
+    BodyBinding(value0, value1, value2, value3, value4) => body.children,
+    BodyAssignment(value0, value1) => body.children,
+    BodyWhile() => body.children,
+    BodyFor(value0) => body.children,
+    BodyEmpty() => body.children,
+    BodyAnonymousFunction(anonymous) => body.children.append(anonymous.body)
+  }
+}
+
 pub pure body_call_argument_evidence(body: BoundBody): [CallArgumentEvidence] {
   mut entries: [CallArgumentEvidence] = []
   match body.node {
@@ -206,6 +234,7 @@ pub pure body_call_argument_evidence(body: BoundBody): [CallArgumentEvidence] {
     BodyInterpolation(parts) => {},
     BodyLocalUse(local, captured_domain) => {},
     BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {},
     BodyArray() => {},
     BodyUnary(operator) => {},
     BodyBinary(operator) => {},
@@ -219,7 +248,7 @@ pub pure body_call_argument_evidence(body: BoundBody): [CallArgumentEvidence] {
     BodyFor(local) => {},
     BodyEmpty() => {}
   }
-  for child in body.children {
+  for child in body_evidence_children(body) {
     entries = entries.concat(body_call_argument_evidence(child))
   }
   entries
@@ -233,6 +262,7 @@ pure body_direct_call_argument_metadata(body: BoundBody): [CallArgumentEvidence]
     BodyInterpolation(parts) => [],
     BodyLocalUse(local, captured_domain) => [],
     BodyFunction(binding) => [],
+    BodyAnonymousFunction(anonymous) => [],
     BodyArray() => [],
     BodyUnary(operator) => [],
     BodyBinary(operator) => [],
@@ -260,6 +290,7 @@ pub pure body_binding_type_evidence(body: BoundBody): [BindingTypeEvidence] {
     BodyInterpolation(parts) => {},
     BodyLocalUse(local, captured_domain) => {},
     BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {},
     BodyArray() => {},
     BodyUnary(operator) => {},
     BodyBinary(operator) => {},
@@ -273,7 +304,7 @@ pub pure body_binding_type_evidence(body: BoundBody): [BindingTypeEvidence] {
     BodyFor(local) => {},
     BodyEmpty() => {}
   }
-  for child in body.children {
+  for child in body_evidence_children(body) {
     entries = entries.concat(body_binding_type_evidence(child))
   }
   entries
@@ -292,6 +323,7 @@ pub pure body_assignment_type_evidence(body: BoundBody): [AssignmentTypeEvidence
     BodyInterpolation(parts) => {},
     BodyLocalUse(local, captured_domain) => {},
     BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {},
     BodyArray() => {},
     BodyUnary(operator) => {},
     BodyBinary(operator) => {},
@@ -304,7 +336,7 @@ pub pure body_assignment_type_evidence(body: BoundBody): [AssignmentTypeEvidence
     BodyFor(local) => {},
     BodyEmpty() => {}
   }
-  for child in body.children {
+  for child in body_evidence_children(body) {
     entries = entries.concat(body_assignment_type_evidence(child))
   }
   entries
@@ -312,7 +344,7 @@ pub pure body_assignment_type_evidence(body: BoundBody): [AssignmentTypeEvidence
 
 pub pure body_type_join_evidence(body: BoundBody): [TypeJoinEvidence] {
   mut entries: [TypeJoinEvidence] = body.type_joins
-  for child in body.children {
+  for child in body_evidence_children(body) {
     entries = entries.concat(body_type_join_evidence(child))
   }
   entries
@@ -320,7 +352,7 @@ pub pure body_type_join_evidence(body: BoundBody): [TypeJoinEvidence] {
 
 pub pure body_collection_callback_evidence(body: BoundBody): [CollectionCallbackEvidence] {
   mut entries: [CollectionCallbackEvidence] = body.callback_contracts
-  for child in body.children {
+  for child in body_evidence_children(body) {
     entries = entries.concat(body_collection_callback_evidence(child))
   }
   entries
@@ -328,7 +360,7 @@ pub pure body_collection_callback_evidence(body: BoundBody): [CollectionCallback
 
 pub pure body_operator_type_evidence(body: BoundBody): [OperatorTypeEvidence] {
   mut entries: [OperatorTypeEvidence] = body.operator_checks
-  for child in body.children {
+  for child in body_evidence_children(body) {
     entries = entries.concat(body_operator_type_evidence(child))
   }
   entries
@@ -336,7 +368,7 @@ pub pure body_operator_type_evidence(body: BoundBody): [OperatorTypeEvidence] {
 
 pub pure body_type_check_evidence(body: BoundBody): [BodyTypeCheckEvidence] {
   mut entries: [BodyTypeCheckEvidence] = body.type_checks
-  for child in body.children {
+  for child in body_evidence_children(body) {
     entries = entries.concat(body_type_check_evidence(child))
   }
   entries
@@ -537,6 +569,7 @@ pure body_lookup_bounds(context: BodyContext, value: BoundBody, include_invalida
     },
     BodyInterpolation(parts) => {},
     BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {},
     BodyCall(target, types, call_arguments) => {},
     BodyArray() => {},
     BodyUnary(operator) => {},
@@ -617,7 +650,8 @@ pure domain_literal_key(value: BoundBody): Option[Str] {
     BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
     },
     BodyInterpolation(parts) => {}, BodyLocalUse(identity, captured_domain) => {},
-    BodyFunction(binding) => {}, BodyCall(target, types, evidence) => {},
+    BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {}, BodyCall(target, types, evidence) => {},
     BodyArray() => {}, BodyUnary(op) => {},
     BodyBinary(op) => {}, BodyField(name) => {},
     BodyIndex() => {}, BodyIf(has_else) => {},
@@ -669,6 +703,7 @@ pure record_constant(value: BoundBody): Option[Rat] {
     BodyInterpolation(parts) => {},
     BodyLocalUse(identity, captured_domain) => {},
     BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {},
     BodyCall(target, types, call_arguments) => {},
     BodyArray() => {},
     BodyUnary(operator) => if operator == "-" && value.children.len() == 1 {
@@ -824,7 +859,8 @@ pure value_domain_facts(context: BodyContext, value: BoundBody): DomainFacts {
     BodyLocalUse(identity, captured_domain) => match captured_domain {
       Some(local_facts) => { facts = combine_facts(facts, local_facts) }, None() => {}
     },
-    BodyFunction(binding) => {}, BodyUnary(op) => {},
+    BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {}, BodyUnary(op) => {},
     BodyBinary(op) => {}, BodyField(name) => {},
     BodyIndex() => {}, BodyIf(has_else) => if has_else && value.children.len() == 3 {
       facts = common_facts(value_domain_facts(context, value.children[1]),
@@ -979,6 +1015,7 @@ pure body_guard_source_span(value: BoundBody): SourceSpan {
     BodyInterpolation(parts) => {},
     BodyLocalUse(identity, captured_domain) => {},
     BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {},
     BodyCall(target, types, call_arguments) => {},
     BodyArray() => {},
     BodyUnary(operator) => {},
@@ -1006,7 +1043,8 @@ pure domain_tail(value: BoundBody): BoundBody {
         if tail && last.type == value.type { domain_tail(last) } else { value }
       },
       BodyLiteral(v) => value, BodyInterpolation(parts) => value, BodyLocalUse(id,facts) => value,
-      BodyFunction(binding) => value, BodyCall(target,types,args) => value, BodyArray() => value,
+      BodyFunction(binding) => value,
+      BodyAnonymousFunction(anonymous) => value, BodyCall(target,types,args) => value, BodyArray() => value,
       BodyUnary(op) => value, BodyBinary(op) => value, BodyField(name) => value, BodyIndex() => value,
       BodyIf(has_else) => value, BodyMatch(targets,bindings,sites) => value, BodyBinding(id,t,m,i,e) => value,
       BodyAssignment(id,e) => value, BodyWhile() => value, BodyFor(id) => value, BodyEmpty() => value
@@ -1237,6 +1275,7 @@ pure body_return_value_span(body: BoundBody): SourceSpan {
     BodyInterpolation(parts) => {},
     BodyLocalUse(local, captured_domain) => {},
     BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {},
     BodyCall(target, types, call_arguments) => {},
     BodyArray() => {},
     BodyUnary(operator) => {},
@@ -1332,7 +1371,7 @@ pure body_subtraction_evidence(context: BodyContext, node: BoundBody, valid: Opt
 
 pub pure body_subtraction_evidence_entries(body: BoundBody): [SubtractionEvidence] {
   mut result: [SubtractionEvidence] = []
-  for child in body.children { result = result.concat(body_subtraction_evidence_entries(child)) }
+  for child in body_evidence_children(body) { result = result.concat(body_subtraction_evidence_entries(child)) }
   for check in body.operator_checks {
     match check.subtraction { None() => {}, Some(entry) => { result = result.append(entry) } }
   }
@@ -1357,6 +1396,7 @@ pure body_proves_nat_subtraction(
       },
       BodyInterpolation(parts) => false,
       BodyFunction(binding) => false,
+      BodyAnonymousFunction(anonymous) => false,
       BodyCall(target, types, call_arguments) => false,
       BodyArray() => false,
       BodyUnary(operator) => false,
@@ -1416,6 +1456,7 @@ pure body_condition_literal(value: BoundBody): Option[Nat] {
     BodyInterpolation(parts) => {},
     BodyLocalUse(identity, captured_domain) => {},
     BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {},
     BodyCall(target, types, call_arguments) => {},
     BodyArray() => {},
     BodyUnary(operator) => {},
@@ -1500,6 +1541,7 @@ pure domain_observation(node: BoundBody): Option[DomainObservation] {
         BodyLiteral(literal) => {},
     BodyInterpolation(parts) => {},
     BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {},
     BodyCall(inner_target, inner_types, inner_evidence) => {},
     BodyArray() => {},
     BodyUnary(op) => {},
@@ -1519,6 +1561,7 @@ pure domain_observation(node: BoundBody): Option[DomainObservation] {
     BodyLiteral(literal) => {},
     BodyInterpolation(parts) => {},
     BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {},
     BodyArray() => {},
     BodyUnary(op) => {},
     BodyBinary(op) => {},
@@ -1618,6 +1661,7 @@ pure domain_condition(condition: BoundBody, facts: Map[Str,Bounds],
     BodyInterpolation(parts) => {},
     BodyLocalUse(identity, captured) => {},
     BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {},
     BodyArray() => {},
     BodyField(field) => {},
     BodyIndex() => {},
@@ -1690,6 +1734,7 @@ pure numeric_condition_facts(
               BodyLiteral(other_literal) => {},
               BodyInterpolation(parts) => {},
               BodyFunction(binding) => {},
+              BodyAnonymousFunction(anonymous) => {},
               BodyCall(target, types, call_arguments) => {},
               BodyArray() => {},
               BodyUnary(other_operator) => {},
@@ -1707,6 +1752,7 @@ pure numeric_condition_facts(
             },
             BodyInterpolation(parts) => {},
             BodyFunction(binding) => {},
+            BodyAnonymousFunction(anonymous) => {},
             BodyCall(target, types, call_arguments) => {},
             BodyArray() => {},
             BodyField(field) => {},
@@ -1729,6 +1775,7 @@ pure numeric_condition_facts(
     BodyInterpolation(parts) => {},
     BodyLocalUse(identity, captured_domain) => {},
     BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {},
     BodyCall(target, types, call_arguments) => {},
     BodyArray() => {},
     BodyField(field) => {},
@@ -1891,6 +1938,7 @@ pure body_invalidate_assigned_locals(
     BodyInterpolation(parts) => {},
     BodyLocalUse(identity, captured_domain) => {},
     BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {},
     BodyCall(target, types, call_arguments) => {},
     BodyArray() => {},
     BodyUnary(operator) => {},
@@ -2363,6 +2411,63 @@ pure body_replace_type_argument(arguments: [SignatureType], index: Nat, value: S
   result
 }
 
+// Use receiver/other argument evidence before checking anonymous bodies. Result
+// holes remain open so the existing call inference can learn from each body.
+pure body_contextual_arguments(
+  context: BodyContext, target: BodyTarget, explicit: [SignatureType],
+  children: [BoundBody], path: [Nat]
+): [Option[SignatureType]] {
+  mut expected: [Option[SignatureType]] = []
+  match body_contract(context, target) {
+    Error(message) => {},
+    Ok(optional) => match optional {
+      None() => {},
+      Some(contract) => {
+        mut inferred: [SignatureType] = []
+        mut index: Nat = 0
+        for parameter in contract.parameters {
+          inferred = inferred.append(SignatureType(SignatureHole(context.owner, path, index), []))
+          index = index + 1
+        }
+        impl_count = body_impl_parameter_count(context, target)
+        index = 0
+        for type in explicit {
+          if impl_count + index < inferred.len() {
+            inferred = body_replace_type_argument(inferred, impl_count + index, type)
+          }
+          index = index + 1
+        }
+        index = 0
+        for child in children {
+          if index < contract.inputs.len() {
+            match child.type {
+              None() => {},
+              Some(actual) => {
+                inference = body_infer(context,
+                  body_instantiate_fixed(contract.inputs[index], contract.owner,
+                    if explicit.len() > 0 { contract.parameters.len() } else { impl_count }, inferred),
+                  actual, contract.owner, inferred, contract.name, contract.parameters, child.span)
+                if inference.failure == None() { inferred = inference.arguments }
+              }
+            }
+          }
+          index = index + 1
+        }
+        for input in contract.inputs {
+          match substitute_signature_type(input, contract.owner, inferred) {
+            Error(message) => {
+              unavailable: Option[SignatureType] = None()
+              expected = expected.append(unavailable)
+            },
+            Ok(type) => { expected = expected.append(Some(type)) }
+          }
+        }
+      }
+    }
+  }
+  expected
+}
+
 pure body_call_with_receiver(
   incoming_context: BodyContext,
   target: BodyTarget,
@@ -2380,8 +2485,13 @@ pure body_call_with_receiver(
   mut deferred: [SourceSpan] = []
   mut index: Nat = 0
 
+  mut has_anonymous: Bool = false
   for argument in arguments {
-    checked: BodyResult = if index == 0 {
+    anonymous = body_is_anonymous(argument)
+    has_anonymous = has_anonymous || anonymous
+    checked: BodyResult = if anonymous {
+      body_result(BodyEmpty(), expression_span(argument).value_or(span), [], None())
+    } else if index == 0 {
       match receiver {
         Some(value) => value,
         None() => bind_body_expression(current_context, argument, span, locals, path.append(index))
@@ -2428,6 +2538,24 @@ pure body_call_with_receiver(
       }
     }
     type_index = type_index + 1
+  }
+  if has_anonymous {
+    expectations = body_contextual_arguments(context, target, resolved_types, children, path)
+    mut completed: [BoundBody] = []
+    index = 0
+    for argument in arguments {
+      if body_is_anonymous(argument) {
+        expected = if index < expectations.len() { expectations[index] } else { None() }
+        checked = bind_body_expression_expected(context, argument, span, locals, path.append(index), expected)
+        completed = completed.append(checked.body)
+        diagnostics = diagnostics.concat(checked.diagnostics)
+        deferred = deferred.concat(checked.deferred)
+      } else {
+        completed = completed.append(children[index])
+      }
+      index = index + 1
+    }
+    children = completed
   }
   mut output: Option[SignatureType] = None()
   if !body_special_core_call(target) {
@@ -2709,6 +2837,7 @@ pure body_call_with_receiver(
           BodyInterpolation(parts) => value.node,
           BodyLocalUse(local, captured_domain) => value.node,
           BodyFunction(function) => value.node,
+          BodyAnonymousFunction(anonymous) => value.node,
           BodyArray() => value.node,
           BodyUnary(operator) => value.node,
           BodyBinary(operator) => value.node,
@@ -5210,6 +5339,295 @@ pure bind_body_expression(
   )
 }
 
+// An anonymous body is a separate function, not a child executed at creation.
+// Keeping it in the node payload also isolates outer data-flow facts.
+pub pure body_anonymous_functions(body: BoundBody): [BoundFunctionBody] {
+  mut functions: [BoundFunctionBody] = []
+  match body.node {
+    BodyAnonymousFunction(anonymous) => {
+      functions = functions.append(anonymous)
+      functions = functions.concat(body_anonymous_functions(anonymous.body))
+    },
+    BodyLiteral(value) => {}, BodyInterpolation(parts) => {},
+    BodyLocalUse(identity, domain) => {}, BodyFunction(binding) => {},
+    BodyCall(target, types, evidence) => {}, BodyArray() => {},
+    BodyUnary(operator) => {}, BodyBinary(operator) => {}, BodyField(name) => {},
+    BodyIndex() => {}, BodyIf(has_else) => {}, BodyBlock(tail, span, spans) => {},
+    BodyMatch(targets, locals, spans) => {}, BodyBinding(identity, type, mutable, inferred, evidence) => {},
+    BodyAssignment(identity, evidence) => {}, BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
+  }
+  for child in body.children {
+    functions = functions.concat(body_anonymous_functions(child))
+  }
+  functions
+}
+
+pub pure body_functions_with_anonymous(functions: [BoundFunctionBody]): [BoundFunctionBody] {
+  mut result: [BoundFunctionBody] = []
+  for function in functions {
+    result = result.append(function)
+    result = result.concat(body_anonymous_functions(function.body))
+  }
+  result
+}
+
+pure anonymous_body_is_pure(context: BodyContext, body: BoundBody): Bool {
+  mut pure_body: Bool = true
+  match body.node {
+    BodyCall(target, types, evidence) => {
+      match target {
+        BodyDeclaration(binding) => match body_signature(context.signatures, binding.identity) {
+          None() => { pure_body = binding.kind != ModuleFunction() },
+          Some(signature) => { pure_body = signature.effect == None() || signature.effect == Some(SignaturePure()) }
+        },
+        BodyCore(name) => {
+          if name == "$intrinsic_call" {
+            pure_body = false
+            if body.children.len() > 0 {
+              match body.children[0].type {
+                None() => {},
+                Some(type) => { pure_body = type.identity == SignatureCallable(SignaturePure()) }
+              }
+            }
+          } else {
+            pure_body = !is_impure_builtin(name) && !is_async_builtin(name)
+          }
+        }
+      }
+    },
+    BodyUnary(operator) => { pure_body = operator != "await" },
+    BodyLiteral(value) => {}, BodyInterpolation(parts) => {},
+    BodyLocalUse(identity, domain) => {}, BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {}, BodyArray() => {},
+    BodyBinary(operator) => {}, BodyField(name) => {}, BodyIndex() => {},
+    BodyIf(has_else) => {}, BodyBlock(tail, span, spans) => {},
+    BodyMatch(targets, locals, spans) => {}, BodyBinding(identity, type, mutable, inferred, evidence) => {},
+    BodyAssignment(identity, evidence) => {}, BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
+  }
+  for child in body.children { pure_body = pure_body && anonymous_body_is_pure(context, child) }
+  pure_body
+}
+
+pure anonymous_capture_diagnostics(body: BoundBody, owner: DeclarationIdentity): [Diagnostic] {
+  mut diagnostics: [Diagnostic] = []
+  match body.node {
+    BodyLocalUse(identity, domain) => {
+      if identity.owner != owner {
+        diagnostics = diagnostics.append(Diagnostic(
+          "anonymous function captures " + identity.name + "; captured values are not supported in this development slice", body.span.start))
+      }
+    },
+    BodyAssignment(identity, evidence) => {
+      if identity.owner != owner {
+        diagnostics = diagnostics.append(Diagnostic(
+          "anonymous function cannot assign to captured variable " + identity.name, body.span.start))
+      }
+    },
+    BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {}, BodyCall(target, types, evidence) => {}, BodyArray() => {},
+    BodyUnary(operator) => {}, BodyBinary(operator) => {}, BodyField(name) => {}, BodyIndex() => {},
+    BodyIf(has_else) => {}, BodyBlock(tail, span, spans) => {}, BodyMatch(targets, locals, spans) => {},
+    BodyBinding(identity, type, mutable, inferred, evidence) => {}, BodyWhile() => {},
+    BodyFor(identity) => {}, BodyEmpty() => {}
+  }
+  for child in body.children { diagnostics = diagnostics.concat(anonymous_capture_diagnostics(child, owner)) }
+  diagnostics
+}
+
+pure body_is_anonymous(expression: Expr): Bool {
+  mut anonymous: Bool = false
+  match unlocated_expression(expression) {
+    AnonymousExpr(effect, parameters, result_type, body) => { anonymous = true },
+    LocatedExpr(site, value, types) => {},
+    NatExpr(value) => {},
+    DecimalExpr(value) => {},
+    StringExpr(value) => {},
+    BoolExpr(value) => {},
+    NameExpr(name) => {},
+    FunctionExpr(name) => {},
+    ArrayExpr(values) => {},
+    UnaryExpr(operator, value) => {},
+    BinaryExpr(operator, left, right) => {},
+    CallExpr(name, values, types) => {},
+    DotCallExpr(target, name, values, types) => {},
+    OwnedCallExpr(target, name, values, types) => {},
+    FieldExpr(target, name) => {},
+    IndexExpr(target, index) => {},
+    IfExpr(condition, yes, no, has_else) => {},
+    BlockExpr(block) => {},
+    MatchExpr(subject, arms) => {},
+  }
+  anonymous
+}
+
+pure bind_body_expression_expected(
+  context: BodyContext, expression: Expr, origin: SourceSpan,
+  locals: Map[Str, BodyLocal], path: [Nat], expected: Option[SignatureType]
+): BodyResult {
+  mut result: Option[BodyResult] = None()
+  match unlocated_expression(expression) {
+    AnonymousExpr(effect, parameters, result_type, body) => {
+      result = Some(bind_anonymous_body(context, effect, parameters, result_type, body,
+        expression_span(expression).value_or(origin), locals, path, expected))
+    },
+    LocatedExpr(site, value, types) => {},
+    NatExpr(value) => {},
+    DecimalExpr(value) => {},
+    StringExpr(value) => {},
+    BoolExpr(value) => {},
+    NameExpr(name) => {},
+    FunctionExpr(name) => {},
+    ArrayExpr(values) => {},
+    UnaryExpr(operator, value) => {},
+    BinaryExpr(operator, left, right) => {},
+    CallExpr(name, values, types) => {},
+    DotCallExpr(target, name, values, types) => {},
+    OwnedCallExpr(target, name, values, types) => {},
+    FieldExpr(target, name) => {},
+    IndexExpr(target, index) => {},
+    IfExpr(condition, yes, no, has_else) => {},
+    BlockExpr(block) => {},
+    MatchExpr(subject, arms) => {},
+  }
+  match result {
+    Some(checked) => checked,
+    None() => bind_body_expression(context, expression, origin, locals, path)
+  }
+}
+
+pure bind_anonymous_body(
+  outer: BodyContext, effect: Str, parameters: [AnonymousParameter],
+  result_annotation: Option[ParsedTypeRef], expression: Expr, span: SourceSpan,
+  outer_locals: Map[Str, BodyLocal], path: [Nat], expected: Option[SignatureType]
+): BodyResult {
+  mut name: Str = outer.owner.name + "$anonymous"
+  for component in path { name = name + "$" + body_nat_text(component) }
+  owner = DeclarationIdentity(outer.owner.module, name)
+  context = BodyContext(outer.graph, outer.modules, outer.signatures, owner,
+    outer.parameters, map(), outer.retain_guard_conversions)
+  mut locals: Map[Str, BodyLocal] = outer_locals
+  mut bound_parameters: [BodyLocal] = []
+  mut slots: [SignatureSlot] = []
+  mut diagnostics: [Diagnostic] = []
+  mut inner_types: [SignatureType] = []
+  mut outer_types: [SignatureType] = []
+  mut type_index: Nat = 0
+  for parameter in outer.parameters {
+    inner_types = inner_types.append(SignatureType(SignatureParameter(owner, type_index), []))
+    outer_types = outer_types.append(SignatureType(SignatureParameter(outer.owner, type_index), []))
+    type_index = type_index + 1
+  }
+  mut contextual: [SignatureType] = []
+  match expected {
+    None() => {},
+    Some(type) => {
+      if body_callable(type) {
+        match substitute_signature_type(type, outer.owner, inner_types) {
+          Error(message) => {},
+          Ok(local_type) => { contextual = local_type.arguments }
+        }
+      }
+    }
+  }
+  mut index: Nat = 0
+  for parameter in parameters {
+    mut type: Option[SignatureType] = None()
+    match parameter.annotation {
+      None() => {
+        if index + 1 < contextual.len() && body_type_complete(contextual[index]) {
+          type = Some(contextual[index])
+        } else {
+          diagnostics = diagnostics.append(Diagnostic(
+            "cannot determine the type of anonymous parameter " + parameter.name +
+              "; add a type annotation", parameter.span.start))
+        }
+      },
+      Some(annotation) => match signature_type(context.graph, context.modules, owner,
+          context.parameters, annotation.text, false, false) {
+        Error(message) => { diagnostics = diagnostics.append(Diagnostic(message, annotation.span.start)) },
+        Ok(value) => { type = Some(value) }
+      }
+    }
+    local = BodyLocal(BodyLocalIdentity(owner, [0, index], parameter.name), type, false)
+    locals = locals.put(parameter.name, local)
+    bound_parameters = bound_parameters.append(local)
+    match type {
+      None() => {},
+      Some(value) => { slots = slots.append(SignatureSlot(parameter.name, value)) }
+    }
+    index = index + 1
+  }
+  mut declared_result: Option[SignatureType] = None()
+  if contextual.len() == parameters.len() + 1 {
+    candidate = contextual[parameters.len()]
+    if body_type_complete(candidate) { declared_result = Some(candidate) }
+  }
+  mut checked: BodyResult = body_result(BodyEmpty(), span, [], None())
+  if diagnostics.len() == 0 {
+    checked = bind_body_expression(context, expression, span, locals, [1])
+    match result_annotation {
+      None() => {},
+      Some(annotation) => match signature_type(context.graph, context.modules, owner,
+          context.parameters, annotation.text, false, true) {
+        Error(message) => { diagnostics = diagnostics.append(Diagnostic(message, annotation.span.start)) },
+        Ok(annotated_result) => {
+          declared_result = Some(annotated_result)
+
+        }
+      }
+    }
+    match declared_result {
+      None() => {},
+      Some(required_type) => {
+        checked = body_refine(context, checked, required_type)
+        required = body_require_value(context, checked.body, required_type, "anonymous function result")
+        diagnostics = diagnostics.concat(required.diagnostics)
+        checked = BodyResult(checked.body, checked.diagnostics, checked.deferred.concat(required.deferred))
+      }
+    }
+    checked = body_finish_constraints(context, checked)
+    diagnostics = diagnostics.concat(checked.diagnostics)
+    diagnostics = diagnostics.concat(anonymous_capture_diagnostics(checked.body, owner))
+    checked = BodyResult(checked.body, checked.diagnostics, checked.deferred.concat(body_unresolved_spans(checked.body)))
+  }
+  mode: SignatureEffect = if effect == "async" { SignatureAsync() }
+    else if effect == "pure" || anonymous_body_is_pure(context, checked.body) { SignaturePure() }
+    else { SignatureOrdinary() }
+  selected_result = if declared_result != None() { declared_result } else { checked.body.type }
+  match selected_result {
+    None() => {
+      if diagnostics.len() == 0 {
+        diagnostics = diagnostics.append(Diagnostic("cannot determine the anonymous function result type", span.start))
+      }
+      BodyResult(checked.body, diagnostics, checked.deferred)
+    },
+    Some(result_type) => {
+      slots = slots.append(SignatureSlot("result", result_type))
+      binding = ModuleDeclarationBinding(owner, ModuleFunction(), false, span, None(), None())
+      signature = ModuleSignature(binding, context.parameters, slots, Some(mode))
+      mut arguments: [SignatureType] = []
+      for slot in slots {
+        match substitute_signature_type(slot.type, owner, outer_types) {
+          Error(message) => { arguments = arguments.append(slot.type) },
+          Ok(public_type) => { arguments = arguments.append(public_type) }
+        }
+      }
+      block = BoundBody(BodyBlock(true, Some(span), []), span, [checked.body], checked.body.type, [], [], [], [], [], [])
+      nested = BoundFunctionBody(signature, bound_parameters, block, checked.deferred,
+        if diagnostics.len() > 0 { BodyInvalid() }
+        else if checked.deferred.len() > 0 { BodyDeferred() } else { BodyIdentityChecked() },
+        if context.retain_guard_conversions {
+          Some(ReturnTypeEvidence(body_return_value_span(checked.body), checked.body.type, result_type,
+            if diagnostics.len() > 0 { Some(false) }
+            else if checked.deferred.len() > 0 { None() } else { Some(true) }))
+        } else { None() })
+      value = body_result(BodyAnonymousFunction(nested), span, [],
+        Some(SignatureType(SignatureCallable(mode), arguments)))
+      BodyResult(value.body, diagnostics, checked.deferred)
+    }
+  }
+}
+
 pure bind_body_expression_with_type_argument_spans(
   context: BodyContext,
   expression: Expr,
@@ -5252,7 +5670,7 @@ pure bind_body_expression_with_type_argument_spans(
       }
     },
     AnonymousExpr(effect, parameters, result_type, body) => {
-      result = body_failure("anonymous function type checking is not yet available in this development build", origin)
+      result = bind_anonymous_body(context, effect, parameters, result_type, body, origin, locals, path, None())
     },
     FunctionExpr(name) => {
       match resolve_module_function(context.graph, context.owner.module, name) {
@@ -5531,6 +5949,13 @@ pure bind_body_block(
   locals: Map[Str, BodyLocal],
   path: [Nat]
 ): BodyResult {
+  bind_body_block_expected(context, block, span, locals, path, None())
+}
+
+pure bind_body_block_expected(
+  context: BodyContext, block: Block, span: SourceSpan, locals: Map[Str, BodyLocal],
+  path: [Nat], expected: Option[SignatureType]
+): BodyResult {
   mut current_context: BodyContext = context
   mut visible: Map[Str, BodyLocal] = locals
   mut children: [BoundBody] = []
@@ -5548,7 +5973,15 @@ pure bind_body_block(
             Diagnostic("local " + name + " shadows an existing binding", span.start)
           )
         }
-        checked = bind_body_expression(current_context, value, span, visible, statement_path.append(0))
+        mut expected_value: Option[SignatureType] = None()
+        if spelling != "" && body_is_anonymous(value) {
+          match signature_type(current_context.graph, current_context.modules, current_context.owner,
+              current_context.parameters, spelling, false, false) {
+            Error(message) => {},
+            Ok(type) => { expected_value = Some(type) }
+          }
+        }
+        checked = bind_body_expression_expected(current_context, value, span, visible, statement_path.append(0), expected_value)
         mut value_type_checks: [BodyTypeCheckEvidence] = []
         if checked.body.type == body_core_type("Void") {
           diagnostics = diagnostics.append(
@@ -5895,7 +6328,8 @@ pure bind_body_block(
         BodyBinding(local, local_type, mutable, inferred, evidence) => { written = Some(local) },
         BodyAssignment(local, evidence) => { written = Some(local) },
         BodyLiteral(v) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(id, captured) => {},
-        BodyFunction(binding) => {}, BodyCall(target, types, evidence) => {}, BodyArray() => {},
+        BodyFunction(binding) => {},
+        BodyAnonymousFunction(anonymous) => {}, BodyCall(target, types, evidence) => {}, BodyArray() => {},
         BodyUnary(op) => {}, BodyBinary(op) => {}, BodyField(field) => {}, BodyIndex() => {},
         BodyIf(has_else) => {}, BodyBlock(tail, site, spans) => {}, BodyMatch(targets, members, sites) => {},
         BodyWhile() => {}, BodyFor(id) => {}, BodyEmpty() => {}
@@ -5923,7 +6357,7 @@ pure bind_body_block(
   match block.value {
     NoBlockValue() => {},
     TailBlockValue(value) => {
-      checked: BodyResult = bind_body_expression(current_context, value, span, visible, path.append(index))
+      checked: BodyResult = bind_body_expression_expected(current_context, value, span, visible, path.append(index), expected)
       children = children.append(checked.body)
       diagnostics = diagnostics.concat(checked.diagnostics)
       deferred = deferred.concat(checked.deferred)
@@ -6057,12 +6491,13 @@ pure check_module_bodies_mode(
                 bound_parameters = bound_parameters.append(local)
                 index = index + 1
               }
-              initial: BodyResult = bind_body_block(
+              initial: BodyResult = bind_body_block_expected(
                 context,
                 body,
                 signature.binding.span,
                 locals,
-                [1]
+                [1],
+                Some(signature.slots[parameters.len()].type)
               )
               expected: SignatureType = signature.slots[parameters.len()].type;
               checked: BodyResult = body_finish_constraints(
@@ -6994,6 +7429,7 @@ pure body_solve(body: BoundBody, solutions: [BodySolution]): BoundBody {
     BodyInterpolation(parts) => {},
     BodyLocalUse(local, captured_domain) => {},
     BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {},
     BodyArray() => {},
     BodyUnary(operator) => {},
     BodyBinary(operator) => {},
@@ -7340,6 +7776,7 @@ pure body_unresolved_spans(body: BoundBody): [SourceSpan] {
     BodyInterpolation(parts) => {},
     BodyLocalUse(local, captured_domain) => {},
     BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {},
     BodyArray() => {},
     BodyUnary(operator) => {},
     BodyBinary(operator) => {},

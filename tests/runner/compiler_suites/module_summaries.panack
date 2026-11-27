@@ -10,8 +10,8 @@ pub import stdlib/testing::{TestResult}
 
 pub module_summary_tests(): [TestResult] {
   mut results: [TestResult] = []
-  for fixture in ["collections", "records_and_enums", "callables", "async_await", "domain_constraints", "owned_core_methods", "string_boundaries"] {
-    entry = "tests/functional/cases/" + fixture + "/main.panack"
+  for fixture in ["collections", "records_and_enums", "callables", "async_await", "domain_constraints", "owned_core_methods", "string_boundaries", "anonymous_functions"] {
+    entry = (if fixture == "anonymous_functions" { "tests/fixtures/compiler_contracts/" } else { "tests/functional/cases/" }) + fixture + "/main.panack"
     source = load_project_sources(entry)
     fresh = check_project_sources(source)
     cold = check_project_sources_code(source, [])

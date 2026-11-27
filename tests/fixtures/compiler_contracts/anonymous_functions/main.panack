@@ -1,0 +1,29 @@
+pure apply(callback: PureFn[Nat,Nat], value: Nat): Nat {
+  callback.call(value)
+}
+
+pure make_increment(): PureFn[Nat,Nat] {
+  (value) => value + 1
+}
+
+pure make_identity[T](): PureFn[T,T] {
+  (value: T) => value
+}
+
+main(): Void {
+  increment = (value: Nat) => value + 1
+  print(increment.call(4))
+  print(apply((value) => value * 2, 3))
+  print([1, 2, 3].map((value) => value + 10))
+  label = pure (value: Str): Str => { "Hello, " + value }
+  print(label.call("Panack"))
+  returned = make_increment()
+  print(returned.call(8))
+  identity = make_identity[Str]()
+  print(identity.call("generic"))
+  contextual: PureFn[Nat,Nat] = (value) => value + 3
+  print(contextual.call(4))
+  print([1, 2].map((value) => "item"))
+  printer = (value: Nat) => { print(value) }
+  printer.call(12)
+}

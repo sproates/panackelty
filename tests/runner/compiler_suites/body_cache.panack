@@ -14,8 +14,8 @@ pub import stdlib/testing::{TestResult}
 
 pub body_cache_tests(): [TestResult] {
   mut results: [TestResult] = shared_type_cache_tests()
-  for fixture in ["collections", "records_and_enums", "callables", "async_await", "domain_constraints", "owned_core_methods", "string_boundaries"] {
-    source = load_project_sources("tests/functional/cases/" + fixture + "/main.panack")
+  for fixture in ["collections", "records_and_enums", "callables", "async_await", "domain_constraints", "owned_core_methods", "string_boundaries", "anonymous_functions"] {
+    source = load_project_sources((if fixture == "anonymous_functions" { "tests/fixtures/compiler_contracts/" } else { "tests/functional/cases/" }) + fixture + "/main.panack")
     fresh = check_project_sources(source)
     graph = loaded_binding_graph(fresh.modules, source.context.project_root, source.context.stdlib_root)
     results = results.append(testing.expect("fixture effect facts match full body diagnostics",

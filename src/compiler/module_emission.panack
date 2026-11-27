@@ -1,9 +1,10 @@
+import project/src/compiler/module_bodies::{body_anonymous_functions}
 import project/src/compiler/owned_intrinsics::{owned_intrinsic_lowering}
 import project/src/compiler/module_bodies::{
   BodyTarget, BodyTarget.BodyCore, BodyTarget.BodyDeclaration,
   BodyNode.BodyArray, BodyNode.BodyAssignment, BodyNode.BodyBinary,
   BodyNode.BodyBinding, BodyNode.BodyBlock, BodyNode.BodyCall, BodyNode.BodyEmpty,
-  BodyNode.BodyField, BodyNode.BodyFor, BodyNode.BodyFunction, BodyNode.BodyIf,
+  BodyNode.BodyField, BodyNode.BodyFor, BodyNode.BodyFunction, BodyNode.BodyAnonymousFunction, BodyNode.BodyIf,
   BodyNode.BodyIndex, BodyNode.BodyInterpolation, BodyNode.BodyLiteral,
   BodyNode.BodyLocalUse, BodyNode.BodyMatch, BodyNode.BodyUnary, BodyNode.BodyWhile,
   BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid,
@@ -450,6 +451,7 @@ pure module_emission_interpolation(body: BoundBody): Expr {
           BodyLiteral(value) => {},
           BodyInterpolation(values) => {},
           BodyFunction(binding) => {},
+          BodyAnonymousFunction(anonymous) => {},
           BodyCall(target, types, call_arguments) => {},
           BodyArray() => {},
           BodyUnary(operator) => {},
@@ -476,6 +478,7 @@ pure module_emission_interpolation(body: BoundBody): Expr {
     BodyLiteral(value) => value,
     BodyLocalUse(identity, captured_domain) => NameExpr(identity.name),
     BodyFunction(binding) => FunctionExpr(""),
+    BodyAnonymousFunction(anonymous) => FunctionExpr(""),
     BodyCall(target, types, call_arguments) => CallExpr("$unit", [], []),
     BodyArray() => CallExpr("$unit", [], []),
     BodyUnary(operator) => CallExpr("$unit", [], []),
@@ -530,6 +533,7 @@ pure module_emission_block(
     BodyInterpolation(parts) => false,
     BodyLocalUse(identity, captured_domain) => false,
     BodyFunction(binding) => false,
+    BodyAnonymousFunction(anonymous) => false,
     BodyCall(target, types, call_arguments) => false,
     BodyArray() => false,
     BodyUnary(operator) => false,
@@ -579,6 +583,7 @@ pure module_emission_block(
         BodyInterpolation(parts) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
         BodyLocalUse(identity, captured_domain) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
         BodyFunction(binding) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
+        BodyAnonymousFunction(anonymous) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
         BodyCall(target, types, call_arguments) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
         BodyArray() => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
         BodyUnary(operator) => Some(ExpressionStatement(module_emission_expression_with_parameters(graph, entry, parameters, child))),
@@ -617,6 +622,7 @@ pure module_emission_expression_with_parameters(
     BodyLiteral(value) => value,
     BodyLocalUse(identity, captured_domain) => NameExpr(identity.name),
     BodyFunction(binding) => FunctionExpr(module_emission_callable_symbol(graph, entry, binding)),
+    BodyAnonymousFunction(anonymous) => FunctionExpr(module_emission_callable_symbol(graph, entry, anonymous.signature.binding)),
     BodyCall(target, types, call_arguments) => CallExpr(
       module_emission_target(graph, entry, target),
       module_emission_expressions(graph, entry, parameters, body.children),
@@ -773,6 +779,24 @@ pub pure module_emission_program(
   module_emission_program_reusing(graph, modules, signatures, bodies, entry, [])
 }
 
+pure module_emission_anonymous(
+  graph: ModuleBindingGraph, entry: ModuleIdentity, function: BoundFunctionBody
+): TopLevel {
+  signature = function.signature
+  owner = signature.binding.identity
+  mut parameters: [FunctionParameter] = []
+  mut index: Nat = 0
+  for parameter in function.parameters {
+    parameters = parameters.append(FunctionParameter(parameter.identity.name,
+      module_emission_signature_type(graph, entry, owner, signature.parameters, signature.slots[index].type)))
+    index = index + 1
+  }
+  result = module_emission_signature_type(graph, entry, owner, signature.parameters, signature.slots[index].type)
+  FunctionDeclaration(module_emission_callable_symbol(graph, entry, signature.binding),
+    parameters, result, signature.effect == Some(SignaturePure()), signature.effect == Some(SignatureAsync()),
+    module_emission_block(graph, entry, signature.parameters, function.body), signature.parameters)
+}
+
 pub pure module_emission_program_reusing(
   graph: ModuleBindingGraph, modules: [LoadedModule], signatures: [ModuleSignature],
   bodies: [BoundFunctionBody], entry: ModuleIdentity, skipped: [ModuleIdentity]
@@ -918,6 +942,19 @@ pub pure module_emission_program_reusing(
           Some(value) => {
             declarations = declarations.append(value)
           }
+        }
+      }
+    }
+  }
+  for function in bodies {
+    mut skip = false
+    for identity in skipped { skip = skip || identity == function.signature.binding.identity.module }
+    if !skip {
+      for anonymous in body_anonymous_functions(function.body) {
+        if anonymous.status == BodyIdentityChecked() && anonymous.deferred.len() == 0 {
+          declarations = declarations.append(module_emission_anonymous(graph, entry, anonymous))
+        } else {
+          diagnostics = diagnostics.append(Diagnostic("anonymous function is not completely checked for emission", anonymous.signature.binding.span.start))
         }
       }
     }

@@ -420,3 +420,16 @@ cache encoding retain the new syntax. Focused checks cover 237 parser, 31 resolv
 candidate compiler builds and verifies. Anonymous functions still fail closed at
 type checking: contextual types, effects and noncapturing lowering remain. No CI,
 bootstrap refresh or final full validation; no implementation slice is accepted.
+
+27 November, working execution checkpoint: CS1 now checks and lowers noncapturing
+anonymous functions using the existing bytecode format. Pure, ordinary and async
+bodies have separate effect scopes. Direct annotated targets, direct return
+values and callback arguments supply parameter types; map results infer from the
+body. Generated functions survive body/code caches and generic type identities.
+The focused module-binding/cache suite passes 2,151 assertions, including effect
+rejection and fresh/cached equivalence. Source and saved-bytecode execution agree
+for the new runtime fixture; the async fixture passes. A confirmed remaining gap
+is contextual typing through conditional return branches. Full contextual
+propagation, explanation/diagnostic acceptance and final compatibility/full
+validation remain before CS1 acceptance. No CI or bootstrap refresh; CS2–CS4 and
+the zero accepted implementation contribution are unchanged.

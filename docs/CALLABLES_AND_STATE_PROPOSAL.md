@@ -339,7 +339,7 @@ Implementation has not started and all earned contributions are zero.
 
 | Slice | Deliverable | Weight | Status | Earned |
 | --- | --- | --- | --- | --- |
-| CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | In progress: expression syntax and traversal; checker/lowering pending | 0 |
+| CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | In progress: working noncapturing execution; contextual propagation and acceptance pending | 0 |
 | CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | Planned | 0 |
 | CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | Planned | 0 |
 | CS4 | Both service examples, installed acceptance, reference and website guidance | 20 | Planned | 0 |
@@ -443,3 +443,49 @@ types, result checking, its own effect boundary and generated function lowering.
 The temporary development diagnostic and defensive emission trap must be replaced
 by that checked path before CS1 acceptance. No user-facing specification or
 website claim has changed, because executable support is not delivered yet.
+
+## CS1 working execution checkpoint, 27 November 2026
+
+27 November, working execution checkpoint: CS1 now checks and lowers noncapturing
+anonymous functions using the existing bytecode format. Pure, ordinary and async
+bodies have separate effect scopes. Direct annotated targets, direct return
+values and callback arguments supply parameter types; map results infer from the
+body. Generated functions survive body/code caches and generic type identities.
+The focused module-binding/cache suite passes 2,151 assertions, including effect
+rejection and fresh/cached equivalence. Source and saved-bytecode execution agree
+for the new runtime fixture; the async fixture passes. A confirmed remaining gap
+is contextual typing through conditional return branches. Full contextual
+propagation, explanation/diagnostic acceptance and final compatibility/full
+validation remain before CS1 acceptance. No CI or bootstrap refresh; CS2–CS4 and
+the zero accepted implementation contribution are unchanged.
+
+`BodyAnonymousFunction` retains a separately checked `BoundFunctionBody`. Ordinary
+data-flow walks do not enter that body at function creation; effect checks and
+evidence walks enter it deliberately. Noncapturing bodies lower to private
+functions and ordinary callable references. No VM or bytecode-version change is
+needed for this subset. Captured local reads and writes are diagnosed rather than
+implemented ahead of CS2.
+
+Call checking gathers non-lambda argument types before checking direct anonymous
+arguments. Known input types flow into the body; unresolved result parameters
+remain available for the existing generic inference pass. Generic owner types
+are rebound at the anonymous boundary and translated back for the outer callable
+type. Generated functions and their effect facts are included in each module’s
+encoded cache, not just in fresh emission.
+
+Focused runtime fixtures are under
+`tests/fixtures/compiler_contracts/anonymous_functions/`. They cover typed and
+contextual callbacks, arrays returning Nat and Str, returned/generic functions,
+ordinary printing and async success/failure. The source and saved-bytecode
+ordinary outputs match; cold/warm local compilation outputs also match. The
+cache unit tests independently assert that unchanged module bodies are reused.
+
+Before acceptance, complete expected-type propagation through compound return
+expressions and call arguments (including conditionals and matches), review
+retained explanations and diagnostics, register final functional acceptance,
+refresh the bootstrap at the final checkpoint, and run compatibility preflight
+plus the final full suite. Do not merge this development checkpoint as CS1 done.
+
+The unchanged explanation, purity and source-map regression probes also pass
+(266, 39 and 48 assertions respectively). Runtime output is checked against the
+fixture’s fixed `stdout.txt`, not only compared between execution modes.

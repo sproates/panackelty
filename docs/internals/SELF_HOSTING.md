@@ -818,3 +818,10 @@ compiler, lowered to existing callable bytecode. Constructor/collection contextu
 typing and nested explanation traversal are included. Bootstrap refresh passed byte-identical stages 2/3/4 and matching stdlib
 artifacts/output. Full make check passed in 708s, including functional and installed-package
 checks. Next integration acceptance passed through PR #701 and run 46042786755; this is not closure or State completion.
+
+CS2 candidate compilation now supports immutable retained captures, including
+returned/nested/generic closures and retained HTTP/TCP handlers. The checker
+records capture decisions for text and terminal explanations with lexical origin
+links. Bootstrap refresh passed byte-identical stages and stdlib conformance;
+full local make check passed in 725s. Integration acceptance remains pending.
+This is not State support or release acceptance.

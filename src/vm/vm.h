@@ -36,6 +36,12 @@ typedef struct VM {
     VMCoverage *coverage; /* Optional, borrowed, single-execution collector. */
 } VM;
 
+/* Borrowed callable descriptor. A host retaining it must retain closure too;
+ * the verified program continues to own function. Named calls have no closure. */
+typedef struct { Function *function; Value *closure; } VMCallable;
+bool vm_callable_valid(const VM *vm, VMCallable callable, size_t arity);
+VMCallable vm_resolve_callable(const VM *vm, Value *value, size_t arity);
+
 /* Experimental internal API, not a stable embedder ABI. All calls stay on one
  * thread. VM/program/snapshots/context must outlive the execution. Functions
  * belong to a verified program; argument arrays match their parameter count.
@@ -75,6 +81,8 @@ bool vm_execution_complete_print(VMExecution *execution, const char *error);
  * Print acknowledgement and read completion APIs cannot complete each other. */
 VMExecution *vm_execution_create_async(VM *vm, Function *fn, Value **arguments,
                                        VMServiceWait wait, void *context, const char **error);
+VMExecution *vm_execution_create_callable_async(VM *vm, VMCallable callable, Value **arguments,
+    size_t arity, VMServiceWait wait, void *context, const char **error);
 /* Grant the incremental socket-read service only to a server-owned child. */
 bool vm_execution_enable_server_reads(VMExecution *execution);
 bool vm_execution_complete_read(VMExecution *execution, Value *result);

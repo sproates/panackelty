@@ -16,6 +16,39 @@
 
 /* One registry supplies arity, purity, and implementation selection. */
 
+static Value *closure_create(VM *vm, const char *name, Value **arguments)
+{
+    (void)name;
+    Value *target = arguments[0], *environment = arguments[1];
+    size_t arity;
+    if (target->kind != V_STR || environment->kind != V_ARRAY ||
+        arguments[2]->kind != V_NAT || !value_index(arguments[2], &arity) ||
+        memchr(target->as.bytes.data, 0, target->as.bytes.length)) {
+        vm->error = "VM trap: invalid closure construction";
+        return NULL;
+    }
+    char *symbol = malloc(target->as.bytes.length + 1);
+    if (!symbol) { vm->error = "native VM out of memory"; return NULL; }
+    memcpy(symbol, target->as.bytes.data, target->as.bytes.length);
+    symbol[target->as.bytes.length] = 0;
+    Function *function = program_function(vm->program, symbol);
+    size_t count = environment->as.sequence.count;
+    if (!function || builtin(symbol)) {
+        vm->error = "VM trap: closure target was not found";
+    } else if (count > function->param_count || arity != function->param_count - count) {
+        vm->error = "VM trap: closure capture layout does not match target arity";
+    }
+    Value *result = NULL;
+    if (!vm->error) {
+        CaptureCheck status;
+        result = value_closure(symbol, environment->as.sequence.items, count, &status);
+        if (!result) vm->error = status == CAPTURE_OUT_OF_MEMORY
+            ? "native VM out of memory" : "VM trap: closure cannot capture a resource-bearing value";
+    }
+    free(symbol);
+    return result;
+}
+
 static Value *async_service_only(VM *vm, const char *name, Value **arguments)
 {
     (void)name;
@@ -37,6 +70,7 @@ bool builtin_is_local_state(const Builtin *entry)
 }
 
 static const Builtin BUILTINS[] = {
+    {"$intrinsic_closure", 3, true, BUILTIN_ORDINARY, closure_create},
     {"http_bytes_slice", 3, true, BUILTIN_ORDINARY, builtins_http_connection_call},
     {"http_body", 1, false, BUILTIN_ORDINARY, builtins_http_connection_call},
     {"http_body_size", 1, false, BUILTIN_ORDINARY, builtins_http_connection_call},

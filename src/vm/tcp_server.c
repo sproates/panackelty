@@ -47,13 +47,13 @@ typedef struct {
 struct VMTcpServer {
     bool filesystem_enabled, console_enabled, process_enabled, continuous, routed;
     bool ready_pending, ready_console;
-    Function *ready_handler;
+    VMCallable ready_handler;
     Value *ready_context;
     VM ready_vm;
     VMExecution *ready_execution;
     size_t succeeded, failed;
     VM template_vm;
-    Function *handler;
+    VMCallable handler;
     Value *context;
     VMTcpServerLimits limits;
     ServerClient clients[SERVER_CONCURRENCY];
@@ -334,7 +334,7 @@ static bool deadlines(VMTcpServer *server, uint64_t *now)
 }
 #endif
 
-static VMTcpServer *tcp_server_start_mode(const VM *vm, Function *handler, const Value *context,
+static VMTcpServer *tcp_server_start_mode(const VM *vm, VMCallable handler, const Value *context,
                                           const Value *address, size_t port,
                                           VMTcpServerLimits limits, bool outbound, bool streaming,
                                           bool continuous)
@@ -349,15 +349,7 @@ static VMTcpServer *tcp_server_start_mode(const VM *vm, Function *handler, const
     }
     server->limits = limits;
     server->continuous = continuous;
-    bool found = false;
-    if (vm && vm->program) {
-        for (size_t i = 0; i < vm->program->count; i++) {
-            if (handler == &vm->program->functions[i]) {
-                found = true;
-            }
-        }
-    }
-    if (!found || !handler->is_async || handler->pure || handler->param_count != 1 ||
+    if (!vm_callable_valid(vm, handler, 1) || !handler.function->is_async || handler.function->pure ||
         (streaming && !context)) {
         trap(server, "VM trap: invalid TCP server handler");
         return server;
@@ -383,6 +375,7 @@ static VMTcpServer *tcp_server_start_mode(const VM *vm, Function *handler, const
     if (!vm->coverage_run) vm_coverage_gap(vm->coverage);
     server->template_vm.coverage = NULL;
     server->handler = handler;
+    retain(server->handler.closure);
     server->context = retain((Value *)context);
     server->outbound = outbound;
     server->streaming = streaming;
@@ -426,13 +419,13 @@ static VMTcpServer *tcp_server_start_mode(const VM *vm, Function *handler, const
     return server;
 }
 
-VMTcpServer *tcp_server_start(const VM *vm, Function *handler, const Value *address, size_t port,
+VMTcpServer *tcp_server_start(const VM *vm, VMCallable handler, const Value *address, size_t port,
                               VMTcpServerLimits limits, bool outbound)
 {
     return tcp_server_start_mode(vm, handler, NULL, address, port, limits, outbound, false, false);
 }
 
-VMTcpServer *tcp_server_start_stream(const VM *vm, Function *handler, const Value *context,
+VMTcpServer *tcp_server_start_stream(const VM *vm, VMCallable handler, const Value *context,
                                      const Value *address, size_t port,
                                      VMTcpServerLimits limits, bool outbound)
 {
@@ -440,7 +433,7 @@ VMTcpServer *tcp_server_start_stream(const VM *vm, Function *handler, const Valu
                                  false);
 }
 
-VMTcpServer *tcp_server_start_service(const VM *vm, Function *handler, const Value *context,
+VMTcpServer *tcp_server_start_service(const VM *vm, VMCallable handler, const Value *context,
                                       const Value *address, size_t port, VMTcpServiceLimits limits,
                                       bool outbound)
 {
@@ -455,7 +448,7 @@ VMTcpServer *tcp_server_start_service(const VM *vm, Function *handler, const Val
                                  true);
 }
 
-VMTcpServer *tcp_server_start_http(const VM *vm, Function *worker, Value *handle, bool outbound)
+VMTcpServer *tcp_server_start_http(const VM *vm, VMCallable worker, Value *handle, bool outbound)
 {
     if (!handle || handle->kind != V_HTTP_STATE || !handle->as.http_state) return NULL;
     VMHttpState *state = handle->as.http_state;
@@ -828,7 +821,7 @@ static void start_handler(VMTcpServer *server, ServerClient *client)
         client->vm.program, NULL, 0, "server\n");
     client->vm.coverage = vm_coverage_run_collector(client->vm.coverage_run);
     const char *error;
-    client->execution = vm_execution_create_async(&client->vm, server->handler, &request, server_read_wait,
+    client->execution = vm_execution_create_callable_async(&client->vm, server->handler, &request, 1, server_read_wait,
                                                   client, &error);
     if (client->http_connection) client->http_connection->as.http_connection->execution = client->execution;
     release(request);
@@ -884,23 +877,17 @@ static void handler_result(VMTcpServer *server, ServerClient *client)
 }
 #endif
 
-bool tcp_server_set_ready_handler(VMTcpServer *server, Function *handler, const Value *context,
+bool tcp_server_set_ready_handler(VMTcpServer *server, VMCallable handler, const Value *context,
                                   bool console)
 {
     if (!server || server->done || !server->continuous || server->admitted ||
-        server->ready_handler || !context) {
+        server->ready_handler.function || !context) {
         return false;
     }
-    bool found = false;
-    for (size_t i = 0; i < server->template_vm.program->count; i++) {
-        if (handler == &server->template_vm.program->functions[i]) {
-            found = true;
-        }
-    }
-    if (!found || !handler->is_async || handler->pure || handler->param_count != 1) {
-        return false;
-    }
+    if (!vm_callable_valid(&server->template_vm, handler, 1) ||
+        !handler.function->is_async || handler.function->pure) return false;
     server->ready_handler = handler;
+    retain(server->ready_handler.closure);
     server->ready_context = retain((Value *)context);
     server->ready_console = console;
     server->ready_pending = true;
@@ -918,8 +905,8 @@ static void advance_ready(VMTcpServer *server, size_t budget)
             server->template_vm.coverage_run, server->ready_vm.program, NULL, 0, "server-ready\n");
         server->ready_vm.coverage = vm_coverage_run_collector(server->ready_vm.coverage_run);
         const char *error = NULL;
-        server->ready_execution = vm_execution_create_async(
-            &server->ready_vm, server->ready_handler, &server->ready_context, NULL, NULL, &error);
+        server->ready_execution = vm_execution_create_callable_async(
+            &server->ready_vm, server->ready_handler, &server->ready_context, 1, NULL, NULL, &error);
         if (!server->ready_execution) {
             trap(server, error ? error : "native VM out of memory");
             return;
@@ -1090,6 +1077,8 @@ void tcp_server_destroy(VMTcpServer *server)
         state->resource = NULL;
         if (state->phase != HTTP_DESTROYED) state->phase = HTTP_CLOSED;
     }
+    release(server->handler.closure);
+    release(server->ready_handler.closure);
     release(server->context);
     release(server->ready_context);
     free(server);

@@ -35,7 +35,8 @@ typedef enum {
     V_DIRECTORY_STAGE,
     V_HTTP_STREAM,
     V_SHA256_CONTEXT,
-    V_GZIP_DECODER
+    V_GZIP_DECODER,
+    V_CLOSURE
 } ValueKind;
 
 typedef struct Value Value;
@@ -146,6 +147,15 @@ Value *value_array_append(Value *array, Value *item);
 
 /* Copies names and retains fields/payloads. names is NULL for variants. */
 Value *named_value(ValueKind kind, const char *name, char **names, Value **values, size_t count);
+
+/* Closure environments own retained immutable values. This runtime foundation
+ * is not yet exposed by source lowering or bytecode construction. Iterators
+ * remain ineligible until their snapshot/invocation semantics are implemented. */
+typedef enum { CAPTURE_ALLOWED, CAPTURE_REJECTED, CAPTURE_OUT_OF_MEMORY } CaptureCheck;
+CaptureCheck value_capture_check(Value *const *values, size_t count);
+/* Borrows target/captures. On failure, status distinguishes rejection from OOM. */
+Value *value_closure(const char *target, Value *const *captures, size_t count,
+                     CaptureCheck *status);
 
 bool value_equal(const Value *left, const Value *right);
 bool value_index(const Value *value, size_t *index);

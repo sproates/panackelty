@@ -1402,8 +1402,293 @@ static void shared_unit_and_void_preserve_distinction(void)
     release(empty);
 }
 
+static void closure_construction_contracts(void)
+{
+    const Builtin *constructor = builtin("$intrinsic_closure");
+    assert(constructor && constructor->pure && constructor->arity == 3);
+    Function function = {.name = "body", .param_count = 2};
+    Program program = {.functions = &function, .count = 1};
+    Value *capture = value_size(17);
+    Value *target = value_data(V_STR, (const uint8_t *)"body", 4);
+    Value *environment = value_sequence(V_ARRAY, &capture, 1);
+    Value *arity = value_size(1);
+    Value *arguments[] = {target, environment, arity};
+    VM vm = {.program = &program};
+    Value *closure = constructor->call(&vm, constructor->name, arguments);
+    assert(closure && !vm.error && closure->kind == V_CLOSURE);
+    assert(closure->as.named.count == 1 && closure->as.named.values[0] == capture);
+    release(closure);
+    function.param_count = 1;
+    vm.error = NULL;
+    assert(!constructor->call(&vm, constructor->name, arguments));
+    assert(vm.error && !strcmp(vm.error, "VM trap: closure capture layout does not match target arity"));
+    function.param_count = 2;
+    release(target);
+    target = value_data(V_STR, (const uint8_t *)"body\0forged", 11);
+    arguments[0] = target;
+    vm.error = NULL;
+    assert(!constructor->call(&vm, constructor->name, arguments));
+    assert(vm.error && !strcmp(vm.error, "VM trap: invalid closure construction"));
+    release(target);
+    target = value_data(V_STR, (const uint8_t *)"absent", 6);
+    arguments[0] = target;
+    vm.error = NULL;
+    assert(!constructor->call(&vm, constructor->name, arguments));
+    assert(vm.error && !strcmp(vm.error, "VM trap: closure target was not found"));
+    release(target);
+    target = value_data(V_STR, (const uint8_t *)"body", 4);
+    arguments[0] = target;
+    Value resource = {.kind = V_HTTP_STATE, .refs = 1};
+    Value *raw = &resource;
+    Value *unsafe = value_sequence(V_ARRAY, &raw, 1);
+    arguments[1] = unsafe;
+    vm.error = NULL;
+    assert(!constructor->call(&vm, constructor->name, arguments));
+    assert(vm.error && !strcmp(vm.error, "VM trap: closure cannot capture a resource-bearing value"));
+    release(unsafe);
+    assert(resource.refs == 1);
+    release(target); release(environment); release(arity);
+    assert(capture->refs == 1);
+    release(capture);
+}
+
+static void closure_invocation_contracts(void)
+{
+    /* Exercise both sides of the inline argument boundary, including a body
+     * whose capture prefix plus explicit arguments is larger than one byte. */
+    const size_t counts[] = {0, 1, 8, 9, 255};
+    for (size_t test = 0; test < sizeof(counts) / sizeof(*counts); test++) {
+        size_t count = counts[test];
+        Value *captures[255];
+        char names[256][12];
+        char *params[256], *entry_params[] = {"callback"};
+        Instruction body[258] = {0};
+        for (size_t i = 0; i <= count; i++) {
+            snprintf(names[i], sizeof(names[i]), "p%zu", i);
+            params[i] = names[i];
+            body[i] = (Instruction){.op = OP_LOAD, .name = params[i]};
+            if (i < count) captures[i] = value_size(i + 100);
+        }
+        body[count + 1] = (Instruction){.op = OP_MAKE_ARRAY, .count = count + 1};
+        body[count + 2] = (Instruction){.op = OP_RETURN};
+        Instruction code[] = {
+            {.op = OP_LOAD, .name = "callback"},
+            {.op = OP_CONST, .constant = {.tag = 4, .boolean = true}},
+            {.op = OP_CALL_VALUE, .arity = 1}, {.op = OP_RETURN}};
+        Instruction main_code[] = {{.op = OP_CONST, .constant = {.tag = 4}}, {.op = OP_RETURN}};
+        Function functions[] = {
+            {.name = "invoke", .params = entry_params, .param_count = 1,
+             .ins = code, .ins_count = 4, .pure = true},
+            {.name = "main", .ins = main_code, .ins_count = 2},
+            {.name = "target", .params = params, .param_count = count + 1,
+             .ins = body, .ins_count = count + 3, .pure = true}};
+        Program program = {.functions = functions, .count = 3};
+        const char *error = NULL;
+        assert(verify(&program, &error));
+        CaptureCheck status;
+        Value *closure = value_closure("target", captures, count, &status);
+        assert(closure && status == CAPTURE_ALLOWED);
+        for (size_t i = 0; i < count; i++) release(captures[i]);
+        for (size_t invocation = 0; invocation < 2; invocation++) {
+            VM vm = {.program = &program};
+            Value *result = execute(&vm, &functions[0], &closure);
+            assert(result && !vm.error && result->kind == V_ARRAY);
+            assert(result->as.sequence.count == count + 1);
+            for (size_t i = 0; i < count; i++) {
+                size_t actual;
+                assert(value_index(result->as.sequence.items[i], &actual) && actual == i + 100);
+                assert(closure->as.named.values[i]->refs == 2);
+            }
+            assert(result->as.sequence.items[count]->kind == V_BOOL &&
+                   result->as.sequence.items[count]->as.boolean);
+            release(result);
+            assert(closure->refs == 1);
+            for (size_t i = 0; i < count; i++) assert(closure->as.named.values[i]->refs == 1);
+        }
+        release(closure);
+    }
+
+    char *entry_params[] = {"callback"}, *target_params[] = {"captured"};
+    Instruction code[] = {{.op = OP_LOAD, .name = "callback"},
+                          {.op = OP_CALL_VALUE}, {.op = OP_RETURN}};
+    Instruction body[] = {{.op = OP_LOAD, .name = "captured"}, {.op = OP_RETURN}};
+    Instruction main_code[] = {{.op = OP_CONST, .constant = {.tag = 4}}, {.op = OP_RETURN}};
+    Function functions[] = {
+        {.name = "invoke", .params = entry_params, .param_count = 1, .ins = code, .ins_count = 3},
+        {.name = "main", .ins = main_code, .ins_count = 2},
+        {.name = "target", .params = target_params, .param_count = 1, .ins = body, .ins_count = 2}};
+    Program program = {.functions = functions, .count = 3};
+    Value *capture = value_size(42);
+    CaptureCheck status;
+    Value *closure = value_closure("target", &capture, 1, &status);
+    assert(closure);
+    for (size_t caller = 0; caller < 3; caller++) {
+        for (size_t callee = 0; callee < 3; callee++) {
+            for (size_t awaited = 0; awaited < 2; awaited++) {
+                functions[0].pure = caller == 1;
+                functions[0].is_async = caller == 2;
+                functions[2].pure = callee == 1;
+                functions[2].is_async = callee == 2;
+                code[1].op = awaited ? OP_AWAIT_VALUE : OP_CALL_VALUE;
+                const char *error = NULL;
+                bool verified = verify(&program, &error);
+                if (awaited && caller != 2) {
+                    assert(!verified && error && !strcmp(error, "invalid async instruction"));
+                    continue;
+                }
+                assert(verified);
+                bool allowed = awaited ? caller == 2 && callee == 2
+                    : callee != 2 && (caller == 0 || callee == 1);
+                VM vm = {.program = &program};
+                Value *result = execute(&vm, &functions[0], &closure);
+                if (allowed) assert(result == capture && !vm.error);
+                else assert(!result && vm.error);
+                release(result);
+                assert(closure->refs == 1 && capture->refs == 2);
+            }
+        }
+    }
+    functions[0].pure = functions[0].is_async = false;
+    functions[2].pure = functions[2].is_async = false;
+    code[1].op = OP_CALL_VALUE;
+    /* Too many captures and too few total arguments must trap before indexing. */
+    for (size_t arity = 0; arity < 3; arity += 2) {
+        functions[2].param_count = arity;
+        VM vm = {.program = &program};
+        assert(!execute(&vm, &functions[0], &closure));
+        assert(vm.error && !strcmp(vm.error, "VM trap: indirect call arity mismatch"));
+        assert(capture->refs == 2);
+    }
+    functions[2].param_count = 1;
+    release(closure);
+    const char *missing[] = {"absent", "print"};
+    for (size_t i = 0; i < 2; i++) {
+        closure = value_closure(missing[i], &capture, 1, &status);
+        VM vm = {.program = &program};
+        assert(!execute(&vm, &functions[0], &closure));
+        assert(vm.error && !strcmp(vm.error, "VM trap: closure target was not found"));
+        release(closure);
+    }
+    assert(capture->refs == 1);
+    /* The active frame owns its captures even after the external callable is
+     * released. Cancellation and a trap must release that ownership too. */
+    for (size_t ending = 0; ending < 3; ending++) {
+        closure = value_closure("target", &capture, 1, &status);
+        const char *error = NULL;
+        assert(verify(&program, &error));
+        VM vm = {.program = &program};
+        VMExecution *run = vm_execution_create(&vm, &functions[0], &closure, NULL, NULL, &error);
+        assert(run && !error && vm_execution_advance(run, 2) == VM_YIELDED);
+        release(closure);
+        assert(capture->refs == 3);
+        if (ending == 1) {
+            assert(vm_execution_advance(run, 10) == VM_COMPLETED);
+            assert(vm_execution_result(run) == capture);
+        } else if (ending == 2) {
+            body[0].op = OP_MATCH_FAIL;
+            assert(vm_execution_advance(run, 10) == VM_TRAPPED && vm.error);
+            body[0].op = OP_LOAD;
+        }
+        assert(vm_execution_destroy(run));
+        assert(capture->refs == 1);
+    }
+    release(capture);
+}
+
+static void closure_environment_contracts(void)
+{
+    CaptureCheck status;
+    Value *number = value_size(42);
+    Value *captures[] = {number};
+    Value *first = value_closure("body-one", captures, 1, &status);
+    assert(first && status == CAPTURE_ALLOWED && number->refs == 2);
+    Value *same = value_closure("body-one", captures, 1, &status);
+    Value *other = value_closure("body-two", captures, 1, &status);
+    assert(same && other && value_equal(first, same) && !value_equal(first, other));
+    Value *changed = value_size(43);
+    Value *different = value_closure("body-one", &changed, 1, &status);
+    assert(different && !value_equal(first, different));
+    Value *equal_number = value_size(42);
+    Value *equal_copy = value_closure("body-one", &equal_number, 1, &status);
+    assert(equal_copy && value_equal(first, equal_copy));
+    release(equal_copy); release(equal_number);
+    Value *nested = value_closure("outer", &first, 1, &status);
+    assert(nested && value_capture_check(&nested, 1) == CAPTURE_ALLOWED);
+    release(number);
+    assert(value_equal(first, same)); /* Creator's local has gone away. */
+    release(nested); release(first); release(same); release(other);
+    release(different); release(changed);
+
+    ValueKind blocked[] = {V_HTTP_STATE, V_HTTP_WRITER, V_HTTP_CONNECTION,
+        V_DIRECTORY_STAGE, V_HTTP_STREAM, V_SHA256_CONTEXT, V_GZIP_DECODER, V_ITER, V_VOID};
+    for (size_t i = 0; i < sizeof(blocked) / sizeof(blocked[0]); i++) {
+        Value resource = {.refs = 1, .kind = blocked[i]};
+        Value *raw = &resource;
+        assert(!value_closure("body", &raw, 1, &status) && status == CAPTURE_REJECTED);
+        Value *array = value_sequence(V_ARRAY, &raw, 1);
+        char *fields[] = {"payload"};
+        Value *record = named_value(V_RECORD, "Wrapper", fields, &array, 1);
+        Value *variant = named_value(V_VARIANT, "Some", NULL, &record, 1);
+        assert(array && record && variant);
+        assert(!value_closure("body", &variant, 1, &status) && status == CAPTURE_REJECTED);
+        Value forged = {.refs = 1, .kind = V_CLOSURE};
+        forged.as.named.count = 1;
+        forged.as.named.values = &raw;
+        Value *forged_pointer = &forged;
+        assert(value_capture_check(&forged_pointer, 1) == CAPTURE_REJECTED);
+        release(variant); release(record); release(array);
+        assert(resource.refs == 1);
+    }
+    /* A graph with exponentially many paths still has only 129 array nodes. */
+    Value *chain[129];
+    chain[0] = value_sequence(V_ARRAY, NULL, 0);
+    for (size_t i = 1; i < 129; i++) {
+        Value *items[] = {chain[i - 1], chain[i - 1]};
+        chain[i] = value_sequence(V_ARRAY, items, 2);
+        assert(chain[i]);
+    }
+    assert(value_capture_check(&chain[128], 1) == CAPTURE_ALLOWED);
+    first = value_closure("shared-graph", &chain[128], 1, &status);
+    same = value_closure("shared-graph", &chain[128], 1, &status);
+    assert(first && same && value_equal(first, same));
+    release(first); release(same);
+    for (size_t i = 129; i-- > 0;) release(chain[i]);
+
+    Value *empty = value_sequence(V_ARRAY, NULL, 0);
+    number = value_size(1);
+    Value *base = value_array_append(empty, number);
+    Value resource = {.refs = 1, .kind = V_SHA256_CONTEXT};
+    Value *extension = value_array_append(base, &resource);
+    assert(extension && value_capture_check(&base, 1) == CAPTURE_REJECTED);
+    release(extension);
+    assert(resource.refs == 1 && value_capture_check(&base, 1) == CAPTURE_ALLOWED);
+    first = value_closure("array-owner", &base, 1, &status);
+    assert(first);
+    extension = value_array_append(base, first);
+    assert(extension && extension->as.sequence.items != base->as.sequence.items);
+    release(extension); release(first); release(base); release(empty); release(number);
+    assert(!value_closure("", NULL, 0, &status) && status == CAPTURE_REJECTED);
+    assert(!value_closure("body", NULL, 1, &status) && status == CAPTURE_REJECTED);
+    first = value_closure("empty-body", NULL, 0, &status);
+    assert(first && status == CAPTURE_ALLOWED);
+    release(first);
+}
+
 int main(int argc, char **argv)
 {
+    closure_environment_contracts();
+    closure_construction_contracts();
+    closure_invocation_contracts();
+    if (argc == 2 && !strcmp(argv[1], "host-closures")) {
+        http_state_contracts();
+        tcp_server_contracts();
+        puts("retained host callback contracts: ok");
+        return 0;
+    }
+    if (argc == 2 && !strcmp(argv[1], "closures")) {
+        puts("native closure environment contracts: ok");
+        return 0;
+    }
     shared_unit_and_void_preserve_distinction();
     shared_booleans_preserve_values_and_ownership();
     call_argument_buffers_preserve_order();

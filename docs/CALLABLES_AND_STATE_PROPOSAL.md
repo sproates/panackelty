@@ -340,10 +340,10 @@ CS1 is accepted after local and hosted integration validation.
 | Slice | Deliverable | Weight | Status | Earned |
 | --- | --- | --- | --- | --- |
 | CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | Complete: PR #701 and integration run 46042786755 passed | 20 |
-| CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | Planned | 0 |
+| CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | Local acceptance passed in 725s; integration pending | 0 |
 | CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | Planned | 0 |
 | CS4 | Both service examples, installed acceptance, reference and website guidance | 20 | Planned | 0 |
-| Total | Working callable/state feature | 100 | CS1 accepted; CS2–CS4 planned | 20 |
+| Total | Working callable/state feature | 100 | CS1 accepted; CS2 in progress, CS3–CS4 planned | 20 |
 
 Order: CS1, then CS2 and CS3, then CS4. CS3 can use named pure callbacks; it need
 not depend on closure syntax. Implement related work in a development branch with
@@ -576,3 +576,121 @@ CS1 merged into next through [PR #701](https://github.com/sproates/panackelty/pu
 
 
 CS1 accepted, 27 November: [PR #701](https://github.com/sproates/panackelty/pull/701) is merged and [integration run 46042786755](https://github.com/sproates/panackelty/actions/runs/46042786755) passed for `14b709d`. Full local make check passed in 708s. Subsequent status changes contain informational Markdown only. CS1: Anonymous functions is complete (20/20 points); CS2: Retained captures (30), CS3: State (30) and CS4: Examples/documentation/installed acceptance (20) remain planned. Programme earned contribution is 20/100. RM#162 remains open; CS1 has no separate issue to close. No website publication or closure/State completion is claimed.
+
+
+CS2 started, 27 November, on feature/rm162-retained-captures from next 4cc5d00.
+The first runtime checkpoint adds an owned closure value with lexical target
+identity and retained capture values. Equality compares target and captures, not
+allocation identity. Capture eligibility follows actual ownership edges through
+collections, records, variants and other closure environments, including hidden
+shared-array suffixes. A non-recursive worklist with a visited-pointer set avoids
+revisiting shared graphs. Native resources, Void, iterators and unclassified new
+value kinds fail closed. Array append checks now follow closure ownership edges
+to prevent introducing shared-storage reference cycles.
+
+This is runtime groundwork, not executable source closure support. No instruction
+or builtin constructs the new value yet. Source capture analysis, checked
+construction/invocation, verifier/effect/arity enforcement, async/native handler
+integration, iterator snapshots, cache/provenance evidence and final functional/
+full validation remain. CS2 is in progress with zero earned points; CS1 remains
+accepted and programme progress is 20/100. No CI, bootstrap rebuild or website
+change accompanies this checkpoint.
+
+CS2 representation and invocation direction: keep named references unchanged.
+A closure owns its target symbol and capture layout; the future construction path
+must resolve a real non-builtin target, validate the environment and check the
+hidden-parameter count before invocation. Existing call-edge effect checks must
+apply to ordinary, awaited and host-retained invocation. Runtime primitive/type
+checks remain mandatory for forged bytecode, not only source diagnostics. This
+checkpoint introduces no encoded constants or opcodes and makes no final
+bytecode-version compatibility promise. Iterators are temporarily rejected until
+snapshot and repeated-invocation semantics are implemented; that is not a change
+to the accepted CS2 contract.
+
+CS2 checked invocation checkpoint, 27 November: CALL_VALUE and AWAIT_VALUE now
+accept internal closure values. Captures precede explicit arguments in the
+callee frame; target lookup, arity and the existing pure/async call-edge rules
+are checked before entry. Named references keep their existing path. Small
+combined argument lists use stack storage; larger lists use a temporary borrowed
+pointer vector, with frame ownership handled by the existing retain/release path.
+Native tests cover argument order, repeated invocation, the effect matrix,
+missing/builtin targets, arity mismatch, suspension, cancellation and callee
+traps. Source construction/lowering, host-retained callbacks, iterator snapshots,
+cache/provenance and final slice acceptance remain. No bytecode format or compiler
+seed change. CS2 remains in progress with zero accepted points (programme 20/100).
+
+CS2 source-lowering checkpoint, 27 November: referenced immutable lexical values
+now become closure captures, including captures used by nested closures. Generated
+functions receive a hidden capture-parameter prefix; the public callable signature
+retains only explicit arguments. Generic types are rebound to the anonymous body
+while lexical declaration identities remain available for provenance. Capture
+reads are children of the creation node; the nested function body remains a
+separate effect scope. Known mutable/resource captures are diagnosed, and the
+runtime validates target, layout and resource graphs again at construction.
+
+The reserved pure `$intrinsic_closure` builtin is an additive v9 capability;
+there is no opcode or constant-layout change. Older runtimes reject the unknown
+intrinsic. Noncapturing and named callables remain unchanged. The compiler rejects
+combined capture/explicit parameter counts beyond v9's 255-parameter limit.
+Ordinary and async candidate fixtures pass source execution and saved bytecode,
+including creator-return lifetime, nested/generic captures, captured callbacks,
+collection callbacks, equality and repeated awaits. This is candidate evidence;
+the public launcher still uses the unchanged bootstrap compiler. Host-retained
+callbacks, iterator snapshots, dedicated capture explanations, bootstrap refresh
+and final acceptance remain. CS2 stays in progress; programme earned contribution
+is 20/100. No development CI or website publication.
+
+CS2 retained-host checkpoint, 27 November: HTTP routes and fallbacks, contextual
+HTTP handlers, TCP workers and service readiness callbacks now retain closure
+environments. The shared checked callable descriptor preserves target identity,
+explicit arity and async effects; child frames retain captures independently and
+server destruction releases retained environments. Verified-program target lookup
+uses the existing index. No throughput improvement is claimed.
+
+Native lifetime and allocation-failure checks pass, including sanitizer checks.
+The candidate HTTP fixture passes ordinary/contextual routes and fallback in
+source and saved-bytecode modes after the creating function returns. The binding
+and cache suite passes 2,265 assertions. Captured arrays and ranges can be iterated
+from the start on every invocation; loop-created closures retain each iteration's
+value. Source and saved-bytecode transcripts agree.
+
+Iterator clarification supersedes earlier pending-snapshot notes: source iteration
+exposes iterable values, not the VM's mutable V_ITER cursor. Each loop creates a
+fresh cursor. Raw internal cursors remain capture-ineligible; no new public
+iterator API or cursor snapshot feature is introduced.
+
+The existing zero-grace TCP cancellation assertion failed once, then passed on
+retry and under sanitizers. No timeout or assertion was weakened; watch this
+case during final validation. Capture explanations, bootstrap refresh, public
+launcher/full validation and integration remain. CS2 is not accepted; programme
+progress remains 20/100. No development CI or website publication.
+
+CS2 explanation checkpoint, 27 November: the checker now records capture eligibility
+and reasons in explanation mode. Text and terminal views show accepted/rejected
+captures and follow lexical identities to declaration context, including shadowed
+parameters. Evidence is not inferred from diagnostic text. The ordinary body cache
+retains lexical identities but omits explanation evidence; explain checks source
+afresh. No cache-schema or bytecode-format change is needed. The terminal's generated
+instruction description names closure creation rather than its reserved intrinsic.
+Candidate CLI explanation checks pass (123 cases), and unchanged-program bytecode
+contracts pass. Bootstrap refresh and final local validation are in progress.
+CS2 remains unaccepted and programme progress stays 20/100. CS3 State and CS4 final
+examples/installed/website acceptance remain planned; no website publication or
+CI has been started by this development checkpoint.
+
+CS2 local acceptance, 27 November: full `make check` passed in 725s, including
+unit/functional suites, fixed-point bootstrap, packaging, relocation and quick
+start. The existing zero-grace TCP assertion passed in this full run. Focused
+capture checks passed 2,313 binding/cache assertions and 123 CLI cases; terminal
+navigation, capture origin and TTY restoration passed. Bootstrap compiler and
+stdlib conformance outputs matched across stages. Unchanged-program bytecode
+compatibility and native closure lifetime/allocation/sanitizer checks passed.
+The 725s broad run versus CS1's 708s is not a controlled performance comparison;
+existing historical advisory budget warnings remain unchanged.
+
+CS2 implementation and local acceptance are ready for integration. CS2 remains
+unaccepted until next integration CI passes; no task points are earned early.
+CS1 remains 20/20, CS2 0/30 pending integration, CS3 State 0/30 and CS4 examples/
+installed/website acceptance 0/20. Programme accepted progress remains 20/100.
+RM#162 stays open; CS2 has no separate issue to close. The existing CS4 website
+follow-up covers closure examples/reference updates; nothing is published here.

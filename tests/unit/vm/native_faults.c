@@ -316,6 +316,73 @@ static void construct_array(void)
     assert(operand->refs == 1);
 }
 
+static Value *closure_fixture;
+static Value *construction_arguments[3];
+static void construct_checked_closure(void)
+{
+    const Builtin *constructor = builtin("$intrinsic_closure");
+    Function target = {.name = "body", .param_count = 81};
+    Program program = {.functions = &target, .count = 1};
+    VM vm = {.program = &program};
+    Value *result = constructor->call(&vm, constructor->name, construction_arguments);
+    if (fault_triggered()) assert(!result && vm.error);
+    else assert(result && !vm.error && result->as.named.count == 80);
+    release(result);
+    for (size_t i = 0; i < 80; i++) assert(closure_fixture->as.sequence.items[i]->refs == 2);
+}
+
+static Value *invocation_fixture;
+static bool host_invocation;
+static void invoke_closure(void)
+{
+    char *entry_params[] = {"callback"};
+    char *params[] = {"a", "b", "c", "d", "e", "f", "g", "h", "i"};
+    size_t count = invocation_fixture->as.named.count;
+    Instruction code[] = {{.op = OP_LOAD, .name = "callback"},
+                          {.op = OP_CALL_VALUE}, {.op = OP_RETURN}};
+    Instruction main_code[] = {{.op = OP_CONST, .constant = {.tag = 4}}, {.op = OP_RETURN}};
+    Instruction body[] = {{.op = OP_LOAD, .name = params[count - 1]}, {.op = OP_RETURN}};
+    Function functions[] = {
+        {.name = "invoke", .params = entry_params, .param_count = 1, .ins = code, .ins_count = 3},
+        {.name = "main", .ins = main_code, .ins_count = 2},
+        {.name = "target", .params = params, .param_count = count, .ins = body, .ins_count = 2,
+         .is_async = host_invocation}};
+    Program program = {.functions = functions, .count = 3};
+    const char *error = NULL;
+    if (!verify(&program, &error)) { assert(fault_triggered() && error); return; }
+    VM vm = {.program = &program};
+    if (host_invocation) {
+        VMCallable callable = vm_resolve_callable(&vm, invocation_fixture, 0);
+        VMExecution *run = vm_execution_create_callable_async(&vm, callable, NULL, 0, NULL, NULL, &error);
+        if (!run) assert(fault_triggered() && error);
+        else {
+            VMExecutionStatus result = vm_execution_advance(run, 10);
+            if (fault_triggered()) assert(result == VM_TRAPPED && vm.error);
+            else assert(result == VM_COMPLETED &&
+                        vm_execution_result(run) == invocation_fixture->as.named.values[count - 1]);
+            assert(vm_execution_destroy(run));
+        }
+    } else {
+        Value *result = execute(&vm, &functions[0], &invocation_fixture);
+        if (fault_triggered()) assert(!result && vm.error);
+        else assert(result == invocation_fixture->as.named.values[count - 1] && !vm.error);
+        release(result);
+    }
+    assert(invocation_fixture->refs == 1);
+    for (size_t i = 0; i < count; i++) assert(invocation_fixture->as.named.values[i]->refs == 2);
+}
+
+static void construct_closure(void)
+{
+    size_t refs = closure_fixture->refs;
+    CaptureCheck status;
+    Value *result = value_closure("capturing-body", &closure_fixture, 1, &status);
+    assert((result != NULL) == !fault_triggered());
+    assert(status == (result ? CAPTURE_ALLOWED : CAPTURE_OUT_OF_MEMORY));
+    release(result);
+    assert(closure_fixture->refs == refs);
+}
+
 static Value *append_base, *append_item;
 
 static void append_array(void)
@@ -1026,9 +1093,9 @@ static void server_allocations(void)
         return;
     }
     VMTcpServer *server = server_streaming
-                              ? tcp_server_start_stream(&vm, &fn, context, address, server_port,
+                              ? tcp_server_start_stream(&vm, (VMCallable){&fn, NULL}, context, address, server_port,
                                                         limits, false)
-                              : tcp_server_start(&vm, &fn, address, server_port, limits, false);
+                              : tcp_server_start(&vm, (VMCallable){&fn, NULL}, address, server_port, limits, false);
     release(context);
     release(address);
     if (server && !tcp_server_done(server)) {
@@ -1174,6 +1241,35 @@ int main(int argc, char **argv)
     for (size_t i = 0; i < 64; i++) {
         assert(index_items[i]->refs == 1);
         release(index_items[i]);
+    }
+    Value *capture_items[80];
+    for (size_t i = 0; i < 80; i++) { capture_items[i] = value_size(i); assert(capture_items[i]); }
+    closure_fixture = value_sequence(V_ARRAY, capture_items, 80);
+    assert(closure_fixture);
+    sweep("closure environment and graph walk ownership", construct_closure);
+    construction_arguments[0] = value_data(V_STR, (const uint8_t *)"body", 4);
+    construction_arguments[1] = closure_fixture;
+    construction_arguments[2] = value_size(1);
+    assert(construction_arguments[0] && construction_arguments[2]);
+    sweep("checked closure construction", construct_checked_closure);
+    release(construction_arguments[0]);
+    release(construction_arguments[2]);
+    release(closure_fixture);
+    for (size_t count = 8; count <= 9; count++) {
+        CaptureCheck status;
+        invocation_fixture = value_closure("target", capture_items, count, &status);
+        assert(invocation_fixture && status == CAPTURE_ALLOWED);
+        sweep("closure invocation frame and argument ownership", invoke_closure);
+        host_invocation = true;
+        sweep("host closure invocation ownership", invoke_closure);
+        host_invocation = false;
+        release(invocation_fixture);
+    }
+    for (size_t i = 0; i < 80; i++) { assert(capture_items[i]->refs == 1); release(capture_items[i]); }
+    if (argc == 2 && !strcmp(argv[1], "closures")) {
+        assert(fault_live() == 0);
+        puts("closure allocation failures: ok");
+        return 0;
     }
     sweep("indexed locals preparation and frame ownership", indexed_locals_allocations);
     concatenation_faults();

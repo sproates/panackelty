@@ -5442,13 +5442,65 @@ pure anonymous_body_is_pure(context: BodyContext, body: BoundBody): Bool {
   pure_body
 }
 
-pure anonymous_capture_diagnostics(body: BoundBody, owner: DeclarationIdentity): [Diagnostic] {
+pure anonymous_resource_type(context: BodyContext, type: SignatureType,
+  visited: [DeclarationIdentity]): Bool {
+  mut restricted: Bool = false
+  match type.identity {
+    SignatureCore(name) => {
+      restricted = name == "HttpServerState" || name == "HttpResponseState" ||
+        name == "HttpConnectionState" || name == "DirectoryStage" || name == "HttpStream" ||
+        name == "Sha256Context" || name == "GzipDecoder" || name == "Task" || name == "Void"
+      for argument in type.arguments {
+        restricted = restricted || anonymous_resource_type(context, argument, visited)
+      }
+    },
+    SignatureNominal(identity) => {
+      mut seen: Bool = false
+      for previous in visited { seen = seen || previous == identity }
+      if !seen {
+        match body_signature(context.signatures, identity) {
+          None() => {},
+          Some(signature) => {
+            for slot in signature.slots {
+              match substitute_signature_type(slot.type, identity, type.arguments) {
+                Error(message) => {},
+                Ok(field) => {
+                  restricted = restricted || anonymous_resource_type(context, field, visited.append(identity))
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    // A callable may accept a resource without retaining it. Its actual
+    // environment is checked when the callable is constructed by the VM.
+    SignatureCallable(effect) => {}, SignatureParameter(owner, index) => {},
+    SignatureHole(owner, path, index) => {}
+  }
+  restricted
+}
+
+pure anonymous_capture_diagnostics(context: BodyContext, body: BoundBody, owner: DeclarationIdentity, locals: Map[Str, BodyLocal]): [Diagnostic] {
   mut diagnostics: [Diagnostic] = []
   match body.node {
     BodyLocalUse(identity, domain) => {
-      if identity.owner != owner {
-        diagnostics = diagnostics.append(Diagnostic(
-          "anonymous function captures " + identity.name + "; captured values are not supported in this development slice", body.span.start))
+      if identity.owner != owner && locals.has(identity.name) {
+        match body.type {
+          None() => {},
+          Some(type) => {
+            if anonymous_resource_type(context, type, []) {
+              diagnostics = diagnostics.append(Diagnostic(
+                "anonymous function cannot capture " + identity.name + " because " + body_type_text(type) +
+                " contains a native resource; pass the value as a call argument instead", body.span.start))
+            }
+          }
+        }
+        if locals.get(identity.name).mutable {
+          diagnostics = diagnostics.append(Diagnostic(
+            "anonymous function cannot capture mutable binding " + identity.name +
+            "; bind an immutable snapshot first, or pass the value as a call argument", body.span.start))
+        }
       }
     },
     BodyAssignment(identity, evidence) => {
@@ -5460,12 +5512,57 @@ pure anonymous_capture_diagnostics(body: BoundBody, owner: DeclarationIdentity):
     BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyFunction(binding) => {},
     BodyAnonymousFunction(anonymous) => {}, BodyCall(target, types, evidence) => {}, BodyArray() => {},
     BodyUnary(operator) => {}, BodyBinary(operator) => {}, BodyField(name) => {}, BodyIndex() => {},
-    BodyIf(has_else) => {}, BodyBlock(tail, span, spans) => {}, BodyMatch(targets, locals, spans) => {},
+    BodyIf(has_else) => {}, BodyBlock(tail, span, spans) => {}, BodyMatch(targets, bindings, spans) => {},
     BodyBinding(identity, type, mutable, inferred, evidence) => {}, BodyWhile() => {},
     BodyFor(identity) => {}, BodyEmpty() => {}
   }
-  for child in body.children { diagnostics = diagnostics.concat(anonymous_capture_diagnostics(child, owner)) }
+  for child in body.children { diagnostics = diagnostics.concat(anonymous_capture_diagnostics(context, child, owner, locals)) }
   diagnostics
+}
+
+pure anonymous_captures(body: BoundBody, owner: DeclarationIdentity): [BoundBody] {
+  mut captures: [BoundBody] = []
+  match body.node {
+    BodyLocalUse(identity, domain) => {
+      if identity.owner != owner { captures = captures.append(body_result(BodyLocalUse(identity, None()), body.span, [], body.type).body) }
+    },
+    BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {}, BodyCall(target, types, evidence) => {}, BodyArray() => {},
+    BodyUnary(operator) => {}, BodyBinary(operator) => {}, BodyField(name) => {}, BodyIndex() => {},
+    BodyIf(has_else) => {}, BodyBlock(tail, span, spans) => {}, BodyMatch(targets, locals, spans) => {},
+    BodyBinding(identity, type, mutable, inferred, evidence) => {}, BodyAssignment(identity, evidence) => {},
+    BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
+  }
+  for child in body.children {
+    for capture in anonymous_captures(child, owner) {
+      mut found: Bool = false
+      for existing in captures { found = found || existing.node == capture.node }
+      if !found { captures = captures.append(capture) }
+    }
+  }
+  captures
+}
+
+// A retained lexical value keeps its declaration identity for provenance, while
+// its generic type parameters are rebound to the generated function's scope.
+pure anonymous_local_type(context: BodyContext, local: BodyLocal): Option[SignatureType] {
+  mut result: Option[SignatureType] = local.type;
+  if local.identity.owner != context.owner {
+    mut arguments: [SignatureType] = []
+    mut index: Nat = 0
+    for parameter in context.parameters {
+      arguments = arguments.append(SignatureType(SignatureParameter(context.owner, index), []))
+      index = index + 1
+    }
+    match local.type {
+      None() => {},
+      Some(type) => match substitute_signature_type(type, local.identity.owner, arguments) {
+        Error(message) => {},
+        Ok(rebound) => { result = Some(rebound) }
+      }
+    }
+  }
+  result
 }
 
 pure body_is_anonymous(expression: Expr): Bool {
@@ -5731,7 +5828,7 @@ pure bind_anonymous_body(
     }
     checked = body_finish_constraints(context, checked)
     diagnostics = diagnostics.concat(checked.diagnostics)
-    diagnostics = diagnostics.concat(anonymous_capture_diagnostics(checked.body, owner))
+    diagnostics = diagnostics.concat(anonymous_capture_diagnostics(context, checked.body, owner, outer_locals))
     checked = BodyResult(checked.body, checked.diagnostics, checked.deferred.concat(body_unresolved_spans(checked.body)))
   }
   mode: SignatureEffect = if effect == "async" { SignatureAsync() }
@@ -5748,7 +5845,6 @@ pure bind_anonymous_body(
     Some(result_type) => {
       slots = slots.append(SignatureSlot("result", result_type))
       binding = ModuleDeclarationBinding(owner, ModuleFunction(), false, span, None(), None())
-      signature = ModuleSignature(binding, context.parameters, slots, Some(mode))
       mut arguments: [SignatureType] = []
       for slot in slots {
         match substitute_signature_type(slot.type, owner, outer_types) {
@@ -5756,8 +5852,57 @@ pure bind_anonymous_body(
           Ok(public_type) => { arguments = arguments.append(public_type) }
         }
       }
+      captures = anonymous_captures(checked.body, owner)
+      if captures.len() + bound_parameters.len() > 255 {
+        diagnostics = diagnostics.append(Diagnostic(
+          "anonymous function needs more than 255 parameters including captured values; reduce the number of captures or parameters", span.start))
+      }
+      mut capture_parameters: [BodyLocal] = []
+      mut capture_slots: [SignatureSlot] = []
+      mut capture_values: [BoundBody] = []
+      for capture in captures {
+        match capture.node {
+          BodyLocalUse(identity, domain) => {
+            local = outer_locals.get(identity.name)
+            capture_parameters = capture_parameters.append(BodyLocal(identity, capture.type, false))
+            match capture.type {
+              None() => {},
+              Some(type) => { capture_slots = capture_slots.append(SignatureSlot(identity.name, type)) }
+            }
+            captured = body_result(BodyLocalUse(identity,
+              captured_domain_facts(outer, identity)), capture.span, [], anonymous_local_type(outer, local)).body
+            mut capture_checks: [BodyTypeCheckEvidence] = []
+            if context.retain_guard_conversions {
+              restricted = match capture.type {
+                None() => false, Some(type) => anonymous_resource_type(context, type, [])
+              }
+              allowed = !local.mutable && !restricted
+              reason = if local.mutable {
+                "The binding is mutable. Bind an immutable snapshot first, or pass the value as an argument."
+              } else if restricted {
+                "The value contains a native resource whose lifetime cannot belong to a closure. Pass the value as an argument instead."
+              } else {
+                "The closure retains this immutable binding's value when it is created, so the value remains available after the creating function returns. Panack checks the actual captured value for restricted resources at creation."
+              }
+              capture_checks = [BodyTypeCheckEvidence("capture " + identity.name, capture.span,
+                captured.type, "an immutable binding with no retained native resources", captured.type,
+                Some(allowed), reason, None())]
+            }
+            capture_values = capture_values.append(BoundBody(captured.node, captured.span, captured.children,
+              captured.type, captured.constraints, captured.guard_conversions, captured.type_joins,
+              captured.callback_contracts, captured.operator_checks, capture_checks))
+          },
+          BodyLiteral(v) => {}, BodyInterpolation(parts) => {}, BodyFunction(function_binding) => {},
+          BodyAnonymousFunction(anonymous) => {}, BodyCall(target, types, evidence) => {}, BodyArray() => {},
+          BodyUnary(op) => {}, BodyBinary(op) => {}, BodyField(field_name) => {}, BodyIndex() => {},
+          BodyIf(has_else) => {}, BodyBlock(tail, site, spans) => {}, BodyMatch(targets, match_locals, spans) => {},
+          BodyBinding(id, type, mutable, inferred, evidence) => {}, BodyAssignment(id, evidence) => {},
+          BodyWhile() => {}, BodyFor(id) => {}, BodyEmpty() => {}
+        }
+      }
+      retained_signature = ModuleSignature(binding, context.parameters, capture_slots.concat(slots), Some(mode))
       block = BoundBody(BodyBlock(true, Some(span), []), span, [checked.body], checked.body.type, [], [], [], [], [], [])
-      nested = BoundFunctionBody(signature, bound_parameters, block, checked.deferred,
+      nested = BoundFunctionBody(retained_signature, capture_parameters.concat(bound_parameters), block, checked.deferred,
         if diagnostics.len() > 0 { BodyInvalid() }
         else if checked.deferred.len() > 0 { BodyDeferred() } else { BodyIdentityChecked() },
         if context.retain_guard_conversions {
@@ -5765,7 +5910,7 @@ pure bind_anonymous_body(
             if diagnostics.len() > 0 { Some(false) }
             else if checked.deferred.len() > 0 { None() } else { Some(true) }))
         } else { None() })
-      value = body_result(BodyAnonymousFunction(nested), span, [],
+      value = body_result(BodyAnonymousFunction(nested), span, capture_values,
         Some(SignatureType(SignatureCallable(mode), arguments)))
       BodyResult(value.body, diagnostics, checked.deferred)
     }
@@ -5810,7 +5955,10 @@ pure bind_body_expression_with_type_argument_spans(
         result = body_failure("unknown local value " + name, origin)
       } else {
         local: BodyLocal = locals.get(name)
-        result = body_result(BodyLocalUse(local.identity, captured_domain_facts(context, local.identity)), origin, [], local.type)
+        resolved_type = if context.parameters.len() > 0 && local.identity.owner != context.owner {
+          anonymous_local_type(context, local)
+        } else { local.type }
+        result = body_result(BodyLocalUse(local.identity, captured_domain_facts(context, local.identity)), origin, [], resolved_type)
       }
     },
     AnonymousExpr(effect, parameters, result_type, body) => {

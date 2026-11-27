@@ -21,7 +21,7 @@ static Value *outcome(const char *error)
     return result;
 }
 
-Value *http_runtime_listen(VM *vm, Value *handle, Function *worker, bool contextual,
+Value *http_runtime_listen(VM *vm, Value *handle, VMCallable worker, bool contextual,
                            bool outbound, bool filesystem, bool console, bool process)
 {
     if (!vm->http_runtime) return outcome("HTTP resource runtime is unavailable");

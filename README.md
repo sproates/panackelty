@@ -38,6 +38,13 @@ is also the name of this project's command-line tool.
 
 <!-- validation:positioning-copy-end -->
 
+## Development branch
+
+The alpha.16 development branch adds anonymous functions and immutable retained
+closures, including HTTP/TCP callbacks. `panack explain` shows capture decisions
+and their binding origins. See the [callable contract](docs/CALLABLES_AND_STATE_PROPOSAL.md)
+for current acceptance status; this does not change the alpha.15 release.
+
 ## Get started
 
 **Latest native release: [0.1.0-alpha.15](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.15).**

@@ -326,7 +326,7 @@ pub pure instruction_purpose(instruction: Instruction): Str {
     MakeVariantInstruction(owner, name, count) => "Construct variant " + name,
     MatchVariantInstruction(name, failure) => "Test for variant " + name,
     MatchFailInstruction() => "Report an unmatched value",
-    CallInstruction(name, arity) => "Call " + name,
+    CallInstruction(name, arity) => if name == "$intrinsic_closure" { "Create the closure and retain its captured values" } else { "Call " + name },
     CallValueInstruction(arity) => "Call the supplied function",
     AwaitCallInstruction(name,arity) => "Await the call to " + name,
     AwaitValueInstruction(arity) => "Await the supplied function",

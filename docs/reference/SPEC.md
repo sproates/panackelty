@@ -683,9 +683,9 @@ result `R` has type `AsyncFn[A,B,R]` when declared `async`,
 `PureFn[A,B,R]` when declared `pure`, otherwise `Fn[A,B,R]`. The final type argument is always the result, so a zero-argument
 function uses `PureFn[R]` or `Fn[R]`. `PureFn` is assignable to the corresponding
 `Fn`, but not conversely. Constructors and built-ins are not referenceable in
-this initial model, and callable values do not capture local state.
+this model. Named references do not retain local values.
 
-Noncapturing anonymous functions use the same callable types:
+Anonymous functions use the same callable types:
 
 ```panackelty
 increment = (value: Nat) => value + 1
@@ -706,11 +706,29 @@ Input types are never inferred backwards from the callback body. Missing input
 information requires a parameter annotation. Explicit parameter and result
 annotations must satisfy the receiving signature.
 
-Anonymous functions may use their own parameters/locals, named functions and
-imported services. Capturing an enclosing local is not yet supported; pass that
-value as an explicit parameter. Generic anonymous declarations, constructor
-references and self-recursive anonymous bindings are not supported. Named
-functions remain available for recursion.
+Anonymous functions may also capture referenced immutable bindings and parameters
+from enclosing scopes. A closure retains their values when it is created, including
+after its creating function returns. Unused bindings are not captured. Lexical
+shadowing determines which binding is retained; each loop iteration has its own
+binding. Repeated iteration over a captured array or range creates a fresh cursor.
+
+Implicit capture of a `mut` binding is rejected, including read-only use. Bind an
+immutable snapshot or pass the value explicitly. Captures cannot retain native
+resources, directly or through records, variants, collections or other closures.
+This includes server/response/connection state, directory stages, HTTP streams,
+digest contexts, gzip decoders, tasks and Void. Generic values are also checked at
+closure creation; unknown runtime kinds fail closed. Internal iterator cursors
+are not source values and cannot be captured. Passing a resource as an invocation
+argument remains subject to the existing effect and lifetime rules.
+
+Closure equality compares the lexical body and captured values in capture order.
+Copies compare equal; different bodies do not become equal because their source
+text matches. Callable values remain ineligible as Map keys or Set elements.
+
+Generic anonymous declarations, constructor references and self-recursive
+anonymous bindings are not supported. Named functions remain available for
+recursion. The current bytecode permits at most 255 combined captures and explicit
+parameters. Creating a closure does not run its body or grant any effect permission.
 
 A callable is invoked with `callback.call(arguments)`. Argument and result
 types come directly from its callable type. Calling an `Fn` is an effect, while

@@ -622,7 +622,18 @@ pure module_emission_expression_with_parameters(
     BodyLiteral(value) => value,
     BodyLocalUse(identity, captured_domain) => NameExpr(identity.name),
     BodyFunction(binding) => FunctionExpr(module_emission_callable_symbol(graph, entry, binding)),
-    BodyAnonymousFunction(anonymous) => FunctionExpr(module_emission_callable_symbol(graph, entry, anonymous.signature.binding)),
+    BodyAnonymousFunction(anonymous) => {
+      symbol = module_emission_callable_symbol(graph, entry, anonymous.signature.binding)
+      mut arity: Nat = anonymous.parameters.len()
+      for capture in body.children { arity = prior_index(arity) }
+      captures = body.children.len()
+      if captures == 0 { FunctionExpr(symbol) }
+      else {
+        CallExpr("$intrinsic_closure", [FunctionExpr(symbol),
+          ArrayExpr(module_emission_expressions(graph, entry, parameters, body.children)),
+          NatExpr(arity)], [])
+      }
+    },
     BodyCall(target, types, call_arguments) => CallExpr(
       module_emission_target(graph, entry, target),
       module_emission_expressions(graph, entry, parameters, body.children),

@@ -91,7 +91,7 @@ pub pure is_builtin(name: Str): Bool {
     name == "map_has" || name == "map_get" ||
       name == "set" ||
     name == "set_add" || name == "set_has" ||
-    name == "$intrinsic_call" ||
+    name == "$intrinsic_call" || name == "$intrinsic_closure" ||
     name == "$intrinsic_map" ||
     name == "$intrinsic_reduce" ||
     name == "bytes" ||

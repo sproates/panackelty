@@ -2336,3 +2336,79 @@ and hosted acceptance. CS2–CS4 remain planned. Accepted implementation points
 stay at zero until integration acceptance; RM#162 remains open. The measured
 full-run duration is evidence, not a new performance target. No development CI
 or website publication occurred.
+
+
+CS2 runtime foundation (27 November): native closure tests cover retained lifetime,
+lexical identity/value-based equality, nested closure resource rejection, all
+current forbidden native categories, hidden array-storage ownership and append
+cycle prevention. A shared 129-node graph exercises iterative deduplicated
+eligibility traversal and shared-capture equality. Allocation-failure sweeps cover
+worklist/hash growth and partial closure construction. Ordinary collection and
+concatenation regression checks also run. These are focused development checks;
+source closures, invocation, iterator snapshots and final full acceptance remain.
+
+The CS2 foundation checks pass in normal and ASan/UBSan native builds. Allocation-
+failure sweeps pass, as do collection/concatenation regressions and the existing
+public CLI callable fixture in source/compile/saved-bytecode modes (4 assertions).
+No compiler rebuild or bootstrap refresh was needed. Full validation is reserved
+for the completed CS2 implementation; this checkpoint is not slice acceptance.
+
+CS2 checked invocation adds native tests for capture-prefix/explicit-argument
+order (including inline/heap boundaries), repeated calls, pure/ordinary/async
+callee and caller combinations, verifier rejection of await outside async,
+missing/builtin targets and arity mismatch. Resumable execution retains captures
+after the caller releases the callable, and releases them on completion,
+cancellation and trap. Fault injection covers both inline and heap combined
+argument vectors and partially constructed frames. Source construction and
+host-retained callback coverage remain pending.
+
+Checked-invocation focused checks pass in normal and ASan/UBSan builds, including
+the suspension/cancellation/trap cases. Allocation-failure sweeps and existing
+call-argument/call-link regressions pass. The public CLI callable fixture passes
+all four assertions after rebuilding the VM. Documentation/link checks pass.
+No full suite, compiler bootstrap rebuild or CI was run for this intermediate
+checkpoint; those checks remain part of completed-slice acceptance.
+
+CS2 candidate source captures (27 November): module-binding/effect checks now
+include immutable parameters, repeated references, nested closures, generic
+captures, unused resources, callbacks accepting resources and immutable snapshots
+of mutable locals. Negative cases reject mutable captures, self-reference and
+resources through arrays, records and enums. Phantom generic arguments alone do
+not imply a retained resource. Existing disk-body cache tests round-trip the
+expanded anonymous fixture and compare diagnostics and emitted bytecode.
+Candidate ordinary/async fixtures execute source and saved bytecode with matching
+transcripts. Public-launcher fixture acceptance waits for bootstrap refresh.
+Native constructor tests cover malformed targets, arity mismatch and resources;
+allocation-failure sweeps and ASan/UBSan checks pass. Final full validation remains
+pending the completed CS2 slice, including host-retained callbacks and iterators.
+
+Final focused source-lowering results: 2,259 binding/effect/cache assertions pass,
+including acceptance at 255 total hidden/explicit parameters and rejection at
+256. The candidate artifact compatibility oracle passes. Ordinary and async
+source/saved-bytecode transcripts match. This does not replace final bootstrap,
+public-launcher or full-slice validation.
+
+### CS2 retained host callbacks (27 November 2026)
+
+`host-closures` covers retained HTTP ordinary/contextual routes and fallback, TCP
+finite/streaming/service callbacks and readiness, target/arity rejection and
+lifetime cleanup. Native and ASan/UBSan runs pass. The closure fault sweep covers
+host child frame allocation failures. `tests/http_closures.sh` is registered in
+functional validation; candidate source and saved bytecode pass all four HTTP
+combinations. The anonymous-function fixture checks repeated captured array/range
+iteration and per-iteration capture values. Binding/cache tests: 2,265 passed.
+The existing zero-grace TCP assertion failed once before passing on retry and
+under sanitizers; final broad validation remains pending with CS2 acceptance.
+
+CS2 capture explanations: focused tests cover accepted, mutable and resource
+captures, generic values, shadowed parameters, declaration origins, evidence-free
+ordinary compilation and cache round trips. CLI cases assert lifetime wording,
+rejection guidance and declaration context. The terminal regression opens a
+capture decision and follows its source. Final broad acceptance remains pending.
+
+CS2 local acceptance: full make check passed in 725s on 27 November, including
+the public HTTP closure fixture, functional explanations, packaging and relocation.
+The binding/cache suite passed 2,313 assertions; 123 CLI explanation cases and the
+terminal capture/origin regression passed. The zero-grace TCP case passed in the
+full run. Bootstrap fixed point and stdlib conformance passed. Integration remains
+pending; no further full run is needed solely for subsequent status Markdown.

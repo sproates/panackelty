@@ -2149,5 +2149,29 @@ data-flow walks do not execute that payload at creation; evidence collectors ent
 it deliberately. Expected callable inputs flow through compound expressions and
 constructor payloads, without backward result inference for ordinary calls.
 Generated private functions lower to existing callable references and survive
-module body/code caches. The VM and bytecode version are unchanged. Captured
-locals remain rejected until retained environments are implemented.
+module body/code caches. The VM and bytecode version are unchanged. CS1 rejected captured locals; CS2 adds retained environments below.
+
+CS2 runtime groundwork adds an internal V_CLOSURE value owning a lexical target
+and immutable capture references. Its value graph is checked iteratively for
+resource eligibility, and array append follows its ownership edges. Candidate source lowering constructs it through the
+reserved pure `$intrinsic_closure` builtin (target, capture array, explicit arity).
+Construction resolves the target and checks arity and recursive capture safety. CALL_VALUE/AWAIT_VALUE accept
+internal closure values and validate the target, combined arity and call effect.
+Captures occupy the parameter prefix; ordinary frame ownership retains them
+through suspension and releases them on completion, cancellation or trap. Named
+callable representation is unchanged. Capture explanations and local CS2 validation
+are complete; integration acceptance remains pending.
+
+Retained host callbacks use a borrowed VMCallable descriptor containing the target
+function and optional closure. HTTP state retains registered values; TCP servers
+retain worker/readiness environments until destruction. Each child frame retains
+its captures. Descriptor validation checks program membership, explicit arity and
+async effect before entry. Captured iterable values create fresh internal cursors
+per loop; V_ITER itself remains capture-ineligible.
+
+Capture decisions reuse retained BodyTypeCheckEvidence on capture reads. The
+checker records allowed/rejected status and its reason only in explanation mode.
+The text renderer and terminal explorer resolve origins through retained lexical
+identities, including nested parameter shadowing, and existing statement spans.
+This introduces no body-cache schema or bytecode-format change. Ordinary
+compilation does not collect this presentation evidence.

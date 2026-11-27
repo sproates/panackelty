@@ -309,6 +309,30 @@ static bool frame_push(VMExecution *execution, Function *function, Value **argum
     return true;
 }
 
+/* A generated closure body receives captures before its explicit parameters.
+ * frame_push retains each value; this temporary vector only borrows them. */
+static bool frame_push_captured(VMExecution *execution, Function *function, Value **arguments,
+                                Value **captures, size_t capture_count)
+{
+    Value *inline_values[INLINE_CALL_ARGUMENTS];
+    if (function->param_count > SIZE_MAX / sizeof(Value *)) {
+        execution->vm->error = "native VM out of memory";
+        return false;
+    }
+    Value **values = function->param_count <= INLINE_CALL_ARGUMENTS ? inline_values
+        : malloc(function->param_count * sizeof(Value *));
+    if (!values) {
+        execution->vm->error = "native VM out of memory";
+        return false;
+    }
+    for (size_t i = 0; i < function->param_count; i++) {
+        values[i] = i < capture_count ? captures[i] : arguments[i - capture_count];
+    }
+    bool result = frame_push(execution, function, values);
+    if (values != inline_values) free(values);
+    return result;
+}
+
 static void coverage_complete_pending(VMExecution *execution)
 {
     if (!execution->vm->coverage || !execution->frame_count) return;
@@ -374,19 +398,38 @@ static void restore_stop_signals(VMExecution *execution)
 #endif
 }
 
-static Function *execution_handler(VM *vm, const Value *callable)
+bool vm_callable_valid(const VM *vm, VMCallable callable, size_t arity)
 {
-    if (callable->kind != V_STR) {
-        return NULL;
+    if (!vm || !vm->program || !callable.function) return false;
+    if (program_function(vm->program, callable.function->name) != callable.function ||
+        builtin(callable.function->name)) return false;
+    size_t count = 0;
+    if (callable.closure) {
+        if (callable.closure->kind != V_CLOSURE ||
+            strcmp(callable.closure->as.named.name, callable.function->name)) return false;
+        count = callable.closure->as.named.count;
     }
+    return count <= callable.function->param_count && arity == callable.function->param_count - count;
+}
+
+VMCallable vm_resolve_callable(const VM *vm, Value *value, size_t arity)
+{
+    VMCallable result = {0};
+    if (!vm || !vm->program || !value || (value->kind != V_STR && value->kind != V_CLOSURE)) return result;
+    if (value->kind == V_CLOSURE) {
+        result = (VMCallable){program_function(vm->program, value->as.named.name), value};
+        return vm_callable_valid(vm, result, arity) ? result : (VMCallable){0};
+    }
+    const char *name = (const char *)value->as.bytes.data;
+    size_t length = value->as.bytes.length;
     for (size_t i = 0; i < vm->program->count; i++) {
         Function *candidate = &vm->program->functions[i];
-        if (!builtin(candidate->name) && strlen(candidate->name) == callable->as.bytes.length &&
-            !memcmp(candidate->name, callable->as.bytes.data, callable->as.bytes.length)) {
-            return candidate;
+        if (strlen(candidate->name) == length && !memcmp(candidate->name, name, length)) {
+            result = (VMCallable){candidate, NULL};
+            return vm_callable_valid(vm, result, arity) ? result : (VMCallable){0};
         }
     }
-    return NULL;
+    return result;
 }
 
 static Value *service_call(VMExecution *execution, Value **arguments)
@@ -414,9 +457,9 @@ static Value *service_call(VMExecution *execution, Value **arguments)
             return NULL;
         }
     }
-    Function *handler = execution_handler(vm, arguments[2]);
-    Function *ready = execution_handler(vm, arguments[5]);
-    if (!ready || !ready->is_async || ready->pure || ready->param_count != 1) {
+    VMCallable handler = vm_resolve_callable(vm, arguments[2], 1);
+    VMCallable ready = vm_resolve_callable(vm, arguments[5], 1);
+    if (!ready.function || !ready.function->is_async || ready.function->pure) {
         vm->error = "VM trap: invalid service readiness callback";
         return NULL;
     }
@@ -488,17 +531,7 @@ static Value *server_call_mode(VMExecution *execution, Value **arguments, bool s
             return NULL;
         }
     }
-    Function *handler = NULL;
-    Value *callable = arguments[2];
-    if (callable->kind == V_STR) {
-        for (size_t i = 0; i < vm->program->count; i++) {
-            Function *candidate = &vm->program->functions[i];
-            if (!builtin(candidate->name) && strlen(candidate->name) == callable->as.bytes.length &&
-                !memcmp(candidate->name, callable->as.bytes.data, callable->as.bytes.length)) {
-                handler = candidate;
-            }
-        }
-    }
+    VMCallable handler = vm_resolve_callable(vm, arguments[2], 1);
     VMTcpServerLimits limits = {values[0], values[1], values[2], values[3],
                                 values[4], values[5], values[6]};
     execution->server = streaming
@@ -536,18 +569,6 @@ static Value *http_unit_result(void)
     return result;
 }
 
-static Function *http_worker_function(VM *vm, Value *name)
-{
-    if (name->kind != V_STR) return NULL;
-    for (size_t i = 0; i < vm->program->count; i++) {
-        Function *function = &vm->program->functions[i];
-        if (strlen(function->name) == name->as.bytes.length &&
-            !memcmp(function->name, name->as.bytes.data, name->as.bytes.length) &&
-            function->is_async && !function->pure && function->param_count == 1) return function;
-    }
-    return NULL;
-}
-
 static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Value **arguments,
                                 bool *called_function)
 {
@@ -561,8 +582,8 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
     }
     if (entry->dispatch == BUILTIN_HTTP_LISTEN_ORDINARY || entry->dispatch == BUILTIN_HTTP_LISTEN_CONTEXTUAL) {
         VM *vm = execution->vm;
-        Function *worker = http_worker_function(vm, arguments[1]);
-        if (!worker) { vm->error = "VM trap: invalid HTTP worker"; return NULL; }
+        VMCallable worker = vm_resolve_callable(vm, arguments[1], 1);
+        if (!worker.function || !worker.function->is_async || worker.function->pure) { vm->error = "VM trap: invalid HTTP worker"; return NULL; }
         if (execution->embedded && !execution->server_enabled) {
             vm->error = "VM trap: listener capability is unavailable";
             return NULL;
@@ -598,10 +619,13 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
     }
     if (entry->dispatch == BUILTIN_HTTP_CONNECTION_INVOKE) {
         Value *call_arguments[3];
-        Function *handler = http_connection_handler(execution->vm, arguments, call_arguments);
-        if (handler) {
+        VMCallable handler = {0};
+        Function *target = http_connection_handler(execution->vm, arguments, call_arguments, &handler);
+        if (target) {
             *called_function = true;
-            frame_push(execution, handler, call_arguments);
+            if (handler.closure) frame_push_captured(execution, target, call_arguments,
+                handler.closure->as.named.values, handler.closure->as.named.count);
+            else frame_push(execution, target, call_arguments);
         }
         return NULL;
     }
@@ -1340,7 +1364,24 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
                 release(callable);
                 break;
             }
-            if (!callable || callable->kind != V_STR) {
+            if (callable && callable->kind == V_CLOSURE) {
+                Function *called = program_function(vm->program, callable->as.named.name);
+                size_t captures = callable->as.named.count;
+                if (!called || builtin(callable->as.named.name)) {
+                    vm->error = "VM trap: closure target was not found";
+                } else if (captures > called->param_count ||
+                           instruction->arity != called->param_count - captures) {
+                    vm->error = "VM trap: indirect call arity mismatch";
+                } else if (!verify_call_edge(function, called, false, false, false,
+                                             instruction->op == OP_AWAIT_VALUE)) {
+                    vm->error = function->pure
+                        ? "VM trap: pure function invokes impure callable"
+                        : "VM trap: invalid async callable effect";
+                } else {
+                    called_function = true;
+                    frame_push_captured(execution, called, args, callable->as.named.values, captures);
+                }
+            } else if (!callable || callable->kind != V_STR) {
                 vm->error = "VM trap: indirect call requires a callable";
             } else {
                 char *callee = malloc(callable->as.bytes.length + 1);
@@ -1423,7 +1464,7 @@ oom:
     return VM_TRAPPED;
 }
 
-VMExecution *vm_execution_create(VM *vm, Function *function, Value **arguments,
+static VMExecution *execution_create_captured(VM *vm, Function *function, Value *closure, Value **arguments,
                                 VMHostCall host_call, void *host_context, const char **error)
 {
     *error = NULL;
@@ -1442,7 +1483,9 @@ VMExecution *vm_execution_create(VM *vm, Function *function, Value **arguments,
     vm->fault_kind = VM_FAULT_FATAL;
     vm->execution = execution;
     vm_coverage_start(vm->coverage, vm->program);
-    if (!frame_push(execution, function, arguments)) {
+    if (!(closure ? frame_push_captured(execution, function, arguments, closure->as.named.values,
+                                       closure->as.named.count)
+                  : frame_push(execution, function, arguments))) {
         *error = vm->error;
         vm_coverage_terminal(vm->coverage, 2);
         vm_execution_destroy(execution);
@@ -1633,6 +1676,25 @@ Value *execute(VM *vm, Function *function, Value **arguments)
         else { Value *ignored = host_call(vm, "process_exit", &code); release(ignored); release(code); }
     }
     return execution.result;
+}
+
+VMExecution *vm_execution_create(VM *vm, Function *function, Value **arguments,
+                                VMHostCall host_call, void *context, const char **error)
+{
+    return execution_create_captured(vm, function, NULL, arguments, host_call, context, error);
+}
+
+VMExecution *vm_execution_create_callable_async(VM *vm, VMCallable callable, Value **arguments,
+    size_t arity, VMServiceWait wait, void *context, const char **error)
+{
+    if (!vm_callable_valid(vm, callable, arity) || !callable.function->is_async || callable.function->pure) {
+        *error = "VM trap: invalid async callable";
+        return NULL;
+    }
+    VMExecution *execution = execution_create_captured(vm, callable.function, callable.closure,
+                                                       arguments, NULL, context, error);
+    if (execution) execution->read_wait = wait;
+    return execution;
 }
 
 VMExecution *vm_execution_create_async(VM *vm, Function *fn, Value **arguments,

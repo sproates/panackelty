@@ -14,6 +14,13 @@ main(): Void {
       library: Str = root + "/library.panack"
       interpolation: Str = "$" + "{name}"
       mut results: [TestResult] = []
+      explain_write(source, "pure probe(): PureFn[Str] { message = \"hello\"; () => message }\nmain(): Void {}\n")
+      results = results.append(explain_run("closure capture explains lifetime and binding origin", ["explain", source, "--function", "probe"], 0,
+        ["closure capture: accepted", "context: capture message", "Captured binding declared here:", "expression: message = \"hello\"", "after the creating function returns", "actual captured value"], [], ""))
+      explain_write(source, "pure probe(): PureFn[Nat] { mut count: Nat = 0; () => count }\nmain(): Void {}\n")
+      results = results.append(explain_run("mutable capture explains rejection and repair", ["explain", source, "--function", "probe"], 1,
+        ["closure capture: rejected", "context: capture count", "The binding is mutable", "immutable snapshot", "Captured binding declared here:"], [], "cannot capture mutable binding count"))
+
       explain_write(source, "pure probe(): PureFn[Nat,Nat] {\n (x) => {\n  local = x + 1\n  local\n }\n}\nmain(): Void {}\n")
       results = results.append(explain_run("anonymous body type query uses original source", ["explain", source, "--function", "probe", "--type-at", "3", "13"], 0,
         ["checked expression type: Nat", "expression: x + 1"], ["no checked expression covers"], ""))

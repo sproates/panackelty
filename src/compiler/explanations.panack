@@ -1,3 +1,4 @@
+import project/src/compiler/capture_explanations::{capture_explanation_origin}
 import project/src/compiler/module_bodies::{body_evidence_children}
 pub import project/src/compiler/loader::{LoadedProject}
 pub import project/src/compiler/source_maps::{SourceMapFunctionSelector}
@@ -872,7 +873,7 @@ pure render_type_check_evidence(
   type_argument_arity: Bool = evidence.context == "type argument arity"
   collection_receiver: Bool = evidence.context == "collection receiver"
   count_decision: Bool = call_arity || type_argument_arity
-  status_label: Str = if call_arity { "checked call arity" } else {
+  status_label: Str = if evidence.context.starts_with("capture ") { "closure capture" } else if call_arity { "checked call arity" } else {
     if type_argument_arity { "checked type argument arity" } else {
       if string_interpolation { "checked interpolation type" } else {
         if collection_receiver { "checked collection receiver" } else {
@@ -915,7 +916,7 @@ pure render_type_check_evidence(
     (if count_decision { "" } else { "\n${actual_label}: ${actual}" }) +
     "\n${expected_label}: ${expected}" +
     (if count_decision { "" } else { "\nresulting type: ${result}" }) +
-    (if evidence.dependency != None() { (if evidence.context == "domain constraint" || evidence.context == "runtime validation" { "\nGuard declaration:\n" } else if evidence.context == "supporting guard fact" { "\nSupporting source:\n" } else { "\nPrior constraint:\n" }) + explanation_location(evidence.dependency, sources, root, stdlib_root) } else { "" }) +
+    (if evidence.dependency != None() { (if evidence.context == "domain constraint" || evidence.context == "runtime validation" { "\nGuard declaration:\n" } else if evidence.context == "supporting guard fact" { "\nSupporting source:\n" } else if evidence.context.starts_with("capture ") { "\nCaptured binding declared here:\n" } else { "\nPrior constraint:\n" }) + explanation_location(evidence.dependency, sources, root, stdlib_root) } else { "" }) +
     if evidence.reason != "" { "\nreason: " + source_map_escape(evidence.reason) } else { match evidence.accepted {
       Some(accepted) => if accepted {
         if call_arity {
@@ -1007,7 +1008,10 @@ pure render_type_check_explanations(
         if evidence.context != "direct call arity" &&
           evidence.context != "core call arity" && evidence.context != "indirect call arity" &&
           evidence.context != "type argument arity" {
-          entries = entries.append(evidence)
+          entries = entries.append(if evidence.context.starts_with("capture ") {
+            BodyTypeCheckEvidence(evidence.context, evidence.span, evidence.actual, evidence.expected,
+              evidence.result, evidence.accepted, evidence.reason, capture_explanation_origin(project.module_bodies, evidence.span))
+          } else { evidence })
         }
       }
     }

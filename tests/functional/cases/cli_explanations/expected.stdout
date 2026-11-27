@@ -1,3 +1,5 @@
+PASS anonymous body type query uses original source
+PASS anonymous body retains inferred local explanation
 PASS inferred locals report initializer evidence
 PASS accepted interpolation explains local scalar type
 PASS rejected interpolation explains non-scalar local type
@@ -117,4 +119,4 @@ PASS array concatenation explains its element type join
 PASS rejected array concatenation join preserves checker diagnostic
 PASS unavailable array concatenation join reports unresolved type
 PASS rejected array element join preserves checker diagnostic
-tests: 119, failures: 0
+tests: 121, failures: 0

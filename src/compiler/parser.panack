@@ -255,7 +255,7 @@ pure located_expression_with_type_argument_spans(
   )
 }
 
-pure expression_type_argument_spans(expression: Expr): [SourceSpan] {
+pub pure expression_type_argument_spans(expression: Expr): [SourceSpan] {
   match expression {
     LocatedExpr(span, value, type_argument_spans) => type_argument_spans,
     NatExpr(value) => [],

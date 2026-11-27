@@ -29,8 +29,9 @@ owns browser/runtime integration tests. Core retains native and runtime-bundle
 contracts; `make check` requires neither Node, Playwright nor WASI.
 
 The suites combine Panackelty probes, native C tests, shell harness checks,
-and public CLI tests. The runner (`runner/main.panack`) checks twenty-five
-selected success cases, thirty-five examples, and forty-one expected failures.
+and public CLI tests. The runner (`runner/main.panack`) includes selected success cases, examples and expected failures. The anonymous-
+function cases exercise ordinary and async callbacks through source execution
+and saved bytecode; CLI explanation cases also query anonymous body locations.
 `make functional` also checks the self-hosted compiler driver and exercises
 `runner_smoke` from source and saved bytecode.
 

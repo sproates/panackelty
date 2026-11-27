@@ -335,11 +335,11 @@ Acceptance includes:
 ## Delivery after contract approval
 
 Provisional weights describe this bounded programme, not all RM#162 or alpha.16.
-Implementation has not started and all earned contributions are zero.
+CS1 implementation passed local acceptance; next integration acceptance remains.
 
 | Slice | Deliverable | Weight | Status | Earned |
 | --- | --- | --- | --- | --- |
-| CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | In progress: working noncapturing execution and compound contextual typing; acceptance audit pending | 0 |
+| CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | Locally complete: full validation passed; next integration acceptance pending | 0 |
 | CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | Planned | 0 |
 | CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | Planned | 0 |
 | CS4 | Both service examples, installed acceptance, reference and website guidance | 20 | Planned | 0 |
@@ -527,3 +527,46 @@ validation. No CI or bootstrap refresh. CS2–CS4 remain planned and accepted
 implementation contribution stays zero. The array pass reuses source-order child
 checking; no VM, bytecode-format or runtime representation change. No website
 publication; the proposal and test evidence describe development support.
+
+
+27 November, CS1 acceptance checkpoint: constructor context now supplies callback
+inputs through generic records and enum payloads, including nested arrays and
+qualified constructors. Ordinary function calls retain input-only inference; a
+regression rejects deriving an anonymous parameter from the receiving result.
+Explanation traversal enters anonymous bodies for type-at-position, inferred
+locals and guard evidence. The public CLI checks the original source locations.
+
+The module/cache suite passes 2,219 assertions. Ordinary and async functional cases
+pass source, compile and saved-bytecode checks; the CLI explanation fixture also
+passes all three modes, with 121 internal assertions. The fixture inventory and
+its mutation tests pass (616 outer transcript assertions). Candidate unchanged-
+program bytecode compatibility passed. Bootstrap refresh produced identical
+stage 2/3/4 compilers (88fa8a2ec9c850afb7e64bc714bca7eec194e9e8524e5821b8338e0be53c25ad)
+and matching standard-library artifacts/output. Final make check is running.
+CS1 remains unaccepted pending that result and integration; CS2–CS4 remain planned.
+No development CI or website publication. Specification and architecture now
+describe noncapturing support; closures and State are not claimed. The runtime
+and bytecode version are unchanged. Constructor-context inference is restricted
+to constructor calls with an expected type; ordinary calls keep their rules.
+
+Validation environment note: the initial full run stopped after 269 seconds at
+the packaged HTTP port probe, which the local execution sandbox denied. The
+same port probe and complete relocated-package smoke check pass with host access.
+The required full suite is being rerun with localhost networking available; no
+product behaviour or test expectation was changed to bypass this restriction.
+
+
+CS1 final local acceptance, 27 November: make check passed in 708 seconds with
+host access (unit 421s, bootstrap 94s and functional 220s; bootstrap overlaps
+unit). Relocated-package smoke and quick-start passed. The suite caught a stale
+watchdog observation hook after the contextual block checker was introduced; the
+test-only observer now recognises both block entry points, with explicit stall,
+recovery and unchanged-budget assertions. No production VM or timeout policy
+change was needed. Earlier sandbox failure and the watchdog failure were fixed
+before this successful final run.
+
+CS1 implementation and local acceptance are complete, pending next integration
+and hosted acceptance. CS2–CS4 remain planned. Accepted implementation points
+stay at zero until integration acceptance; RM#162 remains open. The measured
+full-run duration is evidence, not a new performance target. No development CI
+or website publication occurred.

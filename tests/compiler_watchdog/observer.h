@@ -18,6 +18,11 @@ static const char *diagnostic_plain(const char *name)
     }
     return name;
 }
+static bool diagnostic_body_phase(const char *name)
+{
+    const char *plain = diagnostic_plain(name);
+    return !strcmp(plain, "bind_body_block") || !strcmp(plain, "bind_body_block_expected");
+}
 static Value *diagnostic_field(Value *record, const char *name)
 {
     if (!record || record->kind != V_RECORD) return NULL;
@@ -84,7 +89,7 @@ static bool diagnostic_selected(const char *name)
         "module_emission_program", "compile_program", "serialize_bytecode",
         "lex_file", "parse_module_complete", "check_module_signatures",
         "check_module_guards", "check_module_bodies_explained",
-        "check_module_effects", "loaded_package_binding_graph", "bind_body_block"};
+        "check_module_effects", "loaded_package_binding_graph", "bind_body_block", "bind_body_block_expected"};
     for (size_t i = 0; i < sizeof(phases) / sizeof(phases[0]); i++) {
         if (!strcmp(plain, phases[i])) return true;
     }
@@ -107,7 +112,8 @@ static void diagnostic_stall(const char *name, const char *module, const char *b
     const char *phase = getenv("PANACK_COMPILER_STALL");
     const char *wanted_module = getenv("PANACK_COMPILER_STALL_MODULE");
     const char *wanted_body = getenv("PANACK_COMPILER_STALL_FUNCTION");
-    if (phase && !strcmp(phase, diagnostic_plain(name)) &&
+    if (phase && (!strcmp(phase, diagnostic_plain(name)) ||
+        (!strcmp(phase, "bind_body_block") && diagnostic_body_phase(name))) &&
         (!wanted_module || (module && strstr(module, wanted_module))) &&
         (!wanted_body || (body && !strcmp(body, wanted_body)))) {
         /* Deliberately ignores the VM's cooperative stop flag: the parent
@@ -121,8 +127,8 @@ static void diagnostic_stall(const char *name, const char *module, const char *b
     char *diagnostic_module, *diagnostic_body;
 #define VM_TEST_FRAME_ENTER(frame, function, arguments) do { \
     (frame)->diagnostic_phase = diagnostic_selected((function)->name); \
-    if ((frame)->diagnostic_phase && !strcmp(diagnostic_plain((function)->name), "bind_body_block")) { \
-        (frame)->diagnostic_phase = (function)->param_count == 5 && \
+    if ((frame)->diagnostic_phase && diagnostic_body_phase((function)->name)) { \
+        (frame)->diagnostic_phase = ((function)->param_count == 5 || (function)->param_count == 6) && \
             (arguments)[4]->kind == V_ARRAY && (arguments)[4]->as.sequence.count == 1; \
     } \
     if ((frame)->diagnostic_phase) { \

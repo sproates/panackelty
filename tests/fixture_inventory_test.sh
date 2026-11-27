@@ -46,7 +46,7 @@ grep -F 'examples list missing new_example' "$work/make.out" >/dev/null
 test ! -e "$work/phase-started" || fail 'expensive phase started before rejection'
 # A deliberately maintained inventory is accepted, without rewriting goldens.
 replace tests/runner/main.panack 's/expected_count: Nat = if selected == "" { 45 }/expected_count: Nat = if selected == "" { 46 }/'
-replace tests/functional/cases/runner_smoke/main.panack 's/"option_result"/"new_example", "option_result"/; s/tests: 610/tests: 613/'
+replace tests/functional/cases/runner_smoke/main.panack 's/"option_result"/"new_example", "option_result"/; s/tests: 616/tests: 619/'
 sh "$root/tests/fixture_inventory.sh" "$tree"
 reset_tree
 replace tests/functional/cases/runner_smoke/main.panack 's/"generic_functions", "generic_methods"/"generic_methods", "generic_functions"/'
@@ -74,8 +74,8 @@ reset_tree
 replace tests/functional/cases/runner_smoke/main.panack 's/"generic_methods"/"owned_methods"/'
 reject duplicate-list 'duplicate examples entry owned_methods'
 reset_tree
-replace tests/functional/cases/runner_smoke/main.panack 's/tests: 610/tests: 583/'
-reject total 'transcript total is 583, inventory requires 610'
+replace tests/functional/cases/runner_smoke/main.panack 's/tests: 616/tests: 583/'
+reject total 'transcript total is 583, inventory requires 616'
 reset_tree
 replace tests/functional/cases/runner_smoke/main.panack 's/examples = /renamed_examples = /'
 reject format 'expected declaration not found'

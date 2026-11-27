@@ -685,6 +685,33 @@ function uses `PureFn[R]` or `Fn[R]`. `PureFn` is assignable to the correspondin
 `Fn`, but not conversely. Constructors and built-ins are not referenceable in
 this initial model, and callable values do not capture local state.
 
+Noncapturing anonymous functions use the same callable types:
+
+```panackelty
+increment = (value: Nat) => value + 1
+callback: PureFn[Nat,Nat] = (value) => value + 1
+printer = (value: Str): Void => { print(value) }
+```
+
+An unmarked body is pure unless it performs ordinary effects. An explicit
+`pure` prefix requires a pure body; `async` is explicit and follows named
+async-function rules. Creating a callable does not execute its body. Parameters
+may omit annotations when a known callable signature supplies their types from
+an annotated target, declared return, receiver or other call arguments. Context
+flows through blocks, conditional/match branches, arrays and constructor payloads.
+Constructor result context can supply generic payload types; ordinary function
+calls still infer from their inputs, not their receiving target. A callback's
+result can determine an unresolved generic result parameter, as with `map`.
+Input types are never inferred backwards from the callback body. Missing input
+information requires a parameter annotation. Explicit parameter and result
+annotations must satisfy the receiving signature.
+
+Anonymous functions may use their own parameters/locals, named functions and
+imported services. Capturing an enclosing local is not yet supported; pass that
+value as an explicit parameter. Generic anonymous declarations, constructor
+references and self-recursive anonymous bindings are not supported. Named
+functions remain available for recursion.
+
 A callable is invoked with `callback.call(arguments)`. Argument and result
 types come directly from its callable type. Calling an `Fn` is an effect, while
 calling a `PureFn` is permitted in pure code. These rules make effect checking

@@ -14,6 +14,12 @@ main(): Void {
       library: Str = root + "/library.panack"
       interpolation: Str = "$" + "{name}"
       mut results: [TestResult] = []
+      explain_write(source, "pure probe(): PureFn[Nat,Nat] {\n (x) => {\n  local = x + 1\n  local\n }\n}\nmain(): Void {}\n")
+      results = results.append(explain_run("anonymous body type query uses original source", ["explain", source, "--function", "probe", "--type-at", "3", "13"], 0,
+        ["checked expression type: Nat", "expression: x + 1"], ["no checked expression covers"], ""))
+      results = results.append(explain_run("anonymous body retains inferred local explanation", ["explain", source, "--function", "probe"], 0,
+        ["inferred local: local", "initializer type: Nat", "expression: x + 1"], [], ""))
+
       explain_write(source, "pure identity[T](value: T): T { value }\nprobe(): Void { greeting = \"hello\"; echoed = identity(\"generic\"); explicit: Str = \"annotated\"; }\nmain(): Void {}\n")
       results = results.append(explain_run("inferred locals report initializer evidence", ["explain", source, "--function", "probe"], 0,
         ["inferred locals:", "inferred local: greeting", "expression: \"hello\"", "initializer type: Str", "inferred type: Str", "inferred local: echoed", "expression: identity(\"generic\")", "checked initializer type determines this local type"], ["inferred local: explicit"], ""))

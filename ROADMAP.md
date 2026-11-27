@@ -820,3 +820,40 @@ validation. No CI or bootstrap refresh. CS2–CS4 remain planned and accepted
 implementation contribution stays zero. The array pass reuses source-order child
 checking; no VM, bytecode-format or runtime representation change. No website
 publication; the proposal and test evidence describe development support.
+
+
+27 November, CS1 acceptance checkpoint: constructor context now supplies callback
+inputs through generic records and enum payloads, including nested arrays and
+qualified constructors. Ordinary function calls retain input-only inference; a
+regression rejects deriving an anonymous parameter from the receiving result.
+Explanation traversal enters anonymous bodies for type-at-position, inferred
+locals and guard evidence. The public CLI checks the original source locations.
+
+The module/cache suite passes 2,219 assertions. Ordinary and async functional cases
+pass source, compile and saved-bytecode checks; the CLI explanation fixture also
+passes all three modes, with 121 internal assertions. The fixture inventory and
+its mutation tests pass (616 outer transcript assertions). Candidate unchanged-
+program bytecode compatibility passed. Bootstrap refresh produced identical
+stage 2/3/4 compilers (88fa8a2ec9c850afb7e64bc714bca7eec194e9e8524e5821b8338e0be53c25ad)
+and matching standard-library artifacts/output. Final make check is running.
+CS1 remains unaccepted pending that result and integration; CS2–CS4 remain planned.
+No development CI or website publication. Specification and architecture now
+describe noncapturing support; closures and State are not claimed. The runtime
+and bytecode version are unchanged. Constructor-context inference is restricted
+to constructor calls with an expected type; ordinary calls keep their rules.
+
+
+CS1 final local acceptance, 27 November: make check passed in 708 seconds with
+host access (unit 421s, bootstrap 94s and functional 220s; bootstrap overlaps
+unit). Relocated-package smoke and quick-start passed. The suite caught a stale
+watchdog observation hook after the contextual block checker was introduced; the
+test-only observer now recognises both block entry points, with explicit stall,
+recovery and unchanged-budget assertions. No production VM or timeout policy
+change was needed. Earlier sandbox failure and the watchdog failure were fixed
+before this successful final run.
+
+CS1 implementation and local acceptance are complete, pending next integration
+and hosted acceptance. CS2–CS4 remain planned. Accepted implementation points
+stay at zero until integration acceptance; RM#162 remains open. The measured
+full-run duration is evidence, not a new performance target. No development CI
+or website publication occurred.

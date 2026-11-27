@@ -1,3 +1,4 @@
+import project/src/compiler/parser::{expression_type_argument_spans}
 import project/src/compiler/purity::{is_impure_builtin}
 import project/src/compiler/resolver::{is_async_builtin}
 import project/src/compiler/module_bindings::{ModuleBodyAvailability.SummaryModuleBodies}
@@ -2357,7 +2358,7 @@ pure body_call(
   }
   match guarded {
     None() => body_call_with_receiver(context, target, arguments, types, type_argument_spans,
-      span, locals, path, None()),
+      span, locals, path, None(), None()),
     Some(type) => if arguments.len() != 1 || types.len() != 0 {
       rejected_guard_call(context,span,"guarded construction","one value and no type arguments","guarded construction requires one value and no type arguments")
     } else {
@@ -2415,7 +2416,7 @@ pure body_replace_type_argument(arguments: [SignatureType], index: Nat, value: S
 // holes remain open so the existing call inference can learn from each body.
 pure body_contextual_arguments(
   context: BodyContext, target: BodyTarget, explicit: [SignatureType],
-  children: [BoundBody], path: [Nat]
+  children: [BoundBody], path: [Nat], expected_output: Option[SignatureType]
 ): [Option[SignatureType]] {
   mut expected: [Option[SignatureType]] = []
   match body_contract(context, target) {
@@ -2428,6 +2429,16 @@ pure body_contextual_arguments(
         for parameter in contract.parameters {
           inferred = inferred.append(SignatureType(SignatureHole(context.owner, path, index), []))
           index = index + 1
+        }
+        if contract.constructor && children.len() > 0 {
+          match expected_output {
+            None() => {},
+            Some(type) => {
+              inference = body_infer(context, contract.output, type, contract.owner,
+                inferred, contract.name, contract.parameters, children[0].span)
+              if inference.failure == None() { inferred = inference.arguments }
+            }
+          }
         }
         impl_count = body_impl_parameter_count(context, target)
         index = 0
@@ -2477,7 +2488,8 @@ pure body_call_with_receiver(
   span: SourceSpan,
   locals: Map[Str, BodyLocal],
   path: [Nat],
-  receiver: Option[BodyResult]
+  receiver: Option[BodyResult],
+  expected_output: Option[SignatureType]
 ): BodyResult {
   mut current_context: BodyContext = incoming_context
   mut children: [BoundBody] = []
@@ -2548,7 +2560,7 @@ pure body_call_with_receiver(
     type_index = type_index + 1
   }
   if has_anonymous {
-    expectations = body_contextual_arguments(context, target, resolved_types, children, path)
+    expectations = body_contextual_arguments(context, target, resolved_types, children, path, expected_output)
     mut completed: [BoundBody] = []
     mut replay_context: BodyContext = incoming_context
     index = 0
@@ -5498,8 +5510,12 @@ pure body_needs_callable_context(expression: Expr): Bool {
     },
     UnaryExpr(operator, value) => {},
     BinaryExpr(operator, left, right) => {},
-    CallExpr(name, values, types) => {},
-    DotCallExpr(target, name, values, types) => {},
+    CallExpr(name, values, types) => {
+      for value in values { anonymous = anonymous || body_needs_callable_context(value) }
+    },
+    DotCallExpr(target, name, values, types) => {
+      for value in values { anonymous = anonymous || body_needs_callable_context(value) }
+    },
     OwnedCallExpr(target, name, values, types) => {},
     FieldExpr(target, name) => {},
     IndexExpr(target, index) => {},
@@ -5517,6 +5533,31 @@ pure body_block_needs_callable_context(block: Block): Bool {
     NoBlockValue() => false,
     TailBlockValue(value) => body_needs_callable_context(value)
   }
+}
+
+// Only constructors consume their expected result to type callback payloads.
+// Ordinary calls continue to infer from inputs, never from the receiving target.
+pure bind_constructor_expected(
+  context: BodyContext, target: BodyTarget, arguments: [Expr], types: [Str],
+  type_spans: [SourceSpan], span: SourceSpan, locals: Map[Str, BodyLocal],
+  path: [Nat], expected: Option[SignatureType]
+): Option[BodyResult] {
+  mut result: Option[BodyResult] = None()
+  if expected != None() {
+    match body_contract(context, target) {
+      Error(message) => {},
+      Ok(optional) => match optional {
+        None() => {},
+        Some(contract) => {
+          if contract.constructor {
+            result = Some(body_call_with_receiver(context, target, arguments, types,
+              type_spans, span, locals, path, None(), expected))
+          }
+        }
+      }
+    }
+  }
+  result
 }
 
 pure bind_body_expression_expected(
@@ -5552,8 +5593,30 @@ pure bind_body_expression_expected(
     },
     UnaryExpr(operator, value) => {},
     BinaryExpr(operator, left, right) => {},
-    CallExpr(name, values, types) => {},
-    DotCallExpr(target, name, values, types) => {},
+    CallExpr(name, values, types) => {
+      match body_target(context, name, false) {
+        Error(message) => {},
+        Ok(target) => {
+          result = bind_constructor_expected(context, target, values, types,
+            expression_type_argument_spans(expression), expression_span(expression).value_or(origin), locals, path, expected)
+        }
+      }
+    },
+    DotCallExpr(target, name, values, types) => {
+      mut visible: Set[Str] = set()
+      head = reference_head(expression_reference_path(target))
+      if locals.has(head) { visible = visible.add(head) }
+      match resolve_module_dot_call_scoped(context.graph, context.owner.module, target, name, values, types, visible) {
+        Error(message) => {},
+        Ok(call) => match call {
+          OwnedDotCall(receiver, method, arguments, type_arguments) => {},
+          NamespaceCall(binding, arguments, type_arguments) => {
+            result = bind_constructor_expected(context, BodyDeclaration(binding), arguments, type_arguments,
+              expression_type_argument_spans(expression), expression_span(expression).value_or(origin), locals, path, expected)
+          }
+        }
+      }
+    },
     OwnedCallExpr(target, name, values, types) => {},
     FieldExpr(target, name) => {},
     IndexExpr(target, index) => {},
@@ -5832,7 +5895,7 @@ pure bind_body_expression_with_type_argument_spans(
         },
         Ok(target) => {
           result = body_call_with_receiver(context, target, [receiver].concat(arguments), types,
-            type_argument_spans, origin, locals, path, Some(checked))
+            type_argument_spans, origin, locals, path, Some(checked), None())
         }
       }
     },

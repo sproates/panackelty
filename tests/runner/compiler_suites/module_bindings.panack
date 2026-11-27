@@ -5317,6 +5317,10 @@ pure anonymous_body_tests(): [TestResult] {
     "cannot determine the type of anonymous parameter value; add a type annotation"))
 
   for source in [
+    "enum Choice[T] { Pick(T) }; pure f(): Choice[PureFn[Nat,Nat]] { Choice.Pick((x) => x + 1) }",
+    "pure f(): Option[PureFn[Nat,Nat]] { Some((x) => x + 1) }",
+    "record Handler[T] { callback: PureFn[T,T] }; pure f(): Handler[Nat] { Handler((x) => x + 1) }",
+    "pure f(): Option[[PureFn[Nat,Nat]]] { Some([(x) => x + 1]) }",
     "pure f(): [PureFn[Nat,Nat]] { [(x) => x + 1, (x) => x + 2] }",
     "pure f(): Nat { callbacks: [[PureFn[Nat,Nat]]] = [[(x) => x + 1]]; callbacks[0][0].call(2) }",
     "pure apply(fs: [PureFn[Nat,Nat]]): Nat { fs[0].call(2) }; pure f(): Nat { apply([(x) => x + 1]) }",
@@ -5341,6 +5345,7 @@ pure anonymous_body_tests(): [TestResult] {
     results = results.append(std_testing.expect("anonymous cached effect facts agree", direct == cached, source))
   }
   for source in [
+    "pure identity[T](value: T): T { value }; pure f(): PureFn[Nat,Nat] { identity((x) => x) }",
     "pure f(): [PureFn[Nat,Nat]] { [(x: Str) => 1] }",
     "pure f(): [PureFn[Nat,Void]] { [(x) => print(x)] }",
     "pure f(): Void { callbacks = [(x) => x]; }",

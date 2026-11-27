@@ -1,3 +1,4 @@
+import project/src/compiler/module_bodies::{body_evidence_children}
 pub import project/src/compiler/loader::{LoadedProject}
 pub import project/src/compiler/source_maps::{SourceMapFunctionSelector}
 import project/src/compiler/source_maps::{source_identifier, source_map_escape, source_map_location, source_map_function_selector}
@@ -326,7 +327,7 @@ pub pure body_guard_conversions(body: BoundBody): [GuardConversionEvidence] {
 
 pure body_local_guard_conversions(body: BoundBody): [GuardConversionEvidence] {
   mut entries: [GuardConversionEvidence] = body.guard_conversions
-  for child in body.children {
+  for child in body_evidence_children(body) {
     entries = entries.concat(body_local_guard_conversions(child))
   }
   entries
@@ -358,7 +359,7 @@ pub pure body_inferred_locals(body: BoundBody): [BoundBody] {
     BodyFor(local) => {},
     BodyEmpty() => {}
   }
-  for child in body.children {
+  for child in body_evidence_children(body) {
     entries = entries.concat(body_inferred_locals(child))
   }
   entries
@@ -428,7 +429,7 @@ pure body_explanation_expressions(body: BoundBody): [BoundBody] {
   if explanation_expression_node(body) {
     entries = entries.append(body)
   }
-  for child in body.children {
+  for child in body_evidence_children(body) {
     entries = entries.concat(body_explanation_expressions(child))
   }
   entries

@@ -1,3 +1,9 @@
+record GenericHandler[T] { callback: PureFn[T,T] }
+
+pure wrapped_callback(): Option[PureFn[Nat,Nat]] { Some((x) => x + 5) }
+
+pure generic_handler(): GenericHandler[Nat] { GenericHandler((x) => x + 6) }
+
 record Handler { callback: PureFn[Nat,Nat] }
 
 pure make_callbacks(): [PureFn[Nat,Nat]] { [(x) => x + 1, (x) => x + 2] }
@@ -67,4 +73,9 @@ main(): Void {
   print(apply_first([(x) => x + 2]))
   handler = Handler((x) => x + 4)
   print(handler.callback.call(4))
+  match wrapped_callback() {
+    Some(callback) => print(callback.call(4)),
+    None() => print(0)
+  }
+  print(generic_handler().callback.call(4))
 }

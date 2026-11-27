@@ -5493,7 +5493,9 @@ pure body_needs_callable_context(expression: Expr): Bool {
     BoolExpr(value) => {},
     NameExpr(name) => {},
     FunctionExpr(name) => {},
-    ArrayExpr(values) => {},
+    ArrayExpr(values) => {
+      for value in values { anonymous = anonymous || body_needs_callable_context(value) }
+    },
     UnaryExpr(operator, value) => {},
     BinaryExpr(operator, left, right) => {},
     CallExpr(name, values, types) => {},
@@ -5534,7 +5536,20 @@ pure bind_body_expression_expected(
     BoolExpr(value) => {},
     NameExpr(name) => {},
     FunctionExpr(name) => {},
-    ArrayExpr(values) => {},
+    ArrayExpr(values) => {
+      mut element: Option[SignatureType] = None()
+      match expected {
+        None() => {},
+        Some(type) => {
+          if type.identity == SignatureCore("Array") && type.arguments.len() == 1 {
+            element = Some(type.arguments[0])
+          }
+        }
+      }
+      result = Some(check_body_array(context,
+        bind_body_children_expected(context, BodyArray(), values,
+          expression_span(expression).value_or(origin), locals, path, element), path))
+    },
     UnaryExpr(operator, value) => {},
     BinaryExpr(operator, left, right) => {},
     CallExpr(name, values, types) => {},
@@ -5986,6 +6001,18 @@ pure bind_body_children(
   locals: Map[Str, BodyLocal],
   path: [Nat]
 ): BodyResult {
+  bind_body_children_expected(context, node, expressions, span, locals, path, None())
+}
+
+pure bind_body_children_expected(
+  context: BodyContext,
+  node: BodyNode,
+  expressions: [Expr],
+  span: SourceSpan,
+  locals: Map[Str, BodyLocal],
+  path: [Nat],
+  expected: Option[SignatureType]
+): BodyResult {
   mut current_context: BodyContext = context
   mut children: [BoundBody] = []
   mut diagnostics: [Diagnostic] = []
@@ -5993,12 +6020,12 @@ pure bind_body_children(
   mut index: Nat = 0
 
   for expression in expressions {
-    checked: BodyResult = bind_body_expression(
+    checked: BodyResult = bind_body_expression_expected(
       current_context,
       expression,
       span,
       locals,
-      path.append(index)
+      path.append(index), expected
     )
     current_context = body_context_with_facts(current_context, body_invalidate_assigned_locals(current_context.facts, checked.body))
     children = children.append(checked.body)

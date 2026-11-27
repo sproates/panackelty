@@ -5300,7 +5300,27 @@ pure stdlib_nominal_identity_tests(): [TestResult] {
 // Every nested body has its own effect mode; cached effect facts must agree.
 pure anonymous_body_tests(): [TestResult] {
   mut results: [TestResult] = []
+  evidence_source = "pure f(): [PureFn[Nat,Nat]] { [(x) => x + 1] }"
+  explained = body_test_module(evidence_source)
+  operators = body_operator_type_evidence(explained.functions[0].body)
+  results = results.append(std_testing.equal_nat("anonymous array retains one body operator", operators.len(), 1))
+  if operators.len() == 1 {
+    site = operators[0].span
+    results = results.append(std_testing.equal_str("anonymous operator points to original source",
+      evidence_source.slice(site.start.offset, site.end.offset), "x + 1"))
+    results = results.append(std_testing.expect("anonymous operator retains checked result",
+      operators[0].accepted == Some(true) && operators[0].result == Some(SignatureType(SignatureCore("Nat"), [])),
+      "anonymous operator result lost"))
+  }
+  results = results.append(std_testing.equal_str("untyped anonymous parameter gives actionable diagnostic",
+    body_test_error("pure f(): Void { callback = (value) => value; }"),
+    "cannot determine the type of anonymous parameter value; add a type annotation"))
+
   for source in [
+    "pure f(): [PureFn[Nat,Nat]] { [(x) => x + 1, (x) => x + 2] }",
+    "pure f(): Nat { callbacks: [[PureFn[Nat,Nat]]] = [[(x) => x + 1]]; callbacks[0][0].call(2) }",
+    "pure apply(fs: [PureFn[Nat,Nat]]): Nat { fs[0].call(2) }; pure f(): Nat { apply([(x) => x + 1]) }",
+    "record Handler { callback: PureFn[Nat,Nat] }; pure f(): Handler { Handler((x) => x + 1) }",
     "pure f(flag: Bool): PureFn[Nat,Nat] { if flag { (x) => x + 1 } else { (x) => x + 2 } }",
     "pure f(flag: Option[Bool]): PureFn[Nat,Nat] { match flag { Some(value) => (x) => x + 1, None() => (x) => x + 2 } }",
     "pure f(): PureFn[PureFn[Nat,Nat]] { (): PureFn[Nat,Nat] => (x) => x + 1 }",
@@ -5321,6 +5341,9 @@ pure anonymous_body_tests(): [TestResult] {
     results = results.append(std_testing.expect("anonymous cached effect facts agree", direct == cached, source))
   }
   for source in [
+    "pure f(): [PureFn[Nat,Nat]] { [(x: Str) => 1] }",
+    "pure f(): [PureFn[Nat,Void]] { [(x) => print(x)] }",
+    "pure f(): Void { callbacks = [(x) => x]; }",
     "pure f(): Void { callback = (x) => x + 1; }",
     "pure f(): PureFn[Nat,Str] { (x: Nat): Str => x + 1 }",
     "pure f(x: Nat): PureFn[Nat] { () => x }",

@@ -509,3 +509,21 @@ progress, with zero accepted implementation points; CS2–CS4 remain planned. No
 CI or bootstrap refresh. The extra checking pass is limited to calls containing
 compound callback expressions; ordinary calls retain their current path. No VM
 or bytecode changes. Website claims remain unchanged until feature acceptance.
+
+
+27 November, collection and evidence checkpoint: known array element types now
+reach anonymous parameters, including nested arrays, returned arrays and callback
+arrays supplied as arguments. Existing record constructor signatures also supply
+callback inputs. Regressions reject incompatible parameter types, impure bodies
+in pure callback arrays and unannotated inputs without context. Explanation
+evidence retains the exact anonymous body expression and its checked result; the
+missing-parameter diagnostic is asserted verbatim. The module-binding/cache suite
+passes 2,205 assertions. Expanded source and saved-bytecode transcripts match.
+The candidate passes native-oracle-artifacts for unchanged-program bytecode.
+
+CS1 remains in progress: finish the constructor/generic contextual boundary audit,
+end-to-end explanation review, functional registration and final bootstrap/full
+validation. No CI or bootstrap refresh. CS2–CS4 remain planned and accepted
+implementation contribution stays zero. The array pass reuses source-order child
+checking; no VM, bytecode-format or runtime representation change. No website
+publication; the proposal and test evidence describe development support.

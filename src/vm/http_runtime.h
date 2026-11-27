@@ -11,7 +11,7 @@ struct VMHttpRuntime {
     size_t exit_status;
 };
 
-Value *http_runtime_listen(VM *vm, Value *handle, Function *worker, bool contextual,
+Value *http_runtime_listen(VM *vm, Value *handle, VMCallable worker, bool contextual,
                            bool outbound, bool filesystem, bool console, bool process);
 bool http_runtime_request_close(struct VMHttpRuntime *runtime, Value *handle, bool destroy);
 bool http_runtime_active(const struct VMHttpRuntime *runtime);

@@ -2387,3 +2387,15 @@ including acceptance at 255 total hidden/explicit parameters and rejection at
 256. The candidate artifact compatibility oracle passes. Ordinary and async
 source/saved-bytecode transcripts match. This does not replace final bootstrap,
 public-launcher or full-slice validation.
+
+### CS2 retained host callbacks (27 November 2026)
+
+`host-closures` covers retained HTTP ordinary/contextual routes and fallback, TCP
+finite/streaming/service callbacks and readiness, target/arity rejection and
+lifetime cleanup. Native and ASan/UBSan runs pass. The closure fault sweep covers
+host child frame allocation failures. `tests/http_closures.sh` is registered in
+functional validation; candidate source and saved bytecode pass all four HTTP
+combinations. The anonymous-function fixture checks repeated captured array/range
+iteration and per-iteration capture values. Binding/cache tests: 2,265 passed.
+The existing zero-grace TCP assertion failed once before passing on retry and
+under sanitizers; final broad validation remains pending with CS2 acceptance.

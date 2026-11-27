@@ -76,7 +76,7 @@ static VMTcpServer *start(size_t port, VMTcpServerLimits options)
     VM vm = {.program = &program, .coverage_run = coverage_run,
              .coverage = vm_coverage_run_collector(coverage_run)};
     Value *address = value_data(V_STR, (const uint8_t *)"127.0.0.1", 9);
-    VMTcpServer *server = tcp_server_start(&vm, &echo_function, address, port, options, true);
+    VMTcpServer *server = tcp_server_start(&vm, (VMCallable){&echo_function, NULL}, address, port, options, true);
     release(address);
     assert(server && !tcp_server_error(server) && !tcp_server_done(server));
     return server;
@@ -87,7 +87,7 @@ static VMTcpServer *start_stream(size_t port, VMTcpServerLimits options, Value *
     VM vm = {.program = &program, .coverage_run = coverage_run,
              .coverage = vm_coverage_run_collector(coverage_run)};
     Value *address = value_data(V_STR, (const uint8_t *)"127.0.0.1", 9);
-    VMTcpServer *server = tcp_server_start_stream(&vm, &functions[2], context, address, port,
+    VMTcpServer *server = tcp_server_start_stream(&vm, (VMCallable){&functions[2], NULL}, context, address, port,
                                                   options, true);
     release(address);
     assert(server && !tcp_server_error(server) && !tcp_server_done(server));
@@ -137,6 +137,10 @@ static void reply_is(VMTcpServer *server, int fd, const uint8_t *expected, size_
         } else {
             assert(errno == EAGAIN || errno == EWOULDBLOCK);
         }
+    }
+    if (!eof || received != size || memcmp(buffer, expected, size)) {
+        fprintf(stderr, "TCP reply mismatch: eof=%d received=%zu expected=%zu trap=%s\n",
+                eof, received, size, tcp_server_error(server) ? tcp_server_error(server) : "none");
     }
     assert(eof && received == size && !memcmp(buffer, expected, size));
 }
@@ -427,9 +431,9 @@ static void continuous_contracts(void)
     VMTcpServiceLimits options = {2, 4096, 4096, 2000, 0};
     size_t port = unused_port();
     VMTcpServer *server =
-        tcp_server_start_service(&vm, &functions[2], context, address, port, options, false);
+        tcp_server_start_service(&vm, (VMCallable){&functions[2], NULL}, context, address, port, options, false);
     assert(server && !tcp_server_done(server));
-    assert(tcp_server_set_ready_handler(server, &functions[3], context, false));
+    assert(tcp_server_set_ready_handler(server, (VMCallable){&functions[3], NULL}, context, false));
     for (size_t i = 0; i < 300; i++) {
         int fd = connect_client(port);
         assert(send(fd, "ok", 2, 0) == 2);
@@ -455,9 +459,9 @@ static void continuous_contracts(void)
     Instruction endless[] = {{.op = OP_JUMP, .target = 0}, {.op = OP_RETURN}};
     functions[3].ins = endless;
     functions[3].ins_count = 2;
-    server = tcp_server_start_service(&vm, &functions[2], context, address, unused_port(), options,
+    server = tcp_server_start_service(&vm, (VMCallable){&functions[2], NULL}, context, address, unused_port(), options,
                                       false);
-    assert(tcp_server_set_ready_handler(server, &functions[3], context, false));
+    assert(tcp_server_set_ready_handler(server, (VMCallable){&functions[3], NULL}, context, false));
     pump(server);
     assert(!tcp_server_done(server));
     tcp_server_stop(server);
@@ -471,8 +475,67 @@ static void continuous_contracts(void)
     release(address);
 }
 
+static void retained_callback_contracts(void)
+{
+    char *params[] = {"capture", "request"};
+    Instruction reply[] = {{.op = OP_LOAD, .name = "capture"},
+        {.op = OP_MAKE_VARIANT, .name = "Result", .name2 = "Ok", .count = 1}, {.op = OP_RETURN}};
+    Instruction ready[] = {{.op = OP_LOAD, .name = "capture"}, {.op = OP_POP},
+        {.op = OP_CALL, .name = "$unit"},
+        {.op = OP_MAKE_VARIANT, .name = "Result", .name2 = "Ok", .count = 1}, {.op = OP_RETURN}};
+    Function local_functions[] = {
+        {.name = "main", .ins = main_code, .ins_count = 2},
+        {.name = "reply", .params = params, .param_count = 2, .is_async = true,
+         .ins = reply, .ins_count = 3},
+        {.name = "ready", .params = params, .param_count = 2, .is_async = true,
+         .ins = ready, .ins_count = 5}};
+    /* Canonical names: main, ready, reply. */
+    Function swap = local_functions[1]; local_functions[1] = local_functions[2]; local_functions[2] = swap;
+    Program local_program = {.functions = local_functions, .count = 3};
+    const char *error = NULL;
+    assert(verify(&local_program, &error));
+    Value *payload = value_data(V_BYTES, (const uint8_t *)"retained", 8);
+    Value *marker = value_size(17);
+    Value *address = value_data(V_STR, (const uint8_t *)"127.0.0.1", 9);
+    for (size_t mode = 0; mode < 3; mode++) {
+        CaptureCheck status;
+        Value *callback = value_closure("reply", &payload, 1, &status);
+        Value *readiness = value_closure("ready", &marker, 1, &status);
+        VM vm = {.program = &local_program};
+        VMCallable worker = vm_resolve_callable(&vm, callback, 1);
+        VMCallable ready_callback = vm_resolve_callable(&vm, readiness, 1);
+        assert(worker.function && ready_callback.function);
+        assert(!vm_resolve_callable(&vm, callback, 2).function);
+        assert(!vm_callable_valid(&vm, (VMCallable){ready_callback.function, callback}, 1));
+        size_t port = unused_port();
+        VMTcpServerLimits finite = {2, 2, 4096, 4096, 2000, 2000, 1000};
+        VMTcpServiceLimits continuous = {2, 4096, 4096, 2000, 0};
+        VMTcpServer *server = mode == 0 ? tcp_server_start(&vm, worker, address, port, finite, false)
+            : mode == 1 ? tcp_server_start_stream(&vm, worker, value_unit(), address, port, finite, false)
+            : tcp_server_start_service(&vm, worker, value_unit(), address, port, continuous, false);
+        assert(server && !tcp_server_done(server));
+        if (mode == 2) assert(tcp_server_set_ready_handler(server, ready_callback, value_unit(), false));
+        release(callback);
+        release(readiness);
+        assert(payload->refs == 2 && marker->refs == (mode == 2 ? 2u : 1u));
+        for (size_t i = 0; i < 2; i++) {
+            int fd = connect_client(port);
+            assert(!shutdown(fd, SHUT_WR));
+            reply_is(server, fd, (const uint8_t *)"retained", 8);
+            close(fd);
+        }
+        if (mode == 2) tcp_server_stop(server);
+        else drain(server);
+        assert(!tcp_server_error(server));
+        tcp_server_destroy(server);
+        assert(payload->refs == 1 && marker->refs == 1);
+    }
+    release(payload); release(marker); release(address);
+}
+
 void tcp_server_contracts(void)
 {
+    retained_callback_contracts();
     const char *error;
     assert(verify(&program, &error));
     coverage_run = coverage_server_begin(&program);
@@ -577,13 +640,13 @@ void tcp_server_contracts(void)
     server = start(port, limits);
     VM vm = {.program = &program};
     Value *address = value_data(V_STR, (const uint8_t *)"127.0.0.1", 9);
-    VMTcpServer *conflict = tcp_server_start(&vm, &echo_function, address, port, limits, true);
+    VMTcpServer *conflict = tcp_server_start(&vm, (VMCallable){&echo_function, NULL}, address, port, limits, true);
     assert(tcp_server_done(conflict) && !tcp_server_error(conflict));
     assert(!strcmp(tcp_server_result(conflict)->as.named.name, "Error"));
     tcp_server_destroy(conflict);
     tcp_server_destroy(server);
     Function foreign = echo_function;
-    server = tcp_server_start(&vm, &foreign, address, port, limits, true);
+    server = tcp_server_start(&vm, (VMCallable){&foreign, NULL}, address, port, limits, true);
     assert(tcp_server_done(server) && tcp_server_error(server));
     tcp_server_destroy(server);
     release(address);

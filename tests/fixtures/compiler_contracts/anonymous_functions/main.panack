@@ -49,6 +49,29 @@ pure retain_callback(callback: PureFn[Nat,Nat]): PureFn[Nat,Nat] {
   (value) => callback.call(value)
 }
 
+pure sum_reader(values: [Nat]): PureFn[Nat] {
+  () => {
+    mut total: Nat = 0
+    for value in values { total = total + value }
+    total
+  }
+}
+
+pure range_reader(): PureFn[Nat] {
+  values = 1..4
+  () => {
+    mut total: Nat = 0
+    for value in values { total = total + value }
+    total
+  }
+}
+
+pure loop_readers(): [PureFn[Nat]] {
+  mut callbacks: [PureFn[Nat]] = []
+  for value in [1, 2, 3] { callbacks = callbacks.append(() => value) }
+  callbacks
+}
+
 main(): Void {
   increment = (value: Nat) => value + 1
   print(increment.call(4))
@@ -102,4 +125,11 @@ main(): Void {
   print(make_adder(40) == make_adder(40))
   print(make_adder(40) == make_adder(41))
   print([1, 2].map((value) => value + add.call(0)))
+  sum = sum_reader([1, 2, 3])
+  print(sum.call())
+  print(sum.call())
+  range_sum = range_reader()
+  print(range_sum.call())
+  print(range_sum.call())
+  for callback in loop_readers() { print(callback.call()) }
 }

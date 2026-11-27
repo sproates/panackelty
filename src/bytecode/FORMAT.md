@@ -322,5 +322,7 @@ capture graphs. Captures occupy the generated function's parameter prefix;
 CALL_VALUE and AWAIT_VALUE supply that prefix and enforce the existing call-effect
 rules. The compiler rejects a combined parameter count above the existing u8
 limit of 255. Function types remain erased, so runtime primitive checks still
-apply to forged inputs. Source closure support is under development: host-retained
-callbacks and iterator snapshots are not yet integrated.
+apply to forged inputs. Host-retained HTTP/TCP callbacks use the same checked
+capture prefix. Each loop over a captured iterable creates a fresh cursor; raw
+internal iterator cursors remain ineligible. Source closure acceptance and
+bootstrap refresh remain pending.

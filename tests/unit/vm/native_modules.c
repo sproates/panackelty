@@ -1679,6 +1679,12 @@ int main(int argc, char **argv)
     closure_environment_contracts();
     closure_construction_contracts();
     closure_invocation_contracts();
+    if (argc == 2 && !strcmp(argv[1], "host-closures")) {
+        http_state_contracts();
+        tcp_server_contracts();
+        puts("retained host callback contracts: ok");
+        return 0;
+    }
     if (argc == 2 && !strcmp(argv[1], "closures")) {
         puts("native closure environment contracts: ok");
         return 0;

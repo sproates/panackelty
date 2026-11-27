@@ -2159,5 +2159,13 @@ reserved pure `$intrinsic_closure` builtin (target, capture array, explicit arit
 Construction resolves the target and checks arity and recursive capture safety. CALL_VALUE/AWAIT_VALUE accept
 internal closure values and validate the target, combined arity and call effect.
 Captures occupy the parameter prefix; ordinary frame ownership retains them
-through suspension and releases them on completion, cancellation or trap. Host
-callback integration and iterator snapshots remain in progress. Named callable representation is unchanged.
+through suspension and releases them on completion, cancellation or trap. Named
+callable representation is unchanged. Capture explanations and final CS2 acceptance
+remain in progress.
+
+Retained host callbacks use a borrowed VMCallable descriptor containing the target
+function and optional closure. HTTP state retains registered values; TCP servers
+retain worker/readiness environments until destruction. Each child frame retains
+its captures. Descriptor validation checks program membership, explicit arity and
+async effect before entry. Captured iterable values create fresh internal cursors
+per loop; V_ITER itself remains capture-ineligible.

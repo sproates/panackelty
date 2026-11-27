@@ -332,6 +332,7 @@ static void construct_checked_closure(void)
 }
 
 static Value *invocation_fixture;
+static bool host_invocation;
 static void invoke_closure(void)
 {
     char *entry_params[] = {"callback"};
@@ -344,15 +345,29 @@ static void invoke_closure(void)
     Function functions[] = {
         {.name = "invoke", .params = entry_params, .param_count = 1, .ins = code, .ins_count = 3},
         {.name = "main", .ins = main_code, .ins_count = 2},
-        {.name = "target", .params = params, .param_count = count, .ins = body, .ins_count = 2}};
+        {.name = "target", .params = params, .param_count = count, .ins = body, .ins_count = 2,
+         .is_async = host_invocation}};
     Program program = {.functions = functions, .count = 3};
     const char *error = NULL;
     if (!verify(&program, &error)) { assert(fault_triggered() && error); return; }
     VM vm = {.program = &program};
-    Value *result = execute(&vm, &functions[0], &invocation_fixture);
-    if (fault_triggered()) assert(!result && vm.error);
-    else assert(result == invocation_fixture->as.named.values[count - 1] && !vm.error);
-    release(result);
+    if (host_invocation) {
+        VMCallable callable = vm_resolve_callable(&vm, invocation_fixture, 0);
+        VMExecution *run = vm_execution_create_callable_async(&vm, callable, NULL, 0, NULL, NULL, &error);
+        if (!run) assert(fault_triggered() && error);
+        else {
+            VMExecutionStatus result = vm_execution_advance(run, 10);
+            if (fault_triggered()) assert(result == VM_TRAPPED && vm.error);
+            else assert(result == VM_COMPLETED &&
+                        vm_execution_result(run) == invocation_fixture->as.named.values[count - 1]);
+            assert(vm_execution_destroy(run));
+        }
+    } else {
+        Value *result = execute(&vm, &functions[0], &invocation_fixture);
+        if (fault_triggered()) assert(!result && vm.error);
+        else assert(result == invocation_fixture->as.named.values[count - 1] && !vm.error);
+        release(result);
+    }
     assert(invocation_fixture->refs == 1);
     for (size_t i = 0; i < count; i++) assert(invocation_fixture->as.named.values[i]->refs == 2);
 }
@@ -1078,9 +1093,9 @@ static void server_allocations(void)
         return;
     }
     VMTcpServer *server = server_streaming
-                              ? tcp_server_start_stream(&vm, &fn, context, address, server_port,
+                              ? tcp_server_start_stream(&vm, (VMCallable){&fn, NULL}, context, address, server_port,
                                                         limits, false)
-                              : tcp_server_start(&vm, &fn, address, server_port, limits, false);
+                              : tcp_server_start(&vm, (VMCallable){&fn, NULL}, address, server_port, limits, false);
     release(context);
     release(address);
     if (server && !tcp_server_done(server)) {
@@ -1245,6 +1260,9 @@ int main(int argc, char **argv)
         invocation_fixture = value_closure("target", capture_items, count, &status);
         assert(invocation_fixture && status == CAPTURE_ALLOWED);
         sweep("closure invocation frame and argument ownership", invoke_closure);
+        host_invocation = true;
+        sweep("host closure invocation ownership", invoke_closure);
+        host_invocation = false;
         release(invocation_fixture);
     }
     for (size_t i = 0; i < 80; i++) { assert(capture_items[i]->refs == 1); release(capture_items[i]); }

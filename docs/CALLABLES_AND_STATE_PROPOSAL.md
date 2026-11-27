@@ -340,7 +340,7 @@ CS1 is accepted after local and hosted integration validation.
 | Slice | Deliverable | Weight | Status | Earned |
 | --- | --- | --- | --- | --- |
 | CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | Complete: PR #701 and integration run 46042786755 passed | 20 |
-| CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | In progress: candidate source captures and checked VM construction/invocation; host/iterator integration pending | 0 |
+| CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | In progress: candidate source captures and checked VM construction/invocation; retained host callbacks checked; explanations/final acceptance pending | 0 |
 | CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | Planned | 0 |
 | CS4 | Both service examples, installed acceptance, reference and website guidance | 20 | Planned | 0 |
 | Total | Working callable/state feature | 100 | CS1 accepted; CS2 in progress, CS3–CS4 planned | 20 |
@@ -639,3 +639,28 @@ the public launcher still uses the unchanged bootstrap compiler. Host-retained
 callbacks, iterator snapshots, dedicated capture explanations, bootstrap refresh
 and final acceptance remain. CS2 stays in progress; programme earned contribution
 is 20/100. No development CI or website publication.
+
+CS2 retained-host checkpoint, 27 November: HTTP routes and fallbacks, contextual
+HTTP handlers, TCP workers and service readiness callbacks now retain closure
+environments. The shared checked callable descriptor preserves target identity,
+explicit arity and async effects; child frames retain captures independently and
+server destruction releases retained environments. Verified-program target lookup
+uses the existing index. No throughput improvement is claimed.
+
+Native lifetime and allocation-failure checks pass, including sanitizer checks.
+The candidate HTTP fixture passes ordinary/contextual routes and fallback in
+source and saved-bytecode modes after the creating function returns. The binding
+and cache suite passes 2,265 assertions. Captured arrays and ranges can be iterated
+from the start on every invocation; loop-created closures retain each iteration's
+value. Source and saved-bytecode transcripts agree.
+
+Iterator clarification supersedes earlier pending-snapshot notes: source iteration
+exposes iterable values, not the VM's mutable V_ITER cursor. Each loop creates a
+fresh cursor. Raw internal cursors remain capture-ineligible; no new public
+iterator API or cursor snapshot feature is introduced.
+
+The existing zero-grace TCP cancellation assertion failed once, then passed on
+retry and under sanitizers. No timeout or assertion was weakened; watch this
+case during final validation. Capture explanations, bootstrap refresh, public
+launcher/full validation and integration remain. CS2 is not accepted; programme
+progress remains 20/100. No development CI or website publication.

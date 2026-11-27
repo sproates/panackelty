@@ -1,0 +1,55 @@
+import http/server as http
+import stdlib/async_host as host
+
+pure handler(label: Str): AsyncFn[http.Request,http.ResponseWriter,Result[Unit,Str]] {
+  async (request, response) => {
+    response.send(label)
+    Ok(())
+  }
+}
+
+pure contextual_handler(prefix: Str): AsyncFn[Str,http.Request,http.ResponseWriter,Result[Unit,Str]] {
+  async (context, request, response) => {
+    response.send(prefix + context)
+    Ok(())
+  }
+}
+
+configure(port: Nat): http.Server {
+  server = http.create_bound_server("127.0.0.1", port)
+  callback = handler("captured")
+  server.get("/", callback)
+  server.post("/", callback)
+  server.put("/", callback)
+  server.delete("/", callback)
+  server.fallback(handler("health captured"))
+  server
+}
+
+configure_contextual(port: Nat): http.ContextualServer[Str] {
+  server = http.create_bound_contextual_server("127.0.0.1", port, "captured")
+  callback = contextual_handler("")
+  server.get("/", callback)
+  server.post("/", callback)
+  server.put("/", callback)
+  server.delete("/", callback)
+  server.fallback(contextual_handler("health "))
+  server
+}
+
+async main(): Unit {
+  arguments = await host.arguments()
+  if arguments[1] == "ordinary" {
+    server = configure(arguments[0].parse_nat())
+    match await server.listen() {
+      Ok(done) => (),
+      Error(problem) => { ignored = await host.stderr(problem.message); () }
+    }
+  } else {
+    contextual = configure_contextual(arguments[0].parse_nat())
+    match await contextual.listen() {
+      Ok(done) => (),
+      Error(problem) => { ignored = await host.stderr(problem.message); () }
+    }
+  }
+}

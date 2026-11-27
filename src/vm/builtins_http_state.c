@@ -39,7 +39,7 @@ Value *builtins_http_state_call(VM *vm, const char *name, Value **a)
         return value_unit();
     }
     if (!strcmp(name, "http_state_register")) {
-        REQUIRE(a[1]->kind == V_STR && a[2]->kind == V_STR && a[3]->kind == V_STR,
+        REQUIRE(a[1]->kind == V_STR && a[2]->kind == V_STR && (a[3]->kind == V_STR || a[3]->kind == V_CLOSURE),
                 "VM trap: invalid HTTP registration operands");
         if (!http_state_register(state, a[1], a[2], a[3])) return NULL;
         return value_unit();
@@ -184,7 +184,7 @@ Value *builtins_http_connection_call(VM *vm, const char *name, Value **a)
     return NULL;
 }
 
-Function *http_connection_handler(VM *vm, Value **a, Value **call_args)
+Function *http_connection_handler(VM *vm, Value **a, Value **call_args, VMCallable *callable)
 {
     VMHttpConnection *connection = http_live_connection(vm, a[0]);
     if (!connection) return NULL;
@@ -201,18 +201,9 @@ Function *http_connection_handler(VM *vm, Value **a, Value **call_args)
                 "VM trap: invalid HTTP route index");
         handler = state->routes[index].handler;
     }
-    REQUIRE(handler && handler->kind == V_STR, "VM trap: missing HTTP handler");
-    Function *target = NULL;
-    for (size_t i = 0; i < vm->program->count; i++) {
-        Function *candidate = &vm->program->functions[i];
-        if (strlen(candidate->name) == handler->as.bytes.length &&
-            !memcmp(candidate->name, handler->as.bytes.data, handler->as.bytes.length)) {
-            target = candidate;
-            break;
-        }
-    }
-    REQUIRE(target && target->is_async && !target->pure &&
-            target->param_count == (state->contextual ? 3u : 2u),
+    *callable = vm_resolve_callable(vm, handler, state->contextual ? 3u : 2u);
+    Function *target = callable->function;
+    REQUIRE(target && target->is_async && !target->pure,
             "VM trap: invalid HTTP handler effect or arity");
     size_t index = 0;
     if (state->contextual) call_args[index++] = state->context;

@@ -545,3 +545,24 @@ missing/builtin targets, arity mismatch, suspension, cancellation and callee
 traps. Source construction/lowering, host-retained callbacks, iterator snapshots,
 cache/provenance and final slice acceptance remain. No bytecode format or compiler
 seed change. CS2 remains in progress with zero accepted points (programme 20/100).
+
+CS2 source-lowering checkpoint, 27 November: referenced immutable lexical values
+now become closure captures, including captures used by nested closures. Generated
+functions receive a hidden capture-parameter prefix; the public callable signature
+retains only explicit arguments. Generic types are rebound to the anonymous body
+while lexical declaration identities remain available for provenance. Capture
+reads are children of the creation node; the nested function body remains a
+separate effect scope. Known mutable/resource captures are diagnosed, and the
+runtime validates target, layout and resource graphs again at construction.
+
+The reserved pure `$intrinsic_closure` builtin is an additive v9 capability;
+there is no opcode or constant-layout change. Older runtimes reject the unknown
+intrinsic. Noncapturing and named callables remain unchanged. The compiler rejects
+combined capture/explicit parameter counts beyond v9's 255-parameter limit.
+Ordinary and async candidate fixtures pass source execution and saved bytecode,
+including creator-return lifetime, nested/generic captures, captured callbacks,
+collection callbacks, equality and repeated awaits. This is candidate evidence;
+the public launcher still uses the unchanged bootstrap compiler. Host-retained
+callbacks, iterator snapshots, dedicated capture explanations, bootstrap refresh
+and final acceptance remain. CS2 stays in progress; programme earned contribution
+is 20/100. No development CI or website publication.

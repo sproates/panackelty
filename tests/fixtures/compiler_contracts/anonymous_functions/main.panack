@@ -37,6 +37,18 @@ pure make_nested(): PureFn[PureFn[Nat,Nat]] {
   (): PureFn[Nat,Nat] => (value) => value + 4
 }
 
+pure make_adder(offset: Nat): PureFn[Nat,Nat] { (value) => offset + value }
+
+pure retain_value[T](value: T): PureFn[T] { () => value }
+
+pure nested_capture(offset: Nat): PureFn[Nat,PureFn[Nat]] {
+  (step) => () => offset + step
+}
+
+pure retain_callback(callback: PureFn[Nat,Nat]): PureFn[Nat,Nat] {
+  (value) => callback.call(value)
+}
+
 main(): Void {
   increment = (value: Nat) => value + 1
   print(increment.call(4))
@@ -78,4 +90,16 @@ main(): Void {
     None() => print(0)
   }
   print(generic_handler().callback.call(4))
+  add = make_adder(40)
+  print(add.call(2))
+  print(add.call(3))
+  saved = retain_value[Str]("retained")
+  print(saved.call())
+  factory = nested_capture(30)
+  retained_nested = factory.call(12)
+  print(retained_nested.call())
+  print(retain_callback(add).call(4))
+  print(make_adder(40) == make_adder(40))
+  print(make_adder(40) == make_adder(41))
+  print([1, 2].map((value) => value + add.call(0)))
 }

@@ -9,7 +9,21 @@ pure make_reader(): AsyncFn[Bool,Result[Bytes,Str]] {
   async (fail) => { await testing_async.read(fail) }
 }
 
+pure captured_reader(prefix: Str): AsyncFn[Str] {
+  async () => {
+    result = await testing_async.read(false)
+    match result {
+      Ok(data) => prefix + data.decode_utf8(),
+      Error(problem) => prefix + problem
+    }
+  }
+}
+
 async main(): Unit {
+  captured = captured_reader("saved: ")
+  first = await captured.call()
+  second = await captured.call()
+  expect(first == "saved: fake bytes" && first == second)
   reader = make_reader()
   match await reader.call(false) {
     Ok(data) => expect(data.decode_utf8() == "fake bytes"),

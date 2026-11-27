@@ -1402,6 +1402,56 @@ static void shared_unit_and_void_preserve_distinction(void)
     release(empty);
 }
 
+static void closure_construction_contracts(void)
+{
+    const Builtin *constructor = builtin("$intrinsic_closure");
+    assert(constructor && constructor->pure && constructor->arity == 3);
+    Function function = {.name = "body", .param_count = 2};
+    Program program = {.functions = &function, .count = 1};
+    Value *capture = value_size(17);
+    Value *target = value_data(V_STR, (const uint8_t *)"body", 4);
+    Value *environment = value_sequence(V_ARRAY, &capture, 1);
+    Value *arity = value_size(1);
+    Value *arguments[] = {target, environment, arity};
+    VM vm = {.program = &program};
+    Value *closure = constructor->call(&vm, constructor->name, arguments);
+    assert(closure && !vm.error && closure->kind == V_CLOSURE);
+    assert(closure->as.named.count == 1 && closure->as.named.values[0] == capture);
+    release(closure);
+    function.param_count = 1;
+    vm.error = NULL;
+    assert(!constructor->call(&vm, constructor->name, arguments));
+    assert(vm.error && !strcmp(vm.error, "VM trap: closure capture layout does not match target arity"));
+    function.param_count = 2;
+    release(target);
+    target = value_data(V_STR, (const uint8_t *)"body\0forged", 11);
+    arguments[0] = target;
+    vm.error = NULL;
+    assert(!constructor->call(&vm, constructor->name, arguments));
+    assert(vm.error && !strcmp(vm.error, "VM trap: invalid closure construction"));
+    release(target);
+    target = value_data(V_STR, (const uint8_t *)"absent", 6);
+    arguments[0] = target;
+    vm.error = NULL;
+    assert(!constructor->call(&vm, constructor->name, arguments));
+    assert(vm.error && !strcmp(vm.error, "VM trap: closure target was not found"));
+    release(target);
+    target = value_data(V_STR, (const uint8_t *)"body", 4);
+    arguments[0] = target;
+    Value resource = {.kind = V_HTTP_STATE, .refs = 1};
+    Value *raw = &resource;
+    Value *unsafe = value_sequence(V_ARRAY, &raw, 1);
+    arguments[1] = unsafe;
+    vm.error = NULL;
+    assert(!constructor->call(&vm, constructor->name, arguments));
+    assert(vm.error && !strcmp(vm.error, "VM trap: closure cannot capture a resource-bearing value"));
+    release(unsafe);
+    assert(resource.refs == 1);
+    release(target); release(environment); release(arity);
+    assert(capture->refs == 1);
+    release(capture);
+}
+
 static void closure_invocation_contracts(void)
 {
     /* Exercise both sides of the inline argument boundary, including a body
@@ -1627,6 +1677,7 @@ static void closure_environment_contracts(void)
 int main(int argc, char **argv)
 {
     closure_environment_contracts();
+    closure_construction_contracts();
     closure_invocation_contracts();
     if (argc == 2 && !strcmp(argv[1], "closures")) {
         puts("native closure environment contracts: ok");

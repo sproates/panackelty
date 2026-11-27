@@ -23,3 +23,11 @@ select
 8
 9
 10
+42
+43
+retained
+42
+44
+true
+false
+[41, 42]

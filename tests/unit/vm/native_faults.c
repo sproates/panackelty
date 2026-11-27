@@ -317,6 +317,20 @@ static void construct_array(void)
 }
 
 static Value *closure_fixture;
+static Value *construction_arguments[3];
+static void construct_checked_closure(void)
+{
+    const Builtin *constructor = builtin("$intrinsic_closure");
+    Function target = {.name = "body", .param_count = 81};
+    Program program = {.functions = &target, .count = 1};
+    VM vm = {.program = &program};
+    Value *result = constructor->call(&vm, constructor->name, construction_arguments);
+    if (fault_triggered()) assert(!result && vm.error);
+    else assert(result && !vm.error && result->as.named.count == 80);
+    release(result);
+    for (size_t i = 0; i < 80; i++) assert(closure_fixture->as.sequence.items[i]->refs == 2);
+}
+
 static Value *invocation_fixture;
 static void invoke_closure(void)
 {
@@ -1218,6 +1232,13 @@ int main(int argc, char **argv)
     closure_fixture = value_sequence(V_ARRAY, capture_items, 80);
     assert(closure_fixture);
     sweep("closure environment and graph walk ownership", construct_closure);
+    construction_arguments[0] = value_data(V_STR, (const uint8_t *)"body", 4);
+    construction_arguments[1] = closure_fixture;
+    construction_arguments[2] = value_size(1);
+    assert(construction_arguments[0] && construction_arguments[2]);
+    sweep("checked closure construction", construct_checked_closure);
+    release(construction_arguments[0]);
+    release(construction_arguments[2]);
     release(closure_fixture);
     for (size_t count = 8; count <= 9; count++) {
         CaptureCheck status;

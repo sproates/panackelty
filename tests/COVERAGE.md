@@ -2368,3 +2368,22 @@ call-argument/call-link regressions pass. The public CLI callable fixture passes
 all four assertions after rebuilding the VM. Documentation/link checks pass.
 No full suite, compiler bootstrap rebuild or CI was run for this intermediate
 checkpoint; those checks remain part of completed-slice acceptance.
+
+CS2 candidate source captures (27 November): module-binding/effect checks now
+include immutable parameters, repeated references, nested closures, generic
+captures, unused resources, callbacks accepting resources and immutable snapshots
+of mutable locals. Negative cases reject mutable captures, self-reference and
+resources through arrays, records and enums. Phantom generic arguments alone do
+not imply a retained resource. Existing disk-body cache tests round-trip the
+expanded anonymous fixture and compare diagnostics and emitted bytecode.
+Candidate ordinary/async fixtures execute source and saved bytecode with matching
+transcripts. Public-launcher fixture acceptance waits for bootstrap refresh.
+Native constructor tests cover malformed targets, arity mismatch and resources;
+allocation-failure sweeps and ASan/UBSan checks pass. Final full validation remains
+pending the completed CS2 slice, including host-retained callbacks and iterators.
+
+Final focused source-lowering results: 2,259 binding/effect/cache assertions pass,
+including acceptance at 255 total hidden/explicit parameters and rejection at
+256. The candidate artifact compatibility oracle passes. Ordinary and async
+source/saved-bytecode transcripts match. This does not replace final bootstrap,
+public-launcher or full-slice validation.

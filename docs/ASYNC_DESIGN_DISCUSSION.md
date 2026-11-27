@@ -657,3 +657,12 @@ suite, sanitizer checks and 57 State allocation-failure cases pass. Public APIs,
 compiler admission and final source/bytecode acceptance remain. See the
 [scheduling checkpoint](CALLABLES_AND_STATE_PROPOSAL.md#cs3-execution-scheduling-27-november-2026).
 CS3 remains in progress (0/30); accepted programme progress remains 50/100. No CI.
+
+CS3 source API checkpoint, 27 November: ordinary/async State modules now compile
+and execute through the candidate, including a closure retaining a cell. Source
+and saved-bytecode tests, payload/effect rejection cases, existing callable
+transcripts and 2,313 binding/cache assertions pass. Tagged function references
+preserve old-bytecode execution while distinguishing new callbacks from strings.
+See the [source checkpoint](CALLABLES_AND_STATE_PROPOSAL.md#cs3-source-api-checkpoint-27-november-2026)
+for remaining admission, diagnostic and final-validation work. CS3 remains 0/30;
+programme acceptance remains 50/100. No CI ran.

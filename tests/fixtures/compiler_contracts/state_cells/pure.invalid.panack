@@ -1,0 +1,3 @@
+import stdlib/state as state
+pure broken(): State[Nat] { state.create(0) }
+main(): Void { print("unreachable") }

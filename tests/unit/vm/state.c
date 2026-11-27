@@ -128,13 +128,13 @@ static void scheduler_reservations(void)
     Instruction update[] = {
         {.op = OP_LOAD, .name = "cell"},
         {.op = OP_CONST, .constant = {.tag = 3, .text = "increment", .text_length = 9}},
-        {.op = OP_CALL, .name = "$intrinsic_state_update", .arity = 2}, {.op = OP_RETURN}};
+        {.op = OP_CALL, .name = "state_update", .arity = 2}, {.op = OP_RETURN}};
     Instruction async_update[4];
     memcpy(async_update, update, sizeof(update));
     async_update[2] = (Instruction){.op = OP_AWAIT_CALL,
-        .name = "$intrinsic_state_update_async", .arity = 2};
+        .name = "state_update_async", .arity = 2};
     Instruction read[] = {{.op = OP_LOAD, .name = "cell"},
-        {.op = OP_CALL, .name = "$intrinsic_state_read", .arity = 1}, {.op = OP_RETURN}};
+        {.op = OP_CALL, .name = "state_read", .arity = 1}, {.op = OP_RETURN}};
     Function functions[] = {
         {.name = "increment", .params = value_params, .param_count = 1,
          .ins = increment, .ins_count = 4, .pure = true},
@@ -203,9 +203,9 @@ static void deadlines_release_cells(void)
     Instruction identity[] = {{.op = OP_LOAD, .name = "value"}, {.op = OP_RETURN}};
     Instruction update[] = {{.op = OP_LOAD, .name = "cell"},
         {.op = OP_LOAD, .name = "callback"},
-        {.op = OP_CALL, .name = "$intrinsic_state_update", .arity = 2}, {.op = OP_RETURN}};
+        {.op = OP_CALL, .name = "state_update", .arity = 2}, {.op = OP_RETURN}};
     Instruction read[] = {{.op = OP_LOAD, .name = "cell"},
-        {.op = OP_CALL, .name = "$intrinsic_state_read", .arity = 1}, {.op = OP_RETURN}};
+        {.op = OP_CALL, .name = "state_read", .arity = 1}, {.op = OP_RETURN}};
     Function functions[] = {
         {.name = "loop", .params = value_params, .param_count = 1, .pure = true,
          .ins = loop, .ins_count = 1},
@@ -254,10 +254,10 @@ static void forged_effects_release_reservations(void)
 {
     char *params[] = {"value"};
     Instruction bad[] = {{.op = OP_LOAD, .name = "value"},
-        {.op = OP_CALL, .name = "$intrinsic_state_create", .arity = 1}, {.op = OP_RETURN}};
+        {.op = OP_CALL, .name = "state_create", .arity = 1}, {.op = OP_RETURN}};
     Instruction update[] = {{.op = OP_LOAD, .name = "value"},
         {.op = OP_CONST, .constant = {.tag = 3, .text = "bad", .text_length = 3}},
-        {.op = OP_CALL, .name = "$intrinsic_state_update", .arity = 2}, {.op = OP_RETURN}};
+        {.op = OP_CALL, .name = "state_update", .arity = 2}, {.op = OP_RETURN}};
     Function functions[] = {
         {.name = "bad", .params = params, .param_count = 1, .pure = true, .ins = bad, .ins_count = 3},
         {.name = "update", .params = params, .param_count = 1, .ins = update, .ins_count = 4}};
@@ -287,7 +287,7 @@ static void captured_transforms_and_payload_rejection(void)
     char *params[] = {"replacement", "value"}, *caller_params[] = {"cell", "callback"};
     Instruction replacement[] = {{.op = OP_LOAD, .name = "replacement"}, {.op = OP_RETURN}};
     Instruction update[] = {{.op = OP_LOAD, .name = "cell"}, {.op = OP_LOAD, .name = "callback"},
-        {.op = OP_CALL, .name = "$intrinsic_state_update", .arity = 2}, {.op = OP_RETURN}};
+        {.op = OP_CALL, .name = "state_update", .arity = 2}, {.op = OP_RETURN}};
     Function functions[] = {
         {.name = "replacement", .params = params, .param_count = 2, .pure = true,
          .ins = replacement, .ins_count = 2},
@@ -322,7 +322,7 @@ static void creation_effects(void)
 {
     char *params[] = {"value"};
     Instruction create[] = {{.op = OP_LOAD, .name = "value"},
-        {.op = OP_CALL, .name = "$intrinsic_state_create", .arity = 1}, {.op = OP_RETURN}};
+        {.op = OP_CALL, .name = "state_create", .arity = 1}, {.op = OP_RETURN}};
     Function function = {.name = "create", .params = params, .param_count = 1,
                          .ins = create, .ins_count = 3};
     Program program = {.functions = &function, .count = 1};
@@ -330,7 +330,7 @@ static void creation_effects(void)
         function.pure = mode == 2;
         function.is_async = mode == 1 || mode == 3;
         create[1].op = mode == 1 ? OP_AWAIT_CALL : OP_CALL;
-        create[1].name = mode == 1 ? "$intrinsic_state_create_async" : "$intrinsic_state_create";
+        create[1].name = mode == 1 ? "state_create_async" : "state_create";
         VM vm = {.program = &program};
         Value *initial = value_unit();
         const char *error = NULL;

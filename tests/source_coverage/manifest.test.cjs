@@ -13,6 +13,8 @@ test('the reviewed manifest accounts for every tracked production source', () =>
   const manifest = JSON.parse(fs.readFileSync('tests/source_coverage/manifest.json', 'utf8'));
   const tracked = execFileSync('git', ['ls-files', 'src'], {encoding: 'utf8'}).trim().split('\n').filter(p => p.endsWith('.panack')).sort();
   assert.deepEqual(validateManifest(manifest, tracked).unmeasured.map(entry => entry.path), [
+    'src/stdlib/state.panack',
+    'src/stdlib/state/async.panack',
     'src/stdlib/digest/sha256/errors.panack',
     'src/stdlib/compression/gzip/errors.panack',
     'src/stdlib/filesystem/errors.panack',

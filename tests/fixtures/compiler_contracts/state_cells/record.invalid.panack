@@ -1,0 +1,4 @@
+import stdlib/state as state
+record Box[T] { value: T }
+pure identity(value: Nat): Nat { value }
+main(): Void { cell = state.create(Box(@identity)) }

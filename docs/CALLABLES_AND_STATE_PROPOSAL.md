@@ -341,7 +341,7 @@ CS1 is accepted after local and hosted integration validation.
 | --- | --- | --- | --- | --- |
 | CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | Complete: PR #701 and integration run 46042786755 passed | 20 |
 | CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | Complete: PRs #704/#705; integration run 46067730132 passed | 30 |
-| CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | In progress: VM cells and execution scheduling | 0 |
+| CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | In progress: source APIs and runtime; acceptance audit remains | 0 |
 | CS4 | Both service examples, installed acceptance, reference and website guidance | 20 | Planned | 0 |
 | Total | Working callable/state feature | 100 | CS1–CS2 accepted; CS3 in progress; CS4 planned | 50 |
 
@@ -778,3 +778,36 @@ named-callable representation, user diagnostics and source/bytecode acceptance
 remain. This checkpoint establishes runtime scheduling behaviour, not completion
 of CS3 or the public untrusted-bytecode payload contract. CS3 remains 0/30 and
 the accepted programme remains 50/100.
+
+### CS3 source API checkpoint, 27 November 2026
+
+The candidate compiler supports `stdlib/state` and `stdlib/state/async` with
+`create`, `read` and `update`, sharing `State[T]`. Primitive grants are limited to
+those toolchain declarations. The operations are effectful; update requires
+`PureFn[T,T]`. Checked call results reject cells, callables and resources inside
+payload types, including the tested generic record/wrapper instantiation.
+Runtime payload admission remains the backstop for erased generic values.
+
+Newly compiled function references are tagged callable values rather than strings,
+so State can reject them without rejecting ordinary text. Existing v9 string-target
+callables still execute; the bytecode format is unchanged. Captured-function
+construction accepts both representations. An initial lowering change used a raw
+string for the generated function target and therefore lost its reachability edge;
+the retained-callback source test caught this. Function expressions now retain that
+edge and the constructor accepts the checked reference.
+
+`tests/state_cells.sh` covers ordinary/async source and saved-bytecode execution,
+retained State captures, named/anonymous updates, identity equality, string payloads,
+and rejection of nested cells/callables/resources and impure use. It is registered
+in functional validation. Candidate checks pass, as do the existing named/anonymous
+function transcripts and 2,313 binding/cache assertions. Native State/closure and
+sanitizer checks pass; 59 State/reference allocation-failure sites pass. Both new
+modules are registered as unmeasured in the source-coverage inventory, with their
+focused evidence named; the existing bounded corpus is unchanged. Reviewed manifest
+and declaration-exclusion hashes are refreshed and policy tests pass.
+
+Remaining acceptance: audit generic/recursive type admission and the full untrusted
+bytecode contract, refine State-specific diagnostics/explanation evidence, extend
+rejection coverage, and complete bootstrap/artifact compatibility and one final full
+validation before integration. This is a development checkpoint, not completed CS3.
+No CI ran. CS3 earns 0/30; accepted programme progress remains 50/100.

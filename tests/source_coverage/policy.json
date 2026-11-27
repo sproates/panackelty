@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Include retained-capture explanation source and review current declaration exclusions after CS2 integration.",
+    "reason": "Register State module source and review declaration exclusions after the CS3 API changes.",
     "basis": "Computed with the production parser and inventory_module over every eligible source. Only imports, type refinements, records and enums are excluded; executable functions remain eligible.",
-    "scopeChange": "Add capture_explanations.panack to eligible compiler sources. The existing compiler_module_bindings unit corpus exercises its lexical origins. Existing corpus and unmeasured source list are unchanged; no coverage percentage is claimed."
+    "scopeChange": "Add the two State modules to the unmeasured inventory; dedicated source/bytecode and native scheduler tests cover them outside the bounded corpus. Eligible source and corpus membership are unchanged; no coverage percentage is claimed."
   },
-  "manifestHash": "996b9ea97ec4c88ac7649582040faad12df04e1e7dff15a95f3ababd6d488fcb",
-  "exclusionHash": "7890dea56a28627642ce3e6f8d54319d4a54a5656a1abfc909ceba271db38253"
+  "manifestHash": "603461fc1809202e535a12c14265c82e8cd530232dbf018351f3d6baaa563029",
+  "exclusionHash": "e78ae95bbfebc58ad101c9736baa30da01fd24f34f45005397d066ea849313b5"
 }

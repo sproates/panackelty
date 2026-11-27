@@ -1,0 +1,15 @@
+import stdlib/state as state
+pure increment(value: Nat): Nat { value + 1 }
+main(): Void {
+  cell = state.create[Nat](0)
+  print(state.read(cell))
+  print(state.update(cell, @increment))
+  print(state.update(cell, pure (value) => value + 1))
+  print(state.read(cell))
+  alias = cell
+  other = state.create(2)
+  print(alias == cell)
+  print(other == cell)
+  text = state.create("hello")
+  print(state.update(text, (value) => value + "!"))
+}

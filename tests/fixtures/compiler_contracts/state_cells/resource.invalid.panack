@@ -1,0 +1,7 @@
+import stdlib/state as state
+record Envelope[T] { value: T }
+make[T](value: T): State[T] { state.create(value) }
+bad(resource: Sha256Context): Void {
+  cell = make(Envelope(resource))
+}
+main(): Void { print("unreachable") }

@@ -1199,6 +1199,20 @@ void process_async_faults(void);
 
 static Value *state_fixture, *state_cell_fixture;
 
+static Value *function_reference_fixture;
+
+static void function_reference_allocations(void)
+{
+    Function function = {.name = "target"};
+    Program program = {.functions = &function, .count = 1};
+    VM vm = {.program = &program};
+    Value *result = builtin_call(&vm, "$intrinsic_function", &function_reference_fixture);
+    if (fault_triggered()) assert(!result && vm.error);
+    else assert(result && result->kind == V_CLOSURE && result->as.named.count == 0);
+    release(result);
+    assert(function_reference_fixture->refs == 1);
+}
+
 static size_t state_execution_mode;
 
 static void state_execution_allocations(void)
@@ -1207,7 +1221,7 @@ static void state_execution_allocations(void)
     Instruction identity[] = {{.op = OP_LOAD, .name = "value"}, {.op = OP_RETURN}};
     Instruction update[] = {{.op = OP_LOAD, .name = "value"},
         {.op = OP_CONST, .constant = {.tag = 3, .text = "identity", .text_length = 8}},
-        {.op = OP_CALL, .name = "$intrinsic_state_update", .arity = 2}, {.op = OP_RETURN}};
+        {.op = OP_CALL, .name = "state_update", .arity = 2}, {.op = OP_RETURN}};
     Function functions[] = {
         {.name = "identity", .params = params, .param_count = 1, .pure = true,
          .ins = identity, .ins_count = 2},
@@ -1279,6 +1293,9 @@ int main(int argc, char **argv)
     assert(state_fixture && state_cell_fixture && state_status == STATE_OK);
     sweep("State creation admission and ownership", state_creation_allocations);
     sweep("State commit failure and reservation rollback", state_commit_allocations);
+    function_reference_fixture = value_data(V_STR, (const uint8_t *)"target", 6);
+    sweep("tagged function reference", function_reference_allocations);
+    release(function_reference_fixture);
     for (state_execution_mode = 0; state_execution_mode < 4; state_execution_mode++)
         sweep("State execution commit, suspension and cancellation", state_execution_allocations);
     release(state_cell_fixture);

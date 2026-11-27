@@ -1,0 +1,8 @@
+import stdlib/state/async as state
+async main(): Unit {
+  cell = await state.create[Nat](0)
+  value = await state.update(cell, (previous) => previous + 1)
+  snapshot = await state.read(cell)
+  checked = [0][if value == 1 && snapshot == 1 { 0 } else { 1 }]
+  ()
+}

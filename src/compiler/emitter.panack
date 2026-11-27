@@ -1113,7 +1113,9 @@ pure emit_expression_at(
       if retain_sources {
         sources = add_instruction_source(sources, origin, offset, false)
       }
-      instructions: [Instruction] = [ConstInstruction(StringConstant(name))]
+      if retain_sources { sources = add_instruction_source(sources, origin, offset + 1, false) }
+      instructions: [Instruction] = [ConstInstruction(StringConstant(name)),
+        CallInstruction("$intrinsic_function", 1)]
       EmittedCode(instructions, next_temporary, sources, probes)
     },
     ArrayExpr(items) => {

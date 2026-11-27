@@ -253,6 +253,7 @@ functional-impl: package-tool $(BUILD_DIR)/vm/static_http_client $(STAGE2_COMPIL
 	@PANACK_TCP_CANONICAL_ERRORS=1 PANACK_TCP_SERVER="$(abspath $(BUILD_DIR)/vm/tcp_server)" $(PROFILE) functional/tcp-domain-errors sh tests/tcp.sh
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/http-package sh tests/http_package.sh
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/http-closures sh tests/http_closures.sh
+	@$(PROFILE) functional/state-cells sh tests/state_cells.sh
 	@$(PROFILE) functional/async-stdlib sh tests/async_stdlib.sh
 	@$(PROFILE) functional/console sh tests/console.sh
 	@$(PROFILE) functional/stdlib-support sh tests/stdlib_support.sh

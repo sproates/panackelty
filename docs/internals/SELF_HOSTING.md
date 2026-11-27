@@ -823,5 +823,5 @@ CS2 candidate compilation now supports immutable retained captures, including
 returned/nested/generic closures and retained HTTP/TCP handlers. The checker
 records capture decisions for text and terminal explanations with lexical origin
 links. Bootstrap refresh passed byte-identical stages and stdlib conformance;
-full local make check passed in 725s. Integration acceptance remains pending.
+full local make check passed in 725s. CS2 integration acceptance passed in run 46067730132 for `31422e0`.
 This is not State support or release acceptance.

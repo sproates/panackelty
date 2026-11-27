@@ -340,10 +340,10 @@ CS1 is accepted after local and hosted integration validation.
 | Slice | Deliverable | Weight | Status | Earned |
 | --- | --- | --- | --- | --- |
 | CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | Complete: PR #701 and integration run 46042786755 passed | 20 |
-| CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | Local acceptance passed in 725s; integration pending | 0 |
+| CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | Complete: PRs #704/#705; integration run 46067730132 passed | 30 |
 | CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | Planned | 0 |
 | CS4 | Both service examples, installed acceptance, reference and website guidance | 20 | Planned | 0 |
-| Total | Working callable/state feature | 100 | CS1 accepted; CS2 in progress, CS3–CS4 planned | 20 |
+| Total | Working callable/state feature | 100 | CS1–CS2 accepted; CS3–CS4 planned | 50 |
 
 Order: CS1, then CS2 and CS3, then CS4. CS3 can use named pure callbacks; it need
 not depend on closure syntax. Implement related work in a development branch with
@@ -703,3 +703,15 @@ production parser/inventory (53 eligible files, 556 excluded declarations). No
 executable code or coverage threshold is excluded or relaxed. All 77 hosted-policy
 tests pass locally. Product code is unchanged from the 725s full validation.
 CS2 acceptance awaits the repaired integration gate; programme progress stays 20/100.
+
+CS2 complete, 27 November: retained captures and explanations merged through
+[PR #704](https://github.com/sproates/panackelty/pull/704); coverage inventory was
+reconciled in [PR #705](https://github.com/sproates/panackelty/pull/705).
+[Integration run 46067730132](https://github.com/sproates/panackelty/actions/runs/46067730132)
+passed for `31422e0`, including both platform package checks, coverage policy and
+the integration gate. Full local make check passed in 725s; focused terminal,
+CLI, cache, lifetime, allocation-failure and sanitizer evidence is recorded above.
+CS2 earns 30/30 points. CS1 remains 20/20; CS3 State (30) and CS4 combined examples,
+installed acceptance and website guidance (20) remain planned. Accepted programme
+progress is 50/100. RM#162 remains open; there is no separate CS2 issue to close.
+No State implementation, release or website publication is claimed.

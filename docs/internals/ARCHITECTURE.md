@@ -2160,7 +2160,7 @@ internal closure values and validate the target, combined arity and call effect.
 Captures occupy the parameter prefix; ordinary frame ownership retains them
 through suspension and releases them on completion, cancellation or trap. Named
 callable representation is unchanged. Capture explanations and local CS2 validation
-are complete; integration acceptance remains pending.
+are complete; integration acceptance passed in run 46067730132 for `31422e0`.
 
 Retained host callbacks use a borrowed VMCallable descriptor containing the target
 function and optional closure. HTTP state retains registered values; TCP servers

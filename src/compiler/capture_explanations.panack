@@ -1,0 +1,109 @@
+pub import project/src/compiler/module_bodies::{BoundFunctionBody}
+import project/src/compiler/module_bodies::{BoundBody, BodyLocalIdentity, body_evidence_children, BodyNode.BodyBinding, BodyNode.BodyFor, BodyNode.BodyMatch, BodyNode.BodyLocalUse, BodyNode.BodyAnonymousFunction, BodyNode.BodyLiteral, BodyNode.BodyInterpolation, BodyNode.BodyFunction, BodyNode.BodyCall, BodyNode.BodyArray, BodyNode.BodyUnary, BodyNode.BodyBinary, BodyNode.BodyField, BodyNode.BodyIndex, BodyNode.BodyIf, BodyNode.BodyBlock, BodyNode.BodyAssignment, BodyNode.BodyWhile, BodyNode.BodyEmpty}
+pub import project/src/compiler/types::{SourceSpan}
+
+// Follow retained lexical identities, including shadowing; never guess an origin
+// from a variable name or parse a diagnostic. Parameter origins show the function.
+pure captured_identity(body: BoundBody, site: SourceSpan): Option[BodyLocalIdentity] {
+  mut result: Option[BodyLocalIdentity] = None()
+  match body.node {
+    BodyBinding(local, type, mutable, inferred, evidence) => {},
+    BodyFor(local) => {},
+    BodyMatch(targets, bindings, spans) => {},
+    BodyLocalUse(local, domain) => { if body.span == site { result = Some(local) } },
+    BodyAnonymousFunction(function) => {},
+    BodyLiteral(value) => {},
+    BodyInterpolation(parts) => {},
+    BodyFunction(binding) => {},
+    BodyCall(target, types, arguments) => {},
+    BodyArray() => {},
+    BodyUnary(operator) => {},
+    BodyBinary(operator) => {},
+    BodyField(name) => {},
+    BodyIndex() => {},
+    BodyIf(has_else) => {},
+    BodyBlock(tail, span, spans) => {},
+    BodyAssignment(local, evidence) => {},
+    BodyWhile() => {},
+    BodyEmpty() => {},
+  }
+  for child in body_evidence_children(body) {
+    if result == None() { result = captured_identity(child, site) }
+  }
+  result
+}
+
+pure binding_origin(body: BoundBody, identity: BodyLocalIdentity): Option[SourceSpan] {
+  mut result: Option[SourceSpan] = None()
+  match body.node {
+    BodyBinding(local, type, mutable, inferred, evidence) => { if local == identity { result = Some(body.span) } },
+    BodyFor(local) => { if local == identity { result = Some(body.span) } },
+    BodyMatch(targets, bindings, spans) => { for arm in bindings { for local in arm { if local == identity { result = Some(body.span) } } } },
+    BodyLocalUse(local, domain) => {},
+    BodyAnonymousFunction(function) => { if function.signature.binding.identity == identity.owner { for parameter in function.parameters { if parameter.identity == identity { result = Some(function.signature.binding.span) } } } },
+    BodyLiteral(value) => {},
+    BodyInterpolation(parts) => {},
+    BodyFunction(binding) => {},
+    BodyCall(target, types, arguments) => {},
+    BodyArray() => {},
+    BodyUnary(operator) => {},
+    BodyBinary(operator) => {},
+    BodyField(name) => {},
+    BodyIndex() => {},
+    BodyIf(has_else) => {},
+    BodyBlock(tail, span, spans) => {
+      for index in 0..body.children.len() {
+        match body.children[index].node {
+          BodyBinding(local, type, mutable, inferred, evidence) => { if local == identity && index < spans.len() { result = Some(spans[index]) } },
+          BodyFor(local) => {},
+          BodyMatch(child_targets, child_bindings, child_spans) => {},
+          BodyLocalUse(local, domain) => {  },
+          BodyAnonymousFunction(function) => {},
+          BodyLiteral(value) => {},
+          BodyInterpolation(parts) => {},
+          BodyFunction(binding) => {},
+          BodyCall(target, types, arguments) => {},
+          BodyArray() => {},
+          BodyUnary(operator) => {},
+          BodyBinary(operator) => {},
+          BodyField(name) => {},
+          BodyIndex() => {},
+          BodyIf(has_else) => {},
+          BodyBlock(child_tail, child_span, child_spans) => {},
+          BodyAssignment(local, evidence) => {},
+          BodyWhile() => {},
+          BodyEmpty() => {},
+        }
+      }
+    },
+    BodyAssignment(local, evidence) => {},
+    BodyWhile() => {},
+    BodyEmpty() => {},
+  }
+  for child in body_evidence_children(body) {
+    if result == None() { result = binding_origin(child, identity) }
+  }
+  result
+}
+
+pub pure capture_explanation_origin(functions: [BoundFunctionBody], site: SourceSpan): Option[SourceSpan] {
+  mut identity: Option[BodyLocalIdentity] = None()
+  for function in functions {
+    if identity == None() { identity = captured_identity(function.body, site) }
+  }
+  mut result: Option[SourceSpan] = None()
+  match identity {
+    None() => {},
+    Some(local) => {
+      for function in functions {
+        if result == None() { result = binding_origin(function.body, local) }
+        if result == None() && function.signature.binding.identity == local.owner {
+          for parameter in function.parameters {
+            if parameter.identity == local { result = Some(function.signature.binding.span) }
+          }
+        }
+      }
+    }
+  }
+  result
+}

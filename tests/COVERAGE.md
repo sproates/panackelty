@@ -2399,3 +2399,16 @@ combinations. The anonymous-function fixture checks repeated captured array/rang
 iteration and per-iteration capture values. Binding/cache tests: 2,265 passed.
 The existing zero-grace TCP assertion failed once before passing on retry and
 under sanitizers; final broad validation remains pending with CS2 acceptance.
+
+CS2 capture explanations: focused tests cover accepted, mutable and resource
+captures, generic values, shadowed parameters, declaration origins, evidence-free
+ordinary compilation and cache round trips. CLI cases assert lifetime wording,
+rejection guidance and declaration context. The terminal regression opens a
+capture decision and follows its source. Final broad acceptance remains pending.
+
+CS2 local acceptance: full make check passed in 725s on 27 November, including
+the public HTTP closure fixture, functional explanations, packaging and relocation.
+The binding/cache suite passed 2,313 assertions; 123 CLI explanation cases and the
+terminal capture/origin regression passed. The zero-grace TCP case passed in the
+full run. Bootstrap fixed point and stdlib conformance passed. Integration remains
+pending; no further full run is needed solely for subsequent status Markdown.

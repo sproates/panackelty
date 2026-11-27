@@ -324,5 +324,5 @@ rules. The compiler rejects a combined parameter count above the existing u8
 limit of 255. Function types remain erased, so runtime primitive checks still
 apply to forged inputs. Host-retained HTTP/TCP callbacks use the same checked
 capture prefix. Each loop over a captured iterable creates a fresh cursor; raw
-internal iterator cursors remain ineligible. Source closure acceptance and
-bootstrap refresh remain pending.
+internal iterator cursors remain ineligible. Bootstrap refresh and full local
+validation passed; CS2 integration acceptance remains pending.

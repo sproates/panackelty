@@ -5869,8 +5869,28 @@ pure bind_anonymous_body(
               None() => {},
               Some(type) => { capture_slots = capture_slots.append(SignatureSlot(identity.name, type)) }
             }
-            capture_values = capture_values.append(body_result(BodyLocalUse(identity,
-              captured_domain_facts(outer, identity)), capture.span, [], anonymous_local_type(outer, local)).body)
+            captured = body_result(BodyLocalUse(identity,
+              captured_domain_facts(outer, identity)), capture.span, [], anonymous_local_type(outer, local)).body
+            mut capture_checks: [BodyTypeCheckEvidence] = []
+            if context.retain_guard_conversions {
+              restricted = match capture.type {
+                None() => false, Some(type) => anonymous_resource_type(context, type, [])
+              }
+              allowed = !local.mutable && !restricted
+              reason = if local.mutable {
+                "The binding is mutable. Bind an immutable snapshot first, or pass the value as an argument."
+              } else if restricted {
+                "The value contains a native resource whose lifetime cannot belong to a closure. Pass the value as an argument instead."
+              } else {
+                "The closure retains this immutable binding's value when it is created, so the value remains available after the creating function returns. Panack checks the actual captured value for restricted resources at creation."
+              }
+              capture_checks = [BodyTypeCheckEvidence("capture " + identity.name, capture.span,
+                captured.type, "an immutable binding with no retained native resources", captured.type,
+                Some(allowed), reason, None())]
+            }
+            capture_values = capture_values.append(BoundBody(captured.node, captured.span, captured.children,
+              captured.type, captured.constraints, captured.guard_conversions, captured.type_joins,
+              captured.callback_contracts, captured.operator_checks, capture_checks))
           },
           BodyLiteral(v) => {}, BodyInterpolation(parts) => {}, BodyFunction(function_binding) => {},
           BodyAnonymousFunction(anonymous) => {}, BodyCall(target, types, evidence) => {}, BodyArray() => {},

@@ -940,3 +940,33 @@ retry and under sanitizers. No timeout or assertion was weakened; watch this
 case during final validation. Capture explanations, bootstrap refresh, public
 launcher/full validation and integration remain. CS2 is not accepted; programme
 progress remains 20/100. No development CI or website publication.
+
+CS2 explanation checkpoint, 27 November: the checker now records capture eligibility
+and reasons in explanation mode. Text and terminal views show accepted/rejected
+captures and follow lexical identities to declaration context, including shadowed
+parameters. Evidence is not inferred from diagnostic text. The ordinary body cache
+retains lexical identities but omits explanation evidence; explain checks source
+afresh. No cache-schema or bytecode-format change is needed. The terminal's generated
+instruction description names closure creation rather than its reserved intrinsic.
+Candidate CLI explanation checks pass (123 cases), and unchanged-program bytecode
+contracts pass. Bootstrap refresh and final local validation are in progress.
+CS2 remains unaccepted and programme progress stays 20/100. CS3 State and CS4 final
+examples/installed/website acceptance remain planned; no website publication or
+CI has been started by this development checkpoint.
+
+CS2 local acceptance, 27 November: full `make check` passed in 725s, including
+unit/functional suites, fixed-point bootstrap, packaging, relocation and quick
+start. The existing zero-grace TCP assertion passed in this full run. Focused
+capture checks passed 2,313 binding/cache assertions and 123 CLI cases; terminal
+navigation, capture origin and TTY restoration passed. Bootstrap compiler and
+stdlib conformance outputs matched across stages. Unchanged-program bytecode
+compatibility and native closure lifetime/allocation/sanitizer checks passed.
+The 725s broad run versus CS1's 708s is not a controlled performance comparison;
+existing historical advisory budget warnings remain unchanged.
+
+CS2 implementation and local acceptance are ready for integration. CS2 remains
+unaccepted until next integration CI passes; no task points are earned early.
+CS1 remains 20/20, CS2 0/30 pending integration, CS3 State 0/30 and CS4 examples/
+installed/website acceptance 0/20. Programme accepted progress remains 20/100.
+RM#162 stays open; CS2 has no separate issue to close. The existing CS4 website
+follow-up covers closure examples/reference updates; nothing is published here.

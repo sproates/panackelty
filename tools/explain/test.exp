@@ -92,3 +92,15 @@ file delete -force $work
 if {$failed} {error $reason}
 
 puts "Passed terminal selection, proof, source origin, back navigation, successful compilation and terminal restoration."
+
+# Inspect a retained value and follow its lexical declaration.
+launch tools/explain/samples/capture.panack greeting
+see "Project compiles"
+send "\033\[B\033\[B\r"
+see "capture message"
+send "\033\[B\033\[B\r"
+see "after the creating function returns"
+send "\r"
+see "Captured binding declared here"
+see {message = "Hello from the retained value"}
+finish q

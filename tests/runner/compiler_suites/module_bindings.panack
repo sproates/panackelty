@@ -1,3 +1,5 @@
+import project/src/compiler/body_cache_codec::{encode_checked_bodies, decode_checked_bodies}
+import project/src/compiler/capture_explanations::{capture_explanation_origin}
 import project/src/compiler/module_bindings::{module_internal_primitive, module_internal_primitive_name}
 import project/tests/runner/compiler_suites/module_summaries::{module_summary_tests}
 import project/src/compiler/module_bindings::{ModuleBodyAvailability.CompleteModuleBodies}
@@ -5300,6 +5302,53 @@ pure stdlib_nominal_identity_tests(): [TestResult] {
 // Every nested body has its own effect mode; cached effect facts must agree.
 pure anonymous_body_tests(): [TestResult] {
   mut results: [TestResult] = []
+  for item in [
+    ["pure f(): PureFn[Nat] { x: Nat = 3; () => x }", "true", "x: Nat = 3", "The closure retains"],
+    ["pure f(): PureFn[Nat] { mut x: Nat = 3; () => x }", "false", "mut x: Nat = 3", "The binding is mutable"],
+    ["pure f(x: Sha256Context): PureFn[Sha256Context] { () => x }", "false", "pure f", "The value contains a native resource"],
+    ["pure f(x: Nat): PureFn[Nat] { () => x }", "true", "pure f", "The closure retains"],
+    ["pure f[T](x: T): PureFn[T] { () => x }", "true", "pure f", "The closure retains"],
+    ["pure f(x: Nat): PureFn[Nat,PureFn[Nat]] { (x) => () => x }", "true", "(x) =>", "The closure retains"]
+  ] {
+    capture_checked = body_test_module(item[0])
+    cached_captures = decode_checked_bodies(encode_checked_bodies(capture_checked.functions))
+    results = results.append(std_testing.expect("capture identities decode from body cache", cached_captures != None(), item[0]))
+    mut capture_count: Nat = 0
+    for function in capture_checked.functions {
+      for evidence in body_type_check_evidence(function.body) {
+        if evidence.context.starts_with("capture ") {
+          capture_count = capture_count + 1
+          results = results.append(std_testing.expect("capture decision retained", evidence.accepted == Some(item[1] == "true"), item[0]))
+          results = results.append(std_testing.expect("capture reason retained", evidence.reason.starts_with(item[3]), evidence.reason))
+          match cached_captures {
+            None() => {},
+            Some(cached_functions) => {
+              results = results.append(std_testing.expect("cached capture origin agrees with fresh binding",
+                capture_explanation_origin(cached_functions,evidence.span) == capture_explanation_origin(capture_checked.functions,evidence.span),item[0]))
+              mut cached_evidence: Nat = 0
+              for cached_function in cached_functions { cached_evidence = cached_evidence + body_type_check_evidence(cached_function.body).len() }
+              results = results.append(std_testing.equal_nat("body cache does not claim fresh explanation evidence",cached_evidence,0))
+            }
+          }
+          match capture_explanation_origin(capture_checked.functions, evidence.span) {
+            None() => { results = results.append(std_testing.expect("capture origin retained", false, item[0])) },
+            Some(site) => { results = results.append(std_testing.expect("capture origin follows lexical binding",
+              item[0].slice(site.start.offset,site.end.offset).starts_with(item[2]), item[0].slice(site.start.offset,site.end.offset))) }
+          }
+        }
+      }
+    }
+    results = results.append(std_testing.equal_nat("one capture decision per closure",capture_count,1))
+    plain_capture = body_test_module_mode(item[0],false)
+    mut plain_count: Nat = 0
+    for function in plain_capture.functions {
+      for evidence in body_type_check_evidence(function.body) {
+        if evidence.context.starts_with("capture ") { plain_count = plain_count + 1 }
+      }
+    }
+    results = results.append(std_testing.equal_nat("ordinary compilation retains no capture explanations",plain_count,0))
+  }
+
   evidence_source = "pure f(): [PureFn[Nat,Nat]] { [(x) => x + 1] }"
   explained = body_test_module(evidence_source)
   operators = body_operator_type_evidence(explained.functions[0].body)

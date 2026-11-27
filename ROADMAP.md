@@ -857,3 +857,6 @@ and hosted acceptance. CS2–CS4 remain planned. Accepted implementation points
 stay at zero until integration acceptance; RM#162 remains open. The measured
 full-run duration is evidence, not a new performance target. No development CI
 or website publication occurred.
+
+
+CS1 merged into next through [PR #701](https://github.com/sproates/panackelty/pull/701) at `14b709d` on 27 November. [Integration run 46042786755](https://github.com/sproates/panackelty/actions/runs/46042786755) is running; hosted acceptance remains pending. Local make check passed in 708s. CS2–CS4 remain planned; accepted implementation contribution stays zero until that run is verified.

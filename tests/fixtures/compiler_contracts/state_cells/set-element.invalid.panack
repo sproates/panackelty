@@ -1,0 +1,2 @@
+import stdlib/state as state
+main(): Void { cells = set().add(state.create(0)) }

@@ -279,6 +279,14 @@
       [
         "checks",
         "[EffectCheckFact]"
+      ],
+      [
+        "state_payloads",
+        "[SignatureType]"
+      ],
+      [
+        "state_calls",
+        "[StateCallFact]"
       ]
     ],
     "EncodedFunction": [
@@ -530,6 +538,20 @@
       [
         "annotation",
         "?ParsedTypeRef"
+      ]
+    ],
+    "StateCallFact": [
+      [
+        "target",
+        "DeclarationIdentity"
+      ],
+      [
+        "arguments",
+        "[SignatureType]"
+      ],
+      [
+        "span",
+        "SourceSpan"
       ]
     ]
   },
@@ -976,7 +998,8 @@
     "module_effects": [
       "EffectCallFact",
       "EffectCheckFact",
-      "FunctionEffectFacts"
+      "FunctionEffectFacts",
+      "StateCallFact"
     ],
     "bytecode/codec": [
       "EncodedFunction"

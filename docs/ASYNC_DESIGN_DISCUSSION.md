@@ -642,3 +642,66 @@ CS2 earns 30/30 points. CS1 remains 20/20; CS3 State (30) and CS4 combined examp
 installed acceptance and website guidance (20) remain planned. Accepted programme
 progress is 50/100. RM#162 remains open; there is no separate CS2 issue to close.
 No State implementation, release or website publication is claimed.
+
+CS3 started, 27 November: the internal VM cell/reservation foundation is implemented
+on `feature/rm162-state-cells`. Focused State/closure tests, sanitizer checks and
+17 allocation-failure sites pass. Scheduler integration, ordinary/async APIs and
+compiler/runtime callable-payload checks remain, followed by final validation.
+See the [CS3 checkpoint](CALLABLES_AND_STATE_PROPOSAL.md#cs3-runtime-foundation-27-november-2026).
+No CI was triggered. CS3 earns 0/30; accepted programme progress remains 50/100.
+
+CS3 execution checkpoint, 27 November: internal ordinary/async State operations
+now use budgeted callback execution, wait polling and reservation cleanup.
+Controlled contention/cancellation/deadline tests, the complete native module
+suite, sanitizer checks and 57 State allocation-failure cases pass. Public APIs,
+compiler admission and final source/bytecode acceptance remain. See the
+[scheduling checkpoint](CALLABLES_AND_STATE_PROPOSAL.md#cs3-execution-scheduling-27-november-2026).
+CS3 remains in progress (0/30); accepted programme progress remains 50/100. No CI.
+
+CS3 source API checkpoint, 27 November: ordinary/async State modules now compile
+and execute through the candidate, including a closure retaining a cell. Source
+and saved-bytecode tests, payload/effect rejection cases, existing callable
+transcripts and 2,313 binding/cache assertions pass. Tagged function references
+preserve old-bytecode execution while distinguishing new callbacks from strings.
+See the [source checkpoint](CALLABLES_AND_STATE_PROPOSAL.md#cs3-source-api-checkpoint-27-november-2026)
+for remaining admission, diagnostic and final-validation work. CS3 remains 0/30;
+programme acceptance remains 50/100. No CI ran.
+
+CS3 generic admission checkpoint, 27 November: hidden, transitive and anonymous
+generic State requirements now survive code-cache reuse and caller edits. Recursive
+requirements converge over parameter indices. Nested State/callback collection keys
+are rejected while existing record keys remain supported; the earlier scalar-only
+description was inaccurate. Focused source/bytecode and complete native regressions
+pass, including the malformed-bytecode unwind fix, sanitizer regression and 59
+allocation-failure cases. See the [admission checkpoint](CALLABLES_AND_STATE_PROPOSAL.md#cs3-generic-admission-checkpoint-27-november-2026).
+Bootstrap, final validation and integration remain; CS3 is 0/30 and the programme
+is 50/100 accepted. No CI triggered.
+
+### CS3 local acceptance, 28 November 2026
+
+Ordinary and async State cells now pass final local `make check` in 725 seconds,
+including native, compiler, functional, bootstrap, archive relocation and quick-start
+checks. The final seed is `987b93428bd3bb92becfa011c376d9379ebe97dc03ba9037b822cfbecd78331e`;
+three bootstrap stages are byte-identical and stdlib artifacts/output agree.
+Unchanged-program artifact checks pass. The full run includes 2,313 binding/cache
+assertions, State source/bytecode and cold/warm caller-edit acceptance. Separate
+sanitizer and 59 allocation-failure checks passed during development.
+
+The final audit gives forged handles a specific diagnostic, preserves source spans
+for tagged named references, and documents State ownership, cancellation and generic
+type erasure. Four old test expectations were corrected after reviewing the emitted
+instruction offsets and package members: one disassembly, two instruction-source
+traces, and the inventory entries for the two new modules. The final full run has
+no failures. Runtime payload/callback safety remains enforced with v9 bytecode;
+source generic/refinement proofs are not reconstructed from erased bytecode.
+
+Performance: the final full run is comparable to CS2's 725-second run, with no new
+numeric budget claim. Collection-key checks use a propagated flag rather than a
+recursive walk per lookup; generic obligations converge over finite parameter sets.
+Existing historical validation-budget warnings remain informational.
+
+CS3 implementation and local acceptance are complete, pending next integration
+checks. CS3 earns 0/30 until that result; CS1 and CS2 retain 20/20 and 30/30.
+CS4 combined HTTP examples, installed acceptance and website guidance remains 0/20.
+Accepted programme progress is 50/100. RM#162 stays open; CS3 has no separate issue.
+Website follow-up remains with CS4; no release or website publication is claimed.

@@ -150,7 +150,7 @@ pub pure decode_checked_bodies(data: Bytes): Option[[BoundFunctionBody]] {
 
 pub pure encode_module_code(bodies: CachedModuleCode): Bytes {
   pool = collect_CachedModuleCode(CachePool(map(), [], map(), []), bodies)
-  mut chunks: [Bytes] = ["PANACK-CODE-1\n".encode_utf8(), encode_u32(pool.texts.len())]
+  mut chunks: [Bytes] = ["PANACK-CODE-2\n".encode_utf8(), encode_u32(pool.texts.len())]
   for text in pool.texts { chunks = chunks.append(encode_text(text)) }
   chunks = chunks.append(encode_u32(pool.types.len()))
   for type in pool.types {
@@ -162,7 +162,7 @@ pub pure encode_module_code(bodies: CachedModuleCode): Bytes {
 }
 
 pub pure decode_module_code(data: Bytes): Option[CachedModuleCode] {
-  magic = "PANACK-CODE-1\n".encode_utf8()
+  magic = "PANACK-CODE-2\n".encode_utf8()
   if data.length() < magic.length() || byte_buffer.slice(data, 0, magic.length()) != magic { None() }
   else {
     count = read_count(CacheReader(data, magic.length(), true, 0, [], [], 0))

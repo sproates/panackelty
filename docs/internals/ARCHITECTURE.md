@@ -2175,3 +2175,14 @@ The text renderer and terminal explorer resolve origins through retained lexical
 identities, including nested parameter shadowing, and existing statement spans.
 This introduces no body-cache schema or bytecode-format change. Ordinary
 compilation does not collect this presentation evidence.
+
+### Shared State cells
+
+The ordinary and async State modules expose one compiler-owned `State[T]` type.
+The checker enforces payload eligibility and pure update callbacks; module effect
+facts carry generic payload obligations through call graphs and cached code.
+The private code-cache format is PANACK-CODE-2; encoded bytecode remains v9.
+The VM's `state.c` owns payload admission and reservation ownership. The execution
+scheduler invokes transforms on budgeted frames and commits at their return
+boundary, releasing reservations on every unwind. See the
+[State memory contract](../../src/vm/VALUE_MODEL.md#state-ownership-and-collection-keys).

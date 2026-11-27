@@ -1,0 +1,3 @@
+import stdlib/state as state
+pure identity(value: Nat): Nat { value }
+main(): Void { cell = state.create(@identity) }

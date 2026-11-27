@@ -18,6 +18,7 @@
  */
 struct ArrayStorage {
     size_t refs, count, capacity;
+    bool sealed;
     Value **items;
 };
 
@@ -27,6 +28,7 @@ Value *value_new(ValueKind kind)
     if (v) {
         v->refs = 1;
         v->kind = kind;
+        v->key_forbidden = kind == V_STATE || kind == V_CLOSURE;
     }
     return v;
 }
@@ -45,6 +47,9 @@ void release(Value *v)
         return;
     }
     switch (v->kind) {
+    case V_STATE:
+        release(v->as.state.payload);
+        break;
     case V_SHA256_CONTEXT:
         digest_owner_release(v->as.sha256.owner);
         break;
@@ -259,6 +264,7 @@ Value *value_array_concat(const Value *left, const Value *right)
         free(v);
         return NULL;
     }
+    v->key_forbidden = left->key_forbidden || right->key_forbidden;
     v->as.sequence.count = n + m;
     for (size_t i = 0; i < n; i++) {
         v->as.sequence.items[i] = retain(left->as.sequence.items[i]);
@@ -283,6 +289,7 @@ Value *value_sequence(ValueKind kind, Value **items, size_t count)
     v->as.sequence.count = count;
     for (size_t i = 0; i < count; i++) {
         v->as.sequence.items[i] = retain(items[i]);
+        v->key_forbidden = v->key_forbidden || !items[i] || items[i]->key_forbidden;
     }
     return v;
 }
@@ -319,6 +326,10 @@ static bool append_independent(const Value *item, const ArrayStorage *target, si
         }
         return true;
     }
+    case V_STATE:
+        /* The payload may own the target storage. Never append a mutable
+         * capability into shared storage reachable through that capability. */
+        return false;
     case V_ITER:
         return append_independent(item->as.iterator.iterable, target, budget);
     case V_RECORD:
@@ -348,7 +359,7 @@ Value *value_array_append(Value *array, Value *item)
     }
     ArrayStorage *storage = array->as.sequence.storage;
     size_t budget = 64;
-    if (storage && storage->refs == 1 && count < storage->capacity &&
+    if (storage && !storage->sealed && storage->refs == 1 && count < storage->capacity &&
         append_independent(item, storage, &budget)) {
         /* Allocate the result before changing storage: OOM leaves inputs intact. */
         storage->items[count] = retain(item);
@@ -375,6 +386,7 @@ Value *value_array_append(Value *array, Value *item)
         }
         storage->items[count] = retain(item);
     }
+    result->key_forbidden = array->key_forbidden || item->key_forbidden;
     result->as.sequence.count = count + 1;
     result->as.sequence.items = storage->items;
     result->as.sequence.storage = storage;
@@ -496,6 +508,8 @@ bool value_equal(const Value *a, const Value *b)
         return false;
     }
     switch (a->kind) {
+    case V_STATE:
+        return a == b; /* Identity never reads or waits on the payload. */
     case V_NAT:
     case V_INT:
     case V_DURATION:
@@ -585,6 +599,7 @@ Value *named_value(ValueKind kind, const char *name, char **names, Value **value
             }
         }
         v->as.named.values[i] = retain(values[i]);
+        v->key_forbidden = v->key_forbidden || !values[i] || values[i]->key_forbidden;
     }
     return v;
 }
@@ -636,7 +651,7 @@ static bool capture_enqueue(CaptureWalk *walk, const Value *value)
     return true;
 }
 
-CaptureCheck value_capture_check(Value *const *values, size_t count)
+static CaptureCheck value_graph_check(Value *const *values, size_t count, bool state_payload)
 {
     CaptureWalk walk = {0};
     CaptureCheck status = CAPTURE_ALLOWED;
@@ -659,7 +674,13 @@ CaptureCheck value_capture_check(Value *const *values, size_t count)
             child_count = value->as.sequence.storage ? value->as.sequence.storage->count
                                                     : value->as.sequence.count;
             break;
-        case V_RECORD: case V_VARIANT: case V_CLOSURE:
+        case V_STATE:
+            if (state_payload) { status = CAPTURE_REJECTED; goto done; }
+            break;
+        case V_CLOSURE:
+            if (state_payload) { status = CAPTURE_REJECTED; goto done; }
+            /* fall through */
+        case V_RECORD: case V_VARIANT:
             children = value->as.named.values;
             child_count = value->as.named.count;
             break;
@@ -674,10 +695,29 @@ CaptureCheck value_capture_check(Value *const *values, size_t count)
             if (!capture_enqueue(&walk, children[i])) { status = CAPTURE_OUT_OF_MEMORY; goto done; }
         }
     }
+    if (state_payload) {
+        /* Seal only after the complete graph passed admission. Retaining a
+         * Value does not increment its backing storage reference count. */
+        for (size_t i = 0; i < walk.count; i++) {
+            const Value *value = walk.queue[i];
+            if ((value->kind == V_ARRAY || value->kind == V_MAP || value->kind == V_SET) &&
+                value->as.sequence.storage) value->as.sequence.storage->sealed = true;
+        }
+    }
 done:
     free(walk.slots);
     free(walk.queue);
     return status;
+}
+
+CaptureCheck value_capture_check(Value *const *values, size_t count)
+{
+    return value_graph_check(values, count, false);
+}
+
+CaptureCheck value_state_payload_check(Value *value)
+{
+    return value_graph_check(&value, 1, true);
 }
 
 Value *value_closure(const char *target, Value *const *captures, size_t count,

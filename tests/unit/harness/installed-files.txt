@@ -96,6 +96,8 @@ share/panackelty/stdlib/process/errors.panack
 share/panackelty/stdlib/process/legacy.panack
 share/panackelty/stdlib/process/types.panack
 share/panackelty/stdlib/runtime/bytecode.panack
+share/panackelty/stdlib/state.panack
+share/panackelty/stdlib/state/async.panack
 share/panackelty/stdlib/tcp.panack
 share/panackelty/stdlib/tcp_service.panack
 share/panackelty/stdlib/testing.panack

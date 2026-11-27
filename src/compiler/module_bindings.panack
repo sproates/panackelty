@@ -420,6 +420,10 @@ pub pure module_declaration_display(binding: ModuleDeclarationBinding): Str {
 // A matching source filename in an application never grants primitive access.
 pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool {
   owner.module.package == ToolchainModulePackage() && (
+    (owner.module.path == "state.panack" && name == "state_" + owner.name &&
+      (owner.name == "create" || owner.name == "read" || owner.name == "update")) ||
+    (owner.module.path == "state/async.panack" && name == "state_" + owner.name + "_async" &&
+      (owner.name == "create" || owner.name == "read" || owner.name == "update")) ||
     (owner.module.path == "filesystem/async.panack" && owner.name == "metadata" && name == "fs_metadata_async") ||
     (owner.module.path == "filesystem/async.panack" && owner.name == "read_chunk" && name == "fs_read_chunk_async") ||
     (owner.module.path == "filesystem/async.panack" && owner.name == "write_atomic" && name == "fs_atomic_write_async") ||
@@ -582,6 +586,8 @@ pub pure module_internal_primitive(owner: DeclarationIdentity, name: Str): Bool 
 
 pub pure module_internal_primitive_name(identity: ModuleIdentity, name: Str): Bool {
   identity.package == ToolchainModulePackage() && (
+    (identity.path == "state.panack" && (name == "state_create" || name == "state_read" || name == "state_update")) ||
+    (identity.path == "state/async.panack" && (name == "state_create_async" || name == "state_read_async" || name == "state_update_async")) ||
     (identity.path == "filesystem/async.panack" && name == "fs_metadata_async") ||
     (identity.path == "filesystem/async.panack" && (name == "fs_read_chunk_async" || name == "fs_atomic_write_async" || name == "fs_read_async")) ||
     (identity.path == "filesystem/async.panack" && name == "fs_write_async") ||

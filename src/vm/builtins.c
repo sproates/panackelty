@@ -16,21 +16,40 @@
 
 /* One registry supplies arity, purity, and implementation selection. */
 
+static Value *function_reference(VM *vm, const char *name, Value **arguments)
+{
+    (void)name;
+    Value *target = arguments[0];
+    if (target->kind != V_STR || memchr(target->as.bytes.data, 0, target->as.bytes.length)) {
+        vm->error = "VM trap: invalid function reference";
+        return NULL;
+    }
+    const char *symbol = (const char *)target->as.bytes.data;
+    if (!program_function(vm->program, symbol) || builtin(symbol)) {
+        vm->error = "VM trap: function reference target was not found";
+        return NULL;
+    }
+    CaptureCheck status;
+    Value *result = value_closure(symbol, NULL, 0, &status);
+    if (!result) vm->error = "native VM out of memory";
+    return result;
+}
+
 static Value *closure_create(VM *vm, const char *name, Value **arguments)
 {
     (void)name;
     Value *target = arguments[0], *environment = arguments[1];
     size_t arity;
-    if (target->kind != V_STR || environment->kind != V_ARRAY ||
-        arguments[2]->kind != V_NAT || !value_index(arguments[2], &arity) ||
-        memchr(target->as.bytes.data, 0, target->as.bytes.length)) {
+    bool reference = target->kind == V_CLOSURE && target->as.named.count == 0;
+    bool legacy = target->kind == V_STR &&
+        !memchr(target->as.bytes.data, 0, target->as.bytes.length);
+    if ((!reference && !legacy) || environment->kind != V_ARRAY ||
+        arguments[2]->kind != V_NAT || !value_index(arguments[2], &arity)) {
         vm->error = "VM trap: invalid closure construction";
         return NULL;
     }
-    char *symbol = malloc(target->as.bytes.length + 1);
+    char *symbol = copy_text(reference ? target->as.named.name : (const char *)target->as.bytes.data);
     if (!symbol) { vm->error = "native VM out of memory"; return NULL; }
-    memcpy(symbol, target->as.bytes.data, target->as.bytes.length);
-    symbol[target->as.bytes.length] = 0;
     Function *function = program_function(vm->program, symbol);
     size_t count = environment->as.sequence.count;
     if (!function || builtin(symbol)) {
@@ -69,7 +88,22 @@ bool builtin_is_local_state(const Builtin *entry)
                      entry->call == builtins_http_connection_call);
 }
 
+static Value *state_execution_only(VM *vm, const char *name, Value **arguments)
+{
+    (void)name;
+    (void)arguments;
+    vm->error = "VM trap: State operation requires an execution";
+    return NULL;
+}
+
 static const Builtin BUILTINS[] = {
+    {"state_create", 1, false, BUILTIN_STATE_CREATE, state_execution_only},
+    {"state_read", 1, false, BUILTIN_STATE_READ, state_execution_only},
+    {"state_update", 2, false, BUILTIN_STATE_UPDATE, state_execution_only},
+    {"state_create_async", 1, false, BUILTIN_STATE_CREATE, async_service_only},
+    {"state_read_async", 1, false, BUILTIN_STATE_READ, async_service_only},
+    {"state_update_async", 2, false, BUILTIN_STATE_UPDATE, async_service_only},
+    {"$intrinsic_function", 1, true, BUILTIN_ORDINARY, function_reference},
     {"$intrinsic_closure", 3, true, BUILTIN_ORDINARY, closure_create},
     {"http_bytes_slice", 3, true, BUILTIN_ORDINARY, builtins_http_connection_call},
     {"http_body", 1, false, BUILTIN_ORDINARY, builtins_http_connection_call},

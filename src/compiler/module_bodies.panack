@@ -2830,6 +2830,10 @@ pure body_call_with_receiver(
               output = None()
             } else {
               output = Some(type)
+              if body_invalid_state_type(context, type, []) {
+                diagnostics = diagnostics.append(Diagnostic("State payload " + body_type_text(type) +
+                  " contains a cell, callable or resource. Store immutable data and keep the capability outside the cell.", span.start))
+              }
             }
           }
         }
@@ -2904,7 +2908,8 @@ pure body_call_with_receiver(
 pure body_special_core_call(target: BodyTarget): Bool {
   match target {
     BodyDeclaration(binding) => binding.intrinsic != None(),
-    BodyCore(name) => name == "http_bytes_slice" || name == "http_body" || name == "http_body_size" || name == "http_body_append" || name == "http_connection_continue" || name == "http_listen_ordinary" || name == "http_listen_contextual" || name == "http_close" || name == "http_destroy" || name == "http_connection_writer" || name == "http_connection_routes" || name == "http_connection_fallback" || name == "http_connection_admit" || name == "http_connection_invoke" || name == "http_writer_get_status" || name == "http_writer_get_headers" || name == "http_writer_reject" || name == "http_writer_status" || name == "http_writer_headers" || name == "http_writer_commit" || name == "http_state_create" || name == "http_state_context" || name == "http_state_setup_error" || name == "http_state_fail_setup" || name == "http_state_register" || name == "read_line" || name == "write_file" || name == "$unit" || name == "$intrinsic_call" || name == "len" || name == "$intrinsic_map" ||
+    BodyCore(name) => name == "state_create" || name == "state_read" || name == "state_update" ||
+      name == "state_create_async" || name == "state_read_async" || name == "state_update_async" || name == "http_bytes_slice" || name == "http_body" || name == "http_body_size" || name == "http_body_append" || name == "http_connection_continue" || name == "http_listen_ordinary" || name == "http_listen_contextual" || name == "http_close" || name == "http_destroy" || name == "http_connection_writer" || name == "http_connection_routes" || name == "http_connection_fallback" || name == "http_connection_admit" || name == "http_connection_invoke" || name == "http_writer_get_status" || name == "http_writer_get_headers" || name == "http_writer_reject" || name == "http_writer_status" || name == "http_writer_headers" || name == "http_writer_commit" || name == "http_state_create" || name == "http_state_context" || name == "http_state_setup_error" || name == "http_state_fail_setup" || name == "http_state_register" || name == "read_line" || name == "write_file" || name == "$unit" || name == "$intrinsic_call" || name == "len" || name == "$intrinsic_map" ||
       name == "$intrinsic_reduce" ||
         name == "map_put" ||
       name == "map_get" || name == "map_has" || name == "set_add" ||
@@ -4488,7 +4493,10 @@ pure body_check_special_core_call(
     BodyCore(value) => value,
     BodyDeclaration(binding) => ""
   }
-  if name == "read_line" || name == "write_file" {
+  if name == "state_create" || name == "state_read" || name == "state_update" ||
+      name == "state_create_async" || name == "state_read_async" || name == "state_update_async" {
+    body_check_state_core_call(context, name, children, span, initial_diagnostics, initial_deferred)
+  } else if name == "read_line" || name == "write_file" {
     checked: BodyResult = if types.len() > 0 {
       body_failure("explicit type arguments require a generic function", type_argument_span)
     } else {
@@ -5228,6 +5236,14 @@ pure body_check_map_set_call(
   is_map: Bool = collection.identity == SignatureCore("Map") && collection.arguments.len() == 2
   is_set: Bool = collection.identity == SignatureCore("Set") && collection.arguments.len() == 1
   is_lookup: Bool = operation == "map_get" || operation == "map_has"
+  match children[1].type {
+    None() => {},
+    Some(type) => {
+      if body_state_restricted(context, type, [], false) {
+        diagnostics = diagnostics.append(Diagnostic("Map keys and Set elements cannot contain State cells or callbacks. Use an immutable identifier as the key and store the cell or callback as a Map value.", children[1].span.start))
+      }
+    }
+  }
 
   if (operation == "map_put" || operation == "map_get" || operation == "map_has") && !is_map {
     diagnostics = diagnostics.append(Diagnostic(operation + " expects a Map, got " + body_type_text(collection), span.start))
@@ -9050,4 +9066,82 @@ pure bind_body_match(
   }
   body: BoundBody = BoundBody(BodyMatch(targets, bindings, pattern_spans), span, children, output, [], [], type_joins, [], [], type_checks)
   body_apply_solutions(context, BodyResult(body, diagnostics, deferred), solutions)
+}
+
+pure body_check_state_core_call(context: BodyContext, name: Str, children: [BoundBody],
+  span: SourceSpan, initial_diagnostics: [Diagnostic], initial_deferred: [SourceSpan]): BodyResult {
+  updating = name == "state_update" || name == "state_update_async"
+  creating = name == "state_create" || name == "state_create_async"
+  count: Nat = if updating { 2 } else { 1 }
+  if children.len() != count {
+    body_http_failure(context, name, children, span, count, "invalid State argument count", [])
+  } else {
+    first = body_tcp_stream_context_type(context, children[0])
+    mut payload = first
+    mut diagnostics = initial_diagnostics
+    if !creating {
+      if first.identity == SignatureCore("State") && first.arguments.len() == 1 {
+        payload = first.arguments[0]
+      } else {
+        diagnostics = diagnostics.append(Diagnostic("State operation requires a State[T] cell", children[0].span.start))
+      }
+    }
+    cell = SignatureType(SignatureCore("State"), [payload])
+    mut inputs = [if creating { payload } else { cell }]
+    if updating {
+      inputs = inputs.append(SignatureType(SignatureCallable(SignaturePure()), [payload, payload]))
+    }
+    body_checked_http_call(context, name, children, span, inputs,
+      if creating { cell } else { payload }, count, diagnostics, initial_deferred, [])
+  }
+}
+
+pub pure body_state_payload_restricted(context: BodyContext, type: SignatureType,
+  visited: [DeclarationIdentity]): Bool {
+  body_state_restricted(context, type, visited, true)
+}
+
+pure body_state_restricted(context: BodyContext, type: SignatureType,
+  visited: [DeclarationIdentity], resources: Bool): Bool {
+  mut restricted = resources && anonymous_resource_type(context, type, [])
+  match type.identity {
+    SignatureCallable(effect) => { restricted = true },
+    SignatureCore(name) => { restricted = restricted || name == "State" },
+    SignatureNominal(identity) => {
+      mut seen = false
+      for prior in visited { seen = seen || prior == identity }
+      if !seen {
+        match body_signature(context.signatures, identity) {
+          None() => {},
+          Some(signature) => {
+            for slot in signature.slots {
+              match substitute_signature_type(slot.type, identity, type.arguments) {
+                Error(message) => {},
+                Ok(field) => {
+                  restricted = restricted || body_state_restricted(context, field, visited.append(identity), resources)
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    SignatureParameter(owner, index) => {}, SignatureHole(owner, path, index) => {}
+  }
+  for argument in type.arguments {
+    restricted = restricted || body_state_restricted(context, argument, visited, resources)
+  }
+  restricted
+}
+
+pure body_invalid_state_type(context: BodyContext, type: SignatureType,
+  visited: [DeclarationIdentity]): Bool {
+  mut invalid = false
+  if type.identity == SignatureCore("State") && type.arguments.len() == 1 {
+    invalid = body_state_payload_restricted(context, type.arguments[0], [])
+  }
+  for argument in type.arguments {
+    invalid = invalid || body_invalid_state_type(context, argument, visited)
+  }
+  invalid
 }

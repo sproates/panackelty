@@ -1,0 +1,16 @@
+import stdlib/state as state
+import stdlib/state/async as async_state
+
+pure reader(cell: State[Nat]): AsyncFn[Nat] {
+  async () => { await async_state.update(cell, (value) => value + 1) }
+}
+
+async main(): Unit {
+  cell = await async_state.create(0)
+  callback = reader(cell)
+  first = await callback.call()
+  second = await callback.call()
+  snapshot = await async_state.read(cell)
+  checked = [0][if first == 1 && second == 2 && snapshot == 2 { 0 } else { 1 }]
+  ()
+}

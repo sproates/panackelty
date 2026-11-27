@@ -456,3 +456,20 @@ the slot only after cleanup. It does not roll back side effects. CLI shutdown
 drains cleanup; embedded execution destruction remains nonblocking. Embedders use
 `vm_execution_enable_process`; HTTP/TCP request children inherit that grant.
 Hosts must keep the runtime loaded until `process_async_drain` completes.
+
+## State execution
+
+`state.c` owns cells and reservation tokens. `execute.c` runs State transforms
+on the ordinary budgeted frame stack, retaining waiters without retrying callbacks.
+Returning from the transform commits its value; unwinding aborts the reservation.
+Async operations yield while another execution owns the cell, and ordinary calls
+inside a host scheduler allow that scheduler to progress. No OS lock or extra
+thread is introduced.
+
+Runtime checks reject forged handles, invalid callback arity/effects and restricted
+payload capabilities, including nested values. As elsewhere in v9, source generic
+parameters are erased: the source checker enforces `PureFn[T,T]`, while the VM
+checks dynamic value kinds and capabilities rather than reconstructing source
+record/refinement or generic type proofs from bytecode. Tagged function references
+prevent new callable values from masquerading as text; legacy v9 string-target
+calls remain executable.

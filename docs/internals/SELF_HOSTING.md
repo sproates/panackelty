@@ -825,3 +825,9 @@ records capture decisions for text and terminal explanations with lexical origin
 links. Bootstrap refresh passed byte-identical stages and stdlib conformance;
 full local make check passed in 725s. CS2 integration acceptance passed in run 46067730132 for `31422e0`.
 This is not State support or release acceptance.
+
+CS3 State support passes final local make check (725s, 28 November). Tagged named
+references use existing v9 instructions. The refreshed seed SHA-256 is
+`987b93428bd3bb92becfa011c376d9379ebe97dc03ba9037b822cfbecd78331e`; stages 2/3/4
+are byte-identical and stdlib artifacts/output agree. Unchanged-program artifact
+checks pass. Next integration acceptance is pending.

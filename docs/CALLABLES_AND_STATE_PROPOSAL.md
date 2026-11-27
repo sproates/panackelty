@@ -142,8 +142,8 @@ two aliases of one cell compare equal, and two separate cells containing zero do
 not. Comparison is pure and does not acquire the cell reservation or read its
 contents. Generic `same[T](a: T, b: T): Bool { a == b }` and recursive container
 comparison use this same rule when T contains State. This covers arrays, record
-fields and Map values. Current scalar-type restrictions on Map keys and Set
-elements remain unchanged: neither State nor callable values become eligible
+fields and Map values. Existing immutable aggregate Map keys and Set elements remain supported.
+Neither State nor callable values, including containers holding them, are eligible
 keys/elements merely because equality is defined for them.
 Its lifetime ends when its last reachable reference is released. There is no
 manual close or use-after-close state.
@@ -316,7 +316,7 @@ Acceptance includes:
    interoperability works. Reads are snapshots and updates return committed values.
    Direct/generic/nested State equality, including arrays, records and Map values,
    uses stable cell identity. State and callable Map keys/Set elements remain
-   rejected under the existing scalar-type restrictions. Callable equality distinguishes lexical bodies, compares captures,
+   rejected, including when nested inside aggregate keys/elements. Callable equality distinguishes lexical bodies, compares captures,
    preserves named references and has no fresh allocation identity.
 6. Overlapping successful updates never lose an increment. Test unrelated-task
    progress and request deadlines during a long callback, same-cell read/update
@@ -341,9 +341,9 @@ CS1 is accepted after local and hosted integration validation.
 | --- | --- | --- | --- | --- |
 | CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | Complete: PR #701 and integration run 46042786755 passed | 20 |
 | CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | Complete: PRs #704/#705; integration run 46067730132 passed | 30 |
-| CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | Planned | 0 |
+| CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | Locally complete; next integration checks pending | 0 |
 | CS4 | Both service examples, installed acceptance, reference and website guidance | 20 | Planned | 0 |
-| Total | Working callable/state feature | 100 | CS1–CS2 accepted; CS3–CS4 planned | 50 |
+| Total | Working callable/state feature | 100 | CS1–CS2 accepted; CS3 in progress; CS4 planned | 50 |
 
 Order: CS1, then CS2 and CS3, then CS4. CS3 can use named pure callbacks; it need
 not depend on closure syntax. Implement related work in a development branch with
@@ -382,7 +382,7 @@ acceptance. The four slice weights and zero earned contribution are unchanged.
 
 Second review clarification, 23 November: callback input types must be known
 before body checking, but its local result can determine remaining generic output
-parameters, including map's U. Existing scalar Map-key/Set-element eligibility is
+parameters, including map's U. Existing Map-key/Set-element eligibility is
 unchanged; State/callable equality applies in allowed value positions. Acceptance
 cases cover both rules. No scope, weight or implementation-status change.
 
@@ -715,3 +715,157 @@ CS2 earns 30/30 points. CS1 remains 20/20; CS3 State (30) and CS4 combined examp
 installed acceptance and website guidance (20) remain planned. Accepted programme
 progress is 50/100. RM#162 remains open; there is no separate CS2 issue to close.
 No State implementation, release or website publication is claimed.
+
+### CS3 runtime foundation, 27 November 2026
+
+CS3 is in progress on `feature/rm162-state-cells`, based on accepted CS2.
+The internal VM cell owns an immutable payload and compares by cell identity.
+Reservations retain the cell, exclude competing reads/updates and support atomic
+replacement or rollback. Tests exercise two contending owners, an independent
+cell, snapshots retained across commits, invalid reservation ownership, rejection
+of nested cells/captured callables and cleanup after dropping external handles.
+No scheduler or public State entry point is connected yet.
+
+Payload admission follows the entire ownership graph, including hidden array
+suffixes. Admitted array storage is sealed against later extension through an
+alias; otherwise a resource could enter the retained graph after validation.
+Subsequent appends copy that storage and preserve the normal immutable values.
+This costs a copy when appending to a stored array; it does not change bytecode
+or compiler output. Performance acceptance remains part of the completed slice.
+
+Focused native State and existing closure/collection tests pass. State creation
+and commit pass all 17 injected allocation-failure sites without leaks or lost
+reservations. AddressSanitizer/UndefinedBehaviorSanitizer pass the State tests.
+Two initial test fixture construction errors (missing record field names and an
+uninitialized iterator payload) were corrected before these successful runs.
+
+Next: connect reservations to execution scheduling, cancellation and traps; add
+ordinary/async modules and compiler payload/effect checks. Named function values
+currently use legacy string targets, so the public API also needs a distinct
+callable representation before runtime payload admission can reject all callable
+values. These internal tests do not establish that source or untrusted-bytecode
+State admission is complete. Bootstrap/full validation and integration await the
+completed slice. No CI was triggered. CS3 earns 0/30; accepted programme progress
+remains 50/100, with CS4 planned.
+
+### CS3 execution scheduling, 27 November 2026
+
+Ordinary and async internal State operations now share the reservation machinery.
+An update runs its pure callback once on the execution's normal budgeted frame
+stack. A busy read/update waits without blocking other executions; polling starts
+work only after the owner releases the cell. Frame unwinding releases reservations
+and pending arguments on traps, cancellation and allocation failures. Commit is
+at the callback return boundary, before delivering the result to its caller.
+
+Controlled instruction-budget tests cover overlapping updates returning 1 then 2,
+ordinary/async contention, independent-cell progress, waiting cancellation,
+mid-callback cancellation, callback traps, cancellation after commit, retained
+capture callbacks and rejection of callable replacement payloads. Virtual-time
+task tests stop an endless callback at its existing deadline and resume a waiting
+reader; no sleep or timing threshold is involved. Forged effect tests reject
+impure callbacks, effects inside pure-labelled callbacks and pure callers trying
+to create/update State. Unrelated host-print completions cannot resume State waits.
+
+The complete native module regression suite passed, including task, resumable,
+HTTP/TCP and coverage checks. State and call-link sanitizer checks passed; 57
+State allocation-failure sites and existing closure allocation-failure checks
+passed. Self-review checked frame ownership, retained waits, callback effects,
+commit ordering and both execution cleanup paths. No CI, bootstrap refresh or
+full compiler suite was run at this intermediate checkpoint.
+
+Public ordinary/async modules, compiler generic payload restrictions, distinct
+named-callable representation, user diagnostics and source/bytecode acceptance
+remain. This checkpoint establishes runtime scheduling behaviour, not completion
+of CS3 or the public untrusted-bytecode payload contract. CS3 remains 0/30 and
+the accepted programme remains 50/100.
+
+### CS3 source API checkpoint, 27 November 2026
+
+The candidate compiler supports `stdlib/state` and `stdlib/state/async` with
+`create`, `read` and `update`, sharing `State[T]`. Primitive grants are limited to
+those toolchain declarations. The operations are effectful; update requires
+`PureFn[T,T]`. Checked call results reject cells, callables and resources inside
+payload types, including the tested generic record/wrapper instantiation.
+Runtime payload admission remains the backstop for erased generic values.
+
+Newly compiled function references are tagged callable values rather than strings,
+so State can reject them without rejecting ordinary text. Existing v9 string-target
+callables still execute; the bytecode format is unchanged. Captured-function
+construction accepts both representations. An initial lowering change used a raw
+string for the generated function target and therefore lost its reachability edge;
+the retained-callback source test caught this. Function expressions now retain that
+edge and the constructor accepts the checked reference.
+
+`tests/state_cells.sh` covers ordinary/async source and saved-bytecode execution,
+retained State captures, named/anonymous updates, identity equality, string payloads,
+and rejection of nested cells/callables/resources and impure use. It is registered
+in functional validation. Candidate checks pass, as do the existing named/anonymous
+function transcripts and 2,313 binding/cache assertions. Native State/closure and
+sanitizer checks pass; 59 State/reference allocation-failure sites pass. Both new
+modules are registered as unmeasured in the source-coverage inventory, with their
+focused evidence named; the existing bounded corpus is unchanged. Reviewed manifest
+and declaration-exclusion hashes are refreshed and policy tests pass.
+
+Remaining acceptance: audit generic/recursive type admission and the full untrusted
+bytecode contract, refine State-specific diagnostics/explanation evidence, extend
+rejection coverage, and complete bootstrap/artifact compatibility and one final full
+validation before integration. This is a development checkpoint, not completed CS3.
+No CI ran. CS3 earns 0/30; accepted programme progress remains 50/100.
+
+### CS3 generic admission checkpoint, 27 November 2026
+
+Generic helpers now carry closed State-payload requirements through direct,
+transitive, recursive and anonymous-function calls, including helpers returning
+Void. Requirements propagate over finite parameter indices, avoiding expansion of
+recursive generic types. Code-cache entries retain the call and payload facts;
+the private code-cache format is now PANACK-CODE-2, while bytecode remains v9.
+A cold/warm cache regression changes only the caller and proves that reused helper
+code still rejects a callback payload.
+
+Map keys and Set elements reject cells and callbacks recursively. Existing
+immutable record keys remain supported, as do cells stored in Map values. Earlier
+wording describing existing keys as scalar-only was inaccurate: the compiler
+itself uses record keys. This corrects that description without removing existing
+aggregate-key support. Runtime values maintain a forbidden-key flag during
+construction, so lookups do not require a new recursive allocation or traversal.
+The malformed-bytecode regression caught a null child during partial record
+construction; flag propagation now handles that unwind path without dereferencing
+it. The complete native module suite, sanitizer call-link regression and all 59
+State/reference allocation-failure cases pass.
+
+Focused source and saved-bytecode tests pass, including generic closure payloads,
+recursive helpers and cached caller edits. The binding/cache suite passes 2,313
+assertions; all 77 coverage-policy tests and documentation checks pass. Declaration
+exclusions were recomputed with the production parser; measured scope is unchanged.
+Final bootstrap, full validation and
+integration remain outstanding. CS3 is still in progress (0/30); accepted
+programme progress remains 50/100. No CI was triggered.
+
+### CS3 local acceptance, 28 November 2026
+
+Ordinary and async State cells now pass final local `make check` in 725 seconds,
+including native, compiler, functional, bootstrap, archive relocation and quick-start
+checks. The final seed is `987b93428bd3bb92becfa011c376d9379ebe97dc03ba9037b822cfbecd78331e`;
+three bootstrap stages are byte-identical and stdlib artifacts/output agree.
+Unchanged-program artifact checks pass. The full run includes 2,313 binding/cache
+assertions, State source/bytecode and cold/warm caller-edit acceptance. Separate
+sanitizer and 59 allocation-failure checks passed during development.
+
+The final audit gives forged handles a specific diagnostic, preserves source spans
+for tagged named references, and documents State ownership, cancellation and generic
+type erasure. Four old test expectations were corrected after reviewing the emitted
+instruction offsets and package members: one disassembly, two instruction-source
+traces, and the inventory entries for the two new modules. The final full run has
+no failures. Runtime payload/callback safety remains enforced with v9 bytecode;
+source generic/refinement proofs are not reconstructed from erased bytecode.
+
+Performance: the final full run is comparable to CS2's 725-second run, with no new
+numeric budget claim. Collection-key checks use a propagated flag rather than a
+recursive walk per lookup; generic obligations converge over finite parameter sets.
+Existing historical validation-budget warnings remain informational.
+
+CS3 implementation and local acceptance are complete, pending next integration
+checks. CS3 earns 0/30 until that result; CS1 and CS2 retain 20/20 and 30/30.
+CS4 combined HTTP examples, installed acceptance and website guidance remains 0/20.
+Accepted programme progress is 50/100. RM#162 stays open; CS3 has no separate issue.
+Website follow-up remains with CS4; no release or website publication is claimed.

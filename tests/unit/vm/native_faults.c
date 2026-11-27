@@ -2,6 +2,7 @@
 #undef NDEBUG
 #endif
 #include "builtins.h"
+#include "state.h"
 #include "host_capabilities.h"
 #include "decode.h"
 #include "fault_injection.h"
@@ -1196,8 +1197,114 @@ void console_write_faults(void);
 void console_read_faults(void);
 void process_async_faults(void);
 
+static Value *state_fixture, *state_cell_fixture;
+
+static Value *function_reference_fixture;
+
+static void function_reference_allocations(void)
+{
+    Function function = {.name = "target"};
+    Program program = {.functions = &function, .count = 1};
+    VM vm = {.program = &program};
+    Value *result = builtin_call(&vm, "$intrinsic_function", &function_reference_fixture);
+    if (fault_triggered()) assert(!result && vm.error);
+    else assert(result && result->kind == V_CLOSURE && result->as.named.count == 0);
+    release(result);
+    assert(function_reference_fixture->refs == 1);
+}
+
+static size_t state_execution_mode;
+
+static void state_execution_allocations(void)
+{
+    char *params[] = {"value"};
+    Instruction identity[] = {{.op = OP_LOAD, .name = "value"}, {.op = OP_RETURN}};
+    Instruction update[] = {{.op = OP_LOAD, .name = "value"},
+        {.op = OP_CONST, .constant = {.tag = 3, .text = "identity", .text_length = 8}},
+        {.op = OP_CALL, .name = "state_update", .arity = 2}, {.op = OP_RETURN}};
+    Function functions[] = {
+        {.name = "identity", .params = params, .param_count = 1, .pure = true,
+         .ins = identity, .ins_count = 2},
+        {.name = "update", .params = params, .param_count = 1, .ins = update, .ins_count = 4}};
+    Program program = {.functions = functions, .count = 2};
+    VM vm = {.program = &program};
+    StateReservation held = {0};
+    if (state_execution_mode >= 2) assert(state_reserve(state_cell_fixture, &held) == STATE_OK);
+    const char *error = NULL;
+    VMExecution *run = vm_execution_create(&vm, &functions[1], &state_cell_fixture, NULL, NULL, &error);
+    if (run) {
+        VMExecutionStatus result = vm_execution_advance(run, state_execution_mode == 0 ? 6 : 3);
+        if (fault_triggered()) assert(result == VM_TRAPPED && vm.error);
+        else assert(result == (state_execution_mode >= 2 ? VM_WAITING :
+                               state_execution_mode == 0 ? VM_COMPLETED : VM_YIELDED));
+        if (!fault_triggered() && state_execution_mode == 3) {
+            state_abort(&held);
+            assert(vm_execution_poll_network(run, 0));
+            result = vm_execution_advance(run, 3);
+            if (fault_triggered()) assert(result == VM_TRAPPED && vm.error);
+            else assert(result == VM_COMPLETED);
+        }
+        assert(vm_execution_destroy(run));
+    } else assert(fault_triggered() && error);
+    state_abort(&held);
+    assert(state_cell_fixture->refs == 1 && !state_cell_fixture->as.state.reservation);
+}
+
+static void state_creation_allocations(void)
+{
+    size_t refs = state_fixture->refs;
+    StateStatus status;
+    Value *cell = state_create(state_fixture, &status);
+    if (fault_triggered()) assert(!cell && status == STATE_OUT_OF_MEMORY);
+    else assert(cell && status == STATE_OK);
+    release(cell);
+    assert(state_fixture->refs == refs);
+}
+
+static void state_commit_allocations(void)
+{
+    StateReservation reservation = {0};
+    assert(state_reserve(state_cell_fixture, &reservation) == STATE_OK);
+    StateStatus status = state_commit(&reservation, state_fixture);
+    if (fault_triggered()) {
+        assert(status == STATE_OUT_OF_MEMORY && reservation.cell == state_cell_fixture);
+        Value *snapshot = state_reserved_read(&reservation);
+        assert(snapshot->kind == V_UNIT);
+        release(snapshot);
+        state_abort(&reservation);
+    } else {
+        assert(status == STATE_OK && !reservation.cell);
+    }
+    /* Restore the fixture directly without adding allocation sites to the
+     * sweep. Production rollback uses state_abort, as checked above. */
+    release(state_cell_fixture->as.state.payload);
+    state_cell_fixture->as.state.payload = value_unit();
+    assert(state_fixture->refs == 1 && state_cell_fixture->refs == 1);
+}
+
 int main(int argc, char **argv)
 {
+    Value *state_items[80];
+    for (size_t i = 0; i < 80; i++) state_items[i] = value_size(i);
+    state_fixture = value_sequence(V_ARRAY, state_items, 80);
+    for (size_t i = 0; i < 80; i++) release(state_items[i]);
+    StateStatus state_status;
+    state_cell_fixture = state_create(value_unit(), &state_status);
+    assert(state_fixture && state_cell_fixture && state_status == STATE_OK);
+    sweep("State creation admission and ownership", state_creation_allocations);
+    sweep("State commit failure and reservation rollback", state_commit_allocations);
+    function_reference_fixture = value_data(V_STR, (const uint8_t *)"target", 6);
+    sweep("tagged function reference", function_reference_allocations);
+    release(function_reference_fixture);
+    for (state_execution_mode = 0; state_execution_mode < 4; state_execution_mode++)
+        sweep("State execution commit, suspension and cancellation", state_execution_allocations);
+    release(state_cell_fixture);
+    release(state_fixture);
+    if (argc == 2 && !strcmp(argv[1], "state-cells")) {
+        printf("State allocation failures: %zu checked\n", sweeps);
+        return 0;
+    }
+
     /* Boolean construction/ownership must not attempt an allocation. */
     fault_reset(1);
     Value *shared_yes = value_bool(true), *shared_no = value_bool(false);

@@ -26,6 +26,7 @@ Value *builtins_collections_call(VM *vm, const char *name, Value **a)
     if (!strcmp(name, "map_has") || !strcmp(name, "map_get") || !strcmp(name, "$method_get") ||
         (!strcmp(name, "$method_has") && a[0]->kind == V_MAP)) {
         REQUIRE(a[0]->kind == V_MAP, "VM trap: map operation requires Map");
+        REQUIRE(!a[1]->key_forbidden, "VM trap: Map keys and Set elements cannot contain State cells or callables");
         size_t position = value_collection_find(a[0], a[1]);
         if (position != SIZE_MAX) {
             return !strcmp(name, "map_has") || !strcmp(name, "$method_has")
@@ -41,6 +42,7 @@ Value *builtins_collections_call(VM *vm, const char *name, Value **a)
 
     if (!strcmp(name, "map_put") || !strcmp(name, "$method_put")) {
         REQUIRE(a[0]->kind == V_MAP, "VM trap: map_put requires Map");
+        REQUIRE(!a[1]->key_forbidden, "VM trap: Map keys and Set elements cannot contain State cells or callables");
         size_t old = a[0]->as.sequence.count, count = 0;
         Value **items = malloc((old + 2) * sizeof(Value *));
         if (!items) {
@@ -61,11 +63,13 @@ Value *builtins_collections_call(VM *vm, const char *name, Value **a)
 
     if (!strcmp(name, "set_has") || !strcmp(name, "$method_has")) {
         REQUIRE(a[0]->kind == V_SET, "VM trap: set_has requires Set");
+        REQUIRE(!a[1]->key_forbidden, "VM trap: Map keys and Set elements cannot contain State cells or callables");
         return value_bool(value_collection_find(a[0], a[1]) != SIZE_MAX);
     }
 
     if (!strcmp(name, "set_add") || !strcmp(name, "$method_add")) {
         REQUIRE(a[0]->kind == V_SET, "VM trap: set_add requires Set");
+        REQUIRE(!a[1]->key_forbidden, "VM trap: Map keys and Set elements cannot contain State cells or callables");
         size_t n = a[0]->as.sequence.count;
         for (size_t i = 0; i < n; i++) {
             if (value_equal(a[0]->as.sequence.items[i], a[1])) {

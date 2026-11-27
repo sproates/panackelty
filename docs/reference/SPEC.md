@@ -2004,3 +2004,30 @@ HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibilit
 Canonical async TCP operations return TcpError and finite-server client results use ClientFailure when native/handler provenance is unavailable. The optional HTTP client/async export returns HttpClientError with typed transport details. See [domain errors](../design/STDLIB_DOMAIN_ERRORS.md#tcp-operations). No compiler, intrinsic or bytecode change is required.
 
 TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. The subsequent 22 November repair reconciles all 25 HTTP builtin arities and local-resource call permissions in the self-hosted decoder with the native verifier. Focused legacy/diagnostic-client and routed-server disassembly checks pass. The compiler seed is refreshed; unchanged-program native oracle contracts pass. Final local make check passed in 674s (22 November), including all 427 bytecode tests, public HTTP disassembly, packaging and installed smoke. Relocated TCP and diagnostic-client source/bytecode/disassembly acceptance also passed. Integration remains pending and development CI stays off.
+
+## Shared State cells (alpha.16 development)
+
+Import `stdlib/state` for ordinary code or `stdlib/state/async` for async code.
+Both modules use the same opaque `State[T]` identity and export `create[T](T): State[T]`,
+`read[T](State[T]): T` and `update[T](State[T], PureFn[T,T]): T`. All three
+operations are effectful, including creation. The async variants require `await`.
+
+A cell holds immutable data: primitives and recursively eligible records, variants,
+arrays, Maps and Sets. Cells, callbacks, tasks, Void and native resources cannot be
+stored inside its payload. Generic helper calls preserve this restriction through
+cached compilation. Closures may retain cells. Copying a handle aliases the same
+cell; equality compares identity without reading or reserving the payload. Separate
+cells containing equal data remain unequal. Cells and callbacks, including nested
+occurrences, cannot be Map keys or Set elements; cells may be Map values.
+
+A read returns a snapshot. An update reserves the cell, reads its current snapshot,
+invokes its pure transformation exactly once, then commits and returns the new
+value. Reads and updates on that cell wait until the reservation is released.
+Other cells and runnable tasks can progress. The transformation cannot perform I/O,
+read or update State, or await work. Obtain external values before updating.
+
+Cancellation or a trap before commit preserves the previous payload and releases
+the reservation. A cancelled waiter never invokes its callback. Cancellation after
+commit does not undo the update. There are no implicit callback retries, public
+locks, manual close operation or new State timeout. Existing scheduler deadlines
+apply. The cell is reclaimed when its last reachable reference is released.

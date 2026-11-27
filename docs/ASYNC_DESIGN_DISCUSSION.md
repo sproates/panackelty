@@ -676,3 +676,32 @@ pass, including the malformed-bytecode unwind fix, sanitizer regression and 59
 allocation-failure cases. See the [admission checkpoint](CALLABLES_AND_STATE_PROPOSAL.md#cs3-generic-admission-checkpoint-27-november-2026).
 Bootstrap, final validation and integration remain; CS3 is 0/30 and the programme
 is 50/100 accepted. No CI triggered.
+
+### CS3 local acceptance, 28 November 2026
+
+Ordinary and async State cells now pass final local `make check` in 725 seconds,
+including native, compiler, functional, bootstrap, archive relocation and quick-start
+checks. The final seed is `987b93428bd3bb92becfa011c376d9379ebe97dc03ba9037b822cfbecd78331e`;
+three bootstrap stages are byte-identical and stdlib artifacts/output agree.
+Unchanged-program artifact checks pass. The full run includes 2,313 binding/cache
+assertions, State source/bytecode and cold/warm caller-edit acceptance. Separate
+sanitizer and 59 allocation-failure checks passed during development.
+
+The final audit gives forged handles a specific diagnostic, preserves source spans
+for tagged named references, and documents State ownership, cancellation and generic
+type erasure. Four old test expectations were corrected after reviewing the emitted
+instruction offsets and package members: one disassembly, two instruction-source
+traces, and the inventory entries for the two new modules. The final full run has
+no failures. Runtime payload/callback safety remains enforced with v9 bytecode;
+source generic/refinement proofs are not reconstructed from erased bytecode.
+
+Performance: the final full run is comparable to CS2's 725-second run, with no new
+numeric budget claim. Collection-key checks use a propagated flag rather than a
+recursive walk per lookup; generic obligations converge over finite parameter sets.
+Existing historical validation-budget warnings remain informational.
+
+CS3 implementation and local acceptance are complete, pending next integration
+checks. CS3 earns 0/30 until that result; CS1 and CS2 retain 20/20 and 30/30.
+CS4 combined HTTP examples, installed acceptance and website guidance remains 0/20.
+Accepted programme progress is 50/100. RM#162 stays open; CS3 has no separate issue.
+Website follow-up remains with CS4; no release or website publication is claimed.

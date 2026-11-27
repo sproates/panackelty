@@ -341,7 +341,7 @@ CS1 is accepted after local and hosted integration validation.
 | --- | --- | --- | --- | --- |
 | CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | Complete: PR #701 and integration run 46042786755 passed | 20 |
 | CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | Complete: PRs #704/#705; integration run 46067730132 passed | 30 |
-| CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | In progress: source APIs and runtime; acceptance audit remains | 0 |
+| CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | Locally complete; next integration checks pending | 0 |
 | CS4 | Both service examples, installed acceptance, reference and website guidance | 20 | Planned | 0 |
 | Total | Working callable/state feature | 100 | CS1–CS2 accepted; CS3 in progress; CS4 planned | 50 |
 
@@ -840,3 +840,32 @@ exclusions were recomputed with the production parser; measured scope is unchang
 Final bootstrap, full validation and
 integration remain outstanding. CS3 is still in progress (0/30); accepted
 programme progress remains 50/100. No CI was triggered.
+
+### CS3 local acceptance, 28 November 2026
+
+Ordinary and async State cells now pass final local `make check` in 725 seconds,
+including native, compiler, functional, bootstrap, archive relocation and quick-start
+checks. The final seed is `987b93428bd3bb92becfa011c376d9379ebe97dc03ba9037b822cfbecd78331e`;
+three bootstrap stages are byte-identical and stdlib artifacts/output agree.
+Unchanged-program artifact checks pass. The full run includes 2,313 binding/cache
+assertions, State source/bytecode and cold/warm caller-edit acceptance. Separate
+sanitizer and 59 allocation-failure checks passed during development.
+
+The final audit gives forged handles a specific diagnostic, preserves source spans
+for tagged named references, and documents State ownership, cancellation and generic
+type erasure. Four old test expectations were corrected after reviewing the emitted
+instruction offsets and package members: one disassembly, two instruction-source
+traces, and the inventory entries for the two new modules. The final full run has
+no failures. Runtime payload/callback safety remains enforced with v9 bytecode;
+source generic/refinement proofs are not reconstructed from erased bytecode.
+
+Performance: the final full run is comparable to CS2's 725-second run, with no new
+numeric budget claim. Collection-key checks use a propagated flag rather than a
+recursive walk per lookup; generic obligations converge over finite parameter sets.
+Existing historical validation-budget warnings remain informational.
+
+CS3 implementation and local acceptance are complete, pending next integration
+checks. CS3 earns 0/30 until that result; CS1 and CS2 retain 20/20 and 30/30.
+CS4 combined HTTP examples, installed acceptance and website guidance remains 0/20.
+Accepted programme progress is 50/100. RM#162 stays open; CS3 has no separate issue.
+Website follow-up remains with CS4; no release or website publication is claimed.

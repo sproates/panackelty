@@ -158,3 +158,22 @@ push and local assignment consume their input reference on both success and
 failure; callers must not release it again. Failed constructors release retained
 children and partially copied fields. Test-only allocation/syscall wrappers are
 compiled into a separate executable and are absent from the production runner.
+
+## State ownership and collection keys
+
+`V_STATE` owns one admitted immutable payload. Its reservation points to the
+owning execution's stable `StateReservation`; that token retains the cell until
+commit or abort. A forged token cannot release another owner's reservation.
+Commit retains the new payload before releasing the old one. Execution cleanup
+aborts outstanding reservations on traps, cancellation and destruction.
+
+Payload admission walks the reachable value graph iteratively, rejecting cells,
+callables and resources. Admitted array storage is sealed, including owned hidden
+suffixes, so later alias appends cannot introduce a retained capability or cycle.
+Closure captures may retain cells as opaque leaves; cell equality uses identity.
+
+`Value.key_forbidden` records whether a logical value contains State or a callable.
+Aggregate construction and array append/concatenation propagate it. Map/Set key
+operations reject flagged values without walking the graph on every lookup.
+Immutable aggregate keys remain supported. Partial aggregate construction treats
+null children as forbidden while preserving allocation/trap cleanup.

@@ -104,6 +104,7 @@ static void scheduler_reservations(void);
 static void collection_keys_exclude_cells_and_callables(void);
 static void captured_transforms_and_payload_rejection(void);
 static void creation_effects(void);
+static void invalid_handles(void);
 static void deadlines_release_cells(void);
 static void forged_effects_release_reservations(void);
 
@@ -113,6 +114,7 @@ void state_cell_contracts(void)
     collection_keys_exclude_cells_and_callables();
     captured_transforms_and_payload_rejection();
     creation_effects();
+    invalid_handles();
     deadlines_release_cells();
     forged_effects_release_reservations();
     reservations_preserve_snapshots();
@@ -385,4 +387,28 @@ static void collection_keys_exclude_cells_and_callables(void)
     release(found); release(stored); release(key);
     release(map); release(set); release(record); release(joined); release(appended);
     release(empty); release(array); release(callback); release(cell);
+}
+
+static void invalid_handles(void)
+{
+    char *params[] = {"cell"};
+    Instruction read[] = {{.op = OP_LOAD, .name = "cell"},
+        {.op = OP_CALL, .name = "state_read", .arity = 1}, {.op = OP_RETURN}};
+    Function function = {.name = "read", .params = params, .param_count = 1,
+        .ins = read, .ins_count = 3};
+    Program program = {.functions = &function, .count = 1};
+    for (size_t mode = 0; mode < 2; mode++) {
+        function.is_async = mode != 0;
+        read[1].op = mode ? OP_AWAIT_CALL : OP_CALL;
+        read[1].name = mode ? "state_read_async" : "state_read";
+        VM vm = {.program = &program};
+        Value *forged = named_value(V_RECORD, "State", NULL, NULL, 0);
+        const char *error = NULL;
+        VMExecution *run = vm_execution_create(&vm, &function, &forged, NULL, NULL, &error);
+        assert(run && !error);
+        assert(vm_execution_advance(run, 3) == VM_TRAPPED);
+        assert(vm.error && !strcmp(vm.error, "VM trap: State read/update requires a State cell"));
+        assert(vm_execution_destroy(run));
+        release(forged);
+    }
 }

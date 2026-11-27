@@ -589,6 +589,10 @@ static void state_error(VM *vm, StateStatus status)
 static Value *execution_state(VMExecution *execution, Value *cell, Value *transform)
 {
     VM *vm = execution->vm;
+    if (!cell || cell->kind != V_STATE || !cell->as.state.payload) {
+        vm->error = "VM trap: State read/update requires a State cell";
+        return NULL;
+    }
     StateStatus status;
     if (!transform) {
         Value *result = state_read(cell, &status);

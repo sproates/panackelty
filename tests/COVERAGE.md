@@ -2433,3 +2433,21 @@ CS2 earns 30/30 points. CS1 remains 20/20; CS3 State (30) and CS4 combined examp
 installed acceptance and website guidance (20) remain planned. Accepted programme
 progress is 50/100. RM#162 remains open; there is no separate CS2 issue to close.
 No State implementation, release or website publication is claimed.
+
+## CS3 State development evidence (27 November 2026)
+
+`tests/state_cells.sh` covers ordinary/async create/read/update, retained cells,
+source/saved-bytecode agreement, payload and effect rejection, recursive generic
+helpers and requirements retained through warm code-cache caller edits.
+`tests/unit/vm/state.c` covers identity, snapshots, reservation ownership, exact
+commit boundaries, contention, cancellation, deadlines, forged effects/handles,
+rejected replacement capabilities, sealed array storage and collection keys.
+Fault injection covers 59 State/reference allocation sites. Controlled scheduler
+steps establish ordering without wall-clock sleeps. Native and focused source tests
+have passed; final bootstrap/full-suite acceptance is still pending.
+
+CS3 final local acceptance, 28 November: make check passed in 725s, including
+State source/bytecode and cache cases, 2,313 binding/cache assertions, native
+contracts, bootstrap, archive relocation and quick-start. Reviewed disassembly
+and source-span expectations include the callable-tagging instruction; the package
+inventory includes both State modules. Integration acceptance is pending.

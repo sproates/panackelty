@@ -42,7 +42,8 @@ is also the name of this project's command-line tool.
 
 The alpha.16 development branch adds anonymous functions and immutable retained
 closures, including HTTP/TCP callbacks. `panack explain` shows capture decisions
-and their binding origins. See the [callable contract](docs/CALLABLES_AND_STATE_PROPOSAL.md)
+and their binding origins. Ordinary and async State modules provide shared cells
+with pure, atomic updates. See the [callable contract](docs/CALLABLES_AND_STATE_PROPOSAL.md)
 for current acceptance status; this does not change the alpha.15 release.
 
 ## Get started

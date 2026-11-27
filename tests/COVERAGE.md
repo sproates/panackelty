@@ -2421,3 +2421,15 @@ production parser/inventory (53 eligible files, 556 excluded declarations). No
 executable code or coverage threshold is excluded or relaxed. All 77 hosted-policy
 tests pass locally. Product code is unchanged from the 725s full validation.
 CS2 acceptance awaits the repaired integration gate; programme progress stays 20/100.
+
+CS2 complete, 27 November: retained captures and explanations merged through
+[PR #704](https://github.com/sproates/panackelty/pull/704); coverage inventory was
+reconciled in [PR #705](https://github.com/sproates/panackelty/pull/705).
+[Integration run 46067730132](https://github.com/sproates/panackelty/actions/runs/46067730132)
+passed for `31422e0`, including both platform package checks, coverage policy and
+the integration gate. Full local make check passed in 725s; focused terminal,
+CLI, cache, lifetime, allocation-failure and sanitizer evidence is recorded above.
+CS2 earns 30/30 points. CS1 remains 20/20; CS3 State (30) and CS4 combined examples,
+installed acceptance and website guidance (20) remain planned. Accepted programme
+progress is 50/100. RM#162 remains open; there is no separate CS2 issue to close.
+No State implementation, release or website publication is claimed.

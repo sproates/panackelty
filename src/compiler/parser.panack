@@ -13,6 +13,7 @@ pub enum Expr {
   BoolExpr(Bool),
   NameExpr(Str),
   FunctionExpr(Str),
+  AnonymousExpr(Str, [AnonymousParameter], Option[ParsedTypeRef], Expr),
   ArrayExpr([Expr]),
   UnaryExpr(Str, Expr),
   BinaryExpr(Str, Expr, Expr),
@@ -42,6 +43,7 @@ pub pure unlocated_expression(expression: Expr): Expr {
     BoolExpr(value) => {},
     NameExpr(name) => {},
     FunctionExpr(name) => {},
+    AnonymousExpr(effect, parameters, result_type, body) => {},
     ArrayExpr(items) => {},
     UnaryExpr(operator, operand) => {},
     BinaryExpr(operator, left, right) => {},
@@ -253,7 +255,7 @@ pure located_expression_with_type_argument_spans(
   )
 }
 
-pure expression_type_argument_spans(expression: Expr): [SourceSpan] {
+pub pure expression_type_argument_spans(expression: Expr): [SourceSpan] {
   match expression {
     LocatedExpr(span, value, type_argument_spans) => type_argument_spans,
     NatExpr(value) => [],
@@ -262,6 +264,7 @@ pure expression_type_argument_spans(expression: Expr): [SourceSpan] {
     BoolExpr(value) => [],
     NameExpr(name) => [],
     FunctionExpr(name) => [],
+    AnonymousExpr(effect, parameters, result_type, body) => [],
     ArrayExpr(items) => [],
     UnaryExpr(operator, operand) => [],
     BinaryExpr(operator, left, right) => [],
@@ -285,6 +288,7 @@ pub pure expression_span(expression: Expr): Option[SourceSpan] {
     BoolExpr(value) => None(),
     NameExpr(name) => None(),
     FunctionExpr(name) => None(),
+    AnonymousExpr(effect, parameters, result_type, body) => None(),
     ArrayExpr(items) => None(),
     UnaryExpr(operator, operand) => None(),
     BinaryExpr(operator, left, right) => None(),
@@ -763,7 +767,7 @@ pure parse_pattern_bindings(
   }
 }
 
-pure parse_match_arm_body(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] {
+pure parse_expression_body(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] {
   if index < tokens.len() && tokens[index].text == "{" {
     match parse_block(tokens, index) {
       Ok(block) => Ok(ParsedExpr(
@@ -812,7 +816,7 @@ pure parse_match_arms(
                       token_position(tokens, parsed_bindings.next)
                     ))
                   } else {
-                    match parse_match_arm_body(tokens, parsed_bindings.next + 1) {
+                    match parse_expression_body(tokens, parsed_bindings.next + 1) {
                       Ok(body) => {
                         pattern: MatchPattern = MatchPattern(
                           variant,
@@ -1005,6 +1009,127 @@ pure parse_call_type_arguments(tokens: [Token], index: Nat): Result[ParsedTypeRe
   }
 }
 
+// Anonymous headers are parsed independently of contextual type checking. Missing
+// annotations remain absent; they must not become guessed types in the parser.
+pub record AnonymousParameter {
+  name: Str,
+  span: SourceSpan,
+  annotation: Option[ParsedTypeRef]
+}
+
+pub record ParsedAnonymousHeader {
+  effect: Str,
+  parameters: [AnonymousParameter],
+  result: Option[ParsedTypeRef],
+  span: SourceSpan,
+  next: Nat
+}
+
+pure anonymous_header_finish(
+  tokens: [Token], start: Nat, index: Nat, effect: Str,
+  parameters: [AnonymousParameter]
+): Result[ParsedAnonymousHeader, Diagnostic] {
+  mut next: Nat = index
+  mut result: Option[ParsedTypeRef] = None()
+  mut failure: Option[Diagnostic] = None()
+  if next < tokens.len() && tokens[next].text == ":" {
+    match parse_type_ref(tokens, next + 1) {
+      Error(problem) => { failure = Some(problem) },
+      Ok(parsed) => { result = Some(parsed); next = parsed.next }
+    }
+  }
+  match failure {
+    Some(problem) => Error(problem),
+    None() => {
+      if next >= tokens.len() || tokens[next].text != "=>" {
+        Error(parse_error("expected => after anonymous function parameters and result type", token_position(tokens, next)))
+      } else {
+        Ok(ParsedAnonymousHeader(effect, parameters, result,
+          token_span(tokens, start, next + 1), next + 1))
+      }
+    }
+  }
+}
+
+pure anonymous_header_parameters(
+  tokens: [Token], start: Nat, index: Nat, effect: Str,
+  parameters: [AnonymousParameter]
+): Result[ParsedAnonymousHeader, Diagnostic] {
+  if index >= tokens.len() || tokens[index].kind != Identifier() {
+    Error(parse_error("expected anonymous function parameter name", token_position(tokens, index)))
+  } else {
+    name = tokens[index].text
+    mut next: Nat = index + 1
+    mut annotation: Option[ParsedTypeRef] = None()
+    mut failure: Option[Diagnostic] = None()
+    for parameter in parameters {
+      if parameter.name == name {
+        failure = Some(parse_error("anonymous function parameter " + name + " is declared more than once", tokens[index].position))
+      }
+    }
+    if failure == None() && next < tokens.len() && tokens[next].text == ":" {
+      match parse_type_ref(tokens, next + 1) {
+        Error(problem) => { failure = Some(problem) },
+        Ok(parsed) => { annotation = Some(parsed); next = parsed.next }
+      }
+    }
+    match failure {
+      Some(problem) => Error(problem),
+      None() => {
+        values = parameters.append(AnonymousParameter(name, token_span(tokens, index, next), annotation))
+        if next < tokens.len() && tokens[next].text == ")" {
+          anonymous_header_finish(tokens, start, next + 1, effect, values)
+        } else {
+          if next < tokens.len() && tokens[next].text == "," {
+            anonymous_header_parameters(tokens, start, next + 1, effect, values)
+          } else {
+            Error(parse_error("expected comma or closing parenthesis after anonymous function parameter", token_position(tokens, next)))
+          }
+        }
+      }
+    }
+  }
+}
+
+// None means ordinary parenthesised syntax, so lookahead must not consume it.
+// Explicit effect prefixes and a result colon identify an attempted lambda even
+// if malformed, allowing a diagnostic at the actual missing token.
+pub pure parse_anonymous_header(tokens: [Token], index: Nat): Result[Option[ParsedAnonymousHeader], Diagnostic] {
+  mut opening: Nat = index
+  mut effect: Str = "inferred"
+  if opening < tokens.len() && (tokens[opening].text == "pure" || tokens[opening].text == "async") {
+    effect = tokens[opening].text
+    opening = opening + 1
+  }
+  if opening >= tokens.len() || tokens[opening].text != "(" {
+    if effect == "inferred" { Ok(None()) } else {
+      Error(parse_error("expected opening parenthesis after anonymous function effect", token_position(tokens, opening)))
+    }
+  } else {
+    mut cursor: Nat = opening + 1
+    mut depth: Nat = 1
+    while cursor < tokens.len() && depth > 0 {
+      if tokens[cursor].text == "(" { depth = depth + 1 }
+      if tokens[cursor].text == ")" && depth > 0 { depth = depth - 1 }
+      cursor = cursor + 1
+    }
+    candidate: Bool = effect != "inferred" ||
+      (depth == 0 && cursor < tokens.len() && (tokens[cursor].text == "=>" || tokens[cursor].text == ":"))
+    if !candidate { Ok(None()) } else {
+      parsed: Result[ParsedAnonymousHeader,Diagnostic] =
+        if opening + 1 < tokens.len() && tokens[opening + 1].text == ")" {
+          anonymous_header_finish(tokens, index, opening + 2, effect, [])
+        } else {
+          anonymous_header_parameters(tokens, index, opening + 1, effect, [])
+        }
+      match parsed {
+        Error(problem) => Error(problem),
+        Ok(header) => Ok(Some(header))
+      }
+    }
+  }
+}
+
 pure parse_named_expression(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] {
   match parse_call_type_arguments(tokens, index + 1) {
     Error(error) => Error(error),
@@ -1034,6 +1159,23 @@ pure parse_named_expression(tokens: [Token], index: Nat): Result[ParsedExpr, Dia
 }
 
 pure parse_primary(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] {
+  match parse_anonymous_header(tokens, index) {
+    Error(problem) => Error(problem),
+    Ok(candidate) => match candidate {
+      None() => parse_non_anonymous_primary(tokens, index),
+      Some(header) => match parse_expression_body(tokens, header.next) {
+        Error(problem) => Error(problem),
+        Ok(body) => Ok(ParsedExpr(
+          located_expression(tokens, index, body.next,
+            AnonymousExpr(header.effect, header.parameters, header.result, body.value)),
+          body.next
+        ))
+      }
+    }
+  }
+}
+
+pure parse_non_anonymous_primary(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] {
   if index >= tokens.len() {
     Error(parse_error("expected expression", token_position(tokens, index)))
   } else {
@@ -2500,6 +2642,22 @@ pub pure render_expr(expression: Expr): Str {
     },
     NameExpr(name) => name,
     FunctionExpr(name) => "@${name}",
+    AnonymousExpr(effect, parameters, result_type, body) => {
+      mut names: [Str] = []
+      for parameter in parameters {
+        annotation = match parameter.annotation {
+          None() => "",
+          Some(type_ref) => ": " + type_ref.text
+        }
+        names = names.append(parameter.name + annotation)
+      }
+      annotation = match result_type {
+        None() => "",
+        Some(type_ref) => ": " + type_ref.text
+      }
+      prefix = if effect == "inferred" { "" } else { effect + " " }
+      "(" + prefix + "(" + render_name_list(names) + ")" + annotation + " => " + render_expr(body) + ")"
+    },
     ArrayExpr(items) => {
       items_text: Str = render_expr_list(items)
       "[${items_text}]"
@@ -2859,6 +3017,7 @@ pub pure expression_reference_path(expression: Expr): Str {
     StringExpr(text) => "",
     BoolExpr(value) => "",
     FunctionExpr(name) => "",
+    AnonymousExpr(effect, parameters, result_type, body) => "",
     ArrayExpr(items) => "",
     UnaryExpr(operator, operand) => "",
     BinaryExpr(operator, left, right) => "",
@@ -2916,6 +3075,22 @@ pure expression_requires_namespaces(expression: Expr, aliases: Set[Str], locals:
       locals
     ),
     FunctionExpr(name) => type_has_qualification(name),
+    AnonymousExpr(effect, parameters, result_type, body) => {
+      mut nested: Set[Str] = locals
+      mut required: Bool = false
+      for parameter in parameters {
+        nested = nested.add(parameter.name)
+        match parameter.annotation {
+          None() => {},
+          Some(type_ref) => { required = required || type_has_qualification(type_ref.text) }
+        }
+      }
+      match result_type {
+        None() => {},
+        Some(type_ref) => { required = required || type_has_qualification(type_ref.text) }
+      }
+      required || expression_requires_namespaces(body, aliases, nested)
+    },
     CallExpr(name, arguments, types) => {
       mut required: Bool = type_has_qualification(name)
       for argument in arguments {

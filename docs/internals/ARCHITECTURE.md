@@ -2140,3 +2140,14 @@ seed grows by 5,036 bytes (1,423,631 to 1,428,667). No runtime speed claim is ma
 Final local validation took 674s (unit 397s, bootstrap 86s), versus 676s for the
 preceding batch. These are contextual suite timings, not a controlled performance
 benchmark. Historical budget warnings remain subject to GI#106 reassessment.
+
+### Noncapturing anonymous function bodies
+
+AnonymousExpr retains parameters, result annotation, effect spelling and source
+spans. BodyAnonymousFunction owns a separately checked BoundFunctionBody. Ordinary
+data-flow walks do not execute that payload at creation; evidence collectors enter
+it deliberately. Expected callable inputs flow through compound expressions and
+constructor payloads, without backward result inference for ordinary calls.
+Generated private functions lower to existing callable references and survive
+module body/code caches. The VM and bytecode version are unchanged. Captured
+locals remain rejected until retained environments are implemented.

@@ -16,7 +16,7 @@ import project/src/compiler/types::{Diagnostic, SourcePos, SourceSpan, diagnosti
 import project/src/compiler/module_bindings::{ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleBindings, LoadedModule, ModulePackageIdentity, ModulePackageIdentity.StandaloneModulePackage, ModulePackageIdentity.ManifestModulePackage, ModulePackageIdentity.ToolchainModulePackage, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant, collect_module_bindings, module_binding_diagnostics, module_export, module_relative_path, module_programs, module_declaration_positions, source_module_identity, source_package_module_identity, loaded_module_declaration_index}
 import project/src/compiler/module_resolution::{ModuleBindingGraph, ModuleGraphWalk, ModuleImportEdge, ResolvedModuleTarget, ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget, ResolvedDotCall.NamespaceCall, ResolvedDotCall.OwnedDotCall, ResolvedModuleUses, binding_graph_module, combine_module_uses, resolve_qualified_type_uses, resolve_module_expression_uses, resolve_module_block_uses, resolve_module_dot_call, resolve_module_function, resolve_module_path, resolve_module_type, module_graph_diagnostics, module_import_shadow_diagnostics, walk_module_graph}
 import project/src/compiler/module_signatures::{CheckedModuleSignatures, SignatureEffect, SignatureEffect.SignatureAsync, SignatureEffect.SignaturePure, SignatureType, SignatureTypeIdentity, SignatureTypeIdentity.SignatureNominal, SignatureTypeIdentity.SignatureParameter, SignatureTypeIdentity.SignatureCallable, SignatureTypeIdentity.SignatureCore, check_module_signatures, signature_effect, signature_type, signature_public_identity, substitute_signature_type}
-import project/src/compiler/module_bodies::{BodyTarget, BodyNode, BodyNode.BodyArray, BodyNode.BodyAssignment, BodyNode.BodyBinary, BodyNode.BodyBinding, BodyNode.BodyBlock, BodyNode.BodyCall, BodyNode.BodyEmpty, BodyNode.BodyField, BodyNode.BodyFor, BodyNode.BodyFunction, BodyNode.BodyIf, BodyNode.BodyIndex, BodyNode.BodyInterpolation, BodyNode.BodyLiteral, BodyNode.BodyLocalUse, BodyNode.BodyMatch, BodyNode.BodyUnary, BodyNode.BodyWhile, BodyTarget.BodyCore, BodyTarget.BodyDeclaration, BodyCheckStatus, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid, BodyLocalIdentity, BoundFunctionBody, GuardConversionEvidence, TypeJoinEvidence, CollectionCallbackEvidence, OperatorTypeEvidence, BodyTypeCheckEvidence, CheckedModuleBodies, body_call_argument_evidence, body_binding_type_evidence, body_assignment_type_evidence, body_type_join_evidence, body_collection_callback_evidence, body_operator_type_evidence, body_type_check_evidence, body_compatibility, check_module_bodies, check_module_bodies_explained}
+import project/src/compiler/module_bodies::{BodyTarget, BodyNode, BodyNode.BodyArray, BodyNode.BodyAssignment, BodyNode.BodyBinary, BodyNode.BodyBinding, BodyNode.BodyBlock, BodyNode.BodyCall, BodyNode.BodyEmpty, BodyNode.BodyField, BodyNode.BodyFor, BodyNode.BodyFunction, BodyNode.BodyAnonymousFunction, BodyNode.BodyIf, BodyNode.BodyIndex, BodyNode.BodyInterpolation, BodyNode.BodyLiteral, BodyNode.BodyLocalUse, BodyNode.BodyMatch, BodyNode.BodyUnary, BodyNode.BodyWhile, BodyTarget.BodyCore, BodyTarget.BodyDeclaration, BodyCheckStatus, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid, BodyLocalIdentity, BoundFunctionBody, GuardConversionEvidence, TypeJoinEvidence, CollectionCallbackEvidence, OperatorTypeEvidence, BodyTypeCheckEvidence, CheckedModuleBodies, body_call_argument_evidence, body_binding_type_evidence, body_assignment_type_evidence, body_type_join_evidence, body_collection_callback_evidence, body_operator_type_evidence, body_type_check_evidence, body_compatibility, check_module_bodies, check_module_bodies_explained}
 import project/src/compiler/module_effects::{CheckedModuleEffects, check_module_effects, collect_function_effect_facts, check_function_effect_facts}
 import project/src/compiler/loader::{LoadedProject, load_project, loaded_binding_graph}
 import project/src/compiler/resolver::{LoadedSource, append_program_declarations, resolve_program_at, resolve_source, render_resolver_diagnostics}
@@ -24,7 +24,7 @@ import project/src/compiler/purity::{check_source_frontend}
 import project/src/compiler/checker::{check_source_types}
 import project/src/compiler/lexer::{lex_file}
 import project/src/compiler/parser::{parse_complete}
-import project/src/compiler/module_emission::{ModuleEmissionResult, ModuleSignature, BoundBody, Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, module_emission_expression, module_emission_program, module_emission_symbol}
+import project/src/compiler/module_emission::{ModuleEmissionResult, ModuleSignature, BoundBody, Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.AnonymousExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, module_emission_expression, module_emission_program, module_emission_symbol}
 import project/src/compiler/emitter::{compile_source_disassembly, compile_program}
 import project/src/bytecode/codec::{compile_source_bytecode, serialize_bytecode}
 import project/src/compiler/driver::{diagnostic_messages}
@@ -297,6 +297,7 @@ pure body_type_check_for_context(
 
 pub run_suite(): Void {
   mut results: [TestResult] = []
+  results = results.concat(anonymous_body_tests())
   results = results.concat(preparation_tests())
   results = results.concat(module_reuse_tests())
   results = results.concat(body_cache_tests())
@@ -419,6 +420,7 @@ module_emission_guard_call_name(expression: Expr): Str {
     BoolExpr(value) => "",
     NameExpr(name) => "",
     FunctionExpr(name) => "",
+    AnonymousExpr(effect, parameters, result_type, body) => "",
     ArrayExpr(items) => "",
     UnaryExpr(operator, value) => "",
     BinaryExpr(operator, left, right) => "",
@@ -518,6 +520,7 @@ module_emission_program_tests(): [TestResult] {
     BoolExpr(value) => false,
     NameExpr(name) => false,
     FunctionExpr(name) => false,
+    AnonymousExpr(effect, parameters, result_type, body) => false,
     ArrayExpr(items) => false,
     UnaryExpr(operator, operand) => false,
     BinaryExpr(operator, left, right) => false,
@@ -546,6 +549,7 @@ pure module_emission_await_call_name(expression: Expr): Str {
         BoolExpr(value) => "",
         NameExpr(name) => "",
         FunctionExpr(name) => "",
+    AnonymousExpr(effect, parameters, result_type, body) => "",
         ArrayExpr(items) => "",
         UnaryExpr(nested, value) => "",
         BinaryExpr(nested, left, right) => "",
@@ -567,6 +571,7 @@ pure module_emission_await_call_name(expression: Expr): Str {
     BoolExpr(value) => "",
     NameExpr(name) => "",
     FunctionExpr(name) => "",
+    AnonymousExpr(effect, parameters, result_type, body) => "",
     ArrayExpr(items) => "",
     BinaryExpr(operator, left, right) => "",
     CallExpr(name, arguments, types) => "",
@@ -848,7 +853,8 @@ pure raw_namespace_dot_call(expression: Expr): Bool {
     DotCallExpr(target, name, arguments, types) => unlocated_expression(target) == NameExpr("api") && name == "get" && arguments.len() == 1 && unlocated_expression(arguments[0]) == NatExpr(1),
     LocatedExpr(span, value, located_type_argument_spans) => false, NatExpr(value) => false, DecimalExpr(text) => false,
     StringExpr(text) => false, BoolExpr(value) => false, NameExpr(name) => false,
-    FunctionExpr(name) => false, ArrayExpr(items) => false, UnaryExpr(operator, operand) => false,
+    FunctionExpr(name) => false,
+    AnonymousExpr(effect, parameters, result_type, body) => false, ArrayExpr(items) => false, UnaryExpr(operator, operand) => false,
     BinaryExpr(operator, left, right) => false, CallExpr(name, arguments, types) => false,
     FieldExpr(target, field) => false, IndexExpr(target, index) => false,
     IfExpr(condition, yes, no, has_else) => false, BlockExpr(block) => false, MatchExpr(subject, arms) => false
@@ -889,6 +895,14 @@ pure namespace_resolution_failure_tests(): [TestResult] {
     results = results.append(std_testing.equal_str("unmarked qualified syntax fails closed", check_source_frontend(source), message))
     results = results.append(std_testing.expect("unmarked qualified source emits no bytecode", compile_source_bytecode(source) == bytes(), "staged syntax emitted bytecode"))
   }
+  anonymous_source = "pure f(): PureFn[Nat,Nat] { (x: Nat) => x + 1 }"
+  anonymous_message = "anonymous function type checking is not yet available in this development build"
+  results = results.append(std_testing.equal_str("typed anonymous body checks through module identities",
+    body_test_error(anonymous_source), "ok"))
+  results = results.append(std_testing.equal_str("legacy anonymous checking also fails closed",
+    check_source_types(anonymous_source + " main(): Void {}"), anonymous_message))
+  results = results.append(std_testing.expect("unchecked anonymous syntax emits no bytecode",
+    compile_source_bytecode(anonymous_source) == bytes(), "unchecked function emitted bytecode"))
   results = results.append(std_testing.equal_str("owned methods require identity checking", check_source_types("pure f(): Nat { [1].len() }; main(): Void {}"), "unresolved dot call requires module binding resolution"))
   mut modules: [ModuleBindings] = [namespace_test_bindings("leaf", "pub pure answer(): Nat { 1 }")]
   mut edges: [ModuleImportEdge] = []
@@ -1124,6 +1138,7 @@ pure body_has_result_tail(node: BodyNode): Bool {
     BodyInterpolation(parts) => false,
     BodyLocalUse(local, captured_domain) => false,
     BodyFunction(binding) => false,
+    BodyAnonymousFunction(anonymous) => false,
     BodyArray() => false,
     BodyUnary(operator) => false,
     BodyBinary(operator) => false,
@@ -1167,6 +1182,7 @@ pure body_binding_inference_marker(body: BoundBody): Option[Bool] {
     BodyInterpolation(parts) => None(),
     BodyLocalUse(local, captured_domain) => None(),
     BodyFunction(binding) => None(),
+    BodyAnonymousFunction(anonymous) => None(),
     BodyCall(target, types, call_arguments) => None(),
     BodyArray() => None(),
     BodyUnary(operator) => None(),
@@ -3870,7 +3886,8 @@ pure namespace_body_tests(): [TestResult] {
   }
   if checked.functions.len() == 3 {
     call: BoundBody = checked.functions[0].body.children[0]
-    results = results.append(std_testing.expect("qualified bound call retains declaration identity", match call.node { BodyCall(target, types, call_arguments) => match target { BodyDeclaration(binding) => binding.identity == DeclarationIdentity(left.bindings.identity, "take"), BodyCore(name) => false }, BodyLiteral(value) => false, BodyInterpolation(parts) => false, BodyLocalUse(local, captured_domain) => false, BodyFunction(binding) => false, BodyArray() => false, BodyUnary(operator) => false, BodyBinary(operator) => false, BodyField(name) => false, BodyIndex() => false, BodyIf(has_else) => false, BodyBlock(has_tail, original_span, statement_spans) => false, BodyMatch(targets, bindings, spans) => false, BodyBinding(local, type, mutable, inferred, type_evidence) => false, BodyAssignment(local, assignment_evidence) => false, BodyWhile() => false, BodyFor(local) => false, BodyEmpty() => false }, "call target was re-spelled"))
+    results = results.append(std_testing.expect("qualified bound call retains declaration identity", match call.node { BodyCall(target, types, call_arguments) => match target { BodyDeclaration(binding) => binding.identity == DeclarationIdentity(left.bindings.identity, "take"), BodyCore(name) => false }, BodyLiteral(value) => false, BodyInterpolation(parts) => false, BodyLocalUse(local, captured_domain) => false, BodyFunction(binding) => false,
+    BodyAnonymousFunction(anonymous) => false, BodyArray() => false, BodyUnary(operator) => false, BodyBinary(operator) => false, BodyField(name) => false, BodyIndex() => false, BodyIf(has_else) => false, BodyBlock(has_tail, original_span, statement_spans) => false, BodyMatch(targets, bindings, spans) => false, BodyBinding(local, type, mutable, inferred, type_evidence) => false, BodyAssignment(local, assignment_evidence) => false, BodyWhile() => false, BodyFor(local) => false, BodyEmpty() => false }, "call target was re-spelled"))
   }
   lexical: CheckedModuleBodies = body_test_module("pub pure f(value: Nat): Nat { mut local = value; local = 2; if true { inner = local; inner }; local }")
   results = results.append(std_testing.equal_nat("nested lexical body binds", lexical.diagnostics.len(), 0))
@@ -3885,6 +3902,7 @@ pure namespace_body_tests(): [TestResult] {
     BodyInterpolation(parts) => false,
     BodyLocalUse(local, captured_domain) => false,
     BodyFunction(binding) => false,
+    BodyAnonymousFunction(anonymous) => false,
     BodyArray() => false,
     BodyUnary(operator) => false,
     BodyBinary(operator) => false,
@@ -4729,6 +4747,7 @@ pure owned_server_map_tests(): [TestResult] {
           BodyLiteral(value) => {},
           BodyLocalUse(identity, captured_domain) => {},
           BodyFunction(binding) => {},
+          BodyAnonymousFunction(anonymous) => {},
           BodyArray() => {},
           BodyUnary(operator) => {},
           BodyBinary(operator) => {},
@@ -5275,5 +5294,78 @@ pure stdlib_nominal_identity_tests(): [TestResult] {
       module_emission_symbol(graph, entry, DeclarationIdentity(left.bindings.identity, name)) != name,
       "native filesystem identity was replaced"))
   }
+  results
+}
+
+// Every nested body has its own effect mode; cached effect facts must agree.
+pure anonymous_body_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  evidence_source = "pure f(): [PureFn[Nat,Nat]] { [(x) => x + 1] }"
+  explained = body_test_module(evidence_source)
+  operators = body_operator_type_evidence(explained.functions[0].body)
+  results = results.append(std_testing.equal_nat("anonymous array retains one body operator", operators.len(), 1))
+  if operators.len() == 1 {
+    site = operators[0].span
+    results = results.append(std_testing.equal_str("anonymous operator points to original source",
+      evidence_source.slice(site.start.offset, site.end.offset), "x + 1"))
+    results = results.append(std_testing.expect("anonymous operator retains checked result",
+      operators[0].accepted == Some(true) && operators[0].result == Some(SignatureType(SignatureCore("Nat"), [])),
+      "anonymous operator result lost"))
+  }
+  results = results.append(std_testing.equal_str("untyped anonymous parameter gives actionable diagnostic",
+    body_test_error("pure f(): Void { callback = (value) => value; }"),
+    "cannot determine the type of anonymous parameter value; add a type annotation"))
+
+  for source in [
+    "enum Choice[T] { Pick(T) }; pure f(): Choice[PureFn[Nat,Nat]] { Choice.Pick((x) => x + 1) }",
+    "pure f(): Option[PureFn[Nat,Nat]] { Some((x) => x + 1) }",
+    "record Handler[T] { callback: PureFn[T,T] }; pure f(): Handler[Nat] { Handler((x) => x + 1) }",
+    "pure f(): Option[[PureFn[Nat,Nat]]] { Some([(x) => x + 1]) }",
+    "pure f(): [PureFn[Nat,Nat]] { [(x) => x + 1, (x) => x + 2] }",
+    "pure f(): Nat { callbacks: [[PureFn[Nat,Nat]]] = [[(x) => x + 1]]; callbacks[0][0].call(2) }",
+    "pure apply(fs: [PureFn[Nat,Nat]]): Nat { fs[0].call(2) }; pure f(): Nat { apply([(x) => x + 1]) }",
+    "record Handler { callback: PureFn[Nat,Nat] }; pure f(): Handler { Handler((x) => x + 1) }",
+    "pure f(flag: Bool): PureFn[Nat,Nat] { if flag { (x) => x + 1 } else { (x) => x + 2 } }",
+    "pure f(flag: Option[Bool]): PureFn[Nat,Nat] { match flag { Some(value) => (x) => x + 1, None() => (x) => x + 2 } }",
+    "pure f(): PureFn[PureFn[Nat,Nat]] { (): PureFn[Nat,Nat] => (x) => x + 1 }",
+    "pure f(): Nat { mut callback: PureFn[Nat,Nat] = (x) => x; callback = if true { (x) => x + 1 } else { (x) => x }; callback.call(2) }",
+    "pure apply[T,U](f: PureFn[T,U], x: T): U { f.call(x) }; pure f(): Str { apply(if true { (x) => \"yes\" } else { (x) => \"no\" }, 2) }",
+    "pure apply(f: PureFn[Nat,Nat], x: Nat): Nat { f.call(x) }; pure f(): Nat { mut count: Nat = 2; if count >= 1 { apply(if true { (x) => x } else { (x) => x }, count - 1) } else { 0 } }",
+    "pure f(): PureFn[Nat,Nat] { (x: Nat) => x + 1 }",
+    "pure f(): PureFn[Nat,Nat] { (x) => x + 1 }",
+    "pure f(): Nat { callback: PureFn[Nat,Nat] = (x) => x + 1; callback.call(2) }",
+    "pure f(): Fn[Nat,Void] { (x: Nat) => { print(x) } }",
+    "pure f(): AsyncFn[Nat,Nat] { async (x: Nat) => x + 1 }",
+    "pure apply(f: PureFn[Nat,Nat], x: Nat): Nat { f.call(x) }; pure f(): Nat { apply((x) => x + 1, 2) }",
+    "pure apply[T,U](f: PureFn[T,U], x: T): U { f.call(x) }; pure f(): Str { apply((x) => \"ok\", 2) }"
+  ] {
+    direct = body_test_effects(source, false)
+    cached = body_test_effects_mode(source, false, true)
+    results = results.append(std_testing.equal_nat("anonymous valid body/effects: " + source, direct.diagnostics.len(), 0))
+    results = results.append(std_testing.expect("anonymous cached effect facts agree", direct == cached, source))
+  }
+  for source in [
+    "pure identity[T](value: T): T { value }; pure f(): PureFn[Nat,Nat] { identity((x) => x) }",
+    "pure f(): [PureFn[Nat,Nat]] { [(x: Str) => 1] }",
+    "pure f(): [PureFn[Nat,Void]] { [(x) => print(x)] }",
+    "pure f(): Void { callbacks = [(x) => x]; }",
+    "pure f(): Void { callback = (x) => x + 1; }",
+    "pure f(): PureFn[Nat,Str] { (x: Nat): Str => x + 1 }",
+    "pure f(x: Nat): PureFn[Nat] { () => x }",
+    "f(): Fn[Void] { mut x = 0; () => { x = x + 1; } }",
+    "pure f(): PureFn[Void] { pure () => print(1) }",
+    "pure f(): AsyncFn[Void] { async () => print(1) }",
+    "pure f(): PureFn[Void] { () => print(1) }",
+    "pure f(): Nat { callback = (x: Nat) => x; callback.call() }",
+    "async task(): Nat { 1 }; pure f(): PureFn[Nat] { () => { await task() } }"
+  ] {
+    direct = body_test_effects(source, false)
+    cached = body_test_effects_mode(source, false, true)
+    results = results.append(std_testing.expect("anonymous invalid body/effects rejected", direct.diagnostics.len() > 0, source))
+    results = results.append(std_testing.expect("anonymous invalid cached facts agree", direct == cached, source))
+  }
+  results = results.append(std_testing.equal_str("compound callback preserves argument fact invalidation",
+    body_test_error("pure apply(f: PureFn[Nat,Nat], x: Nat): Nat { f.call(x) }; pure f(): Nat { mut count: Nat = 2; if count >= 1 { apply(if true { count = 0; (x) => x } else { (x) => x }, count - 1) } else { 0 } }"),
+    "Nat subtraction may underflow; prove the left side is large enough or use Int"))
   results
 }

@@ -335,15 +335,15 @@ Acceptance includes:
 ## Delivery after contract approval
 
 Provisional weights describe this bounded programme, not all RM#162 or alpha.16.
-Implementation has not started and all earned contributions are zero.
+CS1 implementation passed local acceptance; next integration acceptance remains.
 
 | Slice | Deliverable | Weight | Status | Earned |
 | --- | --- | --- | --- | --- |
-| CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | Planned | 0 |
+| CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | Locally complete: full validation passed; next integration acceptance pending | 0 |
 | CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | Planned | 0 |
 | CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | Planned | 0 |
 | CS4 | Both service examples, installed acceptance, reference and website guidance | 20 | Planned | 0 |
-| Total | Working callable/state feature | 100 | Approved; implementation not started | 0 |
+| Total | Working callable/state feature | 100 | Implementation in progress; no accepted slice yet | 0 |
 
 Order: CS1, then CS2 and CS3, then CS4. CS3 can use named pure callbacks; it need
 not depend on closure syntax. Implement related work in a development branch with
@@ -389,3 +389,184 @@ cases cover both rules. No scope, weight or implementation-status change.
 Owner approved merging PR #700 on 23 November and requested a stop afterwards.
 The contract is accepted on merge; CS1–CS4 remain unstarted, with zero earned
 implementation contribution. No implementation is authorised by this stop point.
+
+
+## CS1 development checkpoint, 25 November 2026
+
+The owner resumed implementation on `feature/rm162-anonymous-functions` from next
+at `207c067`. The anonymous-header parser now retains typed or context-dependent
+parameters, optional result types, explicit effect markers and source spans;
+parenthesised expressions remain distinguishable without consuming their tokens.
+Focused parser coverage includes duplicate names and missing separators/types.
+All 224 parser assertions pass and the candidate compiler builds and verifies.
+This helper is not yet connected to general expression parsing: anonymous functions
+are not a supported executable feature at this checkpoint.
+
+Remaining CS1 work is explicit expression syntax and body representation,
+contextual parameter/result checking (including map), pure/ordinary/async effects,
+noncapturing callable lowering, diagnostics and source/bytecode regression cases.
+Existing AST, bound-body cache codecs, source inventory and explanation walkers
+must handle the new expression before integration; do not encode it as a magic
+ordinary call or bypass module identity. CS2 owns retained environments and their
+runtime lifetime work. Missing captures in CS1 must receive a clear diagnostic.
+
+No CI or final full validation has run for this in-progress checkpoint. Do not
+refresh the bootstrap seed or integrate a partially supported language feature.
+Run the compatibility preflight and final validation after the CS1 batch settles.
+No performance improvement is claimed; candidate build success is not acceptance
+of the slice. Stable weights and zero accepted implementation contribution remain.
+
+## CS1 development checkpoint, 27 November 2026
+
+27 November: CS1 now parses complete anonymous expressions, including block and
+nested bodies. Parameter scopes, qualified annotations, source inventory and
+cache encoding retain the new syntax. Focused checks cover 237 parser, 31 resolver,
+38 source-span, 28 inventory and 2,042 module-binding/cache assertions; the
+candidate compiler builds and verifies. Anonymous functions still fail closed at
+type checking: contextual types, effects and noncapturing lowering remain. No CI,
+bootstrap refresh or final full validation; no implementation slice is accepted.
+
+The AST has a distinct `AnonymousExpr` carrying effect spelling, parameters,
+result annotation and body. It is not represented as an ordinary call. Both
+expression and block bodies retain their original source spans, including
+parameter and result annotations. Rendering parenthesises anonymous expressions
+so a call on the function cannot be confused with a call inside its body.
+
+The cache schema appends an expression tag without renumbering existing tags.
+Round-trip cases cover typed, contextual, async and nested syntax. The module
+resolver visits parameter/result types and bodies with a separate parameter
+scope; source inventory visits body decisions. Scalar guard analysis does not
+treat creation of a function as execution of its body.
+
+The next implementation step is a bound callable body with contextual input
+types, result checking, its own effect boundary and generated function lowering.
+The temporary development diagnostic and defensive emission trap must be replaced
+by that checked path before CS1 acceptance. No user-facing specification or
+website claim has changed, because executable support is not delivered yet.
+
+## CS1 working execution checkpoint, 27 November 2026
+
+27 November, working execution checkpoint: CS1 now checks and lowers noncapturing
+anonymous functions using the existing bytecode format. Pure, ordinary and async
+bodies have separate effect scopes. Direct annotated targets, direct return
+values and callback arguments supply parameter types; map results infer from the
+body. Generated functions survive body/code caches and generic type identities.
+The focused module-binding/cache suite passes 2,151 assertions, including effect
+rejection and fresh/cached equivalence. Source and saved-bytecode execution agree
+for the new runtime fixture; the async fixture passes. A confirmed remaining gap
+is contextual typing through conditional return branches. Full contextual
+propagation, explanation/diagnostic acceptance and final compatibility/full
+validation remain before CS1 acceptance. No CI or bootstrap refresh; CS2–CS4 and
+the zero accepted implementation contribution are unchanged.
+
+`BodyAnonymousFunction` retains a separately checked `BoundFunctionBody`. Ordinary
+data-flow walks do not enter that body at function creation; effect checks and
+evidence walks enter it deliberately. Noncapturing bodies lower to private
+functions and ordinary callable references. No VM or bytecode-version change is
+needed for this subset. Captured local reads and writes are diagnosed rather than
+implemented ahead of CS2.
+
+Call checking gathers non-lambda argument types before checking direct anonymous
+arguments. Known input types flow into the body; unresolved result parameters
+remain available for the existing generic inference pass. Generic owner types
+are rebound at the anonymous boundary and translated back for the outer callable
+type. Generated functions and their effect facts are included in each module’s
+encoded cache, not just in fresh emission.
+
+Focused runtime fixtures are under
+`tests/fixtures/compiler_contracts/anonymous_functions/`. They cover typed and
+contextual callbacks, arrays returning Nat and Str, returned/generic functions,
+ordinary printing and async success/failure. The source and saved-bytecode
+ordinary outputs match; cold/warm local compilation outputs also match. The
+cache unit tests independently assert that unchanged module bodies are reused.
+
+Before acceptance, complete expected-type propagation through compound return
+expressions and call arguments (including conditionals and matches), review
+retained explanations and diagnostics, register final functional acceptance,
+refresh the bootstrap at the final checkpoint, and run compatibility preflight
+plus the final full suite. Do not merge this development checkpoint as CS1 done.
+
+The unchanged explanation, purity and source-map regression probes also pass
+(266, 39 and 48 assertions respectively). Runtime output is checked against the
+fixture’s fixed `stdout.txt`, not only compared between execution modes.
+
+
+27 November, compound contextual typing checkpoint: expected callable inputs now
+flow through if/match results, block tails, reassignment and compound callback
+arguments. Nested anonymous bodies also receive an explicit result annotation.
+Argument checking replays compound callbacks in source order after gathering
+input types, preserving mutation-based invalidation of guarded facts. A paired
+regression accepts guarded subtraction without a preceding mutation and rejects
+it when an earlier argument writes the guarded variable. Runtime selection
+effects occur once.
+
+The module-binding/cache suite passes 2,180 assertions, explanations 266 and
+purity 39. Candidate source execution and verified saved bytecode match the
+expanded fixed transcript. Remaining work is the contextual-type acceptance
+audit (including aggregate/constructor positions), explanation/diagnostic review,
+final functional registration and compatibility/full validation. CS1 remains in
+progress, with zero accepted implementation points; CS2–CS4 remain planned. No
+CI or bootstrap refresh. The extra checking pass is limited to calls containing
+compound callback expressions; ordinary calls retain their current path. No VM
+or bytecode changes. Website claims remain unchanged until feature acceptance.
+
+
+27 November, collection and evidence checkpoint: known array element types now
+reach anonymous parameters, including nested arrays, returned arrays and callback
+arrays supplied as arguments. Existing record constructor signatures also supply
+callback inputs. Regressions reject incompatible parameter types, impure bodies
+in pure callback arrays and unannotated inputs without context. Explanation
+evidence retains the exact anonymous body expression and its checked result; the
+missing-parameter diagnostic is asserted verbatim. The module-binding/cache suite
+passes 2,205 assertions. Expanded source and saved-bytecode transcripts match.
+The candidate passes native-oracle-artifacts for unchanged-program bytecode.
+
+CS1 remains in progress: finish the constructor/generic contextual boundary audit,
+end-to-end explanation review, functional registration and final bootstrap/full
+validation. No CI or bootstrap refresh. CS2–CS4 remain planned and accepted
+implementation contribution stays zero. The array pass reuses source-order child
+checking; no VM, bytecode-format or runtime representation change. No website
+publication; the proposal and test evidence describe development support.
+
+
+27 November, CS1 acceptance checkpoint: constructor context now supplies callback
+inputs through generic records and enum payloads, including nested arrays and
+qualified constructors. Ordinary function calls retain input-only inference; a
+regression rejects deriving an anonymous parameter from the receiving result.
+Explanation traversal enters anonymous bodies for type-at-position, inferred
+locals and guard evidence. The public CLI checks the original source locations.
+
+The module/cache suite passes 2,219 assertions. Ordinary and async functional cases
+pass source, compile and saved-bytecode checks; the CLI explanation fixture also
+passes all three modes, with 121 internal assertions. The fixture inventory and
+its mutation tests pass (616 outer transcript assertions). Candidate unchanged-
+program bytecode compatibility passed. Bootstrap refresh produced identical
+stage 2/3/4 compilers (88fa8a2ec9c850afb7e64bc714bca7eec194e9e8524e5821b8338e0be53c25ad)
+and matching standard-library artifacts/output. Final make check is running.
+CS1 remains unaccepted pending that result and integration; CS2–CS4 remain planned.
+No development CI or website publication. Specification and architecture now
+describe noncapturing support; closures and State are not claimed. The runtime
+and bytecode version are unchanged. Constructor-context inference is restricted
+to constructor calls with an expected type; ordinary calls keep their rules.
+
+Validation environment note: the initial full run stopped after 269 seconds at
+the packaged HTTP port probe, which the local execution sandbox denied. The
+same port probe and complete relocated-package smoke check pass with host access.
+The required full suite is being rerun with localhost networking available; no
+product behaviour or test expectation was changed to bypass this restriction.
+
+
+CS1 final local acceptance, 27 November: make check passed in 708 seconds with
+host access (unit 421s, bootstrap 94s and functional 220s; bootstrap overlaps
+unit). Relocated-package smoke and quick-start passed. The suite caught a stale
+watchdog observation hook after the contextual block checker was introduced; the
+test-only observer now recognises both block entry points, with explicit stall,
+recovery and unchanged-budget assertions. No production VM or timeout policy
+change was needed. Earlier sandbox failure and the watchdog failure were fixed
+before this successful final run.
+
+CS1 implementation and local acceptance are complete, pending next integration
+and hosted acceptance. CS2–CS4 remain planned. Accepted implementation points
+stay at zero until integration acceptance; RM#162 remains open. The measured
+full-run duration is evidence, not a new performance target. No development CI
+or website publication occurred.

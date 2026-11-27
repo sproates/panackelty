@@ -296,7 +296,7 @@ Status meanings:
 | Lexer-oriented string built-ins | lexer foundation example and compiler-skeleton functional case | **Partial** — individually test slicing bounds, prefixes, character classes, and `nat_from_str` failures. |
 | Panackelty-hosted lexer | `runner/compiler_lexer_unit.panack`; compiler-lexer and positioned-failure functional cases | **Covered** for comments, whitespace, identifiers, integers, decimals, strings, every symbol, longest-match boundaries, half-open offsets, invalid characters, file-aware positioned diagnostics, and unterminated strings. |
 | Local-package manifest and CLI | `runner/package_manifest_unit.panack` (25 assertions); `runner/compiler_loader_confinement_unit.panack`; `unit/vm/native_modules.c`; `functional/cases/cli_commands` and its package graph, source limit, root race and relocation scripts | **Covered** — strict schema-1 parsing validates identity, exact toolchain, SemVer, exports, dependencies, relative paths, duplicate/unknown fields, Unicode escapes, malformed UTF-8/JSON, and size/depth bounds. CLI acceptance covers explicit manifest check/source run/compile, dependency fail-closed behavior, confined module loading after relocating an application root, plus PR#386’s two-app shared-library fixture checks, runs and compiles from an unrelated working directory, moves the entire sibling app/library tree, then repeats checks and source runs and executes the saved bytecode compiled before the move. Dependency-free library checks validate every distinct exported module, including an export importing another export, without requiring `main`; compile/run reject library manifests, empty libraries fail, and an invalid later export is detected. Direct local dependencies cover two applications sharing one library, export-only imports, saved bytecode, same-root aliases and conflicting physical package roots. Nested-graph acceptance checks a shared package reached directly and through a library, owner-scoped aliases, source and bytecode execution, cycle rejection, and nested source-root overlap rejection. `package_graph_limits.sh` verifies nested version conflicts and duplicate physical roots, accepts exactly 64 package manifests, 256 dependency edges and 32 package levels, and rejects one beyond each limit. `compiler_package_source_limits_unit.panack` accepts exactly 256 loaded source files, a 1 MiB source module and an 8 MiB source closure, and rejects one beyond each bound. These loader-level checks avoid reparsing large boundary fixtures. `package_source_limits.sh` separately verifies through the public CLI that a source above 1 MiB fails closed before parsing. The loaded-file and source-byte totals include the automatically loaded toolchain core. This completes P3 local-package acceptance; P8 still owns clean-installed release and browser integration acceptance. Package source loading rejects mismatched physical root identities and an exported symlink escaping the package root. Native rooted-read tests race symlink replacement against reads and prove that successful reads return only in-root contents. The functional CLI acceptance atomically replaces an application-root symlink during repeated source-closure loads; the race fixture imports 64 sibling modules per candidate root to widen the source-loading window. Successful runs must use one coherent package tree, while a detected root identity change or source-read error fails closed. Native directory-overlap contracts cover ancestry in both directions, aliases, disjoint roots, and missing paths. Functional manifests reject application/dependency and distinct dependency source roots that physically overlap.
-| Panackelty-hosted parser | `runner/compiler_parser_unit.panack`; compiler-skeleton and positioned-failure functional cases | **Covered** for the complete accepted grammar and focused malformed input, including one-based file, line, and column reporting through the project loader. The parser probe checks 192 assertions in 38 groups. |
+| Panackelty-hosted parser | `runner/compiler_parser_unit.panack`; compiler-skeleton and positioned-failure functional cases | **Covered** for the complete accepted grammar and focused malformed input, including one-based file, line, and column reporting through the project loader. The parser probe currently checks 237 assertions, including 25 anonymous-header/expression cases. These cover complete bodies, nesting, precedence, multiline blocks and malformed syntax; source-span, inventory, resolver and cache probes also cover the new AST. The CS1 development branch additionally checks and executes noncapturing anonymous functions; see the focused callable evidence below. |
 | Panackelty-hosted name resolver | `runner/compiler_resolver_unit.panack`; compiler-skeleton and positioned-failure functional cases | **Partial** — top-level declarations, constructors, built-ins, lexical scopes, calls, assignments, loops, guards, match bindings, and already-loaded module graphs are covered, including source-accurate imported-module name failures. The resolver probe checks 26 assertions in 12 groups. Interpolation references remain. |
 | Panackelty-hosted type/refinement checker | `runner/compiler_checker_unit.panack`; `fixtures/compiler_checker`; `fixtures/compiler_checker`; compiler-skeleton and positioned-failure functional cases | **Covered** for declared and generic type references, records, enums, constructor inference, operators, arrays, indexing, persistent collections, built-ins, bindings, assignment, loops, branches, returns, entry points, exhaustive matches, guarded literals and branch facts, safe `Nat` subtraction, cross-module types, and source-accurate primary type failures. 37 native assertions cover the former direct checker contracts and sorting callback contracts, with explicit `ok` on success and the existing diagnostic substrings on failure. All 31 former differential source cases retain these same fixed native expectations. |
 | Panackelty-hosted purity checker | `runner/compiler_purity_unit.panack`; `fixtures/compiler_purity`; `fixtures/compiler_purity`; compiler-skeleton functional case from source and bytecode | **Covered** for pure recursion, constructors and built-ins, direct and nested impure calls, user-function effects, guarded-type predicates, and calls across an already-loaded module graph. 11 native assertions preserve all former direct purity contracts, requiring `ok` for success and the original diagnostic substrings on failure. All ten former differential sources now use fixed native acceptance and diagnostic expectations. |
@@ -2245,3 +2245,94 @@ shared runner logic are unchanged. No full-suite rerun or development CI.
 Website adaptation and owner review remain, as does integration acceptance.
 
 Integration follow-up, 23 November: run 45163842662 passed both platform package jobs but stopped before full validation because the manifest regression expected an older unmeasured-source list. The manifest already accounts for the ten added error/compatibility modules with reasons. This correction updates only the explicit expected inventory; coverage eligibility, measurement and thresholds are unchanged. The exact seven-file policy suite passes locally. Hosted full acceptance remains pending a new integration run.
+
+### CS1 anonymous-function development evidence (27 November 2026)
+
+The module-binding suite passes 2,151 assertions after adding separate anonymous
+body/effect checks and anonymous runtime fixtures to body, code and module-summary
+cache tests. Positive cases include contextual parameters, generic callbacks and
+independent nested effects. Negative cases cover missing parameter types, captured
+reads/writes, result mismatches, pure/async violations and invalid callable arity.
+Fresh and cached effect diagnostics agree. The runtime fixtures under
+`fixtures/compiler_contracts/anonymous_functions/` also run through the candidate
+compiler and saved bytecode with matching output.
+
+This is development evidence, not acceptance of CS1: compound contextual typing,
+explanation/diagnostic review, final functional registration, compatibility and
+full validation remain. No bytecode-version change or CI run accompanies this
+checkpoint.
+
+
+27 November, compound contextual typing checkpoint: expected callable inputs now
+flow through if/match results, block tails, reassignment and compound callback
+arguments. Nested anonymous bodies also receive an explicit result annotation.
+Argument checking replays compound callbacks in source order after gathering
+input types, preserving mutation-based invalidation of guarded facts. A paired
+regression accepts guarded subtraction without a preceding mutation and rejects
+it when an earlier argument writes the guarded variable. Runtime selection
+effects occur once.
+
+The module-binding/cache suite passes 2,180 assertions, explanations 266 and
+purity 39. Candidate source execution and verified saved bytecode match the
+expanded fixed transcript. Remaining work is the contextual-type acceptance
+audit (including aggregate/constructor positions), explanation/diagnostic review,
+final functional registration and compatibility/full validation. CS1 remains in
+progress, with zero accepted implementation points; CS2–CS4 remain planned. No
+CI or bootstrap refresh. The extra checking pass is limited to calls containing
+compound callback expressions; ordinary calls retain their current path. No VM
+or bytecode changes. Website claims remain unchanged until feature acceptance.
+
+
+27 November, collection and evidence checkpoint: known array element types now
+reach anonymous parameters, including nested arrays, returned arrays and callback
+arrays supplied as arguments. Existing record constructor signatures also supply
+callback inputs. Regressions reject incompatible parameter types, impure bodies
+in pure callback arrays and unannotated inputs without context. Explanation
+evidence retains the exact anonymous body expression and its checked result; the
+missing-parameter diagnostic is asserted verbatim. The module-binding/cache suite
+passes 2,205 assertions. Expanded source and saved-bytecode transcripts match.
+The candidate passes native-oracle-artifacts for unchanged-program bytecode.
+
+CS1 remains in progress: finish the constructor/generic contextual boundary audit,
+end-to-end explanation review, functional registration and final bootstrap/full
+validation. No CI or bootstrap refresh. CS2–CS4 remain planned and accepted
+implementation contribution stays zero. The array pass reuses source-order child
+checking; no VM, bytecode-format or runtime representation change. No website
+publication; the proposal and test evidence describe development support.
+
+
+27 November, CS1 acceptance checkpoint: constructor context now supplies callback
+inputs through generic records and enum payloads, including nested arrays and
+qualified constructors. Ordinary function calls retain input-only inference; a
+regression rejects deriving an anonymous parameter from the receiving result.
+Explanation traversal enters anonymous bodies for type-at-position, inferred
+locals and guard evidence. The public CLI checks the original source locations.
+
+The module/cache suite passes 2,219 assertions. Ordinary and async functional cases
+pass source, compile and saved-bytecode checks; the CLI explanation fixture also
+passes all three modes, with 121 internal assertions. The fixture inventory and
+its mutation tests pass (616 outer transcript assertions). Candidate unchanged-
+program bytecode compatibility passed. Bootstrap refresh produced identical
+stage 2/3/4 compilers (88fa8a2ec9c850afb7e64bc714bca7eec194e9e8524e5821b8338e0be53c25ad)
+and matching standard-library artifacts/output. Final make check is running.
+CS1 remains unaccepted pending that result and integration; CS2–CS4 remain planned.
+No development CI or website publication. Specification and architecture now
+describe noncapturing support; closures and State are not claimed. The runtime
+and bytecode version are unchanged. Constructor-context inference is restricted
+to constructor calls with an expected type; ordinary calls keep their rules.
+
+
+CS1 final local acceptance, 27 November: make check passed in 708 seconds with
+host access (unit 421s, bootstrap 94s and functional 220s; bootstrap overlaps
+unit). Relocated-package smoke and quick-start passed. The suite caught a stale
+watchdog observation hook after the contextual block checker was introduced; the
+test-only observer now recognises both block entry points, with explicit stall,
+recovery and unchanged-budget assertions. No production VM or timeout policy
+change was needed. Earlier sandbox failure and the watchdog failure were fixed
+before this successful final run.
+
+CS1 implementation and local acceptance are complete, pending next integration
+and hosted acceptance. CS2–CS4 remain planned. Accepted implementation points
+stay at zero until integration acceptance; RM#162 remains open. The measured
+full-run duration is evidence, not a new performance target. No development CI
+or website publication occurred.

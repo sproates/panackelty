@@ -128,6 +128,12 @@ static int self_test(void)
     EXPECT(!watchdog_check(&b, 2.1));
     EXPECT(strstr(b.error, "stuck.panack") && strstr(b.error, "loop"));
     watchdog_init(&b, 2, 0);
+    EXPECT(watchdog_event(&b, true, "check_module_bodies_explained", "context.panack", "", 0));
+    EXPECT(watchdog_event(&b, true, "bind_body_block_expected", "context.panack", "callback", 1));
+    EXPECT(watchdog_event(&b, false, "bind_body_block_expected", "context.panack", "callback", 1.5));
+    EXPECT(!watchdog_check(&b, 2.1));
+    EXPECT(strstr(b.error, "context.panack") && strstr(b.error, "callback"));
+    watchdog_init(&b, 2, 0);
     EXPECT(watchdog_event(&b, true, "compile_program", "", "", 0));
     EXPECT(!watchdog_event(&b, false, "compile_program", "", "", 3));
     watchdog_init(&b, 2, 0);

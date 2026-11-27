@@ -1,4 +1,4 @@
-pub import project/src/compiler/parser::{indexed_program, parse_program_complete, lex, Expr, TopLevel, FunctionParameter, Program, Block, SourcePos, Diagnostic, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue.NoBlockValue, BlockValue.TailBlockValue}
+pub import project/src/compiler/parser::{indexed_program, parse_program_complete, lex, Expr, TopLevel, FunctionParameter, Program, Block, SourcePos, Diagnostic, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.AnonymousExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue.NoBlockValue, BlockValue.TailBlockValue}
 import project/src/compiler/lexer::{lex_file}
 import project/src/compiler/types::{diagnostic_text}
 
@@ -353,6 +353,11 @@ pure resolve_expression(expression: Expr, scope: Set[Str], symbols: ResolverSymb
         diagnostics = diagnostics.append(resolver_diagnostic("unknown name ${name}"))
       } else {
       }
+    },
+    AnonymousExpr(effect, parameters, result_type, body) => {
+      mut nested: Set[Str] = scope
+      for parameter in parameters { nested = nested.add(parameter.name) }
+      diagnostics = resolve_expression(body, nested, symbols)
     },
     FunctionExpr(name) => {
       if !symbols.callables.has(name) {

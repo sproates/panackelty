@@ -1,9 +1,10 @@
+import project/src/compiler/parser::{lex, parse_complete}
 import project/src/compiler/module_effects::{check_module_effects, collect_function_effect_facts, check_function_effect_facts}
 import project/src/compiler/loader::{loaded_binding_graph}
 import project/src/compiler/body_cache_codec::{encode_checked_bodies, decode_checked_bodies}
 import project/src/compiler/loader::{load_project_sources, check_project_sources, check_project_sources_cached}
 import project/src/compiler/module_reuse::{CachedModuleBodies}
-import project/src/compiler/module_bodies::{BoundFunctionBody, BoundBody, BodyNode.BodyEmpty, BodyCheckStatus.BodyIdentityChecked}
+import project/src/compiler/module_bodies::{BoundFunctionBody, BoundBody, BodyNode.BodyEmpty, BodyNode.BodyLiteral, BodyCheckStatus.BodyIdentityChecked}
 import project/src/compiler/types::{SourcePos, SourceSpan}
 import project/src/compiler/emitter::{compile_program}
 import project/src/bytecode/codec::{serialize_bytecode, encode_u32, encode_text}
@@ -13,8 +14,8 @@ pub import stdlib/testing::{TestResult}
 
 pub body_cache_tests(): [TestResult] {
   mut results: [TestResult] = shared_type_cache_tests()
-  for fixture in ["collections", "records_and_enums", "callables", "async_await", "domain_constraints", "owned_core_methods", "string_boundaries"] {
-    source = load_project_sources("tests/functional/cases/" + fixture + "/main.panack")
+  for fixture in ["collections", "records_and_enums", "callables", "async_await", "domain_constraints", "owned_core_methods", "string_boundaries", "anonymous_functions"] {
+    source = load_project_sources((if fixture == "anonymous_functions" { "tests/fixtures/compiler_contracts/" } else { "tests/functional/cases/" }) + fixture + "/main.panack")
     fresh = check_project_sources(source)
     graph = loaded_binding_graph(fresh.modules, source.context.project_root, source.context.stdlib_root)
     results = results.append(testing.expect("fixture effect facts match full body diagnostics",
@@ -53,6 +54,25 @@ pub body_cache_tests(): [TestResult] {
   source = load_project_sources("tests/functional/cases/hello_world/main.panack")
   fresh = check_project_sources(source)
   signature = fresh.module_bodies[0].signature
+  // Exercise the syntax payload itself, including nested bodies and source spans.
+  // This does not assert that anonymous functions can be checked or executed yet.
+  for text in ["pure (value: Nat): Nat => value + 1",
+      "async () => { await clock.now() }", "(x) => (y: Str) => y"] {
+    match lex(text) {
+      Error(errors) => { results = results.append(testing.expect("anonymous cache fixture lexes", false, text)) },
+      Ok(tokens) => match parse_complete(tokens) {
+        Error(problem) => { results = results.append(testing.expect("anonymous cache fixture parses", false, problem.message)) },
+        Ok(expression) => {
+          span = SourceSpan(SourcePos("", 0, 1, 1), SourcePos("", text.len(), 1, text.len() + 1))
+          syntax_body = BoundFunctionBody(signature, [],
+            BoundBody(BodyLiteral(expression), span, [], None(), [], [], [], [], [], []),
+            [], BodyIdentityChecked(), None())
+          results = results.append(testing.expect("anonymous syntax and spans survive cache round trip",
+            decode_checked_bodies(encode_checked_bodies([syntax_body])) == Some([syntax_body]), text))
+        }
+      }
+    }
+  }
   for coordinate in [0, 4294967294, 4294967295, 18446744073709551616] {
     span = SourceSpan(SourcePos("λ.panack", coordinate, 7, 11), SourcePos("λ.panack", 3, coordinate, coordinate))
     body = BoundFunctionBody(signature, [], BoundBody(BodyEmpty(), span, [], None(), [], [], [], [], [], []), [], BodyIdentityChecked(), None())

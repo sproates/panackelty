@@ -812,3 +812,9 @@ format remain unchanged. Three independently built stages have SHA-256
 standard-library conformance remains
 `dae3879804075aa6675ccbd510eb0499324888b86e1fb63abf525930ae28b409`.
 The native oracle artifact contracts pass without updating their expected bytes.
+
+CS1 development now includes noncapturing anonymous functions in the self-hosted
+compiler, lowered to existing callable bytecode. Constructor/collection contextual
+typing and nested explanation traversal are included. Bootstrap refresh passed byte-identical stages 2/3/4 and matching stdlib
+artifacts/output. Full make check passed in 708s, including functional and installed-package
+checks. Next integration acceptance remains; this is not closure or State completion.

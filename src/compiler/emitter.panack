@@ -3,7 +3,7 @@ pub import project/src/compiler/parser::{Expr, Program}
 pub import project/src/compiler/types::{SourceSpan}
 import project/src/compiler/parser::{
   Expr.ArrayExpr, Expr.BinaryExpr, Expr.BlockExpr, Expr.BoolExpr,
-  Expr.CallExpr, Expr.DecimalExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.FunctionExpr,
+  Expr.CallExpr, Expr.DecimalExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.FunctionExpr, Expr.AnonymousExpr,
   Expr.IfExpr, Expr.IndexExpr, Expr.LocatedExpr, Expr.MatchExpr, Expr.NameExpr,
   Expr.NatExpr, Expr.StringExpr, Expr.UnaryExpr,
   Statement, Statement.AssignmentStatement, Statement.BindingStatement,
@@ -1107,6 +1107,8 @@ pure emit_expression_at(
       instructions: [Instruction] = [LoadInstruction(name)]
       EmittedCode(instructions, next_temporary, sources, probes)
     },
+    // Anonymous bodies must be lowered before reaching instruction emission.
+    AnonymousExpr(effect, parameters, result_type, body) => EmittedCode([MatchFailInstruction()], next_temporary, [], []),
     FunctionExpr(name) => {
       if retain_sources {
         sources = add_instruction_source(sources, origin, offset, false)

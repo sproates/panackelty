@@ -1,3 +1,5 @@
+pub import project/src/compiler/module_bodies::{SignatureType}
+import project/src/compiler/module_bodies::{body_state_payload_restricted}
 import project/src/compiler/module_bodies::{body_functions_with_anonymous}
 import project/src/compiler/resolver::{is_async_builtin}
 pub import project/src/compiler/types::{SourceSpan}
@@ -545,13 +547,21 @@ pub enum EffectCheckFact {
   EffectCallCheck(EffectCallFact, Bool),
   EffectStaticCheck(Diagnostic)
 }
+pub record StateCallFact {
+  target: DeclarationIdentity,
+  arguments: [SignatureType],
+  span: SourceSpan
+}
+
 pub record FunctionEffectFacts {
   identity: DeclarationIdentity,
   owner_file: Str,
   effect: Option[SignatureEffect],
   status: BodyCheckStatus,
   local_calls: [EffectCallFact],
-  checks: [EffectCheckFact]
+  checks: [EffectCheckFact],
+  state_payloads: [SignatureType],
+  state_calls: [StateCallFact]
 }
 
 pure effect_call_fact(expression: BoundBody, target: BodyTarget): EffectCallFact {
@@ -675,7 +685,9 @@ pub pure collect_function_effect_facts(functions: [BoundFunctionBody]): [Functio
       function.signature.binding.identity, function.signature.binding.span.start.file,
       function.signature.effect, function.status,
       if valid { effect_local_calls(function.body) } else { [] },
-      if valid { effect_check_facts(function.body, module_effect_mode(function.signature.effect), false) } else { [] }
+      if valid { effect_check_facts(function.body, module_effect_mode(function.signature.effect), false) } else { [] },
+      if valid { state_payload_facts(function.body) } else { [] },
+      if valid { state_call_facts(function.body, function.signature.binding.identity) } else { [] }
     ))
   }
   result
@@ -741,4 +753,123 @@ pub pure check_function_effect_facts(
     }
   }
   CheckedModuleEffects(diagnostics, [], function_types)
+}
+
+pure state_payload_types(type: SignatureType): [SignatureType] {
+  mut result: [SignatureType] = []
+  if type.identity == SignatureCore("State") && type.arguments.len() == 1 {
+    result = result.append(type.arguments[0])
+  }
+  for argument in type.arguments { result = result.concat(state_payload_types(argument)) }
+  result
+}
+
+pure state_payload_facts(body: BoundBody): [SignatureType] {
+  mut result: [SignatureType] = []
+  match body.type {
+    None() => {}, Some(type) => { result = state_payload_types(type) }
+  }
+  for child in body.children { result = result.concat(state_payload_facts(child)) }
+  result
+}
+
+pure state_call_facts(body: BoundBody, owner: DeclarationIdentity): [StateCallFact] {
+  mut result: [StateCallFact] = []
+  match body.node {
+    BodyCall(target, arguments, evidence) => match target {
+      BodyDeclaration(binding) => {
+        if arguments.len() > 0 {
+          result = result.append(StateCallFact(binding.identity, arguments, body.span))
+        }
+      },
+      BodyCore(name) => {}
+    },
+    BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity, domain) => {},
+    BodyFunction(binding) => {}, BodyAnonymousFunction(anonymous) => {
+      mut arguments: [SignatureType] = []
+      for index in 0..anonymous.signature.parameters.len() {
+        arguments = arguments.append(SignatureType(SignatureParameter(owner, index), []))
+      }
+      if arguments.len() > 0 {
+        result = result.append(StateCallFact(anonymous.signature.binding.identity, arguments, body.span))
+      }
+    }, BodyArray() => {},
+    BodyUnary(operator) => {}, BodyBinary(operator) => {}, BodyField(field) => {}, BodyIndex() => {},
+    BodyIf(value) => {}, BodyBlock(value, span, spans) => {}, BodyMatch(targets, locals, spans) => {},
+    BodyBinding(identity, type, mutable, inferred, evidence) => {}, BodyAssignment(identity, evidence) => {},
+    BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
+  }
+  for child in body.children { result = result.concat(state_call_facts(child, owner)) }
+  result
+}
+
+pure state_add_parameter(values: [Nat], value: Nat): [Nat] {
+  mut present = false
+  for previous in values { present = present || previous == value }
+  if present { values } else { values.append(value) }
+}
+
+pure state_parameter_indices(type: SignatureType, owner: DeclarationIdentity): [Nat] {
+  mut result: [Nat] = []
+  match type.identity {
+    SignatureParameter(identity, index) => { if identity == owner { result = state_add_parameter(result, index) } },
+    SignatureCallable(effect) => {}, SignatureCore(name) => {}, SignatureNominal(identity) => {},
+    SignatureHole(hole_owner, path, index) => {}
+  }
+  for argument in type.arguments {
+    for index in state_parameter_indices(argument, owner) { result = state_add_parameter(result, index) }
+  }
+  result
+}
+
+// This closed requirement is inferred from checked bodies, not a public trait.
+// Propagate parameter indices rather than expanding recursive generic types, so
+// recursive call graphs converge over a finite set. Cached code retains these
+// same facts and checks them against every current call-site instantiation.
+pub pure check_state_payload_facts(graph: ModuleBindingGraph, modules: [LoadedModule],
+  signatures: [ModuleSignature], functions: [FunctionEffectFacts]): [Diagnostic] {
+  mut required: Map[DeclarationIdentity,[Nat]] = map()
+  for function in functions {
+    mut parameters: [Nat] = []
+    for payload in function.state_payloads {
+      for index in state_parameter_indices(payload, function.identity) { parameters = state_add_parameter(parameters, index) }
+    }
+    required = required.put(function.identity, parameters)
+  }
+  mut changed = true
+  while changed {
+    changed = false
+    for function in functions {
+      mut parameters = required.get(function.identity)
+      for call in function.state_calls {
+        if required.has(call.target) {
+          for index in required.get(call.target) {
+            if index < call.arguments.len() {
+              for parameter in state_parameter_indices(call.arguments[index], function.identity) {
+                next = state_add_parameter(parameters, parameter)
+                if next.len() != parameters.len() { parameters = next; changed = true }
+              }
+            }
+          }
+        }
+      }
+      required = required.put(function.identity, parameters)
+    }
+  }
+  mut diagnostics: [Diagnostic] = []
+  for function in functions {
+    context = BodyContext(graph, modules, signatures, function.identity, [], map(), false)
+    for call in function.state_calls {
+      if required.has(call.target) {
+        for index in required.get(call.target) {
+          if index < call.arguments.len() && body_state_payload_restricted(context, call.arguments[index], []) {
+            diagnostics = diagnostics.append(Diagnostic("This call uses " + body_type_text(call.arguments[index]) +
+              " as a State payload inside " + call.target.name +
+              ". Store immutable data and keep cells, callbacks and resources outside the cell.", call.span.start))
+          }
+        }
+      }
+    }
+  }
+  diagnostics
 }

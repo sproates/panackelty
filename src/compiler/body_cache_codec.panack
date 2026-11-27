@@ -175,6 +175,7 @@ pub import project/src/compiler/module_effects::{
   EffectCallFact,
   EffectCheckFact,
   FunctionEffectFacts,
+  StateCallFact,
   EffectCheckFact.EffectCallCheck,
   EffectCheckFact.EffectStaticCheck
 }
@@ -1807,8 +1808,44 @@ pure decode_Array_EffectCheckFact(reader: CacheReader): CacheRead[[EffectCheckFa
   CacheRead(cursor, values)
 }
 
+pure encode_StateCallFact(pool: CachePool, value: StateCallFact): Bytes {
+  byte_buffer.empty().join(encode_DeclarationIdentity(pool, value.target)).join(encode_Array_SignatureType(pool, value.arguments)).join(encode_SourceSpan(pool, value.span))
+}
+
+pure decode_StateCallFact(reader: CacheReader): CacheRead[StateCallFact] {
+  mut cursor: CacheReader = reader
+  field_target = decode_DeclarationIdentity(cursor)
+  cursor = field_target.reader
+  field_arguments = decode_Array_SignatureType(cursor)
+  cursor = field_arguments.reader
+  field_span = decode_SourceSpan(cursor)
+  cursor = field_span.reader
+  CacheRead(cursor, StateCallFact(field_target.value, field_arguments.value, field_span.value))
+}
+
+pure encode_Array_StateCallFact(pool: CachePool, value: [StateCallFact]): Bytes {
+  mut chunks: [Bytes] = [encode_u32(value.len())]
+  for item in value { chunks = chunks.append(encode_StateCallFact(pool, item)) }
+  source_map_join(chunks, 0, chunks.len())
+}
+
+pure decode_Array_StateCallFact(reader: CacheReader): CacheRead[[StateCallFact]] {
+  count = read_count(reader)
+  mut cursor: CacheReader = count.reader
+  mut values: [StateCallFact] = []
+  if count.value > 1000000 || count.value > reader.data.length() { cursor = failed(cursor) }
+  mut index: Nat = 0
+  while cursor.valid && index < count.value {
+    item = decode_StateCallFact(cursor)
+    cursor = item.reader
+    values = values.append(item.value)
+    index = index + 1
+  }
+  CacheRead(cursor, values)
+}
+
 pure encode_FunctionEffectFacts(pool: CachePool, value: FunctionEffectFacts): Bytes {
-  byte_buffer.empty().join(encode_DeclarationIdentity(pool, value.identity)).join(encode_Str(pool, value.owner_file)).join(encode_Optional_SignatureEffect(pool, value.effect)).join(encode_BodyCheckStatus(pool, value.status)).join(encode_Array_EffectCallFact(pool, value.local_calls)).join(encode_Array_EffectCheckFact(pool, value.checks))
+  byte_buffer.empty().join(encode_DeclarationIdentity(pool, value.identity)).join(encode_Str(pool, value.owner_file)).join(encode_Optional_SignatureEffect(pool, value.effect)).join(encode_BodyCheckStatus(pool, value.status)).join(encode_Array_EffectCallFact(pool, value.local_calls)).join(encode_Array_EffectCheckFact(pool, value.checks)).join(encode_Array_SignatureType(pool, value.state_payloads)).join(encode_Array_StateCallFact(pool, value.state_calls))
 }
 
 pure decode_FunctionEffectFacts(reader: CacheReader): CacheRead[FunctionEffectFacts] {
@@ -1825,7 +1862,11 @@ pure decode_FunctionEffectFacts(reader: CacheReader): CacheRead[FunctionEffectFa
   cursor = field_local_calls.reader
   field_checks = decode_Array_EffectCheckFact(cursor)
   cursor = field_checks.reader
-  CacheRead(cursor, FunctionEffectFacts(field_identity.value, field_owner_file.value, field_effect.value, field_status.value, field_local_calls.value, field_checks.value))
+  field_state_payloads = decode_Array_SignatureType(cursor)
+  cursor = field_state_payloads.reader
+  field_state_calls = decode_Array_StateCallFact(cursor)
+  cursor = field_state_calls.reader
+  CacheRead(cursor, FunctionEffectFacts(field_identity.value, field_owner_file.value, field_effect.value, field_status.value, field_local_calls.value, field_checks.value, field_state_payloads.value, field_state_calls.value))
 }
 
 pure encode_Array_FunctionEffectFacts(pool: CachePool, value: [FunctionEffectFacts]): Bytes {
@@ -3013,6 +3054,8 @@ pure collect_FunctionEffectFacts(pool: CachePool, value: FunctionEffectFacts): C
   result = collect_BodyCheckStatus(result, value.status)
   result = collect_Array_EffectCallFact(result, value.local_calls)
   result = collect_Array_EffectCheckFact(result, value.checks)
+  result = collect_Array_SignatureType(result, value.state_payloads)
+  result = collect_Array_StateCallFact(result, value.state_calls)
   result
 }
 
@@ -3065,6 +3108,20 @@ pure collect_Diagnostic(pool: CachePool, value: Diagnostic): CachePool {
   mut result: CachePool = pool
   result = collect_Str(result, value.message)
   result = collect_SourcePos(result, value.position)
+  result
+}
+
+pure collect_Array_StateCallFact(pool: CachePool, value: [StateCallFact]): CachePool {
+  mut result: CachePool = pool
+  for item in value { result = collect_StateCallFact(result, item) }
+  result
+}
+
+pure collect_StateCallFact(pool: CachePool, value: StateCallFact): CachePool {
+  mut result: CachePool = pool
+  result = collect_DeclarationIdentity(result, value.target)
+  result = collect_Array_SignatureType(result, value.arguments)
+  result = collect_SourceSpan(result, value.span)
   result
 }
 
@@ -3341,7 +3398,7 @@ pub pure decode_checked_bodies(data: Bytes): Option[[BoundFunctionBody]] {
 
 pub pure encode_module_code(bodies: CachedModuleCode): Bytes {
   pool = collect_CachedModuleCode(CachePool(map(), [], map(), []), bodies)
-  mut chunks: [Bytes] = ["PANACK-CODE-1\n".encode_utf8(), encode_u32(pool.texts.len())]
+  mut chunks: [Bytes] = ["PANACK-CODE-2\n".encode_utf8(), encode_u32(pool.texts.len())]
   for text in pool.texts { chunks = chunks.append(encode_text(text)) }
   chunks = chunks.append(encode_u32(pool.types.len()))
   for type in pool.types {
@@ -3353,7 +3410,7 @@ pub pure encode_module_code(bodies: CachedModuleCode): Bytes {
 }
 
 pub pure decode_module_code(data: Bytes): Option[CachedModuleCode] {
-  magic = "PANACK-CODE-1\n".encode_utf8()
+  magic = "PANACK-CODE-2\n".encode_utf8()
   if data.length() < magic.length() || byte_buffer.slice(data, 0, magic.length()) != magic { None() }
   else {
     count = read_count(CacheReader(data, magic.length(), true, 0, [], [], 0))

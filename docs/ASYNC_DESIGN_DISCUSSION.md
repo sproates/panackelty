@@ -666,3 +666,13 @@ preserve old-bytecode execution while distinguishing new callbacks from strings.
 See the [source checkpoint](CALLABLES_AND_STATE_PROPOSAL.md#cs3-source-api-checkpoint-27-november-2026)
 for remaining admission, diagnostic and final-validation work. CS3 remains 0/30;
 programme acceptance remains 50/100. No CI ran.
+
+CS3 generic admission checkpoint, 27 November: hidden, transitive and anonymous
+generic State requirements now survive code-cache reuse and caller edits. Recursive
+requirements converge over parameter indices. Nested State/callback collection keys
+are rejected while existing record keys remain supported; the earlier scalar-only
+description was inaccurate. Focused source/bytecode and complete native regressions
+pass, including the malformed-bytecode unwind fix, sanitizer regression and 59
+allocation-failure cases. See the [admission checkpoint](CALLABLES_AND_STATE_PROPOSAL.md#cs3-generic-admission-checkpoint-27-november-2026).
+Bootstrap, final validation and integration remain; CS3 is 0/30 and the programme
+is 50/100 accepted. No CI triggered.

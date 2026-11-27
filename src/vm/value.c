@@ -28,6 +28,7 @@ Value *value_new(ValueKind kind)
     if (v) {
         v->refs = 1;
         v->kind = kind;
+        v->key_forbidden = kind == V_STATE || kind == V_CLOSURE;
     }
     return v;
 }
@@ -263,6 +264,7 @@ Value *value_array_concat(const Value *left, const Value *right)
         free(v);
         return NULL;
     }
+    v->key_forbidden = left->key_forbidden || right->key_forbidden;
     v->as.sequence.count = n + m;
     for (size_t i = 0; i < n; i++) {
         v->as.sequence.items[i] = retain(left->as.sequence.items[i]);
@@ -287,6 +289,7 @@ Value *value_sequence(ValueKind kind, Value **items, size_t count)
     v->as.sequence.count = count;
     for (size_t i = 0; i < count; i++) {
         v->as.sequence.items[i] = retain(items[i]);
+        v->key_forbidden = v->key_forbidden || !items[i] || items[i]->key_forbidden;
     }
     return v;
 }
@@ -383,6 +386,7 @@ Value *value_array_append(Value *array, Value *item)
         }
         storage->items[count] = retain(item);
     }
+    result->key_forbidden = array->key_forbidden || item->key_forbidden;
     result->as.sequence.count = count + 1;
     result->as.sequence.items = storage->items;
     result->as.sequence.storage = storage;
@@ -595,6 +599,7 @@ Value *named_value(ValueKind kind, const char *name, char **names, Value **value
             }
         }
         v->as.named.values[i] = retain(values[i]);
+        v->key_forbidden = v->key_forbidden || !values[i] || values[i]->key_forbidden;
     }
     return v;
 }

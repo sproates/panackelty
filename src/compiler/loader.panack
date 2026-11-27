@@ -1,3 +1,4 @@
+import project/src/compiler/module_effects::{check_state_payload_facts}
 pub import project/src/compiler/module_summaries::{SourceSummary}
 import project/src/compiler/module_summaries::{ModuleSummary, declaration_projection}
 import project/src/compiler/module_bindings::{ModuleBodyAvailability.CompleteModuleBodies, ModuleBodyAvailability.SummaryModuleBodies, loaded_module_declaration_index}
@@ -1194,6 +1195,10 @@ pure check_project_sources_with_reuse(
         identity_ready = identity_ready && body.status == BodyIdentityChecked() && body.deferred.len() == 0
       }
     }
+    state_diagnostics = check_state_payload_facts(graph, loaded.modules, signatures,
+      if code_mode { effect_facts } else { collect_function_effect_facts(bodies) })
+    diagnostics = diagnostics.concat(state_diagnostics)
+    identity_ready = identity_ready && state_diagnostics.len() == 0
     checked_effects: CheckedModuleEffects = if code_mode {
       check_function_effect_facts(graph, loaded.modules, signatures, effect_facts)
     } else { check_module_effects(graph, loaded.modules, signatures, bodies, retain) }

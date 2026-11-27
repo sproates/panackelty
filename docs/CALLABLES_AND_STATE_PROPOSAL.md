@@ -142,8 +142,8 @@ two aliases of one cell compare equal, and two separate cells containing zero do
 not. Comparison is pure and does not acquire the cell reservation or read its
 contents. Generic `same[T](a: T, b: T): Bool { a == b }` and recursive container
 comparison use this same rule when T contains State. This covers arrays, record
-fields and Map values. Current scalar-type restrictions on Map keys and Set
-elements remain unchanged: neither State nor callable values become eligible
+fields and Map values. Existing immutable aggregate Map keys and Set elements remain supported.
+Neither State nor callable values, including containers holding them, are eligible
 keys/elements merely because equality is defined for them.
 Its lifetime ends when its last reachable reference is released. There is no
 manual close or use-after-close state.
@@ -316,7 +316,7 @@ Acceptance includes:
    interoperability works. Reads are snapshots and updates return committed values.
    Direct/generic/nested State equality, including arrays, records and Map values,
    uses stable cell identity. State and callable Map keys/Set elements remain
-   rejected under the existing scalar-type restrictions. Callable equality distinguishes lexical bodies, compares captures,
+   rejected, including when nested inside aggregate keys/elements. Callable equality distinguishes lexical bodies, compares captures,
    preserves named references and has no fresh allocation identity.
 6. Overlapping successful updates never lose an increment. Test unrelated-task
    progress and request deadlines during a long callback, same-cell read/update
@@ -382,7 +382,7 @@ acceptance. The four slice weights and zero earned contribution are unchanged.
 
 Second review clarification, 23 November: callback input types must be known
 before body checking, but its local result can determine remaining generic output
-parameters, including map's U. Existing scalar Map-key/Set-element eligibility is
+parameters, including map's U. Existing Map-key/Set-element eligibility is
 unchanged; State/callable equality applies in allowed value positions. Acceptance
 cases cover both rules. No scope, weight or implementation-status change.
 
@@ -811,3 +811,32 @@ bytecode contract, refine State-specific diagnostics/explanation evidence, exten
 rejection coverage, and complete bootstrap/artifact compatibility and one final full
 validation before integration. This is a development checkpoint, not completed CS3.
 No CI ran. CS3 earns 0/30; accepted programme progress remains 50/100.
+
+### CS3 generic admission checkpoint, 27 November 2026
+
+Generic helpers now carry closed State-payload requirements through direct,
+transitive, recursive and anonymous-function calls, including helpers returning
+Void. Requirements propagate over finite parameter indices, avoiding expansion of
+recursive generic types. Code-cache entries retain the call and payload facts;
+the private code-cache format is now PANACK-CODE-2, while bytecode remains v9.
+A cold/warm cache regression changes only the caller and proves that reused helper
+code still rejects a callback payload.
+
+Map keys and Set elements reject cells and callbacks recursively. Existing
+immutable record keys remain supported, as do cells stored in Map values. Earlier
+wording describing existing keys as scalar-only was inaccurate: the compiler
+itself uses record keys. This corrects that description without removing existing
+aggregate-key support. Runtime values maintain a forbidden-key flag during
+construction, so lookups do not require a new recursive allocation or traversal.
+The malformed-bytecode regression caught a null child during partial record
+construction; flag propagation now handles that unwind path without dereferencing
+it. The complete native module suite, sanitizer call-link regression and all 59
+State/reference allocation-failure cases pass.
+
+Focused source and saved-bytecode tests pass, including generic closure payloads,
+recursive helpers and cached caller edits. The binding/cache suite passes 2,313
+assertions; all 77 coverage-policy tests and documentation checks pass. Declaration
+exclusions were recomputed with the production parser; measured scope is unchanged.
+Final bootstrap, full validation and
+integration remain outstanding. CS3 is still in progress (0/30); accepted
+programme progress remains 50/100. No CI was triggered.

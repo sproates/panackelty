@@ -81,6 +81,7 @@ typedef struct {
 struct Value {
     size_t refs; /* SIZE_MAX denotes an immutable immortal value. */
     ValueKind kind;
+    bool key_forbidden; /* Logical contents include State or a callable. */
 
     union {
         PnBigInt integer;

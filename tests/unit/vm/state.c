@@ -2,6 +2,7 @@
 #undef NDEBUG
 #endif
 #include "state.h"
+#include "builtins.h"
 #include "vm.h"
 #include "tasks.h"
 #include <string.h>
@@ -100,6 +101,7 @@ static void payloads_exclude_capabilities_and_seal_storage(void)
 }
 
 static void scheduler_reservations(void);
+static void collection_keys_exclude_cells_and_callables(void);
 static void captured_transforms_and_payload_rejection(void);
 static void creation_effects(void);
 static void deadlines_release_cells(void);
@@ -108,6 +110,7 @@ static void forged_effects_release_reservations(void);
 void state_cell_contracts(void)
 {
     scheduler_reservations();
+    collection_keys_exclude_cells_and_callables();
     captured_transforms_and_payload_rejection();
     creation_effects();
     deadlines_release_cells();
@@ -345,4 +348,41 @@ static void creation_effects(void)
         }
         assert(vm_execution_destroy(run));
     }
+}
+
+static void collection_keys_exclude_cells_and_callables(void)
+{
+    StateStatus status;
+    CaptureCheck check;
+    Value *cell = state_create(value_unit(), &status);
+    Value *callback = value_closure("body", NULL, 0, &check);
+    Value *array = value_sequence(V_ARRAY, &cell, 1);
+    Value *empty = value_sequence(V_ARRAY, NULL, 0);
+    Value *appended = value_array_append(empty, cell);
+    Value *joined = value_array_concat(empty, array);
+    char *fields[] = {"value"};
+    Value *record = named_value(V_RECORD, "Box", fields, &cell, 1);
+    Value *map = value_sequence(V_MAP, NULL, 0), *set = value_sequence(V_SET, NULL, 0);
+    Value *bad[] = {cell, callback, array, appended, joined, record};
+    for (size_t i = 0; i < sizeof(bad) / sizeof(*bad); i++) {
+        VM vm = {0};
+        Value *arguments[] = {map, bad[i], value_unit()};
+        assert(!builtin_call(&vm, "map_put", arguments) && vm.error);
+        vm.error = NULL;
+        arguments[0] = set;
+        assert(!builtin_call(&vm, "set_add", arguments) && vm.error);
+        assert(map->as.sequence.count == 0 && set->as.sequence.count == 0);
+    }
+    Value *unit = value_unit();
+    Value *key = named_value(V_RECORD, "Box", fields, &unit, 1);
+    Value *arguments[] = {map, key, cell};
+    VM vm = {0};
+    Value *stored = builtin_call(&vm, "map_put", arguments);
+    assert(stored && !vm.error && stored->key_forbidden && !key->key_forbidden);
+    arguments[0] = stored;
+    Value *found = builtin_call(&vm, "map_get", arguments);
+    assert(found == cell && !vm.error);
+    release(found); release(stored); release(key);
+    release(map); release(set); release(record); release(joined); release(appended);
+    release(empty); release(array); release(callback); release(cell);
 }

@@ -5236,6 +5236,14 @@ pure body_check_map_set_call(
   is_map: Bool = collection.identity == SignatureCore("Map") && collection.arguments.len() == 2
   is_set: Bool = collection.identity == SignatureCore("Set") && collection.arguments.len() == 1
   is_lookup: Bool = operation == "map_get" || operation == "map_has"
+  match children[1].type {
+    None() => {},
+    Some(type) => {
+      if body_state_restricted(context, type, [], false) {
+        diagnostics = diagnostics.append(Diagnostic("Map keys and Set elements cannot contain State cells or callbacks. Use an immutable identifier as the key and store the cell or callback as a Map value.", children[1].span.start))
+      }
+    }
+  }
 
   if (operation == "map_put" || operation == "map_get" || operation == "map_has") && !is_map {
     diagnostics = diagnostics.append(Diagnostic(operation + " expects a Map, got " + body_type_text(collection), span.start))
@@ -9088,9 +9096,14 @@ pure body_check_state_core_call(context: BodyContext, name: Str, children: [Boun
   }
 }
 
-pure body_state_payload_restricted(context: BodyContext, type: SignatureType,
+pub pure body_state_payload_restricted(context: BodyContext, type: SignatureType,
   visited: [DeclarationIdentity]): Bool {
-  mut restricted = anonymous_resource_type(context, type, [])
+  body_state_restricted(context, type, visited, true)
+}
+
+pure body_state_restricted(context: BodyContext, type: SignatureType,
+  visited: [DeclarationIdentity], resources: Bool): Bool {
+  mut restricted = resources && anonymous_resource_type(context, type, [])
   match type.identity {
     SignatureCallable(effect) => { restricted = true },
     SignatureCore(name) => { restricted = restricted || name == "State" },
@@ -9105,7 +9118,7 @@ pure body_state_payload_restricted(context: BodyContext, type: SignatureType,
               match substitute_signature_type(slot.type, identity, type.arguments) {
                 Error(message) => {},
                 Ok(field) => {
-                  restricted = restricted || body_state_payload_restricted(context, field, visited.append(identity))
+                  restricted = restricted || body_state_restricted(context, field, visited.append(identity), resources)
                 }
               }
             }
@@ -9116,7 +9129,7 @@ pure body_state_payload_restricted(context: BodyContext, type: SignatureType,
     SignatureParameter(owner, index) => {}, SignatureHole(owner, path, index) => {}
   }
   for argument in type.arguments {
-    restricted = restricted || body_state_payload_restricted(context, argument, visited)
+    restricted = restricted || body_state_restricted(context, argument, visited, resources)
   }
   restricted
 }

@@ -2412,3 +2412,12 @@ The binding/cache suite passed 2,313 assertions; 123 CLI explanation cases and t
 terminal capture/origin regression passed. The zero-grace TCP case passed in the
 full run. Bootstrap fixed point and stdlib conformance passed. Integration remains
 pending; no further full run is needed solely for subsequent status Markdown.
+
+CS2 integration correction, 27 November: PR #704 merged at `149f629`. Integration
+run 46067182572 passed both platform package checks but failed coverage policy:
+the new capture_explanations.panack file was missing from the manifest. The follow-up
+adds it to eligible compiler sources and refreshes declaration exclusions with the
+production parser/inventory (53 eligible files, 556 excluded declarations). No
+executable code or coverage threshold is excluded or relaxed. All 77 hosted-policy
+tests pass locally. Product code is unchanged from the 725s full validation.
+CS2 acceptance awaits the repaired integration gate; programme progress stays 20/100.

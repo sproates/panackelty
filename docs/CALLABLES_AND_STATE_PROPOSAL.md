@@ -694,3 +694,12 @@ CS1 remains 20/20, CS2 0/30 pending integration, CS3 State 0/30 and CS4 examples
 installed/website acceptance 0/20. Programme accepted progress remains 20/100.
 RM#162 stays open; CS2 has no separate issue to close. The existing CS4 website
 follow-up covers closure examples/reference updates; nothing is published here.
+
+CS2 integration correction, 27 November: PR #704 merged at `149f629`. Integration
+run 46067182572 passed both platform package checks but failed coverage policy:
+the new capture_explanations.panack file was missing from the manifest. The follow-up
+adds it to eligible compiler sources and refreshes declaration exclusions with the
+production parser/inventory (53 eligible files, 556 excluded declarations). No
+executable code or coverage threshold is excluded or relaxed. All 77 hosted-policy
+tests pass locally. Product code is unchanged from the 725s full validation.
+CS2 acceptance awaits the repaired integration gate; programme progress stays 20/100.

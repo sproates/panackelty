@@ -1402,8 +1402,92 @@ static void shared_unit_and_void_preserve_distinction(void)
     release(empty);
 }
 
+static void closure_environment_contracts(void)
+{
+    CaptureCheck status;
+    Value *number = value_size(42);
+    Value *captures[] = {number};
+    Value *first = value_closure("body-one", captures, 1, &status);
+    assert(first && status == CAPTURE_ALLOWED && number->refs == 2);
+    Value *same = value_closure("body-one", captures, 1, &status);
+    Value *other = value_closure("body-two", captures, 1, &status);
+    assert(same && other && value_equal(first, same) && !value_equal(first, other));
+    Value *changed = value_size(43);
+    Value *different = value_closure("body-one", &changed, 1, &status);
+    assert(different && !value_equal(first, different));
+    Value *equal_number = value_size(42);
+    Value *equal_copy = value_closure("body-one", &equal_number, 1, &status);
+    assert(equal_copy && value_equal(first, equal_copy));
+    release(equal_copy); release(equal_number);
+    Value *nested = value_closure("outer", &first, 1, &status);
+    assert(nested && value_capture_check(&nested, 1) == CAPTURE_ALLOWED);
+    release(number);
+    assert(value_equal(first, same)); /* Creator's local has gone away. */
+    release(nested); release(first); release(same); release(other);
+    release(different); release(changed);
+
+    ValueKind blocked[] = {V_HTTP_STATE, V_HTTP_WRITER, V_HTTP_CONNECTION,
+        V_DIRECTORY_STAGE, V_HTTP_STREAM, V_SHA256_CONTEXT, V_GZIP_DECODER, V_ITER, V_VOID};
+    for (size_t i = 0; i < sizeof(blocked) / sizeof(blocked[0]); i++) {
+        Value resource = {.refs = 1, .kind = blocked[i]};
+        Value *raw = &resource;
+        assert(!value_closure("body", &raw, 1, &status) && status == CAPTURE_REJECTED);
+        Value *array = value_sequence(V_ARRAY, &raw, 1);
+        char *fields[] = {"payload"};
+        Value *record = named_value(V_RECORD, "Wrapper", fields, &array, 1);
+        Value *variant = named_value(V_VARIANT, "Some", NULL, &record, 1);
+        assert(array && record && variant);
+        assert(!value_closure("body", &variant, 1, &status) && status == CAPTURE_REJECTED);
+        Value forged = {.refs = 1, .kind = V_CLOSURE};
+        forged.as.named.count = 1;
+        forged.as.named.values = &raw;
+        Value *forged_pointer = &forged;
+        assert(value_capture_check(&forged_pointer, 1) == CAPTURE_REJECTED);
+        release(variant); release(record); release(array);
+        assert(resource.refs == 1);
+    }
+    /* A graph with exponentially many paths still has only 129 array nodes. */
+    Value *chain[129];
+    chain[0] = value_sequence(V_ARRAY, NULL, 0);
+    for (size_t i = 1; i < 129; i++) {
+        Value *items[] = {chain[i - 1], chain[i - 1]};
+        chain[i] = value_sequence(V_ARRAY, items, 2);
+        assert(chain[i]);
+    }
+    assert(value_capture_check(&chain[128], 1) == CAPTURE_ALLOWED);
+    first = value_closure("shared-graph", &chain[128], 1, &status);
+    same = value_closure("shared-graph", &chain[128], 1, &status);
+    assert(first && same && value_equal(first, same));
+    release(first); release(same);
+    for (size_t i = 129; i-- > 0;) release(chain[i]);
+
+    Value *empty = value_sequence(V_ARRAY, NULL, 0);
+    number = value_size(1);
+    Value *base = value_array_append(empty, number);
+    Value resource = {.refs = 1, .kind = V_SHA256_CONTEXT};
+    Value *extension = value_array_append(base, &resource);
+    assert(extension && value_capture_check(&base, 1) == CAPTURE_REJECTED);
+    release(extension);
+    assert(resource.refs == 1 && value_capture_check(&base, 1) == CAPTURE_ALLOWED);
+    first = value_closure("array-owner", &base, 1, &status);
+    assert(first);
+    extension = value_array_append(base, first);
+    assert(extension && extension->as.sequence.items != base->as.sequence.items);
+    release(extension); release(first); release(base); release(empty); release(number);
+    assert(!value_closure("", NULL, 0, &status) && status == CAPTURE_REJECTED);
+    assert(!value_closure("body", NULL, 1, &status) && status == CAPTURE_REJECTED);
+    first = value_closure("empty-body", NULL, 0, &status);
+    assert(first && status == CAPTURE_ALLOWED);
+    release(first);
+}
+
 int main(int argc, char **argv)
 {
+    closure_environment_contracts();
+    if (argc == 2 && !strcmp(argv[1], "closures")) {
+        puts("native closure environment contracts: ok");
+        return 0;
+    }
     shared_unit_and_void_preserve_distinction();
     shared_booleans_preserve_values_and_ownership();
     call_argument_buffers_preserve_order();

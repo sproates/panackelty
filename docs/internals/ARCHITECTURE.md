@@ -2151,3 +2151,9 @@ constructor payloads, without backward result inference for ordinary calls.
 Generated private functions lower to existing callable references and survive
 module body/code caches. The VM and bytecode version are unchanged. Captured
 locals remain rejected until retained environments are implemented.
+
+CS2 runtime groundwork adds an internal V_CLOSURE value owning a lexical target
+and immutable capture references. Its value graph is checked iteratively for
+resource eligibility, and array append follows its ownership edges. It is not
+yet constructible by source lowering or bytecode; checked invocation and iterator
+snapshots remain in progress. Named callable representation is unchanged.

@@ -2336,3 +2336,19 @@ and hosted acceptance. CS2–CS4 remain planned. Accepted implementation points
 stay at zero until integration acceptance; RM#162 remains open. The measured
 full-run duration is evidence, not a new performance target. No development CI
 or website publication occurred.
+
+
+CS2 runtime foundation (27 November): native closure tests cover retained lifetime,
+lexical identity/value-based equality, nested closure resource rejection, all
+current forbidden native categories, hidden array-storage ownership and append
+cycle prevention. A shared 129-node graph exercises iterative deduplicated
+eligibility traversal and shared-capture equality. Allocation-failure sweeps cover
+worklist/hash growth and partial closure construction. Ordinary collection and
+concatenation regression checks also run. These are focused development checks;
+source closures, invocation, iterator snapshots and final full acceptance remain.
+
+The CS2 foundation checks pass in normal and ASan/UBSan native builds. Allocation-
+failure sweeps pass, as do collection/concatenation regressions and the existing
+public CLI callable fixture in source/compile/saved-bytecode modes (4 assertions).
+No compiler rebuild or bootstrap refresh was needed. Full validation is reserved
+for the completed CS2 implementation; this checkpoint is not slice acceptance.

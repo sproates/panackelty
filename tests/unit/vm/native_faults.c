@@ -316,6 +316,18 @@ static void construct_array(void)
     assert(operand->refs == 1);
 }
 
+static Value *closure_fixture;
+static void construct_closure(void)
+{
+    size_t refs = closure_fixture->refs;
+    CaptureCheck status;
+    Value *result = value_closure("capturing-body", &closure_fixture, 1, &status);
+    assert((result != NULL) == !fault_triggered());
+    assert(status == (result ? CAPTURE_ALLOWED : CAPTURE_OUT_OF_MEMORY));
+    release(result);
+    assert(closure_fixture->refs == refs);
+}
+
 static Value *append_base, *append_item;
 
 static void append_array(void)
@@ -1174,6 +1186,18 @@ int main(int argc, char **argv)
     for (size_t i = 0; i < 64; i++) {
         assert(index_items[i]->refs == 1);
         release(index_items[i]);
+    }
+    Value *capture_items[80];
+    for (size_t i = 0; i < 80; i++) { capture_items[i] = value_size(i); assert(capture_items[i]); }
+    closure_fixture = value_sequence(V_ARRAY, capture_items, 80);
+    assert(closure_fixture);
+    sweep("closure environment and graph walk ownership", construct_closure);
+    release(closure_fixture);
+    for (size_t i = 0; i < 80; i++) { assert(capture_items[i]->refs == 1); release(capture_items[i]); }
+    if (argc == 2 && !strcmp(argv[1], "closures")) {
+        assert(fault_live() == 0);
+        puts("closure allocation failures: ok");
+        return 0;
     }
     sweep("indexed locals preparation and frame ownership", indexed_locals_allocations);
     concatenation_faults();

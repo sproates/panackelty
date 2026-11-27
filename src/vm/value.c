@@ -114,6 +114,7 @@ void release(Value *v)
         break;
     case V_RECORD:
     case V_VARIANT:
+    case V_CLOSURE:
         for (size_t i = 0; i < v->as.named.count; i++) {
             free(v->as.named.names ? v->as.named.names[i] : NULL);
             release(v->as.named.values ? v->as.named.values[i] : NULL);
@@ -322,6 +323,7 @@ static bool append_independent(const Value *item, const ArrayStorage *target, si
         return append_independent(item->as.iterator.iterable, target, budget);
     case V_RECORD:
     case V_VARIANT:
+    case V_CLOSURE:
         for (size_t i = 0; i < item->as.named.count; i++) {
             if (!append_independent(item->as.named.values[i], target, budget)) {
                 return false;
@@ -528,10 +530,12 @@ bool value_equal(const Value *a, const Value *b)
         return true;
     case V_RECORD:
     case V_VARIANT:
+    case V_CLOSURE:
         if (strcmp(a->as.named.name, b->as.named.name) || a->as.named.count != b->as.named.count) {
             return false;
         }
         for (size_t i = 0; i < a->as.named.count; i++) {
+            if (a->kind == V_CLOSURE && a->as.named.values[i] == b->as.named.values[i]) continue;
             if (!value_equal(a->as.named.values[i], b->as.named.values[i])) {
                 return false;
             }
@@ -583,4 +587,115 @@ Value *named_value(ValueKind kind, const char *name, char **names, Value **value
         v->as.named.values[i] = retain(values[i]);
     }
     return v;
+}
+
+/* A worklist and pointer set visit shared value graphs once, without recursive
+ * C stack growth or a new language nesting limit. Capturing a shared array view
+ * also retains its hidden suffix, so eligibility follows that ownership edge. */
+typedef struct {
+    const Value **slots, **queue;
+    size_t capacity, count;
+} CaptureWalk;
+
+static size_t capture_slot(const Value *value, size_t capacity)
+{
+    uintptr_t bits = (uintptr_t)value;
+    bits ^= bits >> 17;
+    bits ^= bits >> 9;
+    return (size_t)(bits >> 3) & (capacity - 1);
+}
+
+static bool capture_enqueue(CaptureWalk *walk, const Value *value)
+{
+    if (!walk->capacity || walk->count >= walk->capacity / 2) {
+        size_t capacity = walk->capacity ? walk->capacity * 2 : 32;
+        if (capacity < walk->capacity || capacity > SIZE_MAX / sizeof(Value *)) return false;
+        const Value **slots = calloc(capacity, sizeof(*slots));
+        const Value **queue = malloc(capacity * sizeof(*queue));
+        if (!slots || !queue) { free(slots); free(queue); return false; }
+        for (size_t i = 0; i < walk->count; i++) {
+            const Value *item = walk->queue[i];
+            size_t slot = capture_slot(item, capacity);
+            while (slots[slot]) slot = (slot + 1) & (capacity - 1);
+            slots[slot] = item;
+            queue[i] = item;
+        }
+        free(walk->slots);
+        free(walk->queue);
+        walk->slots = slots;
+        walk->queue = queue;
+        walk->capacity = capacity;
+    }
+    size_t slot = capture_slot(value, walk->capacity);
+    while (walk->slots[slot]) {
+        if (walk->slots[slot] == value) return true;
+        slot = (slot + 1) & (walk->capacity - 1);
+    }
+    walk->slots[slot] = value;
+    walk->queue[walk->count++] = value;
+    return true;
+}
+
+CaptureCheck value_capture_check(Value *const *values, size_t count)
+{
+    CaptureWalk walk = {0};
+    CaptureCheck status = CAPTURE_ALLOWED;
+    if (count && !values) return CAPTURE_REJECTED;
+    for (size_t i = 0; i < count; i++) {
+        if (!values[i]) { status = CAPTURE_REJECTED; goto done; }
+        if (!capture_enqueue(&walk, values[i])) { status = CAPTURE_OUT_OF_MEMORY; goto done; }
+    }
+    for (size_t cursor = 0; cursor < walk.count; cursor++) {
+        const Value *value = walk.queue[cursor];
+        Value **children = NULL;
+        size_t child_count = 0;
+        switch (value->kind) {
+        case V_PATH: case V_DURATION: case V_INSTANT: case V_RAT: case V_UNIT:
+        case V_NAT: case V_INT: case V_DEC: case V_STR: case V_BOOL:
+        case V_RANGE: case V_BYTES:
+            break;
+        case V_ARRAY: case V_MAP: case V_SET:
+            children = value->as.sequence.items;
+            child_count = value->as.sequence.storage ? value->as.sequence.storage->count
+                                                    : value->as.sequence.count;
+            break;
+        case V_RECORD: case V_VARIANT: case V_CLOSURE:
+            children = value->as.named.values;
+            child_count = value->as.named.count;
+            break;
+        default:
+            /* Fail closed for native capabilities, iterators, Void and future
+             * kinds. A new kind needs an explicit capture/lifetime decision. */
+            status = CAPTURE_REJECTED;
+            goto done;
+        }
+        for (size_t i = 0; i < child_count; i++) {
+            if (!children || !children[i]) { status = CAPTURE_REJECTED; goto done; }
+            if (!capture_enqueue(&walk, children[i])) { status = CAPTURE_OUT_OF_MEMORY; goto done; }
+        }
+    }
+done:
+    free(walk.slots);
+    free(walk.queue);
+    return status;
+}
+
+Value *value_closure(const char *target, Value *const *captures, size_t count,
+                     CaptureCheck *status)
+{
+    *status = target && *target ? value_capture_check(captures, count) : CAPTURE_REJECTED;
+    if (*status != CAPTURE_ALLOWED) return NULL;
+    if (count > SIZE_MAX / sizeof(Value *)) { *status = CAPTURE_OUT_OF_MEMORY; return NULL; }
+    Value *value = value_new(V_CLOSURE);
+    if (!value) { *status = CAPTURE_OUT_OF_MEMORY; return NULL; }
+    value->as.named.name = copy_text(target);
+    value->as.named.values = count ? calloc(count, sizeof(Value *)) : NULL;
+    value->as.named.count = count;
+    if (!value->as.named.name || (count && !value->as.named.values)) {
+        release(value);
+        *status = CAPTURE_OUT_OF_MEMORY;
+        return NULL;
+    }
+    for (size_t i = 0; i < count; i++) value->as.named.values[i] = retain(captures[i]);
+    return value;
 }

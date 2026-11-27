@@ -54,6 +54,8 @@ bool render(Buffer *b, const Value *v, bool display)
 {
     char *number = NULL;
     switch (v->kind) {
+    case V_CLOSURE:
+        return buffer_text(b, "<closure>");
     case V_SHA256_CONTEXT:
         return buffer_text(b, "<Sha256Context>");
     case V_GZIP_DECODER:

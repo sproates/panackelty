@@ -340,10 +340,10 @@ CS1 is accepted after local and hosted integration validation.
 | Slice | Deliverable | Weight | Status | Earned |
 | --- | --- | --- | --- | --- |
 | CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | Complete: PR #701 and integration run 46042786755 passed | 20 |
-| CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | Planned | 0 |
+| CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | In progress: owned environment and resource-safety foundation; compiler/invocation pending | 0 |
 | CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | Planned | 0 |
 | CS4 | Both service examples, installed acceptance, reference and website guidance | 20 | Planned | 0 |
-| Total | Working callable/state feature | 100 | CS1 accepted; CS2–CS4 planned | 20 |
+| Total | Working callable/state feature | 100 | CS1 accepted; CS2 in progress, CS3–CS4 planned | 20 |
 
 Order: CS1, then CS2 and CS3, then CS4. CS3 can use named pure callbacks; it need
 not depend on closure syntax. Implement related work in a development branch with
@@ -576,3 +576,33 @@ CS1 merged into next through [PR #701](https://github.com/sproates/panackelty/pu
 
 
 CS1 accepted, 27 November: [PR #701](https://github.com/sproates/panackelty/pull/701) is merged and [integration run 46042786755](https://github.com/sproates/panackelty/actions/runs/46042786755) passed for `14b709d`. Full local make check passed in 708s. Subsequent status changes contain informational Markdown only. CS1: Anonymous functions is complete (20/20 points); CS2: Retained captures (30), CS3: State (30) and CS4: Examples/documentation/installed acceptance (20) remain planned. Programme earned contribution is 20/100. RM#162 remains open; CS1 has no separate issue to close. No website publication or closure/State completion is claimed.
+
+
+CS2 started, 27 November, on feature/rm162-retained-captures from next 4cc5d00.
+The first runtime checkpoint adds an owned closure value with lexical target
+identity and retained capture values. Equality compares target and captures, not
+allocation identity. Capture eligibility follows actual ownership edges through
+collections, records, variants and other closure environments, including hidden
+shared-array suffixes. A non-recursive worklist with a visited-pointer set avoids
+revisiting shared graphs. Native resources, Void, iterators and unclassified new
+value kinds fail closed. Array append checks now follow closure ownership edges
+to prevent introducing shared-storage reference cycles.
+
+This is runtime groundwork, not executable source closure support. No instruction
+or builtin constructs the new value yet. Source capture analysis, checked
+construction/invocation, verifier/effect/arity enforcement, async/native handler
+integration, iterator snapshots, cache/provenance evidence and final functional/
+full validation remain. CS2 is in progress with zero earned points; CS1 remains
+accepted and programme progress is 20/100. No CI, bootstrap rebuild or website
+change accompanies this checkpoint.
+
+CS2 representation and invocation direction: keep named references unchanged.
+A closure owns its target symbol and capture layout; the future construction path
+must resolve a real non-builtin target, validate the environment and check the
+hidden-parameter count before invocation. Existing call-edge effect checks must
+apply to ordinary, awaited and host-retained invocation. Runtime primitive/type
+checks remain mandatory for forged bytecode, not only source diagnostics. This
+checkpoint introduces no encoded constants or opcodes and makes no final
+bytecode-version compatibility promise. Iterators are temporarily rejected until
+snapshot and repeated-invocation semantics are implemented; that is not a change
+to the accepted CS2 contract.

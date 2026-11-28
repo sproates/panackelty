@@ -4,6 +4,7 @@ These records preserve decisions, scope, stable RM identifiers and dated evidenc
 For the current release and selected next work, see the [roadmap](../../ROADMAP.md).
 Dated plans describe the decision at that time; they do not override published release status.
 
+- [RM#163: Install and run usability](records/install-and-run-usability.md)
 - [Roadmap identifiers](records/roadmap-identifiers.md)
 - [Priority review policy — 2026-10-03](records/priority-review-policy--2026-10-03.md)
 - [Next release — agreed scope, 2026-10-06](records/next-release--agreed-scope-2026-10-06.md)

@@ -67,7 +67,8 @@ released. See the [current allocation and boundaries](docs/roadmap/records/next-
   GI#167 file discovery, GI#168 subprocess examples, GI#169 tiny build tool,
   GI#138/GI#310 tested guides/examples, GI#170 inference assessment, remaining
   RM#157 performance review, GI#435 guard alternatives, native-interface/compiler
-  decoupling, coverage approach review and continuing RM#162 real-program fixes.
+  decoupling, coverage approach review, continuing RM#162 real-program fixes and
+  [RM#163: Install and run usability](#rm-163).
 - **alpha.18:** everyday development: GI#139 editor support, GI#136 source-aware
   runtime errors and GI#147 Homebrew installation.
 - **alpha.19:** interactive/connected applications: GI#165 browser event handlers
@@ -185,7 +186,15 @@ HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibilit
 
 TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. The subsequent 22 November repair reconciles all 25 HTTP builtin arities and local-resource call permissions in the self-hosted decoder with the native verifier. Focused legacy/diagnostic-client and routed-server disassembly checks pass. The compiler seed is refreshed; unchanged-program native oracle contracts pass. Final local make check passed in 674s (22 November), including all 427 bytecode tests, public HTTP disassembly, packaging and installed smoke. Relocated TCP and diagnostic-client source/bytecode/disassembly acceptance also passed. Integration remains pending and development CI stays off.
 
-**Next available roadmap identifier: RM#163.**
+<a id="rm-163"></a>
+
+**[RM#163: Install and run usability](docs/roadmap/records/install-and-run-usability.md).** Planned for alpha.17.
+Simplify installation, project creation and running third-party programs while
+preserving dependency locks and reproducibility. The clean-install HTTP status
+service walkthrough is the end-to-end acceptance case. Implementation has not
+started; the record defines the agreed outcomes and boundaries.
+
+**Next available roadmap identifier: RM#164.**
 
 ## Example inventory preflight — 2026-10-20
 

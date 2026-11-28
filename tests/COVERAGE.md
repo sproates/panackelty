@@ -1,5 +1,15 @@
 # Specification coverage
 
+## Source report scope repair — 28 November 2026
+
+The source-coverage scope fixture explicitly imports the canonical `stdlib/process`
+module after the ordinary/async reorganisation removed its transitive import.
+The eligible measurement set is unchanged. Missing-inventory diagnostics now name
+all missing source paths; the reader regression checks a two-file omission.
+Focused coverage tests and a fresh local collection passed: all 31 sessions
+executed and report integrity was valid. Hosted collection and publication remain
+to be verified after integration. No compiler or VM changes.
+
 [Persistent compilation reuse](../docs/COMPILER_PERSISTENT_REUSE.md) adds
 fresh-process edited-build tests to the CLI cache harness and codec round-trip/
 truncation tests to the module-bindings suite. All 117 focused checks and 15 CLI groups passed against the candidate;

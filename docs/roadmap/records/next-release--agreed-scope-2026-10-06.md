@@ -4,11 +4,11 @@
 
 ## Release plans and decisions
 
-**Current status (28 November 2026): alpha.15 is released; alpha.16 is in release preparation.**
+**Current status (28 November 2026): alpha.15 and alpha.16 are released; alpha.17 is planned.**
 The owner has closed alpha.16 scope around delivered work. The allocation table below supersedes
 older release assignments in the retained decision history. Earlier planning
 text explains the original decisions, rather than reopening completed gates.
-See [alpha.15 acceptance](../../releases/ALPHA15_RELEASE_ACCEPTANCE.md).
+See [alpha.16 acceptance](../../releases/ALPHA16_RELEASE_ACCEPTANCE.md).
 
 ## Agreed release direction — 20 October 2026
 
@@ -24,7 +24,7 @@ Implementation and release publication remain separate decisions.
 | --- | --- | --- |
 | alpha.14: methods and HTTP | Released: GI#525 type-owned methods/dot notation, GI#518 routed HTTP framework, and the HTTP reference and runnable examples slice of [GI#552](https://github.com/sproates/panackelty/issues/552). | Release validation passed and native artifacts are published. [GI#555](https://github.com/sproates/panackelty/issues/555) coloured diagnostics was not included. The wider GI#552 standard-library reference remains separate. |
 | alpha.15: strengthen the foundations | Remaining compiler understanding GI#180 (GI#173 provenance and GI#134 explanations); GI#435 validated domain types with multiline, parenthesised conjunctions; GI#409 compiler-facing stdlib assessment; full package-management implementation GI#200, arranged as P01–P04 under RM#44 and tracked as RM#158–RM#161; RM#154 faster coverage, RM#155 selected friction improvements; GI#106 validation-speed milestone. | All previously agreed bounded outcomes remain. Package-management implementation follows the [P01–P04 plan](dependency-management--idea.md#alpha15-implementation-plan); GI#200 stays open through final acceptance. Test-speed acceptance stays here rather than moving with the old alpha.15 theme. |
-| alpha.16: faster tools and more expressive programs | Delivered VM and compiler optimisations, persistent incremental compilation, the ordinary/async stdlib redesign, anonymous functions, immutable closures, explicit State, combined examples and published API/concept/cookbook guidance. | Scope closed on 28 November. Product programmes are accepted; packages, installer, browser and final website promotion remain release gates. RM#157 and RM#162 delivered batches are credited here; their unfinished scope is allocated to alpha.17. |
+| alpha.16: faster tools and more expressive programs | Delivered VM and compiler optimisations, persistent incremental compilation, the ordinary/async stdlib redesign, anonymous functions, immutable closures, explicit State, combined examples and published API/concept/cookbook guidance. | Scope closed on 28 November. Product programmes, packages, installer, browser and final website promotion are accepted and complete. RM#157 and RM#162 delivered batches are credited here; their unfinished scope is allocated to alpha.17. |
 | alpha.17: build useful programs | GI#166 typed HTTP exchanges; GI#167 recursive file discovery; GI#168 subprocess examples; GI#169 tiny build tool; GI#138 tested guides with GI#310 examples; GI#170 inference/diagnostics assessment; remaining RM#157 performance review; GI#435 string/collection/record guard alternatives; native-interface/compiler decoupling; coverage approach review; continuing RM#162 real-program fixes; [RM#163: Install and run usability](install-and-run-usability.md). | Every unfinished alpha.16 allocation moves here. Existing acceptance boundaries remain. GI#552 full API-reference completion and GI#553 load profiling remain candidates, not commitments. |
 | alpha.18: improve everyday development | GI#139 one-editor support, GI#136 source-aware runtime errors, GI#147 Homebrew installation. | Previously alpha.17. No full language server/debugger commitment. GI#555 coloured diagnostics remains a candidate. |
 | alpha.19: interactive and connected applications | GI#165 browser event handlers; GI#142 bounded service/library contract testing. | Previously alpha.18. No general DOM/UI framework. Docker images (GI#146) and Linux ARM64 releases (GI#145) remain optional. |
@@ -52,11 +52,12 @@ The async-stdlib and callable/closure/State programmes are accepted. The followi
 6 November description records the original remit; its continuing allocation is
 now alpha.17 under the 28 November release boundary.
 
-The current [async-stdlib batch](../../ASYNC_DESIGN_DISCUSSION.md#implementation-batch-selected-8-november-2026)
+The initial 8 November [async-stdlib batch](../../ASYNC_DESIGN_DISCUSSION.md#implementation-batch-selected-8-november-2026)
 adds clock/environment async reads and consistent paths for existing async host
 and filesystem operations. The uptime HTTP service is its integration example.
 Focused checks and the complete local `make check` passed (582s, 8 November);
-integration and hosted validation remain pending. This does not commit the
+integration and hosted validation were pending at that checkpoint and subsequently
+completed before alpha.16 release. This original scope did not commit the
 separate state/closure design. The owner subsequently selected finishing the
 [relevant async stdlib capabilities and website documentation together](../../ASYNC_DESIGN_DISCUSSION.md#expanded-async-stdlib-and-documentation-programme-8-november-2026)
 before returning to that design.

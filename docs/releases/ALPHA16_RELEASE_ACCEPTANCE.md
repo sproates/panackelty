@@ -7,8 +7,9 @@ Browser runtime bundle preflight found and corrected omitted console-read and St
 Source baseline: `90b2ec5f473c91c23acb593da7b61bd3ec968aec` on next.
 Release preparation: [PR #710](https://github.com/sproates/panackelty/pull/710),
 with the implementation/preparation tree at `b53bb26`. The owner authorised
-release CI and merge when green on 28 November. Published source commit and
-artifact hashes remain pending.
+release CI and merge when green on 28 November. The merged source is `5e9fc13eccec0ed4c77db8ac0f961e07533cf3e4`; its files
+exactly match the validated PR head. [Release workflow 46098177472](https://github.com/sproates/panackelty/actions/runs/46098177472)
+is running for that commit. Public artifacts and their hashes remain pending.
 
 Scope: delivered VM/compiler optimisations and incremental compilation,
 ordinary/async stdlib, anonymous functions, immutable closures, explicit State,
@@ -25,9 +26,9 @@ is the final delivery step. Existing implementation evidence is preserved in
 ## Gate evidence
 
 - Native candidate: final local `make check` passed in 761 seconds, including unit, bootstrap, functional, distribution and release smoke checks. Initial preflight caught stale alpha.15 toolchain requirements in bundled manifests; these were updated and lockfiles regenerated with `panack deps update`. All eight focused distribution checks also passed with local networking enabled.
-- Hosted candidate: all applicable initial jobs passed except the macOS compiler harness, where launching a subprocess to resolve a fixture path returned `launch_failed`. The same test passed locally and on Linux. One unchanged-source retry with debug logging is running in [Check run 46095771171](https://github.com/sproates/panackelty/actions/runs/46095771171). The original launch cause is not established.
+- Hosted candidate: all applicable initial jobs passed except the macOS compiler harness, where launching a subprocess to resolve a fixture path returned `launch_failed`. The same test passed locally and on Linux. One unchanged-source retry with debug logging passed in [Check run 46095771171](https://github.com/sproates/panackelty/actions/runs/46095771171). All required PR checks passed before merge. The original launch cause is not established.
 - Public native/runtime bundle hashes and target installation tests: pending.
-- Installer promotion: prepared on `release/alpha16-installer`; all five focused installer harness cases passed, including upgrade/rollback and failure preservation. Final local validation is running. Public-artifact verification and a separately approved main PR remain prerequisites to promotion.
+- Installer promotion: prepared on `release/alpha16-installer`; all five focused installer harness cases passed, including upgrade/rollback and failure preservation. Final local `make check` passed in 728 seconds; rebasing the promotion onto merged main preserved its exact file tree. Public-artifact verification and a separately approved main PR remain prerequisites to promotion.
 - Browser local compatibility: 29 runtime/asset/release tests and 30 real-browser checks passed across Chromium, Firefox and WebKit using the candidate VM/compiler/stdlib. Browser branch `release/alpha16-playground`, commit `30b0c16`, still needs the final public bundle/source/checksum pins and hosted publication.
 - Website preview approval, deployment and live verification: pending.
 

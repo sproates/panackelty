@@ -5,7 +5,10 @@ Status: release preparation; no alpha.16 public artifacts or announcement yet.
 Browser runtime bundle preflight found and corrected omitted console-read and State source/header entries. The bundle now passes its transitive-header integrity check.
 
 Source baseline: `90b2ec5f473c91c23acb593da7b61bd3ec968aec` on next.
-Release candidate commit, PR and artifact hashes: pending.
+Release preparation: [PR #710](https://github.com/sproates/panackelty/pull/710),
+with the implementation/preparation tree at `b53bb26`. The owner authorised
+release CI and merge when green on 28 November. Published source commit and
+artifact hashes remain pending.
 
 Scope: delivered VM/compiler optimisations and incremental compilation,
 ordinary/async stdlib, anonymous functions, immutable closures, explicit State,

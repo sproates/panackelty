@@ -16,8 +16,8 @@ preserves detailed test and integration evidence.
 | Compiler optimisations and persistent incremental compilation | Accepted and integrated. |
 | Ordinary/async stdlib redesign and documentation (RM#162, AS1–AS5) | Accepted, 100/100; website PR #77 published. |
 | Anonymous functions, closures, State and combined examples (RM#162, CS1–CS4) | Accepted, 100/100; core PRs #701–#709 and website PR #80. |
-| Exact-source native release validation and public packages | Pending. |
-| Default installer promotion and public-artifact acceptance | Pending verified new packages. |
+| Exact-source native release validation and public packages | PR #710: local full validation passed in 761 seconds. Hosted gates passed except one macOS subprocess launch failure; its unchanged-source retry is running. Public packages remain pending. |
+| Default installer promotion and public-artifact acceptance | Promotion branch prepared; five focused installer cases passed. Full local validation and verified public packages remain prerequisites. |
 | Matching browser playground package | Local candidate passes 29 runtime/asset/release tests and 30 Chromium/Firefox/WebKit checks. Final public bundle pins, hosted checks and browser publication remain. |
 | Website promotion and live verification | Last delivery step; pending all prior gates and candidate preview approval. |
 

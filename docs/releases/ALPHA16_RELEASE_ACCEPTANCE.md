@@ -24,9 +24,10 @@ is the final delivery step. Existing implementation evidence is preserved in
 
 ## Gate evidence
 
-- Native source and sanitizer checks: pending final candidate. Initial local validation passed compiler/unit cases and fixed-point bootstrap, then caught stale alpha.15 toolchain requirements in bundled manifests. All maintained manifests are updated and their lockfiles regenerated with `panack deps update`. All eight focused distribution checks passed with local networking enabled, including archive relocation, installed imports and compiler artifacts. Final `make check` is running; hosted native and sanitizer gates remain pending.
+- Native candidate: final local `make check` passed in 761 seconds, including unit, bootstrap, functional, distribution and release smoke checks. Initial preflight caught stale alpha.15 toolchain requirements in bundled manifests; these were updated and lockfiles regenerated with `panack deps update`. All eight focused distribution checks also passed with local networking enabled.
+- Hosted candidate: all applicable initial jobs passed except the macOS compiler harness, where launching a subprocess to resolve a fixture path returned `launch_failed`. The same test passed locally and on Linux. One unchanged-source retry with debug logging is running in [Check run 46095771171](https://github.com/sproates/panackelty/actions/runs/46095771171). The original launch cause is not established.
 - Public native/runtime bundle hashes and target installation tests: pending.
-- Installer promotion: pending.
+- Installer promotion: prepared on `release/alpha16-installer`; all five focused installer harness cases passed, including upgrade/rollback and failure preservation. Final local validation is running. Public-artifact verification and a separately approved main PR remain prerequisites to promotion.
 - Browser local compatibility: 29 runtime/asset/release tests and 30 real-browser checks passed across Chromium, Firefox and WebKit using the candidate VM/compiler/stdlib. Browser branch `release/alpha16-playground`, commit `30b0c16`, still needs the final public bundle/source/checksum pins and hosted publication.
 - Website preview approval, deployment and live verification: pending.
 

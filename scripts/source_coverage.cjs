@@ -220,7 +220,8 @@ function union(groups, eligible) {
       merged.observed ||= item.state === 'observed';
     }
   }
-  if (eligible.some(p => !files.has(p))) fail('Missing eligible source file');
+  const missing = eligible.filter(p => !files.has(p));
+  if (missing.length) fail('Missing eligible source files: ' + missing.join(', '));
   return [...files.values()].sort((a,b) => a.path.localeCompare(b.path)).map(file => {
     const items = [...file.items.values()].map(item => ({...item, state: item.kind === 'excluded' ? 'excluded' : item.attempted > 0n ? 'covered' : item.observed ? 'zero' : 'unavailable'}));
     const lines = new Map();

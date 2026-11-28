@@ -4,7 +4,7 @@ Panackelty **0.1.0-alpha.16 is released**. Native packages, the default installe
 matching browser playground and website are published and verified. See
 the [release notes](CHANGELOG.md) and [acceptance evidence](docs/releases/ALPHA16_RELEASE_ACCEPTANCE.md).
 
-## Release rollout: alpha.16 — faster tools and more expressive programs
+## Released baseline: alpha.16 — faster tools and more expressive programs
 
 The active integration branch is `next`. See [the current status and allocations](docs/NEXT_RELEASE_STATUS.md).
 Alpha.15 is complete. Alpha.16 scope is closed around the delivered VM/compiler
@@ -62,7 +62,7 @@ released. See the [current allocation and boundaries](docs/roadmap/records/next-
 
 - **alpha.16:** delivered VM/compiler optimisations and incremental compilation;
   redesigned ordinary/async stdlib; anonymous functions, closures and State;
-  tested combined examples and API/concept/cookbook documentation. Release preparation.
+  tested combined examples and API/concept/cookbook documentation. Published and verified.
 - **alpha.17:** the unfinished useful-program work: GI#166 typed HTTP exchanges,
   GI#167 file discovery, GI#168 subprocess examples, GI#169 tiny build tool,
   GI#138/GI#310 tested guides/examples, GI#170 inference assessment, remaining
@@ -142,49 +142,13 @@ P7 retains its deferred 10-point allocation. Alpha.13 release acceptance is comp
 RM#156 records the GI#518 selection and RM#157 records the performance outcome.
 RM#158–RM#161 identify the Alpha.15 package-management packets.
 <a id="rm-162"></a> **[RM#162: Real-program fixes](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-162)**
-continues in alpha.17 after its accepted alpha.16 batches: the [async-stdlib batch](docs/ASYNC_DESIGN_DISCUSSION.md#implementation-batch-selected-8-november-2026) addresses the clock/uptime obstacle. Fix obstacles encountered while building real programs;
-scope and effort are unknown, and this is an implementation allocation rather
-than an issue-gathering exercise. The owner selected the
-[expanded async stdlib and documentation programme](docs/ASYNC_DESIGN_DISCUSSION.md#expanded-async-stdlib-and-documentation-programme-8-november-2026)
-before shared-state work; it has a provisional five-group baseline, including
-website stdlib references, within RM#162. The timer, checked console and
-Command-based subprocess batch passed combined local validation on 21 November
-(612s); PR #693 remains a CI-free draft, with integration and the remaining
-programme scope still pending. The subsequent runtime/testing support and compiler
-compatibility batch passed final local validation in 583s, including relocated
-source/bytecode/disassembly tests. Typed streaming HTTP passed final local make check in 647s, with handler-progress, lifecycle/fault/sanitizer and relocated-install checks; no integration or website publication is implied.
-Typed digest/gzip ordinary/async adapters and bounded pure hashing now pass focused
-source/bytecode, scheduler, lifecycle/fault and sanitizer checks; final local make check passed in 625s (21 November), as did relocated-install
-source/bytecode/disassembly checks. The existing website follow-up includes these modules; publication remains separate.
-Checked pure UTF-8 decoding and byte/path aliases are implemented with focused
-source/bytecode and compatibility acceptance; final local make check passed in 626s (21 November), plus relocated source/bytecode/disassembly acceptance.
-
-Canonical TCP Duration adapters and Duration aliases pass focused source/bytecode
-loopback and compatibility checks; final local make check passed in 626s (21 November), plus relocated TCP source/bytecode/disassembly acceptance. Website
-reference changes remain covered by the existing follow-up, not published here.
-
-Bounded ordinary/async console input is implemented with explicit EOF, short-read,
-exclusive-reader and cancellation contracts. Focused native lifecycle, fault,
-sanitizer and source/bytecode checks pass; final local make check passed in 654s
-(21 November), plus relocated-install source/bytecode/disassembly acceptance.
-Integration remains pending. This extends the existing website stdlib follow-up and
-has no hot-path compiler performance impact. Legacy line input shares the bounded
-read-ahead broker to avoid swallowing bytes when mixed with the new API.
-
-Console, sleep and process errors now have shared ordinary/async types, typed
-categories, native detail and readable renderers implemented in Panack. Focused
-checks pass; final local make check passed in 621s (21 November), plus relocated
-source/bytecode/disassembly acceptance. Integration remains pending. Filesystem,
-resource and network error mappings remain. This continues the existing stdlib
-website follow-up; publication is separate.
-
-Filesystem domain errors and explicit compatibility facades are implemented; focused ordinary/async failure, lifecycle and rendering tests pass. Stdlib nominal identity emission also preserves colliding enum/record declarations. Final local make check passed in 628s (21 November), plus relocated ordinary/async source and saved-bytecode acceptance. Integration remains pending. Digest/gzip and network error mappings remain. The existing stdlib website follow-up applies; no website publication is part of this batch.
-
-Digest/gzip domain errors pass focused ordinary/async category, context, rendering, lifecycle and compatibility checks, final local make check (645s, 21 November), and relocated-install source/bytecode acceptance. Compiler seed and unchanged-program oracle artifacts are unchanged. This extends the existing stdlib website documentation follow-up; publication is separate.
-
-HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibility checks, final local make check (685s, 21 November), and relocated-install real TLS source/bytecode acceptance. Compiler seed and unchanged-program bytecode artifacts remain unchanged. Integration remains pending and development CI stays off. TCP domain errors and high-level HTTP package migration remain outstanding.
-
-TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. The subsequent 22 November repair reconciles all 25 HTTP builtin arities and local-resource call permissions in the self-hosted decoder with the native verifier. Focused legacy/diagnostic-client and routed-server disassembly checks pass. The compiler seed is refreshed; unchanged-program native oracle contracts pass. Final local make check passed in 674s (22 November), including all 427 bytecode tests, public HTTP disassembly, packaging and installed smoke. Relocated TCP and diagnostic-client source/bytecode/disassembly acceptance also passed. Integration remains pending and development CI stays off.
+continues in alpha.17 after its accepted alpha.16 batches. The ordinary/async
+stdlib and anonymous-function, closure and State programmes are complete and
+released. See [release acceptance](docs/releases/ALPHA16_RELEASE_ACCEPTANCE.md)
+and the [historical implementation snapshot](docs/ALPHA16_IMPLEMENTATION_STATUS.md).
+Future real-program fixes remain an implementation allocation with unknown scope
+and effort; the delivered batches are not reopened. Installation and program-running
+usability is independently tracked as RM#163 below.
 
 <a id="rm-163"></a>
 

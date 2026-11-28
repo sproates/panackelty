@@ -204,7 +204,7 @@ Save this as `http-client-example/panack.json`:
   "package": "examples.http_client",
   "version": "0.1.0",
   "language": "modules-v1",
-  "toolchain": "0.1.0-alpha.15",
+  "toolchain": "0.1.0-alpha.16",
   "source": "src",
   "entry": "main.panack",
   "exports": {},
@@ -226,11 +226,11 @@ The body already ends with a newline, so printing it adds a blank line. To try
 custom limits, replace `client.get(...)` with
 `client.get_with_limits("http://127.0.0.1:8080/", client.ClientLimits(5000, 16384, 65536))`.
 
-## Alpha.16 development: detailed errors
+## Alpha.16: detailed errors
 
 `import http/client/async as http` selects the diagnostic client. `get` and
 `get_with_limits` retain ClientLimits and Response but return HttpClientError.
 Inspect `kind` for the existing HttpError category, `transport` for optional
 HttpStreamError and `endpoint` for optional scheme/host/port. `render()` explains
-the failure including available TLS details. This import is not in alpha.15.
+the failure including available TLS details. This import was added in alpha.16.
 The original `http/client` and blocking `http/stream` remain compatible.

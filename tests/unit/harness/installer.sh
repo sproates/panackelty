@@ -100,16 +100,16 @@ first=$(readlink "$prefix/current")
 test "$("$link" --version)" = 'panack 0.1.0-alpha.14 (bytecode 9)' || fail 'installed command'
 install_ok --version 0.1.0-alpha.14
 test "$(readlink "$prefix/current")" = "$first" || fail repeat-link
-fixture 0.1.0-alpha.15
+fixture 0.1.0-alpha.16
 if [ "$fixture_system" = Darwin ]; then
     fixture_macos=14.0; export fixture_macos
     install_ok --version 0.1.0-alpha.14
-    reject 'requires macOS 15 or newer' --version 0.1.0-alpha.15
+    reject 'requires macOS 15 or newer' --version 0.1.0-alpha.16
     test "$(readlink "$prefix/current")" = "$first" || fail 'changed installed release on unsupported macOS'
     unset fixture_macos
 fi
 install_ok
-test "$("$link" --version)" = 'panack 0.1.0-alpha.15 (bytecode 9)' || fail upgraded-command
+test "$("$link" --version)" = 'panack 0.1.0-alpha.16 (bytecode 9)' || fail upgraded-command
 test -d "$prefix/$first" || fail 'old release not retained'
 install_ok --version 0.1.0-alpha.14
 test "$(readlink "$prefix/current")" = "$first" || fail rollback-link
@@ -117,32 +117,32 @@ pass
 case_name=installer-failures-preserve-existing-command
 INSTALL_FAILURE=network; export INSTALL_FAILURE
 # Check transport failure status without depending on curl's platform-specific wording.
-if run_install --version 0.1.0-alpha.15; then fail network; fi
+if run_install --version 0.1.0-alpha.16; then fail network; fi
 unset INSTALL_FAILURE
 printf 'corrupt' >> "$work/assets/$asset"
-reject 'checksum mismatch' --version 0.1.0-alpha.15
+reject 'checksum mismatch' --version 0.1.0-alpha.16
 test "$(readlink "$prefix/current")" = "$first" || fail 'activated failed download'
 printf '%s\n' 'malformed checksum' > "$work/assets/$asset.sha256"
-reject 'invalid checksum file' --version 0.1.0-alpha.15
-fixture 0.1.0-alpha.15
+reject 'invalid checksum file' --version 0.1.0-alpha.16
+fixture 0.1.0-alpha.16
 ln -s /tmp "$work/package/panackelty/escape"
-fixture 0.1.0-alpha.15
-reject 'unsafe archive member types' --version 0.1.0-alpha.15
+fixture 0.1.0-alpha.16
+reject 'unsafe archive member types' --version 0.1.0-alpha.16
 rm "$work/package/panackelty/escape"
 # An archive with another root must fail even with a correct checksum.
 tar -czf "$work/assets/$asset" -C "$work/package/panackelty" bin
 checksum
-reject 'unsafe archive paths' --version 0.1.0-alpha.15
-fixture 0.1.0-alpha.15
+reject 'unsafe archive paths' --version 0.1.0-alpha.16
+fixture 0.1.0-alpha.16
 printf '#!/bin/sh\nprintf "wrong version\\n"\n' > "$work/package/panackelty/bin/panack"
 tar -czf "$work/assets/$asset" -C "$work/package" panackelty
 checksum
-reject 'version mismatch' --version 0.1.0-alpha.15
-fixture 0.1.0-alpha.15
+reject 'version mismatch' --version 0.1.0-alpha.16
+fixture 0.1.0-alpha.16
 printf '#!/bin/sh\nexit 1\n' > "$work/package/panackelty/bin/panack-native"
 tar -czf "$work/assets/$asset" -C "$work/package" panackelty
 checksum
-reject 'downloaded toolchain cannot run native compiler' --version 0.1.0-alpha.15
+reject 'downloaded toolchain cannot run native compiler' --version 0.1.0-alpha.16
 test "$(readlink "$prefix/current")" = "$first" || fail 'activated unusable native toolchain'
 asset=panackelty-0.1.0-alpha.14-$platform.tar.gz
 cp "$work/pristine.tar.gz" "$work/assets/$asset"

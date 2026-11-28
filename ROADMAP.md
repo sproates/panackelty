@@ -1,14 +1,16 @@
 # Roadmap
 
-Panackelty **0.1.0-alpha.15 is published**. See the [release notes](CHANGELOG.md)
-and [acceptance evidence](docs/releases/ALPHA15_RELEASE_ACCEPTANCE.md).
+Panackelty **0.1.0-alpha.16 native packages are published**. The overall rollout
+has completed installer and browser promotion; website acceptance and publication remain. See
+the [release notes](CHANGELOG.md) and [acceptance evidence](docs/releases/ALPHA16_RELEASE_ACCEPTANCE.md).
 
-## Next: alpha.16 — build useful programs
+## Release rollout: alpha.16 — faster tools and more expressive programs
 
 The active integration branch is `next`. See [the current status and allocations](docs/NEXT_RELEASE_STATUS.md).
-Alpha.15 is complete; alpha.16 work is in progress. The first async-stdlib batch
-is locally validated, with the expanded capability/documentation programme
-recorded under RM#162.
+Alpha.15 is complete. Alpha.16 scope is closed around the delivered VM/compiler
+optimisations, async stdlib, anonymous functions, closures, State and their
+examples/documentation. Release packages, installer and playground verification
+precede the final website promotion. Unfinished work is allocated to alpha.17.
 
 ## Nightly artifact resilience: 26 October 2026
 
@@ -28,7 +30,7 @@ GI#409: Compiler/stdlib boundary assessment is complete on next (PR#635).
 The [assessment](docs/COMPILER_STDLIB_BOUNDARY_ASSESSMENT.md) verifies the full
 42-file closure and five change cases. Retain source organisation. Narrower
 package-tool prerequisites were considered in GI#106 and remain unselected. Native coupling
-stays in alpha.16. No refactor is delivered.
+is allocated to alpha.17. No refactor is delivered.
 
 GI#106: Validation speed — alpha.15 milestone done. The owner accepted the
 implementation and replay on 27 October 2026; implementation is merged in PR#637.
@@ -53,34 +55,30 @@ GI#106 test-speed milestone.
 - [All roadmap records](docs/roadmap/README.md)
 - [Decision and completion process](docs/roadmap/ROADMAP_PROCESS.md)
 
-## Planned direction: alpha.14 through alpha.19
+## Release direction: alpha.16 through alpha.20
 
-Owner-approved release rebalance, 20 October 2026. Alpha.14 and alpha.15 are released; alpha.16
-through alpha.19 remain planned. See the
-[scope and boundaries](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#agreed-release-direction--20-october-2026).
+Owner-approved release boundary, 28 November 2026. Alpha.14 and alpha.15 are
+released. See the [current allocation and boundaries](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#release-boundary-agreed--28-november-2026).
 
-- **alpha.14:** completed type-owned methods and HTTP framework, finished with
-  the HTTP API reference and runnable examples slice of GI#552. Colours (GI#555)
-  were not included.
-- **alpha.15:** remaining foundation work: package-management implementation, compiler
-  understanding, validated domain types, the compiler/stdlib assessment, faster
-  coverage, selected friction improvements, and the GI#106 test-speed milestone.
-- **alpha.16:** build useful programs: typed service exchanges, file discovery,
-  subprocess examples, a tiny build tool, tested guides, GI#170: Inference assessment
-  and RM#157: Performance review. [RM#162: Real-program fixes](#rm-162) reserves
-  implementation capacity for obstacles discovered while building real programs;
-  its scope and effort are not yet known.
-- **alpha.17:** everyday development: one editor, source-aware runtime errors and
-  Homebrew installation.
-- **alpha.18:** interactive/connected applications: browser event handlers and
-  service contract testing; Docker images/Linux ARM64 remain optional.
-- **alpha.19:** language ergonomics: error propagation and further guarded types,
-  subject to design/evidence.
+- **alpha.16:** delivered VM/compiler optimisations and incremental compilation;
+  redesigned ordinary/async stdlib; anonymous functions, closures and State;
+  tested combined examples and API/concept/cookbook documentation. Release preparation.
+- **alpha.17:** the unfinished useful-program work: GI#166 typed HTTP exchanges,
+  GI#167 file discovery, GI#168 subprocess examples, GI#169 tiny build tool,
+  GI#138/GI#310 tested guides/examples, GI#170 inference assessment, remaining
+  RM#157 performance review, GI#435 guard alternatives, native-interface/compiler
+  decoupling, coverage approach review and continuing RM#162 real-program fixes.
+- **alpha.18:** everyday development: GI#139 editor support, GI#136 source-aware
+  runtime errors and GI#147 Homebrew installation.
+- **alpha.19:** interactive/connected applications: GI#165 browser event handlers
+  and GI#142 service contract testing; Docker images/Linux ARM64 remain optional.
+- **alpha.20:** language ergonomics: GI#274 error propagation and further GI#435
+  guard families, subject to design/evidence.
 
-The full GI#552 reference, GI#553 load profiling and GI#555 colours retain candidate
-status beyond the explicitly selected HTTP documentation slice. No dates or new
-implementation authorisation are implied. Release validation/publication approval
-remain required; scope does not grow through optional candidates.
+Existing alpha.17–alpha.19 allocations each move one release later. GI#552 full
+API-reference completion and GI#553 load profiling remain candidates in alpha.17;
+GI#555 coloured diagnostics remains a candidate in alpha.18. No additional
+implementation scope is created. Completed work stays credited to its release.
 
 <a id="rm-44"></a>
 
@@ -130,7 +128,7 @@ prepares controlled Git acquisition without moving package policy into native
 code. PR#580 stages exact Git commits with isolated configuration, raw blob
 extraction, canonical hashes, safe symlinks and cleanup on failure. Public Git
 manifests, locks and shared snapshot graphs are delivered by P03c; see its
-[integration record](docs/design/PACKAGE_GIT_INTEGRATION_ACCEPTANCE.md). The alpha.16 coupling
+[integration record](docs/design/PACKAGE_GIT_INTEGRATION_ACCEPTANCE.md). The alpha.17 coupling
 task stays separate.
 
 <a id="rm-158"></a> [RM#158](docs/roadmap/records/dependency-management--idea.md#rm-158),
@@ -143,7 +141,7 @@ P7 retains its deferred 10-point allocation. Alpha.13 release acceptance is comp
 RM#156 records the GI#518 selection and RM#157 records the performance outcome.
 RM#158–RM#161 identify the Alpha.15 package-management packets.
 <a id="rm-162"></a> **[RM#162: Real-program fixes](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-162)**
-is in progress for alpha.16: the [async-stdlib batch](docs/ASYNC_DESIGN_DISCUSSION.md#implementation-batch-selected-8-november-2026) addresses the clock/uptime obstacle. Fix obstacles encountered while building real programs;
+continues in alpha.17 after its accepted alpha.16 batches: the [async-stdlib batch](docs/ASYNC_DESIGN_DISCUSSION.md#implementation-batch-selected-8-november-2026) addresses the clock/uptime obstacle. Fix obstacles encountered while building real programs;
 scope and effort are unknown, and this is an implementation allocation rather
 than an issue-gathering exercise. The owner selected the
 [expanded async stdlib and documentation programme](docs/ASYNC_DESIGN_DISCUSSION.md#expanded-async-stdlib-and-documentation-programme-8-november-2026)

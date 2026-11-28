@@ -290,7 +290,7 @@ collector baseline are unavailable; no overall memory-saving claim is made.
 Disposition: finish the bounded alpha.15 optimisation as directed by the owner,
 retain current bounds and disclose the warm collector memory cost and slow cold
 path. The subsequent coverage-approach review owns assessment of cold preparation
-and retained decoded plans after alpha.15, allocated to alpha.16. No further
+and retained decoded plans after alpha.15, now allocated to alpha.17 by the 28 November release boundary. No further
 optimisation or new collection is a gate for this accepted bounded task. The
 implementation remains the responsibility of the core coverage maintainer; the
 next action is the separately scoped review, not an automatic repair campaign.

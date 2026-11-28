@@ -5,8 +5,8 @@ rollout across core, installer, browser and website. Website publication is the
 final delivery step, after the packages, installer and updated playground are
 verified. The gates below describe individual parts, not overall completion.
 
-Panackelty `0.1.0-alpha.14` is the latest published developer preview. Its public
-native archives passed release acceptance on 21 October 2026. It is intended for learning,
+Panackelty `0.1.0-alpha.16` is the latest published native developer preview.
+The overall rollout remains in progress; see its [acceptance record](ALPHA16_RELEASE_ACCEPTANCE.md). It is intended for learning,
 experimentation, feedback, and non-critical terminal programs. It is not yet
 recommended for production systems or irreplaceable data.
 
@@ -15,7 +15,7 @@ recommended for production systems or irreplaceable data.
 The initial preview targets:
 
 - Ubuntu 22.04 or newer on x86-64
-- Apple silicon (arm64) running macOS 15 or newer for alpha.15. Alpha.14 supports macOS 14 or newer.
+- Apple silicon (arm64) running macOS 15 or newer for alpha.15 and alpha.16. Alpha.14 supports macOS 14 or newer.
 
 Each supported release archive must pass the exact-artifact smoke test on its
 target system. Other POSIX-like systems may work from source but are best effort.
@@ -23,9 +23,11 @@ Windows and other processor architectures are not supported by the initial
 preview.
 
 Downloaded toolchains require the operating system, a terminal, `tar`, and
-the platform's standard SHA-256 utility for download verification. Alpha.14 native
-Linux builds also require libcurl at runtime (`libcurl4` on Ubuntu 22.04); macOS
-uses system libcurl. Source builds require development headers and `curl-config`. The archive
+the platform's standard SHA-256 utility for download verification. Alpha.15 and
+alpha.16 Linux archives require `libcurl4`, `zlib1g`, `libssl3` and
+`ca-certificates` on Ubuntu 22.04. macOS archives use system curl/zlib and bundle
+OpenSSL crypto into the VM; users do not need Homebrew. Source builds require
+the development headers and `curl-config` described in the installation guide. The archive
 includes the compiler, VM, and standard library needed to build and run programs.
 
 ## Release gate

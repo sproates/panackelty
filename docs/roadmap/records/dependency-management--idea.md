@@ -145,7 +145,7 @@ mixed Git/HTTPS selective updates, offline verification and failure preservation
 On merge, P03 is 100% and GI#200 is 75%; GI#568 is complete. P04 remains planned
 and GI#200 stays open.
 Native-interface decoupling remains
-alpha.16 work. Website impact: no change to published alpha.14 claims; document
+alpha.17 work under the 28 November release boundary. Website impact: no change to published alpha.14 claims; document
 the new generic APIs when the matching native release is promoted.
 
 <a id="p04"></a>

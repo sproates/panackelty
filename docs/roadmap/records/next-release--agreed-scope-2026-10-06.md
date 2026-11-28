@@ -4,8 +4,8 @@
 
 ## Release plans and decisions
 
-**Current status (6 November 2026): alpha.15 is released.**
-Alpha.16 is the next planned release. The allocation table below supersedes
+**Current status (28 November 2026): alpha.15 is released; alpha.16 is in release preparation.**
+The owner has closed alpha.16 scope around delivered work. The allocation table below supersedes
 older release assignments in the retained decision history. Earlier planning
 text explains the original decisions, rather than reopening completed gates.
 See [alpha.15 acceptance](../../releases/ALPHA15_RELEASE_ACCEPTANCE.md).
@@ -24,16 +24,33 @@ Implementation and release publication remain separate decisions.
 | --- | --- | --- |
 | alpha.14: methods and HTTP | Released: GI#525 type-owned methods/dot notation, GI#518 routed HTTP framework, and the HTTP reference and runnable examples slice of [GI#552](https://github.com/sproates/panackelty/issues/552). | Release validation passed and native artifacts are published. [GI#555](https://github.com/sproates/panackelty/issues/555) coloured diagnostics was not included. The wider GI#552 standard-library reference remains separate. |
 | alpha.15: strengthen the foundations | Remaining compiler understanding GI#180 (GI#173 provenance and GI#134 explanations); GI#435 validated domain types with multiline, parenthesised conjunctions; GI#409 compiler-facing stdlib assessment; full package-management implementation GI#200, arranged as P01–P04 under RM#44 and tracked as RM#158–RM#161; RM#154 faster coverage, RM#155 selected friction improvements; GI#106 validation-speed milestone. | All previously agreed bounded outcomes remain. Package-management implementation follows the [P01–P04 plan](dependency-management--idea.md#alpha15-implementation-plan); GI#200 stays open through final acceptance. Test-speed acceptance stays here rather than moving with the old alpha.15 theme. |
-| alpha.16: build useful programs | [RM#162: Real-program fixes](#rm-162), an explicit implementation allocation with scope discovered during use; GI#170 inference/diagnostics assessment; GI#166 typed HTTP exchanges, GI#167 recursive file discovery, GI#168 subprocess examples, GI#169 tiny build tool, GI#138 tested guides coordinated with GI#310; RM#157 performance review and bounded quick wins; GI#435 alternatives (`&#124;&#124;`) for the new string, collection and record-relationship guards, including proof rules and diagnostics; existing numeric alternatives are preserved. | Prove installed success/failure workflows; no general RPC framework or production build system. Full GI#552 API-reference completion and GI#553 load profiling were only proposed for old alpha.15; their corresponding candidate slot is now alpha.16, not an automatic commitment. |
-| alpha.17: improve everyday development | GI#139 one-editor support, GI#136 source-aware runtime errors, GI#147 Homebrew installation. | No full language server/debugger commitment. GI#555's proposed fallback slot moves here if not selected for alpha.14. |
-| alpha.18: interactive and connected applications | GI#165 browser event handlers; GI#142 bounded service/library contract testing. | Contract design follows concrete use cases; no general DOM/UI framework. Docker toolchain images (GI#146) and Linux ARM64 releases (GI#145) remain optional. |
-| alpha.19: improve language ergonomics | GI#274 error propagation and further GI#435 guard families, subject to design/evidence. | Beyond alpha.15's strings, collection sizes and cross-field records. Targeted inference and remaining stdlib discoverability may support the release; they are not automatic gates. |
+| alpha.16: faster tools and more expressive programs | Delivered VM and compiler optimisations, persistent incremental compilation, the ordinary/async stdlib redesign, anonymous functions, immutable closures, explicit State, combined examples and published API/concept/cookbook guidance. | Scope closed on 28 November. Product programmes are accepted; packages, installer, browser and final website promotion remain release gates. RM#157 and RM#162 delivered batches are credited here; their unfinished scope is allocated to alpha.17. |
+| alpha.17: build useful programs | GI#166 typed HTTP exchanges; GI#167 recursive file discovery; GI#168 subprocess examples; GI#169 tiny build tool; GI#138 tested guides with GI#310 examples; GI#170 inference/diagnostics assessment; remaining RM#157 performance review; GI#435 string/collection/record guard alternatives; native-interface/compiler decoupling; coverage approach review; continuing RM#162 real-program fixes. | Every unfinished alpha.16 allocation moves here. Existing acceptance boundaries remain. GI#552 full API-reference completion and GI#553 load profiling remain candidates, not commitments. |
+| alpha.18: improve everyday development | GI#139 one-editor support, GI#136 source-aware runtime errors, GI#147 Homebrew installation. | Previously alpha.17. No full language server/debugger commitment. GI#555 coloured diagnostics remains a candidate. |
+| alpha.19: interactive and connected applications | GI#165 browser event handlers; GI#142 bounded service/library contract testing. | Previously alpha.18. No general DOM/UI framework. Docker images (GI#146) and Linux ARM64 releases (GI#145) remain optional. |
+| alpha.20: improve language ergonomics | GI#274 error propagation and further GI#435 guard families, subject to design/evidence. | Previously alpha.19. Targeted inference and remaining stdlib discoverability remain supporting candidates, not automatic gates. |
+
+### Release boundary agreed — 28 November 2026
+
+The owner chose to release the completed work as alpha.16. Existing future
+allocations shift by one release (alpha.17 → alpha.18, alpha.18 → alpha.19,
+alpha.19 → alpha.20); unfinished alpha.16 work fills the new alpha.17 slot.
+Historical decisions below retain their dates and are superseded by this table.
+No unfinished item returns to an unscheduled backlog. Completed RM#157 and RM#162
+batches stay credited to alpha.16; neither open-ended workstream blocks it.
+Website publication remains the final delivery step after verified native
+packages, default installer and matching browser playground.
+
 
 ### Real-program fixes — alpha.16 allocation, 6 November 2026
 
 <a id="rm-162"></a>
 
-**RM#162: Real-program fixes. Status: In progress for alpha.16. Overall scope and effort: unknown.**
+**RM#162: Real-program fixes. Delivered alpha.16 batches complete; continuing discoveries allocated to alpha.17. Overall future scope and effort: unknown.**
+
+The async-stdlib and callable/closure/State programmes are accepted. The following
+6 November description records the original remit; its continuing allocation is
+now alpha.17 under the 28 November release boundary.
 
 The current [async-stdlib batch](../../ASYNC_DESIGN_DISCUSSION.md#implementation-batch-selected-8-november-2026)
 adds clock/environment async reads and consistent paths for existing async host
@@ -87,7 +104,7 @@ scope unchanged. Website PR #74 was closed without merging.
 
 ### Inference assessment allocation, 26 October 2026
 
-GI#170: Inference assessment is selected for **alpha.16**. Its bounded assessment
+GI#170: Inference assessment is allocated to **alpha.17** under the 28 November release boundary. Its bounded assessment
 scope and acceptance criteria are unchanged; no inference architecture or
 implementation is selected. GI#134's complete explanations of existing inference
 decisions remain in alpha.15. This allocation changes no other release item.
@@ -148,9 +165,10 @@ Alpha.14 API documentation now applies to the published release. Methods and HTT
 remain in their existing acceptance records; no completed work is reopened.
 
 For alpha.15, retain each selected workstream's acceptance, including implemented
-validation-speed improvements and owner acceptance. For alpha.16, require runnable
-service/developer-tool examples and checked guides. For alpha.17, require usable
-editing, installation and source-aware failures. Alpha.18/19 designs remain bounded
+validation-speed improvements and owner acceptance. Alpha.16 now uses its
+closed delivered scope and end-to-end release checklist. For alpha.17, require
+runnable service/developer-tool examples and checked guides. For alpha.18, require
+usable editing, installation and source-aware failures. Alpha.19/20 designs remain bounded
 by their existing records. Do not silently shift an optional candidate into a gate.
 
 The homepage, roadmap and maintenance guidance must use the same release mapping.
@@ -864,12 +882,12 @@ guessing; update GI#518 before proceeding.
 
 <a id="rm-157"></a>
 
-**RM#157: Performance review: alpha.16.**
+**RM#157: Performance review: delivered optimisations in alpha.16; remaining review in alpha.17.**
 
-Current allocation: **alpha.16**, by owner decision on 26 October 2026. This is
-an explicit next-release commitment, not an unscheduled backlog item. The review
-and bounded improvement scope remains; detailed workloads, targets and selected
-improvements still need agreement. No review or implementation has started.
+Current remaining allocation: **alpha.17**, by owner decision on 28 November 2026.
+The completed VM and compiler optimisation batches belong to alpha.16. Broader
+review workloads, targets and completion criteria still need agreement. The
+original review remit below remains in effect for that remaining work.
 
 **Selected by owner direction, 2026-10-16.** Review Panackelty holistically to
 identify material performance problems, areas that need closer investigation, and

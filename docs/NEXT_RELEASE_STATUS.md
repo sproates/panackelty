@@ -1,7 +1,7 @@
 # Next release status
 
 Updated: 28 November 2026. Release: **v0.1.0-alpha.16**. Integration branch: **next**.
-Latest published release: **v0.1.0-alpha.15**. Alpha.16 is **in release preparation**, not yet published.
+Native release: **v0.1.0-alpha.16**, published and verified. The overall rollout is **in progress**: installer promotion, the matching browser package and final website publication remain.
 
 The owner closed alpha.16 scope around completed work on 28 November. The
 [release acceptance checklist](releases/ALPHA16_RELEASE_ACCEPTANCE.md) owns the
@@ -16,8 +16,8 @@ preserves detailed test and integration evidence.
 | Compiler optimisations and persistent incremental compilation | Accepted and integrated. |
 | Ordinary/async stdlib redesign and documentation (RM#162, AS1–AS5) | Accepted, 100/100; website PR #77 published. |
 | Anonymous functions, closures, State and combined examples (RM#162, CS1–CS4) | Accepted, 100/100; core PRs #701–#709 and website PR #80. |
-| Exact-source native release validation and public packages | PR #710 merged after local validation (761 seconds) and all hosted gates passed, including one unchanged-source macOS retry. Release workflow 46098177472 is running; public packages remain pending. |
-| Default installer promotion and public-artifact acceptance | Promotion branch prepared; five focused cases and full local validation (728 seconds) passed. Verified public packages and the promotion PR remain prerequisites. |
+| Exact-source native release validation and public packages | PR #710 merged after local validation (761 seconds) and all hosted gates passed, including one unchanged-source macOS retry. Release workflow 46098177472 succeeded. All eight public assets match GitHub digests and release provenance; both target package jobs and macOS public acceptance passed. |
+| Default installer promotion and public-artifact acceptance | Promotion branch prepared; five focused cases and full local validation (728 seconds) passed. Public macOS README/installer acceptance passed. PR #711 requires approval and hosted checks before promotion. |
 | Matching browser playground package | Local candidate passes 29 runtime/asset/release tests and 30 Chromium/Firefox/WebKit checks. Final public bundle pins, hosted checks and browser publication remain. |
 | Website promotion and live verification | Last delivery step; pending all prior gates and candidate preview approval. |
 

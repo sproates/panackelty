@@ -1,9 +1,10 @@
 # Roadmap
 
-Panackelty **0.1.0-alpha.15 is published**. See the [release notes](CHANGELOG.md)
-and [acceptance evidence](docs/releases/ALPHA15_RELEASE_ACCEPTANCE.md).
+Panackelty **0.1.0-alpha.16 native packages are published**. The overall rollout
+continues through installer and browser promotion, followed by the website. See
+the [release notes](CHANGELOG.md) and [acceptance evidence](docs/releases/ALPHA16_RELEASE_ACCEPTANCE.md).
 
-## Release preparation: alpha.16 — faster tools and more expressive programs
+## Release rollout: alpha.16 — faster tools and more expressive programs
 
 The active integration branch is `next`. See [the current status and allocations](docs/NEXT_RELEASE_STATUS.md).
 Alpha.15 is complete. Alpha.16 scope is closed around the delivered VM/compiler

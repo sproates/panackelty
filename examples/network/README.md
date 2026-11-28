@@ -29,3 +29,11 @@ with async stdlib imports; alpha.15 does not support this example.
 The [diagnostic client](http_diagnostic_client/README.md) uses `http/client/async`,
 explicit bounds and rendered transport details. It distinguishes received HTTP
 error statuses from failed requests.
+
+## Shared request count and uptime (alpha.16 development)
+
+The [closure version](http_state_closure/README.md) retains an immutable start instant
+and State handle in an anonymous handler. The [contextual version](http_state_contextual/README.md)
+uses a named handler with the same data in an explicit context. Both increment the
+shared count atomically, await the clock and return the same status/count semantics.
+They require the alpha.16 development toolchain.

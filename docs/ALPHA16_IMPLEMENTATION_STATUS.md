@@ -15,9 +15,10 @@ larger language changes; compiler integration and its coverage-manifest correcti
 playground and website. Its [final status snapshot](ALPHA15_FINAL_STATUS.md) and
 [release acceptance](releases/ALPHA15_RELEASE_ACCEPTANCE.md) preserve the evidence.
 
-Read this file first for release status. Detailed requirements remain in the
+For current release status, read [NEXT_RELEASE_STATUS.md](NEXT_RELEASE_STATUS.md).
+The following requirements and progress are the historical snapshot in the
 [agreed allocation](roadmap/records/next-release--agreed-scope-2026-10-06.md#agreed-release-direction--20-october-2026)
-and linked work records. Update this summary whenever release work changes.
+and linked work records. Preserve this snapshot; update the current summary when work changes.
 
 ## Allocated work
 

@@ -68,7 +68,7 @@ test('unknowns remain unavailable, never zero or fabricated percentages',()=>{
 test('mixed snapshots, changed same-ID shape, disjoint IDs and missing files rejected',()=>{
   const a=source([item('e','expression','observed')]);
   for(const b of [{...a,hash:'b'},source([item('e','function','observed')]),source([item('other','expression','observed')])]) assert.throws(()=>union([[a],[b]],['src/a.panack']),/Mixed/);
-  assert.throws(()=>union([[a]],['src/b.panack']),/Missing/);
+  assert.throws(()=>union([[a]],['src/b.panack', 'src/c.panack']), /Missing eligible source files: src\/b\.panack, src\/c\.panack/);
 });
 test('observation distinguishes source outcomes, function entries and interval edges',()=>{
   const p={...plan,sources:[source([{...item('f','function','observed'),functionIndex:1,mode:0},{...item('e','expression','observed'),functionIndex:1,mode:1,start:0,end:1},{...item('b','outcome','observed'),functionIndex:1,mode:2,start:0,end:1},{...item('u','expression','unavailable'),functionIndex:1,mode:5}])]};

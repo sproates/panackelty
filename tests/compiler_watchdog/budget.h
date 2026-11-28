@@ -75,7 +75,7 @@ static bool watchdog_event(WatchdogBudget *budget, bool entering, const char *na
     budget->units[budget->depth - 1].used += now - budget->last_event;
     budget->last_event = now;
     name = watchdog_plain(name);
-    if (!strcmp(name, "bind_body_block")) {
+    if (!strcmp(name, "bind_body_block") || !strcmp(name, "bind_body_block_expected")) {
         if (entering) {
             int length = snprintf(budget->function, sizeof(budget->function), "%s::%s", module, function);
             if (length < 0 || (size_t)length >= sizeof(budget->function))

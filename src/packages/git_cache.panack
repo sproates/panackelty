@@ -6,7 +6,7 @@ import project/src/packages/tree_digest::{ArchiveEntry, tree_length, tree_feed_f
 import project/src/packages/tar_header::{normalize_package_path}
 import project/src/packages/sha256::{sha256_new, sha256_feed, sha256_finish, sha256_close}
 import project/src/project_model/utf8::{valid_utf8}
-import stdlib/filesystem as filesystem
+import stdlib/filesystem/legacy as filesystem
 import stdlib/filesystem::{FileKind.Directory, FileKind.RegularFile, FileKind.SymbolicLink}
 import stdlib/bounded_filesystem as bounded
 import stdlib/path as path

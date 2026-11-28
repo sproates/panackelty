@@ -1,3 +1,4 @@
+import project/src/compiler/capture_explanations::{capture_explanation_origin}
 import project/src/compiler/module_bodies::{BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyInvalid, BoundBody, BoundFunctionBody, body_type_text, body_type_complete,
   body_subtraction_evidence_entries, body_call_argument_evidence, body_binding_type_evidence, body_assignment_type_evidence, body_type_join_evidence,
   body_collection_callback_evidence, body_operator_type_evidence, body_type_check_evidence}
@@ -200,7 +201,7 @@ pure facts(project: LoadedProject, function: BoundFunctionBody, selected: Source
   for e in body_type_check_evidence(body) {
     base = requirement(e.span,e.context,e.actual,source_map_escape(e.expected),e.accepted)
     links = match e.dependency { None() => [], Some(site) => origin(project,site,if e.context == "domain constraint" || e.context == "runtime validation" { "Guard requirement declared here" } else if e.context == "supporting guard fact" { "Source of the guard fact" } else { "Earlier constraint" }) }
-    rows = rows.append(Decision(e.span,base.label,if e.context == "runtime validation" { "Checked at runtime" } else if e.context == "domain constraint" && e.accepted == None() { "Unproved" } else { base.verdict },base.why + (if e.reason == "" { "" } else { " " + source_map_escape(e.reason) }),links))
+    rows = rows.append(Decision(e.span,base.label,if e.context == "runtime validation" { "Checked at runtime" } else if e.context == "domain constraint" && e.accepted == None() { "Unproved" } else { base.verdict },(if e.context.starts_with("capture ") { source_map_escape(e.reason) } else { base.why + (if e.reason == "" { "" } else { " " + source_map_escape(e.reason) }) }), if e.context.starts_with("capture ") { match capture_explanation_origin(project.module_bodies,e.span) { None() => [], Some(site) => origin(project,site,"Captured binding declared here") } } else { links }))
   }
   for e in project.effects {
     if effect_belongs_to(e,selected) {

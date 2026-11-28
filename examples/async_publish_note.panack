@@ -1,0 +1,100 @@
+import stdlib/filesystem/async as files
+import stdlib/filesystem/staging/async as staging
+import stdlib/filesystem/confined/async as confined
+import stdlib/path as paths
+import stdlib/encoding/utf8 as utf8
+import stdlib/console/async as console
+import stdlib/host/async as host
+
+async publish(parent: Path, name: Path): Result[Unit,Str] {
+  match await staging.create(parent) {
+    Error(problem) => Error(problem.render()),
+    Ok(stage) => {
+      result = match await staging.write_chunk(stage, name, "hello".encode_utf8(), 0) {
+        Error(problem) => Error(problem),
+        Ok(written) => await staging.publish(stage, name, staging.CreateOnly())
+      }
+      match result {
+        // Successful publication consumes the stage; do not discard it afterwards.
+        Ok(published) => Ok(()),
+        Error(problem) => match await staging.discard(stage) {
+          Ok(discarded) => Error(problem.render()),
+          Error(cleanup) => Error(problem.render() + "\nDiscard also failed: " + cleanup.render())
+        }
+      }
+    }
+  }
+}
+
+async read_note(root: Path, name: Path): Result[Str,Str] {
+  match await confined.read(root, name, 1024) {
+    Error(problem) => Error(problem.render()),
+    Ok(read) => match utf8.decode(read.contents) {
+      Error(problem) => Error("The published note is not valid UTF-8."),
+      Ok(text) => Ok(text)
+    }
+  }
+}
+
+async exercise(parent: Path, name: Path): Result[Str,Str] {
+  match parent.join(name) {
+    Error(problem) => Error("Cannot form the publication path."),
+    Ok(published) => match published.join(name) {
+      Error(problem) => Error("Cannot form the note path."),
+      Ok(file) => match await publish(parent, name) {
+        Error(problem) => Error(problem),
+        Ok(done) => {
+          result = await read_note(published, name)
+          // These exact paths belong to this example's newly created directory.
+          removed_file = await files.remove_file(file)
+          removed_directory = await files.remove_directory(published)
+          mut combined = result
+          for cleanup in [removed_file, removed_directory] {
+            match cleanup {
+              Ok(removed) => {},
+              Error(problem) => {
+                combined = match combined {
+                  Ok(text) => Error(problem.render()),
+                  Error(original) => Error(original + "\nCleanup also failed: " + problem.render())
+                }
+              }
+            }
+          }
+          combined
+        }
+      }
+    }
+  }
+}
+
+async run_example(name: Path): Result[Str,Str] {
+  match await files.create_temp_directory(paths.current()) {
+    Error(problem) => Error(problem.render()),
+    Ok(parent) => {
+      result = await exercise(parent, name)
+      match await files.remove_directory(parent) {
+        Ok(removed) => result,
+        Error(cleanup) => match result {
+          Ok(text) => Error(cleanup.render()),
+          Error(original) => Error(original + "\nCleanup also failed: " + cleanup.render())
+        }
+      }
+    }
+  }
+}
+
+async main(): Unit {
+  result = match paths.from_text("note") {
+    Error(problem) => Error("The example's relative path is invalid."),
+    Ok(name) => await run_example(name)
+  }
+  match result {
+    Error(message) => {
+      reported = await console.write_error_line(message)
+      await host.exit(1)
+    },
+    Ok(text) => match await console.write_line("Published note: ${text}") {
+      Error(write_error) => await host.exit(1), Ok(written) => ()
+    }
+  }
+}

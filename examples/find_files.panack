@@ -15,7 +15,7 @@ fail(message: Str): Void {
 find_files(directory: Path, prefix: Str, suffix: Str): [Str] {
   mut matches: [Str] = []
   match fs.list_directory(directory) {
-    Error(problem) => fail("Cannot list " + directory.display() + ": " + problem.code),
+    Error(problem) => fail(problem.render()),
     Ok(entries) => {
       for entry in entries {
         match entry.to_text() {
@@ -25,7 +25,7 @@ find_files(directory: Path, prefix: Str, suffix: Str): [Str] {
             match directory.join(entry) {
               Error(problem) => fail("Cannot join " + directory.display() + " and " + name),
               Ok(child) => match fs.metadata(child) {
-                Error(problem) => fail("Cannot inspect " + child.display() + ": " + problem.code),
+                Error(problem) => fail(problem.render()),
                 Ok(info) => {
                   if info.kind == Directory() {
                     matches = matches.concat(find_files(child, relative + "/", suffix))

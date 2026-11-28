@@ -1,5 +1,85 @@
 # Specification coverage
 
+[Persistent compilation reuse](../docs/COMPILER_PERSISTENT_REUSE.md) adds
+fresh-process edited-build tests to the CLI cache harness and codec round-trip/
+truncation tests to the module-bindings suite. All 117 focused checks and 15 CLI groups passed against the candidate;
+full local `make check` passed in 551 seconds. The help transcript is also
+verified from source and saved bytecode.
+
+The [checked-module trial](../docs/COMPILER_MODULE_REUSE_TRIAL.md) compares
+retained snapshots with fresh checking and emitted bytecode after leaf/entry
+edits, signature/effect failures, guards, implicit core changes, graph changes,
+cycles, missing sources, relocation and explanation-mode changes. The cases
+are registered in the compiler module-bindings suite. All 54 focused cases and
+the full local `make check` passed (563 seconds).
+
+The [unchanged-compilation trial](../docs/COMPILER_UNCHANGED_REUSE_TRIAL.md) adds
+CLI coverage in `tests/unit/harness/compilation_cache.sh`: warm/cold byte identity,
+fresh execution, launcher/toolchain identity, source and package invalidation,
+confinement, damaged entries, bypass and concurrent/failed publication. It uses
+complete programs through the staged public launcher. All nine groups and the
+full local `make check` passed (572 seconds).
+
+The [literal reuse trial](../docs/VM_LITERAL_REUSE_TRIAL.md) covers cached versus
+uncached values, repeated/separate executions, negative zero, Unicode/NUL/empty
+strings, cancellation, re-verification and allocation failure. Native suites and
+five functional fixtures passed, followed by full local make check after
+adoption in the normal checkout VM (593 seconds).
+
+The [shared Unit/Void trial](../docs/VM_SHARED_UNIT_VOID_TRIAL.md) checks distinct
+tags/equality, shared and heap ownership, container lifetime and allocation-free
+construction. Native/fault suites and five functional fixtures passed, followed
+by full local `make check` after adoption in the normal checkout VM (615 seconds).
+
+The [shared-Boolean trial](../docs/VM_SHARED_BOOLEANS_TRIAL.md) covers allocation-free
+construction, repeated/container ownership, ordinary heap Boolean lifetime, and
+shared inputs across async completion/cancellation. Native/fault suites and five
+functional fixtures passed, followed by full local `make check` after adoption
+in the normal checkout VM (619 seconds).
+
+The [builtin-dispatch trial](../docs/VM_BUILTIN_DISPATCH_TRIAL.md) adds pure/host
+boundary checks for direct and indirect ordinary calls, with and without prepared
+metadata. Native, allocation-failure and five functional fixtures passed; full
+local `make check` passed after adoption in the normal checkout VM (662 seconds).
+
+The [temporary-call-arguments trial](../docs/VM_CALL_ARGUMENTS_TRIAL.md) covers
+direct/indirect calls at 0, 1, 8, 9 and 255 arguments, partial-stack cleanup and
+allocation failures across the inline/heap boundary. Native suites and five
+compiled fixtures passed, followed by full local `make check` after adoption
+in the normal checkout VM (691 seconds).
+
+The [collection-index trial](../docs/VM_COLLECTION_INDEX_TRIAL.md) covers lazy
+indexing, collisions, ordered snapshots, replacement, equal distinct keys,
+scalar type distinction, duplicate native bindings, decimal/compound fallback
+and optional index-allocation failure. Native suites and five compiled fixtures
+passed, followed by full local `make check` after adoption in the normal
+checkout VM.
+
+The [string-metadata trial](../docs/VM_STRING_METADATA_TRIAL.md) compares cached
+addition against scanned metadata across 49 Unicode/ASCII/empty/NUL input pairs,
+including repeated and aliased concatenation. Native and allocation-failure
+suites and five compiled functional fixtures passed, followed by full local
+`make check` after rebuilding the normal checkout VM for adoption.
+
+The [indexed-local trial](../docs/VM_LOCAL_SLOTS_TRIAL.md) adds native checks for
+parameter-slot ordering, replacement ownership, uninitialised branch locals,
+verification invalidation/re-preparation and locals across async suspension.
+Allocation sweeps cover preparation and indexed-frame failures. The candidate
+passed native suites and five compiled functional fixtures, then full local
+`make check` after adoption in the normal checkout VM.
+
+The [VM concatenation trial](../docs/VM_CONCAT_TRIAL.md) adds native assertions
+for empty and Unicode results, embedded NUL bytes, overflow rejection and shared
+array-element ownership, plus constructor allocation-failure sweeps. Candidate
+native suites and two compiled functional fixtures passed, followed by the full
+local `make check` after rebuilding the normal checkout VM for adoption.
+
+VM direct-call resolution has native regressions for verified builtin/function
+links, changed-target re-verification, failed-verification invalidation, and
+verified async calls across host suspension/completion. Existing ownership,
+forged-bytecode and TCP assertions remain. See the
+[lookup experiment and local adoption](../docs/VM_CALL_LOOKUP_TRIAL.md).
+
 Shared compiler-test preparation preserves the existing assertions and standalone
 entry points; suite bodies now live in `runner/compiler_suites/`. Each selected
 suite runs in its own process. The real dispatcher and probe-cache regression in
@@ -216,7 +296,7 @@ Status meanings:
 | Lexer-oriented string built-ins | lexer foundation example and compiler-skeleton functional case | **Partial** — individually test slicing bounds, prefixes, character classes, and `nat_from_str` failures. |
 | Panackelty-hosted lexer | `runner/compiler_lexer_unit.panack`; compiler-lexer and positioned-failure functional cases | **Covered** for comments, whitespace, identifiers, integers, decimals, strings, every symbol, longest-match boundaries, half-open offsets, invalid characters, file-aware positioned diagnostics, and unterminated strings. |
 | Local-package manifest and CLI | `runner/package_manifest_unit.panack` (25 assertions); `runner/compiler_loader_confinement_unit.panack`; `unit/vm/native_modules.c`; `functional/cases/cli_commands` and its package graph, source limit, root race and relocation scripts | **Covered** — strict schema-1 parsing validates identity, exact toolchain, SemVer, exports, dependencies, relative paths, duplicate/unknown fields, Unicode escapes, malformed UTF-8/JSON, and size/depth bounds. CLI acceptance covers explicit manifest check/source run/compile, dependency fail-closed behavior, confined module loading after relocating an application root, plus PR#386’s two-app shared-library fixture checks, runs and compiles from an unrelated working directory, moves the entire sibling app/library tree, then repeats checks and source runs and executes the saved bytecode compiled before the move. Dependency-free library checks validate every distinct exported module, including an export importing another export, without requiring `main`; compile/run reject library manifests, empty libraries fail, and an invalid later export is detected. Direct local dependencies cover two applications sharing one library, export-only imports, saved bytecode, same-root aliases and conflicting physical package roots. Nested-graph acceptance checks a shared package reached directly and through a library, owner-scoped aliases, source and bytecode execution, cycle rejection, and nested source-root overlap rejection. `package_graph_limits.sh` verifies nested version conflicts and duplicate physical roots, accepts exactly 64 package manifests, 256 dependency edges and 32 package levels, and rejects one beyond each limit. `compiler_package_source_limits_unit.panack` accepts exactly 256 loaded source files, a 1 MiB source module and an 8 MiB source closure, and rejects one beyond each bound. These loader-level checks avoid reparsing large boundary fixtures. `package_source_limits.sh` separately verifies through the public CLI that a source above 1 MiB fails closed before parsing. The loaded-file and source-byte totals include the automatically loaded toolchain core. This completes P3 local-package acceptance; P8 still owns clean-installed release and browser integration acceptance. Package source loading rejects mismatched physical root identities and an exported symlink escaping the package root. Native rooted-read tests race symlink replacement against reads and prove that successful reads return only in-root contents. The functional CLI acceptance atomically replaces an application-root symlink during repeated source-closure loads; the race fixture imports 64 sibling modules per candidate root to widen the source-loading window. Successful runs must use one coherent package tree, while a detected root identity change or source-read error fails closed. Native directory-overlap contracts cover ancestry in both directions, aliases, disjoint roots, and missing paths. Functional manifests reject application/dependency and distinct dependency source roots that physically overlap.
-| Panackelty-hosted parser | `runner/compiler_parser_unit.panack`; compiler-skeleton and positioned-failure functional cases | **Covered** for the complete accepted grammar and focused malformed input, including one-based file, line, and column reporting through the project loader. The parser probe checks 192 assertions in 38 groups. |
+| Panackelty-hosted parser | `runner/compiler_parser_unit.panack`; compiler-skeleton and positioned-failure functional cases | **Covered** for the complete accepted grammar and focused malformed input, including one-based file, line, and column reporting through the project loader. The parser probe currently checks 237 assertions, including 25 anonymous-header/expression cases. These cover complete bodies, nesting, precedence, multiline blocks and malformed syntax; source-span, inventory, resolver and cache probes also cover the new AST. The CS1 development branch additionally checks and executes noncapturing anonymous functions; see the focused callable evidence below. |
 | Panackelty-hosted name resolver | `runner/compiler_resolver_unit.panack`; compiler-skeleton and positioned-failure functional cases | **Partial** — top-level declarations, constructors, built-ins, lexical scopes, calls, assignments, loops, guards, match bindings, and already-loaded module graphs are covered, including source-accurate imported-module name failures. The resolver probe checks 26 assertions in 12 groups. Interpolation references remain. |
 | Panackelty-hosted type/refinement checker | `runner/compiler_checker_unit.panack`; `fixtures/compiler_checker`; `fixtures/compiler_checker`; compiler-skeleton and positioned-failure functional cases | **Covered** for declared and generic type references, records, enums, constructor inference, operators, arrays, indexing, persistent collections, built-ins, bindings, assignment, loops, branches, returns, entry points, exhaustive matches, guarded literals and branch facts, safe `Nat` subtraction, cross-module types, and source-accurate primary type failures. 37 native assertions cover the former direct checker contracts and sorting callback contracts, with explicit `ok` on success and the existing diagnostic substrings on failure. All 31 former differential source cases retain these same fixed native expectations. |
 | Panackelty-hosted purity checker | `runner/compiler_purity_unit.panack`; `fixtures/compiler_purity`; `fixtures/compiler_purity`; compiler-skeleton functional case from source and bytecode | **Covered** for pure recursion, constructors and built-ins, direct and nested impure calls, user-function effects, guarded-type predicates, and calls across an already-loaded module graph. 11 native assertions preserve all former direct purity contracts, requiring `ok` for success and the original diagnostic substrings on failure. All ten former differential sources now use fixed native acceptance and diagnostic expectations. |
@@ -1692,3 +1772,691 @@ without relying on implementation-specific options.
 The separate symbolic-link rejection remains intact.
 
 The [final compiler-understanding acceptance](../docs/COMPILER_UNDERSTANDING_ACCEPTANCE.md#final-alpha15-integration) records domain-proof retention, cross-module terminal navigation, source-map round trips and realistic instruction-origin audits.
+
+### Incremental declaration invalidation
+
+The compilation-cache harness now has 24 groups. Its typed-module cases compare
+fresh and cached bytecode after actual body edits, require independent sibling
+reuse, and invalidate on guard/record/enum changes, deletion, moved coordinates
+and import aliases. Failed-body diagnostics match fresh checking; recovery
+reuses only unaffected modules. The coverage manifest includes the four compiler
+cache/reuse modules; the policy digest reviews declaration exclusions without
+claiming new execution coverage.
+
+### Checked-body source-position decoding
+
+The body-cache suite has 119 assertions. Position round trips cover zero, the
+largest ordinary word, the large-Nat sentinel and a coordinate beyond 64 bits,
+including Unicode file names. Truncated words and invalid file dictionary
+indexes are rejected at both ends of a span. Extra cases cover a large coordinate
+only in the end position, truncation across both fixed-width positions, the final
+valid body-node tag and out-of-range tags. Existing nested-body, malformed-cache and fresh/cached
+bytecode comparisons remain in place. These tests do not expand the measured
+coverage corpus or exclude executable code.
+
+### Public signature reachability
+
+The module-binding suite adds eight assertions across both selective-export
+orders. They accept a local public type and the original selectively exported
+nominal identity, while retaining the later private-type diagnostic exactly.
+Existing unused private re-export, cycle, missing-edge and source-position tests
+continue to verify graph validation independently of the reachability search.
+
+### Binding-validation reuse
+
+Eight module-binding assertions compare prepared and fresh ordered diagnostics,
+reject same-size import changes and added duplicate declarations, clear errors
+after recovery, and preserve moved diagnostic positions. Direct resolver calls
+reject both stale prepared inputs and raw invalid bindings. The existing collision,
+privacy and graph checks remain in place; no executable functions are excluded.
+
+### Shared type cache representation
+
+Sixteen additional body-cache assertions independently construct the version-2
+wire format. They cover valid shared values, previous/unknown formats, self/forward/
+out-of-range references, truncated and excessive tables, expanded depth including
+the enclosing body, and both per-type and cumulative expansion budgets. Existing
+fixture round trips compare restored diagnostics and bytecode with fresh checking.
+The CLI cache harness also checks fresh fallback from an intact previous-version
+module header. The manual hosted-trial fixture uses the current module marker.
+
+The compact effect-facts foundation adds 30 differential assertions to the
+module-binding suite (1,517 total), comparing complete ordered diagnostics and
+function-status maps with checked-body traversal. Cases include direct/imported/
+indirect calls, await rules, unknown effects, invalid/deferred bodies and seven
+whole-program fixtures. Retained consumer facts must revoke local-resource
+permission after a body-only dependency change, including blocking, no-local-call
+and cyclic replacements. The production rich checker remains the oracle.
+
+The encoded-function cache adds 315 assertions (1,832 module-suite assertions
+total): seven complete fixtures compare cold/warm cache output with fresh bytecode,
+round-trip per-module records, reject truncation/framing changes, check canonical
+function records and metadata, and preserve rich explanation checking. Fully
+reused modules must restore no checked bodies. The CLI cache harness now has
+30 groups, covering newly reachable/transitive core helpers, source edits, exact
+error diagnostics, graph reordering, corrupt-file fallback and package projects
+on the encoded route. Probe tests also retain and filter both cache trace forms.
+
+The standalone input-ledger slice adds six cache CLI groups (36 total): unchanged
+check/compile and fresh execution, content changes despite preserved timestamps,
+new imports and missing files, unrelated files and symlink replacement, corrupt
+ledger/artifact fallback, and package-loader preservation. Existing toolchain,
+root, confinement and storage controls also run with the new default. Hosted-cache
+fixtures include the ledger; probe fixtures recognise its bounded trace. Coverage
+policy adds one import exclusion and shifts existing declaration positions,
+without excluding executable functions.
+
+Declaration-summary reuse adds 122 assertions (1,954 in the module suite) and seven
+CLI groups (43 total). Seven whole-program fixtures compare summary round trips,
+loader diagnostics, source closure, explicit missing-body rejection, exact complete
+restoration, partial compiled-code reuse, fresh bytecode and rich-tooling restoration.
+CLI cases cover edits, transitive consumers, absent compiled records, corrupt
+summaries, exact negative diagnostics, global declarations and the implicit validation
+import from an unchanged source. The hosted-cache fixture accepts summary files;
+probe tests filter the new trace. The source manifest now includes
+`module_summaries.panack` (52 eligible files). Production-parser inventory reviewed
+530 import/type/record/enum exclusions against the prior 509; no executable functions
+are excluded and this is not a new coverage collection.
+
+### Async stdlib batch (alpha.16 development)
+
+`tests/async_stdlib.sh` checks the new import paths, source and bytecode
+execution, missing/empty environment values, monotonic readings, compatibility
+imports, await/purity rejection and actionable ordinary-call diagnostics.
+`tests/http_uptime.sh` runs the real uptime example in both execution modes
+and compares successive responses. The existing async filesystem integration
+uses the new path. Native async tests independently check forged call edges;
+fault injection checks the typed clock failure. Installation inventory and
+relocation tests include the nested modules. These tests do not establish
+source-execution coverage percentages for the new async adapters.
+
+### Process-group launch race regression
+
+The native fault suite deterministically exercises a child process-group assignment
+that reports EPERM after establishing the requested group. Launch continues only
+when that postcondition is true; EPERM with the wrong group and EIO with the correct
+group still return launch_failed with their original native error. Tests check
+payload delivery, resource cleanup and error preservation. This covers the macOS
+concurrent setpgid failure mode without relying on probabilistic runner timing.
+
+Reference: [independent Darwin setpgid reproducer](https://www.mail-archive.com/bug-bash@gnu.org/msg36424.html).
+This establishes a matching failure mode, not the errno of earlier Panack nightly
+failures. The old logs only retained the launch_failed category. The harness and
+package Git diagnostics now retain native error numbers for future investigation.
+The regression failed against the original implementation and passes with the
+postcondition check. A local 3,000-launch timing probe did not reproduce the race;
+the automated regression therefore uses deterministic syscall fault injection.
+
+Performance: the normal successful launch adds no syscall. Only an EPERM result
+checks the existing process group; there is no retry loop, sleep or timeout change.
+Existing process timeout/descendant cleanup functional coverage remains applicable.
+
+### Async temporary-resource ownership
+
+Native module checks cover immediate cancellation, cancellation after creation,
+and accepted results for both temporary files and directories. Retained results
+remain usable after the worker releases its operation. A non-empty temporary
+directory proves cleanup failure preserves contents and reports its exact path
+and native error. Allocation-failure sweeps assert no retained memory, descriptors
+or orphaned temporary entries. General filesystem source and saved-bytecode
+functional cases still pass with the candidate compiler. Final batch acceptance
+remains pending; these focused checks do not replace `make check`.
+
+Performance: temporary creation retains one of the existing 32 worker slots until
+result handoff or abandonment. Cleanup runs on that worker; cancellation adds no
+blocking filesystem call to the event loop. No bytecode or compiler change.
+Website impact: included in the existing pending async stdlib reference update;
+no published article changes.
+
+Async filesystem candidate tests also cover atomic replacement followed by chunk
+reads, a nonzero offset, EOF and rejection above the 64 KiB chunk limit, through
+source and saved bytecode. These operations reuse the existing no-follow native
+implementation in bounded workers; no new bytecode format or execution engine.
+Final expanded stdlib batch validation remains pending.
+
+Canonical confined filesystem tests exercise ordinary and async source and saved
+bytecode, root/read identity equality, contained symlink reads, escaping-link
+rejection and link-target reads. Native dispatch reuses existing safety logic;
+async link reads use bounded workers with a 4096-byte reservation. Coverage
+inventory/hash reconciliation and final batch acceptance remain pending.
+
+### Staging lifetime baseline (19 November)
+
+The native I/O suite now verifies create-only publication conflict, stage reuse
+after rejection, later successful publication, rejection of path/write/publish
+after consumption, and VM shutdown removing unpublished content while preserving
+published contents. This establishes the existing synchronous baseline, not async
+cancellation safety. The API contract records the outstanding native ownership,
+cleanup-error and pre-commit allocation work. Production behaviour is unchanged;
+there is no runtime performance or current website change in this checkpoint.
+
+Staging cleanup now has focused native regressions for retry after a substituted
+directory blocks discard, and successful publication despite permission-denied
+old-generation cleanup. The latter checks the path/error diagnostic, consumed
+handle, shutdown retry and preservation of published content; it runs for non-root
+users. Publication preallocates its success result before rename. These focused
+checks do not establish complete allocation-fault or async staging acceptance.
+Performance: no extra successful-path filesystem operation; failed cleanup retains
+its bounded stage slot until retry/shutdown. Final batch make check is pending.
+
+Native opaque stage values now have tests rejecting Nat forgery, handles from
+another invocation, stale handles after VM-table recreation, and aliases after
+discard. Retained values outlive table destruction safely through an identity
+token; this token does not keep the native stage alive or grant worker ownership.
+Native-only foundation: no public typed source API or bytecode-format change.
+Performance: one small shared identity allocation per invocation using staging,
+and one normal Value allocation per opaque result. Full batch checks remain pending.
+
+Candidate source and saved-bytecode staging checks now exercise the ordinary
+opaque API, named publication modes, rejected create-only publication followed by
+replacement, alias consumption and discard. Negative source cases reject Nat
+handles, direct DirectoryStage construction and staging effects in pure functions.
+No bytecode format change; coverage inventory and final batch acceptance pending.
+
+A deterministic native-thread staging test acquires a lease, rejects a second
+lease and ordinary discard as busy, destroys the VM table and releases all source
+values, then starts a worker that creates a child directory. Lease release removes
+the unpublished stage. This proves native lifetime independence without relying on
+timing. It does not yet exercise public await dispatch or cancellation. Atomic
+reference counts and per-stage admission add bounded bookkeeping; native slots
+remain bounded at 64 per invocation. Full batch validation remains pending.
+
+Async staging source/bytecode tests now cover create/path/directory/write/symlink/
+publish/discard, named modes and alias consumption. Native creation tests cover
+immediate cancellation, cancellation after completion and accepted ownership
+without a transient busy result. Allocation sweeps check abandoned creation
+without retained memory or leftover stage directories. A cancelled publication
+finishes and preserves its committed destination after VM teardown. These checks
+do not establish event-loop-safe shutdown with no lease pending; that and final
+batch/coverage-inventory acceptance remain outstanding. Worker admission remains
+32 operations with existing byte reservations and 64 stage slots per invocation.
+
+Embedded staging teardown now has a deterministic paused-fstat fault test: VM
+execution destruction returns while cleanup remains blocked, then draining after
+unpausing releases all tracked allocations and descriptors. Native admission tests
+fill 32 invocation tables, reject the next, drain one, and verify capacity recovery.
+Cleanup uses one worker and an allocation-free intrusive queue bounded by table
+admission. The CLI drains queued cleanup after stopping its runtime; active host
+operations can still outlive cancellation, and process termination gives no
+cleanup guarantee for such operations. Final expanded-batch validation pending.
+
+### Expanded filesystem batch acceptance, 19 November 2026
+
+Final `make check` passed in 606 seconds: unit 389s, bootstrap 83s in parallel,
+functional 142s, plus the remaining build/release checks. Historical budget warnings
+remain informational; these timings are not a controlled performance comparison.
+The general, confined and ordinary/async opaque staging fixtures all passed source
+and saved-bytecode execution. A separate relocated installation repeated ordinary
+and async staging from an unrelated working directory without checkout overrides.
+
+Installation inventory reconciliation and all 13 coverage manifest/policy tests
+pass. Four canonical confined/staging modules are explicitly unmeasured; eligible
+sources and the bounded execution corpus are unchanged. Policy hashes were
+regenerated with the production parser and declaration inventory. No measured
+coverage increase is claimed.
+
+Artifact preflight passes after a reviewed stdlib golden update: all 35 original
+function instruction bodies match after module renumbering; 12 wrapper/import
+functions are added and old/new output matches. Refreshed compiler stages 2–4
+agree, as do stdlib conformance bytes. Integration and hosted validation are
+pending; development CI remains off.
+
+### Timer development checks, 20 November 2026
+
+Candidate source and saved-bytecode checks cover async sleep at zero/positive
+durations, negative/oversized errors, ordinary and legacy compatibility, argument
+types, missing await, pure effects and rejected direct primitive access. Native
+contracts cover independent execution while another timer waits, cancellation,
+rejected fake completion, task-session resumption and immediate expiry. Fault
+contracts cover clock failure at registration and polling and completion allocation
+failure. The native module and fault suites pass. Final `make check`, refreshed
+seed and inventory reconciliation remain for the settled console/process batch;
+the 19 November full-run result applies to the preceding filesystem revision.
+
+### Console development checks, 20 November 2026
+
+`tests/console.sh` covers all four checked console operations through ordinary and
+async imports in source and saved-bytecode modes, exact UTF-8 and empty/line output,
+legacy output ordering and rejected effect/type/direct-primitive uses. Native tests
+cover embedded NUL, descriptor errors and existing broken-pipe handling. Allocation,
+syscall, blocked-write cancellation and four-slot admission tests run for both the
+legacy and new raw writer paths. New module installation and source inventories
+are reconciled; the two console adapters are explicitly unmeasured by the bounded
+coverage corpus. Final seed refresh and full checks remain for the settled batch.
+
+## Command-based process adapters, 21 November 2026
+
+`tests/process_async.sh` checks ordinary/async source and saved-bytecode paths,
+explicit environments, stdin/stdout/stderr, nonzero exits, signals, deadlines,
+output limits, launch failure and effect/type rejection. Native process tests
+cover copied environment ownership, four retained slots and recovery, cancellation
+with direct-child reaping, explicit embedding grants and rejection of unrelated
+completion callbacks. Fault tests cover allocation, thread, pipe, fork, poll and
+read failures without retained resources. `tests/http_process.sh` checks that a
+second HTTP handler can release a subprocess awaited by the first handler.
+The three new process modules are explicitly unmeasured in the bounded source
+coverage corpus. Focused tests do not establish an execution coverage percentage.
+
+Combined timer/console/process local `make check` passed on 21 November in 612s
+(unit 379s, bootstrap 82s), including functional and release-smoke checks. The
+browser runtime bundle and unsupported-host process compilation path pass.
+The 606s filesystem checkpoint is a preceding run, not a controlled performance
+comparison; no throughput improvement or regression is inferred from this run.
+
+Ordinary and async Command APIs also pass source and saved-bytecode tests from a
+relocated installation with spaces in its path, without checkout library overrides.
+
+
+## Runtime/testing support migration
+
+stdlib_support.sh exercises ordinary and async workspace creation, sorted fixture
+discovery, failed nonempty cleanup, successful cleanup, command comparisons, error
+assertions, capture success/failure and unchanged destinations after mismatch.
+It runs source and saved bytecode, checks ordered reporting/failure counts and
+closed-output errors, and verifies nested bytecode arguments and async rejection.
+The compiler binding suite checks native record owner names versus conflicting
+stdlib declarations. Bytecode unit tests check every closed async service's await
+acceptance, wrong-arity rejection and ordinary-call rejection. Seven new support
+modules are explicitly unmeasured by the bounded source coverage corpus.
+
+Final runtime/testing-support acceptance passed on 21 November: make check 583s
+(unit 371s, bootstrap 81s, functional 146s), 275 focused bytecode-reader checks,
+13 coverage-inventory checks, and relocated source/bytecode/disassembly tests.
+Both ordinary and async checked reporting reject closed output with HostError.
+These elapsed times are not a controlled performance comparison.
+
+## Typed streaming HTTP
+
+http_stream_async.sh checks identical ordinary/async APIs through source and
+saved bytecode, EOF, response limits, invalid durations, closed handles, opaque
+handle checking and effect rejection. Its live HTTP handler reads from another
+route on the same server, proving the scheduler can advance that route while
+the first handler waits. Native tests cover foreign handles, numeric forgery,
+overlapping reads/close, cancellation before and after receipt, teardown during
+a read, exact sub-millisecond deadlines, repeated EOF and embedding grants.
+Allocation sweeps cover open/result/read/close failure cleanup. The two new
+Panack wrappers are explicitly unmeasured by the bounded coverage corpus.
+
+Final streaming acceptance passed on 21 November: make check 647s (unit 406s,
+bootstrap 86s, functional 158s), native sanitizer checks, 2,200 native allocation
+failures, all 284 bytecode-reader checks, 13 coverage-inventory checks, and
+relocated-install API/handler tests with exact seed and module comparisons.
+These are acceptance timings, not a controlled performance comparison.
+
+### Typed digest/gzip adapters (21 November 2026)
+
+`tests/cpu_resources.sh` checks ordinary/async source execution, compiled artifacts,
+disassembly, known SHA-256 output, pure mutation rejection and opaque-handle type
+checking. Native digest tests cover alias lifetime, foreign/forged handles,
+teardown, gzip member/trailer/truncation/output budgets, bounded multi-step output,
+forced scheduler yields and cancellation before/after a step. Allocation sweeps
+include resource creation, mutation, close, teardown and pure hash output.
+Sanitizer checks pass. Four new modules are explicitly unmeasured by the bounded
+source-coverage corpus; focused assertions do not imply execution coverage.
+Final local `make check` passed in 625s: unit 386s, bootstrap 84s and functional
+161s, plus archive/quick-start checks. All 305 bytecode-reader checks pass.
+Relocated-install ordinary/async tests and unrelated-directory imports pass in
+source, bytecode and disassembly modes. This run is comparable with the preceding
+647s checkpoint, not evidence of a product performance improvement. Historical
+validation-budget warnings remain subject to GI#106 reassessment.
+
+### Checked UTF-8 and byte/path aliases (21 November 2026)
+
+`tests/encoding_values.sh` covers empty/multibyte/NUL input, scalar boundaries, all
+256 single-byte inputs, six failure categories, first-error byte offsets, rendering,
+byte slice bounds and lexical parent compatibility in source and saved bytecode.
+Legacy invalid UTF-8 and slice bounds still trap. Compiler unit tests reject
+spoofed module identities and wrong-function access to the two primitive grants.
+Existing compiled oracle fixtures are unchanged. The new encoding module is
+explicitly unmeasured in source coverage. Final local `make check` passed in 626s (unit 391s, bootstrap 83s, functional
+158s), including archive and quick-start checks. Relocated source/bytecode and
+unrelated-directory import/disassembly checks pass. The preceding batch took
+625s; historical validation-budget warnings remain subject to GI#106 review.
+A separate malformed-input probe reports an invalid byte after 1 MiB of ASCII at
+offset 1,048,576 in 0.41s on the development Mac, including VM execution/startup.
+Valid input avoids the Panack diagnostic scan. This is a workload observation,
+not a latency guarantee; invalid-input diagnosis remains linear in prefix length.
+
+### Canonical TCP and Duration aliases (21 November 2026)
+
+`tests/tcp_canonical.sh` uses independent native peers to test exchange, bounded,
+streaming and continuous servers in source/bytecode modes, including signal-driven
+shutdown. Duration tests cover negative, zero, fractional milliseconds, 1 ms,
+60 seconds and over-limit values; invalid durations are rejected before native
+network admission. Zero drain is accepted. Compiler unit tests reserve legacy
+native record schemas while keeping canonical limit identities distinct.
+The new module is explicitly unmeasured by source coverage. There is no per-byte
+or per-client conversion overhead: conversion happens once at exchange/server
+admission. Final local `make check` passed in 626s (unit 391s, bootstrap 83s, functional
+160s), including packaging/archive smoke and quick-start checks. Relocated
+installation tests pass with exact seed/module comparisons, live TCP traffic
+and unrelated-directory source/bytecode/disassembly. The preceding batch also
+took 626s; historical validation-budget warnings remain subject to GI#106 review.
+
+## Bounded console input
+
+Native console_read contracts cover overlap rejection, cancellation before input,
+cancellation racing a completed read, unacknowledged-result recovery, EOF, mixed
+legacy/new reads, and separate embedded input permission. Fault injection sweeps
+allocation failures and checks byte recovery, descriptor cleanup and allocation
+balance. Native module contracts pass under address/undefined-behavior sanitizers.
+
+console_input.sh runs ordinary and async programs as source and saved bytecode,
+including raw NUL/non-UTF-8 input, invalid limits, repeated EOF, closed stdin,
+/dev/null, the 64 KiB boundary and legacy read-ahead compatibility. Pure callers
+are rejected. The unsupported-host branch compiles in native header checks; a
+WASI-guarded adapter probe preserves legacy line input while rejecting the new
+bounded API. This is branch coverage on the host, not a full browser acceptance run.
+The fixture is part of make functional. Existing console modules remain explicitly
+unmeasured in source coverage; these checks do not claim collected source coverage.
+Final local make check passed in 654s (21 November), including unit/functional,
+bootstrap, packaging and installed smoke. The exact packaged seed and console
+modules pass the complete fixtures after relocation, plus source, saved bytecode
+and disassembly from an unrelated directory without checkout overrides.
+
+## Console, sleep and process domain errors
+
+domain_errors.sh asserts typed categories, requested context, exact representative
+rendering, unknown-code/native-number preservation, zero versus elapsed timeout,
+negative/oversized timeouts, launch failures, output limits, invalid environments
+and successful nonzero exits. It runs ordinary and async source and saved bytecode,
+including shared-type annotations. Existing console, process, timer, HTTP-progress
+and testing-helper fixtures cover compatibility and effects. New error modules
+are explicitly unmeasured in source coverage. Final local make check passed in
+621s (21 November), with corrected installation inventory, packaging and installed
+smoke. The relocated toolchain passes the complete error fixture and unrelated-
+directory source/bytecode/disassembly checks. Ordinary and sanitizer oracle checks
+also pass; compiler seed bytes are unchanged.
+
+## Filesystem errors and stdlib nominal identity
+
+filesystem_errors.sh covers ordinary/async metadata, missing paths, read limits,
+file kinds, directory failures, confined reads, staging conflicts and invalid
+handles, native preservation, unknown codes and exact representative rendering
+in source and saved bytecode. async_filesystem_general.sh retains successful
+ordinary/async/staging and effect acceptance. stdlib_nominal_identity.sh loads two
+stdlib modules with identically named enums, constructors and records but different
+payloads, then checks their values and native FileKind compatibility in source and
+saved bytecode. New adapters/errors are explicitly unmeasured in source coverage.
+Final local make check passed in 628s (unit 393s, bootstrap 85s, functional 167s, 21 November), including packaging and installed smoke. Relocated ordinary/async source, saved-bytecode and unrelated-directory acceptance passes. Integration remains pending; development CI stays off.
+
+## Digest/gzip domain errors
+
+resource_errors.sh exercises ordinary/async source and saved bytecode for oversized
+chunks, successful retry, completed/closed handles, invalid creation limits,
+exhausted output budgets, corrupt CRC, truncated input, zero-budget empty output,
+unknown native preservation, exact rendering and cumulative decoder quotas.
+Host-runtime unit checks distinguish the same native code by operation and verify
+unknown/native and successful-value preservation. Existing cpu_resources.sh keeps
+resource/effect and successful concatenated-member coverage. New error modules
+are explicitly unmeasured in the bounded source-coverage corpus. Focused ordinary/async source and saved-bytecode checks pass. Final local make check passed in 645s (21 November), including unit, functional, bootstrap and packaging checks. Relocated installation with a spaced path passed the ordinary/async resource and compatibility fixtures. Integration remains pending and development CI stays off.
+
+## HTTP stream domain errors (21 November 2026)
+
+HTTP stream error fixtures cover trusted TLS, hostname mismatch, untrusted certificates, ordinary/async source and bytecode, native-cause preservation, invalid timeout, stale stream and unknown errors. Existing stream progress/lifecycle and legacy TLS tests remain registered. The new error module is explicitly unmeasured in the bounded source-coverage corpus.
+
+HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibility checks, final local make check (685s, 21 November), and relocated-install real TLS source/bytecode acceptance. Compiler seed and unchanged-program bytecode artifacts remain unchanged. Integration remains pending and development CI stays off.
+
+## TCP and diagnostic HTTP client (21 November 2026)
+
+TCP fixtures cover all server modes, typed refusal/timeout/response-limit failures, Duration rejection, unknown detail and callback/native ambiguity. The diagnostic HTTP client reuses success/framing/limit/invalid-URL/DNS/connect/timeout/TLS fixtures in source and bytecode modes, including actual native TLS detail. No execution-coverage percentage is inferred; the TCP errors module is explicitly unmeasured in the bounded corpus.
+
+TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. The subsequent 22 November repair reconciles all 25 HTTP builtin arities and local-resource call permissions in the self-hosted decoder with the native verifier. Focused legacy/diagnostic-client and routed-server disassembly checks pass. The compiler seed is refreshed; unchanged-program native oracle contracts pass. Final local make check passed in 674s (22 November), including all 427 bytecode tests, public HTTP disassembly, packaging and installed smoke. Relocated TCP and diagnostic-client source/bytecode/disassembly acceptance also passed. Integration remains pending and development CI stays off.
+
+HTTP disassembly regressions now cover both package clients and a routed server
+through the public CLI (`tests/http_disassembly.sh`). The bytecode unit suite uses
+independent expected signatures for all 25 HTTP builtins, wrong arities, pure
+mutation rejection, transitive local wrappers and unsafe wrapper boundaries.
+Final local make check passed in 674s (22 November), including all 427 bytecode
+tests. Relocated source/bytecode/disassembly acceptance passed.
+
+The first restricted-environment full run stopped when the packaged HTTP smoke
+fixture could not allocate a loopback port. The focused packaged smoke passed
+with socket access before the successful full rerun; no assertion was relaxed.
+
+## Async stdlib examples (23 November 2026)
+
+Three new named examples (async_timing, async_temporary_note, async_pipe_input)
+pass source, compilation and saved-bytecode transcript checks. Inventory grows
+from 38/589 to 41 examples/598 assertions. Inventory mutation tests and updated
+runner_smoke compilation pass. Only example registration data changes in the
+runners; no execution logic changes. The focused-example route applies on top
+of fully validated revision 3d4daae. Existing domain-error regression fixtures
+retain failure, cancellation and lifecycle coverage; the new examples demonstrate
+normal application use rather than replacing those tests.
+
+Async resource example follow-up (23 November): async_digest and async_gzip pass
+named source/compile/bytecode transcripts. Inventory now contains 43 examples
+and 604 assertions; mutation checks and runner_smoke compilation pass. Uptime
+HTTP source/bytecode checks cover the canonical as_nanoseconds spelling. Existing
+resource_errors/cpu_resources regressions remain the failure/lifecycle evidence.
+Focused example validation applies over dbbc3f7; execution logic, compiler, VM
+and stdlib implementation are unchanged.
+
+AS5 core gaps covered (23 November): added console EOF/bounds and staged/confined
+publication examples, a diagnostic HTTP client package example, and their
+walkthroughs. Canonical UTF-8 decoding and checked reporting examples retain
+their transcripts; compatibility filesystem/process recipes are explicitly
+labelled rather than silently removed. Focused named source/compile/bytecode
+checks, console Unicode/bounds/failure cases, HTTP 200/404/invalid URL cases,
+45-example/610-assertion inventory mutation checks and documentation links pass.
+Only example/guide/test-registration work changed; compiler, VM, stdlib and
+shared runner logic are unchanged. No full-suite rerun or development CI.
+Website adaptation and owner review remain, as does integration acceptance.
+
+Integration follow-up, 23 November: run 45163842662 passed both platform package jobs but stopped before full validation because the manifest regression expected an older unmeasured-source list. The manifest already accounts for the ten added error/compatibility modules with reasons. This correction updates only the explicit expected inventory; coverage eligibility, measurement and thresholds are unchanged. The exact seven-file policy suite passes locally. Hosted full acceptance remains pending a new integration run.
+
+### CS1 anonymous-function development evidence (27 November 2026)
+
+The module-binding suite passes 2,151 assertions after adding separate anonymous
+body/effect checks and anonymous runtime fixtures to body, code and module-summary
+cache tests. Positive cases include contextual parameters, generic callbacks and
+independent nested effects. Negative cases cover missing parameter types, captured
+reads/writes, result mismatches, pure/async violations and invalid callable arity.
+Fresh and cached effect diagnostics agree. The runtime fixtures under
+`fixtures/compiler_contracts/anonymous_functions/` also run through the candidate
+compiler and saved bytecode with matching output.
+
+This is development evidence, not acceptance of CS1: compound contextual typing,
+explanation/diagnostic review, final functional registration, compatibility and
+full validation remain. No bytecode-version change or CI run accompanies this
+checkpoint.
+
+
+27 November, compound contextual typing checkpoint: expected callable inputs now
+flow through if/match results, block tails, reassignment and compound callback
+arguments. Nested anonymous bodies also receive an explicit result annotation.
+Argument checking replays compound callbacks in source order after gathering
+input types, preserving mutation-based invalidation of guarded facts. A paired
+regression accepts guarded subtraction without a preceding mutation and rejects
+it when an earlier argument writes the guarded variable. Runtime selection
+effects occur once.
+
+The module-binding/cache suite passes 2,180 assertions, explanations 266 and
+purity 39. Candidate source execution and verified saved bytecode match the
+expanded fixed transcript. Remaining work is the contextual-type acceptance
+audit (including aggregate/constructor positions), explanation/diagnostic review,
+final functional registration and compatibility/full validation. CS1 remains in
+progress, with zero accepted implementation points; CS2–CS4 remain planned. No
+CI or bootstrap refresh. The extra checking pass is limited to calls containing
+compound callback expressions; ordinary calls retain their current path. No VM
+or bytecode changes. Website claims remain unchanged until feature acceptance.
+
+
+27 November, collection and evidence checkpoint: known array element types now
+reach anonymous parameters, including nested arrays, returned arrays and callback
+arrays supplied as arguments. Existing record constructor signatures also supply
+callback inputs. Regressions reject incompatible parameter types, impure bodies
+in pure callback arrays and unannotated inputs without context. Explanation
+evidence retains the exact anonymous body expression and its checked result; the
+missing-parameter diagnostic is asserted verbatim. The module-binding/cache suite
+passes 2,205 assertions. Expanded source and saved-bytecode transcripts match.
+The candidate passes native-oracle-artifacts for unchanged-program bytecode.
+
+CS1 remains in progress: finish the constructor/generic contextual boundary audit,
+end-to-end explanation review, functional registration and final bootstrap/full
+validation. No CI or bootstrap refresh. CS2–CS4 remain planned and accepted
+implementation contribution stays zero. The array pass reuses source-order child
+checking; no VM, bytecode-format or runtime representation change. No website
+publication; the proposal and test evidence describe development support.
+
+
+27 November, CS1 acceptance checkpoint: constructor context now supplies callback
+inputs through generic records and enum payloads, including nested arrays and
+qualified constructors. Ordinary function calls retain input-only inference; a
+regression rejects deriving an anonymous parameter from the receiving result.
+Explanation traversal enters anonymous bodies for type-at-position, inferred
+locals and guard evidence. The public CLI checks the original source locations.
+
+The module/cache suite passes 2,219 assertions. Ordinary and async functional cases
+pass source, compile and saved-bytecode checks; the CLI explanation fixture also
+passes all three modes, with 121 internal assertions. The fixture inventory and
+its mutation tests pass (616 outer transcript assertions). Candidate unchanged-
+program bytecode compatibility passed. Bootstrap refresh produced identical
+stage 2/3/4 compilers (88fa8a2ec9c850afb7e64bc714bca7eec194e9e8524e5821b8338e0be53c25ad)
+and matching standard-library artifacts/output. Final make check is running.
+CS1 remains unaccepted pending that result and integration; CS2–CS4 remain planned.
+No development CI or website publication. Specification and architecture now
+describe noncapturing support; closures and State are not claimed. The runtime
+and bytecode version are unchanged. Constructor-context inference is restricted
+to constructor calls with an expected type; ordinary calls keep their rules.
+
+
+CS1 final local acceptance, 27 November: make check passed in 708 seconds with
+host access (unit 421s, bootstrap 94s and functional 220s; bootstrap overlaps
+unit). Relocated-package smoke and quick-start passed. The suite caught a stale
+watchdog observation hook after the contextual block checker was introduced; the
+test-only observer now recognises both block entry points, with explicit stall,
+recovery and unchanged-budget assertions. No production VM or timeout policy
+change was needed. Earlier sandbox failure and the watchdog failure were fixed
+before this successful final run.
+
+CS1 implementation and local acceptance are complete, pending next integration
+and hosted acceptance. CS2–CS4 remain planned. Accepted implementation points
+stay at zero until integration acceptance; RM#162 remains open. The measured
+full-run duration is evidence, not a new performance target. No development CI
+or website publication occurred.
+
+
+CS2 runtime foundation (27 November): native closure tests cover retained lifetime,
+lexical identity/value-based equality, nested closure resource rejection, all
+current forbidden native categories, hidden array-storage ownership and append
+cycle prevention. A shared 129-node graph exercises iterative deduplicated
+eligibility traversal and shared-capture equality. Allocation-failure sweeps cover
+worklist/hash growth and partial closure construction. Ordinary collection and
+concatenation regression checks also run. These are focused development checks;
+source closures, invocation, iterator snapshots and final full acceptance remain.
+
+The CS2 foundation checks pass in normal and ASan/UBSan native builds. Allocation-
+failure sweeps pass, as do collection/concatenation regressions and the existing
+public CLI callable fixture in source/compile/saved-bytecode modes (4 assertions).
+No compiler rebuild or bootstrap refresh was needed. Full validation is reserved
+for the completed CS2 implementation; this checkpoint is not slice acceptance.
+
+CS2 checked invocation adds native tests for capture-prefix/explicit-argument
+order (including inline/heap boundaries), repeated calls, pure/ordinary/async
+callee and caller combinations, verifier rejection of await outside async,
+missing/builtin targets and arity mismatch. Resumable execution retains captures
+after the caller releases the callable, and releases them on completion,
+cancellation and trap. Fault injection covers both inline and heap combined
+argument vectors and partially constructed frames. Source construction and
+host-retained callback coverage remain pending.
+
+Checked-invocation focused checks pass in normal and ASan/UBSan builds, including
+the suspension/cancellation/trap cases. Allocation-failure sweeps and existing
+call-argument/call-link regressions pass. The public CLI callable fixture passes
+all four assertions after rebuilding the VM. Documentation/link checks pass.
+No full suite, compiler bootstrap rebuild or CI was run for this intermediate
+checkpoint; those checks remain part of completed-slice acceptance.
+
+CS2 candidate source captures (27 November): module-binding/effect checks now
+include immutable parameters, repeated references, nested closures, generic
+captures, unused resources, callbacks accepting resources and immutable snapshots
+of mutable locals. Negative cases reject mutable captures, self-reference and
+resources through arrays, records and enums. Phantom generic arguments alone do
+not imply a retained resource. Existing disk-body cache tests round-trip the
+expanded anonymous fixture and compare diagnostics and emitted bytecode.
+Candidate ordinary/async fixtures execute source and saved bytecode with matching
+transcripts. Public-launcher fixture acceptance waits for bootstrap refresh.
+Native constructor tests cover malformed targets, arity mismatch and resources;
+allocation-failure sweeps and ASan/UBSan checks pass. Final full validation remains
+pending the completed CS2 slice, including host-retained callbacks and iterators.
+
+Final focused source-lowering results: 2,259 binding/effect/cache assertions pass,
+including acceptance at 255 total hidden/explicit parameters and rejection at
+256. The candidate artifact compatibility oracle passes. Ordinary and async
+source/saved-bytecode transcripts match. This does not replace final bootstrap,
+public-launcher or full-slice validation.
+
+### CS2 retained host callbacks (27 November 2026)
+
+`host-closures` covers retained HTTP ordinary/contextual routes and fallback, TCP
+finite/streaming/service callbacks and readiness, target/arity rejection and
+lifetime cleanup. Native and ASan/UBSan runs pass. The closure fault sweep covers
+host child frame allocation failures. `tests/http_closures.sh` is registered in
+functional validation; candidate source and saved bytecode pass all four HTTP
+combinations. The anonymous-function fixture checks repeated captured array/range
+iteration and per-iteration capture values. Binding/cache tests: 2,265 passed.
+The existing zero-grace TCP assertion failed once before passing on retry and
+under sanitizers; final broad validation remains pending with CS2 acceptance.
+
+CS2 capture explanations: focused tests cover accepted, mutable and resource
+captures, generic values, shadowed parameters, declaration origins, evidence-free
+ordinary compilation and cache round trips. CLI cases assert lifetime wording,
+rejection guidance and declaration context. The terminal regression opens a
+capture decision and follows its source. Final broad acceptance remains pending.
+
+CS2 local acceptance: full make check passed in 725s on 27 November, including
+the public HTTP closure fixture, functional explanations, packaging and relocation.
+The binding/cache suite passed 2,313 assertions; 123 CLI explanation cases and the
+terminal capture/origin regression passed. The zero-grace TCP case passed in the
+full run. Bootstrap fixed point and stdlib conformance passed. Integration remains
+pending; no further full run is needed solely for subsequent status Markdown.
+
+CS2 integration correction, 27 November: PR #704 merged at `149f629`. Integration
+run 46067182572 passed both platform package checks but failed coverage policy:
+the new capture_explanations.panack file was missing from the manifest. The follow-up
+adds it to eligible compiler sources and refreshes declaration exclusions with the
+production parser/inventory (53 eligible files, 556 excluded declarations). No
+executable code or coverage threshold is excluded or relaxed. All 77 hosted-policy
+tests pass locally. Product code is unchanged from the 725s full validation.
+CS2 acceptance awaits the repaired integration gate; programme progress stays 20/100.
+
+CS2 complete, 27 November: retained captures and explanations merged through
+[PR #704](https://github.com/sproates/panackelty/pull/704); coverage inventory was
+reconciled in [PR #705](https://github.com/sproates/panackelty/pull/705).
+[Integration run 46067730132](https://github.com/sproates/panackelty/actions/runs/46067730132)
+passed for `31422e0`, including both platform package checks, coverage policy and
+the integration gate. Full local make check passed in 725s; focused terminal,
+CLI, cache, lifetime, allocation-failure and sanitizer evidence is recorded above.
+CS2 earns 30/30 points. CS1 remains 20/20; CS3 State (30) and CS4 combined examples,
+installed acceptance and website guidance (20) remain planned. Accepted programme
+progress is 50/100. RM#162 remains open; there is no separate CS2 issue to close.
+No State implementation, release or website publication is claimed.
+
+## CS3 State development evidence (27 November 2026)
+
+`tests/state_cells.sh` covers ordinary/async create/read/update, retained cells,
+source/saved-bytecode agreement, payload and effect rejection, recursive generic
+helpers and requirements retained through warm code-cache caller edits.
+`tests/unit/vm/state.c` covers identity, snapshots, reservation ownership, exact
+commit boundaries, contention, cancellation, deadlines, forged effects/handles,
+rejected replacement capabilities, sealed array storage and collection keys.
+Fault injection covers 59 State/reference allocation sites. Controlled scheduler
+steps establish ordering without wall-clock sleeps. Native and focused source tests
+have passed; final bootstrap/full-suite acceptance is still pending.
+
+CS3 final local acceptance, 28 November: make check passed in 725s, including
+State source/bytecode and cache cases, 2,313 binding/cache assertions, native
+contracts, bootstrap, archive relocation and quick-start. Reviewed disassembly
+and source-span expectations include the callable-tagging instruction; the package
+inventory includes both State modules. Integration acceptance is pending.
+
+CS4 focused example acceptance (28 November): `node tests/http_state_examples.cjs`
+checks the standalone counter and both HTTP forms in source/bytecode modes. It
+checks exact counts across four overlapping requests per batch, monotonic uptime,
+404 requests excluded from the count, HTTP 503 after a committed increment, and
+startup clock failure. Fault cases replace exactly one clock read in temporary
+copies; shipped programs have no test switches. The same tests pass with a relocated
+installed command and no source-tree overrides. VM cancellation/commit ordering
+remains covered by CS3 controlled scheduler tests. No new compiler/runtime changes.

@@ -2,6 +2,7 @@
 
 [Documentation index](../README.md)
 
+- [Standard library: ordinary and async APIs (alpha.16 development)](STANDARD_LIBRARY.md)
 - [Source coverage collection](SOURCE_COVERAGE.md)
 - [Executable-source inventory (SC2 / GI#131)](SOURCE_INVENTORY.md)
 - [HTTP Server reference](http-server.md)

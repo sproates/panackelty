@@ -1,6 +1,6 @@
 pub import project/src/packages/diagnostic::{PackageProblem}
 import project/src/packages/diagnostic::{host_detail, package_problem, problem_label, explain_problem}
-import stdlib/process as process
+import stdlib/process/legacy as process
 import stdlib/bytes as byte_buffer
 import stdlib/time as time
 import stdlib/path as path
@@ -44,12 +44,17 @@ pub git_command(context: GitContext, arguments: [Str], input: Bytes): Result[Byt
       else {
         match process.run_isolated(context.executable, command, input, context.repository,
             environment, time.seconds(60), 16777216) {
-          Error(problem) => Error(git_host_problem(problem.code, false)),
+          Error(problem) => Error(git_native_problem(problem, false)),
           Ok(output) => git_output(output)
         }
       }
     }
   }
+}
+
+pure git_native_problem(error: process.HostError, version_query: Bool): PackageProblem {
+  native_code = error.native_code
+  problem_label(git_host_problem(error.code, version_query), "System error number", "${native_code}")
 }
 
 pub pure git_host_problem(code: Str, version_query: Bool): PackageProblem {
@@ -81,7 +86,7 @@ pub git_version_output(executable: Path): Result[Bytes, PackageProblem] {
        "GIT_CONFIG_SYSTEM=/dev/null", "GIT_CONFIG_GLOBAL=/dev/null"], time.seconds(60), 4096) {
     Error(problem) => Error(if problem.code == "output_limit" {
       package_problem("PKG_GIT_VERSION_UNKNOWN", "Cannot determine the Git version because the version response exceeds 4096 bytes.")
-    } else { git_host_problem(problem.code, true) }),
+    } else { git_native_problem(problem, true) }),
     Ok(output) => git_output(output)
   }
 }

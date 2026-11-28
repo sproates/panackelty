@@ -1,9 +1,16 @@
+import stdlib/network/tcp/errors as tcp_errors
+import stdlib/network/http_stream/errors as http_errors
+import stdlib/network/http_stream/errors::{HttpStreamOperation.Read, HttpStreamErrorKind.TlsVerificationFailed, HttpStreamErrorKind.OtherFailure as HttpOtherFailure}
+import stdlib/digest/sha256/errors as digest_errors
+import stdlib/digest/sha256/errors::{Sha256Operation.Finish, Sha256ErrorKind.OtherFailure as DigestOtherFailure}
+import stdlib/compression/gzip/errors as gzip_errors
+import stdlib/compression/gzip/errors::{GzipOperation.CreateDecoder, GzipOperation.DecodeChunk, GzipErrorKind.UnsupportedOutputLimit, GzipErrorKind.OutputLimitExceeded}
 import stdlib/testing_commands as std_testing_commands
 import stdlib/testing_files as std_testing_files
 import project/src/compiler/path_support as path_support
 import stdlib/path as std_path
 import stdlib/testing as std_testing
-import stdlib/process as std_process
+import stdlib/process/legacy as std_process
 import project/src/compiler/filesystem_support as filesystem_support
 import stdlib/testing::{TestResult}
 import stdlib/testing_files::{TestWorkspace, HostError}
@@ -12,7 +19,7 @@ import stdlib/time as std_time
 import stdlib/filesystem::{FileKind.SymbolicLink}
 import stdlib/bytes as byte_buffer
 import stdlib/environment as std_environment
-import stdlib/filesystem as std_filesystem
+import stdlib/filesystem/legacy as std_filesystem
 import stdlib/host as std_host
 pure host_path(value: Str): Path { std_path.from_text(value).value_or(std_path.current()) }
 pure host_text(value: Path): Str { value.to_text().value_or("invalid path") }
@@ -325,7 +332,7 @@ main(): Void {
   match std_testing_files.workspace_create(host_path("/tmp")) {
     Error(problem) => { std_host.stderr("host test workspace failed: " + problem.code); std_host.exit(1) },
     Ok(workspace) => {
-      mut results = host_direct(workspace).concat(host_paths())
+      mut results = host_direct(workspace).concat(host_paths()).concat(resource_error_mapping_tests()).concat(http_error_mapping_tests()).concat(tcp_error_mapping_tests())
       results = results.append(host_fixture("testing report order and empty case", "library_reports", [], [],
         ProcessOutput(0, 0, "tests: 0, failures: 0\n0\nFAIL first: reason\nPASS second\ntests: 2, failures: 1\n1\n".encode_utf8(), byte_buffer.empty())))
       results = results.append(host_fixture("testing command comparison", "library_commands", [], [],
@@ -389,4 +396,54 @@ main(): Void {
       if std_testing.report(results) > 0 { std_host.exit(1) }
     }
   }
+}
+
+pure resource_error_mapping_tests(): [TestResult] {
+  native = HostError("test-operation", "output_limit", 37)
+  creation = gzip_errors.convert[Unit](Error(native), CreateDecoder(268435457))
+  decoding = gzip_errors.convert[Unit](Error(native), DecodeChunk(10, true))
+  unknown = HostError("future-operation", "future-code", 81)
+  digest = digest_errors.convert[Bytes](Error(unknown), Finish())
+  [
+    std_testing.expect("gzip limit category depends on operation", match creation {
+      Ok(_) => false, Error(problem) => problem.kind == UnsupportedOutputLimit() && problem.native == native
+    }, "creation lost its category or native detail"),
+    std_testing.expect("gzip output exhaustion is not a configuration error", match decoding {
+      Ok(_) => false, Error(problem) => problem.kind == OutputLimitExceeded() && problem.native == native
+    }, "decoding lost its category or native detail"),
+    std_testing.expect("digest unknown native error survives conversion", match digest {
+      Ok(_) => false, Error(problem) => problem.kind == DigestOtherFailure() && problem.native == unknown && problem.operation == Finish()
+    }, "unknown failure was discarded or relabelled"),
+    std_testing.expect("resource conversion preserves successful values",
+      gzip_errors.convert[Nat](Ok(42),CreateDecoder(0)) == Ok(42), "successful result changed")
+  ]
+}
+
+pure http_error_mapping_tests(): [TestResult] {
+  native = "HTTP TLS verification failed\nlibcurl error 60: certificate hostname mismatch"
+  converted = http_errors.convert[Bytes](Error(native), Read())
+  unknown = http_errors.convert[Unit](Error("HTTP TLS verification failed unexpectedly"), Read())
+  [
+    std_testing.expect("HTTP preserves native TLS cause", match converted {
+      Ok(_) => false, Error(problem) => problem.kind == TlsVerificationFailed() && problem.native == native && problem.operation == Read()
+    }, "TLS detail or operation lost"),
+    std_testing.expect("HTTP unknown text is not prefix-misclassified", match unknown {
+      Ok(_) => false, Error(problem) => problem.kind == HttpOtherFailure()
+    }, "unknown native failure incorrectly classified"),
+    std_testing.expect("HTTP preserves success", http_errors.convert[Nat](Ok(42),Read()) == Ok(42), "successful value changed")
+  ]
+}
+
+pure tcp_error_mapping_tests(): [TestResult] {
+  unknown = tcp_errors.convert[Unit](Error("future TCP failure"),tcp_errors.TcpOperation.ReadChunk(10))
+  callback = tcp_errors.outcomes(Ok([Error("TCP timed out")]),tcp_errors.TcpOperation.ServeBounded("127.0.0.1",1))
+  [
+    std_testing.expect("TCP preserves unknown detail", match unknown { Ok(_) => false,
+      Error(problem) => problem.kind == tcp_errors.TcpErrorKind.OtherFailure() && problem.native == "future TCP failure"
+    }, "unknown TCP failure misclassified"),
+    std_testing.expect("TCP client result cannot impersonate native timeout", match callback { Error(_) => false,
+      Ok(values) => match values[0] { Ok(_) => false, Error(problem) => problem.kind == tcp_errors.TcpErrorKind.ClientFailure() && problem.native == "TCP timed out" }
+    }, "ambiguous callback text classified as native timeout"),
+    std_testing.expect("TCP preserves successful values", tcp_errors.convert[Nat](Ok(42),tcp_errors.TcpOperation.ReadChunk(10)) == Ok(42), "success changed")
+  ]
 }

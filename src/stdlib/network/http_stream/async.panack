@@ -1,0 +1,18 @@
+import stdlib/network/http_stream/errors as errors
+pub import stdlib/network/http_stream/errors::{HttpStreamError, HttpStreamErrorKind, HttpStreamOperation}
+import stdlib/network/http_stream/errors::{HttpStreamOperation.Open, HttpStreamOperation.Read, HttpStreamOperation.Close}
+// Raw bounded transport support. HTTP parsing and framing belong to the HTTP package.
+// The deadline includes time between reads. Empty Bytes means end of stream.
+// Handles belong to this invocation; close invalidates every alias.
+// Cancellation of a pending read closes the stream.
+pub async open(host: Str, port: Nat, tls: Bool, request: Bytes, response_limit: Nat, timeout: Duration): Result[HttpStream,HttpStreamError] {
+  errors.convert(await http_stream_open_async(host, port, tls, request, response_limit, timeout), Open(host, port, tls, response_limit, timeout))
+}
+
+pub async read(stream: HttpStream): Result[Bytes,HttpStreamError] {
+  errors.convert(await http_stream_read_async(stream), Read())
+}
+
+pub async close(stream: HttpStream): Result[Unit,HttpStreamError] {
+  errors.convert(await http_stream_close_async(stream), Close())
+}

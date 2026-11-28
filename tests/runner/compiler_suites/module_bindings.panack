@@ -1,4 +1,13 @@
+import project/src/compiler/body_cache_codec::{encode_checked_bodies, decode_checked_bodies}
+import project/src/compiler/capture_explanations::{capture_explanation_origin}
+import project/src/compiler/module_bindings::{module_internal_primitive, module_internal_primitive_name}
+import project/tests/runner/compiler_suites/module_summaries::{module_summary_tests}
+import project/src/compiler/module_bindings::{ModuleBodyAvailability.CompleteModuleBodies}
+import project/tests/runner/compiler_suites/code_cache::{code_cache_tests}
+import project/tests/runner/compiler_suites/body_cache::{body_cache_tests}
+import project/tests/runner/compiler_suites/module_reuse::{module_reuse_tests}
 import project/src/compiler/checker::{check_program_evidence_mode}
+import project/tests/runner/compiler_suites/project_preparation::{preparation_tests}
 import project/src/compiler/owned_intrinsics::{owned_intrinsic_declarations}
 import project/src/compiler/module_bindings::{OwnedMethodIdentity, MethodOwnerIdentity.NominalMethodOwner, MethodOwnerIdentity.BuiltinMethodOwner, builtin_owner_arity, builtin_owner_module}
 import project/src/compiler/module_resolution::{resolve_owned_method, resolve_builtin_owned_method}
@@ -9,15 +18,15 @@ import project/src/compiler/types::{Diagnostic, SourcePos, SourceSpan, diagnosti
 import project/src/compiler/module_bindings::{ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleBindings, LoadedModule, ModulePackageIdentity, ModulePackageIdentity.StandaloneModulePackage, ModulePackageIdentity.ManifestModulePackage, ModulePackageIdentity.ToolchainModulePackage, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant, collect_module_bindings, module_binding_diagnostics, module_export, module_relative_path, module_programs, module_declaration_positions, source_module_identity, source_package_module_identity, loaded_module_declaration_index}
 import project/src/compiler/module_resolution::{ModuleBindingGraph, ModuleGraphWalk, ModuleImportEdge, ResolvedModuleTarget, ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget, ResolvedDotCall.NamespaceCall, ResolvedDotCall.OwnedDotCall, ResolvedModuleUses, binding_graph_module, combine_module_uses, resolve_qualified_type_uses, resolve_module_expression_uses, resolve_module_block_uses, resolve_module_dot_call, resolve_module_function, resolve_module_path, resolve_module_type, module_graph_diagnostics, module_import_shadow_diagnostics, walk_module_graph}
 import project/src/compiler/module_signatures::{CheckedModuleSignatures, SignatureEffect, SignatureEffect.SignatureAsync, SignatureEffect.SignaturePure, SignatureType, SignatureTypeIdentity, SignatureTypeIdentity.SignatureNominal, SignatureTypeIdentity.SignatureParameter, SignatureTypeIdentity.SignatureCallable, SignatureTypeIdentity.SignatureCore, check_module_signatures, signature_effect, signature_type, signature_public_identity, substitute_signature_type}
-import project/src/compiler/module_bodies::{BodyNode, BodyNode.BodyArray, BodyNode.BodyAssignment, BodyNode.BodyBinary, BodyNode.BodyBinding, BodyNode.BodyBlock, BodyNode.BodyCall, BodyNode.BodyEmpty, BodyNode.BodyField, BodyNode.BodyFor, BodyNode.BodyFunction, BodyNode.BodyIf, BodyNode.BodyIndex, BodyNode.BodyInterpolation, BodyNode.BodyLiteral, BodyNode.BodyLocalUse, BodyNode.BodyMatch, BodyNode.BodyUnary, BodyNode.BodyWhile, BodyTarget.BodyCore, BodyTarget.BodyDeclaration, BodyCheckStatus, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid, BodyLocalIdentity, BoundFunctionBody, GuardConversionEvidence, TypeJoinEvidence, CollectionCallbackEvidence, OperatorTypeEvidence, BodyTypeCheckEvidence, CheckedModuleBodies, body_call_argument_evidence, body_binding_type_evidence, body_assignment_type_evidence, body_type_join_evidence, body_collection_callback_evidence, body_operator_type_evidence, body_type_check_evidence, body_compatibility, check_module_bodies, check_module_bodies_explained}
-import project/src/compiler/module_effects::{CheckedModuleEffects, check_module_effects}
+import project/src/compiler/module_bodies::{BodyTarget, BodyNode, BodyNode.BodyArray, BodyNode.BodyAssignment, BodyNode.BodyBinary, BodyNode.BodyBinding, BodyNode.BodyBlock, BodyNode.BodyCall, BodyNode.BodyEmpty, BodyNode.BodyField, BodyNode.BodyFor, BodyNode.BodyFunction, BodyNode.BodyAnonymousFunction, BodyNode.BodyIf, BodyNode.BodyIndex, BodyNode.BodyInterpolation, BodyNode.BodyLiteral, BodyNode.BodyLocalUse, BodyNode.BodyMatch, BodyNode.BodyUnary, BodyNode.BodyWhile, BodyTarget.BodyCore, BodyTarget.BodyDeclaration, BodyCheckStatus, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid, BodyLocalIdentity, BoundFunctionBody, GuardConversionEvidence, TypeJoinEvidence, CollectionCallbackEvidence, OperatorTypeEvidence, BodyTypeCheckEvidence, CheckedModuleBodies, body_call_argument_evidence, body_binding_type_evidence, body_assignment_type_evidence, body_type_join_evidence, body_collection_callback_evidence, body_operator_type_evidence, body_type_check_evidence, body_compatibility, check_module_bodies, check_module_bodies_explained}
+import project/src/compiler/module_effects::{CheckedModuleEffects, check_module_effects, collect_function_effect_facts, check_function_effect_facts}
 import project/src/compiler/loader::{LoadedProject, load_project, loaded_binding_graph}
 import project/src/compiler/resolver::{LoadedSource, append_program_declarations, resolve_program_at, resolve_source, render_resolver_diagnostics}
 import project/src/compiler/purity::{check_source_frontend}
 import project/src/compiler/checker::{check_source_types}
 import project/src/compiler/lexer::{lex_file}
 import project/src/compiler/parser::{parse_complete}
-import project/src/compiler/module_emission::{ModuleEmissionResult, ModuleSignature, BoundBody, Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, module_emission_expression, module_emission_program, module_emission_symbol}
+import project/src/compiler/module_emission::{ModuleEmissionResult, ModuleSignature, BoundBody, Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.AnonymousExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, module_emission_expression, module_emission_program, module_emission_symbol}
 import project/src/compiler/emitter::{compile_source_disassembly, compile_program}
 import project/src/bytecode/codec::{compile_source_bytecode, serialize_bytecode}
 import project/src/compiler/driver::{diagnostic_messages}
@@ -185,12 +194,41 @@ pure namespace_binding_tests(): [TestResult] {
   match namespace_parse("import project/one as shared\nimport project/one as shared\nimport project/two::{answer as local}\npure local(): Nat { 1 }\nimport project/three as print") {
     Error(error) => { results = results.append(std_testing.expect("conflicts parse", false, diagnostic_text(error))) },
     Ok(parsed) => {
-      errors: [Diagnostic] = module_binding_diagnostics(collect_module_bindings(identity, parsed))
+      prepared: ModuleBindings = collect_module_bindings(identity, parsed)
+      errors: [Diagnostic] = module_binding_diagnostics(prepared)
+      unchecked = ModuleBindings(identity, prepared.declarations, prepared.imports, prepared.methods, None())
+      results = results.append(std_testing.expect("prepared binding diagnostics preserve the complete ordered result",
+        prepared.validation != None() && errors == module_binding_diagnostics(unchecked), "prepared diagnostics differ"))
       results = results.append(std_testing.equal_nat("all binding collisions rejected", errors.len(), 3))
       results = results.append(std_testing.equal_str("repeated identical alias rejected", diagnostic_text(errors[0]), "module.panack:2:1: import binding shared conflicts with an existing module binding"))
       results = results.append(std_testing.equal_str("declaration alias collision", errors[1].message, "import binding local conflicts with an existing module binding"))
       results = results.append(std_testing.equal_str("builtin alias collision", errors[2].message, "import binding print conflicts with a built-in"))
     }
+  }
+  clean = namespace_test_bindings("snapshot", "pub pure chosen(): Nat { 1 }; import project/one as first")
+  changed_import = namespace_test_bindings("snapshot", "pub pure chosen(): Nat { 1 }; import project/one as chosen")
+  stale_import = ModuleBindings(clean.identity, clean.declarations, changed_import.imports, clean.methods, clean.validation)
+  import_errors = module_binding_diagnostics(stale_import)
+  results = results.append(std_testing.expect("same-size import edit invalidates prepared diagnostics",
+    import_errors == module_binding_diagnostics(changed_import) && import_errors.len() == 1, "changed import accepted"))
+  duplicate = ModuleBindings(clean.identity, clean.declarations.append(clean.declarations[0]), clean.imports, clean.methods, clean.validation)
+  duplicate_errors = module_binding_diagnostics(duplicate)
+  results = results.append(std_testing.equal_nat("declaration edit invalidates prepared diagnostics", duplicate_errors.len(), 1))
+  if duplicate_errors.len() == 1 {
+    results = results.append(std_testing.equal_str("duplicate declaration keeps its diagnostic",
+      duplicate_errors[0].message, "module declaration chosen is already bound"))
+  }
+  recovered = ModuleBindings(clean.identity, clean.declarations, clean.imports, clean.methods, changed_import.validation)
+  results = results.append(std_testing.equal_nat("recovery does not retain old binding errors", module_binding_diagnostics(recovered).len(), 0))
+  moved = namespace_test_bindings("snapshot", "\n\npub pure chosen(): Nat { 1 }; import project/one as chosen")
+  stale_position = ModuleBindings(moved.identity, moved.declarations, moved.imports, moved.methods, changed_import.validation)
+  results = results.append(std_testing.expect("position changes invalidate prepared diagnostics",
+    module_binding_diagnostics(stale_position) == module_binding_diagnostics(moved), "old diagnostic position reused"))
+  unchecked_bad = ModuleBindings(changed_import.identity, changed_import.declarations, changed_import.imports, changed_import.methods, None())
+  for bindings in [stale_import, unchecked_bad] {
+    results = results.append(std_testing.equal_str("direct resolution rejects changed or unprepared bindings",
+      namespace_target_text(resolve_module_path(ModuleBindingGraph([bindings], []), bindings.identity, "chosen")),
+      "import binding chosen conflicts with an existing module binding"))
   }
   results = results.append(std_testing.equal_str("standalone relative path", source_module_identity("/one/app/lib/math.panack", "/one/app", "/tool/stdlib").path, "lib/math.panack"))
   results = results.append(std_testing.expect("relocation preserves semantic identity", source_module_identity("/one/app/lib/math.panack", "/one/app", "/tool/stdlib") == source_module_identity("/two/app/lib/math.panack", "/two/app", "/other/stdlib"), "relocation changed identity"))
@@ -224,7 +262,7 @@ pure namespace_origin_tests(): [TestResult] {
         Error(error) => { results = results.append(std_testing.expect("origin source parses", false, error.message)) },
         Ok(parsed) => {
           bindings: ModuleBindings = collect_module_bindings(ModuleIdentity(StandaloneModulePackage(), source.path), parsed)
-          modules = modules.append(LoadedModule(source.path, parsed, parsed.program, bindings, loaded_module_declaration_index(parsed)))
+          modules = modules.append(LoadedModule(source.path, parsed, parsed.program, bindings, loaded_module_declaration_index(parsed), CompleteModuleBodies(), false))
         }
       }
     }
@@ -261,6 +299,12 @@ pure body_type_check_for_context(
 
 pub run_suite(): Void {
   mut results: [TestResult] = []
+  results = results.concat(anonymous_body_tests())
+  results = results.concat(preparation_tests())
+  results = results.concat(module_reuse_tests())
+  results = results.concat(body_cache_tests())
+  results = results.concat(code_cache_tests())
+  results = results.concat(module_summary_tests())
   results = results.concat(namespace_syntax_tests())
   results = results.concat(namespace_binding_tests())
   results = results.concat(namespace_execution_boundary_tests())
@@ -278,14 +322,19 @@ pub run_suite(): Void {
   results = results.concat(owned_generic_method_tests())
   results = results.concat(builtin_owner_tests())
   results = results.concat(owned_intrinsic_tests())
+  results = results.concat(encoding_primitive_tests())
   results = results.concat(owned_callback_tests())
   results = results.concat(core_error_identity_tests())
   results = results.concat(core_adapter_emission_tests())
   results = results.concat(namespace_effect_tests())
+  results = results.concat(namespace_effect_fact_tests())
+  results = results.concat(effect_fact_permission_tests())
   results = results.concat(namespace_expression_tests())
   results = results.concat(namespace_aggregate_tests())
   results = results.concat(namespace_else_if_tests())
   results = results.concat(module_emission_identity_tests())
+  results = results.concat(tcp_limit_identity_tests())
+  results = results.concat(stdlib_nominal_identity_tests())
   results = results.concat(module_emission_program_tests())
   results = results.concat(module_emission_effect_tests())
   results = results.concat(module_emission_status_tests())
@@ -316,9 +365,9 @@ pure module_emission_identity_tests(): [TestResult] {
   left: ModuleIdentity = namespace_identity("left")
   right: ModuleIdentity = namespace_identity("right")
   graph: ModuleBindingGraph = ModuleBindingGraph([
-    ModuleBindings(left, [], [], map()),
-    ModuleBindings(right, [], [], map()),
-    ModuleBindings(entry, [], [], map())
+    ModuleBindings(left, [], [], map(), None()),
+    ModuleBindings(right, [], [], map(), None()),
+    ModuleBindings(entry, [], [], map(), None())
   ], [])
   left_name: Str = module_emission_symbol(graph, entry, DeclarationIdentity(left, "same"))
   right_name: Str = module_emission_symbol(graph, entry, DeclarationIdentity(right, "same"))
@@ -348,6 +397,18 @@ pure module_emission_identity_tests(): [TestResult] {
     module_emission_symbol(graph, entry, DeclarationIdentity(left, "main")) != "main",
     "imported main collides with the entry"
   ))
+  legacy = ModuleIdentity(ToolchainModulePackage(), "process/legacy.panack")
+  canonical = ModuleIdentity(ToolchainModulePackage(), "process/types.panack")
+  mixed = ModuleBindingGraph([
+    ModuleBindings(legacy, [], [], map(), None()),
+    ModuleBindings(canonical, [], [], map(), None())
+  ], [])
+  results = results.append(std_testing.equal_str("native process record keeps runtime ABI name",
+    module_emission_symbol(mixed, entry, DeclarationIdentity(legacy, "ProcessOutput")), "ProcessOutput"))
+  results = results.append(std_testing.equal_str("new process record has a distinct schema symbol",
+    module_emission_symbol(mixed, entry, DeclarationIdentity(canonical, "ProcessOutput")), "$module1_ProcessOutput"))
+  results = results.append(std_testing.equal_str("other native record names cannot be shadowed",
+    module_emission_symbol(mixed, entry, DeclarationIdentity(canonical, "HostError")), "$module1_HostError"))
   results
 }
 
@@ -361,6 +422,7 @@ module_emission_guard_call_name(expression: Expr): Str {
     BoolExpr(value) => "",
     NameExpr(name) => "",
     FunctionExpr(name) => "",
+    AnonymousExpr(effect, parameters, result_type, body) => "",
     ArrayExpr(items) => "",
     UnaryExpr(operator, value) => "",
     BinaryExpr(operator, left, right) => "",
@@ -460,6 +522,7 @@ module_emission_program_tests(): [TestResult] {
     BoolExpr(value) => false,
     NameExpr(name) => false,
     FunctionExpr(name) => false,
+    AnonymousExpr(effect, parameters, result_type, body) => false,
     ArrayExpr(items) => false,
     UnaryExpr(operator, operand) => false,
     BinaryExpr(operator, left, right) => false,
@@ -488,6 +551,7 @@ pure module_emission_await_call_name(expression: Expr): Str {
         BoolExpr(value) => "",
         NameExpr(name) => "",
         FunctionExpr(name) => "",
+    AnonymousExpr(effect, parameters, result_type, body) => "",
         ArrayExpr(items) => "",
         UnaryExpr(nested, value) => "",
         BinaryExpr(nested, left, right) => "",
@@ -509,6 +573,7 @@ pure module_emission_await_call_name(expression: Expr): Str {
     BoolExpr(value) => "",
     NameExpr(name) => "",
     FunctionExpr(name) => "",
+    AnonymousExpr(effect, parameters, result_type, body) => "",
     ArrayExpr(items) => "",
     BinaryExpr(operator, left, right) => "",
     CallExpr(name, arguments, types) => "",
@@ -654,7 +719,7 @@ pure namespace_identity(path: Str): ModuleIdentity {
 
 pure namespace_test_bindings(path: Str, source: Str): ModuleBindings {
   match namespace_parse(source) {
-    Error(error) => ModuleBindings(namespace_identity("PARSE FAILURE: " + error.message), [], [], map()),
+    Error(error) => ModuleBindings(namespace_identity("PARSE FAILURE: " + error.message), [], [], map(), None()),
     Ok(parsed) => collect_module_bindings(namespace_identity(path), parsed)
   }
 }
@@ -790,7 +855,8 @@ pure raw_namespace_dot_call(expression: Expr): Bool {
     DotCallExpr(target, name, arguments, types) => unlocated_expression(target) == NameExpr("api") && name == "get" && arguments.len() == 1 && unlocated_expression(arguments[0]) == NatExpr(1),
     LocatedExpr(span, value, located_type_argument_spans) => false, NatExpr(value) => false, DecimalExpr(text) => false,
     StringExpr(text) => false, BoolExpr(value) => false, NameExpr(name) => false,
-    FunctionExpr(name) => false, ArrayExpr(items) => false, UnaryExpr(operator, operand) => false,
+    FunctionExpr(name) => false,
+    AnonymousExpr(effect, parameters, result_type, body) => false, ArrayExpr(items) => false, UnaryExpr(operator, operand) => false,
     BinaryExpr(operator, left, right) => false, CallExpr(name, arguments, types) => false,
     FieldExpr(target, field) => false, IndexExpr(target, index) => false,
     IfExpr(condition, yes, no, has_else) => false, BlockExpr(block) => false, MatchExpr(subject, arms) => false
@@ -831,6 +897,14 @@ pure namespace_resolution_failure_tests(): [TestResult] {
     results = results.append(std_testing.equal_str("unmarked qualified syntax fails closed", check_source_frontend(source), message))
     results = results.append(std_testing.expect("unmarked qualified source emits no bytecode", compile_source_bytecode(source) == bytes(), "staged syntax emitted bytecode"))
   }
+  anonymous_source = "pure f(): PureFn[Nat,Nat] { (x: Nat) => x + 1 }"
+  anonymous_message = "anonymous function type checking is not yet available in this development build"
+  results = results.append(std_testing.equal_str("typed anonymous body checks through module identities",
+    body_test_error(anonymous_source), "ok"))
+  results = results.append(std_testing.equal_str("legacy anonymous checking also fails closed",
+    check_source_types(anonymous_source + " main(): Void {}"), anonymous_message))
+  results = results.append(std_testing.expect("unchecked anonymous syntax emits no bytecode",
+    compile_source_bytecode(anonymous_source) == bytes(), "unchecked function emitted bytecode"))
   results = results.append(std_testing.equal_str("owned methods require identity checking", check_source_types("pure f(): Nat { [1].len() }; main(): Void {}"), "unresolved dot call requires module binding resolution"))
   mut modules: [ModuleBindings] = [namespace_test_bindings("leaf", "pub pure answer(): Nat { 1 }")]
   mut edges: [ModuleImportEdge] = []
@@ -896,7 +970,7 @@ pure signature_test_module(identity: ModuleIdentity, source: Str): LoadedModule 
     Ok(value) => value,
     Error(error) => ParsedModule(indexed_program([]), [], [])
   }
-  LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed))
+  LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed), CompleteModuleBodies(), false)
 }
 pure signature_test_error(source: Str): Str {
   module: LoadedModule = signature_test_module(namespace_identity("signature.panack"), source)
@@ -995,6 +1069,26 @@ pure namespace_signature_tests(): [TestResult] {
   reexports: ModuleBindingGraph = ModuleBindingGraph([left.bindings, facade.bindings, use.bindings], [ModuleImportEdge(facade.bindings.identity, 0, left.bindings.identity), ModuleImportEdge(use.bindings.identity, 0, facade.bindings.identity)])
   results = results.append(std_testing.expect("selective transitive reexport retains nominal identity", signature_test_type(reexports, [left, facade, use], DeclarationIdentity(use.bindings.identity, "f"), [], "api.Reexported[Nat]", true) == a, "reexport changed identity"))
   results = results.append(std_testing.expect("reexport generic arity checked at origin", signature_type(reexports, [left, facade, use], DeclarationIdentity(use.bindings.identity, "f"), [], "api.Reexported", true, true) == Error("api.Reexported has incorrect type argument count"), "arity not checked"))
+  for selectors in ["Item as Visible, fetch as load", "fetch as load, Item as Visible"] {
+    routes = signature_test_module(namespace_identity("routes"),
+      "import project/right as other; pub import project/left::{" + selectors +
+      "}; pub record Local { value: Nat }; pub pure use(value: Visible[Nat]): Local { 0 }; pub pure leak(): other.Item[Nat] { 0 }")
+    route_graph = ModuleBindingGraph([left.bindings, right.bindings, routes.bindings],
+      [ModuleImportEdge(routes.bindings.identity, 0, right.bindings.identity),
+       ModuleImportEdge(routes.bindings.identity, 1, left.bindings.identity)])
+    route_result = check_module_signatures(route_graph, [left, right, routes], routes)
+    results = results.append(std_testing.equal_nat("public routes preserve later private-type rejection/" + selectors,
+      route_result.diagnostics.len(), 1))
+    results = results.append(std_testing.equal_nat("local and selectively exported types remain accepted/" + selectors,
+      route_result.declarations.len(), 2))
+    results = results.append(std_testing.expect("selective route retains original type identity/" + selectors,
+      signature_public_identity(route_graph, routes.bindings.identity, DeclarationIdentity(left.bindings.identity, "Item"), []),
+      "public route missing"))
+    if route_result.diagnostics.len() == 1 {
+      results = results.append(std_testing.equal_str("later private-type diagnostic is unchanged/" + selectors,
+        route_result.diagnostics[0].message, "signature leak.return: public signature exposes inaccessible type other.Item from right"))
+    }
+  }
   core: LoadedModule = signature_test_module(ModuleIdentity(ToolchainModulePackage(), "core.panack"), "pub enum Option[T] { Some(T), None }; pub enum Result[T,E] { Ok(T), Error(E) }")
   core_use: LoadedModule = signature_test_module(namespace_identity("core_use"), "import stdlib/core::{Option as Maybe, Result as Outcome}; pub pure f(): Maybe[Nat] { 0 }")
   core_graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, core_use.bindings], [ModuleImportEdge(core_use.bindings.identity, 0, core.bindings.identity)])
@@ -1046,6 +1140,7 @@ pure body_has_result_tail(node: BodyNode): Bool {
     BodyInterpolation(parts) => false,
     BodyLocalUse(local, captured_domain) => false,
     BodyFunction(binding) => false,
+    BodyAnonymousFunction(anonymous) => false,
     BodyArray() => false,
     BodyUnary(operator) => false,
     BodyBinary(operator) => false,
@@ -1069,7 +1164,7 @@ pure body_test_identity_mode(source: Str, identity: ModuleIdentity, retain_guard
   match namespace_parse(source) {
     Error(error) => CheckedModuleBodies([], [error]),
     Ok(parsed) => {
-      module: LoadedModule = LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed))
+      module: LoadedModule = LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed), CompleteModuleBodies(), false)
       core: LoadedModule = signature_test_module(builtin_owner_module(), "enum Option[T] { Some(T), None }; enum Result[T,E] { Ok(T), Error(E) }; impl Str { pub pure ends_with(suffix: Str): Bool { true } }; impl[T] [T] { pub pure first(): Option[T] { None() }; pub pure sort_by(less: PureFn[T,T,Bool]): [T] { self } }")
       graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, module.bindings], [])
       core_signatures: CheckedModuleSignatures = check_module_signatures(graph, [core, module], core)
@@ -1089,6 +1184,7 @@ pure body_binding_inference_marker(body: BoundBody): Option[Bool] {
     BodyInterpolation(parts) => None(),
     BodyLocalUse(local, captured_domain) => None(),
     BodyFunction(binding) => None(),
+    BodyAnonymousFunction(anonymous) => None(),
     BodyCall(target, types, call_arguments) => None(),
     BodyArray() => None(),
     BodyUnary(operator) => None(),
@@ -1142,18 +1238,23 @@ pure body_test_graph_mode(
   CheckedModuleBodies(bodies.functions, diagnostics.concat(bodies.diagnostics))
 }
 pure body_test_effects(source: Str, retain: Bool): CheckedModuleEffects {
+  body_test_effects_mode(source, retain, false)
+}
+pure body_test_effects_mode(source: Str, retain: Bool, facts: Bool): CheckedModuleEffects {
   match namespace_parse(source) {
     Error(error) => CheckedModuleEffects([error], [], map()),
     Ok(parsed) => {
       identity: ModuleIdentity = namespace_identity("body.panack")
-      module: LoadedModule = LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed))
+      module: LoadedModule = LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed), CompleteModuleBodies(), false)
       core: LoadedModule = signature_test_module(builtin_owner_module(), "enum Option[T] { Some(T), None }; enum Result[T,E] { Ok(T), Error(E) }; impl Str { pub pure ends_with(suffix: Str): Bool { true } }; impl[T] [T] { pub pure first(): Option[T] { None() }; pub pure sort_by(less: PureFn[T,T,Bool]): [T] { self } }")
       graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, module.bindings], [])
       own_signatures: CheckedModuleSignatures = check_module_signatures(graph, [core, module], module)
       core_signatures: CheckedModuleSignatures = check_module_signatures(graph, [core, module], core)
       checked_signatures: CheckedModuleSignatures = CheckedModuleSignatures(core_signatures.declarations.concat(own_signatures.declarations), own_signatures.diagnostics)
       checked_bodies: CheckedModuleBodies = check_module_bodies(graph, [core, module], checked_signatures.declarations, module)
-      checked: CheckedModuleEffects = check_module_effects(graph, [core, module], checked_signatures.declarations, checked_bodies.functions, retain)
+      checked: CheckedModuleEffects = if facts {
+        check_function_effect_facts(graph, [core, module], checked_signatures.declarations, collect_function_effect_facts(checked_bodies.functions))
+      } else { check_module_effects(graph, [core, module], checked_signatures.declarations, checked_bodies.functions, retain) }
       CheckedModuleEffects(checked_signatures.diagnostics.concat(checked_bodies.diagnostics.concat(checked.diagnostics)), checked.evidence, checked.function_types)
     }
   }
@@ -1163,6 +1264,9 @@ pure body_effect_error(source: Str): Str {
   if checked.diagnostics.len() == 0 { "ok" } else { checked.diagnostics[0].message }
 }
 pure body_test_graph_effects(modules: [LoadedModule], graph: ModuleBindingGraph, entry: LoadedModule): CheckedModuleEffects {
+  body_test_graph_effects_mode(modules, graph, entry, false)
+}
+pure body_test_graph_effects_mode(modules: [LoadedModule], graph: ModuleBindingGraph, entry: LoadedModule, facts: Bool): CheckedModuleEffects {
   mut signatures: [ModuleSignature] = []
   mut diagnostics: [Diagnostic] = []
   for module in modules {
@@ -1171,7 +1275,8 @@ pure body_test_graph_effects(modules: [LoadedModule], graph: ModuleBindingGraph,
     diagnostics = diagnostics.concat(checked.diagnostics)
   }
   bodies: CheckedModuleBodies = check_module_bodies(graph, modules, signatures, entry)
-  checked: CheckedModuleEffects = check_module_effects(graph, modules, signatures, bodies.functions, false)
+  checked: CheckedModuleEffects = if facts { check_function_effect_facts(graph, modules, signatures, collect_function_effect_facts(bodies.functions)) }
+    else { check_module_effects(graph, modules, signatures, bodies.functions, false) }
   CheckedModuleEffects(diagnostics.concat(bodies.diagnostics.concat(checked.diagnostics)), checked.evidence, checked.function_types)
 }
 pure namespace_effect_tests(): [TestResult] {
@@ -1245,11 +1350,17 @@ pure namespace_effect_tests(): [TestResult] {
     "ordinary unresolved indirect call retains no effect explanation",
     ordinary_unresolved_call_effects.evidence.len(), 0
   ))
+  results = results.append(std_testing.expect("effect facts retain unknown indirect-call state",
+    ordinary_unresolved_call_effects == check_function_effect_facts(
+      unresolved_graph, [unresolved_module], unresolved_signatures.declarations,
+      collect_function_effect_facts([unresolved_deferred_function])), "unknown indirect-call state changed"))
   imported: LoadedModule = signature_test_module(namespace_identity("effect_imported"), "pub async identity[T](value: T): T { value }; pub pure ordinary(): Nat { 1 }; pub ordinary_blocking(): Nat { 2 }")
   app: LoadedModule = signature_test_module(namespace_identity("effect_app"), "import project/effect_imported as api; pub async f(): Nat { await api.identity[Nat](1) }; pub pure g(): Nat { api.ordinary() }; pub pure h(): Nat { api.ordinary_blocking() }")
   graph: ModuleBindingGraph = ModuleBindingGraph([app.bindings, imported.bindings], [ModuleImportEdge(app.bindings.identity, 0, imported.bindings.identity)])
   imported_effects: CheckedModuleEffects = body_test_graph_effects([app, imported], graph, app)
   results = results.append(std_testing.expect("identity effects follow imported generic and aliased declarations", imported_effects.diagnostics.len() == 1 && imported_effects.diagnostics[0].message == "pure function cannot call impure function effect_imported:ordinary_blocking", if imported_effects.diagnostics.len() > 0 { imported_effects.diagnostics[0].message } else { "imported callable effect lost canonical identity" }))
+  results = results.append(std_testing.expect("effect facts preserve imported generic and aliased call diagnostics",
+    imported_effects == body_test_graph_effects_mode([app, imported], graph, app, true), "imported facts differ"))
   recovered: CheckedModuleEffects = body_test_effects("pub pure bad(): Nat { ordinary() }; pub pure good(): Nat { later() }; ordinary(): Nat { 1 }; pure later(): Nat { 2 }", true)
   results = results.append(std_testing.expect("identity effect explanation retains valid sibling evidence", recovered.diagnostics.len() == 1 && recovered.evidence.len() == 2 && recovered.evidence[0].function_name == "bad" && recovered.evidence[0].violations.len() == 1 && recovered.evidence[1].function_name == "good", "valid sibling effect evidence was not recovered"))
   results
@@ -3777,7 +3888,8 @@ pure namespace_body_tests(): [TestResult] {
   }
   if checked.functions.len() == 3 {
     call: BoundBody = checked.functions[0].body.children[0]
-    results = results.append(std_testing.expect("qualified bound call retains declaration identity", match call.node { BodyCall(target, types, call_arguments) => match target { BodyDeclaration(binding) => binding.identity == DeclarationIdentity(left.bindings.identity, "take"), BodyCore(name) => false }, BodyLiteral(value) => false, BodyInterpolation(parts) => false, BodyLocalUse(local, captured_domain) => false, BodyFunction(binding) => false, BodyArray() => false, BodyUnary(operator) => false, BodyBinary(operator) => false, BodyField(name) => false, BodyIndex() => false, BodyIf(has_else) => false, BodyBlock(has_tail, original_span, statement_spans) => false, BodyMatch(targets, bindings, spans) => false, BodyBinding(local, type, mutable, inferred, type_evidence) => false, BodyAssignment(local, assignment_evidence) => false, BodyWhile() => false, BodyFor(local) => false, BodyEmpty() => false }, "call target was re-spelled"))
+    results = results.append(std_testing.expect("qualified bound call retains declaration identity", match call.node { BodyCall(target, types, call_arguments) => match target { BodyDeclaration(binding) => binding.identity == DeclarationIdentity(left.bindings.identity, "take"), BodyCore(name) => false }, BodyLiteral(value) => false, BodyInterpolation(parts) => false, BodyLocalUse(local, captured_domain) => false, BodyFunction(binding) => false,
+    BodyAnonymousFunction(anonymous) => false, BodyArray() => false, BodyUnary(operator) => false, BodyBinary(operator) => false, BodyField(name) => false, BodyIndex() => false, BodyIf(has_else) => false, BodyBlock(has_tail, original_span, statement_spans) => false, BodyMatch(targets, bindings, spans) => false, BodyBinding(local, type, mutable, inferred, type_evidence) => false, BodyAssignment(local, assignment_evidence) => false, BodyWhile() => false, BodyFor(local) => false, BodyEmpty() => false }, "call target was re-spelled"))
   }
   lexical: CheckedModuleBodies = body_test_module("pub pure f(value: Nat): Nat { mut local = value; local = 2; if true { inner = local; inner }; local }")
   results = results.append(std_testing.equal_nat("nested lexical body binds", lexical.diagnostics.len(), 0))
@@ -3792,6 +3904,7 @@ pure namespace_body_tests(): [TestResult] {
     BodyInterpolation(parts) => false,
     BodyLocalUse(local, captured_domain) => false,
     BodyFunction(binding) => false,
+    BodyAnonymousFunction(anonymous) => false,
     BodyArray() => false,
     BodyUnary(operator) => false,
     BodyBinary(operator) => false,
@@ -4636,6 +4749,7 @@ pure owned_server_map_tests(): [TestResult] {
           BodyLiteral(value) => {},
           BodyLocalUse(identity, captured_domain) => {},
           BodyFunction(binding) => {},
+          BodyAnonymousFunction(anonymous) => {},
           BodyArray() => {},
           BodyUnary(operator) => {},
           BodyBinary(operator) => {},
@@ -5045,5 +5159,292 @@ pure owned_dot_bridge_tests(): [TestResult] {
     results = results.append(std_testing.expect("bridge callable field is not method/" + separator,
       body_test_error("record Holder { callback: PureFn[Nat,Nat] }; pure f(holder: Holder): Nat { holder" + separator + "callback(2) }") != "ok", "field auto-invoked"))
   }
+  results
+}
+
+// Compare complete ordered diagnostics and function status maps, not only messages.
+pure namespace_effect_fact_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  for source in [
+    "pub pure f(): Nat { later() }; pure later(): Nat { 1 }",
+    "pub pure f(): Nat { later() }; later(): Nat { 1 }",
+    "pub f(): Nat { later() }; later(): Nat { 1 }",
+    "pub async f(): Unit { print(1); () }",
+    "pub f(): Void { print(1) }",
+    "pub async f(): Unit { later(); () }; async later(): Unit { () }",
+    "pub pure f(): Nat { later() }; async later(): Nat { 1 }",
+    "pub async f(): Nat { await later() }; async later(): Nat { 1 }",
+    "pub f(): Nat { await later() }; async later(): Nat { 1 }",
+    "pub async f(): Nat { await later() }; later(): Nat { 1 }",
+    "pub async f(): Nat { await 1 }",
+    "pub async f(): Unit { await later(); () }; async later(): Nat { 1 }",
+    "pub async f(): Unit { await later(); () }; async later(): Unit { () }",
+    "pub async f(callback: AsyncFn[Nat]): Nat { await callback.call() }",
+    "pub async f(callback: AsyncFn[Nat]): Unit { callback.call(); () }",
+    "pub pure bad(): Nat { ordinary() }; pub pure good(): Nat { later() }; ordinary(): Nat { 1 }; pure later(): Nat { 2 }"
+  ] {
+    fresh = body_test_effects(source, false)
+    facts = body_test_effects_mode(source, false, true)
+    results = results.append(std_testing.expect("flat effect facts preserve ordered diagnostics",
+      fresh == facts, "effect facts differ for " + source))
+  }
+  results
+}
+
+pure effect_fact_call_function(template: BoundFunctionBody, target: BodyTarget): BoundFunctionBody {
+  body = BoundBody(BodyCall(target, [], []), template.body.span, [], template.body.type, [], [], [], [], [], [])
+  BoundFunctionBody(template.signature, template.parameters, body, [], BodyIdentityChecked(), None())
+}
+
+pure effect_fact_permission_tests(): [TestResult] {
+  module = signature_test_module(namespace_identity("permission.panack"),
+    "wrapper(): Nat { leaf() }; leaf(): Nat { 1 }; async caller(): Nat { wrapper() }")
+  graph = ModuleBindingGraph([module.bindings], [])
+  signatures = check_module_signatures(graph, [module], module).declarations
+  bodies = check_module_bodies(graph, [module], signatures, module).functions
+  wrapper = bodies[0]
+  leaf = effect_fact_call_function(bodies[1], BodyCore("http_body_size"))
+  caller = bodies[2]
+  initial = [wrapper, leaf, caller]
+  facts = collect_function_effect_facts(initial)
+  fresh = check_module_effects(graph, [module], signatures, initial, false)
+  compact = check_function_effect_facts(graph, [module], signatures, facts)
+  mut results: [TestResult] = []
+  results = results.append(std_testing.expect("effect facts infer transitive local permission in reverse dependency order",
+    fresh == compact && fresh.diagnostics.len() == 0, "transitive permission differs"))
+  for replacement in [effect_fact_call_function(bodies[1], BodyCore("print")), bodies[1],
+      effect_fact_call_function(bodies[1], BodyDeclaration(wrapper.signature.binding))] {
+    changed = [wrapper, replacement, caller]
+    // Keep the consumer facts from the successful check. Only the leaf changes.
+    mixed = [facts[0], collect_function_effect_facts([replacement])[0], facts[2]]
+    expected = check_module_effects(graph, [module], signatures, changed, false)
+    actual = check_function_effect_facts(graph, [module], signatures, mixed)
+    results = results.append(std_testing.expect("cached effect facts revoke stale permission after a body-only edit",
+      expected == actual && expected.diagnostics.len() == 1 &&
+        expected.diagnostics[0].message == "async function cannot call blocking function permission.panack:wrapper",
+      "body change retained local permission or changed diagnostics"))
+  }
+  invalid = BoundFunctionBody(leaf.signature, leaf.parameters, leaf.body, [], BodyInvalid(), None())
+  deferred = BoundFunctionBody(caller.signature, caller.parameters, caller.body, [], BodyDeferred(), None())
+  unusual = [invalid, deferred]
+  results = results.append(std_testing.expect("effect facts preserve invalid and deferred function status",
+    check_module_effects(graph, [module], signatures, unusual, false) ==
+      check_function_effect_facts(graph, [module], signatures, collect_function_effect_facts(unusual)),
+    "invalid or deferred function status changed"))
+  results
+}
+
+
+pure encoding_primitive_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  for path in ["encoding/utf8.panack", "core.panack"] {
+    name = if path == "core.panack" { "$owned$Bytes$slice" } else { "decode" }
+    primitive = if path == "core.panack" { "http_bytes_slice" } else { "host_decode_utf8" }
+    trusted = ModuleIdentity(ToolchainModulePackage(), path)
+    results = results.append(std_testing.expect("encoding/trusted/" + path,
+      module_internal_primitive(DeclarationIdentity(trusted, name), primitive) &&
+      module_internal_primitive_name(trusted, primitive), "trusted adapter rejected"))
+    results = results.append(std_testing.expect("encoding/wrong function/" + path,
+      !module_internal_primitive(DeclarationIdentity(trusted, "other"), primitive), "grant escaped its function"))
+    for package in [StandaloneModulePackage(), ManifestModulePackage("toolchain", "1")] {
+      spoof = ModuleIdentity(package, path)
+      results = results.append(std_testing.expect("encoding/spoof/" + path,
+        !module_internal_primitive(DeclarationIdentity(spoof, name), primitive) &&
+        !module_internal_primitive_name(spoof, primitive), "spoofed toolchain grant"))
+    }
+  }
+  results
+}
+
+
+pure tcp_limit_identity_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  graph = ModuleBindingGraph([], [])
+  entry = ModuleIdentity(StandaloneModulePackage(), "main.panack")
+  canonical = ModuleIdentity(ToolchainModulePackage(), "network/tcp/async.panack")
+  for name in ["TcpServerLimits", "TcpServiceLimits"] {
+    legacy = ModuleIdentity(ToolchainModulePackage(), if name == "TcpServerLimits" { "tcp.panack" } else { "tcp_service.panack" })
+    results = results.append(std_testing.expect("TCP limits/legacy ABI/" + name,
+      module_emission_symbol(graph, entry, DeclarationIdentity(legacy, name)) == name,
+      "legacy runtime name changed"))
+    results = results.append(std_testing.expect("TCP limits/canonical identity/" + name,
+      module_emission_symbol(graph, entry, DeclarationIdentity(canonical, name)) != name,
+      "Duration record replaced millisecond runtime schema"))
+  }
+  results
+}
+
+pure stdlib_nominal_identity_tests(): [TestResult] {
+  left = signature_test_module(ModuleIdentity(ToolchainModulePackage(), "identity_left.panack"),
+    "pub enum Outcome { Shared(Nat), Absent }; pub record Packet { value: Nat }")
+  right = signature_test_module(ModuleIdentity(ToolchainModulePackage(), "identity_right.panack"),
+    "pub enum Outcome { Shared(Str, Bool), Absent }; pub record Packet { text: Str, valid: Bool }")
+  graph = ModuleBindingGraph([left.bindings, right.bindings], [])
+  entry = ModuleIdentity(StandaloneModulePackage(), "main.panack")
+  mut results: [TestResult] = []
+  for name in ["Outcome", "Shared", "Absent", "Packet"] {
+    left_name = module_emission_symbol(graph, entry, DeclarationIdentity(left.bindings.identity, name))
+    right_name = module_emission_symbol(graph, entry, DeclarationIdentity(right.bindings.identity, name))
+    results = results.append(std_testing.expect("stdlib nominal identity/" + name,
+      left_name != right_name && left_name != name && right_name != name,
+      "stdlib declarations from different modules share a runtime name"))
+  }
+  for name in ["FileKind", "RegularFile", "Directory", "SymbolicLink", "OtherFile", "FileMetadata"] {
+    native = ModuleIdentity(ToolchainModulePackage(), "filesystem.panack")
+    results = results.append(std_testing.expect("filesystem native identity/" + name,
+      module_emission_symbol(graph, entry, DeclarationIdentity(native, name)) == name &&
+      module_emission_symbol(graph, entry, DeclarationIdentity(left.bindings.identity, name)) != name,
+      "native filesystem identity was replaced"))
+  }
+  results
+}
+
+// Every nested body has its own effect mode; cached effect facts must agree.
+pure anonymous_body_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  for item in [
+    ["pure f(): PureFn[Nat] { x: Nat = 3; () => x }", "true", "x: Nat = 3", "The closure retains"],
+    ["pure f(): PureFn[Nat] { mut x: Nat = 3; () => x }", "false", "mut x: Nat = 3", "The binding is mutable"],
+    ["pure f(x: Sha256Context): PureFn[Sha256Context] { () => x }", "false", "pure f", "The value contains a native resource"],
+    ["pure f(x: Nat): PureFn[Nat] { () => x }", "true", "pure f", "The closure retains"],
+    ["pure f[T](x: T): PureFn[T] { () => x }", "true", "pure f", "The closure retains"],
+    ["pure f(x: Nat): PureFn[Nat,PureFn[Nat]] { (x) => () => x }", "true", "(x) =>", "The closure retains"]
+  ] {
+    capture_checked = body_test_module(item[0])
+    cached_captures = decode_checked_bodies(encode_checked_bodies(capture_checked.functions))
+    results = results.append(std_testing.expect("capture identities decode from body cache", cached_captures != None(), item[0]))
+    mut capture_count: Nat = 0
+    for function in capture_checked.functions {
+      for evidence in body_type_check_evidence(function.body) {
+        if evidence.context.starts_with("capture ") {
+          capture_count = capture_count + 1
+          results = results.append(std_testing.expect("capture decision retained", evidence.accepted == Some(item[1] == "true"), item[0]))
+          results = results.append(std_testing.expect("capture reason retained", evidence.reason.starts_with(item[3]), evidence.reason))
+          match cached_captures {
+            None() => {},
+            Some(cached_functions) => {
+              results = results.append(std_testing.expect("cached capture origin agrees with fresh binding",
+                capture_explanation_origin(cached_functions,evidence.span) == capture_explanation_origin(capture_checked.functions,evidence.span),item[0]))
+              mut cached_evidence: Nat = 0
+              for cached_function in cached_functions { cached_evidence = cached_evidence + body_type_check_evidence(cached_function.body).len() }
+              results = results.append(std_testing.equal_nat("body cache does not claim fresh explanation evidence",cached_evidence,0))
+            }
+          }
+          match capture_explanation_origin(capture_checked.functions, evidence.span) {
+            None() => { results = results.append(std_testing.expect("capture origin retained", false, item[0])) },
+            Some(site) => { results = results.append(std_testing.expect("capture origin follows lexical binding",
+              item[0].slice(site.start.offset,site.end.offset).starts_with(item[2]), item[0].slice(site.start.offset,site.end.offset))) }
+          }
+        }
+      }
+    }
+    results = results.append(std_testing.equal_nat("one capture decision per closure",capture_count,1))
+    plain_capture = body_test_module_mode(item[0],false)
+    mut plain_count: Nat = 0
+    for function in plain_capture.functions {
+      for evidence in body_type_check_evidence(function.body) {
+        if evidence.context.starts_with("capture ") { plain_count = plain_count + 1 }
+      }
+    }
+    results = results.append(std_testing.equal_nat("ordinary compilation retains no capture explanations",plain_count,0))
+  }
+
+  evidence_source = "pure f(): [PureFn[Nat,Nat]] { [(x) => x + 1] }"
+  explained = body_test_module(evidence_source)
+  operators = body_operator_type_evidence(explained.functions[0].body)
+  results = results.append(std_testing.equal_nat("anonymous array retains one body operator", operators.len(), 1))
+  if operators.len() == 1 {
+    site = operators[0].span
+    results = results.append(std_testing.equal_str("anonymous operator points to original source",
+      evidence_source.slice(site.start.offset, site.end.offset), "x + 1"))
+    results = results.append(std_testing.expect("anonymous operator retains checked result",
+      operators[0].accepted == Some(true) && operators[0].result == Some(SignatureType(SignatureCore("Nat"), [])),
+      "anonymous operator result lost"))
+  }
+  results = results.append(std_testing.equal_str("untyped anonymous parameter gives actionable diagnostic",
+    body_test_error("pure f(): Void { callback = (value) => value; }"),
+    "cannot determine the type of anonymous parameter value; add a type annotation"))
+
+  for source in [
+    "record Phantom[T] { value: Nat }; pure f(x: Phantom[Sha256Context]): PureFn[Phantom[Sha256Context]] { () => x }",
+    "pure f(x: Nat, unused: Sha256Context): PureFn[Nat] { () => x }",
+    "pure f(callback: Fn[Sha256Context,Nat]): Fn[Sha256Context,Nat] { (value) => callback.call(value) }",
+    "pure f(): PureFn[Nat] { mut x: Nat = 1; snapshot = x; () => snapshot }",
+    "pure f(x: Nat): PureFn[Nat] { () => x }",
+    "pure f[T](x: T): PureFn[T] { () => x }",
+    "pure f(x: Nat): PureFn[Nat,PureFn[Nat]] { (y) => () => x + y }",
+    "pure f(x: Nat): PureFn[Nat] { () => x + x }",
+    "pure f(x: Nat): PureFn[Nat,Nat] { (x) => x + 1 }",
+    "enum Choice[T] { Pick(T) }; pure f(): Choice[PureFn[Nat,Nat]] { Choice.Pick((x) => x + 1) }",
+    "pure f(): Option[PureFn[Nat,Nat]] { Some((x) => x + 1) }",
+    "record Handler[T] { callback: PureFn[T,T] }; pure f(): Handler[Nat] { Handler((x) => x + 1) }",
+    "pure f(): Option[[PureFn[Nat,Nat]]] { Some([(x) => x + 1]) }",
+    "pure f(): [PureFn[Nat,Nat]] { [(x) => x + 1, (x) => x + 2] }",
+    "pure f(): Nat { callbacks: [[PureFn[Nat,Nat]]] = [[(x) => x + 1]]; callbacks[0][0].call(2) }",
+    "pure apply(fs: [PureFn[Nat,Nat]]): Nat { fs[0].call(2) }; pure f(): Nat { apply([(x) => x + 1]) }",
+    "record Handler { callback: PureFn[Nat,Nat] }; pure f(): Handler { Handler((x) => x + 1) }",
+    "pure f(flag: Bool): PureFn[Nat,Nat] { if flag { (x) => x + 1 } else { (x) => x + 2 } }",
+    "pure f(flag: Option[Bool]): PureFn[Nat,Nat] { match flag { Some(value) => (x) => x + 1, None() => (x) => x + 2 } }",
+    "pure f(): PureFn[PureFn[Nat,Nat]] { (): PureFn[Nat,Nat] => (x) => x + 1 }",
+    "pure f(): Nat { mut callback: PureFn[Nat,Nat] = (x) => x; callback = if true { (x) => x + 1 } else { (x) => x }; callback.call(2) }",
+    "pure apply[T,U](f: PureFn[T,U], x: T): U { f.call(x) }; pure f(): Str { apply(if true { (x) => \"yes\" } else { (x) => \"no\" }, 2) }",
+    "pure apply(f: PureFn[Nat,Nat], x: Nat): Nat { f.call(x) }; pure f(): Nat { mut count: Nat = 2; if count >= 1 { apply(if true { (x) => x } else { (x) => x }, count - 1) } else { 0 } }",
+    "pure f(): PureFn[Nat,Nat] { (x: Nat) => x + 1 }",
+    "pure f(): PureFn[Nat,Nat] { (x) => x + 1 }",
+    "pure f(): Nat { callback: PureFn[Nat,Nat] = (x) => x + 1; callback.call(2) }",
+    "pure f(): Fn[Nat,Void] { (x: Nat) => { print(x) } }",
+    "pure f(): AsyncFn[Nat,Nat] { async (x: Nat) => x + 1 }",
+    "pure apply(f: PureFn[Nat,Nat], x: Nat): Nat { f.call(x) }; pure f(): Nat { apply((x) => x + 1, 2) }",
+    "pure apply[T,U](f: PureFn[T,U], x: T): U { f.call(x) }; pure f(): Str { apply((x) => \"ok\", 2) }"
+  ] {
+    direct = body_test_effects(source, false)
+    cached = body_test_effects_mode(source, false, true)
+    results = results.append(std_testing.equal_nat("anonymous valid body/effects: " + source, direct.diagnostics.len(), 0))
+    results = results.append(std_testing.expect("anonymous cached effect facts agree", direct == cached, source))
+  }
+  for source in [
+    "pure f(): PureFn[Nat] { mut x: Nat = 1; () => x }",
+    "pure f(x: Sha256Context): PureFn[Sha256Context] { () => x }",
+    "record Box[T] { value: T }; pure f(x: Box[Sha256Context]): PureFn[Box[Sha256Context]] { () => x }",
+    "enum Box[T] { Hold(T) }; pure f(x: Box[HttpStream]): PureFn[Box[HttpStream]] { () => x }",
+    "pure f(x: [GzipDecoder]): PureFn[[GzipDecoder]] { () => x }",
+    "pure f(): PureFn[Nat] { callback: PureFn[Nat] = () => callback.call(); callback }",
+    "pure identity[T](value: T): T { value }; pure f(): PureFn[Nat,Nat] { identity((x) => x) }",
+    "pure f(): [PureFn[Nat,Nat]] { [(x: Str) => 1] }",
+    "pure f(): [PureFn[Nat,Void]] { [(x) => print(x)] }",
+    "pure f(): Void { callbacks = [(x) => x]; }",
+    "pure f(): Void { callback = (x) => x + 1; }",
+    "pure f(): PureFn[Nat,Str] { (x: Nat): Str => x + 1 }",
+    "f(): Fn[Void] { mut x = 0; () => { x = x + 1; } }",
+    "pure f(): PureFn[Void] { pure () => print(1) }",
+    "pure f(): AsyncFn[Void] { async () => print(1) }",
+    "pure f(): PureFn[Void] { () => print(1) }",
+    "pure f(): Nat { callback = (x: Nat) => x; callback.call() }",
+    "async task(): Nat { 1 }; pure f(): PureFn[Nat] { () => { await task() } }"
+  ] {
+    direct = body_test_effects(source, false)
+    cached = body_test_effects_mode(source, false, true)
+    results = results.append(std_testing.expect("anonymous invalid body/effects rejected", direct.diagnostics.len() > 0, source))
+    results = results.append(std_testing.expect("anonymous invalid cached facts agree", direct == cached, source))
+  }
+  mut capture_parameters: Str = ""
+  mut capture_sum: Str = "argument"
+  mut capture_index: Nat = 0
+  while capture_index < 255 {
+    if capture_index > 0 { capture_parameters = capture_parameters + ", " }
+    capture_parameters = capture_parameters + "v${capture_index}: Nat"
+    capture_sum = capture_sum + " + v${capture_index}"
+    capture_index = capture_index + 1
+    if capture_index == 254 {
+      results = results.append(std_testing.equal_str("closure accepts bytecode parameter boundary",
+        body_test_error("pure f(" + capture_parameters + "): PureFn[Nat,Nat] { (argument) => " + capture_sum + " }"), "ok"))
+    }
+  }
+  results = results.append(std_testing.equal_str("closure rejects capture prefix beyond bytecode parameter boundary",
+    body_test_error("pure f(" + capture_parameters + "): PureFn[Nat,Nat] { (argument) => " + capture_sum + " }"),
+    "anonymous function needs more than 255 parameters including captured values; reduce the number of captures or parameters"))
+  results = results.append(std_testing.equal_str("compound callback preserves argument fact invalidation",
+    body_test_error("pure apply(f: PureFn[Nat,Nat], x: Nat): Nat { f.call(x) }; pure f(): Nat { mut count: Nat = 2; if count >= 1 { apply(if true { count = 0; (x) => x } else { (x) => x }, count - 1) } else { 0 } }"),
+    "Nat subtraction may underflow; prove the left side is large enough or use Int"))
   results
 }

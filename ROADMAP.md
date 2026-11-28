@@ -1,7 +1,15 @@
 # Roadmap
 
-Panackelty **0.1.0-alpha.14 is published**. See the [release notes](CHANGELOG.md)
-and [acceptance evidence](docs/releases/ALPHA14_RELEASE_ACCEPTANCE.md).
+Panackelty **0.1.0-alpha.15 is published**. See the [release notes](CHANGELOG.md)
+and [acceptance evidence](docs/releases/ALPHA15_RELEASE_ACCEPTANCE.md).
+
+## Release preparation: alpha.16 — faster tools and more expressive programs
+
+The active integration branch is `next`. See [the current status and allocations](docs/NEXT_RELEASE_STATUS.md).
+Alpha.15 is complete. Alpha.16 scope is closed around the delivered VM/compiler
+optimisations, async stdlib, anonymous functions, closures, State and their
+examples/documentation. Release packages, installer and playground verification
+precede the final website promotion. Unfinished work is allocated to alpha.17.
 
 ## Nightly artifact resilience: 26 October 2026
 
@@ -15,13 +23,13 @@ This is CI-only work with no product or website behaviour change. Successful
 uploads add no diagnostics or backoff; failed uploads have explicit bounds. No
 issue was created for this repair. Completion evidence is recorded in the PR.
 
-## Next: alpha.15
+## Completed: alpha.15
 
 GI#409: Compiler/stdlib boundary assessment is complete on next (PR#635).
 The [assessment](docs/COMPILER_STDLIB_BOUNDARY_ASSESSMENT.md) verifies the full
 42-file closure and five change cases. Retain source organisation. Narrower
 package-tool prerequisites were considered in GI#106 and remain unselected. Native coupling
-stays in alpha.16. No refactor is delivered.
+is allocated to alpha.17. No refactor is delivered.
 
 GI#106: Validation speed — alpha.15 milestone done. The owner accepted the
 implementation and replay on 27 October 2026; implementation is merged in PR#637.
@@ -38,7 +46,7 @@ Keep that summary current alongside the detailed records when release work chang
 
 Alpha.14 delivers type-owned methods and dot notation (GI#525), the routed HTTP
 server framework (GI#518), and the HTTP reference and runnable examples slice of
-GI#552. Alpha.15 takes forward the remaining foundation work under the agreed
+GI#552. Alpha.15 delivered the remaining foundation work under the agreed
 release rebalance, including package-management implementation (GI#200) and the
 GI#106 test-speed milestone.
 
@@ -46,34 +54,30 @@ GI#106 test-speed milestone.
 - [All roadmap records](docs/roadmap/README.md)
 - [Decision and completion process](docs/roadmap/ROADMAP_PROCESS.md)
 
-## Planned direction: alpha.14 through alpha.19
+## Release direction: alpha.16 through alpha.20
 
-Owner-approved release rebalance, 20 October 2026. Alpha.14 is released; alpha.15
-through alpha.19 remain planned. See the
-[scope and boundaries](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#agreed-release-direction--20-october-2026).
+Owner-approved release boundary, 28 November 2026. Alpha.14 and alpha.15 are
+released. See the [current allocation and boundaries](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#release-boundary-agreed--28-november-2026).
 
-- **alpha.14:** completed type-owned methods and HTTP framework, finished with
-  the HTTP API reference and runnable examples slice of GI#552. Colours (GI#555)
-  were not included.
-- **alpha.15:** remaining foundation work: package-management implementation, compiler
-  understanding, validated domain types, the compiler/stdlib assessment, faster
-  coverage, selected friction improvements, and the GI#106 test-speed milestone.
-- **alpha.16:** build useful programs: typed service exchanges, file discovery,
-  subprocess examples, a tiny build tool, tested guides, GI#170: Inference assessment
-  and RM#157: Performance review. [RM#162: Real-program fixes](#rm-162) reserves
-  implementation capacity for obstacles discovered while building real programs;
-  its scope and effort are not yet known.
-- **alpha.17:** everyday development: one editor, source-aware runtime errors and
-  Homebrew installation.
-- **alpha.18:** interactive/connected applications: browser event handlers and
-  service contract testing; Docker images/Linux ARM64 remain optional.
-- **alpha.19:** language ergonomics: error propagation and further guarded types,
-  subject to design/evidence.
+- **alpha.16:** delivered VM/compiler optimisations and incremental compilation;
+  redesigned ordinary/async stdlib; anonymous functions, closures and State;
+  tested combined examples and API/concept/cookbook documentation. Release preparation.
+- **alpha.17:** the unfinished useful-program work: GI#166 typed HTTP exchanges,
+  GI#167 file discovery, GI#168 subprocess examples, GI#169 tiny build tool,
+  GI#138/GI#310 tested guides/examples, GI#170 inference assessment, remaining
+  RM#157 performance review, GI#435 guard alternatives, native-interface/compiler
+  decoupling, coverage approach review and continuing RM#162 real-program fixes.
+- **alpha.18:** everyday development: GI#139 editor support, GI#136 source-aware
+  runtime errors and GI#147 Homebrew installation.
+- **alpha.19:** interactive/connected applications: GI#165 browser event handlers
+  and GI#142 service contract testing; Docker images/Linux ARM64 remain optional.
+- **alpha.20:** language ergonomics: GI#274 error propagation and further GI#435
+  guard families, subject to design/evidence.
 
-The full GI#552 reference, GI#553 load profiling and GI#555 colours retain candidate
-status beyond the explicitly selected HTTP documentation slice. No dates or new
-implementation authorisation are implied. Release validation/publication approval
-remain required; scope does not grow through optional candidates.
+Existing alpha.17–alpha.19 allocations each move one release later. GI#552 full
+API-reference completion and GI#553 load profiling remain candidates in alpha.17;
+GI#555 coloured diagnostics remains a candidate in alpha.18. No additional
+implementation scope is created. Completed work stays credited to its release.
 
 <a id="rm-44"></a>
 
@@ -123,7 +127,7 @@ prepares controlled Git acquisition without moving package policy into native
 code. PR#580 stages exact Git commits with isolated configuration, raw blob
 extraction, canonical hashes, safe symlinks and cleanup on failure. Public Git
 manifests, locks and shared snapshot graphs are delivered by P03c; see its
-[integration record](docs/design/PACKAGE_GIT_INTEGRATION_ACCEPTANCE.md). The alpha.16 coupling
+[integration record](docs/design/PACKAGE_GIT_INTEGRATION_ACCEPTANCE.md). The alpha.17 coupling
 task stays separate.
 
 <a id="rm-158"></a> [RM#158](docs/roadmap/records/dependency-management--idea.md#rm-158),
@@ -136,9 +140,49 @@ P7 retains its deferred 10-point allocation. Alpha.13 release acceptance is comp
 RM#156 records the GI#518 selection and RM#157 records the performance outcome.
 RM#158–RM#161 identify the Alpha.15 package-management packets.
 <a id="rm-162"></a> **[RM#162: Real-program fixes](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-162)**
-is planned for alpha.16. Fix obstacles encountered while building real programs;
+continues in alpha.17 after its accepted alpha.16 batches: the [async-stdlib batch](docs/ASYNC_DESIGN_DISCUSSION.md#implementation-batch-selected-8-november-2026) addresses the clock/uptime obstacle. Fix obstacles encountered while building real programs;
 scope and effort are unknown, and this is an implementation allocation rather
-than an issue-gathering exercise.
+than an issue-gathering exercise. The owner selected the
+[expanded async stdlib and documentation programme](docs/ASYNC_DESIGN_DISCUSSION.md#expanded-async-stdlib-and-documentation-programme-8-november-2026)
+before shared-state work; it has a provisional five-group baseline, including
+website stdlib references, within RM#162. The timer, checked console and
+Command-based subprocess batch passed combined local validation on 21 November
+(612s); PR #693 remains a CI-free draft, with integration and the remaining
+programme scope still pending. The subsequent runtime/testing support and compiler
+compatibility batch passed final local validation in 583s, including relocated
+source/bytecode/disassembly tests. Typed streaming HTTP passed final local make check in 647s, with handler-progress, lifecycle/fault/sanitizer and relocated-install checks; no integration or website publication is implied.
+Typed digest/gzip ordinary/async adapters and bounded pure hashing now pass focused
+source/bytecode, scheduler, lifecycle/fault and sanitizer checks; final local make check passed in 625s (21 November), as did relocated-install
+source/bytecode/disassembly checks. The existing website follow-up includes these modules; publication remains separate.
+Checked pure UTF-8 decoding and byte/path aliases are implemented with focused
+source/bytecode and compatibility acceptance; final local make check passed in 626s (21 November), plus relocated source/bytecode/disassembly acceptance.
+
+Canonical TCP Duration adapters and Duration aliases pass focused source/bytecode
+loopback and compatibility checks; final local make check passed in 626s (21 November), plus relocated TCP source/bytecode/disassembly acceptance. Website
+reference changes remain covered by the existing follow-up, not published here.
+
+Bounded ordinary/async console input is implemented with explicit EOF, short-read,
+exclusive-reader and cancellation contracts. Focused native lifecycle, fault,
+sanitizer and source/bytecode checks pass; final local make check passed in 654s
+(21 November), plus relocated-install source/bytecode/disassembly acceptance.
+Integration remains pending. This extends the existing website stdlib follow-up and
+has no hot-path compiler performance impact. Legacy line input shares the bounded
+read-ahead broker to avoid swallowing bytes when mixed with the new API.
+
+Console, sleep and process errors now have shared ordinary/async types, typed
+categories, native detail and readable renderers implemented in Panack. Focused
+checks pass; final local make check passed in 621s (21 November), plus relocated
+source/bytecode/disassembly acceptance. Integration remains pending. Filesystem,
+resource and network error mappings remain. This continues the existing stdlib
+website follow-up; publication is separate.
+
+Filesystem domain errors and explicit compatibility facades are implemented; focused ordinary/async failure, lifecycle and rendering tests pass. Stdlib nominal identity emission also preserves colliding enum/record declarations. Final local make check passed in 628s (21 November), plus relocated ordinary/async source and saved-bytecode acceptance. Integration remains pending. Digest/gzip and network error mappings remain. The existing stdlib website follow-up applies; no website publication is part of this batch.
+
+Digest/gzip domain errors pass focused ordinary/async category, context, rendering, lifecycle and compatibility checks, final local make check (645s, 21 November), and relocated-install source/bytecode acceptance. Compiler seed and unchanged-program oracle artifacts are unchanged. This extends the existing stdlib website documentation follow-up; publication is separate.
+
+HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibility checks, final local make check (685s, 21 November), and relocated-install real TLS source/bytecode acceptance. Compiler seed and unchanged-program bytecode artifacts remain unchanged. Integration remains pending and development CI stays off. TCP domain errors and high-level HTTP package migration remain outstanding.
+
+TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. The subsequent 22 November repair reconciles all 25 HTTP builtin arities and local-resource call permissions in the self-hosted decoder with the native verifier. Focused legacy/diagnostic-client and routed-server disassembly checks pass. The compiler seed is refreshed; unchanged-program native oracle contracts pass. Final local make check passed in 674s (22 November), including all 427 bytecode tests, public HTTP disassembly, packaging and installed smoke. Relocated TCP and diagnostic-client source/bytecode/disassembly acceptance also passed. Integration remains pending and development CI stays off.
 
 **Next available roadmap identifier: RM#163.**
 
@@ -623,3 +667,364 @@ release allocation; see the linked record for scope and acceptance.
 <a id="rm-83"></a> [rm-83](docs/roadmap/records/change-panackelty-syntax--complete.md#rm-83)
 
 </details>
+
+RM#162 HTTP inspection repair (22 November): all HTTP builtin arities and local
+wrapper permissions now match the native verifier in the self-hosted decoder.
+Focused client/server disassembly and native artifact checks pass; final local make check passed in 674s, as did relocated acceptance. No new public API or website change is
+required: this restores inspection of already supported bytecode.
+
+RM#162 / AS5 (23 November): core ordinary/async reference and migration guidance
+now link three validated timing, file-cleanup and subprocess examples. Focused
+source/bytecode, inventory mutation and documentation checks pass. Runtime and
+compiler are unchanged from the preceding full validation. Broader examples,
+website adaptation/review and integration remain; the existing stdlib website
+follow-up applies. No website publication is included.
+
+RM#162 / AS5 resource follow-up (23 November): SHA-256 and gzip examples and the
+resource walkthrough pass focused source/bytecode, inventory and documentation
+checks. Uptime uses canonical duration naming with its HTTP fixture passing.
+The documentation coverage checklist names the four remaining core gaps before
+website adaptation/review; no additional example quota or runtime scope is added.
+No runtime performance impact; the two bounded examples add small fixture work.
+Website follow-up remains open and nothing is published.
+
+AS5 core gaps covered (23 November): added console EOF/bounds and staged/confined
+publication examples, a diagnostic HTTP client package example, and their
+walkthroughs. Canonical UTF-8 decoding and checked reporting examples retain
+their transcripts; compatibility filesystem/process recipes are explicitly
+labelled rather than silently removed. Focused named source/compile/bytecode
+checks, console Unicode/bounds/failure cases, HTTP 200/404/invalid URL cases,
+45-example/610-assertion inventory mutation checks and documentation links pass.
+Only example/guide/test-registration work changed; compiler, VM, stdlib and
+shared runner logic are unchanged. No full-suite rerun or development CI.
+Website adaptation is ready in [website PR #77](https://github.com/sproates/panackelty-website/pull/77): five development-labelled pages and nine complete examples, with 49 local website tests and assembly checks passing. Desktop and phone-width preview checked; owner review, integration and publication remain pending. No development CI was triggered.
+
+Owner review correction (23 November): website PR #77 now provides nineteen self-contained module references with 72 function entries, parameter/result/error details, bounds and ownership, plus embedded complete examples. All signatures match pinned core source; 51 local website tests and assembly checks pass. The persistent preview is refreshed. Owner review, integration and publication remain pending; no CI was triggered.
+
+23 November integration handoff: the owner approved the website documentation approach and preview. Core PR #693 is ready for integration into next under the alpha.16 trial; its merge starts hosted validation. AS1–AS4 implementation and AS5 core guides/examples are locally validated; hosted acceptance remains pending. Website PR #77 has preview approval, not publication permission. RM#162 remains open for the broader real-program work; this stdlib batch does not implement closures, anonymous functions or shared state.
+
+23 November: async stdlib core PR #693 merged into next as `930f951`. [integration run](https://github.com/sproates/panackelty/actions/runs/45163842662) is running. Website PR #77 has preview approval; publication remains separately authorised. No new implementation work is included in this status update.
+
+Integration follow-up, 23 November: run 45163842662 passed both platform package jobs but stopped before full validation because the manifest regression expected an older unmeasured-source list. The manifest already accounts for the ten added error/compatibility modules with reasons. This correction updates only the explicit expected inventory; coverage eligibility, measurement and thresholds are unchanged. The exact seven-file policy suite passes locally. Hosted full acceptance remains pending a new integration run.
+
+23 November: core stdlib PR #693 and inventory correction PR #697 are merged. [integration run 45164349102](https://github.com/sproates/panackelty/actions/runs/45164349102) passed on `12dccfb` (both platform package jobs, coverage policy and integration gate). AS1–AS4 are accepted; AS5 website preview is approved, with publication/live verification remaining. This is not completion of the broader RM#162 language work or a full hosted release-matrix run.
+
+### Expanded async stdlib documentation: complete, 23 November 2026
+
+23 November publication acceptance: the owner authorised website checks and publication.
+[Website PR #77](https://github.com/sproates/panackelty-website/pull/77) merged as
+`e59e93e` after [checks 45165626275](https://github.com/sproates/panackelty-website/actions/runs/45165626275)
+passed. [Deployment 45166480787](https://github.com/sproates/panackelty-website/actions/runs/45166480787)
+passed, including verification of deployed bytes and provenance. Live browser review
+confirmed the Time reference, signatures, errors, complete example and stdlib-before-HTTP
+navigation. The [published reference](https://panackelty.com/reference/standard-library/)
+contains nineteen module pages and 72 function entries, alongside four guides and nine
+complete examples. AS5 is accepted: all five slices of the expanded async stdlib and
+documentation batch are complete (100/100 weighted points). RM#162 remains open for
+broader real-program work, including anonymous functions, closures and shared state.
+These are alpha.16 development docs; release pins, the playground and published articles
+are unchanged. This completion record changes no runtime or build behaviour and requires
+no performance measurement or repeated product validation.
+
+
+## Callable and state contract proposal, 23 November 2026
+
+The owner selected the next design task after stdlib completion. The
+[contract proposal](docs/CALLABLES_AND_STATE_PROPOSAL.md) records syntax, effects, immutable capture,
+explicit state, lifetime/cancellation rules, diagnostics and the complete target
+uptime/counter service. Four provisional implementation slices carry weights
+20/30/30/20; all are proposed with zero earned contribution. Owner review is
+pending; this is not implementation approval or a current language specification.
+No runtime/performance impact or CI is required for this informational record.
+Website and published-article updates await agreement and separate review.
+
+23 November review revision: PR #700 now defines scheduler-preemptible cell
+reservations with cancellation before commit, State identity and closure capture
+equality, explicit resource-capture restrictions, contextual callback parameter
+types and committed-increment counting. Owner contract review remains pending;
+implementation has not started and the proposed weights remain unchanged.
+
+PR #700 second-review clarifications: infer callback input types before checking
+the body, then infer generic output types from its result; preserve existing
+scalar Map-key/Set-element restrictions. Acceptance cases updated. Contract
+approval remains pending; implementation and proposed weights are unchanged.
+
+23 November: the owner approved PR #700 for merge and requested a stop. The
+callable/state contract is accepted on merge. CS1–CS4 are planned, unstarted
+(0/100 earned implementation points); work pauses before CS1.
+
+25 November: the owner resumed CS1 on `feature/rm162-anonymous-functions`.
+Anonymous header parsing is under development; 224 parser assertions and the
+candidate compiler build pass. Expression integration, contextual checking,
+effects and lowering remain; no anonymous-function feature is accepted yet.
+CS2–CS4 remain planned. No CI, seed refresh or final full validation at this
+checkpoint; implementation weights and zero accepted contribution are unchanged.
+
+27 November: CS1 now parses complete anonymous expressions, including block and
+nested bodies. Parameter scopes, qualified annotations, source inventory and
+cache encoding retain the new syntax. Focused checks cover 237 parser, 31 resolver,
+38 source-span, 28 inventory and 2,042 module-binding/cache assertions; the
+candidate compiler builds and verifies. Anonymous functions still fail closed at
+type checking: contextual types, effects and noncapturing lowering remain. No CI,
+bootstrap refresh or final full validation; no implementation slice is accepted.
+
+27 November, working execution checkpoint: CS1 now checks and lowers noncapturing
+anonymous functions using the existing bytecode format. Pure, ordinary and async
+bodies have separate effect scopes. Direct annotated targets, direct return
+values and callback arguments supply parameter types; map results infer from the
+body. Generated functions survive body/code caches and generic type identities.
+The focused module-binding/cache suite passes 2,151 assertions, including effect
+rejection and fresh/cached equivalence. Source and saved-bytecode execution agree
+for the new runtime fixture; the async fixture passes. A confirmed remaining gap
+is contextual typing through conditional return branches. Full contextual
+propagation, explanation/diagnostic acceptance and final compatibility/full
+validation remain before CS1 acceptance. No CI or bootstrap refresh; CS2–CS4 and
+the zero accepted implementation contribution are unchanged.
+
+27 November, compound contextual typing checkpoint: expected callable inputs now
+flow through if/match results, block tails, reassignment and compound callback
+arguments. Nested anonymous bodies also receive an explicit result annotation.
+Argument checking replays compound callbacks in source order after gathering
+input types, preserving mutation-based invalidation of guarded facts. A paired
+regression accepts guarded subtraction without a preceding mutation and rejects
+it when an earlier argument writes the guarded variable. Runtime selection
+effects occur once.
+
+The module-binding/cache suite passes 2,180 assertions, explanations 266 and
+purity 39. Candidate source execution and verified saved bytecode match the
+expanded fixed transcript. Remaining work is the contextual-type acceptance
+audit (including aggregate/constructor positions), explanation/diagnostic review,
+final functional registration and compatibility/full validation. CS1 remains in
+progress, with zero accepted implementation points; CS2–CS4 remain planned. No
+CI or bootstrap refresh. The extra checking pass is limited to calls containing
+compound callback expressions; ordinary calls retain their current path. No VM
+or bytecode changes. Website claims remain unchanged until feature acceptance.
+
+
+27 November, collection and evidence checkpoint: known array element types now
+reach anonymous parameters, including nested arrays, returned arrays and callback
+arrays supplied as arguments. Existing record constructor signatures also supply
+callback inputs. Regressions reject incompatible parameter types, impure bodies
+in pure callback arrays and unannotated inputs without context. Explanation
+evidence retains the exact anonymous body expression and its checked result; the
+missing-parameter diagnostic is asserted verbatim. The module-binding/cache suite
+passes 2,205 assertions. Expanded source and saved-bytecode transcripts match.
+The candidate passes native-oracle-artifacts for unchanged-program bytecode.
+
+CS1 remains in progress: finish the constructor/generic contextual boundary audit,
+end-to-end explanation review, functional registration and final bootstrap/full
+validation. No CI or bootstrap refresh. CS2–CS4 remain planned and accepted
+implementation contribution stays zero. The array pass reuses source-order child
+checking; no VM, bytecode-format or runtime representation change. No website
+publication; the proposal and test evidence describe development support.
+
+
+27 November, CS1 acceptance checkpoint: constructor context now supplies callback
+inputs through generic records and enum payloads, including nested arrays and
+qualified constructors. Ordinary function calls retain input-only inference; a
+regression rejects deriving an anonymous parameter from the receiving result.
+Explanation traversal enters anonymous bodies for type-at-position, inferred
+locals and guard evidence. The public CLI checks the original source locations.
+
+The module/cache suite passes 2,219 assertions. Ordinary and async functional cases
+pass source, compile and saved-bytecode checks; the CLI explanation fixture also
+passes all three modes, with 121 internal assertions. The fixture inventory and
+its mutation tests pass (616 outer transcript assertions). Candidate unchanged-
+program bytecode compatibility passed. Bootstrap refresh produced identical
+stage 2/3/4 compilers (88fa8a2ec9c850afb7e64bc714bca7eec194e9e8524e5821b8338e0be53c25ad)
+and matching standard-library artifacts/output. Final make check is running.
+CS1 remains unaccepted pending that result and integration; CS2–CS4 remain planned.
+No development CI or website publication. Specification and architecture now
+describe noncapturing support; closures and State are not claimed. The runtime
+and bytecode version are unchanged. Constructor-context inference is restricted
+to constructor calls with an expected type; ordinary calls keep their rules.
+
+
+CS1 final local acceptance, 27 November: make check passed in 708 seconds with
+host access (unit 421s, bootstrap 94s and functional 220s; bootstrap overlaps
+unit). Relocated-package smoke and quick-start passed. The suite caught a stale
+watchdog observation hook after the contextual block checker was introduced; the
+test-only observer now recognises both block entry points, with explicit stall,
+recovery and unchanged-budget assertions. No production VM or timeout policy
+change was needed. Earlier sandbox failure and the watchdog failure were fixed
+before this successful final run.
+
+CS1 implementation and local acceptance are complete, pending next integration
+and hosted acceptance. CS2–CS4 remain planned. Accepted implementation points
+stay at zero until integration acceptance; RM#162 remains open. The measured
+full-run duration is evidence, not a new performance target. No development CI
+or website publication occurred.
+
+
+CS1 merged into next through [PR #701](https://github.com/sproates/panackelty/pull/701) at `14b709d` on 27 November. [Integration run 46042786755](https://github.com/sproates/panackelty/actions/runs/46042786755) is running; hosted acceptance remains pending. Local make check passed in 708s. CS2–CS4 remain planned; accepted implementation contribution stays zero until that run is verified.
+
+
+CS1 accepted, 27 November: [PR #701](https://github.com/sproates/panackelty/pull/701) is merged and [integration run 46042786755](https://github.com/sproates/panackelty/actions/runs/46042786755) passed for `14b709d`. Full local make check passed in 708s. Subsequent status changes contain informational Markdown only. CS1: Anonymous functions is complete (20/20 points); CS2: Retained captures (30), CS3: State (30) and CS4: Examples/documentation/installed acceptance (20) remain planned. Programme earned contribution is 20/100. RM#162 remains open; CS1 has no separate issue to close. No website publication or closure/State completion is claimed.
+
+
+CS2 started, 27 November, on feature/rm162-retained-captures from next 4cc5d00.
+The first runtime checkpoint adds an owned closure value with lexical target
+identity and retained capture values. Equality compares target and captures, not
+allocation identity. Capture eligibility follows actual ownership edges through
+collections, records, variants and other closure environments, including hidden
+shared-array suffixes. A non-recursive worklist with a visited-pointer set avoids
+revisiting shared graphs. Native resources, Void, iterators and unclassified new
+value kinds fail closed. Array append checks now follow closure ownership edges
+to prevent introducing shared-storage reference cycles.
+
+This is runtime groundwork, not executable source closure support. No instruction
+or builtin constructs the new value yet. Source capture analysis, checked
+construction/invocation, verifier/effect/arity enforcement, async/native handler
+integration, iterator snapshots, cache/provenance evidence and final functional/
+full validation remain. CS2 is in progress with zero earned points; CS1 remains
+accepted and programme progress is 20/100. No CI, bootstrap rebuild or website
+change accompanies this checkpoint.
+
+CS2 checked invocation checkpoint, 27 November: CALL_VALUE and AWAIT_VALUE now
+accept internal closure values. Captures precede explicit arguments in the
+callee frame; target lookup, arity and the existing pure/async call-edge rules
+are checked before entry. Named references keep their existing path. Small
+combined argument lists use stack storage; larger lists use a temporary borrowed
+pointer vector, with frame ownership handled by the existing retain/release path.
+Native tests cover argument order, repeated invocation, the effect matrix,
+missing/builtin targets, arity mismatch, suspension, cancellation and callee
+traps. Source construction/lowering, host-retained callbacks, iterator snapshots,
+cache/provenance and final slice acceptance remain. No bytecode format or compiler
+seed change. CS2 remains in progress with zero accepted points (programme 20/100).
+
+CS2 source-lowering checkpoint, 27 November: referenced immutable lexical values
+now become closure captures, including captures used by nested closures. Generated
+functions receive a hidden capture-parameter prefix; the public callable signature
+retains only explicit arguments. Generic types are rebound to the anonymous body
+while lexical declaration identities remain available for provenance. Capture
+reads are children of the creation node; the nested function body remains a
+separate effect scope. Known mutable/resource captures are diagnosed, and the
+runtime validates target, layout and resource graphs again at construction.
+
+The reserved pure `$intrinsic_closure` builtin is an additive v9 capability;
+there is no opcode or constant-layout change. Older runtimes reject the unknown
+intrinsic. Noncapturing and named callables remain unchanged. The compiler rejects
+combined capture/explicit parameter counts beyond v9's 255-parameter limit.
+Ordinary and async candidate fixtures pass source execution and saved bytecode,
+including creator-return lifetime, nested/generic captures, captured callbacks,
+collection callbacks, equality and repeated awaits. This is candidate evidence;
+the public launcher still uses the unchanged bootstrap compiler. Host-retained
+callbacks, iterator snapshots, dedicated capture explanations, bootstrap refresh
+and final acceptance remain. CS2 stays in progress; programme earned contribution
+is 20/100. No development CI or website publication.
+
+CS2 retained-host checkpoint, 27 November: HTTP routes and fallbacks, contextual
+HTTP handlers, TCP workers and service readiness callbacks now retain closure
+environments. The shared checked callable descriptor preserves target identity,
+explicit arity and async effects; child frames retain captures independently and
+server destruction releases retained environments. Verified-program target lookup
+uses the existing index. No throughput improvement is claimed.
+
+Native lifetime and allocation-failure checks pass, including sanitizer checks.
+The candidate HTTP fixture passes ordinary/contextual routes and fallback in
+source and saved-bytecode modes after the creating function returns. The binding
+and cache suite passes 2,265 assertions. Captured arrays and ranges can be iterated
+from the start on every invocation; loop-created closures retain each iteration's
+value. Source and saved-bytecode transcripts agree.
+
+Iterator clarification supersedes earlier pending-snapshot notes: source iteration
+exposes iterable values, not the VM's mutable V_ITER cursor. Each loop creates a
+fresh cursor. Raw internal cursors remain capture-ineligible; no new public
+iterator API or cursor snapshot feature is introduced.
+
+The existing zero-grace TCP cancellation assertion failed once, then passed on
+retry and under sanitizers. No timeout or assertion was weakened; watch this
+case during final validation. Capture explanations, bootstrap refresh, public
+launcher/full validation and integration remain. CS2 is not accepted; programme
+progress remains 20/100. No development CI or website publication.
+
+CS2 explanation checkpoint, 27 November: the checker now records capture eligibility
+and reasons in explanation mode. Text and terminal views show accepted/rejected
+captures and follow lexical identities to declaration context, including shadowed
+parameters. Evidence is not inferred from diagnostic text. The ordinary body cache
+retains lexical identities but omits explanation evidence; explain checks source
+afresh. No cache-schema or bytecode-format change is needed. The terminal's generated
+instruction description names closure creation rather than its reserved intrinsic.
+Candidate CLI explanation checks pass (123 cases), and unchanged-program bytecode
+contracts pass. Bootstrap refresh and final local validation are in progress.
+CS2 remains unaccepted and programme progress stays 20/100. CS3 State and CS4 final
+examples/installed/website acceptance remain planned; no website publication or
+CI has been started by this development checkpoint.
+
+CS2 local acceptance, 27 November: full `make check` passed in 725s, including
+unit/functional suites, fixed-point bootstrap, packaging, relocation and quick
+start. The existing zero-grace TCP assertion passed in this full run. Focused
+capture checks passed 2,313 binding/cache assertions and 123 CLI cases; terminal
+navigation, capture origin and TTY restoration passed. Bootstrap compiler and
+stdlib conformance outputs matched across stages. Unchanged-program bytecode
+compatibility and native closure lifetime/allocation/sanitizer checks passed.
+The 725s broad run versus CS1's 708s is not a controlled performance comparison;
+existing historical advisory budget warnings remain unchanged.
+
+CS2 implementation and local acceptance are ready for integration. CS2 remains
+unaccepted until next integration CI passes; no task points are earned early.
+CS1 remains 20/20, CS2 0/30 pending integration, CS3 State 0/30 and CS4 examples/
+installed/website acceptance 0/20. Programme accepted progress remains 20/100.
+RM#162 stays open; CS2 has no separate issue to close. The existing CS4 website
+follow-up covers closure examples/reference updates; nothing is published here.
+
+CS2 integration correction, 27 November: PR #704 merged at `149f629`. Integration
+run 46067182572 passed both platform package checks but failed coverage policy:
+the new capture_explanations.panack file was missing from the manifest. The follow-up
+adds it to eligible compiler sources and refreshes declaration exclusions with the
+production parser/inventory (53 eligible files, 556 excluded declarations). No
+executable code or coverage threshold is excluded or relaxed. All 77 hosted-policy
+tests pass locally. Product code is unchanged from the 725s full validation.
+CS2 acceptance awaits the repaired integration gate; programme progress stays 20/100.
+
+CS2 complete, 27 November: retained captures and explanations merged through
+[PR #704](https://github.com/sproates/panackelty/pull/704); coverage inventory was
+reconciled in [PR #705](https://github.com/sproates/panackelty/pull/705).
+[Integration run 46067730132](https://github.com/sproates/panackelty/actions/runs/46067730132)
+passed for `31422e0`, including both platform package checks, coverage policy and
+the integration gate. Full local make check passed in 725s; focused terminal,
+CLI, cache, lifetime, allocation-failure and sanitizer evidence is recorded above.
+CS2 earns 30/30 points. CS1 remains 20/20; CS3 State (30) and CS4 combined examples,
+installed acceptance and website guidance (20) remain planned. Accepted programme
+progress is 50/100. RM#162 remains open; there is no separate CS2 issue to close.
+No State implementation, release or website publication is claimed.
+
+### CS3 local acceptance, 28 November 2026
+
+Ordinary and async State cells now pass final local `make check` in 725 seconds,
+including native, compiler, functional, bootstrap, archive relocation and quick-start
+checks. The final seed is `987b93428bd3bb92becfa011c376d9379ebe97dc03ba9037b822cfbecd78331e`;
+three bootstrap stages are byte-identical and stdlib artifacts/output agree.
+Unchanged-program artifact checks pass. The full run includes 2,313 binding/cache
+assertions, State source/bytecode and cold/warm caller-edit acceptance. Separate
+sanitizer and 59 allocation-failure checks passed during development.
+
+The final audit gives forged handles a specific diagnostic, preserves source spans
+for tagged named references, and documents State ownership, cancellation and generic
+type erasure. Four old test expectations were corrected after reviewing the emitted
+instruction offsets and package members: one disassembly, two instruction-source
+traces, and the inventory entries for the two new modules. The final full run has
+no failures. Runtime payload/callback safety remains enforced with v9 bytecode;
+source generic/refinement proofs are not reconstructed from erased bytecode.
+
+Performance: the final full run is comparable to CS2's 725-second run, with no new
+numeric budget claim. Collection-key checks use a propagated flag rather than a
+recursive walk per lookup; generic obligations converge over finite parameter sets.
+Existing historical validation-budget warnings remain informational.
+
+CS3 implementation and local acceptance are complete, pending next integration
+checks. CS3 earns 0/30 until that result; CS1 and CS2 retain 20/20 and 30/30.
+CS4 combined HTTP examples, installed acceptance and website guidance remains 0/20.
+Accepted programme progress is 50/100. RM#162 stays open; CS3 has no separate issue.
+Website follow-up remains with CS4; no release or website publication is claimed.
+
+CS3 accepted, 28 November: [PR #707](https://github.com/sproates/panackelty/pull/707) merged at `a5a4a08`; [integration run 46081707303](https://github.com/sproates/panackelty/actions/runs/46081707303) passed. The next workflow ran coverage policy and integration result gates; full platform builds were intentionally skipped. Full local make check passed in 725s. CS3 earns 30/30; accepted callable/State progress is 80/100 (CS1 20/20, CS2 30/30, CS4 0/20).
+
+CS4 started on `feature/rm162-state-examples`: equivalent closure and named contextual HTTP examples, a standalone counter, and focused source/bytecode tests now cover increasing uptime, concurrent increments, uncounted routes, startup clock failure and post-commit clock failure. All cases also pass from a relocated installation with compiler/stdlib overrides removed and the installed compiler hash matched to the validated seed. No compiler or VM source changed. The example-only validation reuses the CS3 product baseline; the mistakenly invoked broad packaging conformance run was stopped, and package assembly/quick-start reused its unchanged native-check prerequisite. Website State API/reference guidance is prepared separately for preview review and approval; CS4 remains unaccepted. RM#162 stays open.
+
+
+## Callable and State programme complete — 28 November 2026
+
+CS4 is accepted (20/20): core [PR #708](https://github.com/sproates/panackelty/pull/708) and [integration run 46088757576](https://github.com/sproates/panackelty/actions/runs/46088757576) passed. Focused source/bytecode and relocated-installation checks cover both HTTP handler styles, the standalone counter, concurrent counts and clock failures. Website [PR #80](https://github.com/sproates/panackelty-website/pull/80) was approved after preview review and published at `d51cfcc`. [Publication run 46091796386](https://github.com/sproates/panackelty-website/actions/runs/46091796386) reused successful PR validation, including browser/mobile tests, and passed exact deployed-byte/provenance checks. Live concept pages for anonymous functions, closures and State, the cookbook and State API reference were verified. All four concept teaching programs and 55 local website tests passed.
+
+CS1 20/20, CS2 30/30, CS3 30/30 and CS4 20/20: this bounded programme is complete at 100/100. RM#162 remains open as the ongoing real-program-fixes allocation; no separate CS4 issue exists. Alpha.16 is not released, and alpha.15/playground pins are unchanged.

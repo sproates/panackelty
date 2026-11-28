@@ -3,7 +3,7 @@ import stdlib/testing_commands::{ProcessOutput}
 import stdlib/testing_files as std_testing_files
 import stdlib/testing::{TestResult}
 import stdlib/bytes as byte_buffer
-import stdlib/filesystem as std_filesystem
+import stdlib/filesystem/legacy as std_filesystem
 import stdlib/host as std_host
 import project/tests/runner/compiler_coverage_session_helpers::{session_path,session_setup,session_require_success,session_command,session_read,session_write,session_clean}
 main(): Void {

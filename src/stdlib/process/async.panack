@@ -1,0 +1,15 @@
+pub import stdlib/process/errors::{ProcessError, ProcessErrorKind}
+import stdlib/process/errors as errors
+pub import stdlib/process/types::{HostError, Command, ProcessEnvironment, ProcessEnvironment.InheritEnvironment,
+  ProcessEnvironment.ExactEnvironment, ProcessTermination, ProcessTermination.Exited,
+  ProcessTermination.Signalled, ProcessOutput}
+pub import stdlib/host/async::{arguments, exit}
+import stdlib/process/types as representation
+pub async run(command: Command): Result[ProcessOutput,ProcessError] {
+  errors.convert(representation.convert(match command.environment {
+    InheritEnvironment(entries) => await process_run_async(command.executable, command.arguments, command.stdin,
+      command.working_directory, entries, command.timeout, command.output_limit),
+    ExactEnvironment(entries) => await process_run_isolated_async(command.executable, command.arguments, command.stdin,
+      command.working_directory, entries, command.timeout, command.output_limit)
+  }), command)
+}

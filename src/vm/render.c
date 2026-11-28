@@ -54,6 +54,18 @@ bool render(Buffer *b, const Value *v, bool display)
 {
     char *number = NULL;
     switch (v->kind) {
+    case V_STATE:
+        return buffer_text(b, "<State>");
+    case V_CLOSURE:
+        return buffer_text(b, "<closure>");
+    case V_SHA256_CONTEXT:
+        return buffer_text(b, "<Sha256Context>");
+    case V_GZIP_DECODER:
+        return buffer_text(b, "<GzipDecoder>");
+    case V_HTTP_STREAM:
+        return buffer_text(b, "<HttpStream>");
+    case V_DIRECTORY_STAGE:
+        return buffer_text(b, "<DirectoryStage>");
     case V_HTTP_CONNECTION:
         return buffer_text(b, "<HttpConnectionState>");
     case V_HTTP_STATE:

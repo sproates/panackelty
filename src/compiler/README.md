@@ -65,7 +65,11 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   identities, enum ownership and private/ambiguous export lookup. The loader
   retains these before combination and builds a name-to-declaration index for
   signature resolution. This avoids rescanning each module's full AST for every
-  nominal type lookup. The loader separates physical source paths from relative
+  nominal type lookup. Collected bindings retain duplicate/reserved-name diagnostics
+  with their declaration/import snapshots. Repeated resolution reuses that result
+  only when both snapshots still match, including source positions; raw or changed
+  bindings validate normally. This is per-compilation memory, not a disk cache.
+  The loader separates physical source paths from relative
   semantic identity and passes declaration origins into resolver diagnostics.
 - `project_model/` owns package manifest records, parsing and the strict
   schema-1 resolved-project descriptor shared with the independent package
@@ -97,7 +101,9 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
 - `module_signatures.panack` resolves staged declaration signatures to tagged core,
   nominal, binder-position parameter and callable-effect identities. Original-ID
   public reachability validates nested fields/payloads/parameters/returns and
-  guard dependencies; generic substitution cannot capture another declaration's
+  guard dependencies. Public reachability stops resolving further re-export
+  routes once one route is proved; full graph validation still diagnoses invalid
+  imports independently. Generic substitution cannot capture another declaration's
   parameters. `LoadedProject.module_signatures` retains the valid contracts for
   body/effect/emission/tooling migration. The loader
   prepares contracts across the graph before binding function bodies;
@@ -177,7 +183,27 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   the entry directory, rejects symlink traversal, and supports an explicit
   `PANACKELTY_BOOTSTRAP_ROOT` for isolated compiler-stage builds. It loads each
   module once, retains ordered source snapshots, and supplies the identity graph
-  to staged checking and emission.
+  to staged checking and emission. `LoadedProjectSources` separates fresh source
+  discovery/parsing from `check_project_sources`, without changing ordinary
+  loading or confinement requirements.
+- `module_reuse.panack` computes conservative body-reuse eligibility from exact
+  source snapshots and transitive import edges. The loader exposes
+  `check_project_sources_reusing` with an explicit session-local snapshot;
+  signatures, guards, global effects and final emission stay fresh. See the
+  [checked-module trial](../../docs/COMPILER_MODULE_REUSE_TRIAL.md).
+- `compilation_cache.panack` owns the opt-in private local cache for successful
+  check/compile/run artifacts. It fingerprints exact source snapshots, resolved
+  project descriptors and toolchain bytes; hits skip checking/emission, never
+  program execution. Tooling modes remain fresh. See the
+  [unchanged-compilation trial](../../docs/COMPILER_UNCHANGED_REUSE_TRIAL.md).
+- `module_cache.panack` persists encoded functions and compact effect facts for
+  incremental builds, with conservative transitive keys and atomic publication.
+  `body_cache_codec.panack` uses separate bounded formats for code records and
+  the retained checked-body comparison/fallback. The code reader validates exact
+  function ownership/names and canonical encoded bytes. The body reader retains
+  shared-type/depth/expansion bounds. Invalid entries fall back to fresh work.
+  The VM format is unchanged. See
+  [persistent reuse](../../docs/COMPILER_PERSISTENT_REUSE.md).
 - `module_emission.panack` lowers fully identity-checked bodies and canonical
   function/type/variant identities to deterministic private names. Entry `main`
   remains the launch point; imported `main` functions are internalized. The
@@ -198,6 +224,10 @@ documented in `../../docs/guides/SOURCE_MAPS.md`.
   identity emission for check/run/compile, validated `locate` and identity-
   qualified `explain` selection. Coordinated source/seed migration remains
   slice 8.
+  Usage output is asserted by
+  [the compiler-skeleton transcript](../../tests/functional/cases/compiler_skeleton/expected.stdout)
+  for both source and saved-bytecode execution; update and check that fixture
+  when changing the help text.
 - `main.panack` is the executable self-hosted compiler entry point.
 
 The public frontend, backend, project loader, and driver live here and execute
@@ -398,3 +428,35 @@ GI#525 P14. P12 removes the compatibility frontend and receiver wrappers.
 Internal operation strings and VM primitive identities are not caller APIs.
 See the [P11 report](../../docs/design/type-owned-dispatch/p11-remaining-callers.md)
 for seed evidence and the exact retained test-input boundary.
+
+When adding a production compiler module, update
+`tests/source_coverage/manifest.json` and review the associated policy digests.
+Run `node --test tests/source_coverage/manifest.test.cjs tests/source_coverage/policy.test.cjs`
+before integration. These quick inventory/policy checks are separate from
+`make check`; passing the full product suite does not establish manifest completeness.
+
+`module_effects.panack` exposes compact plain-mode effect facts used by the
+encoded-function cache. Ordered call/await checks and transitive permissions are
+rechecked against current signatures without restoring checked body trees. The
+rich checker remains the explanation/source-map path and differential oracle.
+See the [cache trial](../../docs/COMPILER_EDIT_PROFILE.md#encoded-function-cache-trial-8-november-2026).
+
+Standalone incremental commands can validate a successful source-input ledger
+before invoking the loader. `compilation_cache.panack` rereads bounded source and
+toolchain bytes and verifies the existing whole-artifact key; a miss returns to
+normal loading. Package confinement and rich tooling retain their current paths.
+See [persistent reuse](../../docs/COMPILER_PERSISTENT_REUSE.md#standalone-unchanged-build-fast-path).
+
+After a standalone input-key miss, `module_summaries.panack` supplies declaration
+projections for exact unchanged sources. `module_cache.panack` validates and stores
+their private bounded encoding. The loader marks missing bodies explicitly, retains
+loader diagnostics and implicit validation imports, and restores complete parsing
+before checking any module without reusable compiled code. Error fallback restarts
+full discovery. Package and rich-tooling entry points keep full loading. See the
+[summary contract](../../docs/COMPILER_PERSISTENT_REUSE.md#standalone-declaration-summary-reuse).
+
+The async stdlib module paths use the existing logical-import hierarchy. The
+parser allows the reserved `async` token as a path segment. Closed primitive
+grants, signatures and effect checks cover `time/async.now` and
+`environment/async.get`; both require await and remain impure. Diagnostics for
+ordinary clock/environment calls in async functions point to these imports.

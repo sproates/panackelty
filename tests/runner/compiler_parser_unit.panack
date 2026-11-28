@@ -1,5 +1,5 @@
 import stdlib/testing as std_testing
-import project/src/compiler/parser::{parse_source,parse_program_source,parse_block_source,parse_type_source,lex,parse_module_complete, OwnedMethodSyntax}
+import project/src/compiler/parser::{parse_source,parse_program_source,parse_block_source,parse_type_source,lex,parse_module_complete, parse_anonymous_header, OwnedMethodSyntax}
 import stdlib/host as std_host
 import stdlib/testing::{TestResult}
 // Direct parser contracts, grouped by the former Python test method.
@@ -860,6 +860,75 @@ pure parser_unit_owned_methods(): [TestResult] {
 }
 
 
+pure anonymous_header_summary(source: Str): Str {
+  match lex(source) {
+    Error(problems) => "lexer failure",
+    Ok(tokens) => match parse_anonymous_header(tokens, 0) {
+      Error(problem) => problem.message,
+      Ok(candidate) => match candidate {
+        None() => "ordinary expression",
+        Some(header) => {
+          mut description: Str = header.effect
+          for parameter in header.parameters {
+            description = description + " " + parameter.name + ":" +
+              match parameter.annotation { None() => "?", Some(value) => value.text }
+          }
+          description = description + " -> " + match header.result { None() => "?", Some(value) => value.text }
+          description + " body=" + if header.next < tokens.len() { tokens[header.next].text } else { "EOF" }
+        }
+      }
+    }
+  }
+}
+
+pure parser_unit_anonymous_headers(): [TestResult] {
+  [
+    std_testing.equal_str("parser/anonymous/typed", anonymous_header_summary("(x: Nat) => x + 1"), "inferred x:Nat -> ? body=x"),
+    std_testing.equal_str("parser/anonymous/contextual", anonymous_header_summary("(x) => x + 1"), "inferred x:? -> ? body=x"),
+    std_testing.equal_str("parser/anonymous/async", anonymous_header_summary("async (): Result[Unit,Str] => { Ok(()) }"), "async -> Result[Unit,Str] body={"),
+    std_testing.equal_str("parser/anonymous/pure", anonymous_header_summary("pure (x: [Nat], f: PureFn[Nat,Str]): [Str] => { x.map(f) }"), "pure x:[Nat] f:PureFn[Nat,Str] -> [Str] body={"),
+    std_testing.equal_str("parser/anonymous/grouping", anonymous_header_summary("(1 + (2 * 3))"), "ordinary expression"),
+    std_testing.equal_str("parser/anonymous/unit", anonymous_header_summary("()"), "ordinary expression"),
+    std_testing.equal_str("parser/anonymous/nested", anonymous_header_summary("((x: Nat) => x)"), "ordinary expression"),
+    std_testing.equal_str("parser/anonymous/duplicate", anonymous_header_summary("(x: Nat, x) => x"), "anonymous function parameter x is declared more than once"),
+    std_testing.equal_str("parser/anonymous/missing-arrow", anonymous_header_summary("pure (x: Nat) x"), "expected => after anonymous function parameters and result type"),
+    std_testing.equal_str("parser/anonymous/missing-paren", anonymous_header_summary("async x => x"), "expected opening parenthesis after anonymous function effect"),
+    std_testing.equal_str("parser/anonymous/trailing-comma", anonymous_header_summary("(x: Nat,) => x"), "expected anonymous function parameter name"),
+    std_testing.equal_str("parser/anonymous/missing-type", anonymous_header_summary("(x:) => x"), "expected type")
+  ]
+}
+
+pure parser_unit_anonymous_expressions(): [TestResult] {
+  [
+    std_testing.equal_str("parser/anonymous/expression",
+      parse_source("(x: Nat) => x + 1"), "((x: Nat) => (x + 1))"),
+    std_testing.equal_str("parser/anonymous/contextual-body",
+      parse_source("values.map((x) => x + 1)"), "values.map(((x) => (x + 1)))"),
+    std_testing.equal_str("parser/anonymous/result-body",
+      parse_source("pure (x: Nat): Nat => { x + 1 }"), "(pure (x: Nat): Nat => { (x + 1) })"),
+    std_testing.equal_str("parser/anonymous/async-body",
+      parse_source("async () => { await clock.now() }"), "(async () => { (await clock.now()) })"),
+    std_testing.equal_str("parser/anonymous/nested-body",
+      parse_source("(x: Nat) => (y: Nat) => x + y"), "((x: Nat) => ((y: Nat) => (x + y)))"),
+    std_testing.equal_str("parser/anonymous/callable-group",
+      parse_source("((x: Nat) => x + 1).call(2)"), "((x: Nat) => (x + 1)).call(2)"),
+    std_testing.equal_str("parser/anonymous/argument-boundary",
+      parse_source("apply((x: Nat) => x + 1, 2)"), "apply(((x: Nat) => (x + 1)), 2)"),
+    std_testing.equal_str("parser/anonymous/conditional-body",
+      parse_source("(x: Nat) => if x > 0 { x } else { 1 }"), "((x: Nat) => if (x > 0) { x } else { 1 })"),
+    std_testing.equal_str("parser/anonymous/array-bodies",
+      parse_source("[() => 1, () => 2]"), "[(() => 1), (() => 2)]"),
+    std_testing.equal_str("parser/anonymous/unit-body",
+      parse_source("() => ()"), "(() => $unit())"),
+    std_testing.equal_str("parser/anonymous/missing-body",
+      parse_source("() =>"), "expected expression"),
+    std_testing.equal_str("parser/anonymous/multiline-body",
+      parse_source("() => {\n value = 1\n value\n}"), "(() => { value = 1; value })"),
+    std_testing.equal_str("parser/anonymous/legacy-grouping",
+      parse_source("(1 + 2) * 3"), "((1 + 2) * 3)")
+  ]
+}
+
 main(): Void {
   mut results: [TestResult] = parser_unit_owned_methods()
   results = results.append(std_testing.equal_str("parser/dot-method-spelling-retained",
@@ -904,5 +973,7 @@ main(): Void {
   results = results.concat(parser_unit_reports_malformed_match_expressions())
   results = results.concat(parser_unit_reports_malformed_record_declarations())
   results = results.concat(parser_unit_reports_malformed_type_references())
+  results = results.concat(parser_unit_anonymous_headers())
+  results = results.concat(parser_unit_anonymous_expressions())
   if std_testing.report(results) > 0 { std_host.exit(1) }
 }

@@ -21,6 +21,7 @@ static atomic_size_t syscall_at, syscall_seen;
 static atomic_int syscall_error;
 static atomic_bool descriptors[4096];
 static atomic_size_t descriptor_count, child_count;
+static atomic_bool pause_fstat, fstat_paused;
 static atomic_bool pause_reads, read_paused, pause_writes, write_paused;
 
 static pthread_once_t fork_lock_once = PTHREAD_ONCE_INIT;
@@ -42,9 +43,23 @@ static void register_fork_lock(void)
 
 /* Change injection schedules only after workers have quiesced. Bookkeeping
  * remains safe while an owner and filesystem workers allocate concurrently. */
+static int process_group_mode;
+
+void fault_process_group(int mode) { process_group_mode = mode; }
+
+int fault_setpgid(pid_t pid, pid_t group)
+{
+    if (!process_group_mode) return setpgid(pid, group);
+    if (pid != 0) return 0; /* Make the child outcome deterministic. */
+    if (process_group_mode != 2 && setpgid(pid, group)) return -1;
+    errno = process_group_mode == 3 ? EIO : EPERM;
+    return -1;
+}
+
 void fault_reset(size_t allocation)
 {
     pthread_once(&fork_lock_once, register_fork_lock);
+    process_group_mode = 0;
     attempts = 0;
     fail_at = allocation;
     triggered = false;
@@ -331,8 +346,17 @@ int fault_open(const char *path, int flags, ...)
     return fd;
 }
 
+void fault_pause_fstat(bool pause) { atomic_store(&pause_fstat, pause); }
+bool fault_fstat_paused(void) { return atomic_load(&fstat_paused); }
+
 int fault_fstat(int fd, struct stat *info)
 {
+    if (atomic_load(&pause_fstat)) {
+        atomic_store(&fstat_paused, true);
+        struct timespec delay = {.tv_nsec = 1000000};
+        while (atomic_load(&pause_fstat)) nanosleep(&delay, NULL);
+        atomic_store(&fstat_paused, false);
+    }
     return syscall_fails("fstat") ? -1 : fstat(fd, info);
 }
 

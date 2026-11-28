@@ -99,6 +99,16 @@ release; existing publication correctness defects retain their separate treatmen
 
 ### Continuous scorecard
 
+**7 November 2026, RM#28 persistent-cache candidate:**
+[one-shot incremental compilation](../../COMPILER_PERSISTENT_REUSE.md) measures
+fresh, cold-cache, unchanged and edited builds separately. Cache construction
+and typed-body decoding are material costs; the feature remains opt-in. The
+delivery maintainer owns the recorded measurements; full local validation passed
+in 551 seconds. Proposed
+disposition: retain the faster edited/unchanged paths with the documented cold
+cost, subject to owner review before integration. This does not complete GI#106
+or establish a replacement validation-time budget.
+
 | Area / existing work | Established target and current evidence | State, responsible role and next action |
 | --- | --- | --- |
 | Developer/build feedback · [RM#28: Incremental and modular builds](independent-website-publishing.md#rm-28) / [GI#106](https://github.com/sproates/panackelty/issues/106) | 2026-10-12 macOS arm64: clean-check median 608.81s at two workers; warm `check-compiler` median 114.44s at two workers and 105s at four; one fresh-cache probe 0.30s. PR #389 and same-tree post-merge Check took 8m11s and 10m14s; both passed. Earlier 120s/15s/75s/60s figures remain historical. A reused-tree `make check` for the diagnostics slice passed in 413s; this is not a matched performance comparison. | The [local/CI inventory](../../../tests/VALIDATION_PROFILE.md#gi106-workflow-inventory) and [representative change-impact map](../../../tests/VALIDATION_PROFILE.md#gi106-change-impact-map) are recorded. All three earlier `next` push failures followed green PR Checks on identical product trees. Paired jobs also used identical runner and base-image versions within each OS; Linux regions differed. This rules out image-version drift as an evident explanation, but the historical failures remain unexplained. PR #392's first hosted run exposed a test-ordering mistake: the checkpoint check ran in the compiler harness before the VM test binary was built. Moving it to the VM contract runner fixed the order; the corrected local VM suite and compiler harness passed. Corrected head `0609d09` passed all checks in [PR run #38224322156](https://github.com/sproates/panackelty/actions/runs/38224322156) (8m45s); merged as `6597c16`, whose [post-merge run #38225333320](https://github.com/sproates/panackelty/actions/runs/38225333320) passed (9m24s). That historical disposition is superseded by the owner-directed cadence change below. PR #394 kept all four compiler experiments on every PR in both OS lanes and skipped their exact-tree repeat on `push`; the [first post-merge run](https://github.com/sproates/panackelty/actions/runs/38228244756) confirmed they were skipped in both compiler lanes while the product gates passed. The PR run took 8m34 and the post-merge run 8m30, so this pair does not demonstrate a total wall-time improvement. It does remove measured experiment work from the repeated post-merge lanes without reducing product gates. PR #389 corrected the isolated measurement fixture and documented a direct single-probe command; PR #390 records paired CI evidence. Runtime/compiler behavior and required product coverage are unchanged. The owner accepted the current workflow for Alpha.13 on 2026-10-15; That alpha.13 gate remains accepted. On 2026-10-20 the owner reopened the work; the [alpha.15 milestone](next-release--agreed-scope-2026-10-06.md#alpha15-validation-speed) now requires measured local/CI improvements with preserved assertions and owner acceptance. Implementation has not started; the delivery maintainer owns the baseline, bounded fixes and acceptance evidence. |
@@ -254,6 +264,19 @@ The workload and machine conditions differ; these are observations, not a
 matched performance comparison.
 
 
+### Incremental compiler follow-up, 8 November 2026
+
+The initial batch and coverage-manifest correction are integrated in PRs #678
+and #679 with green integration CI. Narrower declaration invalidation passed
+24 CLI groups and full local validation in 591s. A real body edit reused 46/49
+modules: local median 13.86s versus 15.91s fresh. The separate
+[hosted trial](../../COMPILER_HOSTED_CACHE_TRIAL.md) passed: on its warm runner,
+restored unchanged compilation took 4.83s versus 32.73s fresh, and an edited build
+took 21.11s versus 29.67s fresh. Outputs matched; save/restore overhead was about
+2s/1s. These are single hosted observations, not a full-pipeline speedup claim.
+The follow-up is included in this integration; automatic pipeline adoption remains
+separate. Bootstrap stays fresh and RM#157/GI#106 are not declared complete.
+
 ### RM#154 preparation reuse disposition, 28 October 2026
 
 [Final acceptance](../../COVERAGE_PERFORMANCE_BASELINE.md#final-acceptance-28-october-2026)
@@ -267,7 +290,215 @@ collector baseline are unavailable; no overall memory-saving claim is made.
 Disposition: finish the bounded alpha.15 optimisation as directed by the owner,
 retain current bounds and disclose the warm collector memory cost and slow cold
 path. The subsequent coverage-approach review owns assessment of cold preparation
-and retained decoded plans after alpha.15, allocated to alpha.16. No further
+and retained decoded plans after alpha.15, now allocated to alpha.17 by the 28 November release boundary. No further
 optimisation or new collection is a gate for this accepted bounded task. The
 implementation remains the responsibility of the core coverage maintainer; the
 next action is the separately scoped review, not an automatic repair campaign.
+
+### Checked-body decoder trial, 8 November 2026
+
+The [decoder follow-up](../../COMPILER_EDIT_PROFILE.md#decoder-trial-8-november-2026)
+reduced median isolated decoding by 12.0% and edited self-compilation by 6.3%
+over three alternating pairs. The first whole-build pair was slightly slower;
+all artifacts matched fresh compilation. Retain the bounded SourcePos decoder
+with cache format, invalidation and bounds unchanged. Focused tests, bootstrap
+fixed points and final `make check` (617s) passed; included in this integration.
+This does not complete RM#157 or GI#106.
+
+### Local compiler workflow adoption, 8 November 2026
+
+The [local workflow](../../COMPILER_EDIT_PROFILE.md#local-development-workflow-8-november-2026)
+adds incremental candidate builds through `make compiler` and explicit fresh
+comparisons through `make compiler-fresh`. Three paired source edits matched
+fresh bytecode; median edited time was 13.81s versus 15.86s fresh. The existing
+complete-artifact cache retained a 0.14s unchanged build. Cold cache population
+took 21.03s in one observation. Focused checks and final `make check` (567s)
+passed; the local workflow slice is included in this integration.
+No normal CI or bootstrap entry point changes. This does not complete GI#106
+or RM#157 and requires no website update.
+
+### Public signature reachability, 8 November 2026
+
+The [signature trial](../../COMPILER_EDIT_PROFILE.md#signature-reachability-trial-8-november-2026)
+found continued re-export resolution after a public route was already proved.
+Two short-circuit conditions reduced median edited self-compilation by 18.4%
+and fresh compilation by 21.8% in three alternating pairs. All artifacts matched;
+fresh timings varied more, but every pair improved. Focused signature/privacy
+and diagnostic checks, bootstrap fixed points and final `make check` (565s) pass.
+The bounded improvement is included in this integration. RM#157/GI#106 remain open; no website
+change or new persistent cache is included.
+
+### Name-lookup traversal trial, 8 November 2026
+
+The [follow-up trial](../../COMPILER_EDIT_PROFILE.md#name-lookup-traversal-trial--not-adopted-8-november-2026)
+reduced import-selector calls but did not improve ordinary compilation:
+13.155s original / 13.170s candidate medians across three alternating pairs.
+Artifacts matched and focused tests passed. The code was discarded; only the
+evidence is retained. Repeated binding-conflict validation is the stronger next
+candidate, subject to preserving diagnostics and invalid-graph checks. No new
+implementation or website change is included, and RM#157/GI#106 remain open.
+
+### Binding-validation reuse, 8 November 2026
+
+The [bounded follow-up](../../COMPILER_EDIT_PROFILE.md#binding-validation-reuse-trial-8-november-2026)
+retains binding diagnostics with their exact input snapshots within a compilation.
+Raw or changed inputs still validate normally. Three alternating pairs show median
+fresh self-build savings of 29.9% and edited-build savings of 19.5%; all paired
+artifacts match. Focused tests, exact negative diagnostics and native artifacts
+pass. Bootstrap fixed points and final `make check` (611s) passed; the bounded
+change is included in this integration. This does not complete
+RM#157/GI#106 or alter the website; no new persistent cache is introduced.
+
+### Post-optimisation reassessment, 8 November 2026
+
+The [updated profile](../../COMPILER_EDIT_PROFILE.md#post-optimisation-profile-8-november-2026)
+compares five fresh/edited pairs on the merged compiler. Medians are effectively
+level (10.713s fresh, 10.827s incremental), with substantial variation; unchanged
+reuse remains useful at 2.834s. Saved-body decoding dominates the edited profile
+at 4.494s, versus 0.146s checking changed bodies. A bounded decoder trial is the
+next recommendation, not an implemented change. All 16 invocations and output
+comparisons passed. This documentation-only reassessment does not complete
+RM#157/GI#106, change defaults or affect the website.
+
+### Decoder follow-up, 8 November 2026
+
+The [span/tag decoder trial](../../COMPILER_EDIT_PROFILE.md#span-and-body-node-decoder-trial-8-november-2026)
+reduces median edited self-build time by 3.4% across three alternating pairs,
+retaining formats and matching fresh bytecode. All 1,471 focused assertions,
+native artifacts, bootstrap checks and final `make check` (560s) passed; the batch
+is included in this integration.
+This is a modest improvement, not resolution of the larger cost of restoring
+checked-body trees. Representation/reconstruction alternatives are recorded as
+future hypotheses, not approved scope. RM#157/GI#106 remain open; no website change.
+
+### Retained-data assessment, 8 November 2026
+
+The [consumer audit and payload model](../../COMPILER_EDIT_PROFILE.md#retained-data-assessment-8-november-2026)
+found substantial repeated immutable types and identities. Per-module sharing
+models 14.4% smaller payloads for types alone and 31.5% with identities/bindings;
+these are size estimates, not measured runtime gains. Straightforward unused
+field removal saves only 2.6%. The recommendation is a bounded type-sharing
+experiment with downstream consumers unchanged, before considering lowered-code
+caching and effect summaries. This completes the investigation, not a product
+change or RM#157/GI#106. No website impact.
+
+### Shared-type cache trial, 8 November 2026
+
+The [shared-type trial](../../COMPILER_EDIT_PROFILE.md#shared-type-cache-trial-8-november-2026)
+stores each distinct immutable type once per module. Three alternating compiler
+self-build pairs show 10.5% lower median edited time, 9.4% lower peak memory and
+14.4% smaller module-cache files, with bytecode matching fresh compilation.
+Private cache formats advance to version 2; VM bytecode remains unchanged.
+Focused, artifact, bootstrap and final `make check` (565s) passed; the bounded
+change is included in this integration.
+This bounded optimisation does not complete RM#157/GI#106. No website impact.
+
+### Current-cache ceiling, 8 November 2026
+
+The [current profile and snapshot control](../../COMPILER_EDIT_PROFILE.md#current-cache-ceiling-experiment-8-november-2026)
+justify a bounded encoded-function cache experiment: 3.444s restoring bodies,
+1.270s in lowering/output, and an idealised in-memory edit at 5.48–5.51s.
+These are investigation results, not a product speedup. All bytes match fresh
+compilation. Small workloads still lose to cache overhead. Begin with compact
+effect facts and exact diagnostic comparisons; retain conservative cache keys,
+core reachability and the VM format. No implementation, CI or website change
+is included here; RM#157/GI#106 remain open.
+
+### Compact effect-facts foundation, 8 November 2026
+
+The [facts API and differential tests](../../COMPILER_EDIT_PROFILE.md#compact-effect-facts-foundation-8-november-2026)
+preserve complete plain-mode diagnostics and fresh global permissions without
+retaining body trees. All 1,517 focused assertions and native artifact contracts
+pass, as do bootstrap and final `make check` (555s). The checkpoint remains on
+the development branch, not yet integrated. Prepared-fact checking measures 0.681s
+median versus 0.820s over bodies, excluding extraction and cache operations.
+The normal loader remains on the existing checker. This is the prerequisite
+for the encoded-function cache trial, not an end-to-end speedup or completion
+of RM#157/GI#106. No website impact.
+
+### Encoded-function cache, 8 November 2026
+
+The [encoded-function trial](../../COMPILER_EDIT_PROFILE.md#encoded-function-cache-trial-8-november-2026)
+is implemented on the development branch, not yet merged into `next`. Three paired
+compiler edits measure 26.2% faster than the previous body cache, 30.7% below fresh,
+48.4% lower peak memory and 51.3% smaller module files, with exact fresh output.
+Normal incremental compilation selects this path; signatures, guards, global
+effects and core reachability are recomputed. Rich explanations keep full checking.
+Conservative keys and corruption fallback remain; VM bytecode is unchanged.
+Small-program cache overhead remains a limitation. The 1,832 focused assertions,
+30 cache CLI groups, native artifacts and bootstrap pass; final `make check`
+passed in 548s, with documentation checks also passing. This is a bounded local checkpoint, not completion of RM#28/GI#106 or
+RM#157, and does not change the website or trigger CI.
+
+The [post-code-cache profile](../../COMPILER_EDIT_PROFILE.md#encoded-function-path-profile-8-november-2026)
+at `cee968e` now locates 2.351s in lex/parse, 2.262s in cache payload restoration
+and canonical record validation, and 0.791s in fresh global effects. Eight
+invocations preserve exact output; the ordinary edited sample is 6.612s versus
+9.884s fresh. A source-loading reuse control is recommended before another
+implementation, with cheaper equally strict record validation as an alternative.
+This measurement-only checkpoint changes no product code and does not complete
+RM#28/GI#106 or RM#157.
+
+### Standalone unchanged-build fast path, 8 November 2026
+
+The [source-input ledger](../../COMPILER_EDIT_PROFILE.md#standalone-source-input-fast-path-8-november-2026)
+avoids parsing before an exact standalone whole-artifact hit. It rereads bounded
+source/toolchain bytes and checks the existing content key; edits fall back to
+discovery. Package confinement/loading stays unchanged. Three paired unchanged
+compiler runs measure 2.480s versus 0.0437s median (98.2% lower wall time), with
+exact artifacts. Final-seed observation confirms zero lexer/parser calls. All
+36 cache CLI groups, hosted/policy tests, artifacts and bootstrap pass; final
+`make check` passed in 553s, with documentation checks passing. This is a local branch checkpoint, not completion of
+RM#28/GI#106 or RM#157, and triggers no CI or website change.
+
+Integration selected, 8 November 2026: the owner approved merging the compact
+effect-facts, encoded-function reuse and standalone input-ledger batch into `next`.
+The final product tree passed local `make check` in 553s. Development/PR CI remains
+suppressed; hosted checks start on integration. This does not close RM#28/GI#106
+or RM#157. Earlier branch-only notes record the individual checkpoints.
+
+### Parsed-module reuse controls, 8 November 2026
+
+PR #691 merged the encoded-function/source-input batch; integration run
+[42498471810](https://github.com/sproates/panackelty/actions/runs/42498471810) passed.
+The [next isolated controls](../../COMPILER_EDIT_PROFILE.md#parsed-module-reuse-controls-8-november-2026)
+show full-tree decoding at 2.207s versus 2.681s lex/parse, but declaration summaries
+at 0.195s versus 2.649s. Twelve exact 49-module comparisons pass. No product code
+changes or end-to-end speedup are claimed. A distinct summary representation
+paired with valid compiled functions is recommended, with complete parsing on a
+miss and fresh diagnostic/artifact comparisons before adoption. RM#28/GI#106 and
+RM#157 remain open.
+
+### Module-summary implementation, 8 November 2026
+
+The [summary-reuse slice](../../COMPILER_EDIT_PROFILE.md#module-summary-integration-8-november-2026)
+is complete locally on the experiment branch. Median edited self-builds fall from
+7.91s to 5.61s (29.1%) with exact fresh bytecode; unchanged hits stay around 0.05s.
+The cold comparison is 13.20s / 15.09s and is recorded as a first-build trade-off.
+All 1,954 focused assertions, 43 CLI cache groups and 17 hosted/policy tests pass.
+Native artifacts and bootstrap fixed points pass; final `make check` passed in
+570s, including functional, packaging and installed smoke checks. Documentation
+checks pass. The profile retains an intermittent existing TCP-test failure that
+passed direct repeats and the final run; its cause is not claimed resolved.
+The owner selected integration into `next` on 8 November. This integration includes
+the validated summary-reuse slice. PR #692 merged as `ae52903`;
+[integration checks](https://github.com/sproates/panackelty/actions/runs/42505863760)
+passed. These are the lightweight next-push gates, not the full nightly matrix.
+Development/PR CI is suppressed under the alpha.16 trial, and the merge starts
+integration CI. The experiment branch is retained. This does not complete
+RM#28/GI#106 or RM#157; no release or website publication is included.
+
+### Return to real-program work, 8 November 2026
+
+The optimisation phase is paused at the merged checkpoint. Further VM/compiler
+optimisation and ordinary cross-run CI cache adoption remain future work; this
+does not declare RM#157 or RM#28/GI#106 complete. The owner-approved article is
+[published](https://panackelty.com/articles/making-panackelty-easier-to-develop/),
+fulfilling the optimisation-wrap-up article reminder.
+
+A clean branch, `feature/rm162-async-clock`, starts from current `next`. The next
+RM#162 slice is the async clock API and a working uptime endpoint, following the
+recorded async-module preferences. Implementation has not started. Anonymous
+functions, closures and state retain their recorded design questions. Development
+CI remains disabled until requested or integration; no CI is triggered by this
+local handover. The previous optimisation branch is retained.

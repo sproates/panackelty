@@ -74,6 +74,19 @@ export PANACK_PROBE_SEED := $(abspath $(SEED_COMPILER))
 
 all: native package-tool
 
+.PHONY: compiler compiler-fresh
+CANDIDATE_COMPILER := $(BUILD_DIR)/compiler/candidate.bc
+# Routine development build; bootstrap proof targets deliberately do not use it.
+compiler: native
+	@mkdir -p "$(dir $(CANDIDATE_COMPILER))"
+	@$(PROBE) --incremental --compile $(COMPILER_SOURCE) "$(CANDIDATE_COMPILER)"
+	@./panack-vm check "$(CANDIDATE_COMPILER)"
+
+compiler-fresh: native
+	@mkdir -p "$(dir $(CANDIDATE_COMPILER))"
+	PANACKELTY_BOOTSTRAP_ROOT="$(abspath .)" ./panack-vm run "$(SEED_COMPILER)" compile $(COMPILER_SOURCE) -o "$(CANDIDATE_COMPILER)"
+	@./panack-vm check "$(CANDIDATE_COMPILER)"
+
 browser-runtime-bundle:
 	@sh scripts/browser_runtime_bundle.sh
 
@@ -236,11 +249,35 @@ functional-impl: package-tool $(BUILD_DIR)/vm/static_http_client $(STAGE2_COMPIL
 	@$(PROFILE) functional/owned-dispatch-removal sh tests/owned_dispatch_removal.sh
 	@$(PROFILE) functional/owned-dot-dispatch sh tests/owned_dot_dispatch.sh
 	@PANACK_TCP_CLIENT="$(abspath $(BUILD_DIR)/vm/tcp_client)" $(PROFILE) functional/tcp-serve sh tests/tcp_serve.sh
+	@PANACK_TCP_CLIENT="$(abspath $(BUILD_DIR)/vm/tcp_client)" PANACK_TCP_SERVER="$(abspath $(BUILD_DIR)/vm/tcp_server)" $(PROFILE) functional/tcp-canonical sh tests/tcp_canonical.sh
+	@PANACK_TCP_CANONICAL_ERRORS=1 PANACK_TCP_SERVER="$(abspath $(BUILD_DIR)/vm/tcp_server)" $(PROFILE) functional/tcp-domain-errors sh tests/tcp.sh
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/http-package sh tests/http_package.sh
+	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/http-closures sh tests/http_closures.sh
+	@$(PROFILE) functional/state-cells sh tests/state_cells.sh
+	@$(PROFILE) functional/http-state-examples node tests/http_state_examples.cjs
+	@$(PROFILE) functional/async-stdlib sh tests/async_stdlib.sh
+	@$(PROFILE) functional/console sh tests/console.sh
+	@$(PROFILE) functional/stdlib-support sh tests/stdlib_support.sh
+	@$(PROFILE) functional/process-async sh tests/process_async.sh
+	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/http-process sh tests/http_process.sh
+	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/http-stream-async sh tests/http_stream_async.sh
+	@$(PROFILE) functional/cpu-resources sh tests/cpu_resources.sh
+	@$(PROFILE) functional/http-stream-errors sh tests/http_stream_errors.sh
+	@$(PROFILE) functional/resource-errors sh tests/resource_errors.sh
+	@$(PROFILE) functional/encoding-values sh tests/encoding_values.sh
+	@$(PROFILE) functional/console-input sh tests/console_input.sh
+	@$(PROFILE) functional/domain-errors sh tests/domain_errors.sh
+	@$(PROFILE) functional/filesystem-errors sh tests/filesystem_errors.sh
+	@$(PROFILE) functional/stdlib-nominal-identity sh tests/stdlib_nominal_identity.sh
+	@$(PROFILE) functional/async-filesystem-general sh tests/async_filesystem_general.sh
+	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/http-uptime sh tests/http_uptime.sh
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/async-filesystem sh tests/async_filesystem.sh
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/continuous-service sh tests/continuous_service.sh
 	@PANACK_STATIC_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/static_http_client)" PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/static-http sh tests/static_http.sh
 	@PANACK_BIN="$(abspath bin/panack)" PANACK_HTTP_FIXTURE="$(abspath $(BUILD_DIR)/vm/http_fixture)" $(PROFILE) functional/http-client sh tests/http_client_package.sh
+	@PANACK_BIN="$(abspath bin/panack)" PANACK_HTTP_FIXTURE="$(abspath $(BUILD_DIR)/vm/http_fixture)" $(PROFILE) functional/http-client-diagnostics sh tests/http_client_diagnostics.sh
+	@$(PROFILE) functional/http-disassembly sh tests/http_disassembly.sh
+	@PANACK_HTTP_FIXTURE="$(abspath $(BUILD_DIR)/vm/http_fixture)" $(PROFILE) functional/async-stdlib-examples sh tests/async_stdlib_examples.sh
 	@PANACK_TCP_SERVER="$(abspath $(BUILD_DIR)/vm/tcp_server)" $(PROFILE) functional/tcp sh tests/tcp.sh
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACK_TEST_NAMESPACE_EMISSION=1 $(PROFILE) functional/compiler-driver $(PROBE) tests/runner/compiler_driver.panack
 	@mkdir -p "$(BUILD_DIR)"
@@ -304,8 +341,8 @@ compiler-watchdog-check: compiler-watchdog-build
 
 -include $(BUILD_DIR)/vm/compiler-observer.d
 
-$(BUILD_DIR)/vm/test_modules: tests/unit/vm/native_modules.c tests/unit/vm/resumable.c tests/unit/vm/coverage.c tests/unit/vm/coverage_session.c tests/unit/vm/tasks.c tests/unit/vm/async.c tests/unit/vm/tcp.c tests/unit/vm/http.c tests/unit/vm/http_state.c tests/unit/vm/root_read.c tests/unit/vm/console_write.c tests/unit/vm/tcp_server.c $(VM_LIBRARY_OBJECTS)
-	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< tests/unit/vm/resumable.c tests/unit/vm/coverage.c tests/unit/vm/coverage_session.c tests/unit/vm/tasks.c tests/unit/vm/async.c tests/unit/vm/tcp.c tests/unit/vm/http.c tests/unit/vm/http_state.c tests/unit/vm/root_read.c tests/unit/vm/console_write.c tests/unit/vm/tcp_server.c $(VM_LIBRARY_OBJECTS) -o $@ $(LDLIBS)
+$(BUILD_DIR)/vm/test_modules: tests/unit/vm/native_modules.c tests/unit/vm/resumable.c tests/unit/vm/coverage.c tests/unit/vm/coverage_session.c tests/unit/vm/tasks.c tests/unit/vm/async.c tests/unit/vm/tcp.c tests/unit/vm/http.c tests/unit/vm/http_state.c tests/unit/vm/root_read.c tests/unit/vm/console_read.c tests/unit/vm/console_write.c tests/unit/vm/process_async.c tests/unit/vm/tcp_server.c tests/unit/vm/state.c $(VM_LIBRARY_OBJECTS)
+	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< tests/unit/vm/resumable.c tests/unit/vm/coverage.c tests/unit/vm/coverage_session.c tests/unit/vm/tasks.c tests/unit/vm/async.c tests/unit/vm/tcp.c tests/unit/vm/http.c tests/unit/vm/http_state.c tests/unit/vm/root_read.c tests/unit/vm/console_read.c tests/unit/vm/console_write.c tests/unit/vm/process_async.c tests/unit/vm/tcp_server.c tests/unit/vm/state.c $(VM_LIBRARY_OBJECTS) -o $@ $(LDLIBS)
 
 FAULT_OBJECTS := $(patsubst src/vm/%.c,$(BUILD_DIR)/fault/%.o,$(filter-out src/vm/main.c,$(VM_SOURCES)))
 export PANACK_NATIVE_FAULT_TEST := $(abspath $(BUILD_DIR)/fault/test_faults)
@@ -318,8 +355,8 @@ $(BUILD_DIR)/fault/injection.o: tests/unit/vm/fault_injection.c tests/unit/vm/fa
 	@mkdir -p "$(@D)"
 	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm -c $< -o $@
 
-$(BUILD_DIR)/fault/test_faults: tests/unit/vm/native_faults.c tests/unit/vm/root_read_faults.c tests/unit/vm/console_write_faults.c $(BUILD_DIR)/fault/injection.o $(FAULT_OBJECTS)
-	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm -DPANACK_TEST_INJECT -include tests/unit/vm/fault_injection.h $(LDFLAGS) $< tests/unit/vm/root_read_faults.c tests/unit/vm/console_write_faults.c $(FAULT_OBJECTS) $(BUILD_DIR)/fault/injection.o -o $@ $(LDLIBS)
+$(BUILD_DIR)/fault/test_faults: tests/unit/vm/native_faults.c tests/unit/vm/root_read_faults.c tests/unit/vm/console_read_faults.c tests/unit/vm/console_write_faults.c tests/unit/vm/process_async.c $(BUILD_DIR)/fault/injection.o $(FAULT_OBJECTS)
+	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm -DPANACK_TEST_INJECT -include tests/unit/vm/fault_injection.h $(LDFLAGS) $< tests/unit/vm/root_read_faults.c tests/unit/vm/console_read_faults.c tests/unit/vm/console_write_faults.c tests/unit/vm/process_async.c $(FAULT_OBJECTS) $(BUILD_DIR)/fault/injection.o -o $@ $(LDLIBS)
 
 .PHONY: native-fault-build native-fault
 native-fault-build: $(BUILD_DIR)/fault/test_faults
@@ -464,7 +501,8 @@ native-check: bootstrap-check package-tool
 	sh tests/native_conformance.sh
 
 PACKAGE_TOOL_ARTIFACT := $(BUILD_DIR)/tools/panack-packages.bc
-PACKAGE_TOOL_SOURCES := $(wildcard src/packages/*.panack src/project_model/*.panack src/stdlib/*.panack packages/http/src/*.panack)
+STDLIB_SOURCES := $(shell find src/stdlib -type f -name '*.panack')
+PACKAGE_TOOL_SOURCES := $(wildcard src/packages/*.panack src/project_model/*.panack packages/http/src/*.panack) $(STDLIB_SOURCES)
 
 .PHONY: package-tool package-tool-check
 package-tool: $(PACKAGE_TOOL_ARTIFACT)
@@ -481,7 +519,7 @@ package-tool-check: package-tool native-io-check
 	@PANACK_PROBE_SEED="$(abspath $(SEED_COMPILER))" sh tests/package_archive_stream.sh
 	@sh tests/package_tool_handoff.sh
 
-$(BUILD_DIR)/tools/http-server.bc: $(PACKAGE_TOOL_ARTIFACT) panack-vm $(SEED_COMPILER) tools/http-server/panack.json tools/http-server/panack.lock.json tools/http-server/src/main.panack $(wildcard packages/static_http/src/*.panack) packages/static_http/panack.json $(wildcard packages/http/src/*.panack) packages/http/panack.json $(wildcard src/stdlib/*.panack)
+$(BUILD_DIR)/tools/http-server.bc: $(PACKAGE_TOOL_ARTIFACT) panack-vm $(SEED_COMPILER) tools/http-server/panack.json tools/http-server/panack.lock.json tools/http-server/src/main.panack $(wildcard packages/static_http/src/*.panack) packages/static_http/panack.json $(wildcard packages/http/src/*.panack) packages/http/panack.json $(STDLIB_SOURCES)
 	@mkdir -p "$(@D)"
 	./bin/panack compile --project tools/http-server/panack.json -o "$@"
 
@@ -507,7 +545,11 @@ install: native package-tool explain-tool $(BUILD_DIR)/tools/http-server.bc
 	install -m 644 $(SEED_COMPILER) "$(DESTDIR)$(PREFIX)/share/panackelty/compiler-v9.bc"
 	install -m 644 "$(PACKAGE_TOOL_ARTIFACT)" "$(DESTDIR)$(PREFIX)/share/panackelty/panack-packages-v1.bc"
 	install -m 644 "$(BUILD_DIR)/tools/http-server.bc" "$(DESTDIR)$(PREFIX)/share/panackelty/http-server-v1.bc"
-	install -m 644 src/stdlib/*.panack "$(DESTDIR)$(PREFIX)/share/panackelty/stdlib/"
+	@set -e; find src/stdlib -type f -name '*.panack' | while IFS= read -r source; do \
+	  relative=$${source#src/stdlib/}; \
+	  install -d "$(DESTDIR)$(PREFIX)/share/panackelty/stdlib/$$(dirname "$$relative")"; \
+	  install -m 644 "$$source" "$(DESTDIR)$(PREFIX)/share/panackelty/stdlib/$$relative"; \
+	done
 	cp -R packages/http/. "$(DESTDIR)$(PREFIX)/packages/http/"
 	cp -R packages/static_http/. "$(DESTDIR)$(PREFIX)/packages/static_http/"
 	install -m 644 tools/http-server/panack.json tools/http-server/panack.lock.json tools/http-server/README.md "$(DESTDIR)$(PREFIX)/tools/http-server/"

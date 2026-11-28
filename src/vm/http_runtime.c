@@ -14,15 +14,15 @@ struct VMHttpResource {
 
 static Value *outcome(const char *error)
 {
-    Value *payload = error ? value_data(V_STR, (const uint8_t *)error, strlen(error)) : value_new(V_UNIT);
+    Value *payload = error ? value_data(V_STR, (const uint8_t *)error, strlen(error)) : value_unit();
     if (!payload) return NULL;
     Value *result = named_value(V_VARIANT, error ? "Error" : "Ok", NULL, &payload, 1);
     release(payload);
     return result;
 }
 
-Value *http_runtime_listen(VM *vm, Value *handle, Function *worker, bool contextual,
-                           bool outbound, bool filesystem, bool console)
+Value *http_runtime_listen(VM *vm, Value *handle, VMCallable worker, bool contextual,
+                           bool outbound, bool filesystem, bool console, bool process)
 {
     if (!vm->http_runtime) return outcome("HTTP resource runtime is unavailable");
     if (handle->kind != V_HTTP_STATE || !handle->as.http_state) {
@@ -51,6 +51,7 @@ Value *http_runtime_listen(VM *vm, Value *handle, Function *worker, bool context
     }
     if (filesystem) tcp_server_enable_filesystem(resource->server);
     if (console) tcp_server_enable_console(resource->server);
+    if (process) tcp_server_enable_process(resource->server);
     resource->handle = retain(handle);
     resource->next = vm->http_runtime->pending;
     vm->http_runtime->pending = resource;

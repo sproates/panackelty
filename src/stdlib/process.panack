@@ -1,20 +1,18 @@
-pub import stdlib/host::{HostError}
-
-// Exactly one of exit_code or signal describes termination; signal zero means exit.
-pub record ProcessOutput { exit_code: Nat, signal: Nat, stdout: Bytes, stderr: Bytes }
-
-pub run(executable: Path, arguments: [Str], stdin: Bytes,
-        working_directory: Path, environment: [Str], timeout: Duration,
-        output_limit: Nat): Result[ProcessOutput,HostError] {
-  process_run(executable, arguments, stdin, working_directory, environment,
-    timeout, output_limit)
-}
-
-// Supply the complete child environment. No inherited variables or automatic
-// coverage ticket are added; executable lookup remains an explicit Path.
-pub run_isolated(executable: Path, arguments: [Str], stdin: Bytes,
-        working_directory: Path, environment: [Str], timeout: Duration,
-        output_limit: Nat): Result[ProcessOutput,HostError] {
-  process_run_isolated(executable, arguments, stdin, working_directory, environment,
-    timeout, output_limit)
+pub import stdlib/process/errors::{ProcessError, ProcessErrorKind}
+import stdlib/process/errors as errors
+pub import stdlib/process/types::{HostError, Command, ProcessEnvironment, ProcessEnvironment.InheritEnvironment,
+  ProcessEnvironment.ExactEnvironment, ProcessTermination, ProcessTermination.Exited,
+  ProcessTermination.Signalled, ProcessOutput}
+import stdlib/process/types as representation
+import stdlib/process/legacy as legacy
+import stdlib/host as host
+pub arguments(): [Str] { host.arguments() }
+pub exit(status: Nat): Unit { host.exit(status); () }
+pub run(command: Command): Result[ProcessOutput,ProcessError] {
+  errors.convert(representation.convert(match command.environment {
+    InheritEnvironment(entries) => legacy.run(command.executable, command.arguments, command.stdin,
+      command.working_directory, entries, command.timeout, command.output_limit),
+    ExactEnvironment(entries) => legacy.run_isolated(command.executable, command.arguments, command.stdin,
+      command.working_directory, entries, command.timeout, command.output_limit)
+  }), command)
 }

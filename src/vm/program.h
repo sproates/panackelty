@@ -25,15 +25,27 @@ typedef struct {
     size_t count;
     char **items;
     Constant constant;
+    /* Derived by verification, never serialized. The opcode selects the member. */
+    union {
+        size_t constant_slot;
+        struct {
+            const struct Builtin *resolved_builtin;
+            struct Function *resolved_function;
+        };
+        struct {
+            size_t local_slot, local_slot2;
+        };
+    };
 } Instruction;
 
-typedef struct {
+typedef struct Function {
     char *name;
     bool pure, is_async;
     bool local_effect; /* Derived by verification; never trusted from bytecode. */
     size_t param_count, ins_count;
     char **params;
     Instruction *ins;
+    size_t local_count; /* Derived execution slots; parameters occupy the prefix. */
 } Function;
 
 typedef struct {
@@ -41,6 +53,10 @@ typedef struct {
     Function *functions;
     /* Verification proves immutable function names are in canonical order. */
     bool verified_function_order;
+    bool resolved_calls; /* Published only after successful verification. */
+    bool resolved_locals;
+    bool resolved_constants;
+    size_t constant_count;
 } Program;
 
 /* Wire values are fixed by bytecode/FORMAT.md. */

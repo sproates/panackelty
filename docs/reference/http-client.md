@@ -11,6 +11,17 @@ and returns errors as values. It isn't available in the browser playground.
 For incoming requests, see the [Server Reference](http-server.md) and
 [Server Playbook](../guides/HTTP_PLAYBOOK.md).
 
+## Alpha.16 development alternative
+
+The development package also exports `http/client/async`. Its `get` and
+`get_with_limits` return `Result[Response,HttpClientError]`, retaining the
+existing HTTP category plus optional transport details and scheme/host/port
+context. This includes detailed TLS failures. The released `http/client`
+contract documented below remains available. See the
+[development stdlib reference](STANDARD_LIBRARY.md#streams-and-owned-resources)
+and [migration guide](../guides/STDLIB_MIGRATION.md), or run the complete
+[diagnostic client example](../../examples/network/http_diagnostic_client/README.md).
+
 ## Import and dependency
 
 ```panack
@@ -214,3 +225,12 @@ The output starts with `Status: 200`, followed by `hello from Panackelty HTTP se
 The body already ends with a newline, so printing it adds a blank line. To try
 custom limits, replace `client.get(...)` with
 `client.get_with_limits("http://127.0.0.1:8080/", client.ClientLimits(5000, 16384, 65536))`.
+
+## Alpha.16 development: detailed errors
+
+`import http/client/async as http` selects the diagnostic client. `get` and
+`get_with_limits` retain ClientLimits and Response but return HttpClientError.
+Inspect `kind` for the existing HttpError category, `transport` for optional
+HttpStreamError and `endpoint` for optional scheme/host/port. `render()` explains
+the failure including available TLS details. This import is not in alpha.15.
+The original `http/client` and blocking `http/stream` remain compatible.

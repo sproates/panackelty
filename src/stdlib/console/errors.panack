@@ -1,0 +1,47 @@
+pub import stdlib/host::{HostError}
+pub enum ConsoleOperation { Read(Nat), Write, WriteLine, WriteError, WriteErrorLine }
+pub enum ConsoleErrorKind {
+  InvalidReadLimit, OutputTooLarge, ReadBusy, IOFailure, ResourceLimit, UnsupportedHost, OtherFailure
+}
+pub record ConsoleError { operation: ConsoleOperation, kind: ConsoleErrorKind, native: HostError }
+
+impl ConsoleError {
+  pub pure render(): Str {
+    action = match self.operation {
+      Read(limit) => "read standard input (requested limit: ${limit} bytes)",
+      Write() => "write standard output", WriteLine() => "write a line to standard output",
+      WriteError() => "write standard error", WriteErrorLine() => "write a line to standard error"
+    }
+    reason = match self.kind {
+      InvalidReadLimit() => "the read limit must be from 1 through 65536 bytes. Choose a limit within that range",
+      OutputTooLarge() => "the message exceeds 16384 UTF-8 bytes before the optional newline. Write smaller chunks",
+      ReadBusy() => "another read of standard input is still outstanding. Wait for that read to finish before starting another",
+      IOFailure() => "the host could not complete the I/O operation. Check that the stream is open and available",
+      ResourceLimit() => "a console worker could not be started or all available workers are occupied. Retry after outstanding operations finish",
+      UnsupportedHost() => "this host does not support the console operation",
+      OtherFailure() => "the host returned an unrecognised failure. The native field preserves its details"
+    }
+    number = self.native.native_code
+    detail = if number == 0 { "" } else { " Host error number: ${number}." }
+    "Cannot ${action}: ${reason}.${detail}"
+  }
+}
+
+pub pure convert[T](result: Result[T,HostError], operation: ConsoleOperation): Result[T,ConsoleError] {
+  match result {
+    Ok(value) => Ok(value),
+    Error(problem) => {
+      kind = if problem.code == "out_of_range" {
+        match operation {
+          Read(_) => InvalidReadLimit(), Write() => OutputTooLarge(),
+          WriteLine() => OutputTooLarge(), WriteError() => OutputTooLarge(), WriteErrorLine() => OutputTooLarge()
+        }
+      } else if problem.code == "busy" { ReadBusy() }
+      else if problem.code == "io_error" { IOFailure() }
+      else if problem.code == "resource_limit" { ResourceLimit() }
+      else if problem.code == "unsupported_host" { UnsupportedHost() }
+      else { OtherFailure() }
+      Error(ConsoleError(operation, kind, problem))
+    }
+  }
+}

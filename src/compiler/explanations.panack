@@ -1,9 +1,11 @@
+import project/src/compiler/capture_explanations::{capture_explanation_origin}
+import project/src/compiler/module_bodies::{body_evidence_children}
 pub import project/src/compiler/loader::{LoadedProject}
 pub import project/src/compiler/source_maps::{SourceMapFunctionSelector}
 import project/src/compiler/source_maps::{source_identifier, source_map_escape, source_map_location, source_map_function_selector}
 import project/src/compiler/types::{SourceSpan}
 pub import project/src/compiler/module_bodies::{BoundBody, GuardConversionEvidence}
-import project/src/compiler/module_bodies::{body_subtraction_evidence_entries, BodyNode.BodyBinding, BodyNode.BodyLiteral, BodyNode.BodyInterpolation, BodyNode.BodyLocalUse, BodyNode.BodyFunction, BodyNode.BodyCall, BodyNode.BodyArray, BodyNode.BodyUnary, BodyNode.BodyBinary, BodyNode.BodyField, BodyNode.BodyIndex, BodyNode.BodyIf, BodyNode.BodyBlock, BodyNode.BodyMatch, BodyNode.BodyAssignment, BodyNode.BodyWhile, BodyNode.BodyFor, BodyNode.BodyEmpty, ReturnTypeEvidence, CallArgumentEvidence, BindingTypeEvidence, AssignmentTypeEvidence, TypeJoinEvidence, CollectionCallbackEvidence, OperatorTypeEvidence, BodyTypeCheckEvidence, body_call_argument_evidence, body_binding_type_evidence, body_assignment_type_evidence, body_type_join_evidence, body_collection_callback_evidence, body_operator_type_evidence, body_type_check_evidence, body_type_text, body_type_complete, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
+import project/src/compiler/module_bodies::{body_subtraction_evidence_entries, BodyNode.BodyBinding, BodyNode.BodyLiteral, BodyNode.BodyInterpolation, BodyNode.BodyLocalUse, BodyNode.BodyFunction, BodyNode.BodyAnonymousFunction, BodyNode.BodyCall, BodyNode.BodyArray, BodyNode.BodyUnary, BodyNode.BodyBinary, BodyNode.BodyField, BodyNode.BodyIndex, BodyNode.BodyIf, BodyNode.BodyBlock, BodyNode.BodyMatch, BodyNode.BodyAssignment, BodyNode.BodyWhile, BodyNode.BodyFor, BodyNode.BodyEmpty, ReturnTypeEvidence, CallArgumentEvidence, BindingTypeEvidence, AssignmentTypeEvidence, TypeJoinEvidence, CollectionCallbackEvidence, OperatorTypeEvidence, BodyTypeCheckEvidence, body_call_argument_evidence, body_binding_type_evidence, body_assignment_type_evidence, body_type_join_evidence, body_collection_callback_evidence, body_operator_type_evidence, body_type_check_evidence, body_type_text, body_type_complete, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
 pub import project/src/compiler/module_signatures::{SignatureType}
 import project/src/compiler/module_bindings::{DeclarationIdentity, source_module_identity}
 import project/src/compiler/checker::{Bounds}
@@ -326,7 +328,7 @@ pub pure body_guard_conversions(body: BoundBody): [GuardConversionEvidence] {
 
 pure body_local_guard_conversions(body: BoundBody): [GuardConversionEvidence] {
   mut entries: [GuardConversionEvidence] = body.guard_conversions
-  for child in body.children {
+  for child in body_evidence_children(body) {
     entries = entries.concat(body_local_guard_conversions(child))
   }
   entries
@@ -343,6 +345,7 @@ pub pure body_inferred_locals(body: BoundBody): [BoundBody] {
     BodyInterpolation(parts) => {},
     BodyLocalUse(local, captured_domain) => {},
     BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {},
     BodyCall(target, types, call_arguments) => {},
     BodyArray() => {},
     BodyUnary(operator) => {},
@@ -357,7 +360,7 @@ pub pure body_inferred_locals(body: BoundBody): [BoundBody] {
     BodyFor(local) => {},
     BodyEmpty() => {}
   }
-  for child in body.children {
+  for child in body_evidence_children(body) {
     entries = entries.concat(body_inferred_locals(child))
   }
   entries
@@ -373,6 +376,7 @@ pub pure inferred_local_type(body: BoundBody): Option[SignatureType] {
     BodyInterpolation(parts) => None(),
     BodyLocalUse(local, captured_domain) => None(),
     BodyFunction(binding) => None(),
+    BodyAnonymousFunction(anonymous) => None(),
     BodyCall(target, types, call_arguments) => None(),
     BodyArray() => None(),
     BodyUnary(operator) => None(),
@@ -396,6 +400,7 @@ pure explanation_expression_node(body: BoundBody): Bool {
     BodyInterpolation(parts) => true,
     BodyLocalUse(local, captured_domain) => true,
     BodyFunction(binding) => true,
+    BodyAnonymousFunction(anonymous) => true,
     BodyCall(target, types, call_arguments) => true,
     BodyArray() => true,
     BodyUnary(operator) => true,
@@ -425,7 +430,7 @@ pure body_explanation_expressions(body: BoundBody): [BoundBody] {
   if explanation_expression_node(body) {
     entries = entries.append(body)
   }
-  for child in body.children {
+  for child in body_evidence_children(body) {
     entries = entries.concat(body_explanation_expressions(child))
   }
   entries
@@ -868,7 +873,7 @@ pure render_type_check_evidence(
   type_argument_arity: Bool = evidence.context == "type argument arity"
   collection_receiver: Bool = evidence.context == "collection receiver"
   count_decision: Bool = call_arity || type_argument_arity
-  status_label: Str = if call_arity { "checked call arity" } else {
+  status_label: Str = if evidence.context.starts_with("capture ") { "closure capture" } else if call_arity { "checked call arity" } else {
     if type_argument_arity { "checked type argument arity" } else {
       if string_interpolation { "checked interpolation type" } else {
         if collection_receiver { "checked collection receiver" } else {
@@ -911,7 +916,7 @@ pure render_type_check_evidence(
     (if count_decision { "" } else { "\n${actual_label}: ${actual}" }) +
     "\n${expected_label}: ${expected}" +
     (if count_decision { "" } else { "\nresulting type: ${result}" }) +
-    (if evidence.dependency != None() { (if evidence.context == "domain constraint" || evidence.context == "runtime validation" { "\nGuard declaration:\n" } else if evidence.context == "supporting guard fact" { "\nSupporting source:\n" } else { "\nPrior constraint:\n" }) + explanation_location(evidence.dependency, sources, root, stdlib_root) } else { "" }) +
+    (if evidence.dependency != None() { (if evidence.context == "domain constraint" || evidence.context == "runtime validation" { "\nGuard declaration:\n" } else if evidence.context == "supporting guard fact" { "\nSupporting source:\n" } else if evidence.context.starts_with("capture ") { "\nCaptured binding declared here:\n" } else { "\nPrior constraint:\n" }) + explanation_location(evidence.dependency, sources, root, stdlib_root) } else { "" }) +
     if evidence.reason != "" { "\nreason: " + source_map_escape(evidence.reason) } else { match evidence.accepted {
       Some(accepted) => if accepted {
         if call_arity {
@@ -1003,7 +1008,10 @@ pure render_type_check_explanations(
         if evidence.context != "direct call arity" &&
           evidence.context != "core call arity" && evidence.context != "indirect call arity" &&
           evidence.context != "type argument arity" {
-          entries = entries.append(evidence)
+          entries = entries.append(if evidence.context.starts_with("capture ") {
+            BodyTypeCheckEvidence(evidence.context, evidence.span, evidence.actual, evidence.expected,
+              evidence.result, evidence.accepted, evidence.reason, capture_explanation_origin(project.module_bodies, evidence.span))
+          } else { evidence })
         }
       }
     }
@@ -1177,6 +1185,7 @@ pure render_inferred_local(
     BodyInterpolation(parts) => "inferred local: unavailable",
     BodyLocalUse(local, captured_domain) => "inferred local: unavailable",
     BodyFunction(binding) => "inferred local: unavailable",
+    BodyAnonymousFunction(anonymous) => "inferred local: unavailable",
     BodyCall(target, types, call_arguments) => "inferred local: unavailable",
     BodyArray() => "inferred local: unavailable",
     BodyUnary(operator) => "inferred local: unavailable",

@@ -51,9 +51,9 @@ expect 125 "$watchdog" 2 "$work/launch-failure" /missing/panack-observer
 grep -q 'execute observed compiler' "$work/err"
 grep -q 'Evidence:' "$work/err"
 source=tests/functional/cases/hello_world/main.panack
-for phase in check_module_signatures check_module_bodies_explained bind_body_block compile_program serialize_bytecode; do
+for phase in check_module_signatures check_module_bodies_explained bind_body_block bind_body_block_expected compile_program serialize_bytecode; do
     mkdir "$work/$phase"
-    if [ "$phase" = bind_body_block ]; then
+    if [ "$phase" = bind_body_block ] || [ "$phase" = bind_body_block_expected ]; then
         expect 124 env PANACK_COMPILER_STALL="$phase" PANACK_COMPILER_STALL_FUNCTION=main \
             "$watchdog" 2 "$work/$phase" "$observer" run bootstrap/compiler-v9.bc run "$source"
         grep -q 'main.panack::main' "$work/err"

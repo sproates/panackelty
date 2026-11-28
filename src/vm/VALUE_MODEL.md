@@ -12,6 +12,13 @@ union payload. `Bool` stores its flag inline; `Unit` and `Void` need no payload.
 Their distinct tags prevent a successful Unit value from becoming a no-result
 sentinel.
 
+- Boolean construction shares two immutable static Values, marked with a
+  `SIZE_MAX` reference count. Retain/release do not write or free these immortal
+  objects; callers still balance ownership as usual and must not mutate them.
+  Explicit heap-owned Booleans retain ordinary reference counting.
+- Unit and Void each use their own shared immutable static Value with the same
+  immortal ownership mechanism. Their tags remain distinct. `value_unit()` and
+  `value_void()` cannot fail; generic `value_new()` still allocates heap Values.
 - `Nat` and `Int` use a sign plus little-endian base-1,000,000,000 limbs. Zero
   has no limbs and is never negative.
 - `Rat` owns two arbitrary-precision integers. Construction reduces them by
@@ -31,11 +38,23 @@ sentinel.
   heap objects. Persistent operations allocate a new value and preserve every
   input's observable length and elements. Array append can share internal
   backing storage as described below; other containers retain children directly.
+  Maps and sets may memoize an optional lookup index containing positions into
+  their ordered entries. It owns no child references, does not affect equality
+  or iteration, and is freed with the value. Updates create an unindexed result;
+  retained snapshots keep their own index. Unsupported key domains and index
+  allocation failures use the original scan. See the
+  [collection-index trial](../../docs/VM_COLLECTION_INDEX_TRIAL.md) for thresholds,
+  supported domains, memory trade-offs and validation status.
 - Iterators are frame-owned cursors retaining the iterable they traverse. They
   never escape into bytecode constants or serialized artifacts.
 
 Names in decoded programs own their UTF-8 storage independently of runtime
 values. Instructions refer to those immutable decoded names and operands.
+Verified constant instructions can reuse an execution-owned immutable literal
+Value. The cache retains one reference until execution cleanup; each instruction
+use retains another. It never borrows mutable runtime payload from decoded bytes.
+Separate executions have separate caches, and returned Values remain valid after
+cache cleanup through their own references.
 
 ## Ownership and reclamation
 
@@ -139,3 +158,22 @@ push and local assignment consume their input reference on both success and
 failure; callers must not release it again. Failed constructors release retained
 children and partially copied fields. Test-only allocation/syscall wrappers are
 compiled into a separate executable and are absent from the production runner.
+
+## State ownership and collection keys
+
+`V_STATE` owns one admitted immutable payload. Its reservation points to the
+owning execution's stable `StateReservation`; that token retains the cell until
+commit or abort. A forged token cannot release another owner's reservation.
+Commit retains the new payload before releasing the old one. Execution cleanup
+aborts outstanding reservations on traps, cancellation and destruction.
+
+Payload admission walks the reachable value graph iteratively, rejecting cells,
+callables and resources. Admitted array storage is sealed, including owned hidden
+suffixes, so later alias appends cannot introduce a retained capability or cycle.
+Closure captures may retain cells as opaque leaves; cell equality uses identity.
+
+`Value.key_forbidden` records whether a logical value contains State or a callable.
+Aggregate construction and array append/concatenation propagate it. Map/Set key
+operations reject flagged values without walking the graph on every lookup.
+Immutable aggregate keys remain supported. Partial aggregate construction treats
+null children as forbidden while preserving allocation/trap cleanup.

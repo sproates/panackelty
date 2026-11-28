@@ -1,0 +1,38 @@
+pub import stdlib/testing_files::{HostError, TestWorkspace}
+import stdlib/filesystem/legacy/async as files
+import stdlib/filesystem::{FileKind.Directory}
+
+pub async create_workspace(parent: Path): Result[TestWorkspace,HostError] {
+  match await files.create_temp_directory(parent) {
+    Ok(root) => Ok(TestWorkspace(root)),
+    Error(problem) => Error(problem)
+  }
+}
+// The existing owned method remains ordinary; this module function is awaited.
+pub async remove_empty(workspace: TestWorkspace): Result[Unit,HostError] {
+  await files.remove_directory(workspace.root)
+}
+pub async discover_fixtures(root: Path): Result[[Path],HostError] {
+  match await files.list_directory(root) {
+    Error(problem) => Error(problem),
+    Ok(names) => {
+      mut fixtures: [Path] = []
+      mut failure: Option[HostError] = None()
+      for name in names {
+        match failure {
+          Some(_) => {},
+          None() => match root.join(name) {
+            Error(_) => { failure = Some(HostError("discover_fixtures", "invalid_argument", 0)) },
+            Ok(child) => match await files.metadata(child) {
+              Error(problem) => { failure = Some(problem) },
+              Ok(metadata) => if metadata.kind == Directory() {
+                fixtures = fixtures.append(child)
+              } else {}
+            }
+          }
+        }
+      }
+      match failure { Some(problem) => Error(problem), None() => Ok(fixtures) }
+    }
+  }
+}

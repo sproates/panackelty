@@ -22,3 +22,8 @@ instructions generated for a statement. The explorer checks your code without
 running it.
 
 Use `--text` for a plain report. Piping the output also selects text mode.
+
+To inspect a captured value, open `tools/explain/samples/capture.panack` with
+`--function greeting`. Select `() => message`, then `capture message`. The
+explanation describes when the value is retained; Enter follows its declaration.
+Rejected mutable/resource captures explain the restriction and a possible repair.

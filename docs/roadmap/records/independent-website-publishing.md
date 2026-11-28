@@ -83,6 +83,12 @@ remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 
+- **Incremental compilation, alpha.16 candidate.** No live-site change is needed
+  for the current alpha.15 claims. After integration and release acceptance,
+  the release maintainer can add the opt-in command and its measured limitations
+  to the versioned toolchain guide. This records a release follow-up; it does not
+  authorize website edits or publication.
+
 - **Alpha.15 native promotion in preparation, 6 November 2026.** Public native
   archives and the browser dependency bundle are verified. Core installation
   guidance now selects alpha.15 and requires macOS 15+. The separate website PR
@@ -736,6 +742,191 @@ is governed by the 2026-10-12 owner direction under GI#106 below.
 
 **RM#28: Incremental and modular builds** · [GI#106: Incremental and modular builds](https://github.com/sproates/panackelty/issues/106).
 
+**7 November 2026:** the owner resumed compiler-reuse assessment before larger
+language changes. The [assessment and first slice](../../COMPILER_REUSE_ASSESSMENT.md)
+identify duplicate preparation within an invocation and the later boundaries for
+unchanged-build and checked-module reuse. The first within-command reuse slice is
+complete locally, with a measured 3% self-compilation saving and passing full
+validation (518 seconds); integrated in PR #678. The subsequent
+[unchanged-compilation trial](../../COMPILER_UNCHANGED_REUSE_TRIAL.md) is implemented
+and validated locally: warm self-compilation 14.34s to 2.34s with identical
+bytecode, cold 15.04s, full `make check` passed in 572 seconds. Integrated in PR #678. It is opt-in,
+not module-level incremental checking. The next [module-reuse trial](../../COMPILER_MODULE_REUSE_TRIAL.md)
+has validated the in-memory invalidation boundary before persistence: 54 focused
+cases and full local checks passed (563 seconds). An entry-module edit reused
+46 of 47 modules, taking 8.27s versus 15.48s fresh with identical bytecode.
+The subsequent [persistent-reuse implementation](../../COMPILER_PERSISTENT_REUSE.md)
+adds separate-invocation body reuse and the agreed CLI. All 117 focused checks,
+15 CLI groups and full local validation passed (551 seconds). Median fresh/cold/
+unchanged/edited times are 16.01/20.67/2.51/14.02 seconds, with byte-identical
+artifacts. PR #678 integrated the batch; PR #679 corrected its coverage manifest
+and passed integration CI. The narrower declaration follow-up passes 24 CLI
+groups and full local validation (591s), with 46/49 modules reused after a real
+body edit (13.86s versus 15.91s fresh). The separate
+[hosted cache trial](../../COMPILER_HOSTED_CACHE_TRIAL.md) passed cold/warm jobs.
+Ordinary CI cache use remains disabled. Earlier release acceptance below remains
+historical evidence.
+
+### Edited-build assessment, 8 November 2026
+
+The [CI adoption assessment and phase profile](../../COMPILER_EDIT_PROFILE.md)
+completed without product changes. Next-push CI has no compiler preparation to
+accelerate; full/nightly cross-run reuse needs a separate selection against the
+existing probe artifact cache. The profiling fallback found checked-body decoding
+(4.54s) and fresh signatures (4.24s) dominate the edited path; changed-body
+checking is 0.17s. The selected decoder trial reduced median decode time by
+12.0% and edited-build time by 6.3% across three alternating pairs, with matching
+artifacts. Focused tests, bootstrap fixed points and final `make check` (617s)
+passed; the bounded decoder improvement is included in this integration. No
+automatic CI cache was enabled and no bootstrap proof was cached.
+
+The subsequent [local workflow adoption](../../COMPILER_EDIT_PROFILE.md#local-development-workflow-8-november-2026)
+adds `make compiler` for incremental candidate builds, preserving the existing
+complete-artifact cache. `make compiler-fresh` bypasses both caches. Three paired
+edits match fresh output (13.81s versus 15.86s median). Focused checks and final
+`make check` (567s) passed; the local workflow slice is included in this
+integration. Normal CI and bootstrap entry points stay unchanged.
+
+The [signature follow-up](../../COMPILER_EDIT_PROFILE.md#signature-reachability-trial-8-november-2026)
+short-circuits public re-export searches after accessibility is proved. Three
+alternating pairs reduced median edited builds by 18.4%, with matching bytecode
+and diagnostics. Focused checks, bootstrap fixed points and final `make check`
+(565s) passed; the bounded optimisation is included in this integration.
+
+A subsequent [name-lookup traversal trial](../../COMPILER_EDIT_PROFILE.md#name-lookup-traversal-trial--not-adopted-8-november-2026)
+showed no meaningful speedup and was discarded. Product code and seed are
+unchanged. Its profile identifies repeated binding-conflict validation as a
+stronger candidate. The [binding-validation trial](../../COMPILER_EDIT_PROFILE.md#binding-validation-reuse-trial-8-november-2026)
+retains diagnostics only with matching declaration/import snapshots. Three pairs
+show median savings of 29.9% fresh and 19.5% after edits, with matching bytecode.
+Focused tests, diagnostic comparisons, bootstrap fixed points and final
+`make check` (611s) passed; the bounded change is included in this integration.
+This is a bounded optimisation, not completion of RM#28/GI#106.
+
+The [post-optimisation profile](../../COMPILER_EDIT_PROFILE.md#post-optimisation-profile-8-november-2026)
+now finds fresh and edited self-builds effectively level, while unchanged reuse
+still saves work. Saved-body decoding is the next measured candidate; no further
+implementation or cache-policy change is included in the reassessment.
+
+The [span/tag decoder trial](../../COMPILER_EDIT_PROFILE.md#span-and-body-node-decoder-trial-8-november-2026)
+shows a further modest 3.4% median edited-build saving, with matching fresh
+outputs. Focused, artifact, bootstrap and final `make check` (560s) passed;
+the bounded change is included in this integration.
+The larger retained-representation question remains an assessment candidate,
+not an approved redesign.
+
+The [retained-data assessment](../../COMPILER_EDIT_PROFILE.md#retained-data-assessment-8-november-2026)
+identifies repeated immutable types/identities as a stronger next experiment than
+removing a few unused fields. Per-module dictionary modelling suggests 14.4–31.5%
+smaller payloads, without claiming a runtime saving. A type-sharing codec trial
+is proposed; no representation change is implemented.
+
+The [shared-type cache trial](../../COMPILER_EDIT_PROFILE.md#shared-type-cache-trial-8-november-2026)
+implements the first representation change: 10.5% faster median edited self-builds,
+9.4% lower peak memory and 14.4% smaller module-cache files. Fresh bytecode matches
+across all three measured pairs. Focused, artifact, bootstrap and final `make check` (565s) passed;
+the bounded change is included in this integration. Private cache versions change, not VM bytecode.
+This does not complete RM#28/GI#106 and needs no website update.
+
+The [current-cache ceiling experiment](../../COMPILER_EDIT_PROFILE.md#current-cache-ceiling-experiment-8-november-2026)
+finds meaningful remaining reconstruction cost and selects a bounded encoded-
+function/effect-facts experiment. The in-memory control is not a one-shot speedup;
+small-program caching remains slower than fresh work. No product implementation
+or website change is included, and RM#28/GI#106 remain open.
+
+The [compact effect-facts foundation](../../COMPILER_EDIT_PROFILE.md#compact-effect-facts-foundation-8-november-2026)
+establishes diagnostic/status equivalence and fresh local-resource permissions
+for a future encoded-function cache. Focused checks and native artifacts pass;
+bootstrap and final `make check` (555s) also passed. This remains a development-
+branch checkpoint. The loader does not yet use the facts, so
+no user-facing speedup or website change is claimed. RM#28/GI#106 remain open.
+
+
+### Encoded-function cache, 8 November 2026
+
+The [encoded-function trial](../../COMPILER_EDIT_PROFILE.md#encoded-function-cache-trial-8-november-2026)
+is implemented on the development branch, not yet merged into `next`. Three paired
+compiler edits measure 26.2% faster than the previous body cache, 30.7% below fresh,
+48.4% lower peak memory and 51.3% smaller module files, with exact fresh output.
+Normal incremental compilation selects this path; signatures, guards, global
+effects and core reachability are recomputed. Rich explanations keep full checking.
+Conservative keys and corruption fallback remain; VM bytecode is unchanged.
+Small-program cache overhead remains a limitation. The 1,832 focused assertions,
+30 cache CLI groups, native artifacts and bootstrap pass; final `make check`
+passed in 548s, with documentation checks also passing. This is a bounded local checkpoint, not completion of RM#28/GI#106 or
+RM#157, and does not change the website or trigger CI.
+
+
+The [post-code-cache profile](../../COMPILER_EDIT_PROFILE.md#encoded-function-path-profile-8-november-2026)
+at `cee968e` now locates 2.351s in lex/parse, 2.262s in cache payload restoration
+and canonical record validation, and 0.791s in fresh global effects. Eight
+invocations preserve exact output; the ordinary edited sample is 6.612s versus
+9.884s fresh. A source-loading reuse control is recommended before another
+implementation, with cheaper equally strict record validation as an alternative.
+This measurement-only checkpoint changes no product code and does not complete
+RM#28/GI#106 or RM#157.
+
+
+### Standalone unchanged-build fast path, 8 November 2026
+
+The [source-input ledger](../../COMPILER_EDIT_PROFILE.md#standalone-source-input-fast-path-8-november-2026)
+avoids parsing before an exact standalone whole-artifact hit. It rereads bounded
+source/toolchain bytes and checks the existing content key; edits fall back to
+discovery. Package confinement/loading stays unchanged. Three paired unchanged
+compiler runs measure 2.480s versus 0.0437s median (98.2% lower wall time), with
+exact artifacts. Final-seed observation confirms zero lexer/parser calls. All
+36 cache CLI groups, hosted/policy tests, artifacts and bootstrap pass; final
+`make check` passed in 553s, with documentation checks passing. This is a local branch checkpoint, not completion of
+RM#28/GI#106 or RM#157, and triggers no CI or website change.
+
+
+Integration selected, 8 November 2026: the owner approved merging the compact
+effect-facts, encoded-function reuse and standalone input-ledger batch into `next`.
+The final product tree passed local `make check` in 553s. Development/PR CI remains
+suppressed; hosted checks start on integration. This does not close RM#28/GI#106
+or RM#157. Earlier branch-only notes record the individual checkpoints.
+
+
+### Parsed-module reuse controls, 8 November 2026
+
+PR #691 merged the encoded-function/source-input batch; integration run
+[42498471810](https://github.com/sproates/panackelty/actions/runs/42498471810) passed.
+The [next isolated controls](../../COMPILER_EDIT_PROFILE.md#parsed-module-reuse-controls-8-november-2026)
+show full-tree decoding at 2.207s versus 2.681s lex/parse, but declaration summaries
+at 0.195s versus 2.649s. Twelve exact 49-module comparisons pass. No product code
+changes or end-to-end speedup are claimed. A distinct summary representation
+paired with valid compiled functions is recommended, with complete parsing on a
+miss and fresh diagnostic/artifact comparisons before adoption. RM#28/GI#106 and
+RM#157 remain open.
+
+### Module-summary compiler cache, 8 November 2026
+
+No website change: standalone incremental builds can reuse exact-source declaration
+summaries, retaining full parsing where compiled code cannot be reused. This is an
+unreleased internal performance change; the published alpha.15 interface remains
+accurate. The [trial record](../../COMPILER_EDIT_PROFILE.md#module-summary-integration-8-november-2026)
+contains edited-build savings and cold-build costs. No new public performance claim
+or automatic hosted cache is introduced.
+
+### Incremental command direction, 7 November 2026
+
+The owner expects an ordinary one-shot command such as
+`panack compile --incremental main.panack -o main.bc`. Panack manages retained
+state, invalidation and fresh-build fallback, then exits normally. A foreground
+watcher is not the selected delivery. The watch prototype was parked without
+changing the validated product baseline or publishing it.
+
+The intended model is reuse across separate compiler invocations, following the
+user experience of [TypeScript incremental builds](https://www.typescriptlang.org/tsconfig/incremental.html).
+Persisted build information must be disposable: a missing, incompatible or
+unusable cache causes fresh work, never a false successful build. This extends
+the validated module-invalidation work; the existing whole-build cache alone
+does not satisfy reuse after edits. The persisted representation and its safety,
+size and loading cost are being validated in the linked persistent-reuse delivery. No watch loop or
+background-process lifecycle is part of the agreed user-facing requirement.
+The internal mechanism is an implementation decision, not a choice the owner
+needs to make. No new VM capability or bytecode format is approved by this note.
+
 <a id="future-candidate-incremental-and-modular-builds"></a>
 
 Work record: [issue #106](https://github.com/sproates/panackelty/issues/106).
@@ -1164,3 +1355,63 @@ The [decision process](../ROADMAP_PROCESS.md) is authoritative for these rules.
   [the profiling report](../../../tests/VALIDATION_PROFILE.md), behavioral evidence in
   [the coverage matrix](../../../tests/COVERAGE.md), and bootstrap history in
   [the self-hosting record](../../internals/SELF_HOSTING.md).
+
+### Alpha.16 async stdlib follow-up, 8 November 2026
+
+Before announcing these APIs in alpha.16, update the stdlib and HTTP examples to
+show `stdlib/time/async`, `stdlib/environment/async`, and the existing host/file
+async counterparts. Include the uptime example and make the supported-toolchain
+requirement explicit. Prerequisites: merged/validated core implementation and
+matching release/browser consumers. Owner: release maintainer. No website change
+is authorised or needed now; the live site's alpha.15 claims remain unchanged.
+
+On 8 November the owner expanded this follow-up into a stdlib documentation
+deliverable alongside the async programme: a discoverable stdlib index and
+time/duration, filesystem/path, process, console/environment and relevant
+streaming references with tested examples. See the
+[programme boundary](../../ASYNC_DESIGN_DISCUSSION.md#expanded-async-stdlib-and-documentation-programme-8-november-2026).
+This authorises preparation and preview, not publishing development APIs as
+released or editing published articles without showing the changes.
+
+The filesystem error delivery adds FilesystemError, operation/path context,
+rendered diagnostics and explicit filesystem/legacy migration imports to this
+existing alpha.16 reference follow-up. Cover both ordinary and async examples.
+Owner and release prerequisites remain unchanged; no site publication is included.
+
+The same alpha.16 stdlib follow-up includes Sha256Error/GzipError categories,
+rendering, retry/lifecycle guidance and cumulative creation quotas in digest/gzip
+reference pages. Core integration/release prerequisites and publication permissions
+are unchanged.
+
+The existing alpha.16 stdlib follow-up also covers HttpStreamError: first-read connection failures, shared ordinary/async error kinds, preserved TLS details, explicit rendering and unchanged legacy/high-level HTTP APIs. Publish with the accepted core reference, not as a claim about alpha.15.
+
+The alpha.16 stdlib reference follow-up includes TcpError and the opt-in `http/client/async` diagnostic API, callback ambiguity and migration from legacy Str errors. The live alpha.15 HTTP guides must not claim these development APIs before release acceptance.
+
+### Expanded async stdlib documentation: complete, 23 November 2026
+
+23 November publication acceptance: the owner authorised website checks and publication.
+[Website PR #77](https://github.com/sproates/panackelty-website/pull/77) merged as
+`e59e93e` after [checks 45165626275](https://github.com/sproates/panackelty-website/actions/runs/45165626275)
+passed. [Deployment 45166480787](https://github.com/sproates/panackelty-website/actions/runs/45166480787)
+passed, including verification of deployed bytes and provenance. Live browser review
+confirmed the Time reference, signatures, errors, complete example and stdlib-before-HTTP
+navigation. The [published reference](https://panackelty.com/reference/standard-library/)
+contains nineteen module pages and 72 function entries, alongside four guides and nine
+complete examples. AS5 is accepted: all five slices of the expanded async stdlib and
+documentation batch are complete (100/100 weighted points). RM#162 remains open for
+broader real-program work, including anonymous functions, closures and shared state.
+These are alpha.16 development docs; release pins, the playground and published articles
+are unchanged. This completion record changes no runtime or build behaviour and requires
+no performance measurement or repeated product validation.
+
+### Callable/state proposal follow-up, 23 November 2026
+
+RM#162 now has a [contract proposal](../../CALLABLES_AND_STATE_PROPOSAL.md)
+for anonymous functions, retained captures and ordinary/async explicit state.
+Owner review precedes implementation. After agreement and working acceptance,
+update the language/callable reference, add the state module reference and both
+uptime/counter examples, and review the illustrative article
+`async-functions-closures-and-state` for differences from the final API.
+The proposed module-level state operations differ from that article's method
+sketch. Do not edit the published article without showing the owner those changes.
+No immediate live-site correction or publication is authorised by this proposal.

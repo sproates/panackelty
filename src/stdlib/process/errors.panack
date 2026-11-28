@@ -1,0 +1,62 @@
+pub import stdlib/host::{HostError}
+pub import stdlib/process/types::{Command}
+pub enum ProcessErrorKind {
+  InvalidTimeout, LimitExceeded, InvalidArgument, InvalidEnvironment, LaunchFailed,
+  TimedOut, OutputLimitExceeded, ClockUnavailable, ResourceLimit, Cancelled,
+  HostFailure, UnsupportedHost, OtherFailure
+}
+// Retain useful context, never the command's input, arguments or environment.
+pub record ProcessError {
+  executable: Path, working_directory: Path, timeout: Duration, output_limit: Nat,
+  kind: ProcessErrorKind, native: HostError
+}
+impl ProcessError {
+  pub pure render(): Str {
+    executable = self.executable.display()
+    directory = self.working_directory.display()
+    nanoseconds = self.timeout.as_nanoseconds()
+    limit = self.output_limit
+    reason = match self.kind {
+      InvalidTimeout() => "the timeout must be positive and within the supported range. Choose a timeout greater than zero and no longer than 365 days",
+      LimitExceeded() => "a command input, argument, environment or output limit exceeds the supported bounds. Check the command limits",
+      InvalidArgument() => "a command argument is invalid. Arguments must not contain NUL bytes",
+      InvalidEnvironment() => "an environment entry is invalid or repeats a key. Use unique nonempty NAME=value entries without NUL bytes",
+      LaunchFailed() => "the host could not start the process. Check the executable, working directory and permissions",
+      TimedOut() => "the process did not complete within the requested ${nanoseconds} nanoseconds. The process group was stopped and partial output is not returned",
+      OutputLimitExceeded() => "combined standard output and standard error exceeded the ${limit}-byte limit. The process group was stopped and partial output is not returned",
+      ClockUnavailable() => "the host clock needed to enforce the timeout was unavailable",
+      ResourceLimit() => "the host could not allocate resources for this process. Retry after outstanding work finishes",
+      Cancelled() => "process execution was cancelled. Partial output is not returned",
+      HostFailure() => "the host could not complete process execution",
+      UnsupportedHost() => "this host does not support process execution",
+      OtherFailure() => "the host returned an unrecognised process failure. The native field preserves its details"
+    }
+    number = self.native.native_code
+    detail = if number == 0 { "" } else { " Host error number: ${number}." }
+    "Cannot run process '${executable}' with working directory '${directory}': ${reason}.${detail}"
+  }
+}
+pub pure convert[T](result: Result[T,HostError], command: Command): Result[T,ProcessError] {
+  match result {
+    Ok(value) => Ok(value),
+    Error(problem) => {
+      code = problem.code
+      kind = if code == "negative_duration" || (code == "timeout" && command.timeout.as_nanoseconds() <= 0) ||
+        (code == "out_of_range" && command.timeout.as_nanoseconds() > 31536000000000000) { InvalidTimeout() }
+      else if code == "out_of_range" { LimitExceeded() }
+      else if code == "invalid_argument" { InvalidArgument() }
+      else if code == "invalid_environment" { InvalidEnvironment() }
+      else if code == "launch_failed" { LaunchFailed() }
+      else if code == "timeout" { TimedOut() }
+      else if code == "output_limit" { OutputLimitExceeded() }
+      else if code == "clock_unavailable" { ClockUnavailable() }
+      else if code == "resource_limit" || code == "out_of_memory" { ResourceLimit() }
+      else if code == "cancelled" { Cancelled() }
+      else if code == "unsupported_host" { UnsupportedHost() }
+      else if code == "io_error" || code == "not_found" || code == "permission_denied" || code == "already_exists" || code == "not_directory" || code == "is_directory" || code == "not_empty" || code == "symlink_loop" { HostFailure() }
+      else { OtherFailure() }
+      Error(ProcessError(command.executable, command.working_directory, command.timeout,
+        command.output_limit, kind, problem))
+    }
+  }
+}

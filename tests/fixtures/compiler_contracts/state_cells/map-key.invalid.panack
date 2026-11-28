@@ -1,0 +1,5 @@
+import stdlib/state as state
+main(): Void {
+  cell = state.create(0)
+  entries = map().put(cell, "value")
+}

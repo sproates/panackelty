@@ -1,10 +1,10 @@
 {
   "schema": 2,
   "review": {
-    "reason": "Review declaration exclusions for domain proof origins and effect ownership.",
-    "basis": "Reproduced the previous reviewed exclusion digest from 1e60e8d with the production inventory. Reviewed the new inventory: 246 imports, 146 records and 33 enums. Only declarations are excluded.",
-    "scopeChange": "Measured files, test corpus and unmeasured list are unchanged."
+    "reason": "Review compiler declaration exclusions after adding cached generic State admission facts.",
+    "basis": "Computed with the production parser and inventory_module over every eligible source. Only imports, type refinements, records and enums are excluded; executable functions remain eligible.",
+    "scopeChange": "Eligible source and corpus membership are unchanged. State modules remain explicitly unmeasured; focused source/bytecode and native tests supply separate evidence."
   },
-  "manifestHash": "d6a4a9aff279fb3c697f0f544eb9f69d656e99f53d8dcc8ff50351ad74c08096",
-  "exclusionHash": "732f569bc6cdc2df54524a708799805ed0a0cd6ae6289a26ecc4d6b8a4d6406c"
+  "manifestHash": "603461fc1809202e535a12c14265c82e8cd530232dbf018351f3d6baaa563029",
+  "exclusionHash": "24172d25830d659aded9bc47faaf32b0c0698fa1bdd624e0d9157d4b5b067f69"
 }

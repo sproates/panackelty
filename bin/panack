@@ -46,7 +46,30 @@ export PANACKELTY_VERSION
 PANACKELTY_STDLIB_PATH=$stdlib
 export PANACKELTY_STDLIB_PATH
 PANACKELTY_COMPILER_PATH=$compiler
-export PANACKELTY_COMPILER_PATH
+PANACKELTY_VM_PATH=$vm
+export PANACKELTY_COMPILER_PATH PANACKELTY_VM_PATH
+
+# Incremental builds remain one-shot commands. The private cache is disposable;
+# inability to create it must not prevent an ordinary compilation.
+case "${1-}:${2-}" in
+  compile:--incremental|check:--incremental)
+    incremental_command=$1
+    shift 2
+    set -- "$incremental_command" "$@"
+    if [ -z "${PANACKELTY_COMPILE_CACHE_DIR:-}" ]; then
+      incremental_parent=${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}
+      case "$incremental_parent" in
+        /*)
+          incremental_directory=$incremental_parent/panackelty/compiler
+          if (umask 077; mkdir -p "$incremental_directory") 2>/dev/null; then
+            PANACKELTY_COMPILE_CACHE_DIR=$incremental_directory
+            export PANACKELTY_COMPILE_CACHE_DIR
+          fi
+          ;;
+      esac
+    fi
+    ;;
+esac
 
 require_package_tool() {
   if [ ! -f "$package_tool" ]; then
@@ -139,7 +162,11 @@ case "${1-}" in
       wait "$child" || status=$?
       child=
       if [ "$status" -eq 0 ]; then
-        "$vm" run "$compiler" "$command" --resolved-project "$descriptor" "$@" <&0 &
+        if [ -n "${PANACKELTY_COMPILE_CACHE_DIR:-}" ]; then
+          "$vm" run "$compiler" --local-compile-cache "$command" --resolved-project "$descriptor" "$@" <&0 &
+        else
+          "$vm" run "$compiler" "$command" --resolved-project "$descriptor" "$@" <&0 &
+        fi
         child=$!
         wait "$child" || status=$?
         child=
@@ -168,4 +195,7 @@ case "${1-}" in
     ;;
 esac
 
+if [ -n "${PANACKELTY_COMPILE_CACHE_DIR:-}" ]; then
+  set -- --local-compile-cache "$@"
+fi
 exec "$vm" run "$compiler" "$@"

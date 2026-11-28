@@ -1,0 +1,126 @@
+import project/src/compiler/loader::{LoadedProject, ProjectPreparationContext, load_project, load_project_explained, load_project_for_inventory}
+import project/src/compiler/project_frontend::{prepare_project_program_with_dependencies}
+import project/src/compiler/module_bindings::{ModuleIdentity}
+import project/src/project_model/package_project::{ManifestDependencyProject}
+import project/src/compiler/parser::{Program, indexed_program}
+import project/src/compiler/types::{Diagnostic, SourcePos}
+import stdlib/package_filesystem::{FilesystemRootIdentity}
+pub import stdlib/testing::{TestResult}
+import stdlib/testing as testing
+
+// An unmistakable prepared result lets the tests distinguish reuse from a
+// fresh lowering, even when both would normally produce equivalent programs.
+pure preparation_fixture(
+  project: LoadedProject,
+  preparation: Option[ProjectPreparationContext],
+  identity_ready: Bool,
+  effects_checked: Bool,
+  diagnostics: [Diagnostic]
+): LoadedProject {
+  LoadedProject(
+    indexed_program([]), project.modules, diagnostics,
+    project.sources, project.source_paths, project.evidence, project.effects,
+    effects_checked, identity_ready, project.function_types,
+    project.module_signatures, project.module_bodies, preparation
+  )
+}
+
+pure prepare_with_context(
+  project: LoadedProject,
+  context: ProjectPreparationContext
+): Result[Program, [Diagnostic]] {
+  prepare_project_program_with_dependencies(
+    project, context.project_root, context.stdlib_root, context.entry,
+    context.package_confined, context.package_root_identity, context.dependencies
+  )
+}
+
+pub preparation_tests(): [TestResult] {
+  entry: Str = "tests/fixtures/compiler_contracts/indexed_lookup/main.panack"
+  mut results: [TestResult] = []
+  for project in [load_project(entry), load_project_explained(entry), load_project_for_inventory(entry)] {
+    match project.preparation {
+      None() => {
+        results = results.append(testing.expect("successful loader retains preparation", false, "preparation missing"))
+      },
+      Some(context) => {
+        fresh: LoadedProject = preparation_fixture(project, None(), true, true, [])
+        reused: LoadedProject = preparation_fixture(project, project.preparation, true, true, [])
+        results = results.append(testing.expect(
+          "matching context reuses prepared program",
+          prepare_with_context(reused, context) == Ok(indexed_program([])),
+          "the prepared program was lowered again"
+        ))
+        results = results.append(testing.expect(
+          "prepared result equals fresh lowering in every loading mode",
+          prepare_with_context(project, context) == prepare_with_context(fresh, context) &&
+            prepare_with_context(fresh, context) != Ok(indexed_program([])),
+          "fresh and retained executable declarations differ"
+        ))
+        for flags in [[false, true], [true, false]] {
+          unchecked: LoadedProject = preparation_fixture(project, project.preparation, flags[0], flags[1], [])
+          results = results.append(testing.expect(
+            "incomplete checks cannot reuse preparation",
+            prepare_with_context(unchecked, context) == prepare_with_context(fresh, context),
+            "incomplete identity or effect checks reused the sentinel"
+          ))
+        }
+        failure: Diagnostic = Diagnostic("injected preparation failure", SourcePos(entry, 0, 1, 1))
+        invalid: LoadedProject = preparation_fixture(project, project.preparation, true, true, [failure])
+        results = results.append(testing.expect(
+          "diagnostics take precedence over preparation",
+          prepare_with_context(invalid, context) == Error([failure]),
+          "failure was hidden by successful preparation"
+        ))
+        changed_dependency: ManifestDependencyProject = ManifestDependencyProject(
+          FilesystemRootIdentity(1, 2), "other", "/other", "/other/src", [],
+          "example.other", "1.0.0", FilesystemRootIdentity(3, 4)
+        )
+        for changed in [
+          ProjectPreparationContext(
+            context.project_root + "/other", context.stdlib_root, context.entry,
+            context.package_confined, context.package_root_identity, context.dependencies
+          ),
+          ProjectPreparationContext(
+            context.project_root, context.stdlib_root + "/other", context.entry,
+            context.package_confined, context.package_root_identity, context.dependencies
+          ),
+          ProjectPreparationContext(
+            context.project_root, context.stdlib_root, ModuleIdentity(context.entry.package, "other.panack"),
+            context.package_confined, context.package_root_identity, context.dependencies
+          ),
+          ProjectPreparationContext(
+            context.project_root, context.stdlib_root, context.entry,
+            !context.package_confined, context.package_root_identity, context.dependencies
+          ),
+          ProjectPreparationContext(
+            context.project_root, context.stdlib_root, context.entry,
+            context.package_confined, FilesystemRootIdentity(1, 2), context.dependencies
+          ),
+          ProjectPreparationContext(
+            context.project_root, context.stdlib_root, context.entry,
+            context.package_confined, context.package_root_identity, [changed_dependency]
+          )
+        ] {
+          results = results.append(testing.expect(
+            "different context follows fresh preparation",
+            prepare_with_context(reused, changed) == prepare_with_context(fresh, changed) &&
+              prepare_with_context(reused, changed) != Ok(indexed_program([])),
+            "a different root, entry or package context reused the sentinel"
+          ))
+        }
+      }
+    }
+  }
+  for invalid in [
+    load_project("tests/fixtures/compiler_contracts/preparation-missing.panack"),
+    load_project("tests/fixtures/compiler_contracts/indexed_lookup/library.panack")
+  ] {
+    results = results.append(testing.expect(
+      "failed load has no successful preparation",
+      invalid.preparation == None() && invalid.diagnostics.len() > 0,
+      "a failed source read or missing main retained successful preparation"
+    ))
+  }
+  results
+}

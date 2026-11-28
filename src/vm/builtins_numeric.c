@@ -10,7 +10,7 @@
 Value *builtins_numeric_call(VM *vm, const char *name, Value **a)
 {
     if (!strcmp(name, "$unit")) {
-        return value_new(V_UNIT);
+        return value_unit();
     }
 
     if (!strcmp(name, "quotient")) {

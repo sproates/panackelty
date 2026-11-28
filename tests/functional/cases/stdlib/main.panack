@@ -34,7 +34,7 @@ main(): Void {
   print(path_value.display())
   match prelude.filesystem.metadata(path_value) {
     Ok(metadata) => print(metadata.kind == prelude.filesystem.FileKind.Directory()),
-    Error(error) => print(error.code)
+    Error(error) => print(error.native.code)
   }
   print(describe_option(prelude.environment.get("PANACKELTY_STDLIB_VALUE")))
   output: prelude.process.ProcessOutput = prelude.process.ProcessOutput(0, 0, prelude.byte_buffer.empty(), prelude.byte_buffer.empty())

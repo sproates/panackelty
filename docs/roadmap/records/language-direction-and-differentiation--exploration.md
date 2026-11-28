@@ -178,7 +178,7 @@ commitment.
 
 **RM#64: Inference and diagnostics** · [GI#170: Inference and diagnostics](https://github.com/sproates/panackelty/issues/170).
 
-**Selected for alpha.16 as an assessment by owner decision, 26 October 2026.**
+**Allocated to alpha.17 as an assessment by owner decision, 28 November 2026.**
 Existing inference decisions still require GI#134 explanations in alpha.15.
 The assessment scope remains; implementation needs a later decision.
 Historical owner direction, 2026-10-15:

@@ -1,0 +1,6 @@
+pub import stdlib/async_filesystem::{HostError, FilesystemRootIdentity, FilesystemRootRead,
+  read_beneath, root_identity}
+
+pub async directories_overlap(left: Path, right: Path): Result[Bool,HostError] {
+  await fs_directories_overlap_async(left, right)
+}

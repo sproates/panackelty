@@ -31,6 +31,8 @@ From the repository root:
 ```sh
 make                  # build the native VM as ./panack-vm
 ./bin/panack --help       # use the toolchain from the checkout
+make compiler         # build the current compiler sources incrementally
+make compiler-fresh   # build the same candidate without compilation caches
 make check            # run all tests and the reproducible-bootstrap proof
 make check-compiler   # focused compiler checks with public-CLI coverage
 make check-bytecode   # focused bytecode and artifact checks
@@ -40,6 +42,23 @@ make native-sanitize  # address/undefined-behaviour checks (also run in CI)
 make native-coverage  # LLVM line/branch report and HTML under build/coverage
 ```
 
+
+For routine compiler edits, use `make compiler`. It writes
+`build/compiler/candidate.bc` (under `BUILD_DIR` when overridden). An unchanged
+build reuses the existing complete artifact; after an edit, compilation can reuse
+checked modules. The first build pays the cost of populating both caches.
+
+Run the candidate explicitly, for example:
+
+```sh
+PANACKELTY_STDLIB_PATH="$PWD/src/stdlib" ./panack-vm run build/compiler/candidate.bc check examples/euler001.panack
+```
+
+This does not replace the checked-in seed, the installed compiler or `bin/panack`.
+Use `make compiler-fresh` to rebuild the same candidate without either cache.
+The bootstrap proof, seed refresh, normal validation and hosted CI entry points
+keep their existing commands; this target is the development build, not a
+substitute for acceptance checks. See [cache behaviour](../../tests/README.md#development-compiler-cache).
 
 For reproducible local build/validation measurements, see the
 [bounded baseline harness](../../tests/README.md#reproducible-build-and-validation-baseline).

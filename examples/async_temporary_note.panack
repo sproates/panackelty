@@ -1,0 +1,46 @@
+import stdlib/encoding/utf8 as utf8
+import stdlib/filesystem/async as files
+import stdlib/path as paths
+import stdlib/console/async as console
+import stdlib/host/async as host
+
+async write_and_read(file: Path): Result[Str,Str] {
+  match await files.write(file, "remember the milk".encode_utf8()) {
+    Error(problem) => Error(problem.render()),
+    Ok(written) => match await files.read(file, 1024) {
+      Error(problem) => Error(problem.render()),
+      Ok(data) => match utf8.decode(data) {
+        Error(decode_error) => Error("The note is not valid UTF-8."), Ok(text) => Ok(text)
+      }
+    }
+  }
+}
+
+async temporary_note(): Result[Str,Str] {
+  match await files.create_temp_file(paths.current()) {
+    Error(problem) => Error(problem.render()),
+    Ok(file) => {
+      result = await write_and_read(file)
+      // Always attempt cleanup, including when writing or reading failed.
+      match await files.remove_file(file) {
+        Ok(removed) => result,
+        Error(cleanup) => match result {
+          Ok(text) => Error(cleanup.render()),
+          Error(original) => Error(original + "\nCleanup also failed: " + cleanup.render())
+        }
+      }
+    }
+  }
+}
+
+async main(): Unit {
+  match await temporary_note() {
+    Error(message) => {
+      reported = await console.write_error_line(message)
+      await host.exit(1)
+    },
+    Ok(text) => match await console.write_line(text) {
+      Error(write_error) => await host.exit(1), Ok(displayed) => ()
+    }
+  }
+}

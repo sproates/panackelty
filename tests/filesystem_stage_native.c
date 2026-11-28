@@ -4,6 +4,8 @@
 #include "host_types.h"
 #include <assert.h>
 #include <fcntl.h>
+#include <pthread.h>
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -100,11 +102,254 @@ static void staged_links_preserve_bytes_and_confine_destinations(const char *roo
     filesystem_stage_destroy(&vm);
 }
 
+static void failed_discard_retains_ownership(const char *root)
+{
+    VM vm = {0};
+    size_t handle = begin(&vm, root);
+    write_chunk(&vm, handle, "private", true);
+    Value *args[] = {value_size(handle)};
+    Value *result = filesystem_stage_call(&vm, "fs_stage_path", args);
+    char *original = strdup((char *)payload(result, "Ok")->as.bytes.data);
+    assert(original);
+    release(result);
+    char moved[8192];
+    snprintf(moved, sizeof(moved), "%s-held", original);
+    assert(rename(original, moved) == 0 && mkdir(original, 0700) == 0);
+    result = filesystem_stage_call(&vm, "fs_stage_close", args);
+    Value *error = payload(result, "Error");
+    assert(!strcmp((char *)error->as.named.values[1]->as.bytes.data, "cleanup_failed"));
+    release(result);
+    /* A substituted directory must survive, and the original remains owned. */
+    assert(rmdir(original) == 0 && rename(moved, original) == 0);
+    write_chunk(&vm, handle, "still-owned", true);
+    operation(&vm, "fs_stage_close", handle, "ignored", true);
+    assert(access(original, F_OK) != 0);
+    operation(&vm, "fs_stage_close", handle, "ignored", false);
+    release(args[0]);
+    free(original);
+    filesystem_stage_destroy(&vm);
+}
+
+static void published_cleanup_failure(const char *root)
+{
+    /* Root can bypass mode bits; the identity-substitution test above runs for
+     * every user, while this permission failure requires an ordinary user. */
+    if (geteuid() == 0) return;
+    VM vm = {0};
+    char target[4096];
+    snprintf(target, sizeof(target), "%s/locked-old", root);
+    assert(mkdir(target, 0700) == 0);
+    size_t handle = begin(&vm, root);
+    write_chunk(&vm, handle, "published", true);
+    Value *args[] = {value_size(handle)};
+    Value *result = filesystem_stage_call(&vm, "fs_stage_path", args);
+    char *old = strdup((char *)payload(result, "Ok")->as.bytes.data);
+    assert(old);
+    release(result);
+    release(args[0]);
+    char locked[8192];
+    snprintf(locked, sizeof(locked), "%s/locked", target);
+    assert(mkdir(locked, 0) == 0);
+    FILE *diagnostic = tmpfile();
+    int saved = dup(STDERR_FILENO);
+    assert(diagnostic && saved >= 0);
+    assert(fflush(stderr) == 0 && dup2(fileno(diagnostic), STDERR_FILENO) >= 0);
+    operation(&vm, "fs_stage_publish", handle, "locked-old", true);
+    assert(fflush(stderr) == 0 && dup2(saved, STDERR_FILENO) >= 0);
+    assert(close(saved) == 0);
+    rewind(diagnostic);
+    char message[8192] = {0};
+    assert(fread(message, 1, sizeof(message) - 1, diagnostic) > 0);
+    assert(strstr(message, old) && strstr(message, "errno"));
+    assert(fclose(diagnostic) == 0);
+    operation(&vm, "fs_stage_path", handle, "ignored", false);
+    snprintf(locked, sizeof(locked), "%s/locked", old);
+    assert(chmod(locked, 0700) == 0);
+    filesystem_stage_destroy(&vm);
+    assert(access(old, F_OK) != 0);
+    char file[8192];
+    snprintf(file, sizeof(file), "%s/published", target);
+    assert(access(file, F_OK) == 0 && unlink(file) == 0 && rmdir(target) == 0);
+    free(old);
+}
+
+static void opaque_stage_identity(const char *root)
+{
+    VM first = {0}, second = {0};
+    Value *parent[] = {path(root)};
+    Value *created = filesystem_stage_resource_call(&first, "stage_create", parent);
+    Value *handle = retain(payload(created, "Ok"));
+    assert(handle->kind == V_DIRECTORY_STAGE);
+    release(created);
+    Value *args[] = {handle};
+    Value *result = filesystem_stage_resource_call(&first, "stage_path", args);
+    payload(result, "Ok");
+    release(result);
+    created = filesystem_stage_resource_call(&second, "stage_create", parent);
+    Value *other = retain(payload(created, "Ok"));
+    release(created);
+    result = filesystem_stage_resource_call(&second, "stage_path", args);
+    payload(result, "Error");
+    release(result);
+    Value *forged[] = {value_size(1)};
+    result = filesystem_stage_resource_call(&first, "stage_path", forged);
+    payload(result, "Error");
+    release(result);
+    release(forged[0]);
+    /* Keep the value alive across table destruction and recreation. */
+    filesystem_stage_destroy(&first);
+    created = filesystem_stage_resource_call(&first, "stage_create", parent);
+    release(created);
+    result = filesystem_stage_resource_call(&first, "stage_discard", args);
+    payload(result, "Error");
+    release(result);
+    release(handle);
+    Value *owned[] = {other};
+    Value *alias = retain(other);
+    result = filesystem_stage_resource_call(&second, "stage_discard", owned);
+    payload(result, "Ok");
+    release(result);
+    owned[0] = alias;
+    result = filesystem_stage_resource_call(&second, "stage_path", owned);
+    payload(result, "Error");
+    release(result);
+    release(alias);
+    release(other);
+    release(parent[0]);
+    filesystem_stage_destroy(&first);
+    filesystem_stage_destroy(&second);
+}
+
+static void *leased_stage_worker(void *context)
+{
+    VMStageLease *lease = context;
+    /* All values here belong to this thread, not the cancelled execution. */
+    Value *args[] = {path("worker-finished")};
+    Value *result = filesystem_stage_leased_call(lease, "fs_stage_directory", args);
+    payload(result, "Ok");
+    release(result);
+    release(args[0]);
+    filesystem_stage_lease_release(lease);
+    return NULL;
+}
+
+static void stage_lease_survives_vm_destroy(const char *root)
+{
+    VM vm = {0};
+    Value *parent[] = {path(root)};
+    Value *created = filesystem_stage_resource_call(&vm, "stage_create", parent);
+    Value *handle = retain(payload(created, "Ok"));
+    release(created);
+    release(parent[0]);
+    Value *args[] = {handle};
+    Value *result = filesystem_stage_resource_call(&vm, "stage_path", args);
+    char *directory = strdup((char *)payload(result, "Ok")->as.bytes.data);
+    assert(directory);
+    release(result);
+    Value *failure = NULL;
+    VMStageLease *lease = filesystem_stage_acquire(&vm, handle, &failure);
+    assert(lease && !failure);
+    assert(!filesystem_stage_acquire(&vm, handle, &failure));
+    Value *error = payload(failure, "Error");
+    assert(!strcmp((char *)error->as.named.values[1]->as.bytes.data, "busy"));
+    release(failure);
+    result = filesystem_stage_resource_call(&vm, "stage_discard", args);
+    error = payload(result, "Error");
+    assert(!strcmp((char *)error->as.named.values[1]->as.bytes.data, "busy"));
+    release(result);
+    filesystem_stage_destroy(&vm);
+    release(handle);
+    assert(access(directory, F_OK) == 0);
+    /* Start only after the owner and all source values are gone: no timing race
+     * is needed to prove the worker has independent native ownership. */
+    pthread_t worker;
+    assert(pthread_create(&worker, NULL, leased_stage_worker, lease) == 0);
+    assert(pthread_join(worker, NULL) == 0);
+    assert(access(directory, F_OK) != 0);
+    free(directory);
+}
+
+static void stage_table_admission(const char *root)
+{
+    VM owners[33] = {0};
+    Value *args[] = {path(root)};
+    for (size_t i = 0; i < 32; i++) {
+        Value *result = filesystem_stage_resource_call(&owners[i], "stage_create", args);
+        payload(result, "Ok");
+        release(result);
+    }
+    Value *result = filesystem_stage_resource_call(&owners[32], "stage_create", args);
+    Value *error = payload(result, "Error");
+    assert(!strcmp((char *)error->as.named.values[1]->as.bytes.data, "resource_limit"));
+    release(result);
+    filesystem_stage_destroy_deferred(&owners[0]);
+    struct timespec delay = {.tv_nsec = 1000000};
+    for (size_t i = 0; i < 5000 && filesystem_stage_pending_cleanup(); i++) nanosleep(&delay, NULL);
+    assert(!filesystem_stage_pending_cleanup());
+    result = filesystem_stage_resource_call(&owners[32], "stage_create", args);
+    payload(result, "Ok");
+    release(result);
+    for (size_t i = 1; i < 33; i++) filesystem_stage_destroy_deferred(&owners[i]);
+    for (size_t i = 0; i < 5000 && filesystem_stage_pending_cleanup(); i++) nanosleep(&delay, NULL);
+    assert(!filesystem_stage_pending_cleanup());
+    release(args[0]);
+}
+
+static void staging_lifetime(const char *root)
+{
+    VM vm = {0};
+    size_t handle = begin(&vm, root);
+    write_chunk(&vm, handle, "payload", true);
+    char destination[4096];
+    snprintf(destination, sizeof(destination), "%s/occupied", root);
+    assert(mkdir(destination, 0700) == 0);
+    Value *args[] = {value_size(handle), path("occupied"), value_bool(false)};
+    Value *result = filesystem_stage_call(&vm, "fs_stage_publish", args);
+    Value *error = payload(result, "Error");
+    assert(!strcmp((char *)error->as.named.values[1]->as.bytes.data, "destination_conflict"));
+    release(result);
+    /* A rejected publication leaves the stage usable, with its contents intact. */
+    operation(&vm, "fs_stage_path", handle, "ignored", true);
+    write_chunk(&vm, handle, "after-rejection", true);
+    assert(rmdir(destination) == 0);
+    result = filesystem_stage_call(&vm, "fs_stage_publish", args);
+    payload(result, "Ok");
+    release(result);
+    for (size_t i = 0; i < 3; i++) release(args[i]);
+    operation(&vm, "fs_stage_path", handle, "ignored", false);
+    write_chunk(&vm, handle, "after-publication", false);
+    operation(&vm, "fs_stage_publish", handle, "second", false);
+    size_t unpublished = begin(&vm, root);
+    write_chunk(&vm, unpublished, "private", true);
+    Value *pending[] = {value_size(unpublished)};
+    result = filesystem_stage_call(&vm, "fs_stage_path", pending);
+    char *unpublished_path = strdup((char *)payload(result, "Ok")->as.bytes.data);
+    assert(unpublished_path);
+    release(result);
+    release(pending[0]);
+    filesystem_stage_destroy(&vm);
+    assert(access(unpublished_path, F_OK) != 0);
+    free(unpublished_path);
+    /* VM shutdown must never remove a successfully published directory. */
+    char file[8192];
+    snprintf(file, sizeof(file), "%s/payload", destination);
+    assert(access(file, F_OK) == 0 && unlink(file) == 0);
+    snprintf(file, sizeof(file), "%s/after-rejection", destination);
+    assert(access(file, F_OK) == 0 && unlink(file) == 0);
+    assert(rmdir(destination) == 0);
+}
+
 int main(void)
 {
     char temporary[] = "/tmp/panack-stage-native-XXXXXX";
     assert(mkdtemp(temporary)); char *root = realpath(temporary, NULL); assert(root);
     staged_links_preserve_bytes_and_confine_destinations(root);
+    staging_lifetime(root);
+    stage_table_admission(root);
+    stage_lease_survives_vm_destroy(root);
+    opaque_stage_identity(root);
+    failed_discard_retains_ownership(root);
+    published_cleanup_failure(root);
     VM vm={0}; size_t handle=begin(&vm,root);
     operation(&vm,"fs_stage_directory",handle,"nested",true);
     write_chunk(&vm,handle,"nested/main.panack",true);

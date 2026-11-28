@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <pthread.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -72,7 +73,7 @@ static Value *hc_error(const char *op, const char *code, int e)
 
 static Value *hc_unit(void)
 {
-    return host_variant("Ok", value_new(V_UNIT));
+    return host_variant("Ok", value_unit());
 }
 
 static const char *hc_duration(Value *v, size_t *ns)
@@ -94,6 +95,46 @@ static bool hc_clock(uint64_t *ns)
     }
     *ns = (uint64_t)t.tv_sec * UINT64_C(1000000000) + (uint64_t)t.tv_nsec;
     return true;
+}
+
+bool host_sleep_start(VM *vm, Value *duration, uint64_t *deadline, Value **result)
+{
+    *result = NULL;
+    if (duration->kind != V_DURATION) {
+        vm->error = "VM trap: sleep requires Duration";
+        return false;
+    }
+    size_t ns;
+    const char *problem = hc_duration(duration, &ns);
+    uint64_t now;
+    if (problem) *result = hc_error("host_sleep", problem, 0);
+    else if (!ns) *result = hc_unit();
+    else if (!hc_clock(&now)) *result = hc_error("host_sleep", NULL, errno);
+    else if (UINT64_MAX - now < ns) *result = hc_error("host_sleep", "out_of_range", 0);
+    else { *deadline = now + ns; return true; }
+    if (!*result) vm->error = "native VM out of memory";
+    return false;
+}
+
+bool host_sleep_poll(uint64_t deadline, Value **result)
+{
+    uint64_t now;
+    *result = NULL;
+    if (!hc_clock(&now)) *result = hc_error("host_sleep", NULL, errno);
+    else if (now < deadline) return false;
+    else *result = hc_unit();
+    return true;
+}
+
+void host_sleep_wait(uint64_t deadline)
+{
+    uint64_t now;
+    if (!hc_clock(&now) || now >= deadline) return;
+    uint64_t remaining = deadline - now;
+    // Bound a standalone wait so external runtime state is revisited regularly.
+    if (remaining > UINT64_C(1000000000)) remaining = UINT64_C(1000000000);
+    struct timespec delay = {(time_t)(remaining / 1000000000), (long)(remaining % 1000000000)};
+    (void)nanosleep(&delay, NULL);
 }
 
 static bool hc_string(Value *v, ValueKind kind)
@@ -524,12 +565,14 @@ static void hc_free_strings(char **items)
     }
 }
 
-static Value *hc_process(VM *vm, const char *operation, Value **a, bool isolated)
+static Value *hc_process(VM *vm, const char *operation, Value **a, bool isolated,
+                         const atomic_bool *cancelled, const char *coverage_ticket)
 {
     REQUIRE(hc_string(a[0], V_PATH) && hc_string(a[3], V_PATH), "VM trap: process requires Path");
     REQUIRE(a[1]->kind == V_ARRAY && a[2]->kind == V_BYTES && a[4]->kind == V_ARRAY &&
                 a[5]->kind == V_DURATION && a[6]->kind == V_NAT,
             "VM trap: invalid process operands");
+    if (cancelled && atomic_load(cancelled)) return hc_error(operation, "cancelled", 0);
     size_t timeout = 0, limit = 0;
     const char *problem = hc_duration(a[5], &timeout);
     if (problem) {
@@ -604,8 +647,8 @@ static Value *hc_process(VM *vm, const char *operation, Value **a, bool isolated
     if (isolated && vm->coverage_run) {
         vm_coverage_gap(vm->coverage);
     }
-    if (!isolated && vm->coverage_run && allocated) {
-        char *ticket = vm_coverage_process_ticket(vm->coverage_run);
+    if (!isolated && (vm->coverage_run || coverage_ticket) && allocated) {
+        char *ticket = coverage_ticket ? strdup(coverage_ticket) : vm_coverage_process_ticket(vm->coverage_run);
         if (ticket) {
             const char *key = "PANACK_COVERAGE_TICKET=";
             for (size_t i = 0; i < count;) {
@@ -618,9 +661,9 @@ static Value *hc_process(VM *vm, const char *operation, Value **a, bool isolated
             size_t size = strlen(key) + strlen(ticket) + 1;
             env[count] = malloc(size);
             if (env[count]) snprintf(env[count++], size, "%s%s", key, ticket);
-            else vm_coverage_gap(vm->coverage);
+            else { allocated = false; vm_coverage_gap(vm->coverage); }
             free(ticket);
-        } else vm_coverage_gap(vm->coverage);
+        } else { if (coverage_ticket) allocated = false; vm_coverage_gap(vm->coverage); }
     }
     if (!allocated) {
         hc_free_strings(argv);
@@ -660,6 +703,7 @@ static Value *hc_process(VM *vm, const char *operation, Value **a, bool isolated
             }
         }
     }
+    if (cancelled && atomic_load(cancelled)) { problem = "cancelled"; goto finish; }
     child = fork();
     if (child < 0) {
         error = errno;
@@ -667,7 +711,14 @@ static Value *hc_process(VM *vm, const char *operation, Value **a, bool isolated
     }
     if (child == 0) {
         int child_error = 0;
-        if (setpgid(0, 0) || chdir((char *)a[3]->as.bytes.data) ||
+        /* Parent and child both establish the group before exec. Darwin can
+         * report EPERM for overlapping identical assignments. Accept only
+         * that error, and only after verifying the required postcondition. */
+        int group_error = setpgid(0, 0) < 0 ? errno : 0;
+        if (group_error == EPERM && getpgrp() == getpid()) group_error = 0;
+        if (group_error) {
+            child_error = group_error;
+        } else if (chdir((char *)a[3]->as.bytes.data) ||
             dup2(pipes[0][0], STDIN_FILENO) < 0 || dup2(pipes[1][1], STDOUT_FILENO) < 0 ||
             dup2(pipes[2][1], STDERR_FILENO) < 0) {
             child_error = errno;
@@ -700,9 +751,13 @@ static Value *hc_process(VM *vm, const char *operation, Value **a, bool isolated
             goto finish;
         }
     }
+#ifdef F_SETNOSIGPIPE
+    if (fcntl(pipes[0][1], F_SETNOSIGPIPE, 1) < 0) { error = errno; goto finish; }
+#endif
     size_t sent = 0;
     /* Block SIGPIPE only around writes and consume a newly generated signal. */
     while (!reaped || pipes[1][0] >= 0 || pipes[2][0] >= 0 || pipes[3][0] >= 0) {
+        if (cancelled && atomic_load(cancelled)) { problem = "cancelled"; goto finish; }
         uint64_t now;
         if (!hc_clock(&now)) {
             error = errno;
@@ -733,8 +788,9 @@ static Value *hc_process(VM *vm, const char *operation, Value **a, bool isolated
             sigset_t mask, old, pending;
             sigemptyset(&mask);
             sigaddset(&mask, SIGPIPE);
-            if (sigprocmask(SIG_BLOCK, &mask, &old)) {
-                error = errno;
+            int mask_error = pthread_sigmask(SIG_BLOCK, &mask, &old);
+            if (mask_error) {
+                error = mask_error;
                 goto finish;
             }
             sigpending(&pending);
@@ -752,7 +808,7 @@ static Value *hc_process(VM *vm, const char *operation, Value **a, bool isolated
                     sigwait(&mask, &caught);
                 }
             }
-            sigprocmask(SIG_SETMASK, &old, NULL);
+            pthread_sigmask(SIG_SETMASK, &old, NULL);
             if (wrote > 0) {
                 sent += (size_t)wrote;
             } else if (wrote < 0 && write_error == EPIPE) {
@@ -843,6 +899,13 @@ finish:
     return result;
 }
 
+Value *host_process_run_cancelable(VM *vm, Value **arguments, bool isolated,
+                                   const atomic_bool *cancelled, const char *coverage_ticket)
+{
+    return hc_process(vm, isolated ? "process_run_isolated" : "process_run", arguments,
+                      isolated, cancelled, coverage_ticket);
+}
+
 Value *host_capability_call(VM *vm, const char *name, Value **a)
 {
     if (!strcmp(name, "fs_root_identity")) {
@@ -855,7 +918,7 @@ Value *host_capability_call(VM *vm, const char *name, Value **a)
         return hc_directories_overlap(vm, a);
     }
     if (!strcmp(name, "process_run") || !strcmp(name, "process_run_isolated")) {
-        return hc_process(vm, name, a, !strcmp(name, "process_run_isolated"));
+        return hc_process(vm, name, a, !strcmp(name, "process_run_isolated"), NULL, NULL);
     }
     if (!strcmp(name, "host_decode_utf8")) {
         REQUIRE(a[0]->kind == V_BYTES, "VM trap: UTF-8 decode requires Bytes");

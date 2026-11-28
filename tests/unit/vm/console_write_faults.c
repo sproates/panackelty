@@ -9,6 +9,14 @@
 #include <errno.h>
 #include <stdio.h>
 
+static bool checked_api;
+
+static VMConsoleWrite *start_write(VM *vm, Value *message)
+{
+    return checked_api ? console_write_start_mode(vm, message, false, false, false)
+                       : console_write_start(vm, message, false);
+}
+
 static void await_idle(void)
 {
     struct timespec delay = {.tv_nsec = 1000000};
@@ -21,7 +29,7 @@ static void await_idle(void)
 static void complete_write(Value *message)
 {
     VM vm = {0};
-    VMConsoleWrite *operation = console_write_start(&vm, message, false);
+    VMConsoleWrite *operation = start_write(&vm, message);
     if (operation) {
         console_write_wait(operation);
         console_write_destroy(operation);
@@ -29,7 +37,7 @@ static void complete_write(Value *message)
     await_idle();
 }
 
-void console_write_faults(void)
+static void console_write_fault_variant(void)
 {
     fault_reset(0);
     fflush(stdout);
@@ -60,7 +68,7 @@ void console_write_faults(void)
     fault_reset(0);
     fault_pause_writes(true);
     VM vm = {0};
-    VMConsoleWrite *pending = console_write_start(&vm, message, false);
+    VMConsoleWrite *pending = start_write(&vm, message);
     assert(pending);
     struct timespec delay = {.tv_nsec = 1000000};
     for (size_t i = 0; i < 5000 && !fault_write_paused(); i++) {
@@ -75,11 +83,11 @@ void console_write_faults(void)
 
     VMConsoleWrite *retained[4];
     for (size_t i = 0; i < 4; i++) {
-        retained[i] = console_write_start(&vm, message, false);
+        retained[i] = start_write(&vm, message);
         assert(retained[i]);
         console_write_wait(retained[i]);
     }
-    pending = console_write_start(&vm, message, false);
+    pending = start_write(&vm, message);
     assert(pending && console_write_poll(pending));
     Value *result = console_write_result(pending);
     assert(result && !strcmp(result->as.named.name, "Error"));
@@ -94,4 +102,12 @@ void console_write_faults(void)
     assert(fault_live() == 0 && fault_descriptors() == 0);
     assert(dup2(saved, STDOUT_FILENO) >= 0);
     close(saved);
+}
+
+void console_write_faults(void)
+{
+    checked_api = false;
+    console_write_fault_variant();
+    checked_api = true;
+    console_write_fault_variant();
 }

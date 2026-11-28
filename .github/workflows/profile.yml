@@ -4,12 +4,18 @@ name: Validation profile
 # can take a long time. Run it on demand; PRs use the regular Check workflow.
 on:
   workflow_dispatch:
+    inputs:
+      incremental_cache_trial:
+        description: Run only the bounded cold/warm compiler cache experiment
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
   focused:
+    if: ${{ !inputs.incremental_cache_trial }}
     name: Warm profile (${{ matrix.target }})
     strategy:
       fail-fast: false
@@ -68,4 +74,90 @@ jobs:
             validation-profile.tsv
             validation-timings.tsv
             profile-environment.txt
+          if-no-files-found: warn
+
+  compiler_cache_cold:
+    if: ${{ inputs.incremental_cache_trial }}
+    name: Compiler cache cold
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    outputs:
+      digest: ${{ steps.measure.outputs.cache_digest }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Select private cache directory
+        run: echo "PANACKELTY_COMPILE_CACHE_DIR=$RUNNER_TEMP/panack-compiler-cache-trial" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Test cache experiment integrity checks
+        run: node --test tests/compiler_cache_trial.test.cjs
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libcurl4-openssl-dev zlib1g-dev libssl-dev
+      - name: Build fresh VM
+        run: make native
+      - name: Measure and compare with fresh compilation
+        id: measure
+        run: node scripts/compiler_cache_trial.cjs cold
+      - name: Save verified compiler cache
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/panack-compiler-cache-trial
+          key: compiler-trial-${{ runner.os }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Preserve measurements
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: compiler-cache-cold-${{ github.run_id }}
+          path: |
+            build/compiler-cache-trial/*.json
+            build/compiler-cache-trial/*.log
+          if-no-files-found: warn
+
+  compiler_cache_warm:
+    if: ${{ inputs.incremental_cache_trial }}
+    needs: compiler_cache_cold
+    name: Compiler cache warm
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Select private cache directory
+        run: echo "PANACKELTY_COMPILE_CACHE_DIR=$RUNNER_TEMP/panack-compiler-cache-trial" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Test cache experiment integrity checks
+        run: node --test tests/compiler_cache_trial.test.cjs
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libcurl4-openssl-dev zlib1g-dev libssl-dev
+      - name: Build fresh VM
+        run: make native
+      - name: Restore this run's cold cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/panack-compiler-cache-trial
+          key: compiler-trial-${{ runner.os }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          fail-on-cache-miss: true
+      - name: Measure and compare with fresh compilation
+        id: measure
+        env:
+          EXPECTED_CACHE_DIGEST: ${{ needs.compiler_cache_cold.outputs.digest }}
+        run: node scripts/compiler_cache_trial.cjs warm
+      - name: Preserve measurements
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: compiler-cache-warm-${{ github.run_id }}
+          path: |
+            build/compiler-cache-trial/*.json
+            build/compiler-cache-trial/*.log
           if-no-files-found: warn

@@ -1,0 +1,6 @@
+// Shared cells hold immutable data. Updates receive and return a snapshot.
+pub create[T](initial: T): State[T] { state_create(initial) }
+pub read[T](cell: State[T]): T { state_read(cell) }
+pub update[T](cell: State[T], transform: PureFn[T,T]): T {
+  state_update(cell, transform)
+}

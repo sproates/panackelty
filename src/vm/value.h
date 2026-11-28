@@ -31,11 +31,22 @@ typedef enum {
     V_ITER,
     V_HTTP_STATE,
     V_HTTP_WRITER,
-    V_HTTP_CONNECTION
+    V_HTTP_CONNECTION,
+    V_DIRECTORY_STAGE,
+    V_HTTP_STREAM,
+    V_SHA256_CONTEXT,
+    V_GZIP_DECODER,
+    V_CLOSURE,
+    V_STATE
 } ValueKind;
 
 typedef struct Value Value;
 typedef struct ArrayStorage ArrayStorage;
+typedef struct CollectionIndex CollectionIndex;
+typedef struct VMStageOwner VMStageOwner;
+typedef struct VMHttpStreams VMHttpStreams;
+typedef struct VMDigests VMDigests;
+typedef struct VMGzipStreams VMGzipStreams;
 typedef struct VMHttpState VMHttpState;
 typedef struct VMHttpWriter VMHttpWriter;
 typedef struct VMHttpConnection VMHttpConnection;
@@ -44,6 +55,8 @@ typedef struct {
     size_t count;
     Value **items;
     ArrayStorage *storage;
+    CollectionIndex *index;
+    size_t lookup_count;
 } Sequence;
 
 typedef struct {
@@ -66,8 +79,9 @@ typedef struct {
 } Iterator;
 
 struct Value {
-    size_t refs;
+    size_t refs; /* SIZE_MAX denotes an immutable immortal value. */
     ValueKind kind;
+    bool key_forbidden; /* Logical contents include State or a callable. */
 
     union {
         PnBigInt integer;
@@ -92,6 +106,11 @@ struct Value {
         Sequence sequence;
         NamedValues named;
         Iterator iterator;
+        struct { Value *payload; const void *reservation; } state;
+        struct { VMStageOwner *owner; size_t slot; } directory_stage;
+        struct { VMHttpStreams *owner; size_t slot; } http_stream;
+        struct { VMDigests *owner; size_t slot; } sha256;
+        struct { VMGzipStreams *owner; size_t slot; } gzip;
         VMHttpState *http_state;
         VMHttpWriter *http_writer;
         VMHttpConnection *http_connection;
@@ -103,13 +122,25 @@ Value *retain(Value *value);
 void release(Value *value);
 
 Value *value_new(ValueKind kind);
+/* Shared immutable Boolean; cannot fail. Balance ownership with retain/release as usual. */
 Value *value_bool(bool value);
+/* Distinct shared immutable Unit and Void values; cannot fail. */
+Value *value_unit(void);
 Value *value_void(void);
 Value *value_big(ValueKind kind, const PnBigInt *number);
 Value *value_size(size_t number);
 
 /* Copies bytes. V_STR callers supply valid UTF-8; cached offsets assume that invariant. */
 Value *value_data(ValueKind kind, const uint8_t *data, size_t length);
+/* Copy borrowed byte spans into one owned result. NULL is allowed for empty spans. */
+Value *value_data_join(ValueKind kind, const uint8_t *left, size_t left_length,
+                      const uint8_t *right, size_t right_length);
+/* Both inputs must be valid V_STR values with constructor-maintained metadata. */
+Value *value_string_concat(const Value *left, const Value *right);
+/* Valid Map/Set input: key/item position or SIZE_MAX. May memoize a lookup index. */
+size_t value_collection_find(Value *collection, const Value *key);
+/* Both inputs must be arrays; the result retains their elements independently. */
+Value *value_array_concat(const Value *left, const Value *right);
 
 /* Copies the container and retains each child; the input array stays caller-owned. */
 Value *value_sequence(ValueKind kind, Value **items, size_t count);
@@ -119,6 +150,17 @@ Value *value_array_append(Value *array, Value *item);
 
 /* Copies names and retains fields/payloads. names is NULL for variants. */
 Value *named_value(ValueKind kind, const char *name, char **names, Value **values, size_t count);
+
+/* Closure environments own retained immutable values and shared State handles.
+ * Iterators and native resources are not eligible captures. */
+typedef enum { CAPTURE_ALLOWED, CAPTURE_REJECTED, CAPTURE_OUT_OF_MEMORY } CaptureCheck;
+CaptureCheck value_capture_check(Value *const *values, size_t count);
+/* Internal State admission: reject capabilities and seal owned array storage
+ * against later hidden suffixes. Does not distinguish legacy string callables. */
+CaptureCheck value_state_payload_check(Value *value);
+/* Borrows target/captures. On failure, status distinguishes rejection from OOM. */
+Value *value_closure(const char *target, Value *const *captures, size_t count,
+                     CaptureCheck *status);
 
 bool value_equal(const Value *left, const Value *right);
 bool value_index(const Value *value, size_t *index);

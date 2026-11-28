@@ -96,6 +96,19 @@ The major components are:
 | Standard library | Defines portable core types and APIs over deterministic primitives and the host ABI | Panackelty sources in `src/stdlib` |
 | Project website | Presents the public language overview and routes readers to source documentation and releases | Owned and deployed by `sproates/panackelty-website` |
 
+The compiler also has an opt-in [private local compilation cache](../COMPILER_UNCHANGED_REUSE_TRIAL.md).
+Source discovery and confinement remain fresh; an exact source/toolchain/descriptor
+match reuses successful bytecode for check/compile/run. Semantic checking and
+emission are separated from source loading in the Panackelty loader. Tooling
+modes retain their full evidence path; execution results are never cached.
+A separate [checked-module trial](../COMPILER_MODULE_REUSE_TRIAL.md) exposes
+session-local reuse through the compiler library. It invalidates changed modules
+and their transitive consumers, then recomputes global effects and emission. It
+also feeds [one-shot incremental compilation](../COMPILER_PERSISTENT_REUSE.md):
+private module files preserve ordinary checked bodies across invocations.
+The cache omits explanation history; fresh effect checks and emission consume
+the restored typed bodies. No VM capability or bytecode-format change is involved.
+
 ## Repository layout
 
 ```text
@@ -416,6 +429,12 @@ sentinel so the VM keeps one uniform calling convention even though `Void` is
 not a source value. Branch and iteration instructions change the current
 frame's program counter.
 
+Direct and indirect calls use a temporary eight-pointer stack buffer for up to
+eight arguments; larger calls use a heap array. Values needed beyond invocation
+are retained by the callee or host before that array is released. Awaited calls
+follow the same ownership contract. This changes allocation only, not bytecode
+or argument order.
+
 The native dispatcher keeps Panackelty call frames in an explicitly owned heap
 array. Direct and indirect calls push frames; returns transfer results and pop
 frames without recursive C execution. An internal resumable handle can advance
@@ -473,7 +492,11 @@ compiler lexing without changing bytecode or language semantics.
 
 The portable C11 seed VM under `src/vm/` independently decodes, verifies,
 and executes version-9 artifacts. Its reference-counted values and
-arbitrary-precision numerics use no third-party libraries. Fixed-expectation
+arbitrary-precision numerics use no third-party libraries. Boolean, Unit and Void construction
+shares immutable static Values with an immortal reference-count marker;
+retain/release leave those objects unchanged. Other heap Values retain ordinary
+reference counting. Unit and Void retain distinct tags. This avoids repeated scalar allocation without changing
+bytecode or language semantics. Fixed-expectation
 tests run the complete program corpus and execute the Panackelty-hosted compiler
 on the native VM. An adversarial instruction corpus also requires the VM to trap
 on forged indirect
@@ -826,7 +849,11 @@ stay private. Headers are self-contained declarations, not included implementati
 Value lifetime, exact arithmetic, rendering, UTF-8 traversal, and host services
 are separate translation units. Builtins are grouped into text, collections,
 numerics, nested execution, and host services. One registry supplies arity, purity,
-and handler selection to verification and execution. Nested execution intentionally
+and handler selection to verification and execution. Each entry also has a static
+internal execution classification, allowing special async/host dispatch without
+repeated name comparisons. Capability checks, coverage gaps and external host
+callback names retain their existing behavior; the classification is not encoded
+in bytecode. Nested execution intentionally
 calls back into the VM after decoding and verifying its child program.
 
 Array append can share a backing store between a prefix and one extension,
@@ -1298,6 +1325,14 @@ retains the VM, its program or coverage state. Cancellation therefore preserves
 VM lifetime safety even when a filesystem is slow; physical I/O completion and
 resource release can occur later. The fault harness protects concurrent allocation
 bookkeeping and can pause a read to prove this cancellation path deterministically.
+
+Temporary-file/directory creation retains its worker until the owner acknowledges
+result delivery or cancellation. A successful stack handoff transfers ownership;
+otherwise the worker removes the created file or empty directory. Failed cleanup
+reports the path and native error on stderr without recursive deletion. The owner
+releases its result reference before waking the worker after successful handoff,
+so reference counts are never shared concurrently with resumed bytecode. This
+does not roll back other filesystem writes or guarantee cleanup on process exit.
 
 ## Native HTTP client (P5 proof of concept)
 
@@ -1787,10 +1822,18 @@ client and low-level service contracts remain unchanged during this foundation.
 ### Generic acquisition prerequisites
 
 The process runtime shares one bounded launch/collection implementation between
-`process.run` and `process.run_isolated`. The latter constructs an exact explicit
+the positional `process/legacy.run` and `run_isolated` adapters. The latter constructs an exact explicit
 environment and omits automatic coverage-ticket propagation. Existing callers
 retain inheritance and coverage behaviour. The compiler grants each operation
 only to its designated standard-library wrapper.
+
+Canonical ordinary and async process facades accept a Command record and return
+an explicit Exited/Signalled termination. The async adapter uses process_async.c:
+four retained workers, copied inputs/environment, a 32 MiB input-payload bound,
+and owner-thread coverage-ticket preparation. Workers share the native bounded
+launch/collection code; cancellation kills/reaps without blocking the scheduler.
+Embedded executions require a process grant, propagated to HTTP/TCP handlers.
+No bytecode format change is required.
 
 The staging adapter also supports exclusive symbolic-link creation beneath its
 retained directory handle. Bounded link inspection opens ancestors without
@@ -1856,3 +1899,290 @@ alone never confer remote trust. Preparation artifacts contain no local key or
 execution evidence and are distinct from the static publisher's exact report
 name. Failed transport or import causes fresh preparation. See the
 [hosted contract](../COVERAGE_PERFORMANCE_BASELINE.md#slice-c-hosted-preparation-and-matched-acceptance).
+
+## VM execution preparation
+
+After successful bytecode verification, direct CALL and AWAIT_CALL instructions
+carry borrowed links to builtin registry entries or functions in their owning
+Program. Execution uses these links without repeated name lookup; call arity and
+effect checks remain. Indirect calls retain runtime resolution. Names remain for
+diagnostics, and neither these links nor any new opcode are serialized. Native
+embedders must retain an immutable verified Program throughout execution and
+re-verify after replacing instructions. See [VM ownership](../../src/vm/README.md).
+
+Verification also assigns local-variable slots per function. Parameters occupy
+the first slots in argument order; LOAD, STORE and iterator instructions carry
+derived slot indexes. Call frames hold a zeroed array of value references, so
+skipped assignments retain the uninitialised-local trap. Slots survive async
+suspension and release their values when frames unwind. Slot indexes share the
+instruction's derived call-link storage and are never serialized. Failed
+verification invalidates both caches; unverified native test programs retain
+name-based local access. Preparation uses a temporary sorted name table, freed
+before execution.
+
+Verification assigns derived slots to Nat, Int, Decimal and string constant
+instructions. Each execution lazily allocates a pointer table and constructs each
+used literal once, retaining it until execution cleanup. Results retain their own
+references after the cache is released. The slots reuse instruction metadata and
+are not serialized. Separate executions have separate caches; unverified native
+programs keep uncached construction. See the
+[literal reuse measurements](../VM_LITERAL_REUSE_TRIAL.md) for memory retention
+and per-execution table costs.
+
+String addition, byte append/concatenation and array concatenation allocate final
+result storage directly, without a temporary concatenated buffer. Byte storage
+retains its trailing NUL and strings retain cached Unicode metadata. Array
+results retain each element independently of the input arrays. Size overflow is
+rejected before allocating or reading inputs; serialized bytecode is unchanged.
+String addition combines the input code-point counts and ASCII flags instead
+of scanning the result. Constructors for raw-byte producers still calculate
+metadata by scanning; both paths share allocation and copying.
+
+Maps and sets may lazily memoize a scalar-key lookup index containing positions
+into their ordered entries. Equality resolves hash collisions, and updates
+produce a new unindexed value. Unsupported keys or index allocation failure
+retain the linear scan. The derived index changes neither observable ordering
+nor equality, is not serialized, and is freed with its owning value. See the
+[value model](../../src/vm/VALUE_MODEL.md) for ownership and the trial record.
+
+### Incremental encoded-function reuse
+
+The one-shot incremental path retains per-module encoded function records and
+compact effect facts, under exact toolchain, graph, declaration and transitive
+source keys. Loading/parsing, signatures, guards and global effect permissions
+remain fresh. Only changed modules need checked-body lowering and instruction
+emission. Assembly recomputes core reachability over all cached/fresh records,
+sorts names and writes version-9 bytecode. Records are saved before core pruning;
+newly reachable helpers therefore remain available after edits. The normal rich
+explanation/source-map path is preserved. The previous body cache remains a
+comparison/fallback during adoption. See the
+[cache contract](../COMPILER_PERSISTENT_REUSE.md) and
+[measured trial](../COMPILER_EDIT_PROFILE.md#encoded-function-cache-trial-8-november-2026).
+
+Standalone incremental compilation has an optional source-input ledger ahead of
+loading. Exact current source/toolchain content keys permit an unchanged whole
+artifact hit without parsing. Misses use normal discovery; package and rich
+tooling paths keep their existing checks. This adds private cache metadata only,
+with no VM bytecode or native capability change. See
+[the fast-path contract](../COMPILER_PERSISTENT_REUSE.md#standalone-unchanged-build-fast-path).
+
+Edited standalone incremental builds can reuse parsed declaration summaries as
+well as compiled functions. Exact source/toolchain keys protect the summaries;
+ordinary discovery and binding still run. An explicit body-availability tag prevents
+partial modules from being body-checked. Missing compiled code restores complete
+parsing, and unsuccessful preparation falls back to full discovery. Summaries retain
+loader diagnostics and implicit validation imports. This remains module-level reuse,
+with fresh signature/effect checks and conservative dependency invalidation. See the
+[summary contract](../COMPILER_PERSISTENT_REUSE.md#standalone-declaration-summary-reuse).
+
+### Async stdlib selection
+
+The `stdlib/<domain>/async` module convention keeps selection at the import
+boundary. Clock and environment operations use immediate async VM dispatch;
+existing host and confined-filesystem operations are re-exported without new
+workers or duplicated implementations. Bytecode remains v9. Native installs and
+browser source bundles preserve the nested stdlib directory layout.
+
+### Staging resource identity in development
+
+The native staging adapter can return an opaque DirectoryStage value containing
+a slot and a reference-counted invocation identity. The identity outlives the
+stage table when values remain alive, preventing allocator address reuse from
+reviving a stale handle. Retaining a value does not retain the VM or directory descriptors. Worker leases
+retain the native table and exclusively reserve their stage. VM shutdown drops
+its table reference; cleanup waits until the last lease is released. The legacy Nat API is
+kept for existing callers. The native value is not a serializable bytecode
+constant and does not change bytecode v9. The candidate compiler exposes DirectoryStage through the ordinary staging module.
+Table and identity reference counts are atomic; shared stage mutation is excluded
+by a per-stage busy flag. The async dispatcher retains leases and copies worker arguments. Creation reserves
+a slot before dispatch, then hands ownership over only after successful result
+delivery. Cancelled creation cleans up on its worker. Embedded teardown transfers the table reference to one persistent cleanup worker
+using an intrusive queue, without allocation or host I/O. Global admission limits
+retained tables to 32 (64 stage slots per invocation), bounding queued resources
+while cleanup is slow. Startup failure or capacity exhaustion refuses creation.
+The CLI drains queued cleanup only after its owned runtime stops; event-loop
+execution destruction never waits for cleanup. Active leases still retain their
+tables independently until their operations return. Process termination cannot
+guarantee cleanup of an outstanding blocked host operation.
+
+
+Canonical runtime/bytecode and testing modules are Panack adapters over the existing
+host and test support. Async test helpers use the filesystem/process/console async
+services and preserve shared test type identities. They add no native capabilities.
+Native adapter record spellings are reserved for their owning stdlib declaration
+during emission, preventing a new same-named record from changing the native schema.
+The Panack decoder shares the source resolver's closed async-service classification
+with effect checking, while independently checking call mode and arity.
+
+### Typed streaming HTTP lifetime
+
+HttpStream values retain a reference-counted invocation table and nonreused slot.
+A pending read acquires exclusive use and independently retains the table.
+Completion releases that use; cancellation closes the slot, including a received
+but undelivered chunk. VM teardown marks the table closed, closes idle slots and
+lets pending leases observe teardown safely. Typed and legacy numeric slots are
+not interchangeable. Failed handle-result allocation destroys the unopened
+transport rather than leaking an inaccessible slot.
+
+The async adapter polls the existing libcurl transport on the owner thread and
+uses the scheduler's read-completion path. External fake completions cannot
+satisfy a real pending stream read. No blocking worker or new bytecode encoding
+is introduced. Deadlines are monotonic nanoseconds; curl's millisecond timeout is
+only a rounded-up backstop. Framing remains in Panack HTTP package code.
+
+### Bounded CPU resource adapters
+
+Digest and gzip use reference-counted invocation tables shared by opaque values.
+VM teardown closes provider resources before releasing its table reference;
+outliving values retain only a closed table. Common adapters serve legacy numeric
+and typed handles without mixing their namespaces. New CPU async dispatch runs a
+bounded step on the owner thread and requests a scheduler yield before resumption.
+OpenSSL/zlib retain hashing/decompression responsibility; no worker or bytecode
+format change is introduced. The stdlib contract records the hard input/output
+bounds and cancellation behavior.
+
+### Pure encoding adapter
+
+The encoding/utf8 module reuses the existing pure native UTF-8 validation and
+decoding capability through an exact trusted-function grant. Valid input returns
+the native string directly; a Panack pass classifies invalid input and produces
+typed errors with byte offsets. No native ABI or bytecode format changes. Core
+Bytes slicing delegates to the existing bounded slice primitive; Path.parent
+and Bytes.len delegate to their existing methods.
+
+### TCP migration adapters
+
+The canonical network/tcp/async module validates exact Duration values in Panack
+and delegates to the existing async TCP modules. It introduces no VM primitive,
+worker or scheduling mechanism. Compiler emission reserves TcpServerLimits and
+TcpServiceLimits runtime names for their legacy millisecond schemas; new records
+with Duration fields receive distinct names. Readiness/summary records retain
+their canonical owner. Conversion occurs once per exchange or server admission,
+not per byte or per accepted client.
+
+## Console input broker
+
+console_read.c owns process-wide stdin admission and a 64 KiB retained-byte buffer.
+One detached worker polls a duplicated descriptor and reads at most the requested
+bound. It owns no VM values or source-program pointers. Cancellation marks its
+operation abandoned without joining; completion retains consumed bytes and frees
+the abandoned operation. The owner creates Result/Option/Bytes values only after
+completion and acknowledges delivery after an async stack push succeeds. Failed
+allocation leaves the native bytes available to the next reader. The mutex
+protects admission, completion and retained bytes. EOF and read errors also await
+acknowledgement. Hosts reporting a valid device as non-pollable are handled by
+letting read establish EOF or the actual error.
+
+Ordinary and legacy line reads use the same broker. Legacy reads acknowledge only
+the bytes through a newline, retaining read-ahead for subsequent callers. The
+embedding API adds an explicit console-input grant and polling operation; the
+existing generic polling entry point routes input completions too. HTTP child
+creation does not grant stdin. VM destruction abandons pending input safely.
+The one reader slot remains occupied if an underlying host read has not returned.
+
+## Panack domain-error adapters
+
+console/errors, time/errors and process/errors own typed error records, pure
+classifiers and render methods. Canonical ordinary/async wrappers translate native
+Result errors through these modules; the native HostError record and worker ABI
+remain unchanged. Raw native detail is retained inside the domain record. Process
+errors copy paths and limits but not arguments, environment or input/output data.
+The test-process compatibility adapter unwraps native explicitly. No VM/compiler
+source or bytecode version change is involved. Successful calls add a small Panack
+result-conversion step; failure context and rendered text are built only as needed.
+
+## Filesystem error boundary and nominal identity
+
+Filesystem domain errors are pure Panack conversion/rendering around the existing
+native operations. Compatibility facades unwrap native detail; the compiler and
+package tool retain those HostError contracts. The filesystem module still owns
+native FileKind and FileMetadata. Module emission qualifies ordinary stdlib
+declarations just as project declarations, preserving only core and explicitly
+owned native ABI names. This prevents cross-module constructor/record collisions
+without changing the VM or bytecode format. Successful operations add a result
+conversion and operation-context value; render text is built only on request.
+This is not a performance optimisation; final suite timing is recorded separately.
+
+Artifact impact for this batch: compiler seed 1,408,796 -> 1,423,631 bytes;
+stdlib conformance bytecode 6,787 -> 19,753 bytes. The latter includes the complete
+filesystem error renderer/converter. Final local validation took 628s versus
+621s for the preceding batch; these are single runs with different work, not a
+controlled runtime benchmark. Existing GI#106 validation-budget reassessment stays
+open with the delivery owner; no new performance budget is introduced.
+
+## Resource error adapters
+
+SHA-256/gzip domain errors are Panack conversion and rendering around the existing
+OpenSSL/zlib adapters. Operations retain sizes, requested creation limits and the
+final-input flag without retaining input or opaque handles. No extra native call
+is used to enrich an error. Success adds a small result/context conversion; text
+is rendered only on request. The compiler seed, VM, native ABI and bytecode format
+are unchanged. Exact compiler/oracle equality provides compatibility evidence;
+this is not a performance optimisation or a controlled runtime benchmark.
+
+## HTTP stream domain errors (21 November 2026)
+
+Typed HTTP transports own a CURL_ERROR_SIZE buffer for the easy handle lifetime. Connection/read/write failure code and available detail are copied into bounded native text before cleanup. Panack owns categorisation/context/rendering; legacy transport strings remain unchanged. No request bytes are retained. A fixed per-transport buffer and failure-only text construction are added; this is not a performance optimisation. Successful canonical calls also construct small operation context and convert Result. No controlled runtime speed claim is made; existing GI#106 timing review remains open.
+
+HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibility checks, final local make check (685s, 21 November), and relocated-install real TLS source/bytecode acceptance. Compiler seed and unchanged-program bytecode artifacts remain unchanged. Integration remains pending and development CI stays off.
+
+## TCP and diagnostic HTTP client (21 November 2026)
+
+TCP domain conversion lives in Panack, preserving legacy/native strings and avoiding false classification of callback-origin errors. HTTP client/async reuses the parser and URL validation, reads through typed async streams and joins bounded chunks using binary-carry assembly with at most 25 slots. This adds Panack result conversion and bounded chunk storage; it is not a performance optimisation. Compiler, VM and bytecode do not change in this batch. Runtime allocation/latency is not characterised by correctness tests; GI#106 remains open.
+
+TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. The subsequent 22 November repair reconciles all 25 HTTP builtin arities and local-resource call permissions in the self-hosted decoder with the native verifier. Focused legacy/diagnostic-client and routed-server disassembly checks pass. The compiler seed is refreshed; unchanged-program native oracle contracts pass. Final local make check passed in 674s (22 November), including all 427 bytecode tests, public HTTP disassembly, packaging and installed smoke. Relocated TCP and diagnostic-client source/bytecode/disassembly acceptance also passed. Integration remains pending and development CI stays off.
+
+The self-hosted decoder infers local-resource wrappers once per decoded program,
+using the native verifier’s conservative fixed-point rule. This adds inspection
+work only; execution and emitted user-program bytecode are unchanged. The compiler
+seed grows by 5,036 bytes (1,423,631 to 1,428,667). No runtime speed claim is made.
+
+Final local validation took 674s (unit 397s, bootstrap 86s), versus 676s for the
+preceding batch. These are contextual suite timings, not a controlled performance
+benchmark. Historical budget warnings remain subject to GI#106 reassessment.
+
+### Noncapturing anonymous function bodies
+
+AnonymousExpr retains parameters, result annotation, effect spelling and source
+spans. BodyAnonymousFunction owns a separately checked BoundFunctionBody. Ordinary
+data-flow walks do not execute that payload at creation; evidence collectors enter
+it deliberately. Expected callable inputs flow through compound expressions and
+constructor payloads, without backward result inference for ordinary calls.
+Generated private functions lower to existing callable references and survive
+module body/code caches. The VM and bytecode version are unchanged. CS1 rejected captured locals; CS2 adds retained environments below.
+
+CS2 runtime groundwork adds an internal V_CLOSURE value owning a lexical target
+and immutable capture references. Its value graph is checked iteratively for
+resource eligibility, and array append follows its ownership edges. Candidate source lowering constructs it through the
+reserved pure `$intrinsic_closure` builtin (target, capture array, explicit arity).
+Construction resolves the target and checks arity and recursive capture safety. CALL_VALUE/AWAIT_VALUE accept
+internal closure values and validate the target, combined arity and call effect.
+Captures occupy the parameter prefix; ordinary frame ownership retains them
+through suspension and releases them on completion, cancellation or trap. Named
+callable representation is unchanged. Capture explanations and local CS2 validation
+are complete; integration acceptance passed in run 46067730132 for `31422e0`.
+
+Retained host callbacks use a borrowed VMCallable descriptor containing the target
+function and optional closure. HTTP state retains registered values; TCP servers
+retain worker/readiness environments until destruction. Each child frame retains
+its captures. Descriptor validation checks program membership, explicit arity and
+async effect before entry. Captured iterable values create fresh internal cursors
+per loop; V_ITER itself remains capture-ineligible.
+
+Capture decisions reuse retained BodyTypeCheckEvidence on capture reads. The
+checker records allowed/rejected status and its reason only in explanation mode.
+The text renderer and terminal explorer resolve origins through retained lexical
+identities, including nested parameter shadowing, and existing statement spans.
+This introduces no body-cache schema or bytecode-format change. Ordinary
+compilation does not collect this presentation evidence.
+
+### Shared State cells
+
+The ordinary and async State modules expose one compiler-owned `State[T]` type.
+The checker enforces payload eligibility and pure update callbacks; module effect
+facts carry generic payload obligations through call graphs and cached code.
+The private code-cache format is PANACK-CODE-2; encoded bytecode remains v9.
+The VM's `state.c` owns payload admission and reservation ownership. The execution
+scheduler invokes transforms on budgeted frames and commits at their return
+boundary, releasing reservations on every unwind. See the
+[State memory contract](../../src/vm/VALUE_MODEL.md#state-ownership-and-collection-keys).

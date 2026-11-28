@@ -1,6 +1,6 @@
 import stdlib/testing_commands as std_testing_commands
 import stdlib/testing as std_testing
-import stdlib/process as std_process
+import stdlib/process/legacy as std_process
 import project/src/compiler/filesystem_support as filesystem_support
 import stdlib/testing::{TestResult}
 import stdlib/testing_files as std_testing_files
@@ -8,7 +8,7 @@ import stdlib/testing_commands::{TestCommand, ProcessOutput}
 import stdlib/time as std_time
 import stdlib/bytes as byte_buffer
 import stdlib/environment as std_environment
-import stdlib/filesystem as std_filesystem
+import stdlib/filesystem/legacy as std_filesystem
 import stdlib/host as std_host
 import stdlib/path as std_path
 pure vm_nibble(character: Str): Nat {
@@ -128,7 +128,11 @@ main(): Void {
             "command failed: ${code}; last completed group: ${stage}")
         },
         Ok(output) => {
-          module_succeeded = true
+          module_succeeded = output.exit_code == 0 && output.signal == 0
+          if !module_succeeded {
+            diagnostic = std_host.decode_utf8(output.stderr).value_or("Native test stderr was not valid UTF-8.")
+            std_host.stderr(diagnostic)
+          }
           std_testing_commands.command_output("native module contracts", output,
             ProcessOutput(0, 0, "native module contracts: ok\n".encode_utf8(), byte_buffer.empty()))
         }

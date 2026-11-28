@@ -683,7 +683,52 @@ result `R` has type `AsyncFn[A,B,R]` when declared `async`,
 `PureFn[A,B,R]` when declared `pure`, otherwise `Fn[A,B,R]`. The final type argument is always the result, so a zero-argument
 function uses `PureFn[R]` or `Fn[R]`. `PureFn` is assignable to the corresponding
 `Fn`, but not conversely. Constructors and built-ins are not referenceable in
-this initial model, and callable values do not capture local state.
+this model. Named references do not retain local values.
+
+Anonymous functions use the same callable types:
+
+```panackelty
+increment = (value: Nat) => value + 1
+callback: PureFn[Nat,Nat] = (value) => value + 1
+printer = (value: Str): Void => { print(value) }
+```
+
+An unmarked body is pure unless it performs ordinary effects. An explicit
+`pure` prefix requires a pure body; `async` is explicit and follows named
+async-function rules. Creating a callable does not execute its body. Parameters
+may omit annotations when a known callable signature supplies their types from
+an annotated target, declared return, receiver or other call arguments. Context
+flows through blocks, conditional/match branches, arrays and constructor payloads.
+Constructor result context can supply generic payload types; ordinary function
+calls still infer from their inputs, not their receiving target. A callback's
+result can determine an unresolved generic result parameter, as with `map`.
+Input types are never inferred backwards from the callback body. Missing input
+information requires a parameter annotation. Explicit parameter and result
+annotations must satisfy the receiving signature.
+
+Anonymous functions may also capture referenced immutable bindings and parameters
+from enclosing scopes. A closure retains their values when it is created, including
+after its creating function returns. Unused bindings are not captured. Lexical
+shadowing determines which binding is retained; each loop iteration has its own
+binding. Repeated iteration over a captured array or range creates a fresh cursor.
+
+Implicit capture of a `mut` binding is rejected, including read-only use. Bind an
+immutable snapshot or pass the value explicitly. Captures cannot retain native
+resources, directly or through records, variants, collections or other closures.
+This includes server/response/connection state, directory stages, HTTP streams,
+digest contexts, gzip decoders, tasks and Void. Generic values are also checked at
+closure creation; unknown runtime kinds fail closed. Internal iterator cursors
+are not source values and cannot be captured. Passing a resource as an invocation
+argument remains subject to the existing effect and lifetime rules.
+
+Closure equality compares the lexical body and captured values in capture order.
+Copies compare equal; different bodies do not become equal because their source
+text matches. Callable values remain ineligible as Map keys or Set elements.
+
+Generic anonymous declarations, constructor references and self-recursive
+anonymous bindings are not supported. Named functions remain available for
+recursion. The current bytecode permits at most 255 combined captures and explicit
+parameters. Creating a closure does not run its body or grant any effect permission.
 
 A callable is invoked with `callback.call(arguments)`. Argument and result
 types come directly from its callable type. Calling an `Fn` is an effect, while
@@ -1063,13 +1108,15 @@ should be added when those programs demonstrate a concrete need.
 
 ## Typed filesystem, process, and sleep APIs
 
-Import `stdlib/filesystem`, `stdlib/process`, or `stdlib/time`; the prelude
-re-exports these modules. These APIs use opaque `Path` and `Duration` values.
+Import `stdlib/filesystem`, `stdlib/process`, or `stdlib/time`. The prelude
+retains its existing process namespace through `stdlib/process/legacy` during
+migration; import `stdlib/process` explicitly for the Command API. These APIs use
+opaque `Path` and `Duration` values.
 Host calls are effectful, including metadata, enumeration, and sleep. The
 portable `text.decode_utf8` operation is pure and traps on invalid input;
 `host.decode_utf8` returns a checked result.
 
-Failures return `Result[T,HostError]`, where
+Native and compatibility failures return `Result[T,HostError]`, where
 `HostError { operation: Str, code: Str, native_code: Nat }` identifies the service,
 a portable category, and POSIX errno (zero for language-defined failures).
 Categories are `not_found`, `permission_denied`, `already_exists`, `not_directory`,
@@ -1086,15 +1133,15 @@ allocate an error value.
 | Function | Result |
 | --- | --- |
 | `package_filesystem.read_beneath(root: Path, relative: Path, limit: Nat)` | `Result[FilesystemRootRead,HostError]` |
-| `filesystem.read(path: Path, limit: Nat)` | `Result[Bytes,HostError]` |
-| `filesystem.write(path: Path, contents: Bytes)` | `Result[Unit,HostError]` |
-| `filesystem.metadata(path: Path)` | `Result[FileMetadata,HostError]` |
-| `filesystem.list_directory(path: Path)` | `Result[[Path],HostError]` |
-| `filesystem.create_directory(path: Path)` | `Result[Unit,HostError]` |
-| `filesystem.remove_file(path: Path)` | `Result[Unit,HostError]` |
-| `filesystem.remove_directory(path: Path)` | `Result[Unit,HostError]` |
-| `filesystem.temp_file(parent: Path)` | `Result[Path,HostError]` |
-| `filesystem.temp_directory(parent: Path)` | `Result[Path,HostError]` |
+| `filesystem.read(path: Path, limit: Nat)` | `Result[Bytes,FilesystemError]` |
+| `filesystem.write(path: Path, contents: Bytes)` | `Result[Unit,FilesystemError]` |
+| `filesystem.metadata(path: Path)` | `Result[FileMetadata,FilesystemError]` |
+| `filesystem.list_directory(path: Path)` | `Result[[Path],FilesystemError]` |
+| `filesystem.create_directory(path: Path)` | `Result[Unit,FilesystemError]` |
+| `filesystem.remove_file(path: Path)` | `Result[Unit,FilesystemError]` |
+| `filesystem.remove_directory(path: Path)` | `Result[Unit,FilesystemError]` |
+| `filesystem.temp_file(parent: Path)` | `Result[Path,FilesystemError]` |
+| `filesystem.temp_directory(parent: Path)` | `Result[Path,FilesystemError]` |
 | `host.decode_utf8(contents: Bytes)` | `Result[Str,HostError]` |
 
 Reads and writes accept regular files, follow symlinks, and preserve bytes.
@@ -1203,19 +1250,26 @@ Both operations are native-only and return `unsupported` in the browser.
 
 ### Process execution
 
-```panack
-process.run(
-  executable: Path, arguments: [Str], stdin: Bytes, working_directory: Path,
-  environment: [Str], timeout: Duration, output_limit: Nat
-): Result[ProcessOutput,HostError]
-```
+Import `stdlib/process` for ordinary calls or `stdlib/process/async` for
+awaited calls with the same names. Both provide `arguments(): [Str]`,
+`exit(status: Nat): Unit` and `run(command: Command): Result[ProcessOutput,ProcessError]`.
 
-`ProcessOutput { exit_code: Nat, signal: Nat, stdout: Bytes, stderr: Bytes }`
-represents completed execution. A normal exit has `signal == 0`, including a
-nonzero exit code. Signal termination has a nonzero signal number and
-`exit_code == 0`. Failure before execution returns `launch_failed`, with errno;
-timeout and output exhaustion return their own error categories, without partial
-output. There is no implicit UTF-8 decoding: use `host.decode_utf8` explicitly.
+`Command` has these fields, in order: executable: Path, arguments: [Str],
+stdin: Bytes, working_directory: Path, environment: ProcessEnvironment,
+timeout: Duration, output_limit: Nat. `ProcessEnvironment` is either
+`InheritEnvironment([Str])` or `ExactEnvironment([Str])`.
+
+`ProcessOutput` contains termination: ProcessTermination, stdout: Bytes and
+stderr: Bytes. Termination is `Exited(Nat)` or `Signalled(Nat)`.
+A nonzero exit is a completed result. Failure before execution returns
+`launch_failed`, with native detail; timeout and output exhaustion return their
+own error categories, without partial output. Bytes are not implicitly decoded.
+
+The former seven-argument `run` and `run_isolated` operations remain in
+`stdlib/process/legacy` for existing compiler, package-tool and test callers.
+Its compatibility ProcessOutput retains exit_code, signal, stdout and stderr;
+normal exits have signal zero, and signal termination has exit_code zero.
+The canonical adapters convert that representation into the termination enum.
 
 The executable is an exact path, resolved relative to the requested child
 working directory when relative. There is no PATH search or implicit shell.
@@ -1225,13 +1279,11 @@ and override the invocation's captured environment only in the child; empty
 names, missing `=`, duplicate names, and NUL are rejected. Empty values are
 allowed. Native-byte argument construction is deferred.
 
-`process.run_isolated` has the same signature, limits and termination semantics,
-but supplies exactly the explicit environment entries. An empty list gives an
+`ExactEnvironment(entries)` supplies exactly the explicit environment entries. An empty list gives an
 empty environment. It neither inherits invocation variables nor injects an
 automatic coverage ticket. During coverage collection it marks the session
 incomplete because the child is unobserved, even if the caller supplies a ticket
-explicitly. `process.run` retains its inherited-environment
-behaviour. Environment isolation is not a filesystem or process sandbox, and
+explicitly. `InheritEnvironment(entries)` retains inherited-environment behaviour. Environment isolation is not a filesystem or process sandbox, and
 does not prevent a child from reading its normal configuration files.
 
 The parent concurrently writes stdin and drains stdout and stderr, closing stdin
@@ -1250,6 +1302,24 @@ output streams open remain subject to the timeout. Deadlines are scheduling
 bounds, not hard real-time guarantees; host launch, termination, and cleanup can
 add latency.
 
+Async process execution copies its inputs and environment before launching a
+worker; no VM frame or mutable collector is borrowed. At most four operations
+are retained process-wide, including completed results awaiting consumption and
+cancelled operations awaiting cleanup. Admission exhaustion returns
+`resource_limit`. Copied input payload is limited to 32 MiB per operation,
+including inherited environment text; inherited environments are limited to
+4096 entries. These are payload bounds, not a total allocator-memory guarantee.
+The existing 16 MiB input/output bounds still apply independently.
+
+The async call suspends its task while other handlers can run. Timeout starts in
+the worker and covers launch/collection, not the initial input copy. Cancelling
+the execution requests termination and reaping without waiting on its owner
+thread. Cleanup retains its slot until finished. Cancellation cannot undo child
+side effects or contain descendants that escape the process group. Normal CLI
+shutdown drains pending cleanup; embedded hosts explicitly grant the process
+service and must keep the native runtime loaded until cleanup completes.
+Browser execution returns an unsupported-host error.
+
 ### Sleep and timing bounds
 
 `host.sleep(duration: Duration): Result[Unit,HostError]` waits for a nonnegative
@@ -1259,6 +1329,15 @@ negative or larger values return `negative_duration` or `out_of_range` before an
 sleep or process launch. Duration arithmetic itself remains arbitrary precision.
 System-suspension accounting follows the host clock and sleep implementations;
 no portable across-suspension deadline promise is made.
+
+The canonical blocking operation is `time.sleep`, returning Result[Unit,SleepError], with
+`host.sleep` retained for compatibility. `stdlib/time/async.sleep` has the same
+argument and result types, called with `await`. It suspends only the calling task
+until its monotonic deadline, allowing other handlers to progress. Zero completes
+immediately. Negative/oversized durations use the same errors; clock failures
+return a SleepError preserving native detail. Cancellation discards the timer. No worker,
+child process or descriptor is retained for a pending timer. Expiry makes a task
+eligible to resume, not a guarantee that it runs at that exact instant.
 
 ## Bounded async/await interface
 
@@ -1542,7 +1621,46 @@ seconds per connection and one second of signal-driven drain. The [tool guide](.
 defines arguments, readiness and exit codes; the [package guide](../../packages/static_http/README.md)
 defines library configuration and cancellation limits.
 
+### Selecting asynchronous standard-library modules
+
+The logical import path may contain an `async` segment, for example
+`import stdlib/time/async as time`. It selects a module in the same toolchain;
+it does not implicitly make ordinary functions async or import a separate
+package. Other uses of the `async` keyword are unchanged.
+
+`stdlib/time/async` exports `async now(): Result[Instant,ClockError]` and
+re-exports the ordinary time module's pure duration constructors and shared
+error types. It uses the same monotonic clock and typed failure as
+`stdlib/time`. `stdlib/environment/async` exports
+`async get(name: Str): Option[Str]`, reading the invocation environment snapshot.
+Missing and empty values remain distinct. Both reads complete immediately on
+the owner task; no worker or pending host operation is created. They remain
+impure, require `await` in an async function, and cannot be called from pure
+functions. Async functions still cannot call the ordinary variants.
+
+`stdlib/host/async` re-exports the operations and shared types of `stdlib/async_host`.
+The canonical `stdlib/filesystem/async` provides the general file operations with
+FilesystemError results; its compatibility root_identity/read_beneath aliases
+retain HostError. Both original async_host/async_filesystem paths remain supported. The host module does
+not expose blocking sleep, subprocess execution, or nested bytecode execution.
+Existing bounds, grants, worker ownership and cancellation rules are unchanged.
+
 ### Asynchronous command-line host operations
+
+`stdlib/console` and `stdlib/console/async` expose `write`, `write_line`,
+`write_error` and `write_error_line`. Each accepts Str and returns
+`Result[Unit,ConsoleError]`; the async forms require `await`. Raw writes preserve
+exact message bytes, including embedded NUL. Line writes append exactly one LF,
+including when the message already ends in LF or is empty. Error variants use
+stderr; the others use stdout. All share the bounds, worker ownership and error
+categories below. The 16 KiB limit excludes the optional appended LF. Ordinary
+calls wait for their checked result; async calls suspend without blocking the
+execution thread. Empty raw writes still check the output descriptor.
+
+Legacy print/host wrappers retain their existing return types. Legacy synchronous
+printing flushes its stream before returning so sequential mixed legacy/console
+calls preserve order. Concurrent writes can still interleave. A failed write may
+already have emitted part of the message; an error does not mean no bytes were sent.
 
 `stdlib/async_host` provides `await arguments(): [Str]`, `await stdout(Str)` and
 `await stderr(Str)` returning `Result[Unit,HostError]`, and `await exit(Nat): Unit`.
@@ -1720,3 +1838,196 @@ staging publishes one complete directory atomically. See the
 [adapter contracts](../../src/stdlib/README.md#native-streaming-and-confined-filesystem-adapters-on-next)
 for limits, cleanup and platform restrictions. These modules introduce no
 arbitrary foreign-function interface or new bytecode version.
+
+### Directory staging in alpha.16 development
+
+`DirectoryStage` is an opaque native resource type exposed by the development
+`stdlib/filesystem/staging` module. Programs cannot construct it from a number
+or inspect native identity fields. Values belong to one invocation; aliases
+refer to the same stage and become unusable after successful publication or
+discard. Publication uses the module enum `PublishMode` with `CreateOnly` and
+`ReplaceExisting` variants. Staging functions are ordinary effectful functions;
+pure and async functions cannot call them. Matching async functions are available
+on the development branch through `stdlib/filesystem/staging/async`; they use
+`await` and share the same resource and publication-mode types. Creation cancelled
+before result delivery is discarded; cancellation of publication does not promise
+rollback. Embedded shutdown transfers cleanup to a worker without waiting for filesystem
+I/O. Staging admits at most 32 retained invocation tables per process and 64
+stages per invocation; capacity exhaustion returns a resource_limit error. See the [stdlib API contract](../STDLIB_API_CONTRACT.md) for failure
+and ownership transitions.
+
+
+## Canonical runtime and testing support (alpha.16 development)
+
+Import stdlib/runtime/bytecode for run(data: Bytes, arguments: [Str]): Void.
+This is the existing synchronous nested-VM operation, with verification, argument
+and exit behavior unchanged. It is ordinary, not async; it does not launch an OS
+process. stdlib/host.run remains compatible.
+
+stdlib/testing/filesystem and its /async module expose create_workspace(parent),
+discover_fixtures(root) and remove_empty(workspace), with the existing TestWorkspace,
+Path and HostError result types. Discovery returns sorted immediate directories,
+does not follow links, and returns no partial list on failure. Cleanup refuses a
+nonempty workspace. The owned TestWorkspace.remove_empty method remains ordinary;
+await the module's remove_empty function from async code.
+
+stdlib/testing/process and /async expose run(name, TestCommand, expected),
+capture_report and expect_command_error, plus shared pure command_output and
+command_result. The existing TestCommand and compatibility ProcessOutput identities
+are retained. A nonzero subprocess exit can be an expected successful observation.
+Capture writes only after a matching complete result; write failures produce a
+failed TestResult and may leave a partial file. A mismatch diagnostic retains the
+compatibility behavior of decoding stdout as UTF-8; malformed text can trap.
+Timeout, output and cancellation bounds follow process execution.
+The old testing_files/testing_commands imports remain available.
+
+stdlib/testing/reporting and stdlib/testing/reporting/async share pure assertions
+and result types. Both report(results: [TestResult]) operations return
+Result[Nat,ConsoleError]; the /async operation is awaited. Ok contains the count
+of failed tests; Error identifies the first checked output failure, after which
+no further lines are emitted. Output already written remains visible. Ordinary
+stdlib/testing.report continues returning Nat. Both preserve input order and the
+PASS/FAIL lines followed by the total/failure summary.
+
+### Typed raw HTTP streams (alpha.16 development)
+
+`stdlib/network/http_stream` and its `/async` counterpart provide
+`open(host: Str, port: Nat, tls: Bool, request: Bytes, response_limit: Nat, timeout: Duration): Result[HttpStream,HttpStreamError]`,
+`read(stream: HttpStream): Result[Bytes,HttpStreamError]` and
+`close(stream: HttpStream): Result[Unit,HttpStreamError]`. The async counterparts require await.
+HttpStream is an opaque core type with no public constructor. It belongs to one
+invocation; aliases share closure and cancellation. Close during a read and
+concurrent reads fail. Cancellation consumes a pending stream, so undelivered
+bytes cannot disappear into a subsequent successful read. Open prepares the
+transport; reads perform network progress. Empty Bytes means EOF. HTTP framing
+belongs to the HTTP package, not this raw adapter.
+
+Bounds are 64 KiB per request, 16 KiB per returned chunk, 256 MiB total response,
+512 opens per invocation and a positive Duration of at most 60 seconds. The
+exact deadline includes time between reads. The ordinary API blocks; the async
+API uses owner-thread polling and requires an embedder's network grant. Teardown
+closes resources; cancellation does not retract bytes already sent. Native-only
+transport remains unavailable in WASI. Legacy numeric-handle imports remain.
+
+## Typed digest and gzip resources
+
+The standard library provides `digest/sha256` and `compression/gzip`, each with an
+`/async` counterpart. `Sha256Context` and `GzipDecoder` are opaque, invocation-owned
+types; their values cannot be constructed from numbers. Copies alias one resource.
+Digest finish and resource close invalidate aliases. Mutation is effectful; the
+bounded one-shot SHA-256 hash is pure. Async operations yield after each bounded
+atomic step; cancellation does not undo a completed step.
+
+The [stdlib API contract](../STDLIB_API_CONTRACT.md#digestgzip-execution-and-lifetime)
+defines byte bounds, teardown, allocation failures and unsupported-target behavior.
+Legacy numeric adapters remain available during migration.
+
+### Checked UTF-8 and byte/path aliases
+
+`stdlib/encoding/utf8.decode(Bytes)` is pure and returns `Result[Str,Utf8Error]`.
+The error has a zero-based byte offset and a typed decoding category; `render()`
+provides a human-readable explanation. No replacement decoding is performed.
+`Bytes.len()` and `Bytes.slice(start,end)` preserve existing length and slice
+semantics; `Path.parent()` preserves lexical `directory()` behaviour.
+See the [API contract](../STDLIB_API_CONTRACT.md#checked-utf-8-and-value-methods-21-november-2026)
+for error precedence, offsets and compatibility.
+
+### Duration-based TCP adapters
+
+`stdlib/network/tcp/async` exposes exchange and finite/continuous server operations
+with Duration timeouts and drain fields. The existing whole-millisecond runtime
+precision is enforced without rounding: timeout 1 ms–60 seconds, drain 0–60 seconds.
+Unsupported durations return an error before network admission. Finite serve_bounded
+and serve_stream return per-client reports; continuous serve returns the existing
+summary. Native millisecond records remain separate nominal types.
+Duration.as_nanoseconds and is_less_than alias ticks and is_before. See the
+[canonical TCP contract](../STDLIB_API_CONTRACT.md#canonical-tcp-adapters-21-november-2026).
+
+## Bounded console input
+
+stdlib/console.read(limit: Nat) and its awaited stdlib/console/async counterpart
+return Result[Option[Bytes],ConsoleError]. Limits must be 1..65,536. Some carries a
+nonempty chunk no longer than limit; None denotes EOF. Short reads are permitted;
+bytes, including carriage returns and invalid UTF-8, are preserved. Invalid limits
+consume no input. One process-wide outstanding read is permitted; overlap returns
+busy. Ordinary reads block, async reads yield while a worker waits.
+
+Cancellation or result-allocation failure before async delivery preserves consumed
+bytes for a later read, including across VM invocations. A read already in a host
+system call may finish later, retaining the single reader reservation meanwhile.
+Embedding input permission is separate from output permission and is not inherited
+by HTTP children. Legacy read_line shares the broker while retaining line/CR/EOF
+compatibility. WASI preserves synchronous legacy line input while the new API
+returns unsupported_host. See the [complete input contract](../STDLIB_API_CONTRACT.md#bounded-console-input-21-november-2026)
+for host errors and terminal behavior. Bytecode remains version 9.
+
+## Domain-specific console, sleep and process errors
+
+Canonical console operations, time.sleep and Command-based process.run use
+ConsoleError, SleepError and ProcessError respectively. Ordinary/async imports
+share the same records and kind enums. Each error preserves the underlying
+HostError in native and has a pure render() method. Unknown codes remain available
+under OtherFailure; callers need not parse explanatory text. Process errors retain
+paths and limits without retaining arguments, environment values, stdin or partial
+output. Nonzero process exits remain successful ProcessOutput values. Released
+host and positional legacy process APIs retain their old error contracts. See the
+[complete categories and migration](../design/STDLIB_DOMAIN_ERRORS.md).
+
+## Filesystem domain errors and stdlib identities
+
+On the development branch, canonical filesystem, confined and staging APIs return
+FilesystemError in both ordinary and async forms. Operation context, typed
+categories, native preservation and legacy import paths are specified in the
+[domain-error contract](../design/STDLIB_DOMAIN_ERRORS.md#filesystem). Existing
+compatibility APIs continue returning HostError. Ordinary stdlib declarations have
+module-qualified runtime identities, including enum constructors and records;
+only core declarations and explicitly owned native ABI names retain global
+runtime names. Same-spelled declarations in distinct modules remain distinct.
+
+## Digest/gzip domain errors
+
+The development digest/sha256 and compression/gzip modules use shared ordinary/async
+Sha256Error and GzipError records. Each holds the requested operation, a typed kind
+and unchanged native HostError. Input bytes and resource handles are not retained.
+The [resource error contract](../design/STDLIB_DOMAIN_ERRORS.md#sha-256-and-gzip-resources)
+specifies categorisation, rendering, retry/lifecycle rules and native limitations.
+Legacy numeric adapters and pure hash semantics remain unchanged.
+
+## HTTP stream domain errors (21 November 2026)
+
+Canonical raw HTTP streams return the shared HttpStreamError domain type. Native libcurl connection/read/write diagnostics are retained on typed streams without changing the v9 bytecode or intrinsic signatures. See [domain error contract](../design/STDLIB_DOMAIN_ERRORS.md#http-streams) for lifecycle and compatibility.
+
+HTTP stream domain errors pass focused real-TLS, ordinary/async and compatibility checks, final local make check (685s, 21 November), and relocated-install real TLS source/bytecode acceptance. Compiler seed and unchanged-program bytecode artifacts remain unchanged. Integration remains pending and development CI stays off.
+
+## TCP and diagnostic HTTP client (21 November 2026)
+
+Canonical async TCP operations return TcpError and finite-server client results use ClientFailure when native/handler provenance is unavailable. The optional HTTP client/async export returns HttpClientError with typed transport details. See [domain errors](../design/STDLIB_DOMAIN_ERRORS.md#tcp-operations). No compiler, intrinsic or bytecode change is required.
+
+TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. The subsequent 22 November repair reconciles all 25 HTTP builtin arities and local-resource call permissions in the self-hosted decoder with the native verifier. Focused legacy/diagnostic-client and routed-server disassembly checks pass. The compiler seed is refreshed; unchanged-program native oracle contracts pass. Final local make check passed in 674s (22 November), including all 427 bytecode tests, public HTTP disassembly, packaging and installed smoke. Relocated TCP and diagnostic-client source/bytecode/disassembly acceptance also passed. Integration remains pending and development CI stays off.
+
+## Shared State cells (alpha.16 development)
+
+Import `stdlib/state` for ordinary code or `stdlib/state/async` for async code.
+Both modules use the same opaque `State[T]` identity and export `create[T](T): State[T]`,
+`read[T](State[T]): T` and `update[T](State[T], PureFn[T,T]): T`. All three
+operations are effectful, including creation. The async variants require `await`.
+
+A cell holds immutable data: primitives and recursively eligible records, variants,
+arrays, Maps and Sets. Cells, callbacks, tasks, Void and native resources cannot be
+stored inside its payload. Generic helper calls preserve this restriction through
+cached compilation. Closures may retain cells. Copying a handle aliases the same
+cell; equality compares identity without reading or reserving the payload. Separate
+cells containing equal data remain unequal. Cells and callbacks, including nested
+occurrences, cannot be Map keys or Set elements; cells may be Map values.
+
+A read returns a snapshot. An update reserves the cell, reads its current snapshot,
+invokes its pure transformation exactly once, then commits and returns the new
+value. Reads and updates on that cell wait until the reservation is released.
+Other cells and runnable tasks can progress. The transformation cannot perform I/O,
+read or update State, or await work. Obtain external values before updating.
+
+Cancellation or a trap before commit preserves the previous payload and releases
+the reservation. A cancelled waiter never invokes its callback. Cancellation after
+commit does not undo the update. There are no implicit callback retries, public
+locks, manual close operation or new State timeout. Existing scheduler deadlines
+apply. The cell is reclaimed when its last reachable reference is released.

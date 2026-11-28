@@ -1,18 +1,26 @@
-import project/src/compiler/module_bindings::{module_declaration_display, DeclarationIdentity}
+pub import project/src/compiler/module_bodies::{SignatureType}
+import project/src/compiler/module_bodies::{body_state_payload_restricted}
+import project/src/compiler/module_bodies::{body_functions_with_anonymous}
+import project/src/compiler/resolver::{is_async_builtin}
+pub import project/src/compiler/types::{SourceSpan}
+import project/src/compiler/module_bindings::{module_declaration_display}
+import project/src/compiler/module_bindings::{ModulePackageIdentity.ToolchainModulePackage}
+pub import project/src/compiler/module_bindings::{DeclarationIdentity}
 pub import project/src/compiler/module_bodies::{
-  Diagnostic, LoadedModule, ModuleBindingGraph, ModuleSignature, BoundFunctionBody
+  Diagnostic, LoadedModule, ModuleBindingGraph, ModuleSignature, BoundFunctionBody,
+  BodyTarget, BodyCheckStatus, SignatureEffect
 }
 import project/src/compiler/module_bodies::{
-  BodyCheckStatus, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid,
-  BodyContext, BodyTarget, BodyTarget.BodyCore, BodyTarget.BodyDeclaration,
+  BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid,
+  BodyContext, BodyTarget.BodyCore, BodyTarget.BodyDeclaration,
   BodyNode, BodyNode.BodyArray, BodyNode.BodyAssignment, BodyNode.BodyBinary,
   BodyNode.BodyBinding, BodyNode.BodyBlock, BodyNode.BodyCall, BodyNode.BodyEmpty,
-  BodyNode.BodyField, BodyNode.BodyFor, BodyNode.BodyFunction, BodyNode.BodyIf,
+  BodyNode.BodyField, BodyNode.BodyFor, BodyNode.BodyFunction, BodyNode.BodyAnonymousFunction, BodyNode.BodyIf,
   BodyNode.BodyIndex, BodyNode.BodyInterpolation, BodyNode.BodyLiteral,
   BodyNode.BodyLocalUse, BodyNode.BodyMatch, BodyNode.BodyUnary, BodyNode.BodyWhile,
   BoundBody, body_signature, body_type_text,
   ModuleDeclarationKind.ModuleFunction,
-  SignatureEffect, SignatureEffect.SignatureAsync, SignatureEffect.SignatureOrdinary,
+  SignatureEffect.SignatureAsync, SignatureEffect.SignatureOrdinary,
   SignatureEffect.SignaturePure, SignatureTypeIdentity.SignatureCallable,
   SignatureTypeIdentity.SignatureCore, SignatureTypeIdentity.SignatureHole,
   SignatureTypeIdentity.SignatureNominal, SignatureTypeIdentity.SignatureParameter
@@ -49,14 +57,24 @@ pure module_effect_mode(effect: Option[SignatureEffect]): Str {
   }
 }
 
-pure module_async_builtin(name: Str): Bool {
-  name == "http_connection_continue" ||
-  name == "http_listen_ordinary" || name == "http_listen_contextual" || name == "http_close" || name == "http_destroy" ||
-  name == "http_connection_invoke" ||
-  name == "host_arguments_async" || name == "host_stdout_async" ||
-    name == "host_stderr_async" || name == "host_exit_async" || name == "fs_read_beneath_async" || name == "fs_root_identity_async" || name == "async_fake_read" || name == "tcp_exchange" || name == "http_transport_exchange" || name == "tcp_serve" ||
-    name == "tcp_service" || name == "tcp_serve_stream" || name == "tcp_server_read_chunk"
+pure module_ordinary_call_diagnostic(target: BodyTarget, display_name: Str): Str {
+  match target {
+    BodyDeclaration(binding) => {
+      owner = binding.identity
+      if owner.module.package == ToolchainModulePackage() &&
+        ((owner.module.path == "time.panack" && owner.name == "now") ||
+         (owner.module.path == "environment.panack" && owner.name == "get")) {
+        module_name = if owner.module.path == "time.panack" { "time" } else { "environment" }
+        "async function cannot call ordinary function " + display_name +
+          "; import stdlib/" + module_name + "/async and await this call"
+      } else {
+        "async function cannot call blocking function " + display_name
+      }
+    },
+    BodyCore(name) => "async function cannot call blocking function " + display_name
+  }
 }
+
 
 pure module_effect_for_target(
   context: BodyContext,
@@ -74,7 +92,7 @@ pure module_effect_for_target(
       if name == "$intrinsic_call" {
         None()
       } else {
-        if module_async_builtin(name) {
+        if is_async_builtin(name) {
           Some(SignatureAsync())
         } else {
           if is_impure_builtin(name) {
@@ -199,7 +217,8 @@ pure module_local_body(context: BodyContext, body: BoundBody, known: Set[Declara
       }
     },
     BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity, captured_domain) => {},
-    BodyFunction(binding) => {}, BodyArray() => {}, BodyUnary(operator) => {},
+    BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {}, BodyArray() => {}, BodyUnary(operator) => {},
     BodyBinary(operator) => {}, BodyField(field) => {}, BodyIndex() => {}, BodyIf(value) => {},
     BodyBlock(value, original_span, statement_spans) => {}, BodyMatch(targets, locals, spans) => {}, BodyBinding(identity, type, mutable, inferred, evidence) => {},
     BodyAssignment(identity, evidence) => {}, BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
@@ -220,7 +239,7 @@ pure module_local_functions(graph: ModuleBindingGraph, modules: [LoadedModule],
   mut changed = true
   while changed {
     changed = false
-    for function in functions {
+    for function in body_functions_with_anonymous(functions) {
       identity = function.signature.binding.identity
       if function.status != BodyInvalid() && function.signature.effect == Some(SignatureOrdinary()) && !known.has(identity) {
         context = BodyContext(graph, modules, signatures, identity, function.signature.parameters, map(), false)
@@ -237,24 +256,31 @@ pure module_local_functions(graph: ModuleBindingGraph, modules: [LoadedModule],
 }
 
 pure module_effect_call(
-  context: ModuleEffectContext,
-  target: BodyTarget,
-  expression: BoundBody,
-  awaited: Bool,
-  retain: Bool
+  context: ModuleEffectContext, target: BodyTarget, expression: BoundBody,
+  awaited: Bool, retain: Bool
+): CheckedEffects {
+  effect = module_effect_for_call(context.body, target, expression)
+  known = if effect == None() && awaited {
+    module_call_effect_known(context.body, target, expression)
+  } else { false }
+  module_effect_call_details(context, target, expression.span, effect, known, awaited, retain)
+}
+
+pure module_effect_call_details(
+  context: ModuleEffectContext, target: BodyTarget, span: SourceSpan,
+  effect: Option[SignatureEffect], known: Bool, awaited: Bool, retain: Bool
 ): CheckedEffects {
   mut diagnostics: [Diagnostic] = []
   mut evidence: [EffectEvidence] = []
   mut violations: [Str] = []
-  effect: Option[SignatureEffect] = module_effect_for_call(context.body, target, expression)
   target_name: Str = module_effect_target_name(target)
   display_name: Str = if target_name == "call" { "call" } else { target_name }
 
   match effect {
     None() => {
-      if awaited && module_call_effect_known(context.body, target, expression) {
+      if awaited && known {
         reason: Str = "await requires an async call"
-        diagnostics = diagnostics.append(Diagnostic(reason, expression.span.start))
+        diagnostics = diagnostics.append(Diagnostic(reason, span.start))
         violations = violations.append(reason)
       }
       mut indirect_call: Bool = false
@@ -265,7 +291,7 @@ pure module_effect_call(
       if retain && indirect_call {
         evidence = evidence.append(EffectEvidence(
           context.function_name,
-          Some(expression.span),
+          Some(span),
           "call",
           context.mode,
           target_name,
@@ -281,22 +307,22 @@ pure module_effect_call(
       impure: Bool = target_effect != SignaturePure()
       if awaited && !async_call {
         reason: Str = "await requires an async call"
-        diagnostics = diagnostics.append(Diagnostic(reason, expression.span.start))
+        diagnostics = diagnostics.append(Diagnostic(reason, span.start))
         violations = violations.append(reason)
       }
       if async_call && !awaited {
         reason: Str = "async call requires await inside an async function"
-        diagnostics = diagnostics.append(Diagnostic(reason, expression.span.start))
+        diagnostics = diagnostics.append(Diagnostic(reason, span.start))
         violations = violations.append(reason)
       }
       if context.mode == "pure" && impure {
         reason: Str = "pure function cannot call impure function ${display_name}"
-        diagnostics = diagnostics.append(Diagnostic(reason, expression.span.start))
+        diagnostics = diagnostics.append(Diagnostic(reason, span.start))
         violations = violations.append(reason)
       }
       if context.mode == "async" && impure && !async_call && !module_local_target(target, context.local_functions) {
-        reason: Str = "async function cannot call blocking function ${display_name}"
-        diagnostics = diagnostics.append(Diagnostic(reason, expression.span.start))
+        reason: Str = module_ordinary_call_diagnostic(target, display_name)
+        diagnostics = diagnostics.append(Diagnostic(reason, span.start))
         violations = violations.append(reason)
       }
       if retain {
@@ -312,7 +338,7 @@ pure module_effect_call(
         }
         evidence = evidence.append(EffectEvidence(
           context.function_name,
-          Some(expression.span),
+          Some(span),
           "call",
           context.mode,
           target_name,
@@ -353,6 +379,7 @@ pure module_effect_expression(
             BodyInterpolation(parts) => { invalid_await_operand = true },
             BodyLocalUse(identity, captured_domain) => { invalid_await_operand = true },
             BodyFunction(binding) => { invalid_await_operand = true },
+            BodyAnonymousFunction(anonymous) => { invalid_await_operand = true },
             BodyArray() => { invalid_await_operand = true },
             BodyUnary(nested) => { invalid_await_operand = true },
             BodyBinary(nested) => { invalid_await_operand = true },
@@ -440,7 +467,8 @@ pure module_effect_expression(
               }
             },
             BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity, captured_domain) => {},
-            BodyFunction(binding) => {}, BodyCall(target, types, call_arguments) => {}, BodyArray() => {},
+            BodyFunction(binding) => {},
+            BodyAnonymousFunction(anonymous) => {}, BodyCall(target, types, call_arguments) => {}, BodyArray() => {},
             BodyBinary(operator) => {}, BodyField(field) => {}, BodyIndex() => {}, BodyIf(value) => {},
             BodyBlock(value, nested_span, nested_statement_spans) => {}, BodyMatch(targets, locals, spans) => {}, BodyBinding(identity, type, mutable, inferred, type_evidence) => {},
             BodyAssignment(identity, assignment_evidence) => {}, BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
@@ -452,7 +480,8 @@ pure module_effect_expression(
       children_walked = true
     },
     BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity, captured_domain) => {},
-    BodyFunction(binding) => {}, BodyArray() => {}, BodyBinary(operator) => {}, BodyField(field) => {},
+    BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {}, BodyArray() => {}, BodyBinary(operator) => {}, BodyField(field) => {},
     BodyIndex() => {}, BodyIf(value) => {}, BodyMatch(targets, locals, spans) => {},
     BodyBinding(identity, type, mutable, inferred, type_evidence) => {}, BodyAssignment(identity, assignment_evidence) => {},
     BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
@@ -476,7 +505,7 @@ pub pure check_module_effects(
   mut evidence: [EffectEvidence] = []
   mut function_types: Map[Str, Bool] = map()
   local_functions = module_local_functions(graph, modules, signatures, functions, retain)
-  for function in functions {
+  for function in body_functions_with_anonymous(functions) {
     valid_body: Bool = function.status != BodyInvalid()
     function_types = function_types.put(function.signature.binding.identity.name,
       valid_body && function.status == BodyIdentityChecked())
@@ -503,4 +532,344 @@ pub pure check_module_effects(
     }
   }
   CheckedModuleEffects(diagnostics, evidence, function_types)
+}
+
+// Plain-mode cache facts retain call boundaries, not checked expression trees.
+// Direct declaration effects and local-resource permissions are resolved again
+// against the current project. Only indirect callable type facts are retained.
+pub record EffectCallFact {
+  target: BodyTarget,
+  span: SourceSpan,
+  indirect_effect: Option[SignatureEffect],
+  indirect_known: Bool
+}
+pub enum EffectCheckFact {
+  EffectCallCheck(EffectCallFact, Bool),
+  EffectStaticCheck(Diagnostic)
+}
+pub record StateCallFact {
+  target: DeclarationIdentity,
+  arguments: [SignatureType],
+  span: SourceSpan
+}
+
+pub record FunctionEffectFacts {
+  identity: DeclarationIdentity,
+  owner_file: Str,
+  effect: Option[SignatureEffect],
+  status: BodyCheckStatus,
+  local_calls: [EffectCallFact],
+  checks: [EffectCheckFact],
+  state_payloads: [SignatureType],
+  state_calls: [StateCallFact]
+}
+
+pure effect_call_fact(expression: BoundBody, target: BodyTarget): EffectCallFact {
+  mut effect: Option[SignatureEffect] = None()
+  mut known = false
+  match target {
+    BodyCore(name) => if name == "$intrinsic_call" && expression.children.len() > 0 {
+      match expression.children[0].type {
+        None() => {},
+        Some(type) => match type.identity {
+          SignatureCallable(callable_effect) => { effect = Some(callable_effect); known = true },
+          SignatureHole(owner, path, index) => {},
+          SignatureCore(core_name) => { known = true },
+          SignatureNominal(identity) => { known = true },
+          SignatureParameter(owner, index) => { known = true }
+        }
+      }
+    },
+    BodyDeclaration(binding) => {}
+  }
+  EffectCallFact(target, expression.span, effect, known)
+}
+
+pure effect_local_calls(body: BoundBody): [EffectCallFact] {
+  mut calls: [EffectCallFact] = []
+  match body.node {
+    BodyCall(target, types, arguments) => { calls = calls.append(effect_call_fact(body, target)) },
+    BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity, domain) => {},
+    BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {}, BodyArray() => {}, BodyUnary(ignored_unary) => {},
+    BodyBinary(ignored_binary) => {}, BodyField(field) => {}, BodyIndex() => {}, BodyIf(value) => {},
+    BodyBlock(value, ignored_span, ignored_spans) => {}, BodyMatch(targets, locals, ignored_match_spans) => {},
+    BodyBinding(identity, type, mutable, inferred, evidence) => {}, BodyAssignment(identity, evidence) => {},
+    BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
+  }
+  for child in body.children { calls = calls.concat(effect_local_calls(child)) }
+  calls
+}
+
+pure effect_check_facts(expression: BoundBody, mode: Str, awaited: Bool): [EffectCheckFact] {
+  mut checks: [EffectCheckFact] = []
+  mut walked = false
+  match expression.node {
+    BodyUnary(operator) => {
+      if operator == "await" {
+        if mode != "async" {
+          checks = checks.append(EffectStaticCheck(Diagnostic("await requires an async function", expression.span.start)))
+        }
+        mut valid_operand = false
+        if expression.children.len() > 0 {
+          match expression.children[0].node {
+            BodyCall(target, types, arguments) => { valid_operand = true },
+            BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity, domain) => {},
+            BodyFunction(binding) => {},
+            BodyAnonymousFunction(anonymous) => {}, BodyArray() => {}, BodyUnary(ignored_unary) => {},
+            BodyBinary(ignored_binary) => {}, BodyField(field) => {}, BodyIndex() => {}, BodyIf(value) => {},
+            BodyBlock(value, ignored_span, ignored_spans) => {}, BodyMatch(targets, locals, ignored_match_spans) => {},
+            BodyBinding(identity, type, mutable, inferred, evidence) => {}, BodyAssignment(identity, evidence) => {},
+            BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
+          }
+        }
+        if !valid_operand {
+          checks = checks.append(EffectStaticCheck(Diagnostic("await requires an async call", expression.span.start)))
+        }
+      }
+      if expression.children.len() > 0 {
+        checks = checks.concat(effect_check_facts(expression.children[0], mode, operator == "await"))
+      }
+      walked = true
+    },
+    BodyCall(target, types, arguments) => {
+      checks = checks.append(EffectCallCheck(effect_call_fact(expression, target), awaited))
+    },
+    BodyBlock(has_value, span, spans) => {
+      mut statements = expression.children.len()
+      if has_value && statements > 0 { statements = statements - 1 }
+      mut index: Nat = 0
+      for child in expression.children {
+        if index < statements {
+          match child.node {
+            BodyUnary(operator) => if operator == "await" {
+              match child.type {
+                None() => {},
+                Some(type) => if type.identity != SignatureCore("Unit") {
+                  checks = checks.append(EffectStaticCheck(Diagnostic("bind, match or return a non-Unit await result", child.span.start)))
+                }
+              }
+            },
+            BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity, domain) => {},
+            BodyFunction(binding) => {},
+            BodyAnonymousFunction(anonymous) => {}, BodyCall(target, types, arguments) => {}, BodyArray() => {},
+            BodyBinary(ignored_binary) => {}, BodyField(field) => {}, BodyIndex() => {}, BodyIf(value) => {},
+            BodyBlock(value, ignored_span, ignored_spans) => {}, BodyMatch(targets, locals, ignored_match_spans) => {},
+            BodyBinding(identity, type, mutable, inferred, evidence) => {}, BodyAssignment(identity, evidence) => {},
+            BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
+          }
+        }
+        checks = checks.concat(effect_check_facts(child, mode, false))
+        index = index + 1
+      }
+      walked = true
+    },
+    BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity, domain) => {},
+    BodyFunction(binding) => {},
+    BodyAnonymousFunction(anonymous) => {}, BodyArray() => {}, BodyBinary(ignored_binary) => {}, BodyField(field) => {},
+    BodyIndex() => {}, BodyIf(value) => {}, BodyMatch(targets, locals, ignored_match_spans) => {},
+    BodyBinding(identity, type, mutable, inferred, evidence) => {}, BodyAssignment(identity, evidence) => {},
+    BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
+  }
+  if !walked {
+    for child in expression.children { checks = checks.concat(effect_check_facts(child, mode, false)) }
+  }
+  checks
+}
+
+pub pure collect_function_effect_facts(functions: [BoundFunctionBody]): [FunctionEffectFacts] {
+  mut result: [FunctionEffectFacts] = []
+  for function in body_functions_with_anonymous(functions) {
+    valid = function.status != BodyInvalid()
+    result = result.append(FunctionEffectFacts(
+      function.signature.binding.identity, function.signature.binding.span.start.file,
+      function.signature.effect, function.status,
+      if valid { effect_local_calls(function.body) } else { [] },
+      if valid { effect_check_facts(function.body, module_effect_mode(function.signature.effect), false) } else { [] },
+      if valid { state_payload_facts(function.body) } else { [] },
+      if valid { state_call_facts(function.body, function.signature.binding.identity) } else { [] }
+    ))
+  }
+  result
+}
+
+pure effect_fact_effect(context: BodyContext, call: EffectCallFact): Option[SignatureEffect] {
+  match call.target {
+    BodyCore(name) => if name == "$intrinsic_call" { call.indirect_effect }
+      else { module_effect_for_target(context, call.target) },
+    BodyDeclaration(binding) => module_effect_for_target(context, call.target)
+  }
+}
+
+pub pure check_function_effect_facts(
+  graph: ModuleBindingGraph, modules: [LoadedModule], signatures: [ModuleSignature],
+  functions: [FunctionEffectFacts]
+): CheckedModuleEffects {
+  mut known: Set[DeclarationIdentity] = set()
+  mut changed = true
+  while changed {
+    changed = false
+    for function in functions {
+      if function.status != BodyInvalid() && function.effect == Some(SignatureOrdinary()) && !known.has(function.identity) {
+        context = BodyContext(graph, modules, signatures, function.identity, [], map(), false)
+        mut safe = true
+        mut local = false
+        for call in function.local_calls {
+          allowed = module_local_target(call.target, known)
+          local = local || allowed
+          safe = safe && (allowed || effect_fact_effect(context, call) == Some(SignaturePure()))
+          match call.target {
+            BodyCore(name) => if name == "$intrinsic_call" { safe = false },
+            BodyDeclaration(binding) => {}
+          }
+        }
+        if safe && local { known = known.add(function.identity); changed = true }
+      }
+    }
+  }
+  mut diagnostics: [Diagnostic] = []
+  mut function_types: Map[Str,Bool] = map()
+  for function in functions {
+    valid = function.status != BodyInvalid()
+    function_types = function_types.put(function.identity.name, valid && function.status == BodyIdentityChecked())
+    if valid {
+      context = BodyContext(graph, modules, signatures, function.identity, [], map(), false)
+      checking = ModuleEffectContext(context, function.identity.name, function.owner_file,
+        module_effect_mode(function.effect), known, map())
+      for check in function.checks {
+        match check {
+          EffectStaticCheck(diagnostic) => { diagnostics = diagnostics.append(diagnostic) },
+          EffectCallCheck(call, awaited) => {
+            effect = effect_fact_effect(context, call)
+            effect_known = match call.target {
+              BodyCore(name) => if name == "$intrinsic_call" { call.indirect_known } else { true },
+              BodyDeclaration(binding) => effect != None()
+            }
+            checked = module_effect_call_details(checking, call.target, call.span, effect, effect_known, awaited, false)
+            diagnostics = diagnostics.concat(checked.diagnostics)
+          }
+        }
+      }
+    }
+  }
+  CheckedModuleEffects(diagnostics, [], function_types)
+}
+
+pure state_payload_types(type: SignatureType): [SignatureType] {
+  mut result: [SignatureType] = []
+  if type.identity == SignatureCore("State") && type.arguments.len() == 1 {
+    result = result.append(type.arguments[0])
+  }
+  for argument in type.arguments { result = result.concat(state_payload_types(argument)) }
+  result
+}
+
+pure state_payload_facts(body: BoundBody): [SignatureType] {
+  mut result: [SignatureType] = []
+  match body.type {
+    None() => {}, Some(type) => { result = state_payload_types(type) }
+  }
+  for child in body.children { result = result.concat(state_payload_facts(child)) }
+  result
+}
+
+pure state_call_facts(body: BoundBody, owner: DeclarationIdentity): [StateCallFact] {
+  mut result: [StateCallFact] = []
+  match body.node {
+    BodyCall(target, arguments, evidence) => match target {
+      BodyDeclaration(binding) => {
+        if arguments.len() > 0 {
+          result = result.append(StateCallFact(binding.identity, arguments, body.span))
+        }
+      },
+      BodyCore(name) => {}
+    },
+    BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity, domain) => {},
+    BodyFunction(binding) => {}, BodyAnonymousFunction(anonymous) => {
+      mut arguments: [SignatureType] = []
+      for index in 0..anonymous.signature.parameters.len() {
+        arguments = arguments.append(SignatureType(SignatureParameter(owner, index), []))
+      }
+      if arguments.len() > 0 {
+        result = result.append(StateCallFact(anonymous.signature.binding.identity, arguments, body.span))
+      }
+    }, BodyArray() => {},
+    BodyUnary(operator) => {}, BodyBinary(operator) => {}, BodyField(field) => {}, BodyIndex() => {},
+    BodyIf(value) => {}, BodyBlock(value, span, spans) => {}, BodyMatch(targets, locals, spans) => {},
+    BodyBinding(identity, type, mutable, inferred, evidence) => {}, BodyAssignment(identity, evidence) => {},
+    BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
+  }
+  for child in body.children { result = result.concat(state_call_facts(child, owner)) }
+  result
+}
+
+pure state_add_parameter(values: [Nat], value: Nat): [Nat] {
+  mut present = false
+  for previous in values { present = present || previous == value }
+  if present { values } else { values.append(value) }
+}
+
+pure state_parameter_indices(type: SignatureType, owner: DeclarationIdentity): [Nat] {
+  mut result: [Nat] = []
+  match type.identity {
+    SignatureParameter(identity, index) => { if identity == owner { result = state_add_parameter(result, index) } },
+    SignatureCallable(effect) => {}, SignatureCore(name) => {}, SignatureNominal(identity) => {},
+    SignatureHole(hole_owner, path, index) => {}
+  }
+  for argument in type.arguments {
+    for index in state_parameter_indices(argument, owner) { result = state_add_parameter(result, index) }
+  }
+  result
+}
+
+// This closed requirement is inferred from checked bodies, not a public trait.
+// Propagate parameter indices rather than expanding recursive generic types, so
+// recursive call graphs converge over a finite set. Cached code retains these
+// same facts and checks them against every current call-site instantiation.
+pub pure check_state_payload_facts(graph: ModuleBindingGraph, modules: [LoadedModule],
+  signatures: [ModuleSignature], functions: [FunctionEffectFacts]): [Diagnostic] {
+  mut required: Map[DeclarationIdentity,[Nat]] = map()
+  for function in functions {
+    mut parameters: [Nat] = []
+    for payload in function.state_payloads {
+      for index in state_parameter_indices(payload, function.identity) { parameters = state_add_parameter(parameters, index) }
+    }
+    required = required.put(function.identity, parameters)
+  }
+  mut changed = true
+  while changed {
+    changed = false
+    for function in functions {
+      mut parameters = required.get(function.identity)
+      for call in function.state_calls {
+        if required.has(call.target) {
+          for index in required.get(call.target) {
+            if index < call.arguments.len() {
+              for parameter in state_parameter_indices(call.arguments[index], function.identity) {
+                next = state_add_parameter(parameters, parameter)
+                if next.len() != parameters.len() { parameters = next; changed = true }
+              }
+            }
+          }
+        }
+      }
+      required = required.put(function.identity, parameters)
+    }
+  }
+  mut diagnostics: [Diagnostic] = []
+  for function in functions {
+    context = BodyContext(graph, modules, signatures, function.identity, [], map(), false)
+    for call in function.state_calls {
+      if required.has(call.target) {
+        for index in required.get(call.target) {
+          if index < call.arguments.len() && body_state_payload_restricted(context, call.arguments[index], []) {
+            diagnostics = diagnostics.append(Diagnostic("This call uses " + body_type_text(call.arguments[index]) +
+              " as a State payload inside " + call.target.name +
+              ". Store immutable data and keep cells, callbacks and resources outside the cell.", call.span.start))
+          }
+        }
+      }
+    }
+  }
+  diagnostics
 }

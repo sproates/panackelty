@@ -1,0 +1,5 @@
+pure greeting(): PureFn[Str] {
+  message = "Hello from the retained value"
+  () => message
+}
+main(): Void { print(greeting().call()) }

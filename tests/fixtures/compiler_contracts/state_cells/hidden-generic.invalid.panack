@@ -1,0 +1,4 @@
+import stdlib/state as state
+stash[T](value: T): Void { cell = state.create(value) }
+pure identity(value: Nat): Nat { value }
+main(): Void { stash(@identity) }

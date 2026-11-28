@@ -1,0 +1,17 @@
+import stdlib/filesystem/errors::{FilesystemOperation.ReadConfined, FilesystemOperation.ReadLink, FilesystemOperation.RootIdentity}
+import stdlib/filesystem/errors as errors
+pub import stdlib/filesystem/errors::{FilesystemError, FilesystemErrorKind, FilesystemOperation}
+pub import stdlib/async_filesystem::{HostError, FilesystemRootIdentity, FilesystemRootRead, read_beneath}
+import stdlib/async_filesystem as existing
+
+pub async read(root: Path, relative: Path, limit: Nat): Result[FilesystemRootRead,FilesystemError] {
+  errors.convert(await existing.read_beneath(root, relative, limit), ReadConfined(root, relative, limit))
+}
+
+pub async read_link(root: Path, relative: Path): Result[Bytes,FilesystemError] {
+  errors.convert(await fs_read_link_async(root, relative), ReadLink(root, relative))
+}
+
+pub async root_identity(root: Path): Result[FilesystemRootIdentity,FilesystemError] {
+  errors.convert(await existing.root_identity(root), RootIdentity(root))
+}

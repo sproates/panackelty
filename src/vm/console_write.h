@@ -8,6 +8,9 @@ typedef struct VMConsoleWrite VMConsoleWrite;
 /* Independently owned, bounded console writes. Cancellation suppresses result
  * delivery; the worker retains its descriptor and slot until write returns. */
 VMConsoleWrite *console_write_start(VM *vm, const Value *message, bool standard_error);
+VMConsoleWrite *console_write_start_mode(VM *vm, const Value *message, bool standard_error,
+                                         bool newline, bool legacy);
+Value *console_output_call(VM *vm, const char *name, Value **arguments);
 bool console_write_poll(VMConsoleWrite *write);
 void console_write_wait(VMConsoleWrite *write);
 Value *console_write_result(VMConsoleWrite *write);

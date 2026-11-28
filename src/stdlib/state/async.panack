@@ -1,0 +1,6 @@
+// Waiting for a cell yields the task; updates commit one pure transformation.
+pub async create[T](initial: T): State[T] { await state_create_async(initial) }
+pub async read[T](cell: State[T]): T { await state_read_async(cell) }
+pub async update[T](cell: State[T], transform: PureFn[T,T]): T {
+  await state_update_async(cell, transform)
+}

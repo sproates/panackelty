@@ -1,0 +1,66 @@
+// Compatibility contract for callers that still consume HostError.
+import stdlib/filesystem/async as files
+pub import stdlib/host::{HostError}
+pub import stdlib/filesystem::{FileKind, FileKind.RegularFile, FileKind.Directory, FileKind.SymbolicLink, FileKind.OtherFile, FileMetadata}
+import stdlib/filesystem/errors::{FilesystemError}
+pub import stdlib/async_filesystem::{FilesystemRootIdentity, FilesystemRootRead, read_beneath, root_identity}
+
+pure unwrap[T](result: Result[T,FilesystemError]): Result[T,HostError] {
+  match result { Ok(value) => Ok(value), Error(problem) => Error(problem.native) }
+}
+
+pub async metadata(path: Path): Result[FileMetadata, HostError] {
+  unwrap(await files.metadata(path))
+}
+
+pub async read(path: Path, limit: Nat): Result[Bytes, HostError] {
+  unwrap(await files.read(path, limit))
+}
+
+pub async write(path: Path, data: Bytes): Result[Unit, HostError] {
+  unwrap(await files.write(path, data))
+}
+
+pub async list_directory(path: Path): Result[[Path], HostError] {
+  unwrap(await files.list_directory(path))
+}
+
+pub async remove_file(path: Path): Result[Unit, HostError] {
+  unwrap(await files.remove_file(path))
+}
+
+pub async remove_directory(path: Path): Result[Unit, HostError] {
+  unwrap(await files.remove_directory(path))
+}
+
+pub async create_directory(path: Path): Result[Unit, HostError] {
+  unwrap(await files.create_directory(path))
+}
+
+pub async temp_directory(parent: Path): Result[Path, HostError] {
+  unwrap(await files.temp_directory(parent))
+}
+
+pub async temp_file(parent: Path): Result[Path, HostError] {
+  unwrap(await files.temp_file(parent))
+}
+
+pub async create_temp_file(parent: Path): Result[Path,HostError] {
+  unwrap(await files.create_temp_file(parent))
+}
+
+pub async create_temp_directory(parent: Path): Result[Path,HostError] {
+  unwrap(await files.create_temp_directory(parent))
+}
+
+pub async directories_overlap(left: Path, right: Path): Result[Bool,HostError] {
+  unwrap(await files.directories_overlap(left, right))
+}
+
+pub async read_chunk(file: Path, offset: Nat, limit: Nat): Result[Bytes,HostError] {
+  unwrap(await files.read_chunk(file, offset, limit))
+}
+
+pub async write_atomic(file: Path, data: Bytes): Result[Unit,HostError] {
+  unwrap(await files.write_atomic(file, data))
+}

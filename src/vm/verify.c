@@ -53,9 +53,86 @@ static void infer_local_effects(Program *program)
     } while (changed);
 }
 
+typedef struct {
+    const char *name;
+    size_t slot;
+} LocalName;
+
+static int local_name_order(const void *left, const void *right)
+{
+    return strcmp(((const LocalName *)left)->name, ((const LocalName *)right)->name);
+}
+
+static size_t local_name_slot(const LocalName *names, size_t count, const char *name)
+{
+    size_t low = 0, high = count;
+    while (low < high) {
+        size_t middle = low + (high - low) / 2;
+        int order = strcmp(name, names[middle].name);
+        if (!order) return names[middle].slot;
+        if (order < 0) high = middle;
+        else low = middle + 1;
+    }
+    return SIZE_MAX;
+}
+
+static bool local_instruction(uint8_t op)
+{
+    return op == OP_LOAD || op == OP_STORE || op == OP_ITER_INIT || op == OP_ITER_NEXT;
+}
+
+/* Temporary sorted names avoid repeated runtime searches. No owned plan remains. */
+static bool prepare_locals(Function *function)
+{
+    size_t count = function->param_count;
+    for (size_t i = 0; i < function->ins_count; i++) {
+        uint8_t op = function->ins[i].op;
+        size_t extra = op == OP_ITER_NEXT ? 2 : local_instruction(op) ? 1 : 0;
+        if (extra > SIZE_MAX - count) return false;
+        count += extra;
+    }
+    function->local_count = 0;
+    if (!count) return true;
+    if (count > SIZE_MAX / sizeof(LocalName)) return false;
+    LocalName *names = malloc(count * sizeof(*names));
+    if (!names) return false;
+    size_t used = 0;
+    for (size_t i = 0; i < function->param_count; i++) {
+        names[used++] = (LocalName){function->params[i], i};
+    }
+    for (size_t i = 0; i < function->ins_count; i++) {
+        Instruction *in = &function->ins[i];
+        if (local_instruction(in->op)) names[used++] = (LocalName){in->name, SIZE_MAX};
+        if (in->op == OP_ITER_NEXT) names[used++] = (LocalName){in->name2, SIZE_MAX};
+    }
+    qsort(names, used, sizeof(*names), local_name_order);
+    size_t unique = 0, slots = function->param_count;
+    for (size_t i = 0; i < used;) {
+        LocalName entry = names[i++];
+        while (i < used && !strcmp(entry.name, names[i].name)) {
+            if (names[i].slot != SIZE_MAX) entry.slot = names[i].slot;
+            i++;
+        }
+        if (entry.slot == SIZE_MAX) entry.slot = slots++;
+        names[unique++] = entry;
+    }
+    for (size_t i = 0; i < function->ins_count; i++) {
+        Instruction *in = &function->ins[i];
+        if (local_instruction(in->op)) in->local_slot = local_name_slot(names, unique, in->name);
+        if (in->op == OP_ITER_NEXT) in->local_slot2 = local_name_slot(names, unique, in->name2);
+    }
+    function->local_count = slots;
+    free(names);
+    return true;
+}
+
 bool verify(Program *p, const char **error)
 {
     p->verified_function_order = false;
+    p->resolved_calls = false;
+    p->resolved_locals = false;
+    p->resolved_constants = false;
+    p->constant_count = 0;
     infer_local_effects(p);
     Function *main = program_function(p, "main");
     if (!main) {
@@ -116,6 +193,8 @@ bool verify(Program *p, const char **error)
                     *error = "call to unknown function";
                     return false;
                 }
+                instruction->resolved_builtin = b;
+                instruction->resolved_function = b ? NULL : called;
                 size_t arity = b ? b->arity : called->param_count;
                 if (instruction->arity != arity) {
                     *error = "call arity mismatch";
@@ -134,6 +213,28 @@ bool verify(Program *p, const char **error)
             return false;
         }
     }
+    for (size_t i = 0; i < p->count; i++) {
+        if (!prepare_locals(&p->functions[i])) {
+            *error = "native VM out of memory";
+            return false;
+        }
+    }
+    for (size_t i = 0; i < p->count; i++) {
+        Function *function = &p->functions[i];
+        for (size_t j = 0; j < function->ins_count; j++) {
+            Instruction *instruction = &function->ins[j];
+            if (instruction->op == OP_CONST && instruction->constant.tag <= 3) {
+                if (p->constant_count == SIZE_MAX / sizeof(Value *)) {
+                    *error = "too many runtime constants";
+                    return false;
+                }
+                instruction->constant_slot = p->constant_count++;
+            }
+        }
+    }
+    p->resolved_constants = true;
     p->verified_function_order = true;
+    p->resolved_calls = true;
+    p->resolved_locals = true;
     return true;
 }

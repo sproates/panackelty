@@ -1,3 +1,7 @@
+#include "filesystem_stage.h"
+#include "http_transport.h"
+#include "digest.h"
+#include "gzip_stream.h"
 #include "value.h"
 
 #include "numeric.h"
@@ -14,6 +18,7 @@
  */
 struct ArrayStorage {
     size_t refs, count, capacity;
+    bool sealed;
     Value **items;
 };
 
@@ -23,13 +28,14 @@ Value *value_new(ValueKind kind)
     if (v) {
         v->refs = 1;
         v->kind = kind;
+        v->key_forbidden = kind == V_STATE || kind == V_CLOSURE;
     }
     return v;
 }
 
 Value *retain(Value *v)
 {
-    if (v) {
+    if (v && v->refs != SIZE_MAX) {
         v->refs++;
     }
     return v;
@@ -37,10 +43,25 @@ Value *retain(Value *v)
 
 void release(Value *v)
 {
-    if (!v || --v->refs) {
+    if (!v || v->refs == SIZE_MAX || --v->refs) {
         return;
     }
     switch (v->kind) {
+    case V_STATE:
+        release(v->as.state.payload);
+        break;
+    case V_SHA256_CONTEXT:
+        digest_owner_release(v->as.sha256.owner);
+        break;
+    case V_GZIP_DECODER:
+        gzip_owner_release(v->as.gzip.owner);
+        break;
+    case V_HTTP_STREAM:
+        http_stream_owner_release(v->as.http_stream.owner);
+        break;
+    case V_DIRECTORY_STAGE:
+        filesystem_stage_owner_release(v->as.directory_stage.owner);
+        break;
     case V_HTTP_CONNECTION:
         http_connection_free(v->as.http_connection);
         break;
@@ -75,6 +96,7 @@ void release(Value *v)
     case V_ARRAY:
     case V_MAP:
     case V_SET:
+        if (v->as.sequence.index) free(v->as.sequence.index);
         if (v->as.sequence.storage) {
             ArrayStorage *storage = v->as.sequence.storage;
             if (--storage->refs == 0) {
@@ -97,6 +119,7 @@ void release(Value *v)
         break;
     case V_RECORD:
     case V_VARIANT:
+    case V_CLOSURE:
         for (size_t i = 0; i < v->as.named.count; i++) {
             free(v->as.named.names ? v->as.named.names[i] : NULL);
             release(v->as.named.values ? v->as.named.values[i] : NULL);
@@ -115,18 +138,28 @@ void release(Value *v)
     free(v);
 }
 
+/* Immortal immutable values: retain/release never write their reference counts. */
+static Value boolean_values[2] = {
+    {.refs = SIZE_MAX, .kind = V_BOOL, .as.boolean = false},
+    {.refs = SIZE_MAX, .kind = V_BOOL, .as.boolean = true},
+};
+
 Value *value_bool(bool value)
 {
-    Value *v = value_new(V_BOOL);
-    if (v) {
-        v->as.boolean = value;
-    }
-    return v;
+    return &boolean_values[value ? 1 : 0];
+}
+
+static Value unit_value = {.refs = SIZE_MAX, .kind = V_UNIT};
+static Value void_value = {.refs = SIZE_MAX, .kind = V_VOID};
+
+Value *value_unit(void)
+{
+    return &unit_value;
 }
 
 Value *value_void(void)
 {
-    return value_new(V_VOID);
+    return &void_value;
 }
 
 Value *value_big(ValueKind kind, const PnBigInt *number)
@@ -155,6 +188,16 @@ Value *value_size(size_t number)
 
 Value *value_data(ValueKind kind, const uint8_t *data, size_t length)
 {
+    return value_data_join(kind, data, length, NULL, 0);
+}
+
+static Value *allocate_data_join(ValueKind kind, const uint8_t *left, size_t left_length,
+                                 const uint8_t *right, size_t right_length)
+{
+    if (left_length == SIZE_MAX || right_length > SIZE_MAX - left_length - 1) {
+        return NULL;
+    }
+    size_t length = left_length + right_length;
     Value *v = value_new(kind);
     if (!v) {
         return NULL;
@@ -164,14 +207,26 @@ Value *value_data(ValueKind kind, const uint8_t *data, size_t length)
         free(v);
         return NULL;
     }
-    if (length) {
-        memcpy(v->as.bytes.data, data, length);
+    if (left_length) {
+        memcpy(v->as.bytes.data, left, left_length);
+    }
+    if (right_length) {
+        memcpy(v->as.bytes.data + left_length, right, right_length);
     }
     v->as.bytes.data[length] = 0;
     v->as.bytes.length = length;
+    return v;
+}
+
+Value *value_data_join(ValueKind kind, const uint8_t *left, size_t left_length,
+                      const uint8_t *right, size_t right_length)
+{
+    Value *v = allocate_data_join(kind, left, left_length, right, right_length);
+    if (!v) return NULL;
     if (kind == V_STR) {
+        const uint8_t *data = v->as.bytes.data;
         v->as.bytes.ascii = true;
-        for (size_t i = 0; i < length; i++) {
+        for (size_t i = 0; i < v->as.bytes.length; i++) {
             if ((data[i] & 0xc0) != 0x80) {
                 v->as.bytes.characters++;
             }
@@ -179,6 +234,43 @@ Value *value_data(ValueKind kind, const uint8_t *data, size_t length)
                 v->as.bytes.ascii = false;
             }
         }
+    }
+    return v;
+}
+
+Value *value_string_concat(const Value *left, const Value *right)
+{
+    Value *v = allocate_data_join(V_STR, left->as.bytes.data, left->as.bytes.length,
+                                  right->as.bytes.data, right->as.bytes.length);
+    if (!v) return NULL;
+    /* Valid string character counts cannot exceed the checked byte lengths. */
+    v->as.bytes.characters = left->as.bytes.characters + right->as.bytes.characters;
+    v->as.bytes.ascii = left->as.bytes.ascii && right->as.bytes.ascii;
+    return v;
+}
+
+Value *value_array_concat(const Value *left, const Value *right)
+{
+    size_t n = left->as.sequence.count, m = right->as.sequence.count;
+    if (m > SIZE_MAX - n || n + m > SIZE_MAX / sizeof(Value *)) {
+        return NULL;
+    }
+    Value *v = value_new(V_ARRAY);
+    if (!v) {
+        return NULL;
+    }
+    v->as.sequence.items = calloc(n + m, sizeof(Value *));
+    if (n + m && !v->as.sequence.items) {
+        free(v);
+        return NULL;
+    }
+    v->key_forbidden = left->key_forbidden || right->key_forbidden;
+    v->as.sequence.count = n + m;
+    for (size_t i = 0; i < n; i++) {
+        v->as.sequence.items[i] = retain(left->as.sequence.items[i]);
+    }
+    for (size_t i = 0; i < m; i++) {
+        v->as.sequence.items[n + i] = retain(right->as.sequence.items[i]);
     }
     return v;
 }
@@ -197,6 +289,7 @@ Value *value_sequence(ValueKind kind, Value **items, size_t count)
     v->as.sequence.count = count;
     for (size_t i = 0; i < count; i++) {
         v->as.sequence.items[i] = retain(items[i]);
+        v->key_forbidden = v->key_forbidden || !items[i] || items[i]->key_forbidden;
     }
     return v;
 }
@@ -233,10 +326,15 @@ static bool append_independent(const Value *item, const ArrayStorage *target, si
         }
         return true;
     }
+    case V_STATE:
+        /* The payload may own the target storage. Never append a mutable
+         * capability into shared storage reachable through that capability. */
+        return false;
     case V_ITER:
         return append_independent(item->as.iterator.iterable, target, budget);
     case V_RECORD:
     case V_VARIANT:
+    case V_CLOSURE:
         for (size_t i = 0; i < item->as.named.count; i++) {
             if (!append_independent(item->as.named.values[i], target, budget)) {
                 return false;
@@ -261,7 +359,7 @@ Value *value_array_append(Value *array, Value *item)
     }
     ArrayStorage *storage = array->as.sequence.storage;
     size_t budget = 64;
-    if (storage && storage->refs == 1 && count < storage->capacity &&
+    if (storage && !storage->sealed && storage->refs == 1 && count < storage->capacity &&
         append_independent(item, storage, &budget)) {
         /* Allocate the result before changing storage: OOM leaves inputs intact. */
         storage->items[count] = retain(item);
@@ -288,10 +386,120 @@ Value *value_array_append(Value *array, Value *item)
         }
         storage->items[count] = retain(item);
     }
+    result->key_forbidden = array->key_forbidden || item->key_forbidden;
     result->as.sequence.count = count + 1;
     result->as.sequence.items = storage->items;
     result->as.sequence.storage = storage;
     return result;
+}
+
+struct CollectionIndex {
+    size_t capacity;
+    size_t positions[]; /* Slot position plus one; zero denotes an empty bucket. */
+};
+
+static uint64_t collection_hash_byte(uint64_t hash, uint8_t byte)
+{
+    return (hash ^ byte) * UINT64_C(1099511628211);
+}
+
+/* Only hash domains whose representation agrees with value_equal. */
+static bool collection_hash(const Value *key, uint64_t *hash)
+{
+    uint64_t h = collection_hash_byte(UINT64_C(14695981039346656037), (uint8_t)key->kind);
+    switch (key->kind) {
+    case V_STR:
+    case V_BYTES:
+    case V_PATH:
+        for (size_t i = 0; i < key->as.bytes.length; i++) h = collection_hash_byte(h, key->as.bytes.data[i]);
+        break;
+    case V_NAT:
+    case V_INT:
+    case V_DURATION:
+    case V_INSTANT:
+        h = collection_hash_byte(h, (uint8_t)key->as.integer.sign);
+        for (size_t i = 0; i < key->as.integer.len; i++) {
+            uint32_t limb = key->as.integer.limbs[i];
+            for (size_t j = 0; j < 4; j++) h = collection_hash_byte(h, (uint8_t)(limb >> (8 * j)));
+        }
+        break;
+    case V_BOOL:
+        h = collection_hash_byte(h, key->as.boolean);
+        break;
+    case V_UNIT:
+    case V_VOID:
+        break;
+    default:
+        return false;
+    }
+    *hash = h;
+    return true;
+}
+
+static CollectionIndex *collection_index_build(const Value *collection, size_t stride)
+{
+    size_t entries = collection->as.sequence.count / stride;
+    if (entries > SIZE_MAX / 2) return NULL;
+    size_t capacity = 1;
+    while (capacity < entries * 2) {
+        if (capacity > SIZE_MAX / 2) return NULL;
+        capacity *= 2;
+    }
+    if (capacity > (SIZE_MAX - sizeof(CollectionIndex)) / sizeof(size_t)) return NULL;
+    CollectionIndex *index = calloc(1, sizeof(*index) + capacity * sizeof(size_t));
+    if (!index) return NULL;
+    index->capacity = capacity;
+    for (size_t i = 0; i < collection->as.sequence.count; i += stride) {
+        Value *key = collection->as.sequence.items[i];
+        uint64_t hash;
+        if (!collection_hash(key, &hash)) {
+            free(index);
+            return NULL;
+        }
+        size_t bucket = (size_t)hash & (capacity - 1);
+        while (index->positions[bucket]) {
+            size_t prior = index->positions[bucket] - 1;
+            if (value_equal(collection->as.sequence.items[prior], key)) break;
+            bucket = (bucket + 1) & (capacity - 1);
+        }
+        /* Preserve last map binding and first set occurrence, even in native fixtures. */
+        if (stride == 2 || !index->positions[bucket]) index->positions[bucket] = i + 1;
+    }
+    return index;
+}
+
+size_t value_collection_find(Value *collection, const Value *key)
+{
+    Sequence *sequence = &collection->as.sequence;
+    size_t stride = collection->kind == V_MAP ? 2 : 1;
+    /* Trial thresholds: avoid allocating for small or briefly queried values. */
+    if (!sequence->index && sequence->count / stride >= 32 && sequence->lookup_count != SIZE_MAX) {
+        if (++sequence->lookup_count >= 8) {
+            sequence->index = collection_index_build(collection, stride);
+            if (!sequence->index) sequence->lookup_count = SIZE_MAX;
+        }
+    }
+    uint64_t hash;
+    if (sequence->index && collection_hash(key, &hash)) {
+        CollectionIndex *index = sequence->index;
+        size_t bucket = (size_t)hash & (index->capacity - 1);
+        while (index->positions[bucket]) {
+            size_t position = index->positions[bucket] - 1;
+            if (value_equal(sequence->items[position], key)) return position;
+            bucket = (bucket + 1) & (index->capacity - 1);
+        }
+        return SIZE_MAX;
+    }
+    if (stride == 2) {
+        for (size_t i = sequence->count; i >= 2; i -= 2) {
+            if (value_equal(sequence->items[i - 2], key)) return i - 2;
+        }
+    } else {
+        for (size_t i = 0; i < sequence->count; i++) {
+            if (value_equal(sequence->items[i], key)) return i;
+        }
+    }
+    return SIZE_MAX;
 }
 
 bool value_equal(const Value *a, const Value *b)
@@ -300,6 +508,8 @@ bool value_equal(const Value *a, const Value *b)
         return false;
     }
     switch (a->kind) {
+    case V_STATE:
+        return a == b; /* Identity never reads or waits on the payload. */
     case V_NAT:
     case V_INT:
     case V_DURATION:
@@ -334,10 +544,12 @@ bool value_equal(const Value *a, const Value *b)
         return true;
     case V_RECORD:
     case V_VARIANT:
+    case V_CLOSURE:
         if (strcmp(a->as.named.name, b->as.named.name) || a->as.named.count != b->as.named.count) {
             return false;
         }
         for (size_t i = 0; i < a->as.named.count; i++) {
+            if (a->kind == V_CLOSURE && a->as.named.values[i] == b->as.named.values[i]) continue;
             if (!value_equal(a->as.named.values[i], b->as.named.values[i])) {
                 return false;
             }
@@ -387,6 +599,143 @@ Value *named_value(ValueKind kind, const char *name, char **names, Value **value
             }
         }
         v->as.named.values[i] = retain(values[i]);
+        v->key_forbidden = v->key_forbidden || !values[i] || values[i]->key_forbidden;
     }
     return v;
+}
+
+/* A worklist and pointer set visit shared value graphs once, without recursive
+ * C stack growth or a new language nesting limit. Capturing a shared array view
+ * also retains its hidden suffix, so eligibility follows that ownership edge. */
+typedef struct {
+    const Value **slots, **queue;
+    size_t capacity, count;
+} CaptureWalk;
+
+static size_t capture_slot(const Value *value, size_t capacity)
+{
+    uintptr_t bits = (uintptr_t)value;
+    bits ^= bits >> 17;
+    bits ^= bits >> 9;
+    return (size_t)(bits >> 3) & (capacity - 1);
+}
+
+static bool capture_enqueue(CaptureWalk *walk, const Value *value)
+{
+    if (!walk->capacity || walk->count >= walk->capacity / 2) {
+        size_t capacity = walk->capacity ? walk->capacity * 2 : 32;
+        if (capacity < walk->capacity || capacity > SIZE_MAX / sizeof(Value *)) return false;
+        const Value **slots = calloc(capacity, sizeof(*slots));
+        const Value **queue = malloc(capacity * sizeof(*queue));
+        if (!slots || !queue) { free(slots); free(queue); return false; }
+        for (size_t i = 0; i < walk->count; i++) {
+            const Value *item = walk->queue[i];
+            size_t slot = capture_slot(item, capacity);
+            while (slots[slot]) slot = (slot + 1) & (capacity - 1);
+            slots[slot] = item;
+            queue[i] = item;
+        }
+        free(walk->slots);
+        free(walk->queue);
+        walk->slots = slots;
+        walk->queue = queue;
+        walk->capacity = capacity;
+    }
+    size_t slot = capture_slot(value, walk->capacity);
+    while (walk->slots[slot]) {
+        if (walk->slots[slot] == value) return true;
+        slot = (slot + 1) & (walk->capacity - 1);
+    }
+    walk->slots[slot] = value;
+    walk->queue[walk->count++] = value;
+    return true;
+}
+
+static CaptureCheck value_graph_check(Value *const *values, size_t count, bool state_payload)
+{
+    CaptureWalk walk = {0};
+    CaptureCheck status = CAPTURE_ALLOWED;
+    if (count && !values) return CAPTURE_REJECTED;
+    for (size_t i = 0; i < count; i++) {
+        if (!values[i]) { status = CAPTURE_REJECTED; goto done; }
+        if (!capture_enqueue(&walk, values[i])) { status = CAPTURE_OUT_OF_MEMORY; goto done; }
+    }
+    for (size_t cursor = 0; cursor < walk.count; cursor++) {
+        const Value *value = walk.queue[cursor];
+        Value **children = NULL;
+        size_t child_count = 0;
+        switch (value->kind) {
+        case V_PATH: case V_DURATION: case V_INSTANT: case V_RAT: case V_UNIT:
+        case V_NAT: case V_INT: case V_DEC: case V_STR: case V_BOOL:
+        case V_RANGE: case V_BYTES:
+            break;
+        case V_ARRAY: case V_MAP: case V_SET:
+            children = value->as.sequence.items;
+            child_count = value->as.sequence.storage ? value->as.sequence.storage->count
+                                                    : value->as.sequence.count;
+            break;
+        case V_STATE:
+            if (state_payload) { status = CAPTURE_REJECTED; goto done; }
+            break;
+        case V_CLOSURE:
+            if (state_payload) { status = CAPTURE_REJECTED; goto done; }
+            /* fall through */
+        case V_RECORD: case V_VARIANT:
+            children = value->as.named.values;
+            child_count = value->as.named.count;
+            break;
+        default:
+            /* Fail closed for native capabilities, iterators, Void and future
+             * kinds. A new kind needs an explicit capture/lifetime decision. */
+            status = CAPTURE_REJECTED;
+            goto done;
+        }
+        for (size_t i = 0; i < child_count; i++) {
+            if (!children || !children[i]) { status = CAPTURE_REJECTED; goto done; }
+            if (!capture_enqueue(&walk, children[i])) { status = CAPTURE_OUT_OF_MEMORY; goto done; }
+        }
+    }
+    if (state_payload) {
+        /* Seal only after the complete graph passed admission. Retaining a
+         * Value does not increment its backing storage reference count. */
+        for (size_t i = 0; i < walk.count; i++) {
+            const Value *value = walk.queue[i];
+            if ((value->kind == V_ARRAY || value->kind == V_MAP || value->kind == V_SET) &&
+                value->as.sequence.storage) value->as.sequence.storage->sealed = true;
+        }
+    }
+done:
+    free(walk.slots);
+    free(walk.queue);
+    return status;
+}
+
+CaptureCheck value_capture_check(Value *const *values, size_t count)
+{
+    return value_graph_check(values, count, false);
+}
+
+CaptureCheck value_state_payload_check(Value *value)
+{
+    return value_graph_check(&value, 1, true);
+}
+
+Value *value_closure(const char *target, Value *const *captures, size_t count,
+                     CaptureCheck *status)
+{
+    *status = target && *target ? value_capture_check(captures, count) : CAPTURE_REJECTED;
+    if (*status != CAPTURE_ALLOWED) return NULL;
+    if (count > SIZE_MAX / sizeof(Value *)) { *status = CAPTURE_OUT_OF_MEMORY; return NULL; }
+    Value *value = value_new(V_CLOSURE);
+    if (!value) { *status = CAPTURE_OUT_OF_MEMORY; return NULL; }
+    value->as.named.name = copy_text(target);
+    value->as.named.values = count ? calloc(count, sizeof(Value *)) : NULL;
+    value->as.named.count = count;
+    if (!value->as.named.name || (count && !value->as.named.values)) {
+        release(value);
+        *status = CAPTURE_OUT_OF_MEMORY;
+        return NULL;
+    }
+    for (size_t i = 0; i < count; i++) value->as.named.values[i] = retain(captures[i]);
+    return value;
 }

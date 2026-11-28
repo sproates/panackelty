@@ -96,6 +96,12 @@ safety checks. Changes to the stable `panack` command need an agreed scope.
 
 ## Validate a change
 
+During compiler development, use `make compiler` for candidate builds, then run
+focused tests while iterating. The build reuses unchanged compilation work and writes
+`build/compiler/candidate.bc`. `make compiler-fresh` provides an uncached
+comparison. See the [development guide](docs/internals/DEVELOPMENT.md) for running
+the candidate. These commands do not replace the final checks below.
+
 Use the change-aware runner from the repository root. For a PR into `next`:
 
 ```sh

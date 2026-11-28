@@ -194,5 +194,11 @@ main(): Void {
   results = results.concat(resolver_unit_resolves_reachable_transitive_modules())
   results = results.concat(resolver_unit_resolves_top_level_callables_builtins_and_local_names())
   results = results.concat(resolver_unit_visits_a_diamond_dependency_only_once())
+  results = results.append(std_testing.equal_str("anonymous parameter scope",
+    resolve_source("main(): Void { f = (x: Nat) => x + 1; }"), "ok"))
+  results = results.append(std_testing.equal_str("anonymous unknown body name",
+    resolve_source("main(): Void { f = (x: Nat) => missing; }"), "unknown name missing"))
+  results = results.append(std_testing.equal_str("anonymous parameter does not escape",
+    resolve_source("main(): Void { f = (x: Nat) => x; print(x); }"), "unknown name x"))
   if std_testing.report(results) > 0 { std_host.exit(1) }
 }

@@ -1,0 +1,112 @@
+import "client.panack"::{parse_url}
+import "parser.panack"::{parse_response}
+import "client_errors.panack" as errors
+pub import "client_errors.panack"::{HttpClientError}
+pub import "types.panack"::{Header, Response, HttpError}
+pub import "client.panack"::{ClientLimits}
+import "types.panack"::{HttpError.InvalidLimits, HttpError.DnsFailure, HttpError.ConnectFailure,
+  HttpError.TlsFailure, HttpError.Timeout, HttpError.LimitExceeded,
+  HttpError.UnsupportedHost, HttpError.TransportFailure}
+import stdlib/network/http_stream/async as stream
+import stdlib/network/http_stream/errors::{HttpStreamErrorKind.NameResolutionFailed,
+  HttpStreamErrorKind.ConnectionFailed, HttpStreamErrorKind.TlsVerificationFailed,
+  HttpStreamErrorKind.TlsFailed, HttpStreamErrorKind.TimedOut,
+  HttpStreamErrorKind.ResponseLimitExceeded, HttpStreamErrorKind.Unavailable}
+import stdlib/time as time
+import stdlib/bytes as byte_buffer
+
+pure transport_failure(problem: stream.HttpStreamError): HttpClientError {
+  kind = if problem.kind == NameResolutionFailed() { DnsFailure() }
+    else if problem.kind == ConnectionFailed() { ConnectFailure() }
+    else if problem.kind == TlsVerificationFailed() || problem.kind == TlsFailed() { TlsFailure() }
+    else if problem.kind == TimedOut() { Timeout() }
+    else if problem.kind == ResponseLimitExceeded() { LimitExceeded("response") }
+    else if problem.kind == Unavailable() { UnsupportedHost() }
+    else { TransportFailure(problem.native) }
+  HttpClientError(kind,Some(problem),None())
+}
+
+// Binary-carry assembly retains at most 25 slots for the 16 MiB byte bound,
+// even if every read produces one byte. Empty slots represent merged levels.
+pure append_chunk(levels: [Bytes], chunk: Bytes): [Bytes] {
+  mut next: [Bytes] = []
+  mut carry = chunk
+  for previous in levels {
+    if carry.length() == 0 { next = next.append(previous) }
+    else if previous.length() == 0 {
+      next = next.append(carry)
+      carry = byte_buffer.empty()
+    } else {
+      carry = previous.join(carry)
+      next = next.append(byte_buffer.empty())
+    }
+  }
+  if carry.length() > 0 { next = next.append(carry) }
+  next
+}
+pure assemble(levels: [Bytes]): Bytes {
+  mut result = byte_buffer.empty()
+  mut cursor = levels.len()
+  while cursor > 0 {
+    cursor = cursor - 1
+    result = result.join(levels[cursor])
+  }
+  result
+}
+
+async exchange(host: Str, port: Nat, tls: Bool, request: Bytes, timeout_ms: Nat): Result[Bytes,HttpClientError] {
+  match await stream.open(host,port,tls,request,16777216,time.milliseconds(timeout_ms)) {
+    Error(problem) => Error(transport_failure(problem)),
+    Ok(handle) => {
+      mut chunks: [Bytes] = []
+      mut finished = false
+      mut failure: Option[HttpClientError] = None()
+      while !finished {
+        match await stream.read(handle) {
+          Error(problem) => { failure = Some(transport_failure(problem)); finished = true; () },
+          Ok(chunk) => {
+            if chunk.length() == 0 { finished = true }
+            else { chunks = append_chunk(chunks,chunk) }
+            ()
+          }
+        }
+      }
+      closed = await stream.close(handle)
+      match failure {
+        Some(problem) => Error(problem),
+        None() => match closed {
+          Error(problem) => Error(transport_failure(problem)),
+          Ok(_) => Ok(assemble(chunks))
+        }
+      }
+    }
+  }
+}
+
+pub async get(url: Str): Result[Response,HttpClientError] {
+  await get_with_limits(url,ClientLimits(10000,65536,1048576))
+}
+pub async get_with_limits(url: Str, limits: ClientLimits): Result[Response,HttpClientError] {
+  if limits.timeout_ms == 0 || limits.timeout_ms > 60000 || limits.header_limit == 0 ||
+    limits.header_limit > 65536 || limits.body_limit == 0 || limits.body_limit > 1048576 {
+    Error(HttpClientError(InvalidLimits(),None(),None()))
+  } else {
+    match errors.protocol(parse_url(url)) {
+      Error(problem) => Error(problem),
+      Ok(parsed) => {
+        target = parsed.target
+        host_header = parsed.host_header
+        request = ("GET ${target} HTTP/1.1\r\nHost: ${host_header}\r\n" +
+          "Accept-Encoding: identity\r\nConnection: close\r\n\r\n").encode_utf8()
+        hostname = parsed.host
+        port = parsed.port
+        scheme = if parsed.tls { "https" } else { "http" }
+        endpoint = "${scheme}://${hostname}:${port}"
+        errors.at_endpoint(match await exchange(parsed.host,parsed.port,parsed.tls,request,limits.timeout_ms) {
+          Error(problem) => Error(problem),
+          Ok(data) => errors.protocol(parse_response(data,limits.header_limit,limits.body_limit))
+        },endpoint)
+      }
+    }
+  }
+}

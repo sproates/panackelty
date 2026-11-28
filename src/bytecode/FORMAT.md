@@ -310,3 +310,19 @@ checks enforce the positive 16 KiB chunk bound, server-child scope and cumulativ
 request limit; source types and context parameter types are not serialized in v9.
 EOF is represented by `Ok(empty Bytes)`. This prerequisite is additive and does
 not change existing bytecode layouts or the EOF behavior of `$tcp_serve`.
+
+Retained anonymous functions use the reserved pure builtin `$intrinsic_closure`
+(arity three): target symbol, an array of captured values, and the explicit
+argument count. This is an additive v9 runtime capability, not a new opcode or
+constant encoding. Older v9 runtimes reject the unknown intrinsic. Noncapturing
+anonymous functions and named references retain their existing string encoding.
+The constructor resolves a non-builtin function, checks that captures plus the
+explicit arity match its parameters, and recursively rejects resource-bearing
+capture graphs. Captures occupy the generated function's parameter prefix;
+CALL_VALUE and AWAIT_VALUE supply that prefix and enforce the existing call-effect
+rules. The compiler rejects a combined parameter count above the existing u8
+limit of 255. Function types remain erased, so runtime primitive checks still
+apply to forged inputs. Host-retained HTTP/TCP callbacks use the same checked
+capture prefix. Each loop over a captured iterable creates a fresh cursor; raw
+internal iterator cursors remain ineligible. Bootstrap refresh and full local
+validation passed; CS2 integration acceptance remains pending.

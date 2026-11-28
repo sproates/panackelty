@@ -1,0 +1,6 @@
+import stdlib/state as state
+stash[T](value: T, remaining: Nat): Void {
+  cell = state.create(value)
+  if remaining > 0 { stash([value], remaining - 1) }
+}
+main(): Void { stash(7, 2) }

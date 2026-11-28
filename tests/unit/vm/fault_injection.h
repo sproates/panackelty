@@ -23,6 +23,8 @@ void fault_reset(size_t allocation);
 void fault_pause_writes(bool pause);
 bool fault_write_paused(void);
 int fault_fcntl(int fd, int command, ...);
+void fault_pause_fstat(bool pause);
+bool fault_fstat_paused(void);
 void fault_pause_reads(bool pause);
 bool fault_read_paused(void);
 int fault_pthread_create(pthread_t *thread, const pthread_attr_t *attributes,
@@ -41,6 +43,8 @@ char *fault_strdup(const char *text);
 int fault_clock_gettime(clockid_t clock, struct timespec *value);
 int fault_pipe(int descriptors[2]);
 pid_t fault_fork(void);
+void fault_process_group(int mode);
+int fault_setpgid(pid_t pid, pid_t group);
 int fault_poll(struct pollfd *fds, nfds_t count, int timeout);
 ssize_t fault_read(int fd, void *buffer, size_t count);
 ssize_t fault_write(int fd, const void *buffer, size_t count);
@@ -68,6 +72,7 @@ pid_t fault_waitpid(pid_t child, int *status, int options);
 #define clock_gettime fault_clock_gettime
 #define pipe fault_pipe
 #define fork fault_fork
+#define setpgid fault_setpgid
 #define poll fault_poll
 #define read fault_read
 #define write fault_write

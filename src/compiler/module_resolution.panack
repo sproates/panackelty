@@ -1,6 +1,6 @@
 import project/src/compiler/module_bindings::{OwnedMethodIdentity, MethodOwnerIdentity, MethodOwnerIdentity.NominalMethodOwner, MethodOwnerIdentity.BuiltinMethodOwner, builtin_owner_arity, builtin_owner_module, method_owner_name}
 pub import project/src/compiler/module_bindings::{module_internal_primitive_name, module_reserved_binding, module_import_names, module_binding_diagnostics, ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleImportBinding, ModuleBindings, ModuleDeclarationKind, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant}
-pub import project/src/compiler/parser::{parse_reference_path, reference_head, reference_tail, expression_reference_path, type_has_qualification, lex, Expr, TopLevel, Statement, BlockValue, Program, Block, ParsedModule, ParsedTypeRef, ImportSelector, ImportBindingSyntax, DeclarationSyntax, SourcePos, SourceSpan, Diagnostic, Token, TokenKind, TokenKind.Identifier, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue.NoBlockValue, BlockValue.TailBlockValue, ImportBindingSyntax.NoImportBinding, ImportBindingSyntax.NamespaceImportBinding, ImportBindingSyntax.SelectiveImportBinding}
+pub import project/src/compiler/parser::{parse_reference_path, reference_head, reference_tail, expression_reference_path, type_has_qualification, lex, Expr, TopLevel, Statement, BlockValue, Program, Block, ParsedModule, ParsedTypeRef, ImportSelector, ImportBindingSyntax, DeclarationSyntax, SourcePos, SourceSpan, Diagnostic, Token, TokenKind, TokenKind.Identifier, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.AnonymousExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue.NoBlockValue, BlockValue.TailBlockValue, ImportBindingSyntax.NoImportBinding, ImportBindingSyntax.NamespaceImportBinding, ImportBindingSyntax.SelectiveImportBinding}
 
 // Resolve ordered import edges, aliases and re-exports to their original identities.
 // Cycle detection tracks the active path separately from completed modules.
@@ -573,6 +573,28 @@ pub pure resolve_module_expression_uses(
         )
       }
     },
+    AnonymousExpr(effect, parameters, result_type, body) => {
+      mut nested: Set[Str] = locals
+      for parameter in parameters {
+        nested = nested.add(parameter.name)
+        match parameter.annotation {
+          None() => {},
+          Some(type_ref) => {
+            result = combine_module_uses(result,
+              resolve_qualified_type_uses(graph, identity, type_ref.text, type_ref.span))
+          }
+        }
+      }
+      match result_type {
+        None() => {},
+        Some(type_ref) => {
+          result = combine_module_uses(result,
+            resolve_qualified_type_uses(graph, identity, type_ref.text, type_ref.span))
+        }
+      }
+      result = combine_module_uses(result,
+        resolve_module_expression_uses(graph, identity, body, origin, nested))
+    },
     FunctionExpr(name) => {
       resolved: Result[ResolvedModuleTarget, Str] = match resolve_module_function(
         graph,
@@ -893,7 +915,13 @@ pure expression_import_shadows(
     StringExpr(text) => {},
     BoolExpr(value) => {},
     NameExpr(name) => {},
-    FunctionExpr(name) => {}
+    FunctionExpr(name) => {},
+    AnonymousExpr(effect, parameters, result_type, body) => {
+      for parameter in parameters {
+        diagnostics = diagnostics.concat(import_shadow_diagnostic(names, parameter.name, parameter.span))
+      }
+      diagnostics = diagnostics.concat(expression_import_shadows(body, names, origin))
+    },
   }
 
   diagnostics

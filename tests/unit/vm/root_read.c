@@ -4,10 +4,12 @@
 #endif
 #include "numeric.h"
 #include "root_read.h"
+#include "filesystem_stage.h"
 #include "value.h"
 #include "verify.h"
 
 #include <assert.h>
+#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -98,6 +100,143 @@ static void execution_contracts(Value **arguments)
     }
 }
 
+static void stage_cancelled_publication(const char *directory)
+{
+    VM vm = {0};
+    Value *parent[] = {path_value(directory)};
+    VMRootRead *read = filesystem_async_start(&vm, "stage_create", parent);
+    assert(read);
+    root_read_wait(read);
+    Value *created = root_read_result(read);
+    assert(created && !strcmp(created->as.named.name, "Ok"));
+    Value *resource = retain(created->as.named.values[0]);
+    root_read_accept(read);
+    root_read_destroy(read);
+    Value *publish[] = {resource, path_value("published-after-cancel"), value_bool(false)};
+    read = filesystem_async_start(&vm, "stage_publish", publish);
+    assert(read && !vm.error);
+    root_read_destroy(read);
+    filesystem_stage_destroy(&vm);
+    release(parent[0]);
+    for (size_t i = 0; i < 3; i++) release(publish[i]);
+    await_idle();
+    char destination[512];
+    snprintf(destination, sizeof(destination), "%s/published-after-cancel", directory);
+    /* Cancellation abandons waiting; it must not undo or remove a committed rename. */
+    assert(access(destination, F_OK) == 0 && rmdir(destination) == 0);
+}
+
+static void stage_creation_contracts(const char *directory)
+{
+    for (size_t mode = 0; mode < 3; mode++) {
+        VM vm = {0};
+        Value *arguments[] = {path_value(directory)};
+        VMRootRead *read = filesystem_async_start(&vm, "stage_create", arguments);
+        release(arguments[0]);
+        assert(read && !vm.error);
+        Value *owned = NULL;
+        if (mode) {
+            root_read_wait(read);
+            Value *result = root_read_result(read);
+            assert(result && !strcmp(result->as.named.name, "Ok"));
+            if (mode == 2) {
+                owned = retain(result->as.named.values[0]);
+                root_read_accept(read);
+            }
+        }
+        root_read_destroy(read);
+        if (owned) {
+            /* The successful handoff must release busy before bytecode resumes. */
+            Value *args[] = {owned};
+            Value *result = filesystem_stage_resource_call(&vm, "stage_path", args);
+            assert(result && !strcmp(result->as.named.name, "Ok"));
+            release(result);
+            release(owned);
+        }
+        filesystem_stage_destroy(&vm);
+        await_idle();
+        DIR *entries = opendir(directory);
+        assert(entries);
+        struct dirent *entry;
+        while ((entry = readdir(entries))) assert(strncmp(entry->d_name, ".panack-stage-", 14));
+        assert(closedir(entries) == 0);
+    }
+}
+
+static void temporary_contracts(const char *directory)
+{
+    const char *operations[] = {"fs_temp_file", "fs_temp_directory"};
+    Value *arguments[] = {path_value(directory)};
+    for (size_t kind = 0; kind < 2; kind++) {
+        for (size_t mode = 0; mode < 3; mode++) {
+            VM vm = {0};
+            VMRootRead *read = filesystem_async_start(&vm, operations[kind], arguments);
+            assert(read && !vm.error);
+            char name[512] = {0};
+            Value *owned = NULL;
+            if (mode) {
+                root_read_wait(read);
+                Value *result = root_read_result(read);
+                assert(result && !strcmp(result->as.named.name, "Ok"));
+                Value *path = result->as.named.values[0];
+                assert(path->as.bytes.length < sizeof(name));
+                memcpy(name, path->as.bytes.data, path->as.bytes.length);
+                assert(access(name, F_OK) == 0);
+                if (mode == 2) {
+                    owned = retain(result);
+                    root_read_accept(read);
+                }
+            }
+            root_read_destroy(read);
+            await_idle();
+            if (mode == 2) {
+                assert(access(name, F_OK) == 0);
+                assert(!strcmp(owned->as.named.name, "Ok"));
+                release(owned);
+                assert((kind ? rmdir(name) : unlink(name)) == 0);
+            } else if (mode) {
+                assert(access(name, F_OK) != 0);
+            }
+            /* Immediate cancellation must leave no unreported temporary object. */
+            DIR *entries = opendir(directory);
+            assert(entries);
+            struct dirent *entry;
+            while ((entry = readdir(entries))) {
+                assert(strncmp(entry->d_name, "panack-", 7));
+            }
+            assert(closedir(entries) == 0);
+        }
+    }
+    /* An external writer can prevent directory removal. Preserve its contents
+     * and report the exact path, rather than silently swallowing cleanup failure. */
+    VM vm = {0};
+    VMRootRead *read = filesystem_async_start(&vm, "fs_temp_directory", arguments);
+    assert(read && !vm.error);
+    root_read_wait(read);
+    Value *result = root_read_result(read);
+    assert(result && !strcmp(result->as.named.name, "Ok"));
+    char name[512], child[540];
+    snprintf(name, sizeof(name), "%s", result->as.named.values[0]->as.bytes.data);
+    snprintf(child, sizeof(child), "%s/occupied", name);
+    FILE *file = fopen(child, "wb");
+    assert(file && fclose(file) == 0);
+    FILE *diagnostic = tmpfile();
+    int original_stderr = dup(STDERR_FILENO);
+    assert(diagnostic && original_stderr >= 0);
+    assert(fflush(stderr) == 0 && dup2(fileno(diagnostic), STDERR_FILENO) >= 0);
+    root_read_destroy(read);
+    await_idle();
+    assert(fflush(stderr) == 0 && dup2(original_stderr, STDERR_FILENO) >= 0);
+    assert(close(original_stderr) == 0);
+    rewind(diagnostic);
+    char message[2048] = {0};
+    assert(fread(message, 1, sizeof(message) - 1, diagnostic) > 0);
+    assert(strstr(message, name) && strstr(message, "after cancellation") && strstr(message, "errno"));
+    assert(fclose(diagnostic) == 0);
+    assert(unlink(child) == 0 && rmdir(name) == 0);
+    release(arguments[0]);
+}
+
 void root_read_contracts(void)
 {
     char directory[] = "/tmp/panack-root-read-XXXXXX";
@@ -186,6 +325,28 @@ void root_read_contracts(void)
     for (size_t i = 0; i < 3; i++) {
         release(arguments[i]);
     }
+    await_idle();
+    /* Completed but unconsumed reads retain their byte reservations. A missing
+     * path avoids allocating the reserved output while testing admission. */
+    Value *general[] = {path_value("/panack-missing-reservation-test"),
+                        value_size(128u * 1024u * 1024u)};
+    vm.error = NULL;
+    VMRootRead *large[4];
+    for (size_t i = 0; i < 4; i++) {
+        large[i] = filesystem_async_start(&vm, "fs_read", general);
+        assert(large[i] && !vm.error);
+        root_read_wait(large[i]);
+    }
+    expect_error(filesystem_async_start(&vm, "fs_read", general), "resource_limit");
+    for (size_t i = 0; i < 4; i++) root_read_destroy(large[i]);
+    await_idle();
+    expect_error(filesystem_async_start(&vm, "fs_read", general), "not_found");
+    release(general[0]);
+    release(general[1]);
+    assert(!filesystem_async_start(&vm, "not_a_filesystem_operation", NULL) && vm.error);
+    temporary_contracts(directory);
+    stage_creation_contracts(directory);
+    stage_cancelled_publication(directory);
     assert(unlink(filename) == 0 && rmdir(directory) == 0);
     await_idle();
 }

@@ -1,0 +1,5 @@
+import stdlib/state as state
+main(): Void {
+  first = state.create(0)
+  nested = state.create([first])
+}

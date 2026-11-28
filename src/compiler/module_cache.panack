@@ -1,0 +1,434 @@
+import stdlib/environment as environment
+import project/src/project_model/utf8::{valid_utf8}
+import project/src/compiler/compilation_cache::{standalone_source_paths}
+pub import project/src/compiler/module_summaries::{SourceSummary}
+import project/src/compiler/module_summaries::{summarise_module, declaration_projection}
+import project/src/compiler/module_bindings::{ModuleBodyAvailability.CompleteModuleBodies}
+import project/src/compiler/body_cache_codec::{encode_module_summary, decode_module_summary}
+import project/src/bytecode/decoder::{valid_encoded_function}
+import project/src/compiler/module_emission::{module_emission_callable_symbol}
+import project/src/compiler/module_bindings::{DeclarationIdentity, ModuleDeclarationKind.ModuleFunction}
+import project/src/compiler/module_bodies::{BodyCheckStatus.BodyIdentityChecked}
+pub import project/src/compiler/compilation_cache::{CompilationCache, cache_digest, cache_file, cache_trace}
+import project/src/compiler/body_cache_codec::{encode_checked_bodies, decode_checked_bodies, encode_module_code, decode_module_code}
+pub import project/src/compiler/module_reuse::{CachedModuleBodies, CachedModuleCode}
+pub import project/src/compiler/loader::{LoadedProjectSources, ProjectCheckResult, ProjectCodeCheck}
+import project/src/compiler/loader::{loaded_package_binding_graph}
+pub import project/src/compiler/module_bindings::{ModuleIdentity, LoadedModule, ModulePackageIdentity.StandaloneModulePackage, ModulePackageIdentity.ManifestModulePackage, ModulePackageIdentity.ToolchainModulePackage}
+import project/src/compiler/module_bodies::{BoundFunctionBody}
+import project/src/compiler/module_resolution::{module_identity_in}
+import project/src/compiler/parser::{TopLevel.ImportDeclaration, TopLevel.FunctionDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration}
+import project/src/compiler/path_support as paths
+import project/src/bytecode/codec::{encode_text}
+import project/src/compiler/source_maps::{source_map_blob}
+import stdlib/path as path
+import stdlib/bytes as byte_buffer
+import stdlib/bounded_filesystem as bounded
+
+// Disk state is disposable and private to the user. Module keys cover transitive
+// inputs; signatures, guards, effects and emission always run against fresh input.
+pub record ModuleCacheEntry {
+  identity: ModuleIdentity,
+  file: Path,
+  key: Bytes
+}
+
+pub record ModuleCache {
+  entries: [ModuleCacheEntry]
+}
+
+pure module_magic(): Bytes { "PANACK-MODULE-2\n".encode_utf8() }
+
+pure identity_bytes(identity: ModuleIdentity): Bytes {
+  package: Bytes = match identity.package {
+    StandaloneModulePackage() => "S".encode_utf8(),
+    ToolchainModulePackage() => "T".encode_utf8(),
+    ManifestModulePackage(name, version) => "M".encode_utf8().join(encode_text(name)).join(encode_text(version))
+  }
+  package.join(encode_text(identity.path))
+}
+
+pure digest_name(data: Bytes): Str {
+  digits: Str = "0123456789abcdef"
+  mut name: Str = ""
+  for index in 0..data.length() {
+    value: Nat = data.at(index)
+    name = name + digits[value.divide(16)] + digits[value % 16]
+  }
+  name
+}
+
+// Keep declaration text and coordinates: cached bodies can retain type origins.
+// Import spellings are also global inputs, because they resolve guarded bases.
+// Function bodies still invalidate their own module and all import consumers.
+pure global_declaration_inputs(module: LoadedModule, text: Str): Option[[Bytes]] {
+  declarations = module.parsed.program.declarations
+  mut valid: Bool = declarations.len() == module.parsed.syntax.len()
+  mut chunks: [Bytes] = []
+  if valid {
+    for index in 0..declarations.len() {
+      include: Bool = match declarations[index] {
+        TypeDeclaration(name, base, binding, guard) => true,
+        RecordDeclaration(name, parameters, fields) => true,
+        EnumDeclaration(name, parameters, variants) => true,
+        ImportDeclaration(value) => true,
+        FunctionDeclaration(name, parameters, output, pure_flag, async_flag, body, types) => false
+      }
+      if include {
+        span = module.parsed.syntax[index].span
+        start = span.start
+        end = span.end
+        if end.offset < start.offset || end.offset > text.len() { valid = false }
+        else {
+          start_offset = start.offset
+          start_line = start.line
+          start_column = start.column
+          end_offset = end.offset
+          end_line = end.line
+          end_column = end.column
+          chunks = chunks.append(encode_text("${index}:${start_offset}:${start_line}:${start_column}:${end_offset}:${end_line}:${end_column}"))
+            .append(encode_text(text.slice(start.offset, end.offset)))
+        }
+      }
+    }
+  }
+  if valid { Some(chunks) } else { None() }
+}
+
+pub module_cache(source: LoadedProjectSources, cache: CompilationCache): Option[ModuleCache] {
+  context = source.context
+  mut common: [Bytes] = [module_magic(), encode_text(source.entry_path),
+    encode_text(context.project_root), encode_text(context.stdlib_root), cache.descriptor,
+    encode_text(cache.compiler), encode_text(cache.vm)]
+  mut valid: Bool = !source.retain && source.require_main
+  match cache_file(cache.compiler, 16777216) {
+    None() => { valid = false }, Some(data) => { common = common.append(data) }
+  }
+  match cache_file(cache.vm, 16777216) {
+    None() => { valid = false }, Some(data) => { common = common.append(data) }
+  }
+  root_device = context.package_root_identity.device
+  root_inode = context.package_root_identity.inode
+  common = common.append(encode_text("${root_device}:${root_inode}"))
+  mut hashes: [Bytes] = []
+  for module in source.loaded.modules {
+    common = common.append(identity_bytes(module.bindings.identity)).append(encode_text(module.source_path))
+    text = source.loaded.sources.get(module.source_path)
+    data = text.encode_utf8()
+    match cache_digest([encode_text(module.source_path), data]) {
+      None() => { valid = false; hashes = hashes.append(byte_buffer.empty()) },
+      Some(hash) => { hashes = hashes.append(hash) }
+    }
+    // Core remains implicit everywhere. Other modules contribute only their
+    // global declarations; an unrelated function edit need not discard all work.
+    if module.bindings.identity == ModuleIdentity(ToolchainModulePackage(), "core.panack") {
+      common = common.append(data)
+    } else {
+      match global_declaration_inputs(module, text) {
+        None() => { valid = false },
+        Some(chunks) => { common = common.concat(chunks) }
+      }
+    }
+  }
+  mut result: Option[ModuleCache] = None()
+  if valid {
+    mut framed: [Bytes] = []
+    for chunk in common { framed = framed.append(source_map_blob(chunk)) }
+    match cache_digest(framed) {
+      None() => {},
+      Some(common_hash) => match cache_digest([encode_text(source.entry_path), encode_text(context.project_root)]) {
+        None() => {},
+        Some(namespace_hash) => {
+          namespace: Str = digest_name(namespace_hash)
+          directory: Str = paths.parent(cache.file.to_text().value_or(""))
+          graph = loaded_package_binding_graph(source.loaded.modules, context.project_root,
+            context.stdlib_root, context.package_confined, context.package_root_identity, context.dependencies)
+          mut entries: [ModuleCacheEntry] = []
+          for index in 0..source.loaded.modules.len() {
+            owner = source.loaded.modules[index].bindings.identity
+            mut dependencies: [ModuleIdentity] = [owner]
+            mut expanded: Bool = true
+            while expanded {
+              expanded = false
+              for edge in graph.edges {
+                if module_identity_in(dependencies, edge.owner) && !module_identity_in(dependencies, edge.target) {
+                  dependencies = dependencies.append(edge.target)
+                  expanded = true
+                }
+              }
+            }
+            mut chunks: [Bytes] = [common_hash, identity_bytes(owner)]
+            for dependency in 0..source.loaded.modules.len() {
+              if module_identity_in(dependencies, source.loaded.modules[dependency].bindings.identity) {
+                chunks = chunks.append(identity_bytes(source.loaded.modules[dependency].bindings.identity)).append(hashes[dependency])
+              }
+            }
+            match cache_digest(chunks) {
+              None() => { valid = false },
+              Some(key) => match path.from_text(paths.join(directory, "module-${namespace}-${index}.cache")) {
+                Error(problem) => { valid = false },
+                Ok(file) => { entries = entries.append(ModuleCacheEntry(owner, file, key)) }
+              }
+            }
+          }
+          if valid { result = Some(ModuleCache(entries)) }
+        }
+      }
+    }
+  }
+  result
+}
+
+pub cached_module_bodies(cache: ModuleCache): [CachedModuleBodies] {
+  mut modules: [CachedModuleBodies] = []
+  magic = module_magic()
+  header: Nat = magic.length() + 64
+  for entry in cache.entries {
+    match cache_file(entry.file.to_text().value_or(""), 16777216) {
+      None() => {},
+      Some(data) => if data.length() > header &&
+          byte_buffer.slice(data, 0, magic.length()) == magic &&
+          byte_buffer.slice(data, magic.length(), magic.length() + 32) == entry.key {
+        payload = byte_buffer.slice(data, header, data.length())
+        if cache_digest([payload]) == Some(byte_buffer.slice(data, magic.length() + 32, header)) {
+          match decode_checked_bodies(payload) {
+            None() => {},
+            Some(bodies) => {
+              mut owned: Bool = true
+              for body in bodies { owned = owned && body.signature.binding.identity.module == entry.identity }
+              if owned { modules = modules.append(CachedModuleBodies(entry.identity, bodies)) }
+            }
+          }
+        }
+      }
+    }
+  }
+  count = modules.len()
+  cache_trace("module hits ${count}")
+  modules
+}
+
+pub save_module_bodies(cache: ModuleCache, checked: ProjectCheckResult): Void {
+  project = checked.snapshot.project
+  if project.preparation != None() && project.diagnostics.len() == 0 && !checked.snapshot.source.retain {
+    mut unchanged: Bool = true
+    for name in project.source_paths {
+      unchanged = unchanged && cache_file(name, 8388608) == Some(project.sources.get(name).encode_utf8())
+    }
+    if unchanged {
+      for entry in cache.entries {
+        if module_identity_in(checked.rechecked, entry.identity) {
+          mut bodies: [BoundFunctionBody] = []
+          for body in project.module_bodies {
+            if body.signature.binding.identity.module == entry.identity { bodies = bodies.append(body) }
+          }
+          payload = encode_checked_bodies(bodies)
+          if payload.length() + module_magic().length() + 64 <= 16777216 {
+            match cache_digest([payload]) {
+              None() => {},
+              Some(hash) => {
+                result = bounded.atomic_write(entry.file, module_magic().join(entry.key).join(hash).join(payload))
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+pure code_cache_file(entry: ModuleCacheEntry): Path {
+  path.from_text(entry.file.to_text().value_or("") + ".code").value_or(entry.file)
+}
+
+pub cached_module_code(cache: ModuleCache, source: LoadedProjectSources): [CachedModuleCode] {
+  mut result: [CachedModuleCode] = []
+  magic = "PANACK-MODULE-CODE-1\n".encode_utf8()
+  header = magic.length() + 64
+  graph = loaded_package_binding_graph(source.loaded.modules, source.context.project_root,
+    source.context.stdlib_root, source.context.package_confined, source.context.package_root_identity, source.context.dependencies)
+  for entry in cache.entries {
+    match cache_file(code_cache_file(entry).to_text().value_or(""), 16777216) {
+      None() => {},
+      Some(data) => if data.length() > header && byte_buffer.slice(data, 0, magic.length()) == magic &&
+          byte_buffer.slice(data, magic.length(), magic.length() + 32) == entry.key {
+        payload = byte_buffer.slice(data, header, data.length())
+        if cache_digest([payload]) == Some(byte_buffer.slice(data, magic.length() + 32, header)) {
+          match decode_module_code(payload) {
+            None() => {},
+            Some(code) => {
+              mut expected: Set[DeclarationIdentity] = set()
+              mut expected_names: Set[Str] = set()
+              for module in source.loaded.modules {
+                if module.bindings.identity == entry.identity {
+                  for binding in module.bindings.declarations {
+                    if binding.kind == ModuleFunction() && binding.intrinsic == None() {
+                      expected = expected.add(binding.identity)
+                      expected_names = expected_names.add(module_emission_callable_symbol(graph, source.context.entry, binding))
+                    }
+                  }
+                }
+              }
+              mut seen: Set[DeclarationIdentity] = set()
+              mut names: Set[Str] = set()
+              mut valid = code.identity == entry.identity && code.facts.len() == expected.len() && code.functions.len() == expected_names.len()
+              for fact in code.facts {
+                valid = valid && expected.has(fact.identity) && !seen.has(fact.identity) && fact.status == BodyIdentityChecked()
+                seen = seen.add(fact.identity)
+              }
+              for function in code.functions {
+                valid = valid && expected_names.has(function.name) && !names.has(function.name) && valid_encoded_function(function)
+                names = names.add(function.name)
+              }
+              if valid { result = result.append(code) }
+            }
+          }
+        }
+      }
+    }
+  }
+  count = result.len()
+  cache_trace("module hits ${count}")
+  cache_trace("code module hits ${count}")
+  result
+}
+
+pub save_module_code(cache: ModuleCache, result: ProjectCodeCheck): Void {
+  checked = result.checked
+  project = checked.snapshot.project
+  if project.preparation != None() && project.diagnostics.len() == 0 && !checked.snapshot.source.retain {
+    mut unchanged = true
+    for name in project.source_paths {
+      unchanged = unchanged && cache_file(name, 8388608) == Some(project.sources.get(name).encode_utf8())
+    }
+    if unchanged {
+      for entry in cache.entries {
+        if module_identity_in(checked.rechecked, entry.identity) {
+          for code in result.code {
+            if code.identity == entry.identity {
+              payload = encode_module_code(code)
+              magic = "PANACK-MODULE-CODE-1\n".encode_utf8()
+              if payload.length() + magic.length() + 64 <= 16777216 {
+                match cache_digest([payload]) {
+                  None() => {},
+                  Some(hash) => { written = bounded.atomic_write(code_cache_file(entry), magic.join(entry.key).join(hash).join(payload)) }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+pure summary_magic(): Bytes { "PANACK-MODULE-SUMMARY-1\n".encode_utf8() }
+
+summary_tool_key(compiler: Str, vm: Str): Option[Bytes] {
+  match cache_file(compiler, 16777216) {
+    None() => None(),
+    Some(compiled) => match cache_file(vm, 16777216) {
+      None() => None(),
+      Some(machine) => cache_digest([summary_magic(), encode_text(compiler), compiled, encode_text(vm), machine])
+    }
+  }
+}
+
+summary_file(directory: Str, name: Str): Option[Path] {
+  match cache_digest([encode_text(name)]) {
+    None() => None(),
+    Some(hash) => {
+      suffix = digest_name(hash)
+      match path.from_text(paths.join(directory, "summary-${suffix}.cache")) {
+        Error(problem) => None(), Ok(file) => Some(file)
+      }
+    }
+  }
+}
+
+pub cached_source_summaries(entry: Str, root: Str, stdlib: Str): [SourceSummary] {
+  names = standalone_source_paths(entry, root, stdlib)
+  mut summaries: [SourceSummary] = []
+  if names.len() > 0 {
+    directory = environment.get("PANACKELTY_COMPILE_CACHE_DIR").value_or("")
+    compiler = environment.get("PANACKELTY_COMPILER_PATH").value_or("")
+    vm = environment.get("PANACKELTY_VM_PATH").value_or("")
+    match summary_tool_key(compiler, vm) {
+      None() => {},
+      Some(tool) => {
+        mut total: Nat = 0
+        for name in names {
+          match cache_file(name, 8388608) {
+            None() => {},
+            Some(source) => {
+              total = total + source.length()
+              if total <= 8388608 && valid_utf8(source) {
+                match summary_file(directory, name) {
+                  None() => {},
+                  Some(file) => match cache_file(file.to_text().value_or(""), 16777216) {
+                    None() => {},
+                    Some(data) => {
+                      magic = summary_magic()
+                      header = magic.length() + 64
+                      if data.length() > header && byte_buffer.slice(data, 0, magic.length()) == magic &&
+                          cache_digest([tool, encode_text(name), source]) == Some(byte_buffer.slice(data, magic.length(), magic.length() + 32)) {
+                        payload = byte_buffer.slice(data, header, data.length())
+                        if cache_digest([payload]) == Some(byte_buffer.slice(data, magic.length() + 32, header)) {
+                          match decode_module_summary(payload) {
+                            None() => {},
+                            Some(summary) => if declaration_projection(summary.declarations) == summary.declarations &&
+                                summary.declarations.program.declarations.len() == summary.declarations.syntax.len() {
+                              summaries = summaries.append(SourceSummary(name, source.decode_utf8(), summary))
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  count = summaries.len()
+  cache_trace("source summary hits ${count}")
+  summaries
+}
+
+pub save_source_summaries(cache: CompilationCache, source: LoadedProjectSources): Void {
+  if !source.context.package_confined && cache.descriptor.length() == 0 && !source.retain {
+    match summary_tool_key(cache.compiler, cache.vm) {
+      None() => {},
+      Some(tool) => {
+        directory = paths.parent(cache.file.to_text().value_or(""))
+        for module in source.loaded.modules {
+          if module.body_availability == CompleteModuleBodies() {
+            name = module.source_path
+            bytes = source.loaded.sources.get(name).encode_utf8()
+            if cache_file(name, 8388608) == Some(bytes) {
+              match cache_digest([tool, encode_text(name), bytes]) {
+                None() => {},
+                Some(key) => match summary_file(directory, name) {
+                  None() => {},
+                  Some(file) => {
+                    payload = encode_module_summary(summarise_module(module))
+                    if payload.length() + summary_magic().length() + 64 <= 16777216 {
+                      match cache_digest([payload]) {
+                        None() => {},
+                        Some(hash) => { written = bounded.atomic_write(file, summary_magic().join(key).join(hash).join(payload)) }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

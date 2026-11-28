@@ -3,7 +3,7 @@ pub import project/src/compiler/parser::{Expr, Program}
 pub import project/src/compiler/types::{SourceSpan}
 import project/src/compiler/parser::{
   Expr.ArrayExpr, Expr.BinaryExpr, Expr.BlockExpr, Expr.BoolExpr,
-  Expr.CallExpr, Expr.DecimalExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.FunctionExpr,
+  Expr.CallExpr, Expr.DecimalExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.FunctionExpr, Expr.AnonymousExpr,
   Expr.IfExpr, Expr.IndexExpr, Expr.LocatedExpr, Expr.MatchExpr, Expr.NameExpr,
   Expr.NatExpr, Expr.StringExpr, Expr.UnaryExpr,
   Statement, Statement.AssignmentStatement, Statement.BindingStatement,
@@ -326,7 +326,7 @@ pub pure instruction_purpose(instruction: Instruction): Str {
     MakeVariantInstruction(owner, name, count) => "Construct variant " + name,
     MatchVariantInstruction(name, failure) => "Test for variant " + name,
     MatchFailInstruction() => "Report an unmatched value",
-    CallInstruction(name, arity) => "Call " + name,
+    CallInstruction(name, arity) => if name == "$intrinsic_closure" { "Create the closure and retain its captured values" } else if name == "$intrinsic_function" { "Create a reference to the named function" } else { "Call " + name },
     CallValueInstruction(arity) => "Call the supplied function",
     AwaitCallInstruction(name,arity) => "Await the call to " + name,
     AwaitValueInstruction(arity) => "Await the supplied function",
@@ -1107,11 +1107,15 @@ pure emit_expression_at(
       instructions: [Instruction] = [LoadInstruction(name)]
       EmittedCode(instructions, next_temporary, sources, probes)
     },
+    // Anonymous bodies must be lowered before reaching instruction emission.
+    AnonymousExpr(effect, parameters, result_type, body) => EmittedCode([MatchFailInstruction()], next_temporary, [], []),
     FunctionExpr(name) => {
       if retain_sources {
         sources = add_instruction_source(sources, origin, offset, false)
       }
-      instructions: [Instruction] = [ConstInstruction(StringConstant(name))]
+      if retain_sources { sources = add_instruction_source(sources, origin, offset + 1, false) }
+      instructions: [Instruction] = [ConstInstruction(StringConstant(name)),
+        CallInstruction("$intrinsic_function", 1)]
       EmittedCode(instructions, next_temporary, sources, probes)
     },
     ArrayExpr(items) => {
@@ -1358,7 +1362,7 @@ pure emit_expression_at(
 
 // Core routines are implicit but emitted only when reachable from user code.
 // Keep all ordinary functions: only compiler-owned implementation names are pruned.
-pure core_call_name(instruction: Instruction): Str {
+pub pure core_call_name(instruction: Instruction): Str {
   match instruction {
     ConstInstruction(a0) => "",
     LoadInstruction(a0) => "",
@@ -1418,6 +1422,14 @@ pub pure compile_program_with_sources(program: Program): SourceMappedProgram {
 }
 
 pub pure compile_program_emission(program: Program, retain_sources: Bool): SourceMappedProgram {
+  compile_program_selection(program, retain_sources, true)
+}
+
+pub pure compile_program_unpruned(program: Program): BytecodeProgram {
+  compile_program_selection(program, false, false).bytecode
+}
+
+pure compile_program_selection(program: Program, retain_sources: Bool, prune: Bool): SourceMappedProgram {
   mut sources: [FunctionSources] = []
   mut probes: [FunctionProbes] = []
   mut functions: [FunctionCode] = []
@@ -1444,7 +1456,7 @@ pub pure compile_program_emission(program: Program, retain_sources: Bool): Sourc
   used: Set[Str] = used_core_functions(functions)
   mut selected: [FunctionCode] = []
   for function in functions {
-    if !function.name.starts_with_at("$core_", 0) || used.has(function.name) {
+    if !prune || !function.name.starts_with_at("$core_", 0) || used.has(function.name) {
       selected = selected.append(function)
     }
   }

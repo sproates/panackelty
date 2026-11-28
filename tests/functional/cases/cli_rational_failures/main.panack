@@ -1,10 +1,10 @@
-import stdlib/process as std_process
+import stdlib/process/legacy as std_process
 import stdlib/testing as std_testing
 import stdlib/testing::{TestResult}
 import stdlib/testing_files as std_testing_files
 import stdlib/time as std_time
 import stdlib/path as std_path
-import stdlib/filesystem as std_filesystem
+import stdlib/filesystem/legacy as std_filesystem
 import stdlib/bytes as byte_buffer
 import stdlib/host as std_host
 pure path(text: Str): Path {

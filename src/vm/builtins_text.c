@@ -24,16 +24,7 @@ Value *builtins_text_call(VM *vm, const char *name, Value **a)
 
     if (!strcmp(name, "concat")) {
         REQUIRE(a[0]->kind == V_ARRAY && a[1]->kind == V_ARRAY, "VM trap: concat requires arrays");
-        size_t n = a[0]->as.sequence.count, m = a[1]->as.sequence.count;
-        Value **items = malloc((n + m) * sizeof(Value *));
-        if (!items && n + m) {
-            return NULL;
-        }
-        memcpy(items, a[0]->as.sequence.items, n * sizeof(Value *));
-        memcpy(items + n, a[1]->as.sequence.items, m * sizeof(Value *));
-        Value *v = value_sequence(V_ARRAY, items, n + m);
-        free(items);
-        return v;
+        return value_array_concat(a[0], a[1]);
     }
 
     if (!strcmp(name, "slice")) {
@@ -125,31 +116,16 @@ Value *builtins_text_call(VM *vm, const char *name, Value **a)
             vm->error = "VM trap: byte value is outside 0..255";
             return NULL;
         }
-        size_t n = a[0]->as.bytes.length;
-        uint8_t *data = malloc(n + 1);
-        if (!data) {
-            return NULL;
-        }
-        memcpy(data, a[0]->as.bytes.data, n);
-        data[n] = (uint8_t)byte;
-        Value *v = value_data(V_BYTES, data, n + 1);
-        free(data);
-        return v;
+        uint8_t item = (uint8_t)byte;
+        return value_data_join(V_BYTES, a[0]->as.bytes.data, a[0]->as.bytes.length,
+                               &item, 1);
     }
 
     if (!strcmp(name, "bytes_concat")) {
         REQUIRE(a[0]->kind == V_BYTES && a[1]->kind == V_BYTES,
                 "VM trap: bytes_concat requires Bytes");
-        size_t n = a[0]->as.bytes.length, m = a[1]->as.bytes.length;
-        uint8_t *data = malloc(n + m);
-        if (!data && n + m) {
-            return NULL;
-        }
-        memcpy(data, a[0]->as.bytes.data, n);
-        memcpy(data + n, a[1]->as.bytes.data, m);
-        Value *v = value_data(V_BYTES, data, n + m);
-        free(data);
-        return v;
+        return value_data_join(V_BYTES, a[0]->as.bytes.data, a[0]->as.bytes.length,
+                               a[1]->as.bytes.data, a[1]->as.bytes.length);
     }
 
     if (!strcmp(name, "byte_len")) {

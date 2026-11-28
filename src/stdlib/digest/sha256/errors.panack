@@ -1,0 +1,51 @@
+pub import stdlib/host::{HostError}
+pub enum Sha256Operation { Create, Update(Nat), Finish, Close }
+pub enum Sha256ErrorKind {
+  InvalidContext, ChunkTooLarge, InvalidArgument, InitializationFailed,
+  DigestFailed, ResourceLimit, UnsupportedHost, OtherFailure
+}
+pub record Sha256Error { operation: Sha256Operation, kind: Sha256ErrorKind, native: HostError }
+
+impl Sha256Error {
+  pub pure render(): Str {
+    action = match self.operation {
+      Create() => "create a SHA-256 context",
+      Update(size) => "update a SHA-256 context with ${size} bytes",
+      Finish() => "finish a SHA-256 digest",
+      Close() => "close a SHA-256 context"
+    }
+    reason = match self.kind {
+      InvalidContext() => "the context is not usable in this invocation. Use a context created here that has not been finished, closed or invalidated by a digest failure",
+      ChunkTooLarge() => "an update accepts at most 65536 bytes. Split the input into smaller chunks and update the context with each chunk",
+      InvalidArgument() => "the host rejected an argument. Check the operation’s documented requirements",
+      InitializationFailed() => "OpenSSL could not initialise a SHA-256 context. No context was created; the native API has not supplied a more specific cause",
+      DigestFailed() => "OpenSSL could not complete the digest operation. The context is no longer usable; create a new context and supply the input again",
+      ResourceLimit() => "the host could not allocate another context slot. An invocation can create at most 65536 contexts, including contexts already finished or closed; closing a context does not reset that quota",
+      UnsupportedHost() => "this host does not support SHA-256 contexts",
+      OtherFailure() => "the host returned an unrecognised failure. The native field preserves its details"
+    }
+    number = self.native.native_code
+    detail = if number == 0 { "" } else { " Host error number: ${number}." }
+    "Cannot ${action}: ${reason}.${detail}"
+  }
+}
+
+pub pure convert[T](result: Result[T,HostError], operation: Sha256Operation): Result[T,Sha256Error] {
+  match result {
+    Ok(value) => Ok(value),
+    Error(problem) => {
+      kind = if problem.code == "invalid_handle" { InvalidContext() }
+      else if problem.code == "invalid_argument" {
+        match operation {
+          Update(size) => if size > 65536 { ChunkTooLarge() } else { InvalidArgument() },
+          Create() => InvalidArgument(), Finish() => InvalidArgument(), Close() => InvalidArgument()
+        }
+      } else if problem.code == "digest_unavailable" { InitializationFailed() }
+      else if problem.code == "digest_failed" { DigestFailed() }
+      else if problem.code == "resource_limit" { ResourceLimit() }
+      else if problem.code == "unsupported" || problem.code == "unsupported_host" { UnsupportedHost() }
+      else { OtherFailure() }
+      Error(Sha256Error(operation, kind, problem))
+    }
+  }
+}

@@ -23,6 +23,15 @@ panack disasm hello.bc
 
 Arguments after the input path are passed to the program.
 
+### Incremental compilation on the development branch
+
+Use `panack compile --incremental hello.panack -o hello.bc` to reuse work across
+separate invocations. `panack check --incremental hello.panack` uses the same
+private cache. Panack chooses the storage directory and exits after each build;
+there is no watch process to manage. Missing or unusable cache data falls back
+to fresh checking. See [the reuse boundaries and measurements](../COMPILER_PERSISTENT_REUSE.md).
+This option is not available in the alpha.15 release.
+
 ### Explain checked types, guarded conversions, subtraction and effects
 
 ```sh

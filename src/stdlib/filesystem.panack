@@ -1,40 +1,58 @@
+import stdlib/filesystem/errors::{FilesystemOperation.Metadata, FilesystemOperation.Read, FilesystemOperation.Write, FilesystemOperation.ListDirectory, FilesystemOperation.RemoveFile, FilesystemOperation.RemoveDirectory, FilesystemOperation.CreateDirectory, FilesystemOperation.CreateTempDirectory, FilesystemOperation.CreateTempFile, FilesystemOperation.ReadChunk, FilesystemOperation.WriteAtomic, FilesystemOperation.DirectoriesOverlap}
+import stdlib/filesystem/errors as errors
+pub import stdlib/filesystem/errors::{FilesystemError, FilesystemErrorKind, FilesystemOperation}
+import stdlib/bounded_filesystem as bounded
+import stdlib/package_filesystem as confined_support
 pub import stdlib/host::{HostError}
 
 pub enum FileKind { RegularFile, Directory, SymbolicLink, OtherFile }
 pub record FileMetadata { kind: FileKind, size: Nat }
 
-pub metadata(path: Path): Result[FileMetadata, HostError] {
-  fs_metadata(path)
+pub metadata(path: Path): Result[FileMetadata, FilesystemError] {
+  errors.convert(fs_metadata(path), Metadata(path))
 }
 
-pub read(path: Path, limit: Nat): Result[Bytes, HostError] {
-  fs_read(path, limit)
+pub read(path: Path, limit: Nat): Result[Bytes, FilesystemError] {
+  errors.convert(fs_read(path, limit), Read(path, limit))
 }
 
-pub write(path: Path, data: Bytes): Result[Unit, HostError] {
-  fs_write(path, data)
+pub write(path: Path, data: Bytes): Result[Unit, FilesystemError] {
+  errors.convert(fs_write(path, data), Write(path))
 }
 
-pub list_directory(path: Path): Result[[Path], HostError] {
-  fs_list(path)
+pub list_directory(path: Path): Result[[Path], FilesystemError] {
+  errors.convert(fs_list(path), ListDirectory(path))
 }
 
-pub remove_file(path: Path): Result[Unit, HostError] {
-  fs_remove_file(path)
+pub remove_file(path: Path): Result[Unit, FilesystemError] {
+  errors.convert(fs_remove_file(path), RemoveFile(path))
 }
 
-pub remove_directory(path: Path): Result[Unit, HostError] {
-  fs_remove_directory(path)
+pub remove_directory(path: Path): Result[Unit, FilesystemError] {
+  errors.convert(fs_remove_directory(path), RemoveDirectory(path))
 }
 
-pub create_directory(path: Path): Result[Unit, HostError] {
-  fs_create_directory(path)
+pub create_directory(path: Path): Result[Unit, FilesystemError] {
+  errors.convert(fs_create_directory(path), CreateDirectory(path))
 }
 
-pub temp_directory(parent: Path): Result[Path, HostError] {
-  fs_temp_directory(parent)
+pub temp_directory(parent: Path): Result[Path, FilesystemError] {
+  errors.convert(fs_temp_directory(parent), CreateTempDirectory(parent))
 }
 
-pub temp_file(parent: Path): Result[Path, HostError] {
-  fs_temp_file(parent)
+pub temp_file(parent: Path): Result[Path, FilesystemError] {
+  errors.convert(fs_temp_file(parent), CreateTempFile(parent))
+}
+
+// Canonical names retain the existing creation and path-safety contracts.
+pub create_temp_file(parent: Path): Result[Path,FilesystemError] { temp_file(parent) }
+pub create_temp_directory(parent: Path): Result[Path,FilesystemError] { temp_directory(parent) }
+pub read_chunk(file: Path, offset: Nat, limit: Nat): Result[Bytes,FilesystemError] {
+  errors.convert(bounded.read_chunk(file, offset, limit), ReadChunk(file, offset, limit))
+}
+pub write_atomic(file: Path, data: Bytes): Result[Unit,FilesystemError] {
+  errors.convert(bounded.atomic_write(file, data), WriteAtomic(file))
+}
+pub directories_overlap(left: Path, right: Path): Result[Bool,FilesystemError] {
+  errors.convert(confined_support.directories_overlap(left, right), DirectoriesOverlap(left, right))
 }

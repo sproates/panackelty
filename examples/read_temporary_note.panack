@@ -1,4 +1,4 @@
-import stdlib/filesystem as fs
+import stdlib/filesystem/legacy as fs
 import stdlib/host as host
 import stdlib/host::{HostError}
 import stdlib/path as paths

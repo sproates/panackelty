@@ -1,0 +1,92 @@
+pub enum TcpOperation { Exchange(Str,Nat,Duration,Nat), ServeBounded(Str,Nat), ServeStream(Str,Nat), Serve(Str,Nat), ReadChunk(Nat), ClientOutcome }
+pub enum TcpErrorKind { InvalidArguments, InvalidAddress, TimedOut, ConnectFailed, SocketFailed, BindFailed, ListenFailed, AcceptFailed, ReadFailed, WriteFailed, ShutdownFailed, PeerClosed, ResponseLimitExceeded, RequestLimitExceeded, ClockFailed, PollFailed, Unavailable, InvalidDuration, ClientFailure, ServiceOrCallbackFailure, OtherFailure }
+pub record TcpError { operation: TcpOperation, kind: TcpErrorKind, native: Str }
+impl TcpError {
+  pub pure render(): Str {
+    action = match self.operation {
+      Exchange(address,port,timeout,limit) => {
+        ticks = timeout.as_nanoseconds()
+        "exchange TCP bytes with '${address}:${port}' (timeout: ${ticks} nanoseconds, response limit: ${limit} bytes)"
+      },
+      ServeBounded(address,port) => "run a bounded TCP server at '${address}:${port}'",
+      ServeStream(address,port) => "run a streaming TCP server at '${address}:${port}'",
+      Serve(address,port) => "run a TCP service at '${address}:${port}'",
+      ReadChunk(limit) => "read a TCP request chunk (limit: ${limit} bytes)",
+      ClientOutcome() => "complete a TCP client request"
+    }
+    reason = match self.kind {
+      InvalidArguments() => "check the port, byte limits, concurrency and server limits",
+      InvalidAddress() => "use a numeric IPv4 address; this TCP API does not resolve hostnames",
+      TimedOut() => "the requested exchange deadline expired",
+      ConnectFailed() => "the connection could not be established. Check that the destination service is reachable",
+      SocketFailed() => "the host could not create or configure the socket",
+      BindFailed() => "the listener could not bind the requested address and port. Check whether the address belongs to this machine and the port is available",
+      ListenFailed() => "the socket could not begin listening",
+      AcceptFailed() => "accepting an incoming connection failed",
+      ReadFailed() => "reading bytes failed; the response may be incomplete",
+      WriteFailed() => "sending bytes failed. Some bytes may already have been sent; do not assume retrying is safe",
+      ShutdownFailed() => "the request write side could not be shut down",
+      PeerClosed() => "the peer closed before the complete request was sent",
+      ResponseLimitExceeded() => "the response exceeded the configured byte limit",
+      RequestLimitExceeded() => "the request exceeded the configured byte limit",
+      ClockFailed() => "the monotonic deadline could not be read or represented",
+      PollFailed() => "waiting for socket activity failed",
+      Unavailable() => "this host does not support the TCP operation",
+      InvalidDuration() => "a duration cannot be represented by the TCP runtime; the details identify the field and supported range",
+      ClientFailure() => "the client operation or its handler failed. The native API does not distinguish their error text",
+      ServiceOrCallbackFailure() => "the service or its readiness callback failed. The native API does not distinguish their error text",
+      OtherFailure() => "the TCP runtime returned an unrecognised failure"
+    }
+    detail = self.native
+    "Cannot ${action}: ${reason}.\nDetails: ${detail}"
+  }
+}
+pub pure convert[T](result: Result[T,Str], operation: TcpOperation): Result[T,TcpError] {
+  match result {
+    Ok(value) => Ok(value),
+    Error(problem) => {
+      kind = match operation {
+        Serve(address,port) => ServiceOrCallbackFailure(),
+        ClientOutcome() => ClientFailure(),
+        Exchange(address,port,timeout,limit) => classify(problem),
+        ServeBounded(address,port) => classify(problem),
+        ServeStream(address,port) => classify(problem),
+        ReadChunk(limit) => classify(problem)
+      }
+      Error(TcpError(operation,kind,problem))
+    }
+  }
+}
+pure classify(problem: Str): TcpErrorKind {
+  if problem == "invalid TCP arguments" || problem == "invalid TCP server arguments" { InvalidArguments() }
+  else if problem == "invalid IPv4 address" { InvalidAddress() }
+  else if problem == "TCP timed out" { TimedOut() }
+  else if problem == "TCP connect failed" { ConnectFailed() }
+  else if problem == "TCP socket failed" || problem == "TCP server socket failed" { SocketFailed() }
+  else if problem == "TCP server bind failed" { BindFailed() }
+  else if problem == "TCP server listen failed" { ListenFailed() }
+  else if problem == "TCP server accept failed" { AcceptFailed() }
+  else if problem == "TCP read failed" || problem == "TCP client read failed" { ReadFailed() }
+  else if problem == "TCP write failed" { WriteFailed() }
+  else if problem == "TCP shutdown failed" { ShutdownFailed() }
+  else if problem == "TCP peer closed before request completed" { PeerClosed() }
+  else if problem == "TCP response limit exceeded" { ResponseLimitExceeded() }
+  else if problem == "TCP request limit exceeded" { RequestLimitExceeded() }
+  else if problem == "TCP clock failed" || problem == "TCP server clock failed" { ClockFailed() }
+  else if problem == "TCP poll failed" || problem == "TCP server poll failed" || problem == "TCP server listener failed" { PollFailed() }
+  else if problem == "TCP is unavailable on this host" || problem == "TCP server is unavailable on this host" { Unavailable() }
+  else { OtherFailure() }
+}
+pub pure configuration[T](result: Result[T,Str], operation: TcpOperation): Result[T,TcpError] {
+  match result { Ok(value) => Ok(value), Error(problem) => Error(TcpError(operation,InvalidDuration(),problem)) }
+}
+pub pure outcomes(result: Result[[Result[Unit,Str]],Str], operation: TcpOperation): Result[[Result[Unit,TcpError]],TcpError] {
+  match convert(result,operation) {
+    Error(problem) => Error(problem),
+    Ok(values) => {
+      mut converted: [Result[Unit,TcpError]] = []
+      for value in values { converted = converted.append(convert(value,ClientOutcome())) }
+      Ok(converted)
+    }
+  }
+}

@@ -10,4 +10,6 @@ done
 # The HTTP transport's unavailable-host branch must compile without curl headers.
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror -pedantic -D__wasi__ \
   -fsyntax-only -I src/vm src/vm/http_transport.c
+${CC:-cc} -std=c11 -Wall -Wextra -Werror -pedantic -D__wasi__ \
+  -fsyntax-only -I src/vm src/vm/console_read.c
 printf 'native header contracts: ok\n'

@@ -1,5 +1,5 @@
 pub import project/src/compiler/domain_guards::{DomainFacts}
-pub import project/src/compiler/parser::{unlocated_expression, parse_program_complete, Expr, Block, Program, Statement, FunctionParameter, RecordField, EnumVariant, IndexedVariant, MatchArm, MatchPattern, TopLevel, SourcePos, SourceSpan, Diagnostic, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, BlockValue.NoBlockValue, BlockValue.TailBlockValue}
+pub import project/src/compiler/parser::{unlocated_expression, parse_program_complete, Expr, Block, Program, Statement, FunctionParameter, RecordField, EnumVariant, IndexedVariant, MatchArm, MatchPattern, TopLevel, SourcePos, SourceSpan, Diagnostic, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.AnonymousExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, BlockValue.NoBlockValue, BlockValue.TailBlockValue}
 pub import project/src/compiler/resolver::{LoadedSource}
 import project/src/compiler/resolver::{SourceUnit, ModuleGraphState, append_program_declarations, duplicate_module_diagnostics, is_builtin, render_resolver_diagnostics, resolve_program, visit_module}
 import project/src/compiler/lexer::{lex, lex_file, prior_index}
@@ -152,6 +152,7 @@ pure subtraction_decision(
     StringExpr(text) => {},
     BoolExpr(value) => {},
     FunctionExpr(name) => {},
+    AnonymousExpr(effect, parameters, result_type, body) => {},
     ArrayExpr(items) => {},
     UnaryExpr(op, value) => {},
     BinaryExpr(op, a, b) => {},
@@ -195,6 +196,7 @@ pure checker_diagnostic_for(expression: Expr, message: Str): Diagnostic {
     BoolExpr(value) => checker_diagnostic(message),
     NameExpr(name) => checker_diagnostic(message),
     FunctionExpr(name) => checker_diagnostic(message),
+    AnonymousExpr(effect, parameters, result_type, body) => checker_diagnostic(message),
     ArrayExpr(items) => checker_diagnostic(message),
     UnaryExpr(operator, operand) => checker_diagnostic(message),
     BinaryExpr(operator, left, right) => checker_diagnostic(message),
@@ -452,8 +454,8 @@ pure require_type(program: Program, name: Str, parameters: [Str], allow_void: Bo
         (shape.base == "Bytes" ||
         shape.base == "Path" ||
         shape.base == "Duration" ||
-        shape.base == "Instant" || shape.base == "HttpResponseState")
-      if shape.base == "Array" || shape.base == "Set" {
+        shape.base == "Instant" || shape.base == "HttpResponseState" || shape.base == "Sha256Context" || shape.base == "GzipDecoder" || shape.base == "HttpStream" || shape.base == "DirectoryStage")
+      if shape.base == "Array" || shape.base == "Set" || shape.base == "State" {
         known = true
         expected = 1
       } else {
@@ -623,6 +625,7 @@ pure evaluate_nat_guard(expression: Expr, guard_name: Str, value: Nat): Bool {
                   BoolExpr(other_bool) => {},
                   NameExpr(other_name) => {},
                   FunctionExpr(other_function) => {},
+                  AnonymousExpr(effect, parameters, result_type, body) => {},
                   ArrayExpr(other_items) => {},
                   UnaryExpr(other_op, other_operand) => {},
                   BinaryExpr(other_binary_op, other_left, other_right) => {},
@@ -643,6 +646,7 @@ pure evaluate_nat_guard(expression: Expr, guard_name: Str, value: Nat): Bool {
             StringExpr(text) => {},
             BoolExpr(item) => {},
             FunctionExpr(function_name) => {},
+            AnonymousExpr(effect, parameters, result_type, body) => {},
             ArrayExpr(items) => {},
             UnaryExpr(op, operand) => {},
             BinaryExpr(op, a, b) => {},
@@ -663,6 +667,7 @@ pure evaluate_nat_guard(expression: Expr, guard_name: Str, value: Nat): Bool {
     StringExpr(text) => {},
     NameExpr(name) => {},
     FunctionExpr(function_name) => {},
+    AnonymousExpr(effect, parameters, result_type, body) => {},
     ArrayExpr(items) => {},
     CallExpr(name, arguments, type_arguments) => {},
     OwnedCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
@@ -721,6 +726,7 @@ pub pure prove_guard_bounds(expression: Expr, guard_name: Str, bounds: Bounds): 
                   BoolExpr(other_bool) => {},
                   NameExpr(other_name) => {},
                   FunctionExpr(other_function) => {},
+                  AnonymousExpr(effect, parameters, result_type, body) => {},
                   ArrayExpr(other_items) => {},
                   UnaryExpr(other_op, other_operand) => {},
                   BinaryExpr(other_binary_op, other_left, other_right) => {},
@@ -741,6 +747,7 @@ pub pure prove_guard_bounds(expression: Expr, guard_name: Str, bounds: Bounds): 
             StringExpr(text) => {},
             BoolExpr(item) => {},
             FunctionExpr(function_name) => {},
+            AnonymousExpr(effect, parameters, result_type, body) => {},
             ArrayExpr(items) => {},
             UnaryExpr(op, operand) => {},
             BinaryExpr(op, a, b) => {},
@@ -762,6 +769,7 @@ pub pure prove_guard_bounds(expression: Expr, guard_name: Str, bounds: Bounds): 
     BoolExpr(item) => {},
     NameExpr(name) => {},
     FunctionExpr(function_name) => {},
+    AnonymousExpr(effect, parameters, result_type, body) => {},
     ArrayExpr(items) => {},
     UnaryExpr(op, operand) => {},
     CallExpr(name, arguments, type_arguments) => {},
@@ -820,6 +828,7 @@ pure assignable_checked(
           StringExpr(text) => {},
           BoolExpr(flag) => {},
           FunctionExpr(function_name) => {},
+          AnonymousExpr(effect, parameters, result_type, body) => {},
           ArrayExpr(items) => {},
           UnaryExpr(op, operand) => {},
           BinaryExpr(op, a, b) => {},
@@ -991,7 +1000,11 @@ pure builtin_return(name: Str): Str {
 }
 
 pure builtin_host_return(name: Str): Str {
-  if name == "host_arguments_async" { "[Str]" }
+  if name == "console_input" || name == "console_input_async" { "Result[Option[Bytes],HostError]" } else
+  if name == "console_output" || name == "console_output_async" { "Result[Unit,HostError]" } else
+  if name == "instant_now_async" { "Result[Instant,ClockError]" }
+  else if name == "environment_lookup_async" { "Option[Str]" }
+  else if name == "host_arguments_async" { "[Str]" }
   else if name == "host_exit_async" { "Unit" }
   else if name == "host_stdout_async" || name == "host_stderr_async" {
     "Result[Unit,HostError]"
@@ -999,7 +1012,14 @@ pure builtin_host_return(name: Str): Str {
 }
 
 pure builtin_filesystem_return(name: Str): Str {
-  if name == "fs_root_identity_async" {
+  if (name == "stage_create" || name == "stage_create_async") { "Result[DirectoryStage,HostError]" } else
+  if (name == "stage_path" || name == "stage_path_async") { "Result[Path,HostError]" } else
+  if (name == "stage_directory" || name == "stage_directory_async") { "Result[Unit,HostError]" } else
+  if (name == "stage_write" || name == "stage_write_async") { "Result[Unit,HostError]" } else
+  if (name == "stage_symlink" || name == "stage_symlink_async") { "Result[Unit,HostError]" } else
+  if (name == "stage_publish" || name == "stage_publish_async") { "Result[Unit,HostError]" } else
+  if (name == "stage_discard" || name == "stage_discard_async") { "Result[Unit,HostError]" } else
+  if (name == "fs_root_identity" || name == "fs_root_identity_async") {
     "Result[FilesystemRootIdentity,HostError]"
   } else {
     builtin_legacy_return(name)
@@ -1007,14 +1027,25 @@ pure builtin_filesystem_return(name: Str): Str {
 }
 
 pure builtin_legacy_return(name: Str): Str {
-  if name == "fs_read_chunk" { "Result[Bytes,HostError]" } else
-  if name == "fs_atomic_write" { "Result[Unit,HostError]" } else
+  if (name == "fs_read_chunk" || name == "fs_read_chunk_async") { "Result[Bytes,HostError]" } else
+  if (name == "fs_atomic_write" || name == "fs_atomic_write_async") { "Result[Unit,HostError]" } else
   if name == "digest_sha256_open" { "Result[Nat,HostError]" } else
   if name == "digest_update" { "Result[Unit,HostError]" } else
   if name == "digest_finish" { "Result[Bytes,HostError]" } else
   if name == "digest_close" { "Result[Unit,HostError]" } else
+  if name == "sha256_hash" { "Bytes" } else
+  if name == "sha256_create" || name == "sha256_create_async" { "Result[Sha256Context,HostError]" } else
+  if name == "sha256_update" || name == "sha256_update_async" { "Result[Unit,HostError]" } else
+  if name == "sha256_finish" || name == "sha256_finish_async" { "Result[Bytes,HostError]" } else
+  if name == "sha256_close" || name == "sha256_close_async" { "Result[Unit,HostError]" } else
+  if name == "gzip_decoder_create" || name == "gzip_decoder_create_async" { "Result[GzipDecoder,HostError]" } else
+  if name == "gzip_decoder_decode" || name == "gzip_decoder_decode_async" { "Result[GzipChunk,HostError]" } else
+  if name == "gzip_decoder_close" || name == "gzip_decoder_close_async" { "Result[Unit,HostError]" } else
+  if name == "http_stream_open_typed" || name == "http_stream_open_async" { "Result[HttpStream,Str]" } else
   if name == "http_stream_open" { "Result[Nat,Str]" } else
+  if name == "http_stream_read_typed" || name == "http_stream_read_async" { "Result[Bytes,Str]" } else
   if name == "http_stream_read" { "Result[Bytes,Str]" } else
+  if name == "http_stream_close_typed" || name == "http_stream_close_async" { "Result[Unit,Str]" } else
   if name == "http_stream_close" { "Result[Unit,Str]" } else
   if name == "gzip_open" { "Result[Nat,HostError]" } else
   if name == "gzip_step" { "Result[GzipChunk,HostError]" } else
@@ -1022,7 +1053,7 @@ pure builtin_legacy_return(name: Str): Str {
   if name == "fs_stage_begin" { "Result[Nat,HostError]" } else
   if name == "fs_stage_path" { "Result[Path,HostError]" } else
   if name == "fs_stage_directory" { "Result[Unit,HostError]" } else
-  if name == "fs_read_link" { "Result[Bytes,HostError]" } else
+  if (name == "fs_read_link" || name == "fs_read_link_async") { "Result[Bytes,HostError]" } else
   if name == "fs_stage_symlink" { "Result[Unit,HostError]" } else
   if name == "fs_stage_write" { "Result[Unit,HostError]" } else
   if name == "fs_stage_publish" { "Result[Unit,HostError]" } else
@@ -1034,8 +1065,8 @@ pure builtin_legacy_return(name: Str): Str {
       name == "tcp_server_read_chunk" {
       "Result[Bytes,Str]"
     } else {
-      if name == "fs_directories_overlap" || (name == "fs_read_beneath" || name == "fs_read_beneath_async") || name == "fs_read" {
-        if name == "fs_directories_overlap" {
+      if (name == "fs_directories_overlap" || name == "fs_directories_overlap_async") || (name == "fs_read_beneath" || name == "fs_read_beneath_async") || (name == "fs_read" || name == "fs_read_async") {
+        if (name == "fs_directories_overlap" || name == "fs_directories_overlap_async") {
           "Result[Bool,HostError]"
         } else {
           if (name == "fs_read_beneath" || name == "fs_read_beneath_async") {
@@ -1045,37 +1076,37 @@ pure builtin_legacy_return(name: Str): Str {
           }
         }
       } else {
-        if name == "fs_write" {
+        if (name == "fs_write" || name == "fs_write_async") {
           "Result[Unit,HostError]"
         } else {
-          if name == "fs_metadata" {
+          if (name == "fs_metadata" || name == "fs_metadata_async") {
             "Result[FileMetadata,HostError]"
           } else {
-            if name == "fs_list" {
+            if (name == "fs_list" || name == "fs_list_async") {
               "Result[[Path],HostError]"
             } else {
-              if name == "fs_create_directory" {
+              if (name == "fs_create_directory" || name == "fs_create_directory_async") {
                 "Result[Unit,HostError]"
               } else {
-                if name == "fs_remove_file" {
+                if (name == "fs_remove_file" || name == "fs_remove_file_async") {
                   "Result[Unit,HostError]"
                 } else {
-                  if name == "fs_remove_directory" {
+                  if (name == "fs_remove_directory" || name == "fs_remove_directory_async") {
                     "Result[Unit,HostError]"
                   } else {
-                    if name == "fs_temp_file" {
+                    if (name == "fs_temp_file" || name == "fs_temp_file_async") {
                       "Result[Path,HostError]"
                     } else {
-                      if name == "fs_temp_directory" {
+                      if (name == "fs_temp_directory" || name == "fs_temp_directory_async") {
                         "Result[Path,HostError]"
                       } else {
                         if name == "host_decode_utf8" {
                           "Result[Str,HostError]"
                         } else {
-                          if name == "host_sleep" {
+                          if (name == "host_sleep" || name == "host_sleep_async") {
                             "Result[Unit,HostError]"
                           } else {
-                            if (name == "process_run" || name == "process_run_isolated") {
+                            if (name == "process_run" || name == "process_run_isolated" || name == "process_run_async" || name == "process_run_isolated_async") {
                               "Result[ProcessOutput,HostError]"
                             } else {
                               if name == "path_from_text" ||
@@ -1217,11 +1248,42 @@ pure builtin_legacy_return(name: Str): Str {
 }
 
 pub pure builtin_arity(name: Str): Nat {
+  if name == "state_update" || name == "state_update_async" { 2 } else
+  if name == "state_create" || name == "state_create_async" || name == "state_read" || name == "state_read_async" { 1 } else
+  if name == "$intrinsic_function" { 1 } else
+  if name == "http_bytes_slice" { 3 } else
+  if name == "http_body" { 1 } else
+  if name == "http_body_size" { 1 } else
+  if name == "http_body_append" { 4 } else
+  if name == "http_connection_continue" { 1 } else
+  if name == "http_listen_ordinary" { 2 } else
+  if name == "http_listen_contextual" { 2 } else
+  if name == "http_close" { 1 } else
+  if name == "http_destroy" { 1 } else
+  if name == "http_connection_invoke" { 4 } else
+  if name == "http_connection_writer" { 1 } else
+  if name == "http_connection_routes" { 1 } else
+  if name == "http_connection_fallback" { 1 } else
+  if name == "http_connection_admit" { 1 } else
+  if name == "http_writer_get_status" { 1 } else
+  if name == "http_writer_get_headers" { 1 } else
+  if name == "http_writer_reject" { 1 } else
+  if name == "http_writer_status" { 2 } else
+  if name == "http_writer_headers" { 2 } else
+  if name == "http_writer_commit" { 2 } else
+  if name == "http_state_create" { 3 } else
+  if name == "http_state_context" { 1 } else
+  if name == "http_state_setup_error" { 1 } else
+  if name == "http_state_fail_setup" { 1 } else
+  if name == "http_state_register" { 4 } else
   if name == "tcp_service" { 6 } else { builtin_host_arity(name) }
 }
 
 pure builtin_host_arity(name: Str): Nat {
-  if name == "host_arguments_async" { 0 }
+  if name == "console_input" || name == "console_input_async" { 1 } else
+  if name == "console_output" || name == "console_output_async" { 3 } else
+  if name == "instant_now_async" || name == "host_arguments_async" { 0 }
+  else if name == "environment_lookup_async" { 1 }
   else if name == "host_exit_async" || name == "host_stdout_async" ||
     name == "host_stderr_async" { 1 }
   else { builtin_service_arity(name) }
@@ -1234,7 +1296,7 @@ pure builtin_service_arity(name: Str): Nat {
   if name == "tcp_serve_stream" || name == "$tcp_serve_stream" {
     5
   } else {
-    if name == "fs_root_identity_async" || name == "tcp_server_read_chunk" || name == "$tcp_server_read_chunk" {
+    if (name == "fs_root_identity" || name == "fs_root_identity_async") || name == "tcp_server_read_chunk" || name == "$tcp_server_read_chunk" {
       1
     } else {
       builtin_legacy_arity(name)
@@ -1243,12 +1305,29 @@ pure builtin_service_arity(name: Str): Nat {
 }
 
 pure builtin_legacy_arity(name: Str): Nat {
-  if name == "fs_read_chunk" { 3 } else
-  if name == "fs_atomic_write" { 2 } else
+  if (name == "stage_create" || name == "stage_create_async") { 1 } else
+  if (name == "stage_path" || name == "stage_path_async") { 1 } else
+  if (name == "stage_directory" || name == "stage_directory_async") { 2 } else
+  if (name == "stage_write" || name == "stage_write_async") { 4 } else
+  if (name == "stage_symlink" || name == "stage_symlink_async") { 3 } else
+  if (name == "stage_publish" || name == "stage_publish_async") { 3 } else
+  if (name == "stage_discard" || name == "stage_discard_async") { 1 } else
+  if (name == "fs_read_chunk" || name == "fs_read_chunk_async") { 3 } else
+  if (name == "fs_atomic_write" || name == "fs_atomic_write_async") { 2 } else
   if name == "digest_sha256_open" { 0 } else
   if name == "digest_update" { 2 } else
   if name == "digest_finish" { 1 } else
   if name == "digest_close" { 1 } else
+  if name == "sha256_hash" { 1 } else
+  if name == "sha256_create" || name == "sha256_create_async" { 0 } else
+  if name == "sha256_update" || name == "sha256_update_async" { 2 } else
+  if name == "sha256_finish" || name == "sha256_finish_async" { 1 } else
+  if name == "sha256_close" || name == "sha256_close_async" { 1 } else
+  if name == "gzip_decoder_create" || name == "gzip_decoder_create_async" { 1 } else
+  if name == "gzip_decoder_decode" || name == "gzip_decoder_decode_async" { 3 } else
+  if name == "gzip_decoder_close" || name == "gzip_decoder_close_async" { 1 } else
+  if name == "http_stream_open_typed" || name == "http_stream_open_async" { 6 } else
+  if name == "http_stream_read_typed" || name == "http_stream_read_async" || name == "http_stream_close_typed" || name == "http_stream_close_async" { 1 } else
   if name == "http_stream_open" { 6 } else
   if name == "http_stream_read" || name == "http_stream_close" { 1 } else
   if name == "gzip_open" { 1 } else
@@ -1257,7 +1336,7 @@ pure builtin_legacy_arity(name: Str): Nat {
   if name == "fs_stage_begin" { 1 } else
   if name == "fs_stage_path" { 1 } else
   if name == "fs_stage_directory" { 2 } else
-  if name == "fs_read_link" { 2 } else
+  if (name == "fs_read_link" || name == "fs_read_link_async") { 2 } else
   if name == "fs_stage_symlink" { 3 } else
   if name == "fs_stage_write" { 4 } else
   if name == "fs_stage_publish" { 3 } else
@@ -1275,40 +1354,40 @@ pure builtin_legacy_arity(name: Str): Nat {
         1
       }
     } else {
-      if (name == "fs_read_beneath" || name == "fs_read_beneath_async") || name == "fs_read" || name == "fs_directories_overlap" {
+      if (name == "fs_read_beneath" || name == "fs_read_beneath_async") || (name == "fs_read" || name == "fs_read_async") || (name == "fs_directories_overlap" || name == "fs_directories_overlap_async") {
         if (name == "fs_read_beneath" || name == "fs_read_beneath_async") { 3 } else { 2 }
       } else {
-        if name == "fs_write" {
+        if (name == "fs_write" || name == "fs_write_async") {
           2
         } else {
-          if name == "fs_metadata" {
+          if (name == "fs_metadata" || name == "fs_metadata_async") {
             1
           } else {
-            if name == "fs_list" {
+            if (name == "fs_list" || name == "fs_list_async") {
               1
             } else {
-              if name == "fs_create_directory" {
+              if (name == "fs_create_directory" || name == "fs_create_directory_async") {
                 1
               } else {
-                if name == "fs_remove_file" {
+                if (name == "fs_remove_file" || name == "fs_remove_file_async") {
                   1
                 } else {
-                  if name == "fs_remove_directory" {
+                  if (name == "fs_remove_directory" || name == "fs_remove_directory_async") {
                     1
                   } else {
-                    if name == "fs_temp_file" {
+                    if (name == "fs_temp_file" || name == "fs_temp_file_async") {
                       1
                     } else {
-                      if name == "fs_temp_directory" {
+                      if (name == "fs_temp_directory" || name == "fs_temp_directory_async") {
                         1
                       } else {
                         if name == "host_decode_utf8" {
                           1
                         } else {
-                          if name == "host_sleep" {
+                          if (name == "host_sleep" || name == "host_sleep_async") {
                             1
                           } else {
-                            if (name == "process_run" || name == "process_run_isolated") {
+                            if (name == "process_run" || name == "process_run_isolated" || name == "process_run_async" || name == "process_run_isolated_async") {
                               7
                             } else {
                               if name == "path_from_text" ||
@@ -1432,13 +1511,22 @@ pure builtin_parameter(name: Str, index: Nat): Str {
 }
 
 pure builtin_host_parameter(name: Str, index: Nat): Str {
+  if name == "console_input" || name == "console_input_async" { "Nat" } else
+  if name == "console_output" || name == "console_output_async" { if index == 0 { "Str" } else { "Bool" } } else
   if name == "host_exit_async" { "Nat" }
   else if name == "host_stdout_async" || name == "host_stderr_async" { "Str" }
   else { builtin_filesystem_parameter(name, index) }
 }
 
 pure builtin_filesystem_parameter(name: Str, index: Nat): Str {
-  if name == "fs_root_identity_async" {
+  if (name == "stage_create" || name == "stage_create_async") { if index == 0 { "Path" } else { "Any" } } else
+  if (name == "stage_path" || name == "stage_path_async") { if index == 0 { "DirectoryStage" } else { "Any" } } else
+  if (name == "stage_directory" || name == "stage_directory_async") { if index == 0 { "DirectoryStage" } else if index == 1 { "Path" } else { "Any" } } else
+  if (name == "stage_write" || name == "stage_write_async") { if index == 0 { "DirectoryStage" } else if index == 1 { "Path" } else if index == 2 { "Bytes" } else if index == 3 { "Nat" } else { "Any" } } else
+  if (name == "stage_symlink" || name == "stage_symlink_async") { if index == 0 { "DirectoryStage" } else if index == 1 { "Path" } else if index == 2 { "Path" } else { "Any" } } else
+  if (name == "stage_publish" || name == "stage_publish_async") { if index == 0 { "DirectoryStage" } else if index == 1 { "Path" } else if index == 2 { "Bool" } else { "Any" } } else
+  if (name == "stage_discard" || name == "stage_discard_async") { if index == 0 { "DirectoryStage" } else { "Any" } } else
+  if (name == "fs_root_identity" || name == "fs_root_identity_async") {
     "Path"
   } else {
     builtin_network_parameter(name, index)
@@ -1473,12 +1561,22 @@ pure builtin_network_parameter(name: Str, index: Nat): Str {
 }
 
 pure builtin_legacy_parameter(name: Str, index: Nat): Str {
-  if name == "fs_read_chunk" { if index == 0 { "Path" } else if index == 1 { "Nat" } else if index == 2 { "Nat" } else { "Any" } } else
-  if name == "fs_atomic_write" { if index == 0 { "Path" } else if index == 1 { "Bytes" } else { "Any" } } else
+  if (name == "fs_read_chunk" || name == "fs_read_chunk_async") { if index == 0 { "Path" } else if index == 1 { "Nat" } else if index == 2 { "Nat" } else { "Any" } } else
+  if (name == "fs_atomic_write" || name == "fs_atomic_write_async") { if index == 0 { "Path" } else if index == 1 { "Bytes" } else { "Any" } } else
   if name == "digest_sha256_open" { "Any" } else
   if name == "digest_update" { if index == 0 { "Nat" } else if index == 1 { "Bytes" } else { "Any" } } else
   if name == "digest_finish" { if index == 0 { "Nat" } else { "Any" } } else
   if name == "digest_close" { if index == 0 { "Nat" } else { "Any" } } else
+  if name == "sha256_hash" { "Bytes" } else
+  if name == "sha256_create" || name == "sha256_create_async" { "Any" } else
+  if name == "sha256_update" || name == "sha256_update_async" { if index == 0 { "Sha256Context" } else if index == 1 { "Bytes" } else { "Any" } } else
+  if name == "sha256_finish" || name == "sha256_finish_async" { if index == 0 { "Sha256Context" } else { "Any" } } else
+  if name == "sha256_close" || name == "sha256_close_async" { if index == 0 { "Sha256Context" } else { "Any" } } else
+  if name == "gzip_decoder_create" || name == "gzip_decoder_create_async" { if index == 0 { "Nat" } else { "Any" } } else
+  if name == "gzip_decoder_decode" || name == "gzip_decoder_decode_async" { if index == 0 { "GzipDecoder" } else if index == 1 { "Bytes" } else if index == 2 { "Bool" } else { "Any" } } else
+  if name == "gzip_decoder_close" || name == "gzip_decoder_close_async" { if index == 0 { "GzipDecoder" } else { "Any" } } else
+  if name == "http_stream_open_typed" || name == "http_stream_open_async" { if index == 0 { "Str" } else if index == 2 { "Bool" } else if index == 3 { "Bytes" } else if index == 5 { "Duration" } else { "Nat" } } else
+  if name == "http_stream_read_typed" || name == "http_stream_read_async" || name == "http_stream_close_typed" || name == "http_stream_close_async" { "HttpStream" } else
   if name == "http_stream_open" { if index == 0 { "Str" } else if index == 2 { "Bool" } else if index == 3 { "Bytes" } else { "Nat" } } else
   if name == "http_stream_read" || name == "http_stream_close" { "Nat" } else
   if name == "gzip_open" { if index == 0 { "Nat" } else { "Any" } } else
@@ -1487,7 +1585,7 @@ pure builtin_legacy_parameter(name: Str, index: Nat): Str {
   if name == "fs_stage_begin" { if index == 0 { "Path" } else { "Any" } } else
   if name == "fs_stage_path" { if index == 0 { "Nat" } else { "Any" } } else
   if name == "fs_stage_directory" { if index == 0 { "Nat" } else if index == 1 { "Path" } else { "Any" } } else
-  if name == "fs_read_link" { if index < 2 { "Path" } else { "Any" } } else
+  if (name == "fs_read_link" || name == "fs_read_link_async") { if index < 2 { "Path" } else { "Any" } } else
   if name == "fs_stage_symlink" { if index == 0 { "Nat" } else if index < 3 { "Path" } else { "Any" } } else
   if name == "fs_stage_write" { if index == 0 { "Nat" } else if index == 1 { "Path" } else if index == 2 { "Bytes" } else if index == 3 { "Nat" } else { "Any" } } else
   if name == "fs_stage_publish" { if index == 0 { "Nat" } else if index == 1 { "Path" } else if index == 2 { "Bool" } else { "Any" } } else
@@ -1527,11 +1625,11 @@ pure builtin_legacy_parameter(name: Str, index: Nat): Str {
         }
       }
     } else {
-      if (name == "fs_read_beneath" || name == "fs_read_beneath_async") || name == "fs_read" || name == "fs_directories_overlap" {
+      if (name == "fs_read_beneath" || name == "fs_read_beneath_async") || (name == "fs_read" || name == "fs_read_async") || (name == "fs_directories_overlap" || name == "fs_directories_overlap_async") {
         if (name == "fs_read_beneath" || name == "fs_read_beneath_async") {
           if index == 2 { "Nat" } else { "Path" }
         } else {
-          if name == "fs_directories_overlap" {
+          if (name == "fs_directories_overlap" || name == "fs_directories_overlap_async") {
             "Path"
           } else {
             if index == 0 {
@@ -1542,7 +1640,7 @@ pure builtin_legacy_parameter(name: Str, index: Nat): Str {
           }
         }
       } else {
-        if name == "fs_write" {
+        if (name == "fs_write" || name == "fs_write_async") {
           if index == 0 {
             "Path"
           } else {
@@ -1553,49 +1651,49 @@ pure builtin_legacy_parameter(name: Str, index: Nat): Str {
             }
           }
         } else {
-          if name == "fs_metadata" {
+          if (name == "fs_metadata" || name == "fs_metadata_async") {
             if index == 0 {
               "Path"
             } else {
               "Any"
             }
           } else {
-            if name == "fs_list" {
+            if (name == "fs_list" || name == "fs_list_async") {
               if index == 0 {
                 "Path"
               } else {
                 "Any"
               }
             } else {
-              if name == "fs_create_directory" {
+              if (name == "fs_create_directory" || name == "fs_create_directory_async") {
                 if index == 0 {
                   "Path"
                 } else {
                   "Any"
                 }
               } else {
-                if name == "fs_remove_file" {
+                if (name == "fs_remove_file" || name == "fs_remove_file_async") {
                   if index == 0 {
                     "Path"
                   } else {
                     "Any"
                   }
                 } else {
-                  if name == "fs_remove_directory" {
+                  if (name == "fs_remove_directory" || name == "fs_remove_directory_async") {
                     if index == 0 {
                       "Path"
                     } else {
                       "Any"
                     }
                   } else {
-                    if name == "fs_temp_file" {
+                    if (name == "fs_temp_file" || name == "fs_temp_file_async") {
                       if index == 0 {
                         "Path"
                       } else {
                         "Any"
                       }
                     } else {
-                      if name == "fs_temp_directory" {
+                      if (name == "fs_temp_directory" || name == "fs_temp_directory_async") {
                         if index == 0 {
                           "Path"
                         } else {
@@ -1609,14 +1707,14 @@ pure builtin_legacy_parameter(name: Str, index: Nat): Str {
                             "Any"
                           }
                         } else {
-                          if name == "host_sleep" {
+                          if (name == "host_sleep" || name == "host_sleep_async") {
                             if index == 0 {
                               "Duration"
                             } else {
                               "Any"
                             }
                           } else {
-                            if (name == "process_run" || name == "process_run_isolated") {
+                            if (name == "process_run" || name == "process_run_isolated" || name == "process_run_async" || name == "process_run_isolated_async") {
                               if index == 0 {
                                 "Path"
                               } else {
@@ -1701,6 +1799,7 @@ pure builtin_legacy_parameter(name: Str, index: Nat): Str {
                                                       name == "utf8_encode" ||
                                                       name == "environment_has" ||
                                                       name == "environment_get" ||
+                                                      name == "environment_lookup_async" ||
                                                       name == "path_resolve" ||
                                                       name == "path_parent" ||
                                                       name == "path_suffix" ||
@@ -2041,7 +2140,8 @@ pure facts_after_expression(expression: Expr, facts: Map[Str, Bounds]): Map[Str,
       StringExpr(text) => {},
       BoolExpr(value) => {},
       NameExpr(name) => {},
-      FunctionExpr(name) => {}
+      FunctionExpr(name) => {},
+      AnonymousExpr(effect, parameters, result_type, body) => {},
     }
   }
 
@@ -2153,6 +2253,9 @@ pub pure check_expression_evidence(
       if info.name == "Unknown" {
         diagnostics = diagnostics.append(checker_diagnostic("unknown name ${name}"))
       } else {}
+    },
+    AnonymousExpr(effect, parameters, result_type, body) => {
+      diagnostics = diagnostics.append(checker_diagnostic("anonymous function type checking is not yet available in this development build"))
     },
     FunctionExpr(name) => {
       function: FunctionLookup = function_type(program, name)
@@ -3128,6 +3231,7 @@ pure condition_facts_evidence(
             BoolExpr(other_bool) => {},
             NameExpr(other_name) => {},
             FunctionExpr(other_function) => {},
+            AnonymousExpr(effect, parameters, result_type, body) => {},
             ArrayExpr(other_items) => {},
             UnaryExpr(other_op, other_operand) => {},
             BinaryExpr(other_binary_op, other_left, other_right) => {},
@@ -3147,6 +3251,7 @@ pure condition_facts_evidence(
         StringExpr(text) => {},
         BoolExpr(value) => {},
         FunctionExpr(function_name) => {},
+        AnonymousExpr(effect, parameters, result_type, body) => {},
         ArrayExpr(items) => {},
         UnaryExpr(op, operand) => {},
         BinaryExpr(op, a, b) => {},
@@ -3166,6 +3271,7 @@ pure condition_facts_evidence(
     BoolExpr(value) => {},
     NameExpr(name) => {},
     FunctionExpr(function_name) => {},
+    AnonymousExpr(effect, parameters, result_type, body) => {},
     ArrayExpr(items) => {},
     UnaryExpr(operator, operand) => {},
     CallExpr(name, arguments, type_arguments) => {},

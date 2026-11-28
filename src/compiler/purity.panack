@@ -1,4 +1,4 @@
-pub import project/src/compiler/parser::{Expr, Program, Block, SourceSpan, Diagnostic, expression_span, parse_program_complete, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, BlockValue.NoBlockValue, BlockValue.TailBlockValue}
+pub import project/src/compiler/parser::{Expr, Program, Block, SourceSpan, Diagnostic, expression_span, parse_program_complete, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.AnonymousExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.OwnedCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, BlockValue.NoBlockValue, BlockValue.TailBlockValue}
 pub import project/src/compiler/checker::{TypeInfo, CheckedExpression, CheckedProgram, EnumLookup, FunctionLookup, TypeShape, check_expression, check_program_evidence, checker_diagnostic, checker_diagnostics_at, enum_type, function_type, local_binding_info, plain_type, substitute_type, type_shape}
 pub import project/src/compiler/resolver::{SourceUnit, LoadedSource, ModuleGraphState, append_program_declarations, duplicate_module_diagnostics, render_resolver_diagnostics, visit_module}
 import project/src/compiler/lexer::{lex, lex_file}
@@ -7,6 +7,8 @@ import project/src/compiler/lexer::{lex, lex_file}
 // Ordinary validation and opt-in explanations share the same decisions.
 
 pub pure is_impure_builtin(name: Str): Bool {
+  name == "state_create" || name == "state_read" || name == "state_update" ||
+  name == "state_create_async" || name == "state_read_async" || name == "state_update_async" ||
   name == "http_body" || name == "http_body_size" || name == "http_body_append" || name == "http_connection_continue" ||
   name == "http_listen_ordinary" || name == "http_listen_contextual" || name == "http_close" || name == "http_destroy" ||
   name == "http_connection_writer" || name == "http_connection_routes" || name == "http_connection_fallback" || name == "http_connection_admit" || name == "http_connection_invoke" ||
@@ -17,17 +19,18 @@ pub pure is_impure_builtin(name: Str): Bool {
     name == "tcp_serve" ||
     name == "tcp_service" || name == "tcp_serve_stream" ||
     name == "tcp_server_read_chunk") ||
-    (name == "fs_read_beneath" || name == "host_arguments_async" || name == "host_stdout_async" ||
-    name == "host_stderr_async" || name == "host_exit_async" || name == "fs_read_beneath_async" || name == "fs_root_identity_async") || name == "fs_directories_overlap" || name == "fs_read" ||
-    name == "fs_write" ||
-    name == "fs_metadata" ||
-    name == "fs_list" ||
-    name == "fs_create_directory" ||
-    name == "fs_remove_file" ||
-    name == "fs_remove_directory" ||
-    (name == "http_stream_open" || name == "http_stream_read" || name == "http_stream_close" || name == "fs_read_link" || name == "fs_stage_symlink" || name == "fs_stage_begin" || name == "fs_stage_path" || name == "fs_stage_directory" || name == "fs_stage_write" || name == "fs_stage_publish" || name == "fs_stage_close" || (name == "digest_sha256_open" || name == "digest_update" || name == "digest_finish" || name == "digest_close" || name == "gzip_open" || name == "gzip_step" || name == "gzip_close" || (name == "fs_read_chunk" || name == "fs_atomic_write" || name == "fs_temp_file"))) ||
-    name == "fs_temp_directory" ||
-    name == "host_sleep" ||
+    (name == "fs_read_beneath" || name == "process_run_async" || name == "process_run_isolated_async" || name == "console_input_async" || name == "console_output_async" || name == "host_sleep_async" || name == "instant_now_async" || name == "environment_lookup_async" ||
+    name == "host_arguments_async" || name == "host_stdout_async" ||
+    name == "host_stderr_async" || name == "host_exit_async" || name == "fs_read_beneath_async" || (name == "fs_root_identity" || name == "fs_root_identity_async")) || (name == "fs_directories_overlap" || name == "fs_directories_overlap_async") || (name == "fs_read" || name == "fs_read_async") ||
+    (name == "fs_write" || name == "fs_write_async") ||
+    (name == "fs_metadata" || name == "fs_metadata_async") ||
+    (name == "fs_list" || name == "fs_list_async") ||
+    (name == "fs_create_directory" || name == "fs_create_directory_async") ||
+    (name == "fs_remove_file" || name == "fs_remove_file_async") ||
+    (name == "fs_remove_directory" || name == "fs_remove_directory_async") ||
+    (name == "sha256_create" || name == "sha256_create_async" || name == "sha256_update" || name == "sha256_update_async" || name == "sha256_finish" || name == "sha256_finish_async" || name == "sha256_close" || name == "sha256_close_async" || name == "gzip_decoder_create" || name == "gzip_decoder_create_async" || name == "gzip_decoder_decode" || name == "gzip_decoder_decode_async" || name == "gzip_decoder_close" || name == "gzip_decoder_close_async" || name == "http_stream_open_typed" || name == "http_stream_open_async" || name == "http_stream_read_typed" || name == "http_stream_read_async" || name == "http_stream_close_typed" || name == "http_stream_close_async" || name == "http_stream_open" || name == "http_stream_read" || name == "http_stream_close" || (name == "fs_read_link" || name == "fs_read_link_async") || name == "fs_stage_symlink" || ((name == "stage_create" || name == "stage_create_async") || (name == "stage_path" || name == "stage_path_async") || (name == "stage_directory" || name == "stage_directory_async") || (name == "stage_write" || name == "stage_write_async") || (name == "stage_symlink" || name == "stage_symlink_async") || (name == "stage_publish" || name == "stage_publish_async") || (name == "stage_discard" || name == "stage_discard_async") || name == "fs_stage_begin") || name == "fs_stage_path" || name == "fs_stage_directory" || name == "fs_stage_write" || name == "fs_stage_publish" || name == "fs_stage_close" || (name == "digest_sha256_open" || name == "digest_update" || name == "digest_finish" || name == "digest_close" || name == "gzip_open" || name == "gzip_step" || name == "gzip_close" || ((name == "fs_read_chunk" || name == "fs_read_chunk_async") || (name == "fs_atomic_write" || name == "fs_atomic_write_async") || (name == "fs_temp_file" || name == "fs_temp_file_async")))) ||
+    (name == "fs_temp_directory" || name == "fs_temp_directory_async") ||
+    name == "console_input" || name == "console_output" || name == "host_sleep" ||
     (name == "process_run" || name == "process_run_isolated") ||
     name == "instant_now" || name == "print" || name == "read_line" || name == "read_file" ||
     name == "write_file" || name == "read_bytes" || name == "write_bytes" ||
@@ -133,6 +136,7 @@ pub pure check_effect_expression(
     BoolExpr(value) => {},
     NameExpr(name) => {},
     FunctionExpr(name) => {},
+    AnonymousExpr(effect, parameters, result_type, body) => {},
     ArrayExpr(items) => {
       for item in items {
         result = combine_effects(
@@ -184,7 +188,18 @@ pub pure check_effect_expression(
     CallExpr(name, arguments, type_arguments) => {
       await_call = true
       function: FunctionLookup = function_type(program, name)
-      mut async_call: Bool = (name == "host_arguments_async" || name == "host_stdout_async" ||
+      mut async_call: Bool = (name == "stage_create_async" || name == "stage_path_async" || name == "stage_directory_async" || name == "stage_write_async" || name == "stage_symlink_async" || name == "stage_publish_async" || name == "stage_discard_async" || name == "fs_read_link_async" || name == "fs_read_chunk_async" || name == "fs_atomic_write_async" || name == "fs_metadata_async" ||
+    name == "fs_read_async" ||
+    name == "fs_write_async" ||
+    name == "fs_list_async" ||
+    name == "fs_remove_file_async" ||
+    name == "fs_remove_directory_async" ||
+    name == "fs_create_directory_async" ||
+    name == "fs_temp_directory_async" ||
+    name == "fs_temp_file_async" ||
+    name == "fs_directories_overlap_async" ||
+        name == "process_run_async" || name == "process_run_isolated_async" || name == "console_input_async" || name == "console_output_async" || name == "host_sleep_async" || name == "instant_now_async" || name == "environment_lookup_async" ||
+    name == "host_arguments_async" || name == "host_stdout_async" ||
     name == "host_stderr_async" || name == "host_exit_async" || name == "fs_read_beneath_async" || name == "fs_root_identity_async" || name == "async_fake_read" ||
         name == "tcp_exchange" || name == "http_transport_exchange" ||
         name == "tcp_serve" ||
@@ -629,6 +644,7 @@ pure expression_is_await(expression: Expr): Bool {
     BoolExpr(value) => {},
     NameExpr(name) => {},
     FunctionExpr(name) => {},
+    AnonymousExpr(effect, parameters, result_type, body) => {},
     ArrayExpr(items) => {},
     UnaryExpr(operator, operand) => {
       result = operator == "await"

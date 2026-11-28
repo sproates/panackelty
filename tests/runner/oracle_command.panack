@@ -1,5 +1,5 @@
 import stdlib/compiler_files as compiler_files
-import stdlib/process as std_process
+import stdlib/process/legacy as std_process
 import stdlib/time as std_time
 import stdlib/path as std_path
 import stdlib/host as std_host

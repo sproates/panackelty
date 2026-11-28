@@ -1,0 +1,135 @@
+record GenericHandler[T] { callback: PureFn[T,T] }
+
+pure wrapped_callback(): Option[PureFn[Nat,Nat]] { Some((x) => x + 5) }
+
+pure generic_handler(): GenericHandler[Nat] { GenericHandler((x) => x + 6) }
+
+record Handler { callback: PureFn[Nat,Nat] }
+
+pure make_callbacks(): [PureFn[Nat,Nat]] { [(x) => x + 1, (x) => x + 2] }
+
+pure apply_first(callbacks: [PureFn[Nat,Nat]]): Nat { callbacks[0].call(5) }
+
+pure apply(callback: PureFn[Nat,Nat], value: Nat): Nat {
+  callback.call(value)
+}
+
+pure make_increment(): PureFn[Nat,Nat] {
+  (value) => value + 1
+}
+
+pure make_identity[T](): PureFn[T,T] {
+  (value: T) => value
+}
+
+pure choose(flag: Bool): PureFn[Nat,Nat] {
+  if flag { (value) => value + 1 } else { (value) => value + 2 }
+}
+
+pure choose_match(flag: Option[Bool]): PureFn[Nat,Nat] {
+  match flag {
+    Some(value) => (item) => item + 3,
+    None() => (item) => item + 4
+  }
+}
+
+pure make_nested(): PureFn[PureFn[Nat,Nat]] {
+  (): PureFn[Nat,Nat] => (value) => value + 4
+}
+
+pure make_adder(offset: Nat): PureFn[Nat,Nat] { (value) => offset + value }
+
+pure retain_value[T](value: T): PureFn[T] { () => value }
+
+pure nested_capture(offset: Nat): PureFn[Nat,PureFn[Nat]] {
+  (step) => () => offset + step
+}
+
+pure retain_callback(callback: PureFn[Nat,Nat]): PureFn[Nat,Nat] {
+  (value) => callback.call(value)
+}
+
+pure sum_reader(values: [Nat]): PureFn[Nat] {
+  () => {
+    mut total: Nat = 0
+    for value in values { total = total + value }
+    total
+  }
+}
+
+pure range_reader(): PureFn[Nat] {
+  values = 1..4
+  () => {
+    mut total: Nat = 0
+    for value in values { total = total + value }
+    total
+  }
+}
+
+pure loop_readers(): [PureFn[Nat]] {
+  mut callbacks: [PureFn[Nat]] = []
+  for value in [1, 2, 3] { callbacks = callbacks.append(() => value) }
+  callbacks
+}
+
+main(): Void {
+  increment = (value: Nat) => value + 1
+  print(increment.call(4))
+  print(apply((value) => value * 2, 3))
+  print([1, 2, 3].map((value) => value + 10))
+  label = pure (value: Str): Str => { "Hello, " + value }
+  print(label.call("Panack"))
+  returned = make_increment()
+  print(returned.call(8))
+  identity = make_identity[Str]()
+  print(identity.call("generic"))
+  contextual: PureFn[Nat,Nat] = (value) => value + 3
+  print(contextual.call(4))
+  print([1, 2].map((value) => "item"))
+  printer = (value: Nat) => { print(value) }
+  printer.call(12)
+  print(choose(true).call(5))
+  print(choose(false).call(5))
+  print(choose_match(Some(true)).call(5))
+  print(choose_match(None()).call(5))
+  nested = make_nested().call()
+  print(nested.call(5))
+  mut selected: PureFn[Nat,Nat] = (value) => value
+  selected = if true { (value) => value + 5 } else { (value) => value + 6 }
+  print(selected.call(5))
+  print(apply(if true { print("select"); (value) => value + 1 } else { (value) => value }, 6))
+  mut count: Nat = 2
+  print(apply(if true { count = 0; (value) => value } else { (value) => value }, count))
+  callbacks = make_callbacks()
+  print(callbacks[0].call(3))
+  print(callbacks[1].call(3))
+  nested_callbacks: [[PureFn[Nat,Nat]]] = [[(x) => x + 3]]
+  print(nested_callbacks[0][0].call(3))
+  print(apply_first([(x) => x + 2]))
+  handler = Handler((x) => x + 4)
+  print(handler.callback.call(4))
+  match wrapped_callback() {
+    Some(callback) => print(callback.call(4)),
+    None() => print(0)
+  }
+  print(generic_handler().callback.call(4))
+  add = make_adder(40)
+  print(add.call(2))
+  print(add.call(3))
+  saved = retain_value[Str]("retained")
+  print(saved.call())
+  factory = nested_capture(30)
+  retained_nested = factory.call(12)
+  print(retained_nested.call())
+  print(retain_callback(add).call(4))
+  print(make_adder(40) == make_adder(40))
+  print(make_adder(40) == make_adder(41))
+  print([1, 2].map((value) => value + add.call(0)))
+  sum = sum_reader([1, 2, 3])
+  print(sum.call())
+  print(sum.call())
+  range_sum = range_reader()
+  print(range_sum.call())
+  print(range_sum.call())
+  for callback in loop_readers() { print(callback.call()) }
+}

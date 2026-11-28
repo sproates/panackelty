@@ -1,0 +1,25 @@
+import stdlib/console/errors::{ConsoleOperation.Read, ConsoleOperation.Write, ConsoleOperation.WriteLine, ConsoleOperation.WriteError, ConsoleOperation.WriteErrorLine}
+pub import stdlib/console/errors::{ConsoleError, ConsoleErrorKind, ConsoleOperation}
+import stdlib/console/errors as errors
+
+// Messages are limited to 16 KiB before the optional newline.
+pub write(message: Str): Result[Unit,ConsoleError] {
+  errors.convert(console_output(message, false, false), Write())
+}
+
+pub write_line(message: Str): Result[Unit,ConsoleError] {
+  errors.convert(console_output(message, false, true), WriteLine())
+}
+
+pub write_error(message: Str): Result[Unit,ConsoleError] {
+  errors.convert(console_output(message, true, false), WriteError())
+}
+
+pub write_error_line(message: Str): Result[Unit,ConsoleError] {
+  errors.convert(console_output(message, true, true), WriteErrorLine())
+}
+
+// One non-empty chunk of at most limit bytes, or None at EOF. Limit: 1..65536.
+pub read(limit: Nat): Result[Option[Bytes],ConsoleError] {
+  errors.convert(console_input(limit), Read(limit))
+}

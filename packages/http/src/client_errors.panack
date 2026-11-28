@@ -1,0 +1,41 @@
+pub import "types.panack"::{HttpError, HttpError.InvalidUrl, HttpError.InvalidLimits,
+  HttpError.DnsFailure, HttpError.ConnectFailure, HttpError.TlsFailure, HttpError.Timeout,
+  HttpError.ProtocolError, HttpError.LimitExceeded, HttpError.Cancelled,
+  HttpError.UnsupportedHost, HttpError.UnsupportedMethod, HttpError.UnsupportedVersion,
+  HttpError.UnsupportedTransferEncoding, HttpError.InvalidRequest, HttpError.InvalidResponse,
+  HttpError.TransportFailure}
+pub import stdlib/network/http_stream/errors::{HttpStreamError}
+pub record HttpClientError { kind: HttpError, transport: Option[HttpStreamError], endpoint: Option[Str] }
+impl HttpClientError {
+  pub pure render(): Str {
+    context = match self.endpoint { Some(endpoint) => "HTTP GET for '${endpoint}'.\n", None() => "" }
+    context + match self.transport {
+      Some(problem) => problem.render(),
+      None() => match self.kind {
+        InvalidUrl(reason) => "Cannot make the HTTP request: ${reason}.",
+        InvalidLimits() => "Cannot make the HTTP request: the timeout must be 1–60000 milliseconds, the header limit 1–65536 bytes and the body limit 1–1048576 bytes.",
+        DnsFailure() => "Cannot make the HTTP request: the hostname could not be resolved.",
+        ConnectFailure() => "Cannot make the HTTP request: the connection failed.",
+        TlsFailure() => "Cannot make the HTTP request: the TLS connection failed.",
+        Timeout() => "Cannot complete the HTTP request: the transport deadline expired.",
+        ProtocolError(reason) => "Cannot accept the HTTP response: ${reason}.",
+        LimitExceeded(limit) => "Cannot accept the HTTP response: the ${limit} limit was exceeded.",
+        Cancelled() => "The HTTP request was cancelled.",
+        UnsupportedHost() => "The HTTP destination is unsupported. This client accepts DNS names and IPv4 addresses.",
+        UnsupportedMethod(method) => "The HTTP method '${method}' is not supported.",
+        UnsupportedVersion(version) => "The HTTP version '${version}' is not supported.",
+        UnsupportedTransferEncoding() => "The HTTP transfer encoding is not supported.",
+        InvalidRequest() => "The HTTP request is invalid.",
+        InvalidResponse() => "The HTTP response is invalid.",
+        TransportFailure(reason) => "Cannot complete the HTTP request: ${reason}."
+      }
+    }
+  }
+}
+pub pure protocol[T](result: Result[T,HttpError]): Result[T,HttpClientError] {
+  match result { Ok(value) => Ok(value), Error(problem) => Error(HttpClientError(problem,None(),None())) }
+}
+
+pub pure at_endpoint[T](result: Result[T,HttpClientError], endpoint: Str): Result[T,HttpClientError] {
+  match result { Ok(value) => Ok(value), Error(problem) => Error(HttpClientError(problem.kind,problem.transport,Some(endpoint))) }
+}

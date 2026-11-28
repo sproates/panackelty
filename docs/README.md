@@ -1,6 +1,6 @@
 # Documentation
 
-**Current native release: [0.1.0-alpha.13](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.13)**,
+**Current native release: [0.1.0-alpha.15](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.15)**,
 using bytecode version 9. Begin with a guide; use reference pages for precise
 contracts. Design proposals and dated evidence are kept separate from user guides.
 
@@ -19,7 +19,8 @@ contracts. Design proposals and dated evidence are kept separate from user guide
 - [Examples](../examples/README.md): runnable programs and package examples.
 - [Packages](../packages/README.md): HTTP client/server and static file service.
 - [Tools](../tools/README.md): commands built with Panackelty.
-- [Standard library](../src/stdlib/README.md): available modules and APIs.
+- [Standard library](reference/STANDARD_LIBRARY.md): ordinary/async development APIs, with release boundaries stated.
+- [Standard-library source index](../src/stdlib/README.md): module ownership and implementation.
 - [Tests](../tests/README.md): contributor validation and regression evidence.
 
 ## Reading dated material

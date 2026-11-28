@@ -1,0 +1,7 @@
+pub import stdlib/testing_commands::{TestResult, TestCommand, ProcessOutput, HostError,
+  command_output, command_result, capture_report, expect_command_error}
+import stdlib/testing_commands as legacy
+
+pub run(name: Str, command: TestCommand, expected: ProcessOutput): TestResult {
+  legacy.run_command(name, command, expected)
+}

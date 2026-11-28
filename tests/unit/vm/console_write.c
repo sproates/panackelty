@@ -15,8 +15,62 @@
 #include <time.h>
 #include <unistd.h>
 
+static void checked_console_contracts(void)
+{
+    char filename[] = "/tmp/panack-checked-console-XXXXXX";
+    int output = mkstemp(filename);
+    assert(output >= 0 && unlink(filename) == 0);
+    fflush(stdout);
+    fflush(stderr);
+    int saved_out = dup(STDOUT_FILENO), saved_err = dup(STDERR_FILENO);
+    assert(saved_out >= 0 && saved_err >= 0);
+    assert(dup2(output, STDOUT_FILENO) >= 0 && dup2(output, STDERR_FILENO) >= 0);
+    Value *message = value_data(V_STR, (const uint8_t *)"x\0y", 3);
+    VM vm = {0};
+    for (size_t ordinary = 0; ordinary < 2; ordinary++) {
+        for (size_t mode = 0; mode < 4; mode++) {
+            Value *flags[] = {message, value_bool(mode >= 2), value_bool(mode % 2)};
+            Value *result;
+            if (ordinary) result = console_output_call(&vm, "console_output", flags);
+            else {
+                VMConsoleWrite *write = console_write_start_mode(&vm, message, mode >= 2, mode % 2, false);
+                assert(write);
+                console_write_wait(write);
+                result = retain(console_write_result(write));
+                console_write_destroy(write);
+            }
+            assert(result && !strcmp(result->as.named.name, "Ok"));
+            release(result);
+            release(flags[1]);
+            release(flags[2]);
+        }
+    }
+    assert(dup2(saved_out, STDOUT_FILENO) >= 0 && dup2(saved_err, STDERR_FILENO) >= 0);
+    close(saved_out); close(saved_err);
+    assert(lseek(output, 0, SEEK_SET) == 0);
+    char bytes[29];
+    const char expected[] = "x\0yx\0y\nx\0yx\0y\nx\0yx\0y\nx\0yx\0y\n";
+    assert(read(output, bytes, sizeof(bytes)) == 28 && !memcmp(bytes, expected, 28));
+    close(output);
+    release(message);
+    /* Raw empty output still validates the descriptor and returns a checked error. */
+    saved_out = dup(STDOUT_FILENO);
+    assert(saved_out >= 0 && close(STDOUT_FILENO) == 0);
+    message = value_data(V_STR, (const uint8_t *)"", 0);
+    Value *args[] = {message, value_bool(false), value_bool(false)};
+    Value *result = console_output_call(&vm, "console_output", args);
+    assert(result && !strcmp(result->as.named.name, "Error"));
+    Value *problem = result->as.named.values[0];
+    assert(!strcmp((char *)problem->as.named.values[0]->as.bytes.data, "console_write"));
+    assert(!strcmp((char *)problem->as.named.values[1]->as.bytes.data, "io_error"));
+    release(result);
+    assert(dup2(saved_out, STDOUT_FILENO) >= 0); close(saved_out);
+    release(args[1]); release(args[2]); release(message);
+}
+
 void console_write_contracts(void)
 {
+    checked_console_contracts();
     char filename[] = "/tmp/panack-console-XXXXXX";
     int output = mkstemp(filename);
     assert(output >= 0 && unlink(filename) == 0);

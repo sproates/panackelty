@@ -35,6 +35,29 @@ The [validated dispatch example](validated_dispatch.panack) checks retry
 configuration and request labels. Its [walkthrough and migration guide](../docs/guides/VALIDATED_DOMAIN_TYPES.md)
 shows how to handle successful values and report every failed rule.
 
+## Async standard library (alpha.16 development)
+
+These examples require the matching development toolchain; they are not present
+in alpha.15 archives. Each has a source/compiled-bytecode transcript check.
+
+| Program | Demonstrates |
+| --- | --- |
+| [async_console_input.panack](async_console_input.panack) | Bounded input until EOF and checked UTF-8 |
+| [async_publish_note.panack](async_publish_note.panack) | Create-only stage publication, confined reads and cleanup |
+| [async_digest.panack](async_digest.panack) | Chunked SHA-256 and consuming a context safely |
+| [async_gzip.panack](async_gzip.panack) | Bounded decompression, chunk consumption and explicit cleanup |
+| [async_timing.panack](async_timing.panack) | Monotonic clock reads and a suspending timer through one time import |
+| [async_temporary_note.panack](async_temporary_note.panack) | Bounded file reads, checked UTF-8 and cleanup after success or failure |
+| [async_pipe_input.panack](async_pipe_input.panack) | Explicit subprocess input/environment/limits and termination handling |
+
+Run with `./bin/panack run examples/async_timing.panack`, substituting another
+filename as needed. The temporary-note example needs a writable current directory;
+the subprocess example needs `/bin/cat`. The console example waits for EOF;
+its default test has empty input, with separate fixtures for non-empty input,
+invalid UTF-8 and the total byte limit. See the
+[stdlib reference](../docs/reference/STANDARD_LIBRARY.md) and
+[migration guide](../docs/guides/STDLIB_MIGRATION.md).
+
 ## VM walkthroughs
 
 The [VM execution guide](../docs/guides/VM_GUIDE.md) includes disassembly and recorded
@@ -134,3 +157,8 @@ Run `sh tests/fixture_inventory.sh` for immediate bookkeeping feedback before
 `make check`. See the [preflight contract](../tests/README.md#fixture-inventory-preflight).
 
 The [HTTP playbook](../docs/guides/HTTP_PLAYBOOK.md) walks through the routed server examples, including [explicit listener shutdown](network/http_server_lifecycle/README.md).
+
+The alpha.16 development [State counter](state/README.md) combines a pure anonymous
+transform with a closure retaining a cell, without HTTP. The network guide includes
+equivalent [closure](network/http_state_closure/README.md) and
+[contextual](network/http_state_contextual/README.md) request-count/uptime services.

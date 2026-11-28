@@ -17,8 +17,77 @@ static Value *text(const char *value)
     return value_data(V_STR, (const uint8_t *)value, strlen(value));
 }
 
+static void retained_route_contracts(void)
+{
+    char *entry_params[] = {"connection", "selection", "request", "writer"};
+    char *params[] = {"saved", "request", "writer"};
+    char *context_params[] = {"saved", "context", "request", "writer"};
+    Instruction invoke[] = {{.op = OP_LOAD, .name = "connection"},
+        {.op = OP_LOAD, .name = "selection"}, {.op = OP_LOAD, .name = "request"},
+        {.op = OP_LOAD, .name = "writer"},
+        {.op = OP_AWAIT_CALL, .name = "http_connection_invoke", .arity = 4}, {.op = OP_RETURN}};
+    Instruction main_code[] = {{.op = OP_CALL, .name = "$unit"}, {.op = OP_RETURN}};
+    Instruction reply[] = {{.op = OP_LOAD, .name = "saved"}, {.op = OP_LOAD, .name = "request"},
+        {.op = OP_LOAD, .name = "writer"}, {.op = OP_MAKE_ARRAY, .count = 3}, {.op = OP_RETURN}};
+    Function functions[] = {
+        {.name = "invoke", .params = entry_params, .param_count = 4, .is_async = true, .ins = invoke, .ins_count = 6},
+        {.name = "main", .ins = main_code, .ins_count = 2},
+        {.name = "route", .params = params, .param_count = 3, .is_async = true, .ins = reply, .ins_count = 5}};
+    Program program = {.functions = functions, .count = 3};
+    Value *saved = text("retained"), *request = text("request"), *writer = text("writer");
+    Value *address = text("127.0.0.1"), *port = value_size(8000), *method = text("GET"), *path = text("/");
+    for (size_t contextual = 0; contextual < 2; contextual++) {
+        functions[2].params = contextual ? context_params : params;
+        functions[2].param_count = contextual ? 4 : 3;
+        const char *error = NULL;
+        assert(verify(&program, &error));
+        VM vm = {.program = &program};
+        VMHttpState *state = http_state_create(address, port, value_unit());
+        assert(state);
+        state->contextual = contextual;
+        Value *handle = value_new(V_HTTP_STATE);
+        handle->as.http_state = state;
+        CaptureCheck status;
+        Value *closure = value_closure("route", &saved, 1, &status);
+        Value *registration[] = {handle, method, path, closure};
+        const Builtin *reg = builtin("http_state_register");
+        Value *registered = reg->call(&vm, reg->name, registration);
+        assert(registered && !vm.error);
+        release(registered);
+        state->fallback = retain(closure);
+        release(closure);
+        assert(saved->refs == 2);
+        Value *connection = value_new(V_HTTP_CONNECTION);
+        connection->as.http_connection = calloc(1, sizeof(VMHttpConnection));
+        assert(connection->as.http_connection);
+        connection->as.http_connection->server = state;
+        connection->as.http_connection->admitted = true;
+        for (size_t fallback = 0; fallback < 2; fallback++) {
+            Value *index = value_size(0);
+            Value *selection = named_value(V_VARIANT, fallback ? "None" : "Some", NULL,
+                                           fallback ? NULL : &index, fallback ? 0 : 1);
+            Value *arguments[] = {connection, selection, request, writer};
+            VMExecution *run = vm_execution_create_async(&vm, &functions[0], arguments, NULL, NULL, &error);
+            assert(run && !error);
+            connection->as.http_connection->execution = run;
+            assert(vm_execution_advance(run, 30) == VM_COMPLETED);
+            Value *result = vm_execution_result(run);
+            assert(result && result->kind == V_ARRAY && result->as.sequence.count == 3);
+            assert(result->as.sequence.items[0] == saved && result->as.sequence.items[1] == request &&
+                   result->as.sequence.items[2] == writer);
+            assert(vm_execution_destroy(run));
+            connection->as.http_connection->execution = NULL;
+            release(selection); release(index);
+        }
+        release(connection); release(handle);
+        assert(saved->refs == 1);
+    }
+    release(saved); release(request); release(writer); release(address); release(port); release(method); release(path);
+}
+
 void http_state_contracts(void)
 {
+    retained_route_contracts();
     VM vm = {0};
     const Builtin *create = builtin("http_state_create");
     const Builtin *register_route = builtin("http_state_register");

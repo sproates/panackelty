@@ -2,9 +2,13 @@
 #undef NDEBUG
 #endif
 #include "builtins.h"
+#include "state.h"
+#include "host_capabilities.h"
 #include "decode.h"
 #include "fault_injection.h"
 #include "http_transport.h"
+#include "digest.h"
+#include "gzip_stream.h"
 #include "http_state.h"
 #include "numeric.h"
 #include "render.h"
@@ -24,6 +28,81 @@ static Value *operand;
 static uint8_t operation;
 static Value *left, *right;
 static size_t sweeps;
+static Value *index_fixture;
+static uint8_t argument_count;
+static bool argument_indirect, argument_underflow;
+
+static size_t literal_budget;
+static uint8_t literal_tag;
+static void literal_cache_allocations(void)
+{
+    uint32_t limb = 123;
+    Instruction code[] = {{.op = OP_CONST, .constant = {.tag = literal_tag,
+        .number = {.sign = 1, .len = 1, .limbs = &limb}, .exponent = -2,
+        .text = "cached", .text_length = 6}},
+        {.op = OP_RETURN}};
+    Function fn = {.name = "main", .ins = code, .ins_count = 2};
+    Program program = {.functions = &fn, .count = 1};
+    const char *error = NULL;
+    if (!verify(&program, &error)) { assert(fault_triggered() && error); return; }
+    VM vm = {.program = &program};
+    VMExecution *run = vm_execution_create(&vm, &fn, NULL, NULL, NULL, &error);
+    if (!run) { assert(fault_triggered() && error); return; }
+    VMExecutionStatus result = vm_execution_advance(run, literal_budget);
+    if (fault_triggered()) assert(result == VM_TRAPPED && vm.error);
+    else assert(result == (literal_budget == 1 ? VM_YIELDED : VM_COMPLETED));
+    assert(vm_execution_destroy(run));
+}
+
+static void call_argument_allocations(void)
+{
+    char *params[] = {"a", "b", "c", "d", "e", "f", "g", "h", "i"};
+    Instruction code[12] = {0};
+    size_t used = 0;
+    if (argument_indirect) code[used++] = (Instruction){.op = OP_CONST,
+        .constant = {.tag = 3, .text = "target", .text_length = 6}};
+    for (size_t i = 0; i < argument_count; i++) {
+        code[used++] = (Instruction){.op = OP_CONST,
+            .constant = {.tag = 4, .boolean = i + 1 == argument_count}};
+    }
+    if (argument_underflow) code[used - 1] = (Instruction){.op = OP_JUMP, .target = (uint32_t)used};
+    code[used++] = (Instruction){.op = argument_indirect ? OP_CALL_VALUE : OP_CALL,
+        .name = "target", .arity = argument_count};
+    code[used++] = (Instruction){.op = OP_RETURN};
+    Instruction target[] = {{.op = OP_LOAD, .name = params[argument_count - 1]}, {.op = OP_RETURN}};
+    Function functions[] = {{.name = "main", .ins = code, .ins_count = used},
+        {.name = "target", .params = params, .param_count = argument_count, .ins = target, .ins_count = 2}};
+    Program program = {.functions = functions, .count = 2};
+    const char *error = NULL;
+    if (!verify(&program, &error)) {
+        assert(fault_triggered() && error);
+        return;
+    }
+    VM vm = {.program = &program};
+    Value *result = execute(&vm, &functions[0], NULL);
+    if (fault_triggered() || argument_underflow) {
+        assert(!result && vm.error);
+    } else {
+        assert(result && !vm.error && result->kind == V_BOOL && result->as.boolean);
+    }
+    release(result);
+}
+
+static void collection_index_allocations(void)
+{
+    Value *set = value_sequence(V_SET, index_fixture->as.sequence.items, index_fixture->as.sequence.count);
+    if (!set) {
+        assert(fault_triggered());
+        return;
+    }
+    for (size_t i = 0; i < 10; i++) {
+        /* Index allocation failure is optional: lookup must still succeed. */
+        assert(value_collection_find(set, index_fixture->as.sequence.items[i]) == i);
+    }
+    if (fault_triggered()) assert(!set->as.sequence.index);
+    else assert(set->as.sequence.index);
+    release(set);
+}
 
 /* Discover each operation's successful allocation count, then fail every site.
  * One final successful run also checks that failures did not corrupt inputs.
@@ -89,10 +168,12 @@ static void decode_program(void)
     Program program;
     const char *error = NULL;
     bool decoded = decode(bytes, sizeof(bytes), &program, &error);
+    bool verified = decoded && verify(&program, &error);
     if (!fault_triggered()) {
-        assert(decoded && verify(&program, &error));
+        assert(decoded && verified);
     } else {
-        assert(!decoded && error);
+        assert(!verified && error);
+        assert(!program.resolved_locals);
     }
     free_program(&program);
     free_program(&program);
@@ -236,6 +317,73 @@ static void construct_array(void)
     assert(operand->refs == 1);
 }
 
+static Value *closure_fixture;
+static Value *construction_arguments[3];
+static void construct_checked_closure(void)
+{
+    const Builtin *constructor = builtin("$intrinsic_closure");
+    Function target = {.name = "body", .param_count = 81};
+    Program program = {.functions = &target, .count = 1};
+    VM vm = {.program = &program};
+    Value *result = constructor->call(&vm, constructor->name, construction_arguments);
+    if (fault_triggered()) assert(!result && vm.error);
+    else assert(result && !vm.error && result->as.named.count == 80);
+    release(result);
+    for (size_t i = 0; i < 80; i++) assert(closure_fixture->as.sequence.items[i]->refs == 2);
+}
+
+static Value *invocation_fixture;
+static bool host_invocation;
+static void invoke_closure(void)
+{
+    char *entry_params[] = {"callback"};
+    char *params[] = {"a", "b", "c", "d", "e", "f", "g", "h", "i"};
+    size_t count = invocation_fixture->as.named.count;
+    Instruction code[] = {{.op = OP_LOAD, .name = "callback"},
+                          {.op = OP_CALL_VALUE}, {.op = OP_RETURN}};
+    Instruction main_code[] = {{.op = OP_CONST, .constant = {.tag = 4}}, {.op = OP_RETURN}};
+    Instruction body[] = {{.op = OP_LOAD, .name = params[count - 1]}, {.op = OP_RETURN}};
+    Function functions[] = {
+        {.name = "invoke", .params = entry_params, .param_count = 1, .ins = code, .ins_count = 3},
+        {.name = "main", .ins = main_code, .ins_count = 2},
+        {.name = "target", .params = params, .param_count = count, .ins = body, .ins_count = 2,
+         .is_async = host_invocation}};
+    Program program = {.functions = functions, .count = 3};
+    const char *error = NULL;
+    if (!verify(&program, &error)) { assert(fault_triggered() && error); return; }
+    VM vm = {.program = &program};
+    if (host_invocation) {
+        VMCallable callable = vm_resolve_callable(&vm, invocation_fixture, 0);
+        VMExecution *run = vm_execution_create_callable_async(&vm, callable, NULL, 0, NULL, NULL, &error);
+        if (!run) assert(fault_triggered() && error);
+        else {
+            VMExecutionStatus result = vm_execution_advance(run, 10);
+            if (fault_triggered()) assert(result == VM_TRAPPED && vm.error);
+            else assert(result == VM_COMPLETED &&
+                        vm_execution_result(run) == invocation_fixture->as.named.values[count - 1]);
+            assert(vm_execution_destroy(run));
+        }
+    } else {
+        Value *result = execute(&vm, &functions[0], &invocation_fixture);
+        if (fault_triggered()) assert(!result && vm.error);
+        else assert(result == invocation_fixture->as.named.values[count - 1] && !vm.error);
+        release(result);
+    }
+    assert(invocation_fixture->refs == 1);
+    for (size_t i = 0; i < count; i++) assert(invocation_fixture->as.named.values[i]->refs == 2);
+}
+
+static void construct_closure(void)
+{
+    size_t refs = closure_fixture->refs;
+    CaptureCheck status;
+    Value *result = value_closure("capturing-body", &closure_fixture, 1, &status);
+    assert((result != NULL) == !fault_triggered());
+    assert(status == (result ? CAPTURE_ALLOWED : CAPTURE_OUT_OF_MEMORY));
+    release(result);
+    assert(closure_fixture->refs == refs);
+}
+
 static Value *append_base, *append_item;
 
 static void append_array(void)
@@ -292,6 +440,80 @@ static void construct_text(void)
     Value *result = value_data(V_STR, (const uint8_t *)"hello", 5);
     assert((result != NULL) == !fault_triggered());
     release(result);
+}
+
+static void concatenate_text(void)
+{
+    Value *result = value_data_join(V_STR, (const uint8_t *)"hello", 5,
+                                   (const uint8_t *)"world", 5);
+    assert((result != NULL) == !fault_triggered());
+    release(result);
+}
+
+static void concatenate_cached_text(void)
+{
+    Value *result = value_string_concat(left, right);
+    assert((result != NULL) == !fault_triggered());
+    release(result);
+    assert(left->refs == 1 && right->refs == 1);
+}
+
+static void indexed_locals_allocations(void)
+{
+    Instruction instructions[] = {
+        {.op = OP_CONST, .constant = {.tag = 4, .boolean = true}},
+        {.op = OP_STORE, .name = "value"}, {.op = OP_LOAD, .name = "value"},
+        {.op = OP_STORE, .name = "copy"}, {.op = OP_LOAD, .name = "copy"},
+        {.op = OP_CALL, .name = "read", .arity = 1},
+        {.op = OP_RETURN}};
+    char *params[] = {"argument"};
+    Instruction reader[] = {{.op = OP_LOAD, .name = "argument"}, {.op = OP_RETURN}};
+    Function functions[] = {{.name = "main", .ins = instructions, .ins_count = 7},
+                            {.name = "read", .params = params, .param_count = 1,
+                             .ins = reader, .ins_count = 2}};
+    Program program = {.functions = functions, .count = 2};
+    const char *error = NULL;
+    if (!verify(&program, &error)) {
+        assert(fault_triggered() && error && !program.resolved_locals && !program.resolved_calls);
+        return;
+    }
+    VM vm = {.program = &program};
+    Value *result = execute(&vm, &functions[0], NULL);
+    if (fault_triggered()) {
+        assert(!result && vm.error);
+    } else {
+        assert(result && !vm.error && result->kind == V_BOOL && result->as.boolean);
+    }
+    release(result);
+}
+
+static void concatenate_array(void)
+{
+    Value *result = value_array_concat(left, left);
+    assert((result != NULL) == !fault_triggered());
+    release(result);
+}
+
+static void concatenation_faults(void)
+{
+    fault_reset(0);
+    sweep("concatenate text", concatenate_text);
+    left = value_data(V_STR, (const uint8_t *)"hello", 5);
+    right = value_data(V_STR, (const uint8_t *)"\xce\xbb", 2);
+    assert(left && right);
+    sweep("concatenate cached text", concatenate_cached_text);
+    release(left);
+    release(right);
+    right = NULL;
+    Value *item = value_size(7);
+    assert(item);
+    left = value_sequence(V_ARRAY, &item, 1);
+    assert(left);
+    sweep("concatenate shared array", concatenate_array);
+    assert(item->refs == 2 && left->refs == 1);
+    release(left);
+    release(item);
+    left = NULL;
 }
 
 static void arithmetic(void)
@@ -470,6 +692,32 @@ static void host_failures(void)
         release(result);
         assert(!fault_descriptors() && !fault_children());
     }
+    /* EPERM is recoverable only when the requested group actually exists.
+     * Other errors and a wrong group must still fail, preserving errno. */
+    for (int mode = 1; mode <= 3; mode++) {
+        fault_reset(0);
+        size_t baseline = fault_live();
+        fault_process_group(mode);
+        VM group_vm = {0};
+        Value *result = builtin_call(&group_vm, "process_run", process_inputs);
+        assert(result);
+        if (mode == 1) {
+            assert(!strcmp(result->as.named.name, "Ok"));
+            Value *output = result->as.named.values[0]->as.named.values[2];
+            assert(output->as.bytes.length == 7 && !memcmp(output->as.bytes.data, "payload", 7));
+        } else {
+            assert(!strcmp(result->as.named.name, "Error"));
+            Value *detail = result->as.named.values[0];
+            Value *code = detail->as.named.values[1];
+            assert(code->as.bytes.length == 13 && !memcmp(code->as.bytes.data, "launch_failed", 13));
+            Value *expected_errno = value_size(mode == 3 ? EIO : EPERM);
+            assert(value_equal(detail->as.named.values[2], expected_errno));
+            release(expected_errno);
+        }
+        release(result);
+        assert(fault_live() == baseline && !fault_descriptors() && !fault_children());
+    }
+    fault_reset(0);
     for (size_t i = 0; i < 7; i++) {
         release(process_inputs[i]);
     }
@@ -481,6 +729,42 @@ static void host_failures(void)
     assert(fault_triggered() && result && !strcmp(result->as.named.name, "Error"));
     assert(!strcmp(result->as.named.values[0]->as.named.name, "ClockUnavailable"));
     release(result);
+
+    fault_reset(0);
+    Instruction clock_code[] = {{.op = OP_AWAIT_CALL, .name = "instant_now_async"},
+                                {.op = OP_RETURN}};
+    Function clock_fn = {.name = "read_clock", .is_async = true, .ins = clock_code, .ins_count = 2};
+    Program clock_program = {.functions = &clock_fn, .count = 1};
+    VM clock_vm = {.program = &clock_program};
+    const char *clock_error = NULL;
+    VMExecution *clock_run = vm_execution_create_async(&clock_vm, &clock_fn, NULL, NULL, NULL, &clock_error);
+    assert(clock_run && !clock_error);
+    fault_syscall("clock_gettime", 1, EIO);
+    assert(vm_execution_advance(clock_run, 10) == VM_COMPLETED);
+    result = vm_execution_result(clock_run);
+    assert(fault_triggered() && result && !strcmp(result->as.named.name, "Error"));
+    assert(!strcmp(result->as.named.values[0]->as.named.name, "ClockUnavailable"));
+    assert(vm_execution_destroy(clock_run));
+
+    Value *timer_duration = value_size(1000000000);
+    timer_duration->kind = V_DURATION;
+    uint64_t deadline;
+    for (size_t mode = 0; mode < 2; mode++) {
+        fault_reset(0);
+        fault_syscall("clock_gettime", 1, EIO);
+        bool pending = mode ? !host_sleep_poll(0, &result)
+                            : host_sleep_start(&vm, timer_duration, &deadline, &result);
+        assert(!pending && fault_triggered() && result);
+        assert(!strcmp(result->as.named.name, "Error"));
+        release(result);
+    }
+    fault_reset(0);
+    release(timer_duration);
+    size_t timer_baseline = fault_live();
+    fault_reset(1);
+    assert(host_sleep_poll(0, &result));
+    assert(fault_triggered() && !result && fault_live() == timer_baseline);
+    fault_reset(0);
 
     Value *duration = value_size(0);
     duration->kind = V_DURATION;
@@ -592,10 +876,12 @@ static void decode_artifact(void)
     Program program;
     const char *error = NULL;
     bool ok = decode(artifact, artifact_length, &program, &error);
+    bool verified = ok && verify(&program, &error);
     if (!fault_triggered()) {
-        assert(ok && verify(&program, &error));
+        assert(ok && verified);
     } else {
-        assert(!ok && error);
+        assert(!verified && error);
+        assert(!program.resolved_locals);
     }
     free_program(&program);
 }
@@ -654,6 +940,84 @@ static void tcp_allocations(void)
     }
     for (size_t i = 0; i < 5; i++) release(args[i]);
     assert(fault_descriptors() == 0);
+}
+
+static bool cpu_gzip;
+static unsigned cpu_mode;
+static void cpu_resource_allocations(void)
+{
+    static const uint8_t compressed[] = {31,139,8,0,0,0,0,0,0,3,203,72,205,201,201,7,0,134,166,16,54,5,0,0,0};
+    VM vm = {0};
+    Value *data = value_data(V_BYTES, cpu_gzip ? compressed : (const uint8_t *)"abc", cpu_gzip ? sizeof(compressed) : 3);
+    Value *limit = value_size(100);
+    if (data && limit) {
+        Value *opened = cpu_gzip ? gzip_resource_call(&vm, "gzip_decoder_create", &limit)
+                                : digest_resource_call(&vm, "sha256_create", NULL);
+        if (opened && !strcmp(opened->as.named.name, "Ok")) {
+            Value *args[] = {opened->as.named.values[0], data, value_bool(true)};
+            if (cpu_mode == 0) {
+                release(cpu_gzip ? gzip_resource_call(&vm, "gzip_decoder_close", args)
+                                 : digest_resource_call(&vm, "sha256_close", args));
+            } else if (cpu_mode == 1) {
+                release(cpu_gzip ? gzip_resource_call(&vm, "gzip_decoder_decode", args)
+                                 : digest_resource_call(&vm, "sha256_update", args));
+            } else if (!cpu_gzip) {
+                release(digest_resource_call(&vm, "sha256_finish", args));
+            }
+        }
+        digest_destroy(&vm); gzip_stream_destroy(&vm);
+        release(opened); // Resource values outlive their invocation table.
+    }
+    release(data); release(limit);
+}
+
+static void hash_allocations(void)
+{
+    VM vm = {0};
+    Value *data = value_data(V_BYTES, (const uint8_t *)"abc", 3);
+    if (data) release(digest_hash_call(&vm, "sha256_hash", &data));
+    release(data);
+}
+
+static unsigned stream_fault_mode;
+static void http_stream_allocations(void)
+{
+    VM vm = {0};
+    Value *args[] = {
+        value_data(V_STR, (const uint8_t *)"127.0.0.1", 9),
+        value_size(1), value_bool(false), value_data(V_BYTES, NULL, 0),
+        value_size(64), value_size(1),
+    };
+    bool valid = true;
+    for (size_t i = 0; i < 6; i++) if (!args[i]) valid = false;
+    if (valid) {
+        Value *duration = value_big(V_DURATION, &args[5]->as.integer);
+        if (duration) {
+            release(args[5]); args[5] = duration;
+            Value *opened = http_stream_open_typed(&vm, args);
+            if (opened && !strcmp(opened->as.named.name, "Ok")) {
+                Value *handle = opened->as.named.values[0], *error = NULL;
+                if (stream_fault_mode == 0) {
+                    release(http_stream_close_typed(&vm, handle));
+                } else {
+                    VMHttpStreamRead *read = http_stream_read_start(&vm, handle, &error);
+                    release(error);
+                    if (read) {
+                        if (stream_fault_mode == 1) http_stream_read_cancel(read);
+                        else {
+                            if (stream_fault_mode == 2) http_stream_destroy(&vm);
+                            while (!http_stream_read_poll(read, 1)) { }
+                            release(http_stream_read_finish(read));
+                        }
+                    }
+                }
+            }
+            http_stream_destroy(&vm);
+            release(opened); // Handle may outlive its VM table.
+        }
+    }
+    http_stream_destroy(&vm);
+    for (size_t i = 0; i < 6; i++) release(args[i]);
 }
 
 static void http_allocations(void)
@@ -730,9 +1094,9 @@ static void server_allocations(void)
         return;
     }
     VMTcpServer *server = server_streaming
-                              ? tcp_server_start_stream(&vm, &fn, context, address, server_port,
+                              ? tcp_server_start_stream(&vm, (VMCallable){&fn, NULL}, context, address, server_port,
                                                         limits, false)
-                              : tcp_server_start(&vm, &fn, address, server_port, limits, false);
+                              : tcp_server_start(&vm, (VMCallable){&fn, NULL}, address, server_port, limits, false);
     release(context);
     release(address);
     if (server && !tcp_server_done(server)) {
@@ -830,17 +1194,214 @@ static void coverage_session_allocations(void)
 
 void root_read_faults(void);
 void console_write_faults(void);
+void console_read_faults(void);
+void process_async_faults(void);
+
+static Value *state_fixture, *state_cell_fixture;
+
+static Value *function_reference_fixture;
+
+static void function_reference_allocations(void)
+{
+    Function function = {.name = "target"};
+    Program program = {.functions = &function, .count = 1};
+    VM vm = {.program = &program};
+    Value *result = builtin_call(&vm, "$intrinsic_function", &function_reference_fixture);
+    if (fault_triggered()) assert(!result && vm.error);
+    else assert(result && result->kind == V_CLOSURE && result->as.named.count == 0);
+    release(result);
+    assert(function_reference_fixture->refs == 1);
+}
+
+static size_t state_execution_mode;
+
+static void state_execution_allocations(void)
+{
+    char *params[] = {"value"};
+    Instruction identity[] = {{.op = OP_LOAD, .name = "value"}, {.op = OP_RETURN}};
+    Instruction update[] = {{.op = OP_LOAD, .name = "value"},
+        {.op = OP_CONST, .constant = {.tag = 3, .text = "identity", .text_length = 8}},
+        {.op = OP_CALL, .name = "state_update", .arity = 2}, {.op = OP_RETURN}};
+    Function functions[] = {
+        {.name = "identity", .params = params, .param_count = 1, .pure = true,
+         .ins = identity, .ins_count = 2},
+        {.name = "update", .params = params, .param_count = 1, .ins = update, .ins_count = 4}};
+    Program program = {.functions = functions, .count = 2};
+    VM vm = {.program = &program};
+    StateReservation held = {0};
+    if (state_execution_mode >= 2) assert(state_reserve(state_cell_fixture, &held) == STATE_OK);
+    const char *error = NULL;
+    VMExecution *run = vm_execution_create(&vm, &functions[1], &state_cell_fixture, NULL, NULL, &error);
+    if (run) {
+        VMExecutionStatus result = vm_execution_advance(run, state_execution_mode == 0 ? 6 : 3);
+        if (fault_triggered()) assert(result == VM_TRAPPED && vm.error);
+        else assert(result == (state_execution_mode >= 2 ? VM_WAITING :
+                               state_execution_mode == 0 ? VM_COMPLETED : VM_YIELDED));
+        if (!fault_triggered() && state_execution_mode == 3) {
+            state_abort(&held);
+            assert(vm_execution_poll_network(run, 0));
+            result = vm_execution_advance(run, 3);
+            if (fault_triggered()) assert(result == VM_TRAPPED && vm.error);
+            else assert(result == VM_COMPLETED);
+        }
+        assert(vm_execution_destroy(run));
+    } else assert(fault_triggered() && error);
+    state_abort(&held);
+    assert(state_cell_fixture->refs == 1 && !state_cell_fixture->as.state.reservation);
+}
+
+static void state_creation_allocations(void)
+{
+    size_t refs = state_fixture->refs;
+    StateStatus status;
+    Value *cell = state_create(state_fixture, &status);
+    if (fault_triggered()) assert(!cell && status == STATE_OUT_OF_MEMORY);
+    else assert(cell && status == STATE_OK);
+    release(cell);
+    assert(state_fixture->refs == refs);
+}
+
+static void state_commit_allocations(void)
+{
+    StateReservation reservation = {0};
+    assert(state_reserve(state_cell_fixture, &reservation) == STATE_OK);
+    StateStatus status = state_commit(&reservation, state_fixture);
+    if (fault_triggered()) {
+        assert(status == STATE_OUT_OF_MEMORY && reservation.cell == state_cell_fixture);
+        Value *snapshot = state_reserved_read(&reservation);
+        assert(snapshot->kind == V_UNIT);
+        release(snapshot);
+        state_abort(&reservation);
+    } else {
+        assert(status == STATE_OK && !reservation.cell);
+    }
+    /* Restore the fixture directly without adding allocation sites to the
+     * sweep. Production rollback uses state_abort, as checked above. */
+    release(state_cell_fixture->as.state.payload);
+    state_cell_fixture->as.state.payload = value_unit();
+    assert(state_fixture->refs == 1 && state_cell_fixture->refs == 1);
+}
 
 int main(int argc, char **argv)
 {
+    Value *state_items[80];
+    for (size_t i = 0; i < 80; i++) state_items[i] = value_size(i);
+    state_fixture = value_sequence(V_ARRAY, state_items, 80);
+    for (size_t i = 0; i < 80; i++) release(state_items[i]);
+    StateStatus state_status;
+    state_cell_fixture = state_create(value_unit(), &state_status);
+    assert(state_fixture && state_cell_fixture && state_status == STATE_OK);
+    sweep("State creation admission and ownership", state_creation_allocations);
+    sweep("State commit failure and reservation rollback", state_commit_allocations);
+    function_reference_fixture = value_data(V_STR, (const uint8_t *)"target", 6);
+    sweep("tagged function reference", function_reference_allocations);
+    release(function_reference_fixture);
+    for (state_execution_mode = 0; state_execution_mode < 4; state_execution_mode++)
+        sweep("State execution commit, suspension and cancellation", state_execution_allocations);
+    release(state_cell_fixture);
+    release(state_fixture);
+    if (argc == 2 && !strcmp(argv[1], "state-cells")) {
+        printf("State allocation failures: %zu checked\n", sweeps);
+        return 0;
+    }
+
+    /* Boolean construction/ownership must not attempt an allocation. */
+    fault_reset(1);
+    Value *shared_yes = value_bool(true), *shared_no = value_bool(false);
+    assert(shared_yes && shared_no && shared_yes->as.boolean && !shared_no->as.boolean);
+    release(retain(shared_yes));
+    release(retain(shared_no));
+    release(shared_yes);
+    release(shared_no);
+    assert(fault_attempts() == 0 && !fault_triggered() && fault_live() == 0);
+    fault_reset(1);
+    Value *shared_unit = value_unit(), *shared_void = value_void();
+    assert(shared_unit && shared_void && shared_unit != shared_void);
+    assert(shared_unit->kind == V_UNIT && shared_void->kind == V_VOID);
+    release(retain(shared_unit));
+    release(retain(shared_void));
+    release(shared_unit);
+    release(shared_void);
+    assert(fault_attempts() == 0 && !fault_triggered() && fault_live() == 0);
+    fault_reset(0);
+    for (literal_tag = 0; literal_tag <= 3; literal_tag++) {
+        for (literal_budget = 1; literal_budget <= 2; literal_budget++) {
+            sweep("literal cache ownership", literal_cache_allocations);
+        }
+    }
+    for (size_t mode = 0; mode < 4; mode++) {
+        argument_indirect = (mode & 1) != 0;
+        argument_underflow = (mode & 2) != 0;
+        for (argument_count = 8; argument_count <= 9; argument_count++) {
+            sweep("inline/heap call argument ownership", call_argument_allocations);
+        }
+    }
+    Value *index_items[64];
+    for (size_t i = 0; i < 64; i++) {
+        index_items[i] = value_size(i);
+        assert(index_items[i]);
+    }
+    index_fixture = value_sequence(V_SET, index_items, 64);
+    assert(index_fixture);
+    sweep("optional collection index", collection_index_allocations);
+    release(index_fixture);
+    for (size_t i = 0; i < 64; i++) {
+        assert(index_items[i]->refs == 1);
+        release(index_items[i]);
+    }
+    Value *capture_items[80];
+    for (size_t i = 0; i < 80; i++) { capture_items[i] = value_size(i); assert(capture_items[i]); }
+    closure_fixture = value_sequence(V_ARRAY, capture_items, 80);
+    assert(closure_fixture);
+    sweep("closure environment and graph walk ownership", construct_closure);
+    construction_arguments[0] = value_data(V_STR, (const uint8_t *)"body", 4);
+    construction_arguments[1] = closure_fixture;
+    construction_arguments[2] = value_size(1);
+    assert(construction_arguments[0] && construction_arguments[2]);
+    sweep("checked closure construction", construct_checked_closure);
+    release(construction_arguments[0]);
+    release(construction_arguments[2]);
+    release(closure_fixture);
+    for (size_t count = 8; count <= 9; count++) {
+        CaptureCheck status;
+        invocation_fixture = value_closure("target", capture_items, count, &status);
+        assert(invocation_fixture && status == CAPTURE_ALLOWED);
+        sweep("closure invocation frame and argument ownership", invoke_closure);
+        host_invocation = true;
+        sweep("host closure invocation ownership", invoke_closure);
+        host_invocation = false;
+        release(invocation_fixture);
+    }
+    for (size_t i = 0; i < 80; i++) { assert(capture_items[i]->refs == 1); release(capture_items[i]); }
+    if (argc == 2 && !strcmp(argv[1], "closures")) {
+        assert(fault_live() == 0);
+        puts("closure allocation failures: ok");
+        return 0;
+    }
+    sweep("indexed locals preparation and frame ownership", indexed_locals_allocations);
+    concatenation_faults();
+    if (argc == 2 && !strcmp(argv[1], "concat")) {
+        assert(fault_live() == 0);
+        puts("concatenation allocation failures: ok");
+        return 0;
+    }
     root_read_faults();
     console_write_faults();
+    console_read_faults();
+    process_async_faults();
     if (argc == 3) {
         check_artifact(argv[1], argv[2]);
         return 0;
     }
     sweep("TCP request and completion", tcp_allocations);
+    sweep("pure SHA-256", hash_allocations);
+    for (unsigned kind = 0; kind < 2; kind++) {
+        cpu_gzip = kind == 1;
+        for (cpu_mode = 0; cpu_mode < 3; cpu_mode++) sweep("typed digest/gzip", cpu_resource_allocations);
+    }
     sweep("HTTP transport ownership", http_allocations);
+    for (stream_fault_mode = 0; stream_fault_mode < 4; stream_fault_mode++)
+        sweep("HTTP typed stream ownership", http_stream_allocations);
     fault_reset(0);
     http_values[0] = value_data(V_STR, (const uint8_t *)"127.0.0.1", 9);
     http_values[1] = value_size(8080);

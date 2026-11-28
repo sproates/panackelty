@@ -1,8 +1,7 @@
 # Standard library: ordinary and async APIs
 
-This page describes the **alpha.16 development branch**. These APIs are not all
-available in the released alpha.15 toolchain. Use a build of the matching branch
-when running the linked examples.
+This page describes the **alpha.16 standard library**. Use the matching compiler,
+VM and library together. Host I/O examples require the native toolchain.
 
 ## Choose an import, keep the function names
 

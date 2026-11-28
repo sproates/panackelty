@@ -1,7 +1,6 @@
 # Moving to the alpha.16 standard-library APIs
 
-This guide targets the **alpha.16 development branch**, not the released alpha.15
-installation. Existing compatibility APIs remain available during alpha.16;
+This guide covers upgrading from alpha.15 to **alpha.16**. Existing compatibility APIs remain available during alpha.16;
 there is no requirement to rewrite every working caller before using a new API.
 
 ## Select effects at the import
@@ -19,7 +18,7 @@ allow a call from an async handler.
 
 ## Existing names and replacements
 
-| Existing interface | Preferred development interface | What else changes |
+| Existing interface | Preferred alpha.16 interface | What else changes |
 | --- | --- | --- |
 | `stdlib/async_host` | `stdlib/host/async` for compatibility; `console/async` for checked console I/O | Console error type changes; choose raw writes or newline writes explicitly |
 | `stdlib/async_filesystem` | `stdlib/filesystem/confined/async` for confined operations | Domain errors replace `HostError`; `read_beneath` becomes `read` with the same root/relative distinction |
@@ -64,6 +63,6 @@ subprocess failure or an unavailable service. For resource-owning code, check
 cleanup and cancellation separately. Existing test helpers have ordinary/async
 counterparts; use the interface matching the function under test.
 
-No bytecode-format change is needed for these APIs. A suitable development
+No bytecode-format change is needed for these APIs. The matching
 compiler, VM and bundled stdlib must still be installed together; copying newer
 stdlib files into an alpha.15 installation is not a supported upgrade procedure.

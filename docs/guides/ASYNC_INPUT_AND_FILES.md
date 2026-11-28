@@ -1,6 +1,6 @@
 # Async input and safe file publication
 
-These examples require the **alpha.16 development toolchain**. They use the
+These examples require the **native alpha.16 toolchain**. They use the
 ordinary operation names through `/async` imports and explicitly await host work.
 
 ## Read bounded input until EOF

@@ -263,7 +263,7 @@ and cleanup. Neither operation provides a process sandbox.
 Live handles are released on VM completion, failure and synchronous process exit.
 The native adapters are unavailable in the browser and report `unsupported`.
 
-## Canonical names in alpha.16 development
+## Canonical names in alpha.16
 
 The development branch adds `time.nanoseconds` and
 `time.from_fractional_seconds`; the latter returns an error for fractional
@@ -306,7 +306,7 @@ publication may still commit after cancellation. Embedded shutdown queues cleanu
 exhaustion returns resource_limit in the native detail. Local validation has
 passed; integration and release acceptance remain pending.
 
-### Typed digest and gzip APIs (alpha.16 development)
+### Typed digest and gzip APIs (alpha.16)
 
 Import `stdlib/digest/sha256` or `stdlib/digest/sha256/async` for matching
 `create`, `update`, `finish` and `close` operations on an opaque `Sha256Context`.
@@ -325,7 +325,7 @@ on the VM owner thread. Cancellation does not undo a completed step. Handles
 belong to their invocation, copies alias, and finish/close invalidate aliases.
 Legacy `digest` and `gzip` modules remain for existing package-tool callers.
 
-### Checked UTF-8 and value methods (alpha.16 development)
+### Checked UTF-8 and value methods (alpha.16)
 
 Prefer pure `stdlib/encoding/utf8.decode(data)` for untrusted bytes. It returns
 `Result[Str,Utf8Error]`; the error carries a zero-based byte offset, a decoding
@@ -337,7 +337,7 @@ Use `data.len()` and `data.slice(start,end)` for byte counts and half-open slice
 Invalid bounds trap. Existing `length()` and `stdlib/bytes.slice` still work.
 `path.parent()` is the lexical equivalent of `path.directory()`, without I/O.
 
-### Canonical TCP (alpha.16 development)
+### Canonical TCP (alpha.16)
 
 `stdlib/network/tcp/async` provides `exchange`, `serve_bounded`, finite
 `serve_stream`, continuous `serve` and server-child `read_chunk`. Its limit records
@@ -409,4 +409,4 @@ network/tcp/async exports TcpError, TcpErrorKind and TcpOperation. TCP callbacks
 
 TCP domain errors and the diagnostic HTTP client pass focused source/bytecode checks, final local make check (676s, 21 November), and relocated source/saved-bytecode execution. An additional disassembly check remains blocked by a pre-existing http_body arity-table mismatch, reproduced with the legacy client and previous package manifest. Compiler seed and unchanged-program oracle artifacts remain unchanged. Integration remains pending and development CI stays off.
 
-For the alpha.16 development interfaces, see the [ordinary/async reference](../../docs/reference/STANDARD_LIBRARY.md) and [migration guide](../../docs/guides/STDLIB_MIGRATION.md). These distinguish new APIs from retained compatibility imports.
+For the alpha.16 interfaces, see the [ordinary/async reference](../../docs/reference/STANDARD_LIBRARY.md) and [migration guide](../../docs/guides/STDLIB_MIGRATION.md). These distinguish new APIs from retained compatibility imports.

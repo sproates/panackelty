@@ -1,7 +1,7 @@
 # Next release status
 
 Updated: 28 November 2026. Release: **v0.1.0-alpha.16**. Integration branch: **next**.
-Native release: **v0.1.0-alpha.16**, published and verified. The overall rollout is **in progress**: installer promotion, the matching browser package and final website publication remain.
+Native release: **v0.1.0-alpha.16**, published and verified. The default installer and matching browser v0.4.1 are also published and verified. The overall rollout awaits final website approval, publication and live verification.
 
 The owner closed alpha.16 scope around completed work on 28 November. The
 [release acceptance checklist](releases/ALPHA16_RELEASE_ACCEPTANCE.md) owns the
@@ -17,9 +17,9 @@ preserves detailed test and integration evidence.
 | Ordinary/async stdlib redesign and documentation (RM#162, AS1–AS5) | Accepted, 100/100; website PR #77 published. |
 | Anonymous functions, closures, State and combined examples (RM#162, CS1–CS4) | Accepted, 100/100; core PRs #701–#709 and website PR #80. |
 | Exact-source native release validation and public packages | PR #710 merged after local validation (761 seconds) and all hosted gates passed, including one unchanged-source macOS retry. Release workflow 46098177472 succeeded. All eight public assets match GitHub digests and release provenance; both target package jobs and macOS public acceptance passed. |
-| Default installer promotion and public-artifact acceptance | Promotion branch prepared; five focused cases and full local validation (728 seconds) passed. Public macOS README/installer acceptance passed. PR #711 requires approval and hosted checks before promotion. |
-| Matching browser playground package | PR [#16](https://github.com/sproates/panackelty-browser/pull/16) pins the verified public bundle. Local validation passed 29 runtime/asset/release tests and 30 Chromium/Firefox/WebKit checks; hosted checks and publication remain. |
-| Website promotion and live verification | Last delivery step; pending all prior gates and candidate preview approval. |
+| Default installer promotion and public-artifact acceptance | PR #711 merged as `2fa1da4` after every hosted gate passed, including Linux and macOS public installer acceptance. The public main installer is byte-identical to the tested script and defaults to alpha.16. |
+| Matching browser playground package | Browser v0.4.1 is published after PRs #16–#19 and workflow 46106558913. Its public archive, asset digests, compiler seed and core manifest match the verified alpha.16 inputs. Runtime contracts and all three browser engines passed. |
+| Website promotion and live verification | Website PR [#81](https://github.com/sproates/panackelty-website/pull/81) is the final promotion. Public-artifact checks, all 30 playground scenarios and editorial checks passed locally; owner approval, hosted gates, publication and live verification remain. |
 
 ## Following allocations
 

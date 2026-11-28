@@ -1,7 +1,7 @@
 # Roadmap
 
 Panackelty **0.1.0-alpha.16 native packages are published**. The overall rollout
-continues through installer and browser promotion, followed by the website. See
+has completed installer and browser promotion; website acceptance and publication remain. See
 the [release notes](CHANGELOG.md) and [acceptance evidence](docs/releases/ALPHA16_RELEASE_ACCEPTANCE.md).
 
 ## Release rollout: alpha.16 — faster tools and more expressive programs

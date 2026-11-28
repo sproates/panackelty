@@ -7,8 +7,12 @@ module after the ordinary/async reorganisation removed its transitive import.
 The eligible measurement set is unchanged. Missing-inventory diagnostics now name
 all missing source paths; the reader regression checks a two-file omission.
 Focused coverage tests and a fresh local collection passed: all 31 sessions
-executed and report integrity was valid. Hosted collection and publication remain
-to be verified after integration. No compiler or VM changes.
+executed and report integrity was valid. After PR #718 merged, hosted collection
+[46160227297](https://github.com/sproates/panackelty/actions/runs/46160227297) passed
+on `next` commit `72d7d1cd0607f78e598c988649a244cd8528f435`. Coverage publication
+[46161451831](https://github.com/sproates/panackelty-coverage/actions/runs/46161451831)
+passed deployment and live-byte verification. The live source provenance identifies
+that exact collection and commit. The repair is accepted; no compiler or VM changes.
 
 [Persistent compilation reuse](../docs/COMPILER_PERSISTENT_REUSE.md) adds
 fresh-process edited-build tests to the CLI cache harness and codec round-trip/

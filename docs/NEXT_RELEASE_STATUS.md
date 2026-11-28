@@ -38,6 +38,8 @@ candidates, not extra commitments.
 
 Previous alpha.17 scope is now **alpha.18**, previous alpha.18 is **alpha.19**,
 and previous alpha.19 is **alpha.20**. See the [allocation table](roadmap/records/next-release--agreed-scope-2026-10-06.md#release-boundary-agreed--28-november-2026).
-Alpha.17 implementation has not been selected or started. RM#163 is explicitly
-planned; the carried allocations retain their existing acceptance boundaries.
-The next priority discussion follows the repository-health review.
+The owner selected **stdlib test coverage improvement** as the first alpha.17
+task. The [proposed four-slice plan](STDLIB_COVERAGE_PLAN.md) starts by separating
+existing but unmeasured tests from genuine gaps. Implementation has not started;
+the detailed plan is awaiting review. RM#163 remains planned, and the other
+allocations retain their existing acceptance boundaries.

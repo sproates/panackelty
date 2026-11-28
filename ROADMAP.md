@@ -141,6 +141,11 @@ The original modules/packages/HTTP programme baseline remains **90/100 earned**;
 P7 retains its deferred 10-point allocation. Alpha.13 release acceptance is complete.
 RM#156 records the GI#518 selection and RM#157 records the performance outcome.
 RM#158–RM#161 identify the Alpha.15 package-management packets.
+**Next selected work, 28 November 2026:** improve stdlib test coverage for
+alpha.17. The [proposed delivery plan](docs/STDLIB_COVERAGE_PLAN.md) inventories
+existing tests and measurement gaps before adding cases. Implementation has not
+started; this does not start the broader coverage architecture redesign.
+
 <a id="rm-162"></a> **[RM#162: Real-program fixes](docs/roadmap/records/next-release--agreed-scope-2026-10-06.md#rm-162)**
 continues in alpha.17 after its accepted alpha.16 batches. The ordinary/async
 stdlib and anonymous-function, closure and State programmes are complete and

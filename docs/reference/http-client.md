@@ -11,14 +11,14 @@ and returns errors as values. It isn't available in the browser playground.
 For incoming requests, see the [Server Reference](http-server.md) and
 [Server Playbook](../guides/HTTP_PLAYBOOK.md).
 
-## Alpha.16 development alternative
+## Diagnostic async client
 
-The development package also exports `http/client/async`. Its `get` and
+The package also exports `http/client/async`. Its `get` and
 `get_with_limits` return `Result[Response,HttpClientError]`, retaining the
 existing HTTP category plus optional transport details and scheme/host/port
 context. This includes detailed TLS failures. The released `http/client`
 contract documented below remains available. See the
-[development stdlib reference](STANDARD_LIBRARY.md#streams-and-owned-resources)
+[stdlib reference](STANDARD_LIBRARY.md#streams-and-owned-resources)
 and [migration guide](../guides/STDLIB_MIGRATION.md), or run the complete
 [diagnostic client example](../../examples/network/http_diagnostic_client/README.md).
 

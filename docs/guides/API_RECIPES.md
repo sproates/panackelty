@@ -1,7 +1,7 @@
 # Standard-library API recipes
 
-This checkout includes alpha.16 development recipes as well as retained
-alpha.15 compatibility examples. Use the matching development toolchain for
+This checkout includes alpha.16 recipes as well as retained
+alpha.15 compatibility examples. Use the matching alpha.16 toolchain for
 checked UTF-8 and checked test-reporting examples.
 Run commands from the checkout root after `make`, or from an extracted release
 containing these examples. The host examples use POSIX tools including `/bin/sh` and `/bin/cat`;

@@ -38,18 +38,18 @@ is also the name of this project's command-line tool.
 
 <!-- validation:positioning-copy-end -->
 
-## Alpha.16 release candidate
+## Alpha.16
 
-The alpha.16 development branch adds anonymous functions and immutable retained
+Alpha.16 adds anonymous functions and immutable retained
 closures, including HTTP/TCP callbacks. `panack explain` shows capture decisions
 and their binding origins. Ordinary and async State modules provide shared cells
 with pure, atomic updates. See the [callable contract](docs/CALLABLES_AND_STATE_PROPOSAL.md)
-for implementation acceptance. Alpha.16 is in release preparation; the default
-installer and public downloads remain on verified alpha.15 until promotion.
+for implementation acceptance. The default installer and public downloads
+select alpha.16.
 
 ## Get started
 
-**Latest native release: [0.1.0-alpha.15](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.15).**
+**Latest native release: [0.1.0-alpha.16](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.16).**
 Available for Ubuntu 22.04+ x86-64 and macOS 15+ Apple silicon. This is a developer preview:
 source APIs and bytecode may change between releases.
 
@@ -79,11 +79,11 @@ Git dependencies support pinned HTTPS commits and shared repository subdirectori
 The generic HTTP-stream transport supports bounded blocking reads for
 command-line consumers. The installed package workflow includes both tools; [final acceptance](docs/design/PACKAGE_FINAL_ACCEPTANCE.md) covers all four source forms together, relocation and offline builds.
 
-On the development branch, `panack compile --incremental main.panack -o main.bc`
+In alpha.16, `panack compile --incremental main.panack -o main.bc`
 reuses successful work between separate invocations. Panack manages the local
 cache; ordinary compilation remains available without the option. See
 [one-shot incremental compilation](docs/COMPILER_PERSISTENT_REUSE.md) for current
-reuse boundaries and costs. This command is not part of the alpha.15 release.
+reuse boundaries and costs.
 
 ## Explore
 
@@ -115,7 +115,6 @@ The native digest adapter uses OpenSSL 3 or later under
 [Apache 2.0](docs/licenses/OpenSSL-Apache-2.0.txt). Archive collision tables use
 [Unicode data](docs/licenses/Unicode-License.txt).
 
-Development-branch async stdlib APIs are described in the
+Alpha.16 async stdlib APIs are described in the
 [stdlib guide](src/stdlib/README.md#choosing-an-async-api), with a complete
-[HTTP uptime example](examples/network/http_uptime/README.md). These additions
-are intended for alpha.16 and are not part of released alpha.15.
+[HTTP uptime example](examples/network/http_uptime/README.md). Install the matching compiler, VM and standard library together.

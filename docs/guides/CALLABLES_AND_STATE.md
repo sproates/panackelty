@@ -1,7 +1,7 @@
 # Anonymous functions, closures and shared State
 
-These features require the alpha.16 development toolchain. They are not available
-in the alpha.15 release or browser playground.
+These features require alpha.16. Use the native toolchain for HTTP/TCP examples;
+the standalone counter also works in the matching alpha.16 browser package.
 
 ## Pass a small function where it is used
 

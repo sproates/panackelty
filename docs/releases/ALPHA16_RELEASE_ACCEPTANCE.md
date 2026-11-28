@@ -1,14 +1,15 @@
 # Alpha.16 release acceptance
 
 Version: `0.1.0-alpha.16`. Prepared 28 November 2026.
-Status: release preparation; no alpha.16 public artifacts or announcement yet.
+Status: native packages published and verified; installer, browser and website rollout pending.
 Browser runtime bundle preflight found and corrected omitted console-read and State source/header entries. The bundle now passes its transitive-header integrity check.
 
 Source baseline: `90b2ec5f473c91c23acb593da7b61bd3ec968aec` on next.
 Release preparation: [PR #710](https://github.com/sproates/panackelty/pull/710),
 with the implementation/preparation tree at `b53bb26`. The owner authorised
-release CI and merge when green on 28 November. Published source commit and
-artifact hashes remain pending.
+release CI and merge when green on 28 November. The merged source is `5e9fc13eccec0ed4c77db8ac0f961e07533cf3e4`; its files
+exactly match the validated PR head. [Release workflow 46098177472](https://github.com/sproates/panackelty/actions/runs/46098177472)
+succeeded for that commit. The public release contains the exact tested assets.
 
 Scope: delivered VM/compiler optimisations and incremental compilation,
 ordinary/async stdlib, anonymous functions, immutable closures, explicit State,
@@ -24,11 +25,21 @@ is the final delivery step. Existing implementation evidence is preserved in
 
 ## Gate evidence
 
-- Native source and sanitizer checks: pending final candidate. Initial local validation passed compiler/unit cases and fixed-point bootstrap, then caught stale alpha.15 toolchain requirements in bundled manifests. All maintained manifests are updated and their lockfiles regenerated with `panack deps update`. All eight focused distribution checks passed with local networking enabled, including archive relocation, installed imports and compiler artifacts. Final `make check` is running; hosted native and sanitizer gates remain pending.
-- Public native/runtime bundle hashes and target installation tests: pending.
-- Installer promotion: pending.
-- Browser local compatibility: 29 runtime/asset/release tests and 30 real-browser checks passed across Chromium, Firefox and WebKit using the candidate VM/compiler/stdlib. Browser branch `release/alpha16-playground`, commit `30b0c16`, still needs the final public bundle/source/checksum pins and hosted publication.
+- Native candidate: final local `make check` passed in 761 seconds, including unit, bootstrap, functional, distribution and release smoke checks. Initial preflight caught stale alpha.15 toolchain requirements in bundled manifests; these were updated and lockfiles regenerated with `panack deps update`. All eight focused distribution checks also passed with local networking enabled.
+- Hosted candidate: all applicable initial jobs passed except the macOS compiler harness, where launching a subprocess to resolve a fixture path returned `launch_failed`. The same test passed locally and on Linux. One unchanged-source retry with debug logging passed in [Check run 46095771171](https://github.com/sproates/panackelty/actions/runs/46095771171). All required PR checks passed before merge. The original launch cause is not established.
+- Public native/runtime bundle: all eight downloaded assets match GitHub digests; both native provenance records identify the release commit. Both platform package jobs passed native conformance and archive smoke tests. The public macOS archive is byte-identical to the retained artifact that also passed local relocation/package smoke acceptance.
+- Published-source release validation passed in 1625 seconds on Ubuntu.
+- Installer promotion: prepared on `release/alpha16-installer`; all five focused installer harness cases passed, including upgrade/rollback and failure preservation. Final local `make check` passed in 728 seconds; rebasing the promotion onto merged main preserved its exact file tree. Public README and candidate-installer acceptance passed on macOS, including default selection, repeat install, explicit older release and removal. The owner approved final hosted checks and merge of PR #711 when green on 28 November. Hosted checks remain required.
+- Browser local compatibility: 29 runtime/asset/release tests and 30 real-browser checks passed across Chromium, Firefox and WebKit using the candidate VM/compiler/stdlib. Browser PR [#16](https://github.com/sproates/panackelty-browser/pull/16), commit `475b8a2296d1dc3011c6cff4ca0e3281825e5d0d`, pins the verified public bundle and source. The public bundle is byte-identical to the tested candidate; rebuilding from it passed all 29 tests and the updated footer checks in all three browsers. Hosted checks and publication remain.
 - Website preview approval, deployment and live verification: pending.
+
+## Public artifact hashes
+
+| Artifact | SHA-256 |
+| --- | --- |
+| Linux x86-64 | `d72e2f3f0dde60a990ff8777877962e6c4a6558041ad15b258d23511b8782531` |
+| macOS arm64 | `294bad030de25151c904f5100e38f370459d9730fd60df49c7cec92c60459cd9` |
+| Browser runtime bundle | `682565019663ad5ceb2394f3a1d90dfc144e2636ce9bfb2fa03b5ef845d2322b` |
 
 ## Governing checklist
 
@@ -49,15 +60,15 @@ unmerged changes and local previews are not completion evidence.
 
 ## 1. Confirm scope and prepare the release
 
-- [ ] Reconcile the agreed scope with delivered work, issues and acceptance
+- [x] Reconcile the agreed scope with delivered work, issues and acceptance
       records. Identify every remaining blocker before starting publication.
-- [ ] Confirm supported platforms, runtime dependencies, compatibility changes,
+- [x] Confirm supported platforms, runtime dependencies, compatibility changes,
       migration instructions and the intended browser capabilities.
-- [ ] Prepare and review the version, changelog and release notes. Distinguish
+- [x] Prepare and review the version, changelog and release notes. Distinguish
       current features from historical releases and future work.
-- [ ] Identify the core, browser and website changes needed for this release.
+- [x] Identify the core, browser and website changes needed for this release.
       Include installer defaults, documentation, examples and all version pins.
-- [ ] Record the full remaining sequence in `docs/NEXT_RELEASE_STATUS.md` on the
+- [x] Record the full remaining sequence in `docs/NEXT_RELEASE_STATUS.md` on the
       integration branch. Do not describe browser promotion as optional follow-up
       while calling the overall release complete.
 
@@ -65,14 +76,14 @@ unmerged changes and local previews are not completion evidence.
 
 Follow [the release policy](RELEASE_POLICY.md#release-gate).
 
-- [ ] Complete the required native, compiler, runtime, sanitizer and package
+- [x] Complete the required native, compiler, runtime, sanitizer and package
       checks for the exact release source.
-- [ ] Publish the versioned native archives, checksums and browser runtime
+- [x] Publish the versioned native archives, checksums and browser runtime
       dependency bundle through the release workflow.
-- [ ] Download the public artifacts and verify their hashes and source provenance
+- [x] Download the public artifacts and verify their hashes and source provenance
       against the tested artifacts. Verify installation and execution on every
       supported target platform.
-- [ ] Confirm public release notes, asset names and download URLs are correct.
+- [x] Confirm public release notes, asset names and download URLs are correct.
       Preserve older release assets and links; do not overwrite releases.
 
 ## 3. Update and verify the installer

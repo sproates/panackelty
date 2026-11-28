@@ -5,8 +5,8 @@ rollout across core, installer, browser and website. Website publication is the
 final delivery step, after the packages, installer and updated playground are
 verified. The gates below describe individual parts, not overall completion.
 
-Panackelty `0.1.0-alpha.15` is the latest published developer preview. Alpha.16
-is in release preparation; see its [acceptance record](ALPHA16_RELEASE_ACCEPTANCE.md). It is intended for learning,
+Panackelty `0.1.0-alpha.16` is the latest published native developer preview.
+The overall rollout remains in progress; see its [acceptance record](ALPHA16_RELEASE_ACCEPTANCE.md). It is intended for learning,
 experimentation, feedback, and non-critical terminal programs. It is not yet
 recommended for production systems or irreplaceable data.
 

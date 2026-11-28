@@ -1,4 +1,9 @@
-# Next release status
+# Alpha.16 implementation snapshot
+
+Archived on 28 November 2026, before the owner closed the release scope. This
+snapshot preserves implementation and acceptance evidence. Its remaining-work
+allocations are historical; use [the current release status](NEXT_RELEASE_STATUS.md)
+for the agreed release boundary, later allocations and rollout progress.
 
 Updated: 28 November 2026. Release: **v0.1.0-alpha.16**. Integration branch: **next**.
 Latest published release: **v0.1.0-alpha.15**, published 6 November 2026.

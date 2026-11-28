@@ -1,8 +1,7 @@
 # Working with async resources
 
-This guide and its examples require the **alpha.16 development toolchain**.
-They use existing named functions and explicit state passed as arguments; they do
-not depend on future closure or shared-state features.
+This guide and its examples require the **native alpha.16 toolchain**.
+They use named functions and pass resource handles explicitly.
 
 ## Choose the resource API when input arrives in pieces
 

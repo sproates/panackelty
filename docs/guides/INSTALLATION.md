@@ -6,24 +6,25 @@ The developer preview is designed to be downloaded and run directly. The
 download contains everything needed to check, compile, and run programs: the
 `panack` command, native VM, self-hosted compiler, and standard library.
 
-Developer-preview archives for `0.1.0-alpha.15` are available from the
-[GitHub release](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.15).
+Developer-preview archives for `0.1.0-alpha.16` are available from the
+[GitHub release](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.16).
 The [release policy](../releases/RELEASE_POLICY.md) defines the preview's support and
 compatibility boundaries.
 
 ### Upgrading
 
-Use the alpha.15 compiler, VM and standard library together. Recompile saved
+Use the alpha.16 compiler, VM and standard library together. Recompile saved
 programs with the matching toolchain. See the [release notes](../../CHANGELOG.md)
-for namespace, package and standard-library migration guidance. Alpha.15 uses
-explicit bindings in guarded types, such as `type Positive = Nat where n => n > 0`.
+for compatibility notes and the [standard-library migration guide](STDLIB_MIGRATION.md)
+for alpha.16 imports and error handling. Since alpha.15, guarded types use
+explicit bindings, such as `type Positive = Nat where n => n > 0`.
 See the [validated domain types guide](VALIDATED_DOMAIN_TYPES.md) before updating
 existing guarded type declarations. Older migration
 notes remain in the changelog under their original release.
 
 ### System requirements
 
-The native alpha.15 release supports:
+The native alpha.16 release supports:
 
 - Ubuntu 22.04 or newer on x86-64
 - macOS 15 or newer on Apple silicon (arm64)
@@ -35,8 +36,8 @@ adjacent `.sha256` file from the Releases page:
 
 | System | Archive |
 | --- | --- |
-| Linux x86-64 | `panackelty-0.1.0-alpha.15-linux-x86_64.tar.gz` |
-| macOS arm64 | `panackelty-0.1.0-alpha.15-macos-arm64.tar.gz` |
+| Linux x86-64 | `panackelty-0.1.0-alpha.16-linux-x86_64.tar.gz` |
+| macOS arm64 | `panackelty-0.1.0-alpha.16-macos-arm64.tar.gz` |
 
 Windows and other architectures are not part of the initial preview.
 For macOS 14, use the older [alpha.14 release](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.14).
@@ -48,7 +49,7 @@ including indirect dependencies. Local packages and HTTPS archive packages do
 not otherwise require Git. Verified cached Git packages can be used without
 invoking Git.
 
-The alpha.15 distribution includes the separate package tool alongside the
+The alpha.16 distribution includes the separate package tool alongside the
 compiler. Keep the complete toolchain directory together when moving it; linking
 `bin/panack` onto PATH is supported. No source checkout, compiler build tools,
 command-line `curl` or command-line `tar` are needed to use package commands.
@@ -72,11 +73,11 @@ archive instructions below remain supported. The public installer supports the
 same Ubuntu and macOS release targets.
 
 ```sh
-curl --proto '=https' --proto-redir '=https' --tlsv1.2 --fail --location --show-error https://raw.githubusercontent.com/sproates/panackelty/main/scripts/install.sh | sh -s -- --version 0.1.0-alpha.15
+curl --proto '=https' --proto-redir '=https' --tlsv1.2 --fail --location --show-error https://raw.githubusercontent.com/sproates/panackelty/main/scripts/install.sh | sh -s -- --version 0.1.0-alpha.16
 ```
 
 The command executes the [inspectable installer](../../scripts/install.sh) from the
-repository's current `main`. The explicit `--version` selects alpha.15; the installer also defaults to alpha.15. It checks the
+repository's current `main`. The explicit `--version` selects alpha.16; the installer also defaults to alpha.16. It checks the
 supported OS/architecture, downloads the release and its SHA-256 file over HTTPS,
 and verifies the checksum before unpacking or activating it. Trust includes
 GitHub, this repository and your local tools. Same-source checksums detect damaged
@@ -87,7 +88,7 @@ status), download a local copy first:
 ```sh
 curl --proto '=https' --proto-redir '=https' --tlsv1.2 --fail --location --show-error --output install.sh https://raw.githubusercontent.com/sproates/panackelty/main/scripts/install.sh
 # Read install.sh, then execute your reviewed local copy:
-sh install.sh --version 0.1.0-alpha.15
+sh install.sh --version 0.1.0-alpha.16
 ```
 
 For a pinned installer revision, replace `main` in the URL with a reviewed full
@@ -112,7 +113,7 @@ With your downloaded, reviewed `install.sh`, select a published version, repeat
 an installation, upgrade (or return to a retained version), and remove:
 
 ```sh
-sh install.sh --version 0.1.0-alpha.15
+sh install.sh --version 0.1.0-alpha.16
 sh install.sh --uninstall
 ```
 
@@ -146,8 +147,8 @@ permissions or source checkout are needed.
 ```sh
 (
   set -eu
-  release=https://github.com/sproates/panackelty/releases/download/v0.1.0-alpha.15
-  archive=panackelty-0.1.0-alpha.15-linux-x86_64.tar.gz
+  release=https://github.com/sproates/panackelty/releases/download/v0.1.0-alpha.16
+  archive=panackelty-0.1.0-alpha.16-linux-x86_64.tar.gz
   curl --fail --location --show-error --output "$archive" "$release/$archive"
   curl --fail --location --show-error --output "$archive.sha256" "$release/$archive.sha256"
   sha256sum -c "$archive.sha256"
@@ -163,8 +164,8 @@ permissions or source checkout are needed.
 ```sh
 (
   set -eu
-  release=https://github.com/sproates/panackelty/releases/download/v0.1.0-alpha.15
-  archive=panackelty-0.1.0-alpha.15-macos-arm64.tar.gz
+  release=https://github.com/sproates/panackelty/releases/download/v0.1.0-alpha.16
+  archive=panackelty-0.1.0-alpha.16-macos-arm64.tar.gz
   curl --fail --location --show-error --output "$archive" "$release/$archive"
   curl --fail --location --show-error --output "$archive.sha256" "$release/$archive.sha256"
   shasum -a 256 -c "$archive.sha256"
@@ -175,7 +176,7 @@ permissions or source checkout are needed.
 <!-- release-install-macos-arm64-end -->
 
 The checksum command must report the archive as `OK`, followed by
-`panack 0.1.0-alpha.15 (bytecode 9)`. If either download or verification fails,
+`panack 0.1.0-alpha.16 (bytecode 9)`. If either download or verification fails,
 stop and resolve that error before continuing; do not extract or run the archive.
 Both archives expand into `panackelty/`. Keep that whole directory together.
 
@@ -215,11 +216,11 @@ Positioned errors also show the source line and a caret. Tabs expand to
 four-column stops; Unicode and control characters appear as `\u{hex}` escapes
 to keep the caret aligned.
 
-The alpha.15 toolchain produces the output below.
+The alpha.16 toolchain produces the output below.
 
 <!-- quick-start-output-begin -->
 ```text
-panack 0.1.0-alpha.15 (bytecode 9)
+panack 0.1.0-alpha.16 (bytecode 9)
 ok
 Hello, Ada. The answer is 42.
 wrote hello.bc

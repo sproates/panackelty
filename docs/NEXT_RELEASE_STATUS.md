@@ -28,7 +28,10 @@ Typed HTTP exchanges; GI#167 Recursive file discovery; GI#168 Subprocess example
 GI#169 Tiny build tool; GI#138/GI#310 Tested guides and examples; GI#170 Inference
 and diagnostics assessment; remaining RM#157 Performance review; GI#435 Guard
 alternatives; native-interface/compiler decoupling; coverage approach review;
-and continuing RM#162 Real-program fixes. Completed RM#157/RM#162 batches remain
+continuing RM#162 Real-program fixes; and [RM#163: Install and run usability](roadmap/records/install-and-run-usability.md).
+RM#163 is planned, with implementation not started: simplify installation, project
+creation and running third-party programs, retaining locks and reproducibility.
+The clean-install HTTP status service is its acceptance case. Completed RM#157/RM#162 batches remain
 credited to alpha.16. GI#552 Full API reference and GI#553 Load profiling remain
 candidates, not extra commitments.
 

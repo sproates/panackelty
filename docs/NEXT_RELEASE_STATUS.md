@@ -18,7 +18,7 @@ preserves detailed test and integration evidence.
 | Anonymous functions, closures, State and combined examples (RM#162, CS1–CS4) | Accepted, 100/100; core PRs #701–#709 and website PR #80. |
 | Exact-source native release validation and public packages | PR #710 merged after local validation (761 seconds) and all hosted gates passed, including one unchanged-source macOS retry. Release workflow 46098177472 succeeded. All eight public assets match GitHub digests and release provenance; both target package jobs and macOS public acceptance passed. |
 | Default installer promotion and public-artifact acceptance | Promotion branch prepared; five focused cases and full local validation (728 seconds) passed. Public macOS README/installer acceptance passed. PR #711 requires approval and hosted checks before promotion. |
-| Matching browser playground package | Local candidate passes 29 runtime/asset/release tests and 30 Chromium/Firefox/WebKit checks. Final public bundle pins, hosted checks and browser publication remain. |
+| Matching browser playground package | PR [#16](https://github.com/sproates/panackelty-browser/pull/16) pins the verified public bundle. Local validation passed 29 runtime/asset/release tests and 30 Chromium/Firefox/WebKit checks; hosted checks and publication remain. |
 | Website promotion and live verification | Last delivery step; pending all prior gates and candidate preview approval. |
 
 ## Following allocations

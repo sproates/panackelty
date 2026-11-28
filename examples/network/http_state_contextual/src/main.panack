@@ -1,0 +1,49 @@
+import http/server as http
+import stdlib/time/async as time
+import stdlib/state/async as state
+import stdlib/host/async as host
+
+record AppContext { started: Instant, requests: State[Nat] }
+
+async status(context: AppContext, request: http.Request, response: http.ResponseWriter): Result[Unit,Str] {
+  started = context.started
+  requests = context.requests
+  total = await state.update(requests, (current: Nat) => current + 1)
+  reading: Result[Instant,time.ClockError] = await time.now()
+  match reading {
+    Error(problem) => {
+      response.status(503)
+      response.send("Requests counted: ${total}; uptime unavailable: the clock could not be read.")
+      Ok(())
+    },
+    Ok(now) => {
+      elapsed = now.difference(started)
+      seconds = elapsed.as_seconds()
+      response.send("Requests counted: ${total}; uptime: ${seconds} seconds")
+      Ok(())
+    }
+  }
+}
+
+async main(): Unit {
+  arguments = await host.arguments()
+  port = if arguments.len() == 0 { 8082 } else { arguments[0].parse_nat() }
+  match await time.now() {
+    Error(problem) => {
+      reported = await host.stderr("Cannot start: the monotonic clock is unavailable.")
+      await host.exit(1)
+    },
+    Ok(started) => {
+      requests = await state.create[Nat](0)
+      server = http.create_bound_contextual_server("127.0.0.1", port, AppContext(started, requests))
+      server.get("/status", @status)
+      match await server.listen() {
+        Ok(done) => (),
+        Error(problem) => {
+          reported = await host.stderr(problem.message)
+          await host.exit(1)
+        }
+      }
+    }
+  }
+}

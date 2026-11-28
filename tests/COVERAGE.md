@@ -2451,3 +2451,12 @@ State source/bytecode and cache cases, 2,313 binding/cache assertions, native
 contracts, bootstrap, archive relocation and quick-start. Reviewed disassembly
 and source-span expectations include the callable-tagging instruction; the package
 inventory includes both State modules. Integration acceptance is pending.
+
+CS4 focused example acceptance (28 November): `node tests/http_state_examples.cjs`
+checks the standalone counter and both HTTP forms in source/bytecode modes. It
+checks exact counts across four overlapping requests per batch, monotonic uptime,
+404 requests excluded from the count, HTTP 503 after a committed increment, and
+startup clock failure. Fault cases replace exactly one clock read in temporary
+copies; shipped programs have no test switches. The same tests pass with a relocated
+installed command and no source-tree overrides. VM cancellation/commit ordering
+remains covered by CS3 controlled scheduler tests. No new compiler/runtime changes.

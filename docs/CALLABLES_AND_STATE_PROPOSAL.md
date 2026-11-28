@@ -218,9 +218,9 @@ for owner review; do not silently rewrite the published article.
 
 ## Complete target example
 
-This is proposed source, not a runnable example today. The HTTP API shape comes
-from the existing uptime program and server package; anonymous functions and state
-are the new parts. Use the existing HTTP example's project manifest/dependency.
+The runnable [closure example](../examples/network/http_state_closure/README.md)
+and [named contextual example](../examples/network/http_state_contextual/README.md)
+implement this contract. Both include their project manifest and dependency lock.
 
 ```text
 import http/server as http
@@ -335,15 +335,15 @@ Acceptance includes:
 ## Delivery after contract approval
 
 Provisional weights describe this bounded programme, not all RM#162 or alpha.16.
-CS1 is accepted after local and hosted integration validation.
+CS1–CS3 are accepted after local and hosted integration validation.
 
 | Slice | Deliverable | Weight | Status | Earned |
 | --- | --- | --- | --- | --- |
 | CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | Complete: PR #701 and integration run 46042786755 passed | 20 |
 | CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | Complete: PRs #704/#705; integration run 46067730132 passed | 30 |
-| CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | Locally complete; next integration checks pending | 0 |
-| CS4 | Both service examples, installed acceptance, reference and website guidance | 20 | Planned | 0 |
-| Total | Working callable/state feature | 100 | CS1–CS2 accepted; CS3 in progress; CS4 planned | 50 |
+| CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | Complete: PR #707 and integration acceptance | 30 |
+| CS4 | Both service examples, installed acceptance, reference and website guidance | 20 | Core examples verified; website preview approval pending | 0 |
+| Total | Working callable/state feature | 100 | CS1–CS3 accepted; CS4 in progress | 80 |
 
 Order: CS1, then CS2 and CS3, then CS4. CS3 can use named pure callbacks; it need
 not depend on closure syntax. Implement related work in a development branch with
@@ -869,3 +869,7 @@ checks. CS3 earns 0/30 until that result; CS1 and CS2 retain 20/20 and 30/30.
 CS4 combined HTTP examples, installed acceptance and website guidance remains 0/20.
 Accepted programme progress is 50/100. RM#162 stays open; CS3 has no separate issue.
 Website follow-up remains with CS4; no release or website publication is claimed.
+
+CS3 accepted, 28 November: [PR #707](https://github.com/sproates/panackelty/pull/707) merged at `a5a4a08`; [integration run 46081707303](https://github.com/sproates/panackelty/actions/runs/46081707303) passed. The next workflow ran coverage policy and integration result gates; full platform builds were intentionally skipped. Full local make check passed in 725s. CS3 earns 30/30; accepted callable/State progress is 80/100 (CS1 20/20, CS2 30/30, CS4 0/20).
+
+CS4 started on `feature/rm162-state-examples`: equivalent closure and named contextual HTTP examples, a standalone counter, and focused source/bytecode tests now cover increasing uptime, concurrent increments, uncounted routes, startup clock failure and post-commit clock failure. All cases also pass from a relocated installation with compiler/stdlib overrides removed and the installed compiler hash matched to the validated seed. No compiler or VM source changed. The example-only validation reuses the CS3 product baseline; the mistakenly invoked broad packaging conformance run was stopped, and package assembly/quick-start reused its unchanged native-check prerequisite. Website State API/reference guidance is prepared separately for preview review and approval; CS4 remains unaccepted. RM#162 stays open.

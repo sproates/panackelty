@@ -157,3 +157,8 @@ Run `sh tests/fixture_inventory.sh` for immediate bookkeeping feedback before
 `make check`. See the [preflight contract](../tests/README.md#fixture-inventory-preflight).
 
 The [HTTP playbook](../docs/guides/HTTP_PLAYBOOK.md) walks through the routed server examples, including [explicit listener shutdown](network/http_server_lifecycle/README.md).
+
+The alpha.16 development [State counter](state/README.md) combines a pure anonymous
+transform with a closure retaining a cell, without HTTP. The network guide includes
+equivalent [closure](network/http_state_closure/README.md) and
+[contextual](network/http_state_contextual/README.md) request-count/uptime services.

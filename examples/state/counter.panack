@@ -1,0 +1,10 @@
+import stdlib/state as state
+
+main(): Void {
+  count = state.create[Nat](0)
+  increment = (current: Nat) => current + 1
+  next = () => state.update(count, increment)
+  print(next.call())
+  print(next.call())
+  print(state.read(count))
+}

@@ -6,6 +6,31 @@ in `docs/releases/RELEASE_POLICY.md`.
 
 ## Unreleased
 
+## 0.1.0-alpha.16 — 2026-11-28
+
+### Functions, closures and shared State
+
+- Define anonymous functions beside their use, with contextual parameter types and pure, ordinary or async effects. Invoke stored functions with `call`; named function values retain `@name` syntax.
+- Retain immutable values in closures, including HTTP/TCP callbacks. Mutable-variable and native-resource captures are rejected with source-aware explanations. `panack explain` exposes capture decisions and binding origins.
+- Share changing values through `stdlib/state` or `stdlib/state/async`. Create and read cells, or update them atomically using a pure callback. Updates run once; cancellation before commit preserves the previous value, while cancellation after commit does not undo it.
+- Add standalone counters and equivalent closure/contextual HTTP services reporting request count and monotonic uptime, with explicit clock-failure and counting semantics.
+
+### Standard library
+
+- Provide consistent ordinary and async module paths, including `stdlib/time/async`. Async functions can read the clock and use the supported environment, console, process, filesystem, digest, gzip and network APIs through explicit `await` calls.
+- Add bounded async console input, subprocess input handling, incremental SHA-256/gzip operations and filesystem staging/confined operations. Preserve typed failures, ownership and cancellation rules.
+- Organise the public library around canonical module paths and documented domain error types. Follow `docs/guides/STDLIB_MIGRATION.md` when updating imports and callers from alpha.15. The website provides module API references and concept/cookbook guidance.
+
+### Compiler and VM performance
+
+- Reuse successful work across separate `panack compile --incremental` and `panack check --incremental` invocations through a managed persistent cache. Validate dependencies and invalidate affected work after changes; ordinary uncached commands remain available.
+- Reduce repeated compiler preparation, name resolution, checking and emission work. Optimise VM callable/local lookup, argument handling, collection access, strings and immutable values without changing the bytecode version (v9).
+
+### Compatibility and supported systems
+
+- Native archives support Ubuntu 22.04+ x86-64 and macOS 15+ Apple silicon. The runtime uses libcurl, OpenSSL 3 and zlib; platform-specific installation guidance accompanies the archives.
+- Use the compiler, VM and stdlib from the same release. The matching browser package is promoted separately as part of the release checklist; native networking and host capabilities remain unavailable in the browser.
+
 ## 0.1.0-alpha.15 — 2026-11-05
 
 ### Supported systems

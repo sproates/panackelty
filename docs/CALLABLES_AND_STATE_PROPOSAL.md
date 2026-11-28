@@ -342,8 +342,8 @@ CS1–CS3 are accepted after local and hosted integration validation.
 | CS1 | Anonymous functions using existing callable types; effects and diagnostics | 20 | Complete: PR #701 and integration run 46042786755 passed | 20 |
 | CS2 | Safe retained captures, verifier/lifetime support and explanations | 30 | Complete: PRs #704/#705; integration run 46067730132 passed | 30 |
 | CS3 | Ordinary/async State API, atomic update and cancellation semantics | 30 | Complete: PR #707 and integration acceptance | 30 |
-| CS4 | Both service examples, installed acceptance, reference and website guidance | 20 | Core examples verified; website preview approval pending | 0 |
-| Total | Working callable/state feature | 100 | CS1–CS3 accepted; CS4 in progress | 80 |
+| CS4 | Both service examples, installed acceptance, reference and website guidance | 20 | Complete: core PR #708 and website PR #80 published and verified | 20 |
+| Total | Working callable/state feature | 100 | CS1–CS4 accepted | 100 |
 
 Order: CS1, then CS2 and CS3, then CS4. CS3 can use named pure callbacks; it need
 not depend on closure syntax. Implement related work in a development branch with
@@ -873,3 +873,10 @@ Website follow-up remains with CS4; no release or website publication is claimed
 CS3 accepted, 28 November: [PR #707](https://github.com/sproates/panackelty/pull/707) merged at `a5a4a08`; [integration run 46081707303](https://github.com/sproates/panackelty/actions/runs/46081707303) passed. The next workflow ran coverage policy and integration result gates; full platform builds were intentionally skipped. Full local make check passed in 725s. CS3 earns 30/30; accepted callable/State progress is 80/100 (CS1 20/20, CS2 30/30, CS4 0/20).
 
 CS4 started on `feature/rm162-state-examples`: equivalent closure and named contextual HTTP examples, a standalone counter, and focused source/bytecode tests now cover increasing uptime, concurrent increments, uncounted routes, startup clock failure and post-commit clock failure. All cases also pass from a relocated installation with compiler/stdlib overrides removed and the installed compiler hash matched to the validated seed. No compiler or VM source changed. The example-only validation reuses the CS3 product baseline; the mistakenly invoked broad packaging conformance run was stopped, and package assembly/quick-start reused its unchanged native-check prerequisite. Website State API/reference guidance is prepared separately for preview review and approval; CS4 remains unaccepted. RM#162 stays open.
+
+
+## Callable and State programme complete — 28 November 2026
+
+CS4 is accepted (20/20): core [PR #708](https://github.com/sproates/panackelty/pull/708) and [integration run 46088757576](https://github.com/sproates/panackelty/actions/runs/46088757576) passed. Focused source/bytecode and relocated-installation checks cover both HTTP handler styles, the standalone counter, concurrent counts and clock failures. Website [PR #80](https://github.com/sproates/panackelty-website/pull/80) was approved after preview review and published at `d51cfcc`. [Publication run 46091796386](https://github.com/sproates/panackelty-website/actions/runs/46091796386) reused successful PR validation, including browser/mobile tests, and passed exact deployed-byte/provenance checks. Live concept pages for anonymous functions, closures and State, the cookbook and State API reference were verified. All four concept teaching programs and 55 local website tests passed.
+
+CS1 20/20, CS2 30/30, CS3 30/30 and CS4 20/20: this bounded programme is complete at 100/100. RM#162 remains open as the ongoing real-program-fixes allocation; no separate CS4 issue exists. Alpha.16 is not released, and alpha.15/playground pins are unchanged.

@@ -1,6 +1,7 @@
 // Retain library declarations even when the initial execution corpus never calls them.
 import stdlib/prelude as prelude
 import stdlib/host as std_host
+import stdlib/process as std_process
 import stdlib/testing as std_testing
 import stdlib/testing_commands as std_testing_commands
 import stdlib/testing_files as std_testing_files

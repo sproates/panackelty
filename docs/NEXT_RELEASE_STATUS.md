@@ -1,14 +1,15 @@
 # Next release status
 
-Updated: 28 November 2026. Release: **v0.1.0-alpha.16**. Integration branch: **next**.
-Native release: **v0.1.0-alpha.16**, published and verified. The default installer and matching browser v0.4.1 are also published and verified. The complete rollout is finished: website publication and live verification passed.
+Updated: 28 November 2026. Next release: **v0.1.0-alpha.17 (planned)**. Integration branch: **next**.
+Native release: **v0.1.0-alpha.16**, published and verified. The default installer and matching browser v0.4.2 are also published and verified. The complete rollout is finished: website publication and live verification passed.
 
 The owner closed alpha.16 scope around completed work on 28 November. The
 [release acceptance checklist](releases/ALPHA16_RELEASE_ACCEPTANCE.md) records the
-completed delivery gates. The [implementation snapshot](ALPHA16_IMPLEMENTATION_STATUS.md)
+completed delivery gates. Browser v0.4.2 subsequently added the reviewed anonymous-function, closure and
+State playground examples (browser PR #20, website PR #82). The [implementation snapshot](ALPHA16_IMPLEMENTATION_STATUS.md)
 preserves detailed test and integration evidence.
 
-## Alpha.16 scope
+## Completed baseline: alpha.16
 
 | Work | State |
 | --- | --- |
@@ -21,7 +22,7 @@ preserves detailed test and integration evidence.
 | Matching browser playground package | Browser v0.4.1 is published after PRs #16–#19 and workflow 46106558913. Its public archive, asset digests, compiler seed and core manifest match the verified alpha.16 inputs. Runtime contracts and all three browser engines passed. |
 | Website promotion and live verification | Website PR [#81](https://github.com/sproates/panackelty-website/pull/81) merged as `0ced1655`. Exact-head checks 46125684113 and publication 46126200959 passed. Live bytes/provenance, pages and alpha.16 playground execution are verified; the closure/State example returned `1`, `2`, `2`. The release is complete. |
 
-## Following allocations
+## Alpha.17 scope
 
 All unfinished alpha.16 work is explicitly allocated to **alpha.17**: GI#166
 Typed HTTP exchanges; GI#167 Recursive file discovery; GI#168 Subprocess examples;
@@ -37,5 +38,6 @@ candidates, not extra commitments.
 
 Previous alpha.17 scope is now **alpha.18**, previous alpha.18 is **alpha.19**,
 and previous alpha.19 is **alpha.20**. See the [allocation table](roadmap/records/next-release--agreed-scope-2026-10-06.md#release-boundary-agreed--28-november-2026).
-No new feature implementation is needed to satisfy the selected alpha.16 scope;
-release compatibility defects, if found, remain release blockers until resolved.
+Alpha.17 implementation has not been selected or started. RM#163 is explicitly
+planned; the carried allocations retain their existing acceptance boundaries.
+The next priority discussion follows the repository-health review.

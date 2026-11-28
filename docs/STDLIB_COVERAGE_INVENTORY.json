@@ -1,0 +1,2684 @@
+{
+  "schema": 1,
+  "baseline": "72d7d1cd0607f78e598c988649a244cd8528f435",
+  "note": "Discovery inventory. Public function declarations are a lexical listing; re-exports, intrinsic methods and per-operation assertion review must be completed in SCV1. Direct consumers may be negative fixtures or unregistered files and do not establish coverage.",
+  "modules": [
+    {
+      "path": "src/stdlib/async_filesystem.panack",
+      "module": "stdlib/async_filesystem",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "read_beneath",
+          "line": 6
+        },
+        {
+          "name": "root_identity",
+          "line": 15
+        }
+      ],
+      "imports": [
+        "stdlib/host",
+        "stdlib/package_filesystem"
+      ],
+      "directTestConsumers": [],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/async_host.panack",
+      "module": "stdlib/async_host",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "arguments",
+          "line": 2
+        },
+        {
+          "name": "stdout",
+          "line": 7
+        },
+        {
+          "name": "stderr",
+          "line": 10
+        },
+        {
+          "name": "exit",
+          "line": 14
+        }
+      ],
+      "imports": [
+        "stdlib/host"
+      ],
+      "directTestConsumers": [
+        "tests/async_stdlib.sh",
+        "tests/continuous_service.sh",
+        "tests/fixtures/compiler_contracts/anonymous_functions/http.panack",
+        "tests/http_package.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/bounded_filesystem.panack",
+      "module": "stdlib/bounded_filesystem",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "read_chunk",
+          "line": 2
+        },
+        {
+          "name": "atomic_write",
+          "line": 6
+        },
+        {
+          "name": "read_link",
+          "line": 13
+        }
+      ],
+      "imports": [
+        "stdlib/host"
+      ],
+      "directTestConsumers": [
+        "tests/fixtures/package_git/acquire.panack",
+        "tests/functional/cases/host_capabilities/main.panack"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/bytes.panack",
+      "module": "stdlib/bytes",
+      "measurement": "eligible",
+      "publicFunctionDeclarations": [
+        {
+          "name": "empty",
+          "line": 1
+        },
+        {
+          "name": "slice",
+          "line": 6
+        }
+      ],
+      "imports": [],
+      "directTestConsumers": [
+        "tests/console_input.sh",
+        "tests/cpu_resources.sh",
+        "tests/encoding_values.sh",
+        "tests/fixtures/compiler_contracts/host_types/isolated_process_effect.panack",
+        "tests/fixtures/compiler_contracts/snapshot_probe.panack",
+        "tests/fixtures/host_runtime/nul_read_bytes.panack",
+        "tests/fixtures/host_runtime/nul_read_file.panack",
+        "tests/fixtures/host_runtime/nul_write_bytes.panack",
+        "tests/fixtures/host_runtime/nul_write_file.panack",
+        "tests/fixtures/package_git/acquire.panack",
+        "tests/functional/cases/cli_check_disasm/main.panack",
+        "tests/functional/cases/cli_commands/main.panack",
+        "tests/functional/cases/cli_diagnostic_display/main.panack",
+        "tests/functional/cases/cli_environment_files/main.panack",
+        "tests/functional/cases/cli_explanations/proofs.panack",
+        "tests/functional/cases/cli_explanations/support.panack",
+        "tests/functional/cases/cli_rational_failures/main.panack",
+        "tests/functional/cases/host_capabilities/main.panack",
+        "tests/functional/cases/host_file_bounds/main.panack",
+        "tests/functional/cases/host_process/main.panack",
+        "tests/functional/cases/host_types/main.panack",
+        "tests/functional/cases/runner_smoke/main.panack",
+        "tests/functional/cases/testing_commands/main.panack",
+        "tests/http_client_package.sh",
+        "tests/namespace_seed.sh",
+        "tests/runner/bytecode_native_unit.panack",
+        "tests/runner/bytecode_unit.panack",
+        "tests/runner/compiler_coverage_session_cli.panack",
+        "tests/runner/compiler_coverage_session_integrity_cli.panack",
+        "tests/runner/compiler_coverage_session_process_cli.panack",
+        "tests/runner/compiler_coverage_session_records_cli.panack",
+        "tests/runner/compiler_driver.panack",
+        "tests/runner/compiler_integration_unit.panack",
+        "tests/runner/compiler_source_maps_cli.panack",
+        "tests/runner/compiler_suites/body_cache.panack",
+        "tests/runner/compiler_suites/code_cache.panack",
+        "tests/runner/compiler_suites/loader_confinement.panack",
+        "tests/runner/compiler_suites/module_summaries.panack",
+        "tests/runner/compiler_suites/package_source_limits.panack",
+        "tests/runner/compiler_suites/source_inventory.panack",
+        "tests/runner/compiler_suites/source_maps.panack",
+        "tests/runner/host_runtime_unit.panack",
+        "tests/runner/main.panack",
+        "tests/runner/oracle_command.panack",
+        "tests/runner/package_diagnostic_unit.panack",
+        "tests/runner/package_filesystem_unit.panack",
+        "tests/runner/package_git_unit.panack",
+        "tests/runner/package_manifest_unit.panack",
+        "tests/runner/package_sha256_unit.panack",
+        "tests/runner/report_capture_unit.panack",
+        "tests/runner/stdlib_unit.panack",
+        "tests/runner/vm_unit.panack",
+        "tests/tcp_canonical.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/compiler_files.panack",
+      "module": "stdlib/compiler_files",
+      "measurement": "eligible",
+      "publicFunctionDeclarations": [
+        {
+          "name": "read_text",
+          "line": 2
+        },
+        {
+          "name": "exists",
+          "line": 3
+        },
+        {
+          "name": "read_file_bytes",
+          "line": 4
+        },
+        {
+          "name": "write_file_bytes",
+          "line": 5
+        }
+      ],
+      "imports": [],
+      "directTestConsumers": [
+        "tests/fixtures/compiler_contracts/coverage_session/main.panack",
+        "tests/fixtures/host_runtime/nul_read_bytes.panack",
+        "tests/fixtures/host_runtime/nul_read_file.panack",
+        "tests/fixtures/host_runtime/nul_write_bytes.panack",
+        "tests/functional/cases/cli_environment_files/main.panack",
+        "tests/owned_dispatch_removal.sh",
+        "tests/runner/host_runtime_unit.panack",
+        "tests/runner/oracle_command.panack"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/compiler_paths.panack",
+      "module": "stdlib/compiler_paths",
+      "measurement": "eligible",
+      "publicFunctionDeclarations": [
+        {
+          "name": "join",
+          "line": 2
+        },
+        {
+          "name": "suffix",
+          "line": 3
+        },
+        {
+          "name": "parent",
+          "line": 4
+        },
+        {
+          "name": "is_absolute",
+          "line": 5
+        },
+        {
+          "name": "with_suffix",
+          "line": 6
+        },
+        {
+          "name": "resolve",
+          "line": 7
+        }
+      ],
+      "imports": [],
+      "directTestConsumers": [
+        "tests/fixtures/host_runtime/path_join.panack",
+        "tests/functional/cases/cli_explanations/main.panack",
+        "tests/runner/host_runtime_unit.panack"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/compression/gzip.panack",
+      "module": "stdlib/compression/gzip",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "create_decoder",
+          "line": 8
+        },
+        {
+          "name": "decode_chunk",
+          "line": 11
+        },
+        {
+          "name": "close",
+          "line": 15
+        }
+      ],
+      "imports": [
+        "stdlib/compression/gzip/errors",
+        "stdlib/compression/gzip/errors",
+        "stdlib/compression/gzip/errors",
+        "stdlib/host",
+        "stdlib/gzip"
+      ],
+      "directTestConsumers": [
+        "tests/cpu_resources.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/compression/gzip/async.panack",
+      "module": "stdlib/compression/gzip/async",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "create_decoder",
+          "line": 8
+        },
+        {
+          "name": "decode_chunk",
+          "line": 11
+        },
+        {
+          "name": "close",
+          "line": 15
+        }
+      ],
+      "imports": [
+        "stdlib/compression/gzip/errors",
+        "stdlib/compression/gzip/errors",
+        "stdlib/compression/gzip/errors",
+        "stdlib/host",
+        "stdlib/gzip"
+      ],
+      "directTestConsumers": [],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/compression/gzip/errors.panack",
+      "module": "stdlib/compression/gzip/errors",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "render",
+          "line": 11
+        },
+        {
+          "name": "convert",
+          "line": 39
+        }
+      ],
+      "imports": [
+        "stdlib/host"
+      ],
+      "directTestConsumers": [
+        "tests/resource_errors.sh",
+        "tests/runner/host_runtime_unit.panack"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/console.panack",
+      "module": "stdlib/console",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "write",
+          "line": 6
+        },
+        {
+          "name": "write_line",
+          "line": 9
+        },
+        {
+          "name": "write_error",
+          "line": 13
+        },
+        {
+          "name": "write_error_line",
+          "line": 17
+        },
+        {
+          "name": "read",
+          "line": 23
+        }
+      ],
+      "imports": [
+        "stdlib/console/errors",
+        "stdlib/console/errors",
+        "stdlib/console/errors"
+      ],
+      "directTestConsumers": [
+        "tests/console.sh",
+        "tests/console_input.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/console/async.panack",
+      "module": "stdlib/console/async",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "write",
+          "line": 6
+        },
+        {
+          "name": "write_line",
+          "line": 9
+        },
+        {
+          "name": "write_error",
+          "line": 13
+        },
+        {
+          "name": "write_error_line",
+          "line": 17
+        },
+        {
+          "name": "read",
+          "line": 23
+        }
+      ],
+      "imports": [
+        "stdlib/console/errors",
+        "stdlib/console/errors",
+        "stdlib/console/errors"
+      ],
+      "directTestConsumers": [
+        "tests/console.sh",
+        "tests/process_async.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/console/errors.panack",
+      "module": "stdlib/console/errors",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "render",
+          "line": 9
+        },
+        {
+          "name": "convert",
+          "line": 29
+        }
+      ],
+      "imports": [
+        "stdlib/host"
+      ],
+      "directTestConsumers": [
+        "tests/domain_errors.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/core.panack",
+      "module": "stdlib/core",
+      "measurement": "eligible",
+      "publicFunctionDeclarations": [
+        {
+          "name": "is_non_blank",
+          "line": 22
+        },
+        {
+          "name": "first_control_character",
+          "line": 50
+        },
+        {
+          "name": "has_no_control_characters",
+          "line": 67
+        },
+        {
+          "name": "ends_with",
+          "line": 73
+        },
+        {
+          "name": "first",
+          "line": 89
+        },
+        {
+          "name": "sort_by",
+          "line": 98
+        },
+        {
+          "name": "value_or",
+          "line": 139
+        },
+        {
+          "name": "value_or",
+          "line": 145
+        },
+        {
+          "name": "len",
+          "line": 151
+        },
+        {
+          "name": "slice",
+          "line": 152
+        },
+        {
+          "name": "join",
+          "line": 156
+        },
+        {
+          "name": "to_text",
+          "line": 157
+        },
+        {
+          "name": "native_bytes",
+          "line": 158
+        },
+        {
+          "name": "display",
+          "line": 159
+        },
+        {
+          "name": "is_absolute",
+          "line": 160
+        },
+        {
+          "name": "directory",
+          "line": 161
+        },
+        {
+          "name": "parent",
+          "line": 162
+        },
+        {
+          "name": "filename",
+          "line": 163
+        },
+        {
+          "name": "as_nanoseconds",
+          "line": 167
+        },
+        {
+          "name": "is_less_than",
+          "line": 168
+        },
+        {
+          "name": "add",
+          "line": 169
+        },
+        {
+          "name": "subtract",
+          "line": 172
+        },
+        {
+          "name": "scale",
+          "line": 175
+        },
+        {
+          "name": "is_before",
+          "line": 178
+        },
+        {
+          "name": "as_seconds",
+          "line": 179
+        },
+        {
+          "name": "divide",
+          "line": 180
+        },
+        {
+          "name": "ratio",
+          "line": 187
+        }
+      ],
+      "imports": [],
+      "directTestConsumers": [
+        "tests/fixtures/compiler_contracts/imports/logical_standard_library_imports_are_extensionless_and_load_once-1/main.panack",
+        "tests/fixtures/compiler_contracts/owned_generic_core/core_methods.panack",
+        "tests/functional/cases/owned_core_methods/main.panack",
+        "tests/namespace_seed.sh",
+        "tests/runner/compiler_suites/contracts.panack",
+        "tests/runner/compiler_suites/module_bindings.panack"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/digest.panack",
+      "module": "stdlib/digest",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "sha256_open",
+          "line": 6
+        },
+        {
+          "name": "update",
+          "line": 7
+        },
+        {
+          "name": "finish",
+          "line": 8
+        },
+        {
+          "name": "close",
+          "line": 9
+        }
+      ],
+      "imports": [
+        "stdlib/host"
+      ],
+      "directTestConsumers": [],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/digest/sha256.panack",
+      "module": "stdlib/digest/sha256",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "create",
+          "line": 7
+        },
+        {
+          "name": "update",
+          "line": 10
+        },
+        {
+          "name": "finish",
+          "line": 14
+        },
+        {
+          "name": "close",
+          "line": 18
+        },
+        {
+          "name": "hash",
+          "line": 24
+        }
+      ],
+      "imports": [
+        "stdlib/digest/sha256/errors",
+        "stdlib/digest/sha256/errors",
+        "stdlib/digest/sha256/errors",
+        "stdlib/host"
+      ],
+      "directTestConsumers": [
+        "tests/cpu_resources.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/digest/sha256/async.panack",
+      "module": "stdlib/digest/sha256/async",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "create",
+          "line": 8
+        },
+        {
+          "name": "update",
+          "line": 11
+        },
+        {
+          "name": "finish",
+          "line": 15
+        },
+        {
+          "name": "close",
+          "line": 19
+        }
+      ],
+      "imports": [
+        "stdlib/digest/sha256/errors",
+        "stdlib/digest/sha256/errors",
+        "stdlib/digest/sha256/errors",
+        "stdlib/host",
+        "stdlib/digest/sha256"
+      ],
+      "directTestConsumers": [],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/digest/sha256/errors.panack",
+      "module": "stdlib/digest/sha256/errors",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "render",
+          "line": 10
+        },
+        {
+          "name": "convert",
+          "line": 32
+        }
+      ],
+      "imports": [
+        "stdlib/host"
+      ],
+      "directTestConsumers": [
+        "tests/resource_errors.sh",
+        "tests/runner/host_runtime_unit.panack"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/encoding/utf8.panack",
+      "module": "stdlib/encoding/utf8",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "render",
+          "line": 12
+        },
+        {
+          "name": "decode",
+          "line": 70
+        }
+      ],
+      "imports": [
+        "stdlib/host"
+      ],
+      "directTestConsumers": [
+        "tests/encoding_values.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/environment.panack",
+      "module": "stdlib/environment",
+      "measurement": "eligible",
+      "publicFunctionDeclarations": [
+        {
+          "name": "get",
+          "line": 1
+        }
+      ],
+      "imports": [],
+      "directTestConsumers": [
+        "tests/async_stdlib.sh",
+        "tests/fixtures/host_runtime/environment_option.panack",
+        "tests/fixtures/host_runtime/environment_snapshot.panack",
+        "tests/fixtures/host_runtime/native_boundary.panack",
+        "tests/functional/cases/cli_commands/main.panack",
+        "tests/functional/cases/cli_explanations/main.panack",
+        "tests/functional/cases/cli_explanations/proofs.panack",
+        "tests/functional/cases/cli_explanations/support.panack",
+        "tests/functional/cases/runner_smoke/main.panack",
+        "tests/namespace_seed.sh",
+        "tests/runner/compiler_coverage_session_helpers.panack",
+        "tests/runner/compiler_driver.panack",
+        "tests/runner/compiler_integration_unit.panack",
+        "tests/runner/compiler_origin_audit.panack",
+        "tests/runner/compiler_shared_unit.panack",
+        "tests/runner/compiler_source_maps_cli.panack",
+        "tests/runner/compiler_suites/coverage.panack",
+        "tests/runner/compiler_suites/module_bindings.panack",
+        "tests/runner/compiler_suites/source_inventory.panack",
+        "tests/runner/compiler_suites/source_maps.panack",
+        "tests/runner/host_runtime_unit.panack",
+        "tests/runner/oracle_command.panack",
+        "tests/runner/vm_unit.panack",
+        "tests/source_coverage/export.panack",
+        "tests/unit/harness/compiler_shared.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/environment/async.panack",
+      "module": "stdlib/environment/async",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "get",
+          "line": 2
+        }
+      ],
+      "imports": [],
+      "directTestConsumers": [
+        "tests/async_stdlib.sh",
+        "tests/unit/harness/distribution.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/filesystem.panack",
+      "module": "stdlib/filesystem",
+      "measurement": "eligible",
+      "publicFunctionDeclarations": [
+        {
+          "name": "metadata",
+          "line": 10
+        },
+        {
+          "name": "read",
+          "line": 14
+        },
+        {
+          "name": "write",
+          "line": 18
+        },
+        {
+          "name": "list_directory",
+          "line": 22
+        },
+        {
+          "name": "remove_file",
+          "line": 26
+        },
+        {
+          "name": "remove_directory",
+          "line": 30
+        },
+        {
+          "name": "create_directory",
+          "line": 34
+        },
+        {
+          "name": "temp_directory",
+          "line": 38
+        },
+        {
+          "name": "temp_file",
+          "line": 42
+        },
+        {
+          "name": "create_temp_file",
+          "line": 48
+        },
+        {
+          "name": "create_temp_directory",
+          "line": 49
+        },
+        {
+          "name": "read_chunk",
+          "line": 50
+        },
+        {
+          "name": "write_atomic",
+          "line": 53
+        },
+        {
+          "name": "directories_overlap",
+          "line": 56
+        }
+      ],
+      "imports": [
+        "stdlib/filesystem/errors",
+        "stdlib/filesystem/errors",
+        "stdlib/filesystem/errors",
+        "stdlib/bounded_filesystem",
+        "stdlib/package_filesystem",
+        "stdlib/host"
+      ],
+      "directTestConsumers": [
+        "tests/async_filesystem_general.sh",
+        "tests/experiments/source_coverage/run.cjs",
+        "tests/functional/cases/host_capabilities/main.panack",
+        "tests/namespace_seed.sh",
+        "tests/runner/compiler_coverage_session_helpers.panack",
+        "tests/runner/host_runtime_unit.panack",
+        "tests/stdlib_nominal_identity.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/filesystem/async.panack",
+      "module": "stdlib/filesystem/async",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "metadata",
+          "line": 9
+        },
+        {
+          "name": "read",
+          "line": 14
+        },
+        {
+          "name": "write",
+          "line": 18
+        },
+        {
+          "name": "list_directory",
+          "line": 22
+        },
+        {
+          "name": "remove_file",
+          "line": 26
+        },
+        {
+          "name": "remove_directory",
+          "line": 30
+        },
+        {
+          "name": "create_directory",
+          "line": 34
+        },
+        {
+          "name": "temp_directory",
+          "line": 38
+        },
+        {
+          "name": "temp_file",
+          "line": 42
+        },
+        {
+          "name": "create_temp_file",
+          "line": 46
+        },
+        {
+          "name": "create_temp_directory",
+          "line": 50
+        },
+        {
+          "name": "directories_overlap",
+          "line": 53
+        },
+        {
+          "name": "read_chunk",
+          "line": 56
+        },
+        {
+          "name": "write_atomic",
+          "line": 60
+        }
+      ],
+      "imports": [
+        "stdlib/filesystem/errors",
+        "stdlib/filesystem/errors",
+        "stdlib/filesystem/errors",
+        "stdlib/package_filesystem/async",
+        "stdlib/filesystem",
+        "stdlib/async_filesystem"
+      ],
+      "directTestConsumers": [
+        "tests/async_filesystem_general.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/filesystem/confined.panack",
+      "module": "stdlib/filesystem/confined",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "root_identity",
+          "line": 7
+        },
+        {
+          "name": "read",
+          "line": 11
+        },
+        {
+          "name": "read_link",
+          "line": 15
+        }
+      ],
+      "imports": [
+        "stdlib/filesystem/errors",
+        "stdlib/filesystem/errors",
+        "stdlib/filesystem/errors",
+        "stdlib/package_filesystem",
+        "stdlib/bounded_filesystem",
+        "stdlib/package_filesystem"
+      ],
+      "directTestConsumers": [
+        "tests/async_filesystem_general.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/filesystem/confined/async.panack",
+      "module": "stdlib/filesystem/confined/async",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "read",
+          "line": 6
+        },
+        {
+          "name": "read_link",
+          "line": 10
+        },
+        {
+          "name": "root_identity",
+          "line": 14
+        }
+      ],
+      "imports": [
+        "stdlib/filesystem/errors",
+        "stdlib/filesystem/errors",
+        "stdlib/filesystem/errors",
+        "stdlib/async_filesystem",
+        "stdlib/async_filesystem"
+      ],
+      "directTestConsumers": [
+        "tests/async_filesystem_general.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/filesystem/errors.panack",
+      "module": "stdlib/filesystem/errors",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "render",
+          "line": 61
+        },
+        {
+          "name": "convert",
+          "line": 122
+        }
+      ],
+      "imports": [
+        "stdlib/host"
+      ],
+      "directTestConsumers": [
+        "tests/filesystem_errors.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/filesystem/legacy.panack",
+      "module": "stdlib/filesystem/legacy",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "metadata",
+          "line": 10
+        },
+        {
+          "name": "read",
+          "line": 14
+        },
+        {
+          "name": "write",
+          "line": 18
+        },
+        {
+          "name": "list_directory",
+          "line": 22
+        },
+        {
+          "name": "remove_file",
+          "line": 26
+        },
+        {
+          "name": "remove_directory",
+          "line": 30
+        },
+        {
+          "name": "create_directory",
+          "line": 34
+        },
+        {
+          "name": "temp_directory",
+          "line": 38
+        },
+        {
+          "name": "temp_file",
+          "line": 42
+        },
+        {
+          "name": "create_temp_file",
+          "line": 46
+        },
+        {
+          "name": "create_temp_directory",
+          "line": 50
+        },
+        {
+          "name": "read_chunk",
+          "line": 54
+        },
+        {
+          "name": "write_atomic",
+          "line": 58
+        },
+        {
+          "name": "directories_overlap",
+          "line": 62
+        }
+      ],
+      "imports": [
+        "stdlib/filesystem",
+        "stdlib/host",
+        "stdlib/filesystem",
+        "stdlib/filesystem/errors"
+      ],
+      "directTestConsumers": [
+        "tests/fixtures/compiler_contracts/snapshot_probe.panack",
+        "tests/fixtures/package_git/acquire.panack",
+        "tests/functional/cases/cli_check_disasm/main.panack",
+        "tests/functional/cases/cli_commands/main.panack",
+        "tests/functional/cases/cli_diagnostic_display/main.panack",
+        "tests/functional/cases/cli_environment_files/main.panack",
+        "tests/functional/cases/cli_explanations/main.panack",
+        "tests/functional/cases/cli_explanations/proofs.panack",
+        "tests/functional/cases/cli_explanations/support.panack",
+        "tests/functional/cases/cli_rational_failures/main.panack",
+        "tests/functional/cases/host_capabilities/main.panack",
+        "tests/functional/cases/host_file_bounds/main.panack",
+        "tests/functional/cases/runner_smoke/main.panack",
+        "tests/functional/cases/testing_fixtures/main.panack",
+        "tests/runner/bytecode_native_unit.panack",
+        "tests/runner/compiler_coverage_cli.panack",
+        "tests/runner/compiler_coverage_session_helpers.panack",
+        "tests/runner/compiler_coverage_session_integrity_cli.panack",
+        "tests/runner/compiler_coverage_session_records_cli.panack",
+        "tests/runner/compiler_driver.panack",
+        "tests/runner/compiler_integration_unit.panack",
+        "tests/runner/compiler_source_inventory_cli.panack",
+        "tests/runner/compiler_source_maps_cli.panack",
+        "tests/runner/compiler_suites/checker.panack",
+        "tests/runner/compiler_suites/loader_confinement.panack",
+        "tests/runner/compiler_suites/module_reuse.panack",
+        "tests/runner/compiler_suites/package_source_limits.panack",
+        "tests/runner/host_runtime_unit.panack",
+        "tests/runner/main.panack",
+        "tests/runner/package_archive_unit.panack",
+        "tests/runner/package_filesystem_unit.panack",
+        "tests/runner/report_capture_unit.panack",
+        "tests/runner/vm_unit.panack",
+        "tests/stdlib_support.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/filesystem/legacy/async.panack",
+      "module": "stdlib/filesystem/legacy/async",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "metadata",
+          "line": 11
+        },
+        {
+          "name": "read",
+          "line": 15
+        },
+        {
+          "name": "write",
+          "line": 19
+        },
+        {
+          "name": "list_directory",
+          "line": 23
+        },
+        {
+          "name": "remove_file",
+          "line": 27
+        },
+        {
+          "name": "remove_directory",
+          "line": 31
+        },
+        {
+          "name": "create_directory",
+          "line": 35
+        },
+        {
+          "name": "temp_directory",
+          "line": 39
+        },
+        {
+          "name": "temp_file",
+          "line": 43
+        },
+        {
+          "name": "create_temp_file",
+          "line": 47
+        },
+        {
+          "name": "create_temp_directory",
+          "line": 51
+        },
+        {
+          "name": "directories_overlap",
+          "line": 55
+        },
+        {
+          "name": "read_chunk",
+          "line": 59
+        },
+        {
+          "name": "write_atomic",
+          "line": 63
+        }
+      ],
+      "imports": [
+        "stdlib/filesystem/async",
+        "stdlib/host",
+        "stdlib/filesystem",
+        "stdlib/filesystem/errors",
+        "stdlib/async_filesystem"
+      ],
+      "directTestConsumers": [
+        "tests/async_filesystem.sh",
+        "tests/http_process.sh",
+        "tests/stdlib_support.sh",
+        "tests/unit/harness/distribution.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/filesystem/staging.panack",
+      "module": "stdlib/filesystem/staging",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "create",
+          "line": 6
+        },
+        {
+          "name": "path",
+          "line": 10
+        },
+        {
+          "name": "create_directory",
+          "line": 13
+        },
+        {
+          "name": "write_chunk",
+          "line": 16
+        },
+        {
+          "name": "create_symlink",
+          "line": 19
+        },
+        {
+          "name": "publish",
+          "line": 22
+        },
+        {
+          "name": "discard",
+          "line": 26
+        }
+      ],
+      "imports": [
+        "stdlib/filesystem/errors",
+        "stdlib/filesystem/errors",
+        "stdlib/filesystem/errors",
+        "stdlib/host"
+      ],
+      "directTestConsumers": [
+        "tests/async_filesystem_general.sh",
+        "tests/filesystem_errors.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/filesystem/staging/async.panack",
+      "module": "stdlib/filesystem/staging/async",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "create",
+          "line": 6
+        },
+        {
+          "name": "path",
+          "line": 10
+        },
+        {
+          "name": "create_directory",
+          "line": 13
+        },
+        {
+          "name": "write_chunk",
+          "line": 16
+        },
+        {
+          "name": "create_symlink",
+          "line": 19
+        },
+        {
+          "name": "publish",
+          "line": 22
+        },
+        {
+          "name": "discard",
+          "line": 26
+        }
+      ],
+      "imports": [
+        "stdlib/filesystem/errors",
+        "stdlib/filesystem/errors",
+        "stdlib/filesystem/errors",
+        "stdlib/host",
+        "stdlib/filesystem/staging"
+      ],
+      "directTestConsumers": [
+        "tests/async_filesystem_general.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/filesystem_stage.panack",
+      "module": "stdlib/filesystem_stage",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "begin",
+          "line": 3
+        },
+        {
+          "name": "path",
+          "line": 7
+        },
+        {
+          "name": "directory",
+          "line": 11
+        },
+        {
+          "name": "write",
+          "line": 15
+        },
+        {
+          "name": "symlink",
+          "line": 22
+        },
+        {
+          "name": "publish",
+          "line": 25
+        },
+        {
+          "name": "close",
+          "line": 29
+        }
+      ],
+      "imports": [
+        "stdlib/host"
+      ],
+      "directTestConsumers": [
+        "tests/fixtures/compiler_contracts/host_types/link_target_type.panack",
+        "tests/fixtures/package_git/acquire.panack",
+        "tests/functional/cases/host_capabilities/main.panack"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/gzip.panack",
+      "module": "stdlib/gzip",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "open",
+          "line": 7
+        },
+        {
+          "name": "step",
+          "line": 10
+        },
+        {
+          "name": "close",
+          "line": 14
+        }
+      ],
+      "imports": [
+        "stdlib/host"
+      ],
+      "directTestConsumers": [],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/host.panack",
+      "module": "stdlib/host",
+      "measurement": "eligible",
+      "publicFunctionDeclarations": [
+        {
+          "name": "run",
+          "line": 3
+        },
+        {
+          "name": "arguments",
+          "line": 7
+        },
+        {
+          "name": "exit",
+          "line": 11
+        },
+        {
+          "name": "stderr",
+          "line": 15
+        },
+        {
+          "name": "stdout",
+          "line": 19
+        },
+        {
+          "name": "sleep",
+          "line": 23
+        },
+        {
+          "name": "decode_utf8",
+          "line": 27
+        }
+      ],
+      "imports": [],
+      "directTestConsumers": [
+        "tests/async_filesystem_general.sh",
+        "tests/async_stdlib.sh",
+        "tests/console.sh",
+        "tests/domain_errors.sh",
+        "tests/encoding_values.sh",
+        "tests/experiments/semantic_impact/evidence.panack",
+        "tests/filesystem_errors.sh",
+        "tests/fixtures/compiler_contracts/coverage_session/main.panack",
+        "tests/fixtures/compiler_contracts/snapshot_probe.panack",
+        "tests/fixtures/host_runtime/arguments.panack",
+        "tests/fixtures/host_runtime/native_boundary.panack",
+        "tests/fixtures/host_runtime/nested_arguments.panack",
+        "tests/fixtures/host_runtime/process_exit.panack",
+        "tests/fixtures/package_git/acquire.panack",
+        "tests/functional/cases/cli_check_disasm/main.panack",
+        "tests/functional/cases/cli_commands/main.panack",
+        "tests/functional/cases/cli_diagnostic_display/main.panack",
+        "tests/functional/cases/cli_environment_files/main.panack",
+        "tests/functional/cases/cli_explanations/main.panack",
+        "tests/functional/cases/cli_explanations/proofs.panack",
+        "tests/functional/cases/cli_explanations/support.panack",
+        "tests/functional/cases/cli_rational_failures/main.panack",
+        "tests/functional/cases/host_capabilities/main.panack",
+        "tests/functional/cases/host_file_bounds/main.panack",
+        "tests/functional/cases/host_process/main.panack",
+        "tests/functional/cases/runner_smoke/main.panack",
+        "tests/namespace_seed.sh",
+        "tests/release_archive_smoke.sh",
+        "tests/resource_errors.sh",
+        "tests/runner/bytecode_native_unit.panack",
+        "tests/runner/bytecode_unit.panack",
+        "tests/runner/compiler_coverage_cli.panack",
+        "tests/runner/compiler_coverage_session_cli.panack",
+        "tests/runner/compiler_coverage_session_helpers.panack",
+        "tests/runner/compiler_coverage_session_integrity_cli.panack",
+        "tests/runner/compiler_coverage_session_process_cli.panack",
+        "tests/runner/compiler_coverage_session_records_cli.panack",
+        "tests/runner/compiler_driver.panack",
+        "tests/runner/compiler_explanations_unit.panack",
+        "tests/runner/compiler_integration_unit.panack",
+        "tests/runner/compiler_lexer_unit.panack",
+        "tests/runner/compiler_origin_audit.panack",
+        "tests/runner/compiler_parser_unit.panack",
+        "tests/runner/compiler_purity_unit.panack",
+        "tests/runner/compiler_resolver_unit.panack",
+        "tests/runner/compiler_shared_unit.panack",
+        "tests/runner/compiler_source_inventory_cli.panack",
+        "tests/runner/compiler_source_maps_cli.panack",
+        "tests/runner/compiler_source_spans_unit.panack",
+        "tests/runner/compiler_suites/checker.panack",
+        "tests/runner/compiler_suites/contracts.panack",
+        "tests/runner/compiler_suites/coverage.panack",
+        "tests/runner/compiler_suites/instruction_sources.panack",
+        "tests/runner/compiler_suites/loader_confinement.panack",
+        "tests/runner/compiler_suites/module_bindings.panack",
+        "tests/runner/compiler_suites/module_reuse.panack",
+        "tests/runner/compiler_suites/package_source_limits.panack",
+        "tests/runner/compiler_suites/source_inventory.panack",
+        "tests/runner/compiler_suites/source_maps.panack",
+        "tests/runner/host_runtime_unit.panack",
+        "tests/runner/main.panack",
+        "tests/runner/oracle_command.panack",
+        "tests/runner/package_archive_rejection.panack",
+        "tests/runner/package_archive_unit.panack",
+        "tests/runner/package_case_fold_unit.panack",
+        "tests/runner/package_diagnostic_unit.panack",
+        "tests/runner/package_filesystem_unit.panack",
+        "tests/runner/package_git_unit.panack",
+        "tests/runner/package_lock_unit.panack",
+        "tests/runner/package_manifest_unit.panack",
+        "tests/runner/package_sha256_unit.panack",
+        "tests/runner/package_tar_unit.panack",
+        "tests/runner/report_capture_unit.panack",
+        "tests/runner/resolved_project_unit.panack",
+        "tests/runner/stdlib_unit.panack",
+        "tests/runner/vm_unit.panack",
+        "tests/source_coverage/export.panack",
+        "tests/source_coverage/golden.panack",
+        "tests/source_coverage/scope.panack",
+        "tests/stdlib_support.sh",
+        "tests/unit/harness/compilation_cache.sh",
+        "tests/unit/harness/compiler_shared.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/host/async.panack",
+      "module": "stdlib/host/async",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [],
+      "imports": [
+        "stdlib/async_host"
+      ],
+      "directTestConsumers": [
+        "tests/async_filesystem_general.sh",
+        "tests/async_stdlib.sh",
+        "tests/http_process.sh",
+        "tests/http_stream_async.sh",
+        "tests/unit/harness/distribution.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/http_runtime.panack",
+      "module": "stdlib/http_runtime",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "create",
+          "line": 3
+        },
+        {
+          "name": "context",
+          "line": 6
+        },
+        {
+          "name": "setup_error",
+          "line": 8
+        },
+        {
+          "name": "invalid_route",
+          "line": 10
+        },
+        {
+          "name": "register",
+          "line": 12
+        },
+        {
+          "name": "writer_get_status",
+          "line": 16
+        },
+        {
+          "name": "writer_get_headers",
+          "line": 18
+        },
+        {
+          "name": "writer_reject",
+          "line": 19
+        },
+        {
+          "name": "writer_status",
+          "line": 20
+        },
+        {
+          "name": "writer_headers",
+          "line": 21
+        },
+        {
+          "name": "writer_commit",
+          "line": 22
+        },
+        {
+          "name": "connection_writer",
+          "line": 23
+        },
+        {
+          "name": "connection_routes",
+          "line": 25
+        },
+        {
+          "name": "connection_fallback",
+          "line": 26
+        },
+        {
+          "name": "connection_admit",
+          "line": 27
+        },
+        {
+          "name": "connection_invoke",
+          "line": 28
+        },
+        {
+          "name": "listen_ordinary",
+          "line": 31
+        },
+        {
+          "name": "listen_contextual",
+          "line": 35
+        },
+        {
+          "name": "close",
+          "line": 38
+        },
+        {
+          "name": "destroy",
+          "line": 39
+        },
+        {
+          "name": "bytes_slice",
+          "line": 40
+        },
+        {
+          "name": "body",
+          "line": 42
+        },
+        {
+          "name": "body_size",
+          "line": 43
+        },
+        {
+          "name": "body_append",
+          "line": 44
+        },
+        {
+          "name": "connection_continue",
+          "line": 45
+        }
+      ],
+      "imports": [],
+      "directTestConsumers": [
+        "tests/functional/cases/cli_explanations/main.panack",
+        "tests/functional/cases/cli_explanations/proofs.panack",
+        "tests/http_package.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/http_stream.panack",
+      "module": "stdlib/http_stream",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "open",
+          "line": 3
+        },
+        {
+          "name": "read",
+          "line": 7
+        },
+        {
+          "name": "close",
+          "line": 9
+        }
+      ],
+      "imports": [],
+      "directTestConsumers": [
+        "tests/http_client_package.sh",
+        "tests/http_stream_errors.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/http_transport.panack",
+      "module": "stdlib/http_transport",
+      "measurement": "eligible",
+      "publicFunctionDeclarations": [
+        {
+          "name": "exchange",
+          "line": 2
+        }
+      ],
+      "imports": [],
+      "directTestConsumers": [
+        "tests/functional/cases/cli_explanations/main.panack",
+        "tests/source_coverage/scope.panack"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/network/http_stream.panack",
+      "module": "stdlib/network/http_stream",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "open",
+          "line": 7
+        },
+        {
+          "name": "read",
+          "line": 10
+        },
+        {
+          "name": "close",
+          "line": 14
+        }
+      ],
+      "imports": [
+        "stdlib/network/http_stream/errors",
+        "stdlib/network/http_stream/errors",
+        "stdlib/network/http_stream/errors"
+      ],
+      "directTestConsumers": [
+        "tests/http_stream_async.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/network/http_stream/async.panack",
+      "module": "stdlib/network/http_stream/async",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "open",
+          "line": 8
+        },
+        {
+          "name": "read",
+          "line": 11
+        },
+        {
+          "name": "close",
+          "line": 15
+        }
+      ],
+      "imports": [
+        "stdlib/network/http_stream/errors",
+        "stdlib/network/http_stream/errors",
+        "stdlib/network/http_stream/errors"
+      ],
+      "directTestConsumers": [
+        "tests/http_stream_async.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/network/http_stream/errors.panack",
+      "module": "stdlib/network/http_stream/errors",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "render",
+          "line": 10
+        },
+        {
+          "name": "convert",
+          "line": 45
+        }
+      ],
+      "imports": [],
+      "directTestConsumers": [
+        "tests/http_stream_errors.sh",
+        "tests/runner/host_runtime_unit.panack"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/network/tcp/async.panack",
+      "module": "stdlib/network/tcp/async",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "exchange",
+          "line": 53
+        },
+        {
+          "name": "serve_bounded",
+          "line": 61
+        },
+        {
+          "name": "serve_stream",
+          "line": 71
+        },
+        {
+          "name": "serve",
+          "line": 78
+        },
+        {
+          "name": "read_chunk",
+          "line": 87
+        }
+      ],
+      "imports": [
+        "stdlib/network/tcp/errors",
+        "stdlib/network/tcp/errors",
+        "stdlib/network/tcp/errors",
+        "stdlib/tcp",
+        "stdlib/tcp_service",
+        "stdlib/tcp_service"
+      ],
+      "directTestConsumers": [
+        "tests/tcp_canonical.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/network/tcp/errors.panack",
+      "module": "stdlib/network/tcp/errors",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "render",
+          "line": 5
+        },
+        {
+          "name": "convert",
+          "line": 44
+        },
+        {
+          "name": "configuration",
+          "line": 80
+        },
+        {
+          "name": "outcomes",
+          "line": 83
+        }
+      ],
+      "imports": [],
+      "directTestConsumers": [
+        "tests/runner/host_runtime_unit.panack"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/package_filesystem.panack",
+      "module": "stdlib/package_filesystem",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "directories_overlap",
+          "line": 6
+        },
+        {
+          "name": "read_beneath",
+          "line": 10
+        }
+      ],
+      "imports": [
+        "stdlib/host"
+      ],
+      "directTestConsumers": [
+        "tests/functional/cases/cli_explanations/main.panack",
+        "tests/runner/compiler_suites/loader_confinement.panack",
+        "tests/runner/compiler_suites/project_preparation.panack",
+        "tests/runner/package_filesystem_unit.panack",
+        "tests/runner/resolved_project_unit.panack"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/package_filesystem/async.panack",
+      "module": "stdlib/package_filesystem/async",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "directories_overlap",
+          "line": 3
+        }
+      ],
+      "imports": [
+        "stdlib/async_filesystem"
+      ],
+      "directTestConsumers": [],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/path.panack",
+      "module": "stdlib/path",
+      "measurement": "eligible",
+      "publicFunctionDeclarations": [
+        {
+          "name": "from_text",
+          "line": 4
+        },
+        {
+          "name": "from_native",
+          "line": 5
+        },
+        {
+          "name": "current",
+          "line": 6
+        }
+      ],
+      "imports": [
+        "stdlib/core"
+      ],
+      "directTestConsumers": [
+        "tests/async_filesystem.sh",
+        "tests/async_filesystem_general.sh",
+        "tests/cpu_resources.sh",
+        "tests/domain_errors.sh",
+        "tests/encoding_values.sh",
+        "tests/filesystem_errors.sh",
+        "tests/fixtures/compiler_contracts/host_types/isolated_process_effect.panack",
+        "tests/fixtures/compiler_contracts/host_types/link_primitive_private.panack",
+        "tests/fixtures/compiler_contracts/host_types/link_target_type.panack",
+        "tests/fixtures/package_git/acquire.panack",
+        "tests/functional/cases/cli_check_disasm/main.panack",
+        "tests/functional/cases/cli_commands/main.panack",
+        "tests/functional/cases/cli_diagnostic_display/main.panack",
+        "tests/functional/cases/cli_environment_files/main.panack",
+        "tests/functional/cases/cli_explanations/main.panack",
+        "tests/functional/cases/cli_explanations/proofs.panack",
+        "tests/functional/cases/cli_explanations/support.panack",
+        "tests/functional/cases/cli_rational_failures/main.panack",
+        "tests/functional/cases/host_capabilities/main.panack",
+        "tests/functional/cases/host_file_bounds/main.panack",
+        "tests/functional/cases/host_process/main.panack",
+        "tests/functional/cases/host_types/main.panack",
+        "tests/functional/cases/owned_core_methods/main.panack",
+        "tests/functional/cases/runner_smoke/main.panack",
+        "tests/functional/cases/testing_commands/main.panack",
+        "tests/functional/cases/testing_fixtures/main.panack",
+        "tests/http_process.sh",
+        "tests/namespace_seed.sh",
+        "tests/process_async.sh",
+        "tests/resource_errors.sh",
+        "tests/runner/bytecode_native_unit.panack",
+        "tests/runner/compiler_coverage_cli.panack",
+        "tests/runner/compiler_coverage_session_helpers.panack",
+        "tests/runner/compiler_driver.panack",
+        "tests/runner/compiler_integration_unit.panack",
+        "tests/runner/compiler_source_inventory_cli.panack",
+        "tests/runner/compiler_source_maps_cli.panack",
+        "tests/runner/compiler_suites/checker.panack",
+        "tests/runner/compiler_suites/loader_confinement.panack",
+        "tests/runner/compiler_suites/module_bindings.panack",
+        "tests/runner/compiler_suites/module_reuse.panack",
+        "tests/runner/compiler_suites/package_source_limits.panack",
+        "tests/runner/host_runtime_unit.panack",
+        "tests/runner/main.panack",
+        "tests/runner/oracle_command.panack",
+        "tests/runner/package_archive_unit.panack",
+        "tests/runner/package_filesystem_unit.panack",
+        "tests/runner/report_capture_unit.panack",
+        "tests/runner/stdlib_unit.panack",
+        "tests/runner/vm_unit.panack",
+        "tests/stdlib_nominal_identity.sh",
+        "tests/stdlib_support.sh",
+        "tests/unit/harness/distribution.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/prelude.panack",
+      "module": "stdlib/prelude",
+      "measurement": "eligible",
+      "publicFunctionDeclarations": [],
+      "imports": [
+        "stdlib/bytes",
+        "stdlib/path",
+        "stdlib/environment",
+        "stdlib/time",
+        "stdlib/filesystem",
+        "stdlib/process/legacy"
+      ],
+      "directTestConsumers": [
+        "tests/functional/cases/stdlib/main.panack",
+        "tests/functional/cases/stdlib_module_api/main.panack",
+        "tests/functional/failures/stdlib_legacy_api_removed/main.panack",
+        "tests/source_coverage/scope.panack"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/process.panack",
+      "module": "stdlib/process",
+      "measurement": "eligible",
+      "publicFunctionDeclarations": [
+        {
+          "name": "arguments",
+          "line": 9
+        },
+        {
+          "name": "exit",
+          "line": 10
+        },
+        {
+          "name": "run",
+          "line": 11
+        }
+      ],
+      "imports": [
+        "stdlib/process/errors",
+        "stdlib/process/errors",
+        "stdlib/process/types",
+        "stdlib/process/types",
+        "stdlib/process/legacy",
+        "stdlib/host"
+      ],
+      "directTestConsumers": [
+        "tests/domain_errors.sh",
+        "tests/http_process.sh",
+        "tests/process_async.sh",
+        "tests/source_coverage/scope.panack"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/process/async.panack",
+      "module": "stdlib/process/async",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "run",
+          "line": 8
+        }
+      ],
+      "imports": [
+        "stdlib/process/errors",
+        "stdlib/process/errors",
+        "stdlib/process/types",
+        "stdlib/host/async",
+        "stdlib/process/types"
+      ],
+      "directTestConsumers": [
+        "tests/http_process.sh",
+        "tests/process_async.sh",
+        "tests/stdlib_support.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/process/errors.panack",
+      "module": "stdlib/process/errors",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "render",
+          "line": 14
+        },
+        {
+          "name": "convert",
+          "line": 39
+        }
+      ],
+      "imports": [
+        "stdlib/host",
+        "stdlib/process/types"
+      ],
+      "directTestConsumers": [
+        "tests/domain_errors.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/process/legacy.panack",
+      "module": "stdlib/process/legacy",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "run",
+          "line": 5
+        },
+        {
+          "name": "run_isolated",
+          "line": 15
+        }
+      ],
+      "imports": [
+        "stdlib/host"
+      ],
+      "directTestConsumers": [
+        "tests/fixtures/compiler_contracts/host_types/isolated_process_effect.panack",
+        "tests/functional/cases/cli_check_disasm/main.panack",
+        "tests/functional/cases/cli_commands/main.panack",
+        "tests/functional/cases/cli_diagnostic_display/main.panack",
+        "tests/functional/cases/cli_environment_files/main.panack",
+        "tests/functional/cases/cli_explanations/proofs.panack",
+        "tests/functional/cases/cli_explanations/support.panack",
+        "tests/functional/cases/cli_rational_failures/main.panack",
+        "tests/functional/cases/host_capabilities/main.panack",
+        "tests/functional/cases/host_process/main.panack",
+        "tests/namespace_seed.sh",
+        "tests/runner/bytecode_native_unit.panack",
+        "tests/runner/compiler_coverage_cli.panack",
+        "tests/runner/compiler_coverage_session_helpers.panack",
+        "tests/runner/compiler_coverage_session_process_cli.panack",
+        "tests/runner/compiler_driver.panack",
+        "tests/runner/compiler_integration_unit.panack",
+        "tests/runner/compiler_source_inventory_cli.panack",
+        "tests/runner/compiler_source_maps_cli.panack",
+        "tests/runner/compiler_suites/loader_confinement.panack",
+        "tests/runner/compiler_suites/package_source_limits.panack",
+        "tests/runner/host_runtime_unit.panack",
+        "tests/runner/main.panack",
+        "tests/runner/oracle_command.panack",
+        "tests/runner/package_filesystem_unit.panack",
+        "tests/runner/vm_unit.panack"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/process/types.panack",
+      "module": "stdlib/process/types",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "convert",
+          "line": 12
+        }
+      ],
+      "imports": [
+        "stdlib/host",
+        "stdlib/process/legacy"
+      ],
+      "directTestConsumers": [],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/runtime/bytecode.panack",
+      "module": "stdlib/runtime/bytecode",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [],
+      "imports": [
+        "stdlib/host"
+      ],
+      "directTestConsumers": [
+        "tests/stdlib_support.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/state.panack",
+      "module": "stdlib/state",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "create",
+          "line": 2
+        },
+        {
+          "name": "read",
+          "line": 3
+        },
+        {
+          "name": "update",
+          "line": 4
+        }
+      ],
+      "imports": [],
+      "directTestConsumers": [
+        "tests/fixtures/compiler_contracts/state_cells/callable.invalid.panack",
+        "tests/fixtures/compiler_contracts/state_cells/captures.panack",
+        "tests/fixtures/compiler_contracts/state_cells/cell.invalid.panack",
+        "tests/fixtures/compiler_contracts/state_cells/hidden-generic.invalid.panack",
+        "tests/fixtures/compiler_contracts/state_cells/impure-update.invalid.panack",
+        "tests/fixtures/compiler_contracts/state_cells/map-key.invalid.panack",
+        "tests/fixtures/compiler_contracts/state_cells/ordinary.panack",
+        "tests/fixtures/compiler_contracts/state_cells/pure.invalid.panack",
+        "tests/fixtures/compiler_contracts/state_cells/record.invalid.panack",
+        "tests/fixtures/compiler_contracts/state_cells/recursive.panack",
+        "tests/fixtures/compiler_contracts/state_cells/resource.invalid.panack",
+        "tests/fixtures/compiler_contracts/state_cells/set-element.invalid.panack",
+        "tests/fixtures/compiler_contracts/state_cells/transitive.invalid.panack",
+        "tests/state_cells.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/state/async.panack",
+      "module": "stdlib/state/async",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "create",
+          "line": 2
+        },
+        {
+          "name": "read",
+          "line": 3
+        },
+        {
+          "name": "update",
+          "line": 4
+        }
+      ],
+      "imports": [],
+      "directTestConsumers": [
+        "tests/fixtures/compiler_contracts/state_cells/async.panack",
+        "tests/fixtures/compiler_contracts/state_cells/captures.panack",
+        "tests/fixtures/compiler_contracts/state_cells/closure-generic.invalid.panack"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/tcp.panack",
+      "module": "stdlib/tcp",
+      "measurement": "eligible",
+      "publicFunctionDeclarations": [
+        {
+          "name": "exchange",
+          "line": 13
+        },
+        {
+          "name": "serve",
+          "line": 17
+        },
+        {
+          "name": "serve_stream",
+          "line": 22
+        },
+        {
+          "name": "read_chunk",
+          "line": 27
+        }
+      ],
+      "imports": [],
+      "directTestConsumers": [
+        "tests/namespace_seed.sh",
+        "tests/source_coverage/scope.panack",
+        "tests/tcp.sh",
+        "tests/tcp_serve.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/tcp_service.panack",
+      "module": "stdlib/tcp_service",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "serve",
+          "line": 15
+        }
+      ],
+      "imports": [],
+      "directTestConsumers": [],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/testing.panack",
+      "module": "stdlib/testing",
+      "measurement": "eligible",
+      "publicFunctionDeclarations": [
+        {
+          "name": "expect",
+          "line": 4
+        },
+        {
+          "name": "equal_str",
+          "line": 12
+        },
+        {
+          "name": "equal_nat",
+          "line": 16
+        },
+        {
+          "name": "report",
+          "line": 22
+        }
+      ],
+      "imports": [],
+      "directTestConsumers": [
+        "tests/fixtures/compiler_contracts/snapshot_probe.panack",
+        "tests/fixtures/host_runtime/library_commands.panack",
+        "tests/fixtures/host_runtime/library_reports.panack",
+        "tests/functional/cases/cli_check_disasm/main.panack",
+        "tests/functional/cases/cli_commands/main.panack",
+        "tests/functional/cases/cli_diagnostic_display/main.panack",
+        "tests/functional/cases/cli_environment_files/main.panack",
+        "tests/functional/cases/cli_explanations/main.panack",
+        "tests/functional/cases/cli_explanations/proofs.panack",
+        "tests/functional/cases/cli_explanations/support.panack",
+        "tests/functional/cases/cli_rational_failures/main.panack",
+        "tests/functional/cases/runner_smoke/main.panack",
+        "tests/functional/cases/testing_commands/main.panack",
+        "tests/functional/cases/testing_library/main.panack",
+        "tests/namespace_seed.sh",
+        "tests/runner/bytecode_native_unit.panack",
+        "tests/runner/bytecode_unit.panack",
+        "tests/runner/compiler_coverage_cli.panack",
+        "tests/runner/compiler_coverage_session_cli.panack",
+        "tests/runner/compiler_coverage_session_integrity_cli.panack",
+        "tests/runner/compiler_coverage_session_process_cli.panack",
+        "tests/runner/compiler_coverage_session_records_cli.panack",
+        "tests/runner/compiler_driver.panack",
+        "tests/runner/compiler_explanations_unit.panack",
+        "tests/runner/compiler_integration_unit.panack",
+        "tests/runner/compiler_lexer_unit.panack",
+        "tests/runner/compiler_parser_unit.panack",
+        "tests/runner/compiler_purity_unit.panack",
+        "tests/runner/compiler_resolver_unit.panack",
+        "tests/runner/compiler_source_inventory_cli.panack",
+        "tests/runner/compiler_source_maps_cli.panack",
+        "tests/runner/compiler_source_spans_unit.panack",
+        "tests/runner/compiler_suites/body_cache.panack",
+        "tests/runner/compiler_suites/checker.panack",
+        "tests/runner/compiler_suites/code_cache.panack",
+        "tests/runner/compiler_suites/contracts.panack",
+        "tests/runner/compiler_suites/coverage.panack",
+        "tests/runner/compiler_suites/instruction_sources.panack",
+        "tests/runner/compiler_suites/loader_confinement.panack",
+        "tests/runner/compiler_suites/module_bindings.panack",
+        "tests/runner/compiler_suites/module_reuse.panack",
+        "tests/runner/compiler_suites/module_summaries.panack",
+        "tests/runner/compiler_suites/package_source_limits.panack",
+        "tests/runner/compiler_suites/project_preparation.panack",
+        "tests/runner/compiler_suites/source_inventory.panack",
+        "tests/runner/compiler_suites/source_maps.panack",
+        "tests/runner/host_runtime_unit.panack",
+        "tests/runner/main.panack",
+        "tests/runner/package_archive_unit.panack",
+        "tests/runner/package_case_fold_unit.panack",
+        "tests/runner/package_diagnostic_unit.panack",
+        "tests/runner/package_filesystem_unit.panack",
+        "tests/runner/package_git_unit.panack",
+        "tests/runner/package_lock_unit.panack",
+        "tests/runner/package_manifest_unit.panack",
+        "tests/runner/package_sha256_unit.panack",
+        "tests/runner/package_tar_unit.panack",
+        "tests/runner/report_capture_unit.panack",
+        "tests/runner/resolved_project_unit.panack",
+        "tests/runner/stdlib_unit.panack",
+        "tests/runner/vm_unit.panack",
+        "tests/source_coverage/scope.panack",
+        "tests/stdlib_support.sh",
+        "tests/unit/harness/compiler_shared.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/testing/filesystem.panack",
+      "module": "stdlib/testing/filesystem",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "create_workspace",
+          "line": 3
+        },
+        {
+          "name": "remove_empty",
+          "line": 7
+        }
+      ],
+      "imports": [
+        "stdlib/testing_files",
+        "stdlib/testing_files"
+      ],
+      "directTestConsumers": [],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/testing/filesystem/async.panack",
+      "module": "stdlib/testing/filesystem/async",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "create_workspace",
+          "line": 4
+        },
+        {
+          "name": "remove_empty",
+          "line": 12
+        },
+        {
+          "name": "discover_fixtures",
+          "line": 15
+        }
+      ],
+      "imports": [
+        "stdlib/testing_files",
+        "stdlib/filesystem/legacy/async",
+        "stdlib/filesystem"
+      ],
+      "directTestConsumers": [
+        "tests/stdlib_support.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/testing/process.panack",
+      "module": "stdlib/testing/process",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "run",
+          "line": 4
+        }
+      ],
+      "imports": [
+        "stdlib/testing_commands",
+        "stdlib/testing_commands"
+      ],
+      "directTestConsumers": [],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/testing/process/async.panack",
+      "module": "stdlib/testing/process/async",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "capture_report",
+          "line": 20
+        },
+        {
+          "name": "run",
+          "line": 45
+        },
+        {
+          "name": "expect_command_error",
+          "line": 50
+        }
+      ],
+      "imports": [
+        "stdlib/testing_commands",
+        "stdlib/testing",
+        "stdlib/testing",
+        "stdlib/filesystem/legacy/async",
+        "stdlib/process/async",
+        "stdlib/process"
+      ],
+      "directTestConsumers": [
+        "tests/stdlib_support.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/testing/reporting.panack",
+      "module": "stdlib/testing/reporting",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "report",
+          "line": 6
+        }
+      ],
+      "imports": [
+        "stdlib/testing",
+        "stdlib/console/errors",
+        "stdlib/console"
+      ],
+      "directTestConsumers": [],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/testing/reporting/async.panack",
+      "module": "stdlib/testing/reporting/async",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "report",
+          "line": 6
+        }
+      ],
+      "imports": [
+        "stdlib/testing",
+        "stdlib/console/errors",
+        "stdlib/console/async"
+      ],
+      "directTestConsumers": [
+        "tests/stdlib_support.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/testing_async.panack",
+      "module": "stdlib/testing_async",
+      "measurement": "eligible",
+      "publicFunctionDeclarations": [
+        {
+          "name": "read",
+          "line": 2
+        }
+      ],
+      "imports": [],
+      "directTestConsumers": [
+        "tests/experiments/source_coverage/run.cjs",
+        "tests/fixtures/compiler_contracts/anonymous_functions/async.panack",
+        "tests/functional/cases/async_await/main.panack",
+        "tests/functional/cases/owned_async_handlers/main.panack",
+        "tests/namespace_seed.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/testing_commands.panack",
+      "module": "stdlib/testing_commands",
+      "measurement": "eligible",
+      "publicFunctionDeclarations": [
+        {
+          "name": "command_output",
+          "line": 23
+        },
+        {
+          "name": "command_result",
+          "line": 48
+        },
+        {
+          "name": "harness_command",
+          "line": 77
+        },
+        {
+          "name": "capture_report",
+          "line": 113
+        },
+        {
+          "name": "run_command",
+          "line": 140
+        },
+        {
+          "name": "expect_command_error",
+          "line": 147
+        }
+      ],
+      "imports": [
+        "stdlib/testing",
+        "stdlib/testing",
+        "stdlib/process/legacy",
+        "stdlib/host",
+        "stdlib/path",
+        "stdlib/time",
+        "stdlib/host",
+        "stdlib/filesystem/legacy",
+        "stdlib/testing",
+        "stdlib/process/legacy"
+      ],
+      "directTestConsumers": [
+        "tests/fixtures/host_runtime/library_commands.panack",
+        "tests/functional/cases/cli_check_disasm/main.panack",
+        "tests/functional/cases/cli_commands/main.panack",
+        "tests/functional/cases/cli_diagnostic_display/main.panack",
+        "tests/functional/cases/cli_environment_files/main.panack",
+        "tests/functional/cases/runner_smoke/main.panack",
+        "tests/functional/cases/testing_commands/main.panack",
+        "tests/namespace_seed.sh",
+        "tests/runner/compiler_coverage_cli.panack",
+        "tests/runner/compiler_coverage_session_cli.panack",
+        "tests/runner/compiler_coverage_session_helpers.panack",
+        "tests/runner/compiler_coverage_session_integrity_cli.panack",
+        "tests/runner/compiler_coverage_session_process_cli.panack",
+        "tests/runner/compiler_coverage_session_records_cli.panack",
+        "tests/runner/compiler_driver.panack",
+        "tests/runner/compiler_integration_unit.panack",
+        "tests/runner/harness_command.panack",
+        "tests/runner/host_runtime_unit.panack",
+        "tests/runner/main.panack",
+        "tests/runner/report_capture.panack",
+        "tests/runner/report_capture_unit.panack",
+        "tests/runner/vm_unit.panack",
+        "tests/source_coverage/scope.panack"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/testing_files.panack",
+      "module": "stdlib/testing_files",
+      "measurement": "eligible",
+      "publicFunctionDeclarations": [
+        {
+          "name": "workspace_create",
+          "line": 6
+        },
+        {
+          "name": "remove_empty",
+          "line": 16
+        },
+        {
+          "name": "discover_fixtures",
+          "line": 24
+        }
+      ],
+      "imports": [
+        "stdlib/host",
+        "stdlib/filesystem"
+      ],
+      "directTestConsumers": [
+        "tests/functional/cases/cli_check_disasm/main.panack",
+        "tests/functional/cases/cli_commands/main.panack",
+        "tests/functional/cases/cli_diagnostic_display/main.panack",
+        "tests/functional/cases/cli_environment_files/main.panack",
+        "tests/functional/cases/cli_explanations/main.panack",
+        "tests/functional/cases/cli_explanations/proofs.panack",
+        "tests/functional/cases/cli_rational_failures/main.panack",
+        "tests/functional/cases/testing_fixtures/main.panack",
+        "tests/namespace_seed.sh",
+        "tests/runner/bytecode_native_unit.panack",
+        "tests/runner/compiler_coverage_cli.panack",
+        "tests/runner/compiler_coverage_session_cli.panack",
+        "tests/runner/compiler_coverage_session_integrity_cli.panack",
+        "tests/runner/compiler_coverage_session_process_cli.panack",
+        "tests/runner/compiler_coverage_session_records_cli.panack",
+        "tests/runner/compiler_driver.panack",
+        "tests/runner/compiler_integration_unit.panack",
+        "tests/runner/compiler_source_inventory_cli.panack",
+        "tests/runner/compiler_source_maps_cli.panack",
+        "tests/runner/compiler_suites/loader_confinement.panack",
+        "tests/runner/compiler_suites/module_reuse.panack",
+        "tests/runner/compiler_suites/package_source_limits.panack",
+        "tests/runner/host_runtime_unit.panack",
+        "tests/runner/main.panack",
+        "tests/runner/package_filesystem_unit.panack",
+        "tests/runner/report_capture_unit.panack",
+        "tests/runner/vm_unit.panack",
+        "tests/source_coverage/scope.panack"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/time.panack",
+      "module": "stdlib/time",
+      "measurement": "eligible",
+      "publicFunctionDeclarations": [
+        {
+          "name": "from_nanoseconds",
+          "line": 6
+        },
+        {
+          "name": "from_seconds",
+          "line": 8
+        },
+        {
+          "name": "now",
+          "line": 11
+        },
+        {
+          "name": "seconds",
+          "line": 12
+        },
+        {
+          "name": "milliseconds",
+          "line": 15
+        },
+        {
+          "name": "nanoseconds",
+          "line": 20
+        },
+        {
+          "name": "from_fractional_seconds",
+          "line": 21
+        },
+        {
+          "name": "sleep",
+          "line": 26
+        }
+      ],
+      "imports": [
+        "stdlib/time/errors",
+        "stdlib/time/errors",
+        "stdlib/host",
+        "stdlib/core"
+      ],
+      "directTestConsumers": [
+        "tests/async_stdlib.sh",
+        "tests/fixtures/compiler_contracts/host_types/isolated_process_effect.panack",
+        "tests/functional/cases/cli_check_disasm/main.panack",
+        "tests/functional/cases/cli_commands/main.panack",
+        "tests/functional/cases/cli_diagnostic_display/main.panack",
+        "tests/functional/cases/cli_environment_files/main.panack",
+        "tests/functional/cases/cli_explanations/main.panack",
+        "tests/functional/cases/cli_explanations/proofs.panack",
+        "tests/functional/cases/cli_explanations/support.panack",
+        "tests/functional/cases/cli_rational_failures/main.panack",
+        "tests/functional/cases/host_capabilities/main.panack",
+        "tests/functional/cases/host_process/main.panack",
+        "tests/functional/cases/host_types/main.panack",
+        "tests/functional/cases/owned_core_methods/main.panack",
+        "tests/functional/cases/owned_intrinsics/main.panack",
+        "tests/functional/cases/runner_smoke/main.panack",
+        "tests/functional/cases/testing_commands/main.panack",
+        "tests/functional/failures/pure_clock/main.panack",
+        "tests/http_process.sh",
+        "tests/http_stream_async.sh",
+        "tests/http_stream_errors.sh",
+        "tests/namespace_seed.sh",
+        "tests/process_async.sh",
+        "tests/runner/bytecode_native_unit.panack",
+        "tests/runner/compiler_coverage_cli.panack",
+        "tests/runner/compiler_coverage_session_helpers.panack",
+        "tests/runner/compiler_driver.panack",
+        "tests/runner/compiler_integration_unit.panack",
+        "tests/runner/compiler_source_inventory_cli.panack",
+        "tests/runner/compiler_source_maps_cli.panack",
+        "tests/runner/compiler_suites/loader_confinement.panack",
+        "tests/runner/compiler_suites/package_source_limits.panack",
+        "tests/runner/host_runtime_unit.panack",
+        "tests/runner/main.panack",
+        "tests/runner/oracle_command.panack",
+        "tests/runner/package_filesystem_unit.panack",
+        "tests/runner/report_capture_unit.panack",
+        "tests/runner/stdlib_unit.panack",
+        "tests/runner/vm_unit.panack",
+        "tests/stdlib_support.sh",
+        "tests/tcp.sh",
+        "tests/tcp_canonical.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/time/async.panack",
+      "module": "stdlib/time/async",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "now",
+          "line": 9
+        },
+        {
+          "name": "sleep",
+          "line": 14
+        }
+      ],
+      "imports": [
+        "stdlib/time/errors",
+        "stdlib/time/errors",
+        "stdlib/host",
+        "stdlib/time"
+      ],
+      "directTestConsumers": [
+        "tests/async_stdlib.sh",
+        "tests/unit/harness/distribution.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/time/errors.panack",
+      "module": "stdlib/time/errors",
+      "measurement": "unmeasured",
+      "publicFunctionDeclarations": [
+        {
+          "name": "render",
+          "line": 5
+        },
+        {
+          "name": "convert",
+          "line": 19
+        }
+      ],
+      "imports": [
+        "stdlib/host"
+      ],
+      "directTestConsumers": [
+        "tests/domain_errors.sh"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    },
+    {
+      "path": "src/stdlib/validation.panack",
+      "module": "stdlib/validation",
+      "measurement": "eligible",
+      "publicFunctionDeclarations": [
+        {
+          "name": "render",
+          "line": 92
+        }
+      ],
+      "imports": [],
+      "directTestConsumers": [
+        "tests/runner/compiler_suites/contracts.panack"
+      ],
+      "assertionReview": "pending: source references alone are not proof of an executed assertion"
+    }
+  ]
+}

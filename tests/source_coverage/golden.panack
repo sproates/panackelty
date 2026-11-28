@@ -10,4 +10,5 @@ main(): Void {
   for i in 0..3 { total = total + choose(value); }
   if value && (total > 0 || false) { print(arms(First())); } else { print(arms(Second())); }
   print(total)
+  print("hello".ends_with(if value { "lo" } else { "longer than hello" }))
 }

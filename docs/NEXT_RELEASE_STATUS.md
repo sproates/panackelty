@@ -39,7 +39,8 @@ candidates, not extra commitments.
 Previous alpha.17 scope is now **alpha.18**, previous alpha.18 is **alpha.19**,
 and previous alpha.19 is **alpha.20**. See the [allocation table](roadmap/records/next-release--agreed-scope-2026-10-06.md#release-boundary-agreed--28-november-2026).
 The owner selected **stdlib test coverage improvement** as the first alpha.17
-task. The [proposed four-slice plan](STDLIB_COVERAGE_PLAN.md) starts by separating
-existing but unmeasured tests from genuine gaps. Implementation has not started;
-the detailed plan is awaiting review. RM#163 remains planned, and the other
+task. The [four-slice plan](STDLIB_COVERAGE_PLAN.md) is authorised and in progress.
+SCV1 has inventoried all 69 modules for assertion review and identified a
+core-method measurement defect. Its candidate correction passes focused parity
+checks; no slice is accepted yet. Success is behavioural, not a percentage target. RM#163 remains planned, and the other
 allocations retain their existing acceptance boundaries.

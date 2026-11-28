@@ -6,7 +6,7 @@ import project/src/compiler/loader::{load_project_for_inventory, loaded_binding_
 import project/src/compiler/project_frontend::{prepare_project_program}
 pub import project/src/compiler/module_bindings::{DeclarationIdentity, ModuleIdentity}
 import project/src/compiler/module_bindings::{source_module_identity}
-import project/src/compiler/module_emission::{module_emission_symbol}
+import project/src/compiler/module_emission::{module_emission_symbol, module_emission_callable_symbol}
 pub import project/src/compiler/parser::{TopLevel}
 import project/src/compiler/parser::{TopLevel.FunctionDeclaration, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration}
 pub import project/src/compiler/types::{Diagnostic}
@@ -352,8 +352,19 @@ pub pure coverage_source_function_name(
   declaration: TopLevel
 ): Str {
   match declaration {
-    FunctionDeclaration(name, parameters, result, pure_effect, async_effect, body, types) =>
-      module_emission_symbol(graph, entry, DeclarationIdentity(module, name)),
+    FunctionDeclaration(name, parameters, result, pure_effect, async_effect, body, types) => {
+      mut symbol = module_emission_symbol(graph, entry, DeclarationIdentity(module, name))
+      for bindings in graph.modules {
+        if bindings.identity == module {
+          for binding in bindings.declarations {
+            if binding.identity.name == name {
+              symbol = module_emission_callable_symbol(graph, entry, binding)
+            }
+          }
+        }
+      }
+      symbol
+    },
     ImportDeclaration(path) => "",
     TypeDeclaration(name, base, guard_name, guard) => "",
     RecordDeclaration(name, types, fields) => "",

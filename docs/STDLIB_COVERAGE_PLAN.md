@@ -1,7 +1,8 @@
 # Standard-library test coverage
 
 28 November 2026. The owner selected stdlib coverage as the first alpha.17 task.
-This is the proposed delivery plan; implementation has not started. It is a
+The owner authorised execution on 28 November. SCV1 is in progress;
+[the inventory and findings](STDLIB_COVERAGE_INVENTORY.md) record current evidence. It is a
 bounded improvement to existing coverage, separate from the broader coverage
 architecture review. No separate issue has been created.
 
@@ -40,22 +41,21 @@ Reuse existing assertions before adding tests. Every discovered gap must end wit
 an asserting test or a specific reviewed reason it is outside this task. Do not
 silently defer difficult gaps and declare completion.
 
-No arbitrary percentage target is set from the current partial denominator.
-SCV1 will propose module-level targets from the inventory, with branch gaps and
-unavailable measurements visible. A higher aggregate percentage alone is not
-acceptance. Expanding measured scope may initially lower it.
+The owner clarified that this task does not target a percentage. Completion is
+judged against the behavioural inventory, with branch gaps and unavailable
+measurements visible. Expanding measured scope may initially lower the percentage.
 
 ## Delivery slices
 
-Weights are provisional effort allocations, totalling 100. All slices are planned
-and have zero accepted delivery credit. They are not time estimates.
+Weights are provisional effort allocations, totalling 100. SCV1 is in progress, with an early SCV2 measurement correction under focused
+validation. All slices still have zero accepted delivery credit. They are not time estimates.
 
 | Slice | Weight | Work and exit evidence |
 | --- | ---: | --- |
-| SCV1: Establish the test and measurement baseline | 15 | A finite matrix of all 69 modules and public operations, mapped to existing asserting tests, missing cases, native backing and measurement status. Explain the 138 unavailable lines by cause. Distinguish unmeasured, unavailable, observed zero and declaration-only items. Propose defensible module-level targets and identify any collector limitations before promising their repair. |
+| SCV1: Establish the test and measurement baseline | 15 | A finite matrix of all 69 modules and public operations, mapped to existing asserting tests, missing cases, native backing and measurement status. Explain the 138 unavailable lines by cause. Distinguish unmeasured, unavailable, observed zero and declaration-only items. Identify collector limitations before promising their repair. |
 | SCV2: Measure the tests already present | 30 | Register suitable existing tests in bounded stdlib collection batches, preserving assertions, child-process observations and source identity. Adapt temporary generated fixtures where required without creating duplicate test implementations. Demonstrate one ordinary, async, resource and State case end to end before migrating the remainder. Retain explicit unsupported cases. Provide a focused stdlib collection path that does not execute compiler self-compilation, with complete-batch integrity checks and safe report aggregation. |
 | SCV3: Fill the behavioural gaps | 40 | Add tests from the SCV1 matrix, updating it as each gap closes. Batch pure/data/error-rendering cases first, then host resources and async/State lifecycle cases. Verify outputs and effects, failure details, bounds, cleanup and ordinary/async parity where applicable. Use deterministic peers, temporary resources and existing fault injection. Test cancellation, queued State operations and resource reuse where those are contractual risks. Add native checks for native behaviour rather than claiming Panack wrapper coverage proves it. |
-| SCV4: Verify and publish the result | 15 | Publish per-module before/after coverage with denominator changes separated from added execution. Explain every remaining unavailable or unmeasured executable area. Meet the accepted contract matrix and targets, pass applicable final regression checks, run the expanded collection on GitHub and verify public report provenance. Update the manifest, coverage documentation, release summary and completion record. |
+| SCV4: Verify and publish the result | 15 | Publish per-module before/after coverage with denominator changes separated from added execution. Explain every remaining unavailable or unmeasured executable area. Meet the accepted contract matrix, pass applicable final regression checks, run the expanded collection on GitHub and verify public report provenance. Update the manifest, coverage documentation, release summary and completion record. |
 
 SCV1 precedes SCV2; SCV2 establishes useful measurements before SCV3 claims gains.
 SCV3 is delivered in coherent batches, not one PR per function. Expect roughly

@@ -19,8 +19,12 @@ const p=readPlan(prefix,entry,checkout,regular(compilerIdentity)),seen=new Set()
 for(const value of ['true','false']) {
   const directory=path.join(work,value);
   assert.equal(run(['coverage-session',directory,prefix+'.bc',prefix+'.inv','--',value],
-    {PANACKELTY_BOOTSTRAP_ROOT:checkout}),value==='true'?'2\n21\n':'3\n27\n');
+    {PANACKELTY_BOOTSTRAP_ROOT:checkout}),value==='true'?'2\n21\ntrue\n':'3\n27\nfalse\n');
   const observed=observations(p,readSession(directory,[p],seen).totals[0]);
+  const core = observed.find(source => source.path === 'src/stdlib/core.panack');
+  const suffix = core.items.find(item => item.kind === 'function' && item.detail === '$owned$Str$ends_with');
+  assert.equal(suffix.state, 'observed', 'core method must have a source association');
+  assert.equal(suffix.attempted, 1n, 'core method must count its actual execution');
   const text=run(['coverage-aggregate','--source',entry,prefix+'.inv','--session',directory]);
   const rows=new Map(text.trimEnd().split('\n').filter(row=>row.includes('\t')).map(row=>{const columns=row.split('\t');return [columns[0]+'\t'+columns[1],columns];}));
   let compared=0;

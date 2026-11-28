@@ -1,7 +1,7 @@
 # Alpha.16 release acceptance
 
 Version: `0.1.0-alpha.16`. Prepared 28 November 2026.
-Status: native packages, installer and browser package published and verified; website acceptance and publication pending.
+Status: complete. Native packages, default installer, browser package and website are published and verified.
 Browser runtime bundle preflight found and corrected omitted console-read and State source/header entries. The bundle now passes its transitive-header integrity check.
 
 Source baseline: `90b2ec5f473c91c23acb593da7b61bd3ec968aec` on next.
@@ -30,7 +30,8 @@ is the final delivery step. Existing implementation evidence is preserved in
 - Published-source release validation passed in 1625 seconds on Ubuntu.
 - Installer promotion: prepared on `release/alpha16-installer`; all five focused installer harness cases passed, including upgrade/rollback and failure preservation. Final local `make check` passed in 728 seconds; rebasing the promotion onto merged main preserved its exact file tree. Public README and candidate-installer acceptance passed on macOS, including default selection, repeat install, explicit older release and removal. The owner approved final hosted checks and merge of PR #711 when green on 28 November. All hosted gates passed in workflow 46102883316, including public Linux/macOS installer acceptance. PR #711 merged as `2fa1da4`; the downloaded public-main installer exactly matches the accepted bytes.
 - Browser local compatibility: 29 runtime/asset/release tests and 30 real-browser checks passed across Chromium, Firefox and WebKit using the candidate VM/compiler/stdlib. Browser PR [#16](https://github.com/sproates/panackelty-browser/pull/16), commit `475b8a2296d1dc3011c6cff4ca0e3281825e5d0d`, pins the verified public bundle and source. The public bundle is byte-identical to the tested candidate; rebuilding from it passed all 29 tests and the updated footer checks in all three browsers. Hosted checks passed and browser v0.4.1 was published by workflow 46106558913 after PRs #16–#19. Public SHA-256 is `d5ccc8fef6cfe5089232a9d7de7ebe48495800bd88e680289c15b6762ea589e4`; asset identity is `ad161a9f8ce8ebd0239bac192feda66670366032337cc294549ef68456982aea`. Compiler seed, core manifest and all artifact hashes were verified. PR #17 corrected a squash body containing inherited CI-skip directives; no product changes were needed.
-- Website PR [#81](https://github.com/sproates/panackelty-website/pull/81): 56 website tests and assembly checks passed; 30 playground scenarios passed through Panack HTTP server. Public v0.4.1 assets match tested code; differing gzip bytes decode to the identical compiler seed. Six final public-artifact worker/State checks passed across all three engines, and the public phone preview executed successfully. Owner approval, hosted checks, deployment and live verification remain.
+- Website PR [#81](https://github.com/sproates/panackelty-website/pull/81): 56 website tests and assembly checks passed; 30 playground scenarios passed through Panack HTTP server. Public v0.4.1 assets match tested code; differing gzip bytes decode to the identical compiler seed. Six final public-artifact worker/State checks passed across all three engines, and the public phone preview executed successfully. The owner approved publication and all three article notes on 28 November. All exact-head hosted gates passed in website workflow 46125684113 for `19d8b54`. PR #81 merged as `0ced1655eb725e00ed7ea305dedccb1062d9b0c3`; publication workflow 46126200959 reused that validated tree and passed deployed-byte/provenance verification. The public `publication.json` identifies those exact source, validation and publication records.
+- Live acceptance: on 28 November, the production homepage, release history, installation page, three updated articles and standard-library reference returned successfully with alpha.16 content. The live playground reported alpha.16 and compiled/executed the retained closure and State example with exact output `1`, `2`, `2`. The www address redirected to the canonical site. No package, installer, playground or website delivery remains.
 - Preview compatibility: direct WASI imports avoid unused modules, and website assembly embeds unchanged stylesheet contents and omits an unused clipboard script. All scenarios remain covered; the bounded preview server is used with one worker and fresh editorial servers per engine. Browser PR #19 adds manual publication recovery after no push run appeared for PR #18; manual execution preserves the full validation pipeline.
 
 ## Public artifact hashes
@@ -132,29 +133,29 @@ Follow the [website promotion procedure](https://github.com/sproates/panackelty-
       claims, broken documentation paths, incorrect ordering and duplicated
       release sections. Historical descriptions must retain their correct
       version context and link to the intended older release where appropriate.
-- [ ] Before changing published articles, tell the owner which articles and what
+- [x] Before changing published articles, tell the owner which articles and what
       changes are proposed. Show the changes in context and obtain review; a
       general website audit is not permission to silently rewrite articles.
-- [ ] Validate the assembled website, downloads, executable examples and browser
+- [x] Validate the assembled website, downloads, executable examples and browser
       integration against the exact candidate. Verify release links and pins.
-- [ ] Provide a working phone/desktop preview of the complete candidate and obtain
+- [x] Provide a working phone/desktop preview of the complete candidate and obtain
       the required publication approval. Include the updated playground in that
       preview; do not publish the native promotion first and catch up later.
-- [ ] Reconcile release issues and records. The status must say that only website
+- [x] Reconcile release issues and records. The status must say that only website
       publication and live verification remain. Prepare the completion record
       without claiming it has already happened.
 
 ## 6. Publish the website — final delivery step
 
-- [ ] Immediately before publication, confirm steps 1–5 are complete for the
+- [x] Immediately before publication, confirm steps 1–5 are complete for the
       exact candidate and that no package, installer or playground work remains.
-- [ ] Merge/publish the approved website candidate through its normal deployment
+- [x] Merge/publish the approved website candidate through its normal deployment
       workflow. This is the last user-facing delivery action in the release.
-- [ ] Verify production deployment identity and bytes, then check the live
+- [x] Verify production deployment identity and bytes, then check the live
       homepage, release history, downloads, installer instructions, updated
       articles/guides and playground. Confirm the live playground reports the new
       compiler version and successfully compiles and runs an example.
-- [ ] Record the live verification evidence, reconcile completed issues and update
+- [x] Record the live verification evidence, reconcile completed issues and update
       the release acceptance record and integration-branch status. Only now report
       the release as complete. Administrative recording must not conceal another
       unfinished delivery step.

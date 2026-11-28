@@ -1,7 +1,7 @@
 # Roadmap
 
-Panackelty **0.1.0-alpha.16 native packages are published**. The overall rollout
-has completed installer and browser promotion; website acceptance and publication remain. See
+Panackelty **0.1.0-alpha.16 is released**. Native packages, the default installer,
+matching browser playground and website are published and verified. See
 the [release notes](CHANGELOG.md) and [acceptance evidence](docs/releases/ALPHA16_RELEASE_ACCEPTANCE.md).
 
 ## Release rollout: alpha.16 — faster tools and more expressive programs
@@ -10,7 +10,7 @@ The active integration branch is `next`. See [the current status and allocations
 Alpha.15 is complete. Alpha.16 scope is closed around the delivered VM/compiler
 optimisations, async stdlib, anonymous functions, closures, State and their
 examples/documentation. Release packages, installer and playground verification
-precede the final website promotion. Unfinished work is allocated to alpha.17.
+completed before the final website promotion; live acceptance passed. Unfinished work is allocated to alpha.17.
 
 ## Nightly artifact resilience: 26 October 2026
 

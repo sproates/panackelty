@@ -1,11 +1,11 @@
 # Next release status
 
 Updated: 28 November 2026. Release: **v0.1.0-alpha.16**. Integration branch: **next**.
-Native release: **v0.1.0-alpha.16**, published and verified. The default installer and matching browser v0.4.1 are also published and verified. The overall rollout awaits final website approval, publication and live verification.
+Native release: **v0.1.0-alpha.16**, published and verified. The default installer and matching browser v0.4.1 are also published and verified. The complete rollout is finished: website publication and live verification passed.
 
 The owner closed alpha.16 scope around completed work on 28 November. The
-[release acceptance checklist](releases/ALPHA16_RELEASE_ACCEPTANCE.md) owns the
-remaining delivery gates. The [implementation snapshot](ALPHA16_IMPLEMENTATION_STATUS.md)
+[release acceptance checklist](releases/ALPHA16_RELEASE_ACCEPTANCE.md) records the
+completed delivery gates. The [implementation snapshot](ALPHA16_IMPLEMENTATION_STATUS.md)
 preserves detailed test and integration evidence.
 
 ## Alpha.16 scope
@@ -19,7 +19,7 @@ preserves detailed test and integration evidence.
 | Exact-source native release validation and public packages | PR #710 merged after local validation (761 seconds) and all hosted gates passed, including one unchanged-source macOS retry. Release workflow 46098177472 succeeded. All eight public assets match GitHub digests and release provenance; both target package jobs and macOS public acceptance passed. |
 | Default installer promotion and public-artifact acceptance | PR #711 merged as `2fa1da4` after every hosted gate passed, including Linux and macOS public installer acceptance. The public main installer is byte-identical to the tested script and defaults to alpha.16. |
 | Matching browser playground package | Browser v0.4.1 is published after PRs #16–#19 and workflow 46106558913. Its public archive, asset digests, compiler seed and core manifest match the verified alpha.16 inputs. Runtime contracts and all three browser engines passed. |
-| Website promotion and live verification | Website PR [#81](https://github.com/sproates/panackelty-website/pull/81) is the final promotion. Public-artifact checks, all 30 playground scenarios and editorial checks passed locally; owner approval, hosted gates, publication and live verification remain. |
+| Website promotion and live verification | Website PR [#81](https://github.com/sproates/panackelty-website/pull/81) merged as `0ced1655`. Exact-head checks 46125684113 and publication 46126200959 passed. Live bytes/provenance, pages and alpha.16 playground execution are verified; the closure/State example returned `1`, `2`, `2`. The release is complete. |
 
 ## Following allocations
 
